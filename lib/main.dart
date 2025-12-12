@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'View/Homepage.dart';
+import 'views/authentication/on_boarding_screen.dart';
 
 
 void main() {
@@ -61,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
     Future.delayed(const Duration(seconds: 2),(){
       Navigator.pushReplacement(context, PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation ) => Homepage(),
+        pageBuilder: (context, animation, secondaryAnimation ) => const OnBoardingScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
