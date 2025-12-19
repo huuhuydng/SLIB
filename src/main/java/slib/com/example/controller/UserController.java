@@ -1,9 +1,13 @@
 package slib.com.example.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import slib.com.example.dto.RegisterRequest;
+import slib.com.example.dto.UserProfileResponse;
 import slib.com.example.entity.UserEntity;
 import slib.com.example.service.UserService;
 
@@ -11,164 +15,151 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import slib.com.example.service.VerificationService;
-
 
 @RestController
-@RequestMapping("/slib/users") // Đặt đường dẫn chung cho gọn (VD: http://host/slib/users/...)
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+@RequestMapping("/slib/users")
+@CrossOrigin(origins = "*", allowedHeaders = "*") // cho phép Flutter gọi vào
 public class UserController {
 
-    @Autowired
-    UserService userService;
-    @Autowired
-    VerificationService verificationService;
+    private final UserService userService;
 
-    // 1. Lấy tất cả user
+    // Constructor Injection (Thay cho @Autowired)
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    // 1. NHÓM CHỨC NĂNG AUTH (Đăng ký / Đăng nhập)
+
+    // API: Đăng ký thành viên mới
+    // URL: POST http://localhost:8080/slib/users/register
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest request) {
+        try {
+            String response = userService.registerUser(request);
+            return ResponseEntity.ok(response); // Trả về JSON user từ Supabase
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // API: Đăng nhập
+    // URL: POST http://localhost:8080/slib/users/login
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody Map<String, String> loginData) {
+        String email = loginData.get("email");
+        String password = loginData.get("password");
+
+        try {
+            // Lấy Token JWT từ Supabase
+            String token = userService.login(email, password);
+            return ResponseEntity.ok(token);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body("Đăng nhập thất bại: " + e.getMessage());
+        }
+    }
+
+    // API: Xác thực OTP email
+    // URL: POST http://localhost:8080/slib/users/verify
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String token = request.get("token");
+
+        try {
+            String result = userService.verifyEmailOtp(email, token);
+            return ResponseEntity.ok(result); // Trả về Token để Flutter tự lưu và login luôn
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // 2. NHÓM CHỨC NĂNG LẤY DỮ LIỆU (GET)
+
+    // Lấy tất cả user
     // URL: GET http://localhost:8080/slib/users/getall
     @GetMapping("/getall")
     public List<UserEntity> getAllUsers() {
         return userService.getAllUsers();
     }
 
-    // 2. Tìm user theo Email
-    // URL: GET http://localhost:8080/slib/users/find-by-email?email=abc@test.com
+    // Tìm theo ID
+    // URL: GET http://localhost:8080/slib/users/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable UUID id) {
+        try {
+            UserEntity user = userService.getUserById(id);
+            return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    // Tìm theo Email
+    // URL: GET http://localhost:8080/slib/users/find-by-email?email=...
     @GetMapping("/find-by-email")
     public ResponseEntity<?> getUserByEmail(@RequestParam String email) {
-        UserEntity user = userService.getUserByEmail(email);
-        if (user != null) {
+        try {
+            UserEntity user = userService.getUserByEmail(email);
             return ResponseEntity.ok(user);
-        } else {
-            return ResponseEntity.status(404).body("Không tìm thấy email này");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
         }
     }
 
-    // 3. Tìm user theo MSSV
-    // URL: GET http://localhost:8080/slib/users/find-by-code?studentCode=SE123456
+    // Tìm theo MSSV
+    // URL: GET http://localhost:8080/slib/users/find-by-code?studentCode=...
     @GetMapping("/find-by-code")
     public ResponseEntity<?> getUserByStudentCode(@RequestParam String studentCode) {
-        UserEntity user = userService.getUserByStudentCode(studentCode);
-        if (user != null) {
+        try {
+            UserEntity user = userService.getUserByStudentCode(studentCode);
             return ResponseEntity.ok(user);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    // Lấy profile của chính mình từ token
+    @GetMapping("/me")
+    public ResponseEntity<?> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body("Token không hợp lệ hoặc hết hạn");
+        }
+        // Lấy email từ token đã giải mã
+        String email = userDetails.getUsername(); 
+        try {
+            UserProfileResponse profile = userService.getMyProfile(email);
+            return ResponseEntity.ok(profile);
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body("Không tìm thấy user: " + e.getMessage());
+        }
+    }
+
+    // 3. NHÓM CHỨC NĂNG SỬA / XÓA
+
+    // Cập nhật User
+    // URL: PUT http://localhost:8080/slib/users/update/{id}
+    // Body: { "fullName": "Tên Mới", "notiDevice": "Token Mới" }
+    @PutMapping("/update/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable UUID id, @RequestBody UserEntity userDetails) {
+        try {
+            UserEntity updatedUser = userService.updateUser(id, userDetails);
+            return ResponseEntity.ok(updatedUser);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Xóa User (Chỉ xóa ở bảng Public, user login vẫn còn)
+    // URL: DELETE http://localhost:8080/slib/users/delete/{id}
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable UUID id) {
+        boolean isDeleted = userService.deleteUser(id);
+        if (isDeleted) {
+            return ResponseEntity.ok("Đã xóa hồ sơ thành công.");
         } else {
-            return ResponseEntity.status(404).body("Không tìm thấy mã sinh viên này");
+            return ResponseEntity.status(404).body("Không tìm thấy ID để xóa.");
         }
     }
 
-    // 4. Tạo User mới (QUAN TRỌNG: Sửa @RequestParam -> @RequestBody)
-    // URL: POST http://localhost:8080/slib/users/create
-    // Body (JSON): { "studentCode": "...", "email": "..." }
-    @PostMapping("/create")
-    public ResponseEntity<?> createUser(@RequestBody UserEntity user) {
-        boolean success = userService.createUser(user);
-        if (success) {
-            return ResponseEntity.ok("Tạo user thành công!");
-        } else {
-            return ResponseEntity.badRequest().body("Lỗi: Email hoặc Mã SV đã tồn tại.");
-        }
-    }
-
-    // 5. Cập nhật User
-    // URL: PUT http://localhost:8080/slib/users/update
-    @PutMapping("/update")
-    public ResponseEntity<?> updateUser(@RequestBody UserEntity user) {
-        boolean success = userService.updateUser(user);
-        if (success) {
-            return ResponseEntity.ok("Cập nhật thành công!");
-        } else {
-            return ResponseEntity.badRequest().body("Lỗi: Không tìm thấy User để cập nhật (Thiếu ID).");
-        }
-    }
-
-    // 6. Xóa User (Sửa logic: Xóa theo ID thay vì gửi cả object)
-    // URL: DELETE http://localhost:8080/slib/users/delete?id=...
-    // Lưu ý: Bạn cần update UserService hoặc dùng Repository để xóa theo ID
-    @DeleteMapping("/delete")
-    public ResponseEntity<?> deleteUser(@RequestParam UUID id) {
-        // Tạm thời tạo 1 object giả chỉ chứa ID để gọi hàm deleteUser của bạn
-        UserEntity userToDelete = new UserEntity();
-        userToDelete.setUserId(id);
-
-        boolean success = userService.deleteUser(userToDelete);
-        if (success) {
-            return ResponseEntity.ok("Đã xóa user.");
-        } else {
-            return ResponseEntity.status(404).body("Xóa thất bại.");
-        }
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody UserEntity user) {
-        boolean success = userService.checkUserAuth(
-                user.getEmail(),
-                user.getPassword()
-        );
-        if (success) {
-            //ko trả mk ra ngoài
-            UserEntity userEntity = userService.getUserByEmail(user.getEmail());
-            userEntity.setPassword(null);
-            return ResponseEntity.ok(userEntity);
-        } else {
-            return ResponseEntity.status(401).body("Đăng nhập thất bại. Sai email hoặc mật khẩu.");
-        }
-    }
-
-
-    // Bước 1: gửi mã xác nhận
-    @PostMapping("/register-request")
-    public ResponseEntity<?> registerRequest(@RequestBody UserEntity user) {
-        if (user.getEmail() == null || !user.getEmail().toLowerCase().endsWith("@fpt.edu.vn")) {
-            return ResponseEntity.badRequest().body("Chỉ chấp nhận email FPT (...@fpt.edu.vn)");
-        }
-        if (userService.getUserByEmail(user.getEmail()) != null) {
-            return ResponseEntity.badRequest().body("Email đã tồn tại.");
-        }
-
-        String code = verificationService.generateCode();
-        verificationService.saveCode(user.getEmail(), code);
-        verificationService.sendVerificationEmail(user.getEmail(), code);
-
-        return ResponseEntity.ok("Mã xác nhận đã được gửi tới email của bạn.");
-    }
-    // Bước 2: xác nhận mã và tạo user
-    @PostMapping("/register-confirm")
-    public ResponseEntity<?> registerConfirm(@RequestBody Map<String, String> load) {
-        String email = load.get("email");
-        String code = load.get("code");
-        String fullname = load.get("fullName");
-        String studentCode = load.get("studentCode");
-        String password = load.get("password");
-
-        if (!verificationService.verifyCode(email, code)) {
-            return ResponseEntity.status(400).body("Mã xác nhận không đúng hoặc đã hết hạn.");
-        }
-
-        UserEntity newUser = UserEntity.builder()
-                .email(email)
-                .fullName(fullname)
-                .studentCode(studentCode)
-                .password(password)
-                .role("student")
-                .reputationScore(100)
-                .build();
-
-        boolean success = userService.createUser(newUser);
-        if (success) {
-            verificationService.removeCode(email);
-            newUser.setPassword(null);
-            return ResponseEntity.ok(newUser);
-        } else {
-            return ResponseEntity.badRequest().body("Tạo user thất bại. Vui lòng thử lại.");
-        }
-
-    }
-
-
-    @GetMapping("/check_user_auth")
-    public String getMethodName(@RequestParam String param) {
-        return new String();
-    }
-
+    
 }

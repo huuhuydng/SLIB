@@ -3,47 +3,45 @@ package slib.com.example.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
-@Data// Tự động tạo getter, setter, toString, equals, hashCode
-@NoArgsConstructor // Constructor rỗng
-@AllArgsConstructor // Constructor đầy đủ
-@Builder // Design pattern Builder
+@Table(name = "users") 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) 
     @Column(name = "user_id", nullable = false, updatable = false)
-    private UUID userId;
+    private UUID userId; 
 
-    @Column(name = "student_code", length = 10, unique = true)
-    private String studentCode;
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "email", nullable = false)
-    private String email;
+    @Column(name = "student_code", length = 10, unique = true)
+    private String studentCode; 
 
-    @Column(name = "password", nullable = false)
-    private String password;
+    @Column(name = "dob")
+    private LocalDate dob;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private String role;
-
+    private Role role; 
 
     @Column(name = "reputation_score")
     private Integer reputationScore;
 
-    @Column(name = "noti_device", unique = true)
-    private String notiDevice;
+    @Column(name = "noti_device")
+    private String notiDevice; // Token FCM để bắn thông báo [cite: 28]
 
-    @CreationTimestamp 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
 }
