@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:slib/assets/colors.dart';
 
 class HceCardScreen extends StatelessWidget {
   const HceCardScreen({super.key});
@@ -12,14 +11,6 @@ class HceCardScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.black,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Thẻ của tôi",
           style: TextStyle(
@@ -166,7 +157,7 @@ class HceCardScreen extends StatelessWidget {
                           const SizedBox(height: 30),
 
                           // E. BARCODE GIẢ LẬP
-                          Container(
+                          SizedBox(
                             height: 50,
                             width: double.infinity,
                             // Vẽ các vạch đen ngẫu nhiên để giả lập Barcode
@@ -212,18 +203,7 @@ class HceCardScreen extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
-
-              // Thanh gạch ngang dưới đáy (giống iPhone home indicator)
-              const SizedBox(height: 20),
-              Container(
-                width: 130,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+              ),        
             ],
           ),
         ),
@@ -250,7 +230,7 @@ class HceCardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               // Barcode lớn
-              Container(
+              SizedBox(
                 height: 80,
                 width: double.infinity,
                 child: Row(

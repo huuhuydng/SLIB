@@ -250,7 +250,7 @@ class _MenuScreenState extends State<MenuScreen> {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
-      activeColor: AppColors.brandColor,
+      activeThumbColor: AppColors.brandColor,
       tileColor: Colors.transparent,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       secondary: Container(

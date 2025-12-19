@@ -2,20 +2,21 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/authentication/login_screen.dart';
-import 'package:slib/views/authentication/otp_screen.dart'; // Đảm bảo đã import file màu
-
+import 'package:slib/views/authentication/otp_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
-
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
   DateTime? _selectedDate;
-  
+
+  AuthService _authService = AuthService();
+
   // 1. Khai báo FormKey để quản lý trạng thái form
   final _formKey = GlobalKey<FormState>();
 
@@ -39,12 +40,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value == null || value.isEmpty) {
       return 'Vui lòng nhập Email';
     }
-    
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'Định dạng email không hợp lệ';
     }
-    
+
     if (!value.endsWith('@fpt.edu.vn')) {
       return 'Vui lòng sử dụng Email FPT (@fpt.edu.vn)';
     }
@@ -84,20 +85,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView( 
-        child: Container(
-          height: size.height, 
+      body: SingleChildScrollView(
+        child: SizedBox(
+          height: size.height,
           child: Stack(
             children: [
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-                height: size.height * 0.5, 
+                height: size.height * 0.5,
                 child: Container(
                   decoration: const BoxDecoration(
-                    color: AppColors.brandColor, 
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                    color: AppColors.brandColor,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(30),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -105,7 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const Text(
                         "Tạo Tài Khoản Mới",
                         style: TextStyle(
-                          fontSize: 32, 
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -114,7 +117,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       RichText(
                         text: TextSpan(
                           text: "Đã có tài khoản? ",
-                          style: const TextStyle(fontSize: 14, color: Colors.white70),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white70,
+                          ),
                           children: [
                             TextSpan(
                               text: "Đăng nhập ngay",
@@ -128,10 +134,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ..onTap = () {
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(builder: (context) => LoginScreen()),
+                                    MaterialPageRoute(
+                                      builder: (context) => LoginScreen(),
+                                    ),
                                   );
                                 },
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -144,19 +152,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 top: topPadding,
                 left: 10,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 22),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
 
-              
               Positioned(
-                top: size.height * 0.22, 
+                top: size.height * 0.22,
                 left: 20,
                 right: 20,
-                bottom: 20, 
+                bottom: 20,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 30,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
@@ -170,7 +184,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: Form(
                     key: _formKey,
-                    child: SingleChildScrollView( 
+                    child: SingleChildScrollView(
                       physics: const BouncingScrollPhysics(),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,7 +197,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   controller: _firstNameController,
                                   label: "Tên",
                                   icon: Icons.person_outline,
-                                  validator: (val) => _validateRequired(val, "Tên"),
+                                  validator: (val) =>
+                                      _validateRequired(val, "Tên"),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -203,7 +218,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _emailController,
                             label: "Email FPT (fpt.edu.vn)",
                             icon: Icons.email_outlined,
-                            validator: _validateEmail, 
+                            validator: _validateEmail,
                             keyboardType: TextInputType.emailAddress,
                           ),
                           const SizedBox(height: 16),
@@ -217,11 +232,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
 
                           // Input Ngày sinh
-                          TextFormField( 
+                          TextFormField(
                             controller: _dateController,
                             readOnly: true,
-                            validator: (val) => _validateRequired(val, "Ngày sinh"),
-                            decoration: _inputDecoration("Ngày sinh (DD/MM/YYYY)", Icons.calendar_today_outlined),
+                            validator: (val) =>
+                                _validateRequired(val, "Ngày sinh"),
+                            decoration: _inputDecoration(
+                              "Ngày sinh (DD/MM/YYYY)",
+                              Icons.calendar_today_outlined,
+                            ),
                             onTap: () async {
                               DateTime? pickedDate = await showDatePicker(
                                 context: context,
@@ -231,7 +250,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 builder: (context, child) {
                                   return Theme(
                                     data: Theme.of(context).copyWith(
-                                      colorScheme: ColorScheme.light(primary: AppColors.brandColor),
+                                      colorScheme: ColorScheme.light(
+                                        primary: AppColors.brandColor,
+                                      ),
                                     ),
                                     child: child!,
                                   );
@@ -239,8 +260,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               );
                               if (pickedDate != null) {
                                 setState(() {
-                                  String day = pickedDate.day.toString().padLeft(2, '0');
-                                  String month = pickedDate.month.toString().padLeft(2, '0');
+                                  String day = pickedDate.day
+                                      .toString()
+                                      .padLeft(2, '0');
+                                  String month = pickedDate.month
+                                      .toString()
+                                      .padLeft(2, '0');
                                   String year = pickedDate.year.toString();
                                   _dateController.text = "$day/$month/$year";
                                 });
@@ -250,37 +275,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(height: 16),
 
                           // Input Mật khẩu
-                          TextFormField( // Đổi thành TextFormField
+                          TextFormField(
+                            // Đổi thành TextFormField
                             controller: _passwordController,
                             obscureText: _obscureText,
-                            validator: _validatePassword, // Gọi hàm validate Pass
+                            validator:
+                                _validatePassword, // Gọi hàm validate Pass
                             decoration: InputDecoration(
                               labelText: "Mật khẩu",
-                              labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-                              errorMaxLines: 2, // Cho phép lỗi hiện 2 dòng nếu dài
+                              labelStyle: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                              errorMaxLines:
+                                  2, // Cho phép lỗi hiện 2 dòng nếu dài
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey[300]!),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: AppColors.brandColor, width: 1.5),
+                                borderSide: const BorderSide(
+                                  color: AppColors.brandColor,
+                                  width: 1.5,
+                                ),
                               ),
-                              errorBorder: OutlineInputBorder( // Viền khi lỗi
+                              errorBorder: OutlineInputBorder(
+                                // Viền khi lỗi
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.red, width: 1),
+                                borderSide: const BorderSide(
+                                  color: Colors.red,
+                                  width: 1,
+                                ),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                                borderSide: const BorderSide(
+                                  color: Colors.red,
+                                  width: 1.5,
+                                ),
                               ),
-                              prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                              prefixIcon: const Icon(
+                                Icons.lock_outline,
+                                color: Colors.grey,
+                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                  _obscureText
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
                                   color: Colors.grey,
                                 ),
-                                onPressed: () => setState(() => _obscureText = !_obscureText),
+                                onPressed: () => setState(
+                                  () => _obscureText = !_obscureText,
+                                ),
                               ),
                               filled: true,
                               fillColor: Colors.grey[50],
@@ -293,23 +343,94 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           SizedBox(
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 // --- LOGIC KIỂM TRA ---
                                 if (_formKey.currentState!.validate()) {
-                                  print("Họ tên: ${_firstNameController.text}");
-                                  print("Email: ${_emailController.text}");
-                                  
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => OtpScreen()));
+                                  try {
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (context) => const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+
+                                    final result = await _authService.register(
+                                      email: _emailController.text.trim(),
+                                      password: _passwordController.text,
+                                      fullName:
+                                          '${_firstNameController.text} ${_lastNameController.text}'
+                                              .trim(),
+                                      studentCode: _mssvController.text.trim(),
+                                      dob: _dateController.text
+                                          .split('/')
+                                          .reversed
+                                          .join(
+                                            '-',
+                                          ), // Chuyển DD/MM/YYYY -> YYYY-MM-DD
+                                    );
+
+                                    if (mounted)
+                                      Navigator.pop(
+                                        context,
+                                      ); // Đóng dialog loading
+
+                                    if (result == true) {
+                                      if (mounted) {
+                                       Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => OtpScreen(email: _emailController.text),
+                                            ),
+                                          );
+                                      } else {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: const Text(
+                                                'Đăng ký thất bại. Vui lòng thử lại.',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (mounted)
+                                      Navigator.pop(
+                                        context,
+                                      ); // Đóng dialog loading
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Đăng ký thất bại: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
                                 }
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.brandColor,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 elevation: 2,
                               ),
                               child: const Text(
                                 "ĐĂNG KÝ",
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  letterSpacing: 1,
+                                ),
                               ),
                             ),
                           ),
@@ -321,8 +442,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             children: [
                               Expanded(child: Divider(color: Colors.grey[300])),
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                child: Text("Hoặc", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                child: Text(
+                                  "Hoặc",
+                                  style: TextStyle(
+                                    color: Colors.grey[500],
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                               Expanded(child: Divider(color: Colors.grey[300])),
                             ],
@@ -337,7 +466,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               onPressed: () {},
                               style: OutlinedButton.styleFrom(
                                 side: BorderSide(color: Colors.grey[300]!),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                                 backgroundColor: Colors.white,
                               ),
                               child: Row(
@@ -347,7 +478,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   const SizedBox(width: 12),
                                   const Text(
                                     "Đăng ký với Google",
-                                    style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -377,7 +511,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       controller: controller,
       validator: validator,
       keyboardType: keyboardType,
-      autovalidateMode: AutovalidateMode.onUserInteraction, // Báo lỗi ngay khi gõ sai
+      autovalidateMode:
+          AutovalidateMode.onUserInteraction, // Báo lỗi ngay khi gõ sai
       decoration: _inputDecoration(label, icon),
     );
   }
@@ -394,7 +529,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.brandColor, width: 1.5),
       ),
-      errorBorder: OutlineInputBorder( // Viền đỏ khi lỗi
+      errorBorder: OutlineInputBorder(
+        // Viền đỏ khi lỗi
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red, width: 1),
       ),
@@ -402,7 +538,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
-      prefixIcon: icon != null ? Icon(icon, color: Colors.grey, size: 22) : null,
+      prefixIcon: icon != null
+          ? Icon(icon, color: Colors.grey, size: 22)
+          : null,
       filled: true,
       fillColor: Colors.grey[50],
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
