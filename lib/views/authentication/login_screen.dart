@@ -1,12 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
-import 'package:slib/assets/colors.dart'; // File chứa màu cam FPT (brandColor)
+import 'package:slib/assets/colors.dart';
+import 'package:slib/services/auth_service.dart'; 
 import 'package:slib/views/authentication/register_screen.dart';
 import 'package:slib/main_screen.dart';
-import 'package:slib/views/home/home_screen.dart';
 
-// import 'MainScreen.dart'; // Bỏ comment khi bạn đã có trang chủ
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,8 +19,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  final AuthService _authService = AuthService();
+
   bool _obscureText = true;
   bool _remember = false;
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -173,8 +176,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             "Email FPT (fpt.edu.vn)",
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return "Vui lòng nhập email";
+                            }
                             return null;
                           },
                         ),
@@ -199,8 +203,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return "Vui lòng nhập mật khẩu";
+                            }
                             return null;
                           },
                         ),
@@ -262,16 +267,56 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
                               if (_formKey.currentState!.validate()) {
-                                // Xử lý đăng nhập thành công
-                                print("Đăng nhập: ${_emailController.text}");
-                                
-                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
+                                try {
+                                  // Hiện loading
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+
+                                  // Gọi API login
+                                  final result = await _authService.login(
+                                    _emailController.text,
+                                    _passwordController.text,
+                                  );
+
+                                  // Đóng loading
+                                  //mounted dùng để kiểm tra xem màn hình Login còn đang hiển thị không
+                                  if (mounted) Navigator.pop(context);
+
+                                  if (result != null) {
+                                    // Đăng nhập thành công
+                                    if (mounted) {
+                                      Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const MainScreen()),
+                                        (route) => false,
+                                      );
+                                    }
+                                  }
+                                } catch (e) {
+                                  // Đóng loading nếu còn
+                                  if (mounted) Navigator.pop(context);
+                                  
+                                  // Hiện lỗi
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Đăng nhập thất bại: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.brandColor, // Màu cam
+                              backgroundColor: AppColors.brandColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -353,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
       filled: true,
-      fillColor: Colors.white, // Input nền trắng viền xám nhẹ
+      fillColor: Colors.white, 
     );
   }
 }

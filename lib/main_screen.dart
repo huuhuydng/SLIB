@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:slib/assets/colors.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
@@ -26,7 +25,6 @@ class _MainScreenState extends State<MainScreen> {
     const MenuScreen(),
   ];
 
-  // Hàm này vẫn nằm ở đây để quản lý việc chuyển màn hình
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -36,16 +34,16 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Body giữ nguyên IndexedStack
+      appBar: null,
       body: IndexedStack(
-        index: _selectedIndex,
+        index: _selectedIndex, 
         children: _screens,
       ),
       
       // GỌI WIDGET RIÊNG TẠI ĐÂY
       bottomNavigationBar: BottomNavWidget(
-        selectedIndex: _selectedIndex, // Truyền trạng thái xuống
-        onItemTapped: _onItemTapped,   // Truyền hàm xử lý xuống
+        selectedIndex: _selectedIndex, 
+        onItemTapped: _onItemTapped,  
       ),
     );
   }

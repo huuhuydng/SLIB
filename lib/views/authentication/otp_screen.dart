@@ -1,20 +1,26 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:slib/assets/colors.dart'; // File màu/ Import để chuyển trang khi thành công
-import 'package:slib/views/authentication/login_screen.dart'; // Import để chuyển trang khi thành công
+import 'package:slib/assets/colors.dart'; 
+import 'package:slib/views/authentication/login_screen.dart'; 
+import 'package:slib/services/auth_service.dart';
 
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key});
+  final String email;
+
+  const OtpScreen({super.key, required this.email});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
 }
 
 class _OtpScreenState extends State<OtpScreen> {
-  final int otpLength = 5;
+  final int otpLength = 6;
   late List<TextEditingController> _controllers;
   late List<FocusNode> _focusNodes;
+
+  AuthService _authService = AuthService();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -25,9 +31,36 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   void dispose() {
-    for (var c in _controllers) c.dispose();
-    for (var f in _focusNodes) f.dispose();
+    for (var c in _controllers) {
+      c.dispose();
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
+  }
+
+  void _handleVerify() async {
+    String otp = _controllers.map((c) => c.text).join();
+
+    if (otp.length < otpLength) {
+      _showError("Vui lòng nhập đủ $otpLength số.");
+      return;
+    }
+
+    setState(() => _isLoading = true); // Bật loading
+
+    try {
+      await _authService.verifyOtp(widget.email, otp); 
+      
+      if (mounted) setState(() => _isLoading = false);
+      
+      _showSuccess();
+      
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+      _showError("Mã xác thực không đúng. Vui lòng thử lại.");
+    }
   }
 
   // Logic chuyển ô nhập liệu
@@ -182,12 +215,17 @@ class _OtpScreenState extends State<OtpScreen> {
               const Text("Nhập mã xác thực chúng tôi đã gửi đến email của bạn", style: TextStyle(fontSize: 15, color: Colors.black54)),
               const SizedBox(height: 40),
 
+              Text("Đã gửi mã đến: ${widget.email}", 
+                   style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.brandColor)),
+              
+              const SizedBox(height: 40),
+
               // Ô Nhập OTP
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(otpLength, (index) {
                   return SizedBox(
-                    width: 55,
+                    width: 45,
                     height: 55,
                     child: TextField(
                       controller: _controllers[index],
@@ -225,25 +263,14 @@ class _OtpScreenState extends State<OtpScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Logic Giả lập (Sau này thay bằng gọi API)
-                    String otp = _controllers.map((c) => c.text).join();
-                    
-                    if (otp.length < otpLength) {
-                      _showError("Vui lòng nhập đủ mã OTP.");
-                    } else if (otp == "12345") { 
-                      // GIẢ LẬP: Nếu nhập 12345 là đúng
-                      _showSuccess();
-                    } else {
-                      // GIẢ LẬP: Các số khác là sai
-                      _showError("Mã OTP không chính xác. Vui lòng kiểm tra lại email.");
-                    }
-                  },
+                  onPressed: _isLoading ? null : _handleVerify, // Disable nút khi đang loading
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brandColor,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text("Xác nhận", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white) // Hiện vòng quay
+                    : const Text("Xác nhận", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
 

@@ -20,8 +20,8 @@ class BottomNavWidget extends StatelessWidget {
         indicatorColor: AppColors.brandColor.withOpacity(0.15),
         
         // Style chữ khi được chọn
-        labelTextStyle: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const TextStyle(
               fontSize: 12, 
               fontWeight: FontWeight.bold, 
@@ -32,8 +32,8 @@ class BottomNavWidget extends StatelessWidget {
         }),
         
         // Style icon khi được chọn
-        iconTheme: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: AppColors.brandColor);
           }
           return const IconThemeData(color: Colors.grey);
