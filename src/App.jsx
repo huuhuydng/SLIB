@@ -1,16 +1,8 @@
-import Sidebar from "./components/dashboard/Sidebar";
-import Dashboard from "./components/dashboard/Dashboard";
-import "./styles/dashboard.css";
+import HeatMap from "./components/heatmap/HeatMap.jsx";
+import "./styles/HeatMap.css";
 
 function App() {
-  return (
-    <div className="appLayout">
-      <Sidebar />
-      <div className="dashboard">
-        <Dashboard />
-      </div>
-    </div>
-  );
+  return <HeatMap />;
 }
 
 export default App;
