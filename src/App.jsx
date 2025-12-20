@@ -1,8 +1,8 @@
-import HeatMap from "./components/heatmap/HeatMap.jsx";
-import "./styles/HeatMap.css";
+import SeatManage from "./components/seatmanage/SeatManage";
+import "./styles/SeatManage.css";
 
 function App() {
-  return <HeatMap />;
+  return <SeatManage />;
 }
 
 export default App;
