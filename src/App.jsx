@@ -1,17 +1,17 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import StudentsManage from './components/students/StudentsManage';
-import StudentDetail from './components/students/StudentDetail';
+import React from "react";
+import Sidebar from "./components/dashboard/Sidebar";
+import ViolationManage from "./components/violation/ViolationManage";
 
-function App() {
+// CSS layout chung (đang dùng cho sidebar + main)
+import "./styles/dashboard.css";
+
+export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/students" />} />
-        <Route path="/students" element={<StudentsManage />} />
-        <Route path="/students/:studentId" element={<StudentDetail />} />
-      </Routes>
-    </BrowserRouter>
+    <div className="appLayout">
+      <Sidebar />
+      <main className="main">
+        <ViolationManage />
+      </main>
+    </div>
   );
 }
-
-export default App;
