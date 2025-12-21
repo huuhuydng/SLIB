@@ -1,8 +1,15 @@
-import ChatManage from "./components/chat/ChatManage";
-import "./styles/ChatManage.css";
+import React from "react";
+import Sidebar from "./components/dashboard/Sidebar";
+import Statistic from "./components/statistic/Statistic";
+import "./styles/Statistic.css";
 
-function App() {
-  return <ChatManage />;
+export default function App() {
+  return (
+    <div className="appLayout">
+      <Sidebar />
+      <div className="appMain">
+        <Statistic />
+      </div>
+    </div>
+  );
 }
-
-export default App;
