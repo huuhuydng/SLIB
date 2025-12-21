@@ -2,7 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/auth_service.dart'; 
+import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/hce_bridge.dart';
 import 'package:slib/views/authentication/register_screen.dart';
 import 'package:slib/main_screen.dart';
 
@@ -290,7 +291,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (mounted) Navigator.pop(context);
 
                                   if (result != null) {
-                                    // Đăng nhập thành công
+                                    // Đăng nhập thành công -> đẩy mã SV xuống Android HCE
+                                    await HceBridge.setStudentCode(result.studentCode);
+
                                     if (mounted) {
                                       Navigator.pushAndRemoveUntil(
                                         context,

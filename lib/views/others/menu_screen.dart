@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/services/auth_service.dart';
+import 'package:slib/views/authentication/on_boarding_screen.dart';
 
 
 
@@ -309,9 +311,25 @@ class _MenuScreenState extends State<MenuScreen> {
             child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
-              // Xử lý đăng xuất ở đây
-              Navigator.pop(context);
+            onPressed: () async {
+              // Xử lý đăng xuất
+              Navigator.pop(context); // Đóng dialog
+              
+              try {
+                // Gọi hàm logout để xóa token
+                await AuthService().logout();
+                
+                // Chuyển về màn hình đăng nhập và xóa toàn bộ stack
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (context) => const OnBoardingScreen()),
+                    (route) => false,
+                  );
+                }
+              } catch (e) {
+                // Nếu có lỗi, in ra console
+                print("Lỗi đăng xuất: $e");
+              }
             },
             child: const Text("Đăng xuất", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
           ),
