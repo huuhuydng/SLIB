@@ -1,17 +1,8 @@
-import React from "react";
-import Sidebar from "./components/dashboard/Sidebar";
-import ViolationManage from "./components/violation/ViolationManage";
+import ChatManage from "./components/chat/ChatManage";
+import "./styles/ChatManage.css";
 
-// CSS layout chung (đang dùng cho sidebar + main)
-import "./styles/dashboard.css";
-
-export default function App() {
-  return (
-    <div className="appLayout">
-      <Sidebar />
-      <main className="main">
-        <ViolationManage />
-      </main>
-    </div>
-  );
+function App() {
+  return <ChatManage />;
 }
+
+export default App;
