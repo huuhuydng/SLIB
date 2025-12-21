@@ -10,13 +10,13 @@ import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
 
+import java.util.Map;
+
 @Service
 public class JwtService {
     private static final String SECRET_KEY = "super-secret-jwt-token-with-at-least-32-characters-long"; 
 
     public String extractUsername(String token) {
-        // Trong Supabase, email thường nằm ở claim "email" hoặc "sub" (subject)
-        // Token mẫu của bạn có field "email", ta sẽ lấy nó.
         return extractClaim(token, claims -> claims.get("email", String.class));
     }
 
@@ -32,6 +32,19 @@ public class JwtService {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    public String extractStudentCode(String token) {
+    return extractClaim(token, claims -> {
+        // 1. Lấy object user_metadata ra dưới dạng Map
+        Map<String, Object> metadata = claims.get("user_metadata", Map.class);
+        
+        // 2. Nếu có metadata, lấy tiếp field "student_code"
+        if (metadata != null && metadata.containsKey("student_code")) {
+            return (String) metadata.get("student_code");
+        }
+        return null; // Hoặc ném lỗi nếu bắt buộc phải có
+    });
+}
 
     // private Key getSignInKey() {
     //     byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);

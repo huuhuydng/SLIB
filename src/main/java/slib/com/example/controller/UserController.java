@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-
 @RestController
 @RequestMapping("/slib/users")
 @CrossOrigin(origins = "*", allowedHeaders = "*") // cho phép Flutter gọi vào
@@ -65,9 +64,14 @@ public class UserController {
         String email = request.get("email");
         String token = request.get("token");
 
+        // Lấy type từ Flutter gửi lên (ví dụ: "signup", "recovery", "magiclink")
+        // Nếu Flutter không gửi, mặc định là "signup"
+        String type = request.getOrDefault("type", "signup");
+
         try {
-            String result = userService.verifyEmailOtp(email, token);
-            return ResponseEntity.ok(result); // Trả về Token để Flutter tự lưu và login luôn
+            // Truyền type vào Service
+            String result = userService.verifyEmailOtp(email, token, type);
+            return ResponseEntity.ok(result);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -125,7 +129,7 @@ public class UserController {
             return ResponseEntity.status(401).body("Token không hợp lệ hoặc hết hạn");
         }
         // Lấy email từ token đã giải mã
-        String email = userDetails.getUsername(); 
+        String email = userDetails.getUsername();
         try {
             UserProfileResponse profile = userService.getMyProfile(email);
             return ResponseEntity.ok(profile);
@@ -161,5 +165,4 @@ public class UserController {
         }
     }
 
-    
 }
