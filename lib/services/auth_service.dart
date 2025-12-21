@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:slib/services/hce_bridge.dart';
 import '../models/auth_response.dart';
 
 class AuthService {
@@ -10,17 +11,14 @@ class AuthService {
   // - Nếu chạy máy ảo iOS: Dùng '127.0.0.1' hoặc 'localhost'
   // - Nếu chạy thiết bị thật: Dùng IP LAN của máy tính (VD: 192.168.1.x)
   static String getBaseUrl() {
-    if (Platform.isAndroid) {
-      return "http://10.0.2.2:8080/slib/users";
-    } else {
-      return "http://127.0.0.1:8080/slib/users";
-    }
+    return "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev/slib/users";
   }
 
   static String baseUrl = getBaseUrl();
 
   // Khởi tạo kho lưu trữ bảo mật (lưu Token, v.v.)
   final _storage = const FlutterSecureStorage();
+  static const _studentCodeKey = 'student_code';
 
   // 1. Hàm Đăng Nhập
   Future<AuthResponse?> login(String email, String password) async {
@@ -35,8 +33,16 @@ class AuthService {
         final jsonMap = jsonDecode(response.body);
 
         final authData = AuthResponse.fromJson(jsonMap);
+
+        if (authData.role != 'STUDENT') {
+          await logout(); 
+          throw Exception('Tài khoản này không phải là Sinh viên!');
+        }
+
         // Lưu Token vào kho
         await _saveToken(authData.accessToken);
+        await _saveStudentCode(authData.studentCode);
+        await HceBridge.setStudentCode(authData.studentCode);
 
         return authData;
       } else {
@@ -81,25 +87,37 @@ class AuthService {
 
   // 3. Hàm Xác Thực OTP
   Future<bool> verifyOtp(String email, String otp) async {
+    // 1. Clean dữ liệu trước khi gửi
+    final cleanEmail = email.trim().toLowerCase(); 
+    final cleanOtp = otp.trim();
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/verify'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'token': otp}),
+        body: jsonEncode({
+          'email': cleanEmail,
+          'token': cleanOtp,
+          'type': 'signup',
+        }),
       );
-
       if (response.statusCode == 200) {
+        // Parse kết quả
         final jsonMap = jsonDecode(response.body);
-
         final authData = AuthResponse.fromJson(jsonMap);
-        // Lưu Token vào kho
+        
+        // Lưu Token
         await _saveToken(authData.accessToken);
+        await _saveStudentCode(authData.studentCode);
+        await HceBridge.setStudentCode(authData.studentCode);
 
         return true;
       } else {
-        throw Exception("Mã OTP không chính xác");
+        // ⚠️ QUAN TRỌNG: Lấy lỗi thật từ Server để hiển thị
+        // Ví dụ server trả: "Mã xác thực không đúng hoặc đã hết hạn!"
+        throw Exception(response.body); 
       }
     } catch (e) {
+      print("Lỗi Verify Dart: $e");
       rethrow;
     }
   }
@@ -119,6 +137,11 @@ class AuthService {
         },
       );
       if (response.statusCode == 200) {
+        // Nếu đã đăng nhập sẵn, khôi phục mã SV cho HCE (nếu có lưu)
+        final studentCode = await _getStudentCode();
+        if (studentCode != null && studentCode.isNotEmpty) {
+          await HceBridge.setStudentCode(studentCode);
+        }
         return true;
       } else {
         await logout();
@@ -134,6 +157,14 @@ class AuthService {
     await _storage.write(key: 'jwt_token', value: token);
   }
 
+  Future<void> _saveStudentCode(String code) async {
+    await _storage.write(key: _studentCodeKey, value: code);
+  }
+
+  Future<String?> _getStudentCode() async {
+    return _storage.read(key: _studentCodeKey);
+  }
+
   // Lấy Token ra để dùng
   Future<String?> getToken() async {
     return await _storage.read(key: 'jwt_token');
@@ -142,5 +173,7 @@ class AuthService {
   // Đăng xuất (Xóa Token)
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: _studentCodeKey);
+    await HceBridge.clearStudentCode();
   }
 }

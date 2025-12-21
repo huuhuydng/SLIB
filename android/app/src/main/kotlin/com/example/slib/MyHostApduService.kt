@@ -1,6 +1,7 @@
 package com.example.slib
 
 
+import android.content.Context
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
@@ -10,11 +11,6 @@ import android.os.Looper
 import java.nio.charset.Charset
 
 class MyHostApduService : HostApduService() {
-
-    // Đây là token giả định. 
-    // Trong thực tế bạn có thể đọc từ Shared Preferences để lấy Token lúc Login bên Flutter
-    private val MY_TOKEN = "SV123456" 
-
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
         if (commandApdu == null) {
             Log.e("HCE", "Received NULL APDU")
@@ -31,17 +27,28 @@ class MyHostApduService : HostApduService() {
             commandApdu[2] == 0x04.toByte()) {
             
             Log.d("HCE", "✅ SELECT AID Command detected!")
-            showToast("✅ NFC: Gửi token $MY_TOKEN")
+
+            // Đọc mã sinh viên từ SharedPreferences
+            val prefs = getSharedPreferences("hce_prefs", Context.MODE_PRIVATE)
+            val studentCode = prefs.getString("HCE_STUDENT_CODE", null)
+            
+            if (studentCode == null || studentCode.isEmpty()) {
+                Log.e("HCE", "❌ No student code found!")
+                showToast("❌ NFC: Chưa đăng nhập")
+                return hexStringToByteArray("6A82") // File not found
+            }
+
+            showToast("✅ NFC: Gửi token $studentCode")
             
             // Trả về Token + Status OK (90 00)
-            val tokenBytes = MY_TOKEN.toByteArray(Charset.forName("UTF-8"))
+            val tokenBytes = studentCode.toByteArray(Charset.forName("UTF-8"))
             val statusBytes = hexStringToByteArray("9000")
             
             val response = ByteArray(tokenBytes.size + statusBytes.size)
             System.arraycopy(tokenBytes, 0, response, 0, tokenBytes.size)
             System.arraycopy(statusBytes, 0, response, tokenBytes.size, statusBytes.size)
             
-            Log.d("HCE", "Sending Token: $MY_TOKEN")
+            Log.d("HCE", "Sending Token: $studentCode")
             Log.d("HCE", "Response HEX: " + toHex(response))
             return response
         }
