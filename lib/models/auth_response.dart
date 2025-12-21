@@ -1,11 +1,13 @@
 class AuthResponse {
+  final String id; 
   final String accessToken;
   final String email;
   final String fullName;
   final String studentCode;
-  final String role; 
+  final String role;
 
   AuthResponse({
+    required this.id, 
     required this.accessToken,
     required this.email,
     required this.fullName,
@@ -19,10 +21,11 @@ class AuthResponse {
     final meta = user['user_metadata'] as Map<String, dynamic>? ?? {};
 
     return AuthResponse(
+      id: user['id'] as String? ?? '', 
       accessToken: token,
-      email: user['email'] as String? ?? '', 
-      fullName: meta['full_name'] as String? ?? 'Chưa cập nhật',
-      studentCode: meta['student_code'] as String? ?? 'Chưa có MSSV',
+      email: user['email'],
+      fullName: meta['full_name'] as String,
+      studentCode: meta['student_code'] as String,
       role: meta['role'] as String,
     );
   }

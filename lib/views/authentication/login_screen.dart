@@ -5,6 +5,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/services/hce_bridge.dart';
 import 'package:slib/views/authentication/register_screen.dart';
+import 'package:slib/views/authentication/forgot_password_screen.dart';
 import 'package:slib/main_screen.dart';
 
 
@@ -24,6 +25,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscureText = true;
   bool _remember = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  // Tải email/password đã lưu (nếu có)
+  Future<void> _loadSavedCredentials() async {
+    final credentials = await _authService.getSavedCredentials();
+    if (credentials != null) {
+      setState(() {
+        _emailController.text = credentials['email'] ?? '';
+        _passwordController.text = credentials['password'] ?? '';
+        _remember = true;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
 
 
 
@@ -31,6 +54,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     // Lấy kích thước màn hình
     final size = MediaQuery.of(context).size;
+
+    // Hiện loading khi đang tải credentials
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white, // Nền dưới cùng màu trắng
@@ -244,7 +274,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                // Xử lý quên mật khẩu
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ForgotPasswordScreen(),
+                                  ),
+                                );
                               },
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
@@ -291,6 +326,16 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (mounted) Navigator.pop(context);
 
                                   if (result != null) {
+                                    // Lưu hoặc xóa credentials tùy theo checkbox
+                                    if (_remember) {
+                                      await _authService.saveCredentials(
+                                        _emailController.text,
+                                        _passwordController.text,
+                                      );
+                                    } else {
+                                      await _authService.clearSavedCredentials();
+                                    }
+
                                     // Đăng nhập thành công -> đẩy mã SV xuống Android HCE
                                     await HceBridge.setStudentCode(result.studentCode);
 

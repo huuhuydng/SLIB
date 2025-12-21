@@ -5,7 +5,7 @@
     <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
     
     <application
-        android:label="slib"
+        android:label="Slib"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
