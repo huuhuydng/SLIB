@@ -30,7 +30,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Giữ nguyên cấu hình CORS cũ
             .authorizeHttpRequests(request -> request
-                .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify").permitAll()
+                .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify", "/slib/users/resend-otp").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

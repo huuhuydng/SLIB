@@ -77,6 +77,68 @@ public class UserController {
         }
     }
 
+    // API: Gửi lại OTP
+    // URL: POST http://localhost:8080/slib/users/resend-otp
+    // Body: { "email": "...", "type": "signup" }
+    @PostMapping("/resend-otp")
+    public ResponseEntity<?> resendOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String type = request.get("type"); // Có thể null
+
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Vui lòng cung cấp Email.");
+        }
+
+        try {
+            // Gọi service
+            userService.resendOtp(email, type);
+            // Supabase trả về JSON rỗng {} nếu thành công, nên ta tự trả về message cho dễ hiểu
+            return ResponseEntity.ok("Đã gửi lại mã OTP thành công! Vui lòng kiểm tra email.");
+        } catch (RuntimeException e) {
+            // Xử lý lỗi (ví dụ: gửi quá nhiều lần trong 1 phút)
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Quên mật khẩu (Public) -> Gửi OTP
+    // POST /slib/users/forgot-password
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body("Cần nhập email.");
+        }
+        try {
+            userService.sendRecoveryEmail(email);
+            return ResponseEntity.ok("Mã xác thực đã được gửi đến email của bạn.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Đặt lại mật khẩu mới (Private - Cần Token)
+    // POST /slib/users/reset-password
+    // Header: Authorization: Bearer <Token_nhan_duoc_tu_verify>
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestHeader("Authorization") String authHeader, 
+                                           @RequestBody Map<String, String> request) {
+        String newPassword = request.get("password");
+        
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body("Mật khẩu mới phải từ 6 ký tự.");
+        }
+
+        // Lấy token từ Header (Cắt bỏ chữ "Bearer ")
+        String userToken = authHeader.replace("Bearer ", "");
+
+        try {
+            userService.updatePassword(userToken, newPassword);
+            return ResponseEntity.ok("Đổi mật khẩu thành công!");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body(e.getMessage());
+        }
+    }
+
     // 2. NHÓM CHỨC NĂNG LẤY DỮ LIỆU (GET)
 
     // Lấy tất cả user
