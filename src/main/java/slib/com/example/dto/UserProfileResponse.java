@@ -13,6 +13,4 @@ public class UserProfileResponse {
     private String studentCode;
     private String role;
     private int reputationScore;
-    
-    // ĐÃ XÓA: private String avatarUrl;
 }

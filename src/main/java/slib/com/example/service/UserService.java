@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-public class UserService{
+public class UserService {
 
     private final UserRepository userRepository;
     private final WebClient webClient;
@@ -40,7 +40,6 @@ public class UserService{
         this.webClient = webClientBuilder.build();
     }
 
-   
     // 1. NHÓM CHỨC NĂNG AUTH (GỌI SUPABASE API)
 
     public String registerUser(RegisterRequest request) {
@@ -57,6 +56,7 @@ public class UserService{
         metadata.put("full_name", request.getFullName());
         metadata.put("student_code", request.getStudentCode());
         metadata.put("dob", request.getDob());
+        metadata.put("role", "STUDENT");
 
         // Body chuẩn của Supabase Signup
         Map<String, Object> body = new HashMap<>();
@@ -71,18 +71,18 @@ public class UserService{
 
         try {
             return webClient.post()
-                    //Chứng minh lệnh từ admin
+                    // Chứng minh lệnh từ admin
                     .uri(supabaseUrl + "/auth/v1/signup")
-                    //API Gateway
+                    // API Gateway
                     .header("apikey", supabaseKey)
-                    //Bearer Token
+                    // Bearer Token
                     .header("Authorization", "Bearer " + supabaseKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
-                    //Hàm asynchronous
+                    // Hàm asynchronous
                     .retrieve()
-                    .bodyToMono(String.class) //đoạn này dùng Future bên Flutter -> hứa hẹn sẽ trả
-                    .block(); //chuyển async sang sync => chờ kết quả trả về
+                    .bodyToMono(String.class) // đoạn này dùng Future bên Flutter -> hứa hẹn sẽ trả
+                    .block(); // chuyển async sang sync => chờ kết quả trả về
         } catch (Exception e) {
             throw new RuntimeException("Lỗi đăng ký Supabase: " + e.getMessage());
         }
@@ -90,71 +90,85 @@ public class UserService{
 
     // Trả về Token (JWT) nếu đúng, ném lỗi nếu sai
     public String login(String email, String password) {
-    Map<String, String> body = new HashMap<>();
-    body.put("email", email);
-    body.put("password", password);
+        Map<String, String> body = new HashMap<>();
+        body.put("email", email);
+        body.put("password", password);
 
-    try {
-        return webClient.post()
-                .uri(supabaseUrl + "/auth/v1/token?grant_type=password")
-                .header("apikey", supabaseKey)
-                .header("Authorization", "Bearer " + supabaseKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
-    } catch (WebClientResponseException e) {
-        // IN LỖI CHI TIẾT RA CONSOLE ĐỂ DEBUG
-        System.out.println("--- LỖI LOGIN SUPABASE ---");
-        System.out.println("Status Code: " + e.getStatusCode());
-        System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString()); 
-        
-        // Ném lỗi chi tiết ra Postman xem luôn
-        throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-    } catch (Exception e) {
-        throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
+        try {
+            return webClient.post()
+                    .uri(supabaseUrl + "/auth/v1/token?grant_type=password")
+                    .header("apikey", supabaseKey)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            // IN LỖI CHI TIẾT RA CONSOLE ĐỂ DEBUG
+            System.out.println("--- LỖI LOGIN SUPABASE ---");
+            System.out.println("Status Code: " + e.getStatusCode());
+            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
+
+            // Ném lỗi chi tiết ra Postman xem luôn
+            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
+        }
     }
-}
 
+    // Gọi API verify của Supabase để xác thực email với mã OTP -> trả về Token JWT
+    // nếu thành công -> App tự login luôn
+    public String verifyEmailOtp(String email, String token, String type) {
+        Map<String, Object> body = new HashMap<>();
 
-    // Gọi API verify của Supabase để xác thực email với mã OTP -> trả về Token JWT nếu thành công -> App tự login luôn
-    public String verifyEmailOtp(String email, String token) {
-    // Body gửi sang Supabase
-    Map<String, Object> body = new HashMap<>();
-    body.put("type", "signup"); // Đăng kí
-    body.put("token", token);   // Mã OTP người dùng nhập
-    body.put("email", email);
+        // NẾU KHÔNG TRUYỀN TYPE THÌ MẶC ĐỊNH LÀ SIGNUP
+        String verifyType = (type == null || type.isEmpty()) ? "signup" : type;
 
-    try {
-        return webClient.post()
-                .uri(supabaseUrl + "/auth/v1/verify")
-                .header("apikey", supabaseKey)
-                .header("Authorization", "Bearer " + supabaseKey)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(); 
-    } catch (Exception e) {
-        throw new RuntimeException("Mã xác thực không đúng hoặc đã hết hạn!");
+        body.put("type", verifyType); // <--- Dùng biến dynamic, không gán cứng nữa
+        body.put("token", token.trim());
+        body.put("email", email.trim().toLowerCase());
+
+        System.err.println("--- DEBUG VERIFY OTP ---");
+        System.err.println("Email: " + email);
+        System.err.println("Token: " + token);
+        System.err.println("Type: " + verifyType); // In ra để kiểm tra
+
+        try {
+            return webClient.post()
+                    .uri(supabaseUrl + "/auth/v1/verify")
+                    .header("apikey", supabaseKey)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            System.err.println("--- SUPABASE VERIFY ERROR ---");
+            System.err.println("Status: " + e.getStatusCode());
+            System.err.println("Body: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi từ Supabase: " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
+        }
     }
-}
 
-public UserProfileResponse getMyProfile(String email) {
-    UserEntity user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+    public UserProfileResponse getMyProfile(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    return UserProfileResponse.builder()
-            .id(user.getUserId())
-            .fullName(user.getFullName())
-            .email(user.getEmail())
-            .studentCode(user.getStudentCode())
-            .role(user.getRole().name())
-            .reputationScore(user.getReputationScore() != null ? user.getReputationScore() : 100)
-            // ĐÃ XÓA dòng: .avatarUrl(...)
-            .build();
-}
+        return UserProfileResponse.builder()
+                .id(user.getUserId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .studentCode(user.getStudentCode())
+                .role(user.getRole().name())
+                .reputationScore(user.getReputationScore() != null ? user.getReputationScore() : 100)
+                // ĐÃ XÓA dòng: .avatarUrl(...)
+                .build();
+    }
 
     // 2. NHÓM CHỨC NĂNG DATA (GỌI REPOSITORY)
 
@@ -197,7 +211,5 @@ public UserProfileResponse getMyProfile(String email) {
         }
         return false;
     }
-
-
 
 }
