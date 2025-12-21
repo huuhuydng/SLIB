@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,16 +22,21 @@ class _OtpScreenState extends State<OtpScreen> {
 
   AuthService _authService = AuthService();
   bool _isLoading = false;
+  bool _canResend = false;
+  int _countdown = 30;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _controllers = List.generate(otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(otpLength, (_) => FocusNode());
+    _startCountdown();
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     for (var c in _controllers) {
       c.dispose();
     }
@@ -38,6 +44,57 @@ class _OtpScreenState extends State<OtpScreen> {
       f.dispose();
     }
     super.dispose();
+  }
+
+  // Bắt đầu đếm ngược 30 giây
+  void _startCountdown() {
+    setState(() {
+      _canResend = false;
+      _countdown = 30;
+    });
+
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 0) {
+        setState(() => _countdown--);
+      } else {
+        timer.cancel();
+        setState(() => _canResend = true);
+      }
+    });
+  }
+
+  // Gửi lại OTP
+  Future<void> _handleResendOtp() async {
+    if (!_canResend) return;
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Gọi API register lại để gửi OTP mới
+      await _authService.resendOtp(widget.email);
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã gửi lại mã OTP mới'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _startCountdown(); // Reset countdown
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi gửi lại OTP: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _handleVerify() async {
@@ -277,22 +334,24 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: 20),
 
               Center(
-                child: RichText(
-                  text: TextSpan(
-                    text: "Không nhận được mã? ",
-                    style: const TextStyle(fontSize: 14, color: Colors.black54),
-                    children: [
-                      TextSpan(
-                        text: "Gửi lại",
-                        style: const TextStyle(color: AppColors.brandColor, fontWeight: FontWeight.bold),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã gửi lại mã OTP")));
-                          },
+                child: _canResend
+                  ? RichText(
+                      text: TextSpan(
+                        text: "Không nhận được mã? ",
+                        style: const TextStyle(fontSize: 14, color: Colors.black54),
+                        children: [
+                          TextSpan(
+                            text: "Gửi lại",
+                            style: const TextStyle(color: AppColors.brandColor, fontWeight: FontWeight.bold),
+                            recognizer: TapGestureRecognizer()..onTap = _handleResendOtp,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    )
+                  : Text(
+                      "Gửi lại mã sau $_countdown giây",
+                      style: const TextStyle(fontSize: 14, color: Colors.black54),
+                    ),
               ),
             ],
           ),

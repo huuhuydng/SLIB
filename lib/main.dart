@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:slib/main_screen.dart';
 import 'views/authentication/on_boarding_screen.dart';
 import 'views/home/home_screen.dart'; 
-import 'services/auth_service.dart'; 
+import 'services/auth_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -55,6 +58,27 @@ class _MyHomePageState extends State<MyHomePage> {
     final bool isLoggedIn = results[1] as bool;
 
     if (!mounted) return; 
+
+    // 4. Nếu chưa đăng nhập, thử auto-login bằng saved credentials
+    if (!isLoggedIn) {
+      final credentials = await _authService.getSavedCredentials();
+      if (credentials != null) {
+        try {
+          // Tự động đăng nhập lại
+          final result = await _authService.login(
+            credentials['email']!,
+            credentials['password']!,
+          );
+          if (result != null) {
+            _navigateTo(const MainScreen());
+            return;
+          }
+        } catch (e) {
+          // Nếu lỗi, xóa credentials cũ và cho user đăng nhập lại
+          await _authService.clearSavedCredentials();
+        }
+      }
+    }
 
     if (isLoggedIn) {
       _navigateTo(const MainScreen()); 
