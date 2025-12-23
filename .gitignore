@@ -1,0 +1,25 @@
+# --- QUAN TRỌNG: BẢO MẬT ---
+# Bỏ qua file chứa mật khẩu Database
+docker-compose.yml
+.env
+
+# --- Spring Boot & Java ---
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# --- IDE (Cấu hình riêng của máy bạn) ---
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
