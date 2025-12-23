@@ -2,21 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/hce_bridge.dart';
 import '../models/auth_response.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
-  // ⚠️ LƯU Ý QUAN TRỌNG VỀ IP:
-  // - Nếu chạy máy ảo Android: Dùng '10.0.2.2'
-  // - Nếu chạy máy ảo iOS: Dùng '127.0.0.1' hoặc 'localhost'
-  // - Nếu chạy thiết bị thật: Dùng IP LAN của máy tính (VD: 192.168.1.x)
-  static String getBaseUrl() {
-    return "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev/slib/users";
-  }
 
-  static String baseUrl = getBaseUrl();
+  static const String baseUrl = ApiConstants.authUrl;
   UserProfile? currentUser;
 
   // Khởi tạo kho lưu trữ bảo mật (lưu Token, v.v.)
