@@ -55,10 +55,9 @@ public class JwtService {
     //     byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
     //     return Keys.hmacShaKeyFor(keyBytes);
     // }
-private Key getSignInKey() {
+    private Key getSignInKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
-}
 
     public boolean isTokenValid(String token, String username) {
         final String extractedEmail = extractUsername(token);
