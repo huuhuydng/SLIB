@@ -1,6 +1,0 @@
-slib/com/example/controller/UserController.class
-slib/com/example/repository/UserRepository.class
-slib/com/example/entity/UserEntity$UserEntityBuilder.class
-slib/com/example/entity/UserEntity.class
-slib/com/example/DemoApplication.class
-slib/com/example/service/UserService.class

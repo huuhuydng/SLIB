@@ -1,10 +1,9 @@
-package slib.com.example; // Quan trọng: Phải đúng tên package này
+package slib.com.example;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-
 public class DemoApplication {
 
     public static void main(String[] args) {
