@@ -131,6 +131,43 @@ public class UserService {
         }
     }
 
+    public String verifyRecoveryOtp(String email, String otp) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("email", email.trim().toLowerCase());
+        body.put("token", otp.trim());
+        body.put("type", "email"); 
+
+        try {
+            String jsonResponse = webClient.post()
+                    .uri(supabaseUrl + "/auth/v1/verify")
+                    .header("apikey", supabaseKey)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+            return extractAccessToken(jsonResponse);
+        } catch (WebClientResponseException e) {
+            System.out.println("--- LỖI VERIFY OTP KHÔI PHỤC ---");
+            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Mã OTP không đúng hoặc đã hết hạn");
+        }
+    }
+
+    private String extractAccessToken(String jsonResponse) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(jsonResponse);
+            if (root.has("access_token")) {
+                return root.get("access_token").asText();
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void saveUserToDatabase(String jsonResponse) {
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -172,8 +209,6 @@ public class UserService {
 
     public String resendOtp(String email, String type) {
         Map<String, String> body = new HashMap<>();
-        // Supabase hỗ trợ các type: "signup", "recovery" (quên pass), "invite",
-        // "magiclink"
         String resendType = (type == null || type.isEmpty()) ? "signup" : type;
         body.put("email", email.trim().toLowerCase());
         body.put("type", resendType);
@@ -212,11 +247,12 @@ public class UserService {
     }
 
     public void sendRecoveryEmail(String email) {
-        Map<String, String> body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("email", email);
+        body.put("create_user", false); 
         try {
             webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/recover")
+                    .uri(supabaseUrl + "/auth/v1/otp")
                     .header("apikey", supabaseKey)
                     .header("Authorization", "Bearer " + supabaseKey)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -225,7 +261,7 @@ public class UserService {
                     .bodyToMono(String.class)
                     .block();
         } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI GỬI MAIL KHÔI PHỤC SUPABASE ---");
+            System.out.println("--- LỖI GỬI OTP KHÔI PHỤC ---");
             System.out.println("Status Code: " + e.getStatusCode());
             System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
             throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
@@ -238,7 +274,6 @@ public class UserService {
         Map<String, String> body = new HashMap<>();
         body.put("password", newPassword);
         try {
-            // Lưu ý: Endpoint này dùng TOKEN CỦA USER (để biết đổi pass cho ai)
             return webClient.put()
                     .uri(supabaseUrl + "/auth/v1/user")
                     .header("apikey", supabaseKey)

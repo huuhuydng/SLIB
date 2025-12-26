@@ -52,7 +52,7 @@ public class UserController {
     public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         String token = request.get("token");
-        String type = request.getOrDefault("type", "signup");
+        String type = request.get("type");
         try {
             String result = userService.verifyEmailOtp(email, token, type);
             return ResponseEntity.ok(result);
@@ -64,7 +64,7 @@ public class UserController {
     @PostMapping("/resend-otp")
     public ResponseEntity<?> resendOtp(@RequestBody Map<String, String> request) {
         String email = request.get("email");
-        String type = request.get("type"); // Có thể null
+        String type = request.get("type");
         if (email == null || email.trim().isEmpty()) {
             return ResponseEntity.badRequest().body("Vui lòng cung cấp Email.");
         }

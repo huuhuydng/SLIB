@@ -28,7 +28,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable) 
             .cors(cors -> cors.configurationSource(corsConfigurationSource())) 
             .authorizeHttpRequests(request -> request
-                .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify", "/slib/users/resend-otp").permitAll()
+                .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify", "/slib/users/resend-otp", "/slib/users/forgot-password").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

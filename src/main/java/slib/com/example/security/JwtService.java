@@ -21,8 +21,6 @@ public class JwtService {
     private String secretKey;
 
     private Claims extractAllClaims(String token) {
-        System.out.println("🔑 Key Java đang dùng: [" + secretKey + "]");
-        System.out.println("📏 Độ dài Key: " + secretKey.length());
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
                 .build()
