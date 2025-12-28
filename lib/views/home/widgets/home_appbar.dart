@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/models/user_profile.dart';
 
 class HomeAppBar extends StatelessWidget {
-  const HomeAppBar({super.key});
+  final UserProfile? user;
+  const HomeAppBar({super.key, this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -11,8 +13,8 @@ class HomeAppBar extends StatelessWidget {
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text("Chào Huy,",
+          children: [
+            Text("Chào ${user?.fullName ?? 'Bạn'},",
                 style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white)),
             SizedBox(height: 4),
             Text("Hôm nay bạn muốn học ở đâu?",

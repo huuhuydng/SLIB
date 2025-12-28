@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:slib/main_screen.dart';
 import 'views/authentication/on_boarding_screen.dart';
 import 'views/home/home_screen.dart'; 
@@ -7,8 +8,13 @@ import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(const MyApp());
+  await Firebase.initializeApp(); 
+  runApp(
+    MultiProvider(providers: [
+      ChangeNotifierProvider(create: (context) => AuthService()),
+    ], 
+    child: const MyApp())
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -37,15 +43,16 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final AuthService _authService = AuthService();
-
   @override
   void initState() {
     super.initState();
-    _handleNavigation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleNavigation();
+    });
   }
 
   Future<void> _handleNavigation() async {
+    final AuthService _authService = context.read<AuthService>();
     // 1. Bắt đầu chờ 2 giây (để giữ Logo hiển thị cho đẹp)
     final waitTask = Future.delayed(const Duration(seconds: 2));
     

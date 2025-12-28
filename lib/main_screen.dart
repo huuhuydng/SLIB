@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:slib/models/user_profile.dart';
+import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
@@ -16,13 +18,29 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  final AuthService _authService = AuthService();
+  UserProfile? _currentUser;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  void _loadUserInfo() async {
+    final profile = await _authService.getProfile();
+    setState(() {
+      _currentUser = profile;
+    });
+  }
+
+  List<Widget> get _screens => [
+    HomeScreen(user: _currentUser),
     const BookingZoneScreen(),
     const HceCardScreen(),
     const ChatScreen(),
-    const MenuScreen(),
+    // Truyền _currentUser vào MenuScreen
+    MenuScreen(user: _currentUser), 
   ];
 
   void _onItemTapped(int index) {
