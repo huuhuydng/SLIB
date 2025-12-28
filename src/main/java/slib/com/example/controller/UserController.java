@@ -92,7 +92,8 @@ public class UserController {
         try {
             // Gọi service
             userService.resendOtp(email, type);
-            // Supabase trả về JSON rỗng {} nếu thành công, nên ta tự trả về message cho dễ hiểu
+            // Supabase trả về JSON rỗng {} nếu thành công, nên ta tự trả về message cho dễ
+            // hiểu
             return ResponseEntity.ok("Đã gửi lại mã OTP thành công! Vui lòng kiểm tra email.");
         } catch (RuntimeException e) {
             // Xử lý lỗi (ví dụ: gửi quá nhiều lần trong 1 phút)
@@ -120,10 +121,10 @@ public class UserController {
     // POST /slib/users/reset-password
     // Header: Authorization: Bearer <Token_nhan_duoc_tu_verify>
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestHeader("Authorization") String authHeader, 
-                                           @RequestBody Map<String, String> request) {
+    public ResponseEntity<?> resetPassword(@RequestHeader("Authorization") String authHeader,
+            @RequestBody Map<String, String> request) {
         String newPassword = request.get("password");
-        
+
         if (newPassword == null || newPassword.length() < 6) {
             return ResponseEntity.badRequest().body("Mật khẩu mới phải từ 6 ký tự.");
         }
@@ -224,6 +225,27 @@ public class UserController {
             return ResponseEntity.ok("Đã xóa hồ sơ thành công.");
         } else {
             return ResponseEntity.status(404).body("Không tìm thấy ID để xóa.");
+        }
+    }
+
+    // API: Đăng nhập bằng Google
+    // URL: POST http://localhost:8080/slib/users/login-google
+    @PostMapping("/login-google")
+    public ResponseEntity<?> loginWithGoogle(@RequestBody Map<String, String> request) {
+        System.out.println("Nhận request /login-google: " + request);
+
+        String idToken = request.get("id_token");
+        if (idToken == null || idToken.isEmpty()) {
+            return ResponseEntity.badRequest().body("Thiếu Google ID Token");
+        }
+
+        try {
+            String response = userService.loginWithGoogle(idToken);
+            System.out.println("Supabase trả về: " + response);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            System.err.println("Lỗi xác thực Google: " + e.getMessage());
+            return ResponseEntity.status(401).body("Xác thực Google thất bại: " + e.getMessage());
         }
     }
 

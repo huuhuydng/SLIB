@@ -9,13 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-
 import slib.com.example.dto.RegisterRequest;
 import slib.com.example.dto.UserProfileResponse;
 import slib.com.example.entity.Role;
 import slib.com.example.entity.UserEntity;
 import slib.com.example.repository.UserRepository;
-
 
 import java.util.HashMap;
 import java.util.List;
@@ -119,7 +117,7 @@ public class UserService {
 
     // Gọi API verify của Supabase để xác thực email với mã OTP -> trả về Token JWT
     // nếu thành công -> App tự login luôn
-   // 2. Hàm Xác thực OTP & Lưu User vào Database (QUAN TRỌNG)
+    // 2. Hàm Xác thực OTP & Lưu User vào Database (QUAN TRỌNG)
     public String verifyEmailOtp(String email, String token, String type) {
         Map<String, Object> body = new HashMap<>();
         String verifyType = (type == null || type.isEmpty()) ? "signup" : type;
@@ -158,10 +156,11 @@ public class UserService {
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(jsonResponse);
-            
+
             // Lấy object User
             JsonNode userNode = root.get("user");
-            if (userNode == null) return;
+            if (userNode == null)
+                return;
 
             // Lấy ID (UUID từ Supabase)
             String userId = userNode.get("id").asText();
@@ -173,22 +172,22 @@ public class UserService {
 
             // Lấy Metadata (nơi chứa tên, mssv, role...)
             JsonNode meta = userNode.get("user_metadata");
-            
+
             // Tạo Entity mới
             UserEntity newUser = new UserEntity();
             newUser.setUserId(UUID.fromString(userId)); // Đồng bộ ID với Supabase
             newUser.setEmail(userNode.get("email").asText());
-            
+
             // Map dữ liệu từ Metadata (Dùng .path để tránh null pointer)
             newUser.setFullName(meta.path("full_name").asText("Chưa cập nhật"));
             newUser.setStudentCode(meta.path("student_code").asText(""));
-            
+
             // Parse ngày sinh (cẩn thận format)
             String dobStr = meta.path("dob").asText(null);
             if (dobStr != null) {
                 newUser.setDob(java.time.LocalDate.parse(dobStr));
             }
-            
+
             // Set Role
             String roleStr = meta.path("role").asText("STUDENT");
             try {
@@ -205,15 +204,16 @@ public class UserService {
 
         } catch (Exception e) {
             System.err.println("❌ Lỗi khi lưu user vào DB: " + e.getMessage());
-            // Không ném lỗi ra ngoài để tránh làm user hoang mang, 
+            // Không ném lỗi ra ngoài để tránh làm user hoang mang,
             // vì thực tế verify đã thành công. Có thể log lại để admin xử lý.
         }
     }
 
     public String resendOtp(String email, String type) {
         Map<String, String> body = new HashMap<>();
-        
-        // Supabase hỗ trợ các type: "signup", "recovery" (quên pass), "invite", "email_change"
+
+        // Supabase hỗ trợ các type: "signup", "recovery" (quên pass), "invite",
+        // "email_change"
         String resendType = (type == null || type.isEmpty()) ? "signup" : type;
 
         body.put("email", email.trim().toLowerCase());
@@ -341,6 +341,30 @@ public class UserService {
             return true;
         }
         return false;
+    }
+
+    public String loginWithGoogle(String idToken) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("id_token", idToken);
+        body.put("provider", "google");
+
+        try {
+            String result = webClient.post()
+                    // Endpoint chuẩn cho id_token flow
+                    .uri(supabaseUrl + "/auth/v1/token?grant_type=id_token")
+                    .header("apikey", supabaseKey)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            return result;
+        } catch (WebClientResponseException e) {
+            System.err.println("Supabase Error Body: " + e.getResponseBodyAsString());
+            throw new RuntimeException(e.getResponseBodyAsString());
+        }
     }
 
 }
