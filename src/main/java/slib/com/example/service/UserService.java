@@ -136,7 +136,6 @@ public class UserService {
         body.put("email", email.trim().toLowerCase());
         body.put("token", otp.trim());
         body.put("type", "email"); 
-
         try {
             String jsonResponse = webClient.post()
                     .uri(supabaseUrl + "/auth/v1/verify")
