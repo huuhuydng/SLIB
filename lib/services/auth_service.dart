@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -8,9 +9,21 @@ import 'package:slib/services/hce_bridge.dart';
 import '../models/auth_response.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier {
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // serverClientId lấy từ Google Cloud Console (Web Client ID)
+    serverClientId:
+        '870883000854-hv08bc7oe6kuj0ejgg52ar8bcu8q79g7.apps.googleusercontent.com',
+  );
+  // ⚠️ LƯU Ý QUAN TRỌNG VỀ IP:
+  // - Nếu chạy máy ảo Android: Dùng '10.0.2.2'
+  // - Nếu chạy máy ảo iOS: Dùng '127.0.0.1' hoặc 'localhost'
+  // - Nếu chạy thiết bị thật: Dùng IP LAN của máy tính (VD: 192.168.1.x)
+  static String getBaseUrl() {
+    return "https://unilluminant-dissuasively-ember.ngrok-free.dev/slib/users";
+  }
 
-  static const String baseUrl = ApiConstants.authUrl;
+  static String baseUrl = getBaseUrl();
   UserProfile? currentUser;
 
   // Khởi tạo kho lưu trữ bảo mật (lưu Token, v.v.)
@@ -34,7 +47,7 @@ class AuthService {
         final authData = AuthResponse.fromJson(jsonMap);
 
         if (authData.role != 'STUDENT') {
-          await logout(); 
+          await logout();
           throw Exception('Tài khoản này không phải là Sinh viên!');
         }
 
@@ -44,7 +57,7 @@ class AuthService {
         await HceBridge.setStudentCode(authData.studentCode);
 
         syncFcmToken(authData.id);
-
+        notifyListeners();
         return authData;
       } else {
         throw Exception('Đăng nhập thất bại: ${response.body}');
@@ -89,7 +102,7 @@ class AuthService {
   // 3. Hàm Xác Thực OTP
   Future<bool> verifyOtp(String email, String otp) async {
     // 1. Clean dữ liệu trước khi gửi
-    final cleanEmail = email.trim().toLowerCase(); 
+    final cleanEmail = email.trim().toLowerCase();
     final cleanOtp = otp.trim();
     try {
       final response = await http.post(
@@ -105,7 +118,7 @@ class AuthService {
         // Parse kết quả
         final jsonMap = jsonDecode(response.body);
         final authData = AuthResponse.fromJson(jsonMap);
-        
+
         // Lưu Token
         await _saveToken(authData.accessToken);
         await _saveStudentCode(authData.studentCode);
@@ -117,7 +130,7 @@ class AuthService {
       } else {
         // ⚠️ QUAN TRỌNG: Lấy lỗi thật từ Server để hiển thị
         // Ví dụ server trả: "Mã xác thực không đúng hoặc đã hết hạn!"
-        throw Exception(response.body); 
+        throw Exception(response.body);
       }
     } catch (e) {
       print("Lỗi Verify Dart: $e");
@@ -136,7 +149,7 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': cleanEmail, 'type': 'signup'}),
       );
-      
+
       if (response.statusCode == 200) {
         return;
       } else {
@@ -157,7 +170,7 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': cleanEmail}),
       );
-      
+
       if (response.statusCode == 200) {
         return;
       } else {
@@ -183,7 +196,7 @@ class AuthService {
           'type': 'recovery', // Khác với signup
         }),
       );
-      
+
       if (response.statusCode == 200) {
         final jsonMap = jsonDecode(response.body);
         // Lấy accessToken từ response
@@ -208,7 +221,7 @@ class AuthService {
         },
         body: jsonEncode({'password': newPassword}),
       );
-      
+
       if (response.statusCode == 200) {
         return;
       } else {
@@ -239,7 +252,7 @@ class AuthService {
         // Lưu ý decode utf8 để không lỗi font tiếng Việt
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
-        
+
         // Lưu vào biến toàn cục của class AuthService
         currentUser = UserProfile.fromJson(jsonMap);
 
@@ -248,9 +261,9 @@ class AuthService {
         if (studentCode != null && studentCode.isNotEmpty) {
           await HceBridge.setStudentCode(studentCode);
         } else {
-            // Nếu local mất studentCode, lấy từ API bù vào luôn cho chắc
-            await HceBridge.setStudentCode(currentUser!.studentCode);
-            await _saveStudentCode(currentUser!.studentCode);
+          // Nếu local mất studentCode, lấy từ API bù vào luôn cho chắc
+          await HceBridge.setStudentCode(currentUser!.studentCode);
+          await _saveStudentCode(currentUser!.studentCode);
         }
 
         // 3. Tiện tay Sync luôn FCM Token (Vì đã có ID từ currentUser)
@@ -273,7 +286,7 @@ class AuthService {
   Future<void> syncFcmToken(String userId) async {
     try {
       String? fcmToken = await FirebaseMessaging.instance.getToken();
-      
+
       if (fcmToken == null) {
         print("Không lấy được FCM Token");
         return;
@@ -309,7 +322,7 @@ class AuthService {
   Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
     try {
       if (currentUser != null && !forceRefresh) {
-          return currentUser;
+        return currentUser;
       }
       String? token = await getToken();
       if (token == null) return null;
@@ -355,14 +368,17 @@ class AuthService {
 
   // Đăng xuất (Xóa Token)
   Future<void> logout() async {
+    await _googleSignIn.signOut();
     await _storage.delete(key: 'jwt_token');
     await _storage.delete(key: _studentCodeKey);
     await clearSavedCredentials(); // Xóa cả email/password đã lưu
     await HceBridge.clearStudentCode();
+    currentUser = null;
+    notifyListeners();
   }
 
   // === CHỨC NĂNG GHI NHỚ ĐĂNG NHẬP ===
-  
+
   // Lưu credentials (email + password)
   Future<void> saveCredentials(String email, String password) async {
     await _storage.write(key: _savedEmailKey, value: email);
@@ -373,7 +389,7 @@ class AuthService {
   Future<Map<String, String>?> getSavedCredentials() async {
     final email = await _storage.read(key: _savedEmailKey);
     final password = await _storage.read(key: _savedPasswordKey);
-    
+
     if (email != null && password != null) {
       return {'email': email, 'password': password};
     }
@@ -384,5 +400,103 @@ class AuthService {
   Future<void> clearSavedCredentials() async {
     await _storage.delete(key: _savedEmailKey);
     await _storage.delete(key: _savedPasswordKey);
+  }
+
+  // Cập nhật thông tin người dùng
+  Future<void> updateProfile(UserProfile user) async {
+    final token = await getToken();
+    if (token == null) throw Exception("Chưa đăng nhập");
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/update/${user.id}'),
+      headers: {
+        'Content-Type': 'Application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'fullName': user.fullName,
+        'email': user.email,
+        'studentCode': user.studentCode,
+        'role': user.role,
+      }),
+    );
+    currentUser = user;
+    notifyListeners();
+    if (response.statusCode != 200) {
+      throw Exception('Cập nhật thông tin thất bại: ${response.body}');
+    }
+  }
+
+  // Đổi mật khẩu người dùng
+  Future<void> changePassword(String oldPassword, String newPassword) async {
+    final token = await getToken();
+    if (token == null) throw Exception("Chưa đăng nhập");
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'oldPassword': oldPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Đổi mật khẩu thất bại: ${response.body}');
+    }
+  }
+
+  Future<AuthResponse?> signInWithGoogle() async {
+    try {
+      // Web Client ID từ Google Cloud Console
+      const webClientId =
+          '870883000854-hv08bc7oe6kuj0ejgg52ar8bcu8q79g7.apps.googleusercontent.com';
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: webClientId,
+      );
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return null;
+
+      final googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Không lấy được ID Token từ Google');
+      }
+
+      print("DEBUG_TOKEN: $idToken");
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/login-google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'id_token': idToken}),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(response.body);
+        final authData = AuthResponse.fromJson(jsonMap);
+
+        await _saveToken(authData.accessToken);
+        await _saveStudentCode(authData.studentCode);
+        await HceBridge.setStudentCode(authData.studentCode);
+
+        await getProfile(forceRefresh: true); // cập nhật currentUser
+
+        syncFcmToken(authData.id);
+        notifyListeners();
+
+        return authData;
+      } else {
+        throw Exception('Backend từ chối xác thực Google: ${response.body}');
+      }
+    } catch (e) {
+      print('Lỗi Google Sign-In: $e');
+      rethrow;
+    }
   }
 }

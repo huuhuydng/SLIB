@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
-
-
+import 'package:slib/views/home/widgets/change_password_screen.dart' as screen;
+import 'package:slib/views/home/widgets/profile_Info_screen.dart' as screen;
 
 class MenuScreen extends StatefulWidget {
-  const MenuScreen({super.key});
+  final UserProfile? user;
+  const MenuScreen({super.key, this.user});
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -23,7 +25,10 @@ class _MenuScreenState extends State<MenuScreen> {
     return Scaffold(
       backgroundColor: AppColors.brandColor,
       appBar: AppBar(
-        title: const Text("Cài đặt & Tài khoản", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Cài đặt & Tài khoản",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         centerTitle: true,
         surfaceTintColor: Colors.transparent,
@@ -34,7 +39,7 @@ class _MenuScreenState extends State<MenuScreen> {
           children: [
             // 1. Profile Header (Thông tin sinh viên)
             _buildProfileHeader(),
-            
+
             const SizedBox(height: 24),
 
             // 2. Nhóm Cài đặt Ứng dụng
@@ -53,7 +58,8 @@ class _MenuScreenState extends State<MenuScreen> {
                 title: "Thông báo đẩy",
                 subtitle: "Nhắc nhở lịch đặt chỗ & Check-in",
                 value: _isNotificationEnabled,
-                onChanged: (val) => setState(() => _isNotificationEnabled = val),
+                onChanged: (val) =>
+                    setState(() => _isNotificationEnabled = val),
               ),
               _buildDivider(),
               _buildSwitchTile(
@@ -73,13 +79,45 @@ class _MenuScreenState extends State<MenuScreen> {
               _buildNavTile(
                 icon: Icons.person_outline,
                 title: "Thông tin cá nhân",
-                onTap: () {},
+                onTap: () {
+                  if (widget.user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            screen.ProfileInfoScreen(user: widget.user!),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Không có thông tin người dùng"),
+                      ),
+                    );
+                  }
+                },
               ),
               _buildDivider(),
               _buildNavTile(
                 icon: Icons.lock_outline,
                 title: "Đổi mật khẩu",
-                onTap: () {},
+                onTap: () {
+                  if (widget.user != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            screen.ChangePasswordScreen(user: widget.user!),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Không có thông tin người dùng"),
+                      ),
+                    );
+                  }
+                },
               ),
               _buildDivider(),
               _buildNavTile(
@@ -121,22 +159,27 @@ class _MenuScreenState extends State<MenuScreen> {
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   side: BorderSide(color: Colors.grey.shade300),
                 ),
                 child: const Text(
                   "Đăng xuất",
                   style: TextStyle(
-                    color: AppColors.error, 
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 16
+                    color: AppColors.error,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            Text("Powered by FPT University", style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Text(
+              "Powered by FPT University",
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -154,7 +197,11 @@ class _MenuScreenState extends State<MenuScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
@@ -170,7 +217,9 @@ class _MenuScreenState extends State<MenuScreen> {
                 ),
                 child: const CircleAvatar(
                   radius: 32,
-                  backgroundImage: NetworkImage('https://i.pravatar.cc/300?img=11'),
+                  backgroundImage: NetworkImage(
+                    'https://i.pravatar.cc/300?img=11',
+                  ),
                 ),
               ),
               Positioned(
@@ -178,10 +227,13 @@ class _MenuScreenState extends State<MenuScreen> {
                 right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: AppColors.brandColor, shape: BoxShape.circle),
+                  decoration: const BoxDecoration(
+                    color: AppColors.brandColor,
+                    shape: BoxShape.circle,
+                  ),
                   child: const Icon(Icons.edit, color: Colors.white, size: 12),
                 ),
-              )
+              ),
             ],
           ),
           const SizedBox(width: 16),
@@ -190,18 +242,32 @@ class _MenuScreenState extends State<MenuScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Nguyễn Hữu Huy",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                Text(
+                  widget.user?.fullName ?? "Lỗi hiển thị tên",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text("MSSV: DE180295", style: TextStyle(color: AppColors.textGrey, fontSize: 12, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    "MSSV: ${widget.user?.studentCode ?? 'N/A'}",
+                    style: TextStyle(
+                      color: AppColors.textGrey,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -235,7 +301,9 @@ class _MenuScreenState extends State<MenuScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5),
+        ],
       ),
       child: Column(children: children),
     );
@@ -257,11 +325,20 @@ class _MenuScreenState extends State<MenuScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       secondary: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: AppColors.brandColor.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: AppColors.brandColor.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
         child: Icon(icon, color: AppColors.brandColor, size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+      ),
     );
   }
 
@@ -277,15 +354,24 @@ class _MenuScreenState extends State<MenuScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          shape: BoxShape.circle,
+        ),
         child: Icon(icon, color: Colors.grey[700], size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (trailingText != null) 
-            Text(trailingText, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          if (trailingText != null)
+            Text(
+              trailingText,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
           if (trailingText != null) const SizedBox(width: 8),
           const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
         ],
@@ -295,7 +381,13 @@ class _MenuScreenState extends State<MenuScreen> {
 
   // 6. Đường kẻ phân cách
   Widget _buildDivider() {
-    return const Divider(height: 1, thickness: 0.5, indent: 60, endIndent: 0, color: Color(0xFFEEEEEE));
+    return const Divider(
+      height: 1,
+      thickness: 0.5,
+      indent: 60,
+      endIndent: 0,
+      color: Color(0xFFEEEEEE),
+    );
   }
 
   // Dialog Đăng xuất
@@ -304,7 +396,9 @@ class _MenuScreenState extends State<MenuScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Đăng xuất?"),
-        content: const Text("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?"),
+        content: const Text(
+          "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -314,15 +408,17 @@ class _MenuScreenState extends State<MenuScreen> {
             onPressed: () async {
               // Xử lý đăng xuất
               Navigator.pop(context); // Đóng dialog
-              
+
               try {
                 // Gọi hàm logout để xóa token
                 await AuthService().logout();
-                
+
                 // Chuyển về màn hình đăng nhập và xóa toàn bộ stack
                 if (mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const OnBoardingScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const OnBoardingScreen(),
+                    ),
                     (route) => false,
                   );
                 }
@@ -331,7 +427,13 @@ class _MenuScreenState extends State<MenuScreen> {
                 print("Lỗi đăng xuất: $e");
               }
             },
-            child: const Text("Đăng xuất", style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+            child: const Text(
+              "Đăng xuất",
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

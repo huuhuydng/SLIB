@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/models/user_profile.dart';
 import 'package:slib/views/home/widgets/home_appbar.dart';
 import 'widgets/reputation_card.dart';
 import 'widgets/quick_actions.dart';
 import 'widgets/news_list.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final UserProfile? user;
+
+  const HomeScreen({super.key, this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -36,19 +39,19 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-                  
+
                   // A. Header (Chào hỏi & Thông báo)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: HomeAppBar(),
+                    child: HomeAppBar(user: user),
                   ),
-                  
+
                   const SizedBox(height: 30),
 
                   // B. Card Uy tín (Nằm đè lên ranh giới Cam/Trắng)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ReputationCard(),
+                    child: ReputationCard(user: user),
                   ),
 
                   const SizedBox(height: 30),
@@ -73,15 +76,22 @@ class HomeScreen extends StatelessWidget {
                           SizedBox(height: 30),
 
                           // 2. Gợi ý AI
-                          Text("Gợi ý thông minh", 
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                          Text(
+                            "Gợi ý thông minh",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
                           SizedBox(height: 16),
                           AICard(), // Tách ra widget riêng bên dưới
                           SizedBox(height: 30),
 
                           // 3. Tin tức
                           NewsList(),
-                          SizedBox(height: 80), // Padding đáy để không bị BottomBar che
+                          SizedBox(
+                            height: 80,
+                          ), // Padding đáy để không bị BottomBar che
                         ],
                       ),
                     ),
@@ -106,11 +116,16 @@ class AICard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
-            colors: [Color(0xFF232526), Color(0xFF414345)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
+          colors: [Color(0xFF232526), Color(0xFF414345)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
@@ -125,30 +140,41 @@ class AICard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.auto_awesome,
-                      color: Colors.amberAccent, size: 28),
+                    color: Colors.white.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome,
+                    color: Colors.amberAccent,
+                    size: 28,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                      Text("Giờ vàng học tập: 14:00 - 16:00",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              fontSize: 16)),
+                      Text(
+                        "Giờ vàng học tập: 14:00 - 16:00",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text("Thư viện vắng khách. Đặt ngay để có chỗ đẹp!",
-                          style: TextStyle(
-                              color: Colors.white70, fontSize: 13)),
+                      Text(
+                        "Thư viện vắng khách. Đặt ngay để có chỗ đẹp!",
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios,
-                    color: Colors.white54, size: 16)
+                const Icon(
+                  Icons.arrow_forward_ios,
+                  color: Colors.white54,
+                  size: 16,
+                ),
               ],
             ),
           ),
