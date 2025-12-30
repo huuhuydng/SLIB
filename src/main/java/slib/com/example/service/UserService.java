@@ -334,4 +334,28 @@ public class UserService {
         return false;
     }
 
+    public String loginWithGoogle(String idToken) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("id_token", idToken);
+        body.put("provider", "google");
+
+        try {
+            String result = webClient.post()
+                    // Endpoint chuẩn cho id_token flow
+                    .uri(supabaseUrl + "/auth/v1/token?grant_type=id_token")
+                    .header("apikey", supabaseKey)
+                    .header("Authorization", "Bearer " + supabaseKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            return result;
+        } catch (WebClientResponseException e) {
+            System.err.println("Supabase Error Body: " + e.getResponseBodyAsString());
+            throw new RuntimeException(e.getResponseBodyAsString());
+        }
+    }
+
 }
