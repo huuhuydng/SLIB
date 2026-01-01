@@ -2,14 +2,12 @@ package slib.com.example.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import slib.com.example.dto.RegisterRequest;
 import slib.com.example.dto.UserProfileResponse;
 import slib.com.example.entity.Role;
 import slib.com.example.entity.UserEntity;
@@ -19,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class UserService {
@@ -29,7 +29,7 @@ public class UserService {
     @Value("${supabase.url}")
     private String supabaseUrl;
 
-    @Value("${supabase.key}") // Service Role Key
+    @Value("${supabase.key}")
     private String supabaseKey;
 
     public UserService(UserRepository userRepository, WebClient.Builder webClientBuilder) {
@@ -37,80 +37,14 @@ public class UserService {
         this.webClient = webClientBuilder.build();
     }
 
-    // 1. NHÓM CHỨC NĂNG AUTH (GỌI SUPABASE API)
-
-    public String registerUser(RegisterRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new RuntimeException("Email đã tồn tại!");
-        }
-        if (userRepository.findByStudentCode(request.getStudentCode()).isPresent()) {
-            throw new RuntimeException("Mã sinh viên đã tồn tại!");
-        }
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("full_name", request.getFullName());
-        metadata.put("student_code", request.getStudentCode());
-        metadata.put("dob", request.getDob());
-        metadata.put("role", "STUDENT");
+    // --- LOGIN GOOGLE & SYNC DB ---
+    public Map<String, Object> loginWithGoogle(String idToken, String fullNameFromClient) {
         Map<String, Object> body = new HashMap<>();
-        body.put("email", request.getEmail());
-        body.put("password", request.getPassword());
-        body.put("data", metadata);
-        body.put("email_confirm", true);
-        try {
-            return webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/signup")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    // Hàm asynchronous
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI ĐĂNG KÍ SUPABASE ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi đăng ký Supabase: " + e.getMessage());
-        }
-    }
-
-    public String login(String email, String password) {
-        Map<String, String> body = new HashMap<>();
-        body.put("email", email);
-        body.put("password", password);
-
-        try {
-            return webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/token?grant_type=password")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI LOGIN SUPABASE ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
-        }
-    }
-
-    public String verifyEmailOtp(String email, String token, String type) {
-        Map<String, Object> body = new HashMap<>();
-        String verifyType = (type == null || type.isEmpty()) ? "signup" : type;
-        body.put("type", verifyType);
-        body.put("token", token.trim());
-        body.put("email", email.trim().toLowerCase());
+        body.put("id_token", idToken);
+        body.put("provider", "google");
         try {
             String jsonResponse = webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/verify")
+                    .uri(supabaseUrl + "/auth/v1/token?grant_type=id_token")
                     .header("apikey", supabaseKey)
                     .header("Authorization", "Bearer " + supabaseKey)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -118,220 +52,123 @@ public class UserService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-            saveUserToDatabase(jsonResponse);
-            return jsonResponse;
+
+            UserEntity user = syncGoogleUserToLocalDB(jsonResponse, fullNameFromClient);
+
+            // 3. Lấy Access Token từ Supabase response
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(jsonResponse);
+            String accessToken = root.path("access_token").asText();
+
+            // 4. Đóng gói kết quả trả về cho Flutter
+            Map<String, Object> finalResponse = new HashMap<>();
+            finalResponse.put("access_token", accessToken);
+            finalResponse.put("user", user); // Trả về object UserEntity đã lưu trong DB
+
+            return finalResponse;
+
         } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI VERIFY MAIL SUPABASE ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
+            System.err.println("Supabase Error: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Lỗi xác thực Google: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(); // In lỗi ra console để debug
             throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
         }
     }
 
-    public String verifyRecoveryOtp(String email, String otp) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("email", email.trim().toLowerCase());
-        body.put("token", otp.trim());
-        body.put("type", "email"); 
-        try {
-            String jsonResponse = webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/verify")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-            return extractAccessToken(jsonResponse);
-        } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI VERIFY OTP KHÔI PHỤC ---");
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Mã OTP không đúng hoặc đã hết hạn");
+    private UserEntity syncGoogleUserToLocalDB(String jsonResponse, String clientFullName) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(jsonResponse);
+        JsonNode userNode = root.get("user");
+
+        if (userNode == null) {
+            throw new RuntimeException("Không lấy được thông tin User từ Supabase");
         }
+
+        String email = userNode.get("email").asText();
+        String supabaseIdString = userNode.get("id").asText();
+        UUID supabaseUid = UUID.fromString(supabaseIdString);
+
+        if (!email.endsWith("@fpt.edu.vn")) {
+            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn");
+        }
+
+        String emailPrefix = email.split("@")[0].toUpperCase(); 
+        String studentCode = emailPrefix; 
+
+        Pattern pattern = Pattern.compile("([A-Z]{2}\\d{4,})");
+        Matcher matcher = pattern.matcher(emailPrefix);
+
+        if (matcher.find()) {
+            String found = matcher.group(1);
+            if (emailPrefix.endsWith(found)) {
+                studentCode = found;
+            }
+        }
+
+        System.out.println("Email: " + email + " -> MSSV extracted: " + studentCode);
+
+        String fullName = (clientFullName != null && !clientFullName.isEmpty())
+                ? clientFullName
+                : userNode.path("user_metadata").path("full_name").asText(studentCode);
+
+        UserEntity user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null) {
+            user = UserEntity.builder()
+                    .email(email)
+                    .studentCode(studentCode) // Lưu MSSV đã cắt chuẩn
+                    .fullName(fullName)
+                    .supabaseUid(supabaseUid)
+                    .role(Role.student)
+                    .reputationScore(100)
+                    .isActive(true)
+                    .build();
+            System.out.println("✅ INSERT USER MỚI: " + email);
+        } else {
+            if (user.getSupabaseUid() == null) {
+                user.setSupabaseUid(supabaseUid);
+                userRepository.save(user);
+                System.out.println("♻️ LINK SUPABASE UID: " + email);
+            }
+        }
+
+        return userRepository.save(user);
     }
 
-    private String extractAccessToken(String jsonResponse) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(jsonResponse);
-            if (root.has("access_token")) {
-                return root.get("access_token").asText();
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void saveUserToDatabase(String jsonResponse) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(jsonResponse);
-            JsonNode userNode = root.get("user");
-            if (userNode == null)
-                return;
-            String userId = userNode.get("id").asText();
-            if (userRepository.existsById(UUID.fromString(userId))) {
-                return;
-            }
-            JsonNode meta = userNode.get("user_metadata");
-            UserEntity newUser = new UserEntity();
-            newUser.setUserId(UUID.fromString(userId));
-            newUser.setEmail(userNode.get("email").asText());
-
-            // Dùng .path để tránh null pointer
-            newUser.setFullName(meta.path("full_name").asText(""));
-            newUser.setStudentCode(meta.path("student_code").asText(""));
-
-            String dobStr = meta.path("dob").asText(null);
-            if (dobStr != null) {
-                newUser.setDob(java.time.LocalDate.parse(dobStr));
-            }
-            String roleStr = meta.path("role").asText("STUDENT");
-            try {
-                newUser.setRole(Role.valueOf(roleStr));
-            } catch (Exception e) {
-                newUser.setRole(Role.STUDENT);
-            }
-            newUser.setReputationScore(100);
-            userRepository.save(newUser);
-            System.out.println("✅ Đã lưu user mới vào Database: " + newUser.getEmail());
-
-        } catch (Exception e) {
-            System.err.println("❌ Lỗi khi lưu user vào DB: " + e.getMessage());
-        }
-    }
-
-    public String resendOtp(String email, String type) {
-        Map<String, String> body = new HashMap<>();
-        String resendType = (type == null || type.isEmpty()) ? "signup" : type;
-        body.put("email", email.trim().toLowerCase());
-        body.put("type", resendType);
-        try {
-            return webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/resend")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI RESEND OTP SUPABASE ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
-        }
-    }
+    // --- CÁC HÀM GET DATA ---
 
     public UserProfileResponse getMyProfile(String email) {
         UserEntity user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return UserProfileResponse.builder()
-                .id(user.getUserId())
+                .id(user.getId()) // Lưu ý: dùng getId()
+                .supabaseUid(user.getSupabaseUid())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .studentCode(user.getStudentCode())
-                .role(user.getRole().name())
+                .role(user.getRole().name()) // Chuyển enum thành string
                 .reputationScore(user.getReputationScore() != null ? user.getReputationScore() : 100)
+                .isActive(user.getIsActive())
                 .build();
     }
 
-    public void sendRecoveryEmail(String email) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("email", email);
-        body.put("create_user", false); 
-        try {
-            webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/otp")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-            System.out.println("--- LỖI GỬI OTP KHÔI PHỤC ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
-        }
-    }
-
-    public String updatePassword(String userAccessToken, String newPassword) {
-        Map<String, String> body = new HashMap<>();
-        body.put("password", newPassword);
-        try {
-            return webClient.put()
-                    .uri(supabaseUrl + "/auth/v1/user")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + userAccessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (WebClientResponseException e) {
-             System.out.println("--- LỖI ĐỔI MẬT KHẨU SUPABASE ---");
-            System.out.println("Status Code: " + e.getStatusCode());
-            System.out.println("Lỗi chi tiết: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Supabase Error: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
-        }
-    }
-
-    // 2. NHÓM CHỨC NĂNG DATA (GỌI REPOSITORY)
-
+    // Admin functions
     public List<UserEntity> getAllUsers() {
         return userRepository.findAll();
     }
-    
-    public UserEntity getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với email: " + email));
-    }
 
-    public UserEntity getUserByStudentCode(String studentCode) {
-        return userRepository.findByStudentCode(studentCode)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với MSSV: " + studentCode));
-    }
+    public UserEntity updateUser(UUID id, UserEntity req) {
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-    public UserEntity getUserById(UUID uuid) {
-        return userRepository.findById(uuid)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user ID: " + uuid));
-    }
+        if (req.getFullName() != null)
+            user.setFullName(req.getFullName());
+        if (req.getNotiDevice() != null)
+            user.setNotiDevice(req.getNotiDevice());
+        // Thêm các trường khác nếu cần
 
-    public UserEntity updateUser(UUID userId, UserEntity userDetails) {
-        UserEntity existingUser = getUserById(userId);
-        if (userDetails.getFullName() != null) {
-            existingUser.setFullName(userDetails.getFullName());
-        }
-        if (userDetails.getNotiDevice() != null) {
-            existingUser.setNotiDevice(userDetails.getNotiDevice());
-        }
-        return userRepository.save(existingUser);
+        return userRepository.save(user);
     }
-
-    // Xoá User: Lưu ý, cái này chỉ xoá trong bảng Public
-    // Muốn xoá triệt để phải gọi API Auth xoá User (Admin function)
-    public boolean deleteUser(UUID userId) {
-        if (userRepository.existsById(userId)) {
-            userRepository.deleteById(userId);
-            return true;
-        }
-        return false;
-    }
-
 }

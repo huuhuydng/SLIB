@@ -1,7 +1,7 @@
 package slib.com.example.entity;
 
 public enum Role {
-    STUDENT, 
-    LIBRARIAN, 
-    ADMIN
+    student,   // Để chữ thường cho khớp với SQL Enums ('student')
+    librarian, 
+    admin
 }
