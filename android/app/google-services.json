@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "681681218112",
-    "project_id": "slib-d024c",
-    "storage_bucket": "slib-d024c.firebasestorage.app"
+    "project_number": "262933313086",
+    "project_id": "slib-6da39",
+    "storage_bucket": "slib-6da39.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:681681218112:android:c001f75425b9096a5acda5",
+        "mobilesdk_app_id": "1:262933313086:android:6f353067edec08d2d0c36f",
         "android_client_info": {
           "package_name": "com.example.slib"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyD3kWL2mCYNNzALGXmMlG_LVMIEODt6lU8"
+          "current_key": "AIzaSyAB_RTMsVAP2iwmEZl2tmlo0LoHGyc5hPs"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

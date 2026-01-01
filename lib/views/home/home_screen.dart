@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
         children: [
           // 1. NỀN GRADIENT CAM (Cố định ở trên)
           Container(
-            height: 300, // Chiều cao đủ để chứa Header + 1 nửa Card uy tín
+            height: 270, // Chiều cao đủ để chứa Header + 1 nửa Card uy tín
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,

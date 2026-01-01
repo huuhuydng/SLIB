@@ -1,20 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:slib/main_screen.dart';
-import 'views/authentication/on_boarding_screen.dart';
-import 'views/home/home_screen.dart'; 
-import 'services/auth_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+
+// Import các file của bạn
+import 'services/auth_service.dart';
+import 'main_screen.dart'; // Đảm bảo import đúng đường dẫn file MainScreen của bạn
+import 'views/authentication/on_boarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // --- FIX LỖI DUPLICATE APP (Giữ nguyên logic của bạn) ---
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } else {
+      Firebase.app(); 
+    }
+  } catch (e) {
+    print("Firebase init warning: $e");
+  }
+  // ----------------------------------------
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -26,11 +44,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'SLIB App',
       theme: ThemeData(
-        // Cập nhật màu chủ đạo theo SLIB (Cam)
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF751F)),
         useMaterial3: true,
       ),
-      home: const MyHomePage(), // Màn hình Splash
+      home: const MyHomePage(),
     );
   }
 }
@@ -46,89 +63,71 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _handleNavigation();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleNavigation());
   }
 
   Future<void> _handleNavigation() async {
-    final AuthService _authService = context.read<AuthService>();
-    // 1. Bắt đầu chờ 2 giây (để giữ Logo hiển thị cho đẹp)
-    final waitTask = Future.delayed(const Duration(seconds: 2));
-    
-    // 2. Kiểm tra trạng thái đăng nhập
-    // Hàm này trả về true nếu đã login, false nếu chưa
-    final checkAuthTask = _authService.checkLoginStatus(); 
+    try {
+      final AuthService authService = context.read<AuthService>();
+      
+      // 1. Chạy song song: Chờ 2 giây (để hiện Logo) VÀ Check Token
+      final results = await Future.wait([
+        Future.delayed(const Duration(seconds: 2)),
+        authService.checkLoginStatus(),
+      ]);
 
-    // 3. Chờ cả 2 việc trên hoàn thành (dùng Future.wait để chạy song song)
-    final results = await Future.wait([waitTask, checkAuthTask]);
-    final bool isLoggedIn = results[1] as bool;
+      // Kết quả checkLoginStatus nằm ở vị trí số 1
+      final bool isLoggedIn = results[1] as bool;
 
-    if (!mounted) return; 
+      if (!mounted) return;
 
-    // 4. Nếu chưa đăng nhập, thử auto-login bằng saved credentials
-    if (!isLoggedIn) {
-      final credentials = await _authService.getSavedCredentials();
-      if (credentials != null) {
-        try {
-          // Tự động đăng nhập lại
-          final result = await _authService.login(
-            credentials['email']!,
-            credentials['password']!,
-          );
-          if (result != null) {
-            _navigateTo(const MainScreen());
-            return;
-          }
-        } catch (e) {
-          // Nếu lỗi, xóa credentials cũ và cho user đăng nhập lại
-          await _authService.clearSavedCredentials();
-        }
+      // 2. Điều hướng dựa trên kết quả
+      if (isLoggedIn) {
+        // Đã đăng nhập -> Vào màn hình chính
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (_) => const MainScreen())
+        );
+      } else {
+        // Chưa đăng nhập / Token hết hạn -> Ra màn hình giới thiệu
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (_) => const OnBoardingScreen())
+        );
+      }
+    } catch (e) {
+      // Nếu có lỗi bất ngờ, cứ đưa về Onboarding cho an toàn
+      print("Lỗi Navigation: $e");
+      if (mounted) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const OnBoardingScreen()));
       }
     }
-
-    if (isLoggedIn) {
-      _navigateTo(const MainScreen()); 
-    } else {
-      _navigateTo(const OnBoardingScreen());
-    }
-  }
-
-  // Hàm chuyển trang dùng hiệu ứng Fade (Mờ dần) 
-  void _navigateTo(Widget targetScreen) {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, 
+      backgroundColor: Colors.white,
       body: Center(
-        // Logo
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Logo
             Image.asset(
               'assets/images/logo.png',
-              width: 150, 
+              width: 150,
               height: 150,
+              // Thêm errorBuilder để tránh màn hình đỏ nếu lỡ file ảnh lỗi
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.local_library_rounded, 
+                size: 100, 
+                color: Color(0xFFFF751F)
+              ),
             ),
             const SizedBox(height: 20),
-            const CircularProgressIndicator(
-              color: Color(0xFFFF751F), // Màu cam SLIB
-            ),
+            // Loading
+            const CircularProgressIndicator(color: Color(0xFFFF751F)),
           ],
         ),
       ),

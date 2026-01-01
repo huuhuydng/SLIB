@@ -3,237 +3,98 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/hce_bridge.dart';
-import '../models/auth_response.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'auth_response.dart'; // Import model response của bạn
 
 class AuthService extends ChangeNotifier {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // serverClientId lấy từ Google Cloud Console (Web Client ID)
-    serverClientId:
-        '870883000854-hv08bc7oe6kuj0ejgg52ar8bcu8q79g7.apps.googleusercontent.com',
-  );
-  // ⚠️ LƯU Ý QUAN TRỌNG VỀ IP:
-  // - Nếu chạy máy ảo Android: Dùng '10.0.2.2'
-  // - Nếu chạy máy ảo iOS: Dùng '127.0.0.1' hoặc 'localhost'
-  // - Nếu chạy thiết bị thật: Dùng IP LAN của máy tính (VD: 192.168.1.x)
+  
+  // Cấu hình Google
+  static const String _webClientId = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
+  
+  // URL Backend
   static String getBaseUrl() {
-    return "https://unilluminant-dissuasively-ember.ngrok-free.dev/slib/users";
+    return "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev/slib/users";
   }
-
   static String baseUrl = getBaseUrl();
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: _webClientId, 
+    scopes: ['email', 'profile'],
+  );
+
+  final _storage = const FlutterSecureStorage();
   UserProfile? currentUser;
 
-  // Khởi tạo kho lưu trữ bảo mật (lưu Token, v.v.)
-  final _storage = const FlutterSecureStorage();
-  static const _studentCodeKey = 'student_code';
-  static const _savedEmailKey = 'saved_email';
-  static const _savedPasswordKey = 'saved_password';
-
-  // 1. Hàm Đăng Nhập
-  Future<AuthResponse?> login(String email, String password) async {
+  // --- 1. CHỨC NĂNG CHÍNH: LOGIN GOOGLE ---
+  Future<UserProfile?> signInWithGoogle() async {
     try {
+      // 1. Trigger Google Sign In
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser == null) return null;
+
+      // 2. Check đuôi email FPT
+      if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
+        await _googleSignIn.signOut();
+        throw Exception('Vui lòng sử dụng email sinh viên FPT (@fpt.edu.vn)!');
+      }
+
+      // 👉 LẤY HỌ TÊN (Không lấy avatar nữa)
+      // Nếu google không có tên hiển thị, lấy tạm phần đầu email làm tên
+      String googleName = googleUser.displayName ?? googleUser.email.split('@')[0];
+
+      // 3. Lấy Token
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Không lấy được ID Token từ Google.');
+      }
+
+      // 4. Gửi về Backend (Chỉ gửi Token và Tên)
       final response = await http.post(
-        Uri.parse('$baseUrl/login'),
+        Uri.parse('$baseUrl/login-google'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email, 'password': password}),
+        body: jsonEncode({
+          'id_token': idToken,
+          'full_name': googleName, // Backend nhớ hứng trường này để INSERT vào bảng users
+        }),
       );
 
       if (response.statusCode == 200) {
-        final jsonMap = jsonDecode(response.body);
+        // Dùng utf8.decode để tránh lỗi font tiếng Việt khi parse
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final jsonMap = jsonDecode(decodedBody);
+        
+        // 1. Lấy Token
+        final String accessToken = jsonMap['access_token'];
+        await _saveToken(accessToken);
 
-        final authData = AuthResponse.fromJson(jsonMap);
-
-        if (authData.role != 'STUDENT') {
-          await logout();
-          throw Exception('Tài khoản này không phải là Sinh viên!');
+        // 2. Lấy User Info (Key là 'user' như Backend trả về)
+        if (jsonMap['user'] != null) {
+          currentUser = UserProfile.fromJson(jsonMap['user']);
+          
+          // Lưu MSSV để dùng cho HCE
+          await _saveStudentCode(currentUser!.studentCode);
+          await HceBridge.setStudentCode(currentUser!.studentCode);
+          syncFcmToken(currentUser!.id);
         }
 
-        // Lưu Token vào kho
-        await _saveToken(authData.accessToken);
-        await _saveStudentCode(authData.studentCode);
-        await HceBridge.setStudentCode(authData.studentCode);
-
-        syncFcmToken(authData.id);
         notifyListeners();
-        return authData;
+        return currentUser;
       } else {
-        throw Exception('Đăng nhập thất bại: ${response.body}');
+        throw Exception('Đăng nhập thất bại với mã lỗi: ${response.statusCode}');
       }
     } catch (e) {
-      print('Lỗi login: $e');
-      rethrow; // Ném lỗi ra để UI hiển thị thông báo
+      if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
+      print('Google Sign-In Error: $e');
+      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
     }
   }
 
-  // 2. Hàm Đăng Ký
-  Future<bool> register({
-    required String email,
-    required String password,
-    required String fullName,
-    required String studentCode,
-    required String dob, // Format: YYYY-MM-DD
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-          'fullName': fullName,
-          'studentCode': studentCode,
-          'dob': dob,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        throw Exception(response.body);
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // 3. Hàm Xác Thực OTP
-  Future<bool> verifyOtp(String email, String otp) async {
-    // 1. Clean dữ liệu trước khi gửi
-    final cleanEmail = email.trim().toLowerCase();
-    final cleanOtp = otp.trim();
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/verify'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': cleanEmail,
-          'token': cleanOtp,
-          'type': 'signup',
-        }),
-      );
-      if (response.statusCode == 200) {
-        // Parse kết quả
-        final jsonMap = jsonDecode(response.body);
-        final authData = AuthResponse.fromJson(jsonMap);
-
-        // Lưu Token
-        await _saveToken(authData.accessToken);
-        await _saveStudentCode(authData.studentCode);
-        await HceBridge.setStudentCode(authData.studentCode);
-
-        syncFcmToken(authData.id);
-
-        return true;
-      } else {
-        // ⚠️ QUAN TRỌNG: Lấy lỗi thật từ Server để hiển thị
-        // Ví dụ server trả: "Mã xác thực không đúng hoặc đã hết hạn!"
-        throw Exception(response.body);
-      }
-    } catch (e) {
-      print("Lỗi Verify Dart: $e");
-      rethrow;
-    }
-  }
-
-  // 3.1 Hàm Gửi Lại OTP
-  Future<void> resendOtp(String email) async {
-    final cleanEmail = email.trim().toLowerCase();
-    try {
-      // Gọi lại API register để gửi OTP mới
-      // Hoặc nếu backend có endpoint riêng /resend-otp thì dùng endpoint đó
-      final response = await http.post(
-        Uri.parse('$baseUrl/resend-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': cleanEmail, 'type': 'signup'}),
-      );
-
-      if (response.statusCode == 200) {
-        return;
-      } else {
-        throw Exception('Không thể gửi lại OTP: ${response.body}');
-      }
-    } catch (e) {
-      print("Lỗi Resend OTP: $e");
-      rethrow;
-    }
-  }
-
-  // 3.2 Hàm Quên Mật Khẩu - Gửi OTP về email
-  Future<void> forgotPassword(String email) async {
-    final cleanEmail = email.trim().toLowerCase();
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/forgot-password'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': cleanEmail}),
-      );
-
-      if (response.statusCode == 200) {
-        return;
-      } else {
-        throw Exception('Không thể gửi mã OTP: ${response.body}');
-      }
-    } catch (e) {
-      print("Lỗi Forgot Password: $e");
-      rethrow;
-    }
-  }
-
-  // 3.3 Verify OTP Recovery và lấy token
-  Future<String> verifyRecoveryOtp(String email, String otp) async {
-    final cleanEmail = email.trim().toLowerCase();
-    final cleanOtp = otp.trim();
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/verify'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': cleanEmail,
-          'token': cleanOtp,
-          'type': 'recovery', // Khác với signup
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final jsonMap = jsonDecode(response.body);
-        // Lấy accessToken từ response
-        return jsonMap['accessToken'] as String;
-      } else {
-        throw Exception('Mã OTP không đúng hoặc đã hết hạn');
-      }
-    } catch (e) {
-      print("Lỗi Verify Recovery OTP: $e");
-      rethrow;
-    }
-  }
-
-  // 3.4 Đặt lại mật khẩu với token
-  Future<void> resetPasswordWithToken(String token, String newPassword) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/reset-password'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({'password': newPassword}),
-      );
-
-      if (response.statusCode == 200) {
-        return;
-      } else {
-        throw Exception('Không thể đặt lại mật khẩu: ${response.body}');
-      }
-    } catch (e) {
-      print("Lỗi Reset Password With Token: $e");
-      rethrow;
-    }
-  }
-
-  // 4. Hàm Kiểm Tra Trạng Thái Đăng Nhập
+  // --- 2. KIỂM TRA TRẠNG THÁI ĐĂNG NHẬP (Splash Screen dùng) ---
   Future<bool> checkLoginStatus() async {
     String? token = await getToken();
     if (token == null) return false;
@@ -248,82 +109,37 @@ class AuthService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        // 1. Parse dữ liệu luôn (Đừng vứt đi nữa!)
-        // Lưu ý decode utf8 để không lỗi font tiếng Việt
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
 
-        // Lưu vào biến toàn cục của class AuthService
         currentUser = UserProfile.fromJson(jsonMap);
 
-        // 2. Setup HCE (Logic cũ của bạn)
-        final studentCode = await _getStudentCode();
-        if (studentCode != null && studentCode.isNotEmpty) {
-          await HceBridge.setStudentCode(studentCode);
-        } else {
-          // Nếu local mất studentCode, lấy từ API bù vào luôn cho chắc
+        // Đảm bảo sync lại student code vào Native
+        if (currentUser != null) {
           await HceBridge.setStudentCode(currentUser!.studentCode);
-          await _saveStudentCode(currentUser!.studentCode);
+          syncFcmToken(currentUser!.id);
         }
-
-        // 3. Tiện tay Sync luôn FCM Token (Vì đã có ID từ currentUser)
-        // Gọi không cần await để App vào nhanh, cái này chạy ngầm
-        syncFcmToken(currentUser!.id);
-
+        
+        notifyListeners();
         return true;
       } else {
-        // Token hết hạn hoặc lỗi
-        await logout();
+        await logout(); // Token hết hạn -> Logout
         return false;
       }
     } catch (e) {
       print("Check login error: $e");
-      return false;
-    }
-  }
-
-  // 5. Đồng Bộ FCM Token Lên Backend
-  Future<void> syncFcmToken(String userId) async {
-    try {
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-
-      if (fcmToken == null) {
-        print("Không lấy được FCM Token");
-        return;
-      }
-
-      print("FCM Token: $fcmToken");
-
-      String? jwt = await getToken();
-      if (jwt == null) return;
-
-      //update user
-      // URL: PUT /slib/users/update/{id}
-      final response = await http.put(
-        Uri.parse('$baseUrl/update/$userId'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwt',
-        },
-        body: jsonEncode({
-          'notiDevice': fcmToken, // Đổi thành camelCase để khớp Java Entity
-        }),
-      );
-      if (response.statusCode == 200) {
-        print("Đã cập nhật noti_device thành công!");
-      } else {
-        print("Lỗi update FCM: ${response.body}");
-      }
-    } catch (e) {
-      print("Exception syncFcmToken: $e");
+      return false; // Coi như chưa login nếu lỗi mạng để user đăng nhập lại
     }
   }
 
   Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
     try {
+      // 1. Nếu đã có dữ liệu và không bắt buộc tải lại -> Trả về luôn (nhanh)
       if (currentUser != null && !forceRefresh) {
         return currentUser;
       }
+
+      // 2. Nếu chưa có -> Lấy Token để gọi API
       String? token = await getToken();
       if (token == null) return null;
 
@@ -334,169 +150,68 @@ class AuthService extends ChangeNotifier {
           'Authorization': 'Bearer $token',
         },
       );
+
       if (response.statusCode == 200) {
+        // Decode UTF-8 để hiển thị tiếng Việt không lỗi
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
-        return UserProfile.fromJson(jsonMap);
-      } else {
-        print("Lỗi lấy profile: ${response.body}");
-        return null;
+        
+        // Cập nhật biến currentUser
+        currentUser = UserProfile.fromJson(jsonMap);
+        notifyListeners(); // Báo cho UI cập nhật
+        return currentUser;
       }
     } catch (e) {
-      print("Exception getProfile: $e");
-      return null;
+      print("Lỗi getProfile: $e");
     }
+    return null;
   }
 
-  // Lưu Token vào "két sắt"
-  Future<void> _saveToken(String token) async {
-    await _storage.write(key: 'jwt_token', value: token);
-  }
 
-  Future<void> _saveStudentCode(String code) async {
-    await _storage.write(key: _studentCodeKey, value: code);
-  }
+  // --- 3. TIỆN ÍCH (Logout, Token, FCM) ---
 
-  Future<String?> _getStudentCode() async {
-    return _storage.read(key: _studentCodeKey);
-  }
-
-  // Lấy Token ra để dùng
-  Future<String?> getToken() async {
-    return await _storage.read(key: 'jwt_token');
-  }
-
-  // Đăng xuất (Xóa Token)
   Future<void> logout() async {
+    // Xóa sạch mọi thứ
+    await _storage.deleteAll(); 
     await _googleSignIn.signOut();
-    await _storage.delete(key: 'jwt_token');
-    await _storage.delete(key: _studentCodeKey);
-    await clearSavedCredentials(); // Xóa cả email/password đã lưu
     await HceBridge.clearStudentCode();
     currentUser = null;
     notifyListeners();
   }
 
-  // === CHỨC NĂNG GHI NHỚ ĐĂNG NHẬP ===
-
-  // Lưu credentials (email + password)
-  Future<void> saveCredentials(String email, String password) async {
-    await _storage.write(key: _savedEmailKey, value: email);
-    await _storage.write(key: _savedPasswordKey, value: password);
-  }
-
-  // Lấy credentials đã lưu
-  Future<Map<String, String>?> getSavedCredentials() async {
-    final email = await _storage.read(key: _savedEmailKey);
-    final password = await _storage.read(key: _savedPasswordKey);
-
-    if (email != null && password != null) {
-      return {'email': email, 'password': password};
-    }
-    return null;
-  }
-
-  // Xóa credentials đã lưu
-  Future<void> clearSavedCredentials() async {
-    await _storage.delete(key: _savedEmailKey);
-    await _storage.delete(key: _savedPasswordKey);
-  }
-
-  // Cập nhật thông tin người dùng
-  Future<void> updateProfile(UserProfile user) async {
-    final token = await getToken();
-    if (token == null) throw Exception("Chưa đăng nhập");
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/update/${user.id}'),
-      headers: {
-        'Content-Type': 'Application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'fullName': user.fullName,
-        'email': user.email,
-        'studentCode': user.studentCode,
-        'role': user.role,
-      }),
-    );
-    currentUser = user;
-    notifyListeners();
-    if (response.statusCode != 200) {
-      throw Exception('Cập nhật thông tin thất bại: ${response.body}');
-    }
-  }
-
-  // Đổi mật khẩu người dùng
-  Future<void> changePassword(String oldPassword, String newPassword) async {
-    final token = await getToken();
-    if (token == null) throw Exception("Chưa đăng nhập");
-
-    final response = await http.put(
-      Uri.parse('$baseUrl/change-password'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'oldPassword': oldPassword,
-        'newPassword': newPassword,
-      }),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Đổi mật khẩu thất bại: ${response.body}');
-    }
-  }
-
-  Future<AuthResponse?> signInWithGoogle() async {
+  Future<void> syncFcmToken(String userId) async {
     try {
-      // Web Client ID từ Google Cloud Console
-      const webClientId =
-          '870883000854-hv08bc7oe6kuj0ejgg52ar8bcu8q79g7.apps.googleusercontent.com';
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      String? jwt = await getToken();
+      if (fcmToken == null || jwt == null) return;
 
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: webClientId,
+      // API update FCM token
+      await http.put(
+        Uri.parse('$baseUrl/update/$userId'), // Hoặc endpoint riêng update-fcm
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwt',
+        },
+        body: jsonEncode({'noti_device': fcmToken}), // Khớp với DB snake_case
       );
-
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      final googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw Exception('Không lấy được ID Token từ Google');
-      }
-
-      print("DEBUG_TOKEN: $idToken");
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/login-google'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'id_token': idToken}),
-      );
-
-      if (response.statusCode == 200) {
-        final jsonMap = jsonDecode(response.body);
-        final authData = AuthResponse.fromJson(jsonMap);
-
-        await _saveToken(authData.accessToken);
-        await _saveStudentCode(authData.studentCode);
-        await HceBridge.setStudentCode(authData.studentCode);
-
-        await getProfile(forceRefresh: true); // cập nhật currentUser
-
-        syncFcmToken(authData.id);
-        notifyListeners();
-
-        return authData;
-      } else {
-        throw Exception('Backend từ chối xác thực Google: ${response.body}');
-      }
     } catch (e) {
-      print('Lỗi Google Sign-In: $e');
-      rethrow;
+      print("FCM Sync Error: $e");
     }
+  }
+
+  // --- CÁC HÀM GET/SET LOCAL ---
+  Future<void> _saveToken(String token) async => 
+      await _storage.write(key: 'jwt_token', value: token);
+
+  Future<String?> getToken() async => 
+      await _storage.read(key: 'jwt_token');
+
+  Future<void> _saveStudentCode(String code) async => 
+      await _storage.write(key: 'student_code', value: code);
+
+  // --- Placeholder cho FEID sau này ---
+  Future<void> signInWithFEID() async {
+    // TODO: Sau này có API FEID thì triển khai ở đây
+    print("Tính năng đang phát triển...");
   }
 }

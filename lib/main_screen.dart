@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Nhớ import Provider
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
@@ -7,7 +8,6 @@ import 'package:slib/views/home/widgets/booking_zone.dart';
 import 'package:slib/views/others/chat_screen.dart';
 import 'package:slib/views/others/menu_screen.dart';
 import 'package:slib/views/widgets/bottom_nav_widget.dart';
-
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,28 +18,37 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  final AuthService _authService = AuthService();
+  
+  // Biến này để lưu user lấy từ Provider
   UserProfile? _currentUser;
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-  }
-
-  void _loadUserInfo() async {
-    final profile = await _authService.getProfile();
-    setState(() {
-      _currentUser = profile;
+    // Gọi hàm lấy thông tin ngay khi màn hình hiện lên
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserInfo();
     });
   }
 
+  void _loadUserInfo() async {
+    // Dùng context.read để lấy AuthService gốc từ main.dart
+    final authService = context.read<AuthService>();
+    final profile = await authService.getProfile();
+    
+    if (mounted) {
+      setState(() {
+        _currentUser = profile;
+      });
+    }
+  }
+
+  // Danh sách màn hình
   List<Widget> get _screens => [
     HomeScreen(user: _currentUser),
     const BookingZoneScreen(),
     const HceCardScreen(),
     const ChatScreen(),
-    // Truyền _currentUser vào MenuScreen
     MenuScreen(user: _currentUser), 
   ];
 
@@ -51,14 +60,18 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Lắng nghe sự thay đổi từ AuthService (Ví dụ khi logout thì user = null)
+    final authService = context.watch<AuthService>();
+    // Cập nhật lại _currentUser nếu AuthService thay đổi
+    if (authService.currentUser != _currentUser) {
+       _currentUser = authService.currentUser;
+    }
+
     return Scaffold(
-      appBar: null,
       body: IndexedStack(
         index: _selectedIndex, 
         children: _screens,
       ),
-      
-      // GỌI WIDGET RIÊNG TẠI ĐÂY
       bottomNavigationBar: BottomNavWidget(
         selectedIndex: _selectedIndex, 
         onItemTapped: _onItemTapped,  

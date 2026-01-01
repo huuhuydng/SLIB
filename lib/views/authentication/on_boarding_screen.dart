@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
-import 'package:slib/assets/colors.dart'; // Đảm bảo file này có chứa brandColor
+import 'package:slib/assets/colors.dart'; 
 import 'login_screen.dart';
-import 'register_screen.dart';
+// import 'register_screen.dart'; // Đã bỏ màn hình đăng ký
 
 class OnBoardingScreen extends StatefulWidget {
   const OnBoardingScreen({super.key});
@@ -44,11 +43,13 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-    }else {
-      Navigator.push(
+    } else {
+      // 👉 SỬA ĐỔI: Chuyển thẳng sang LoginScreen
+      // Dùng pushReplacement để người dùng không back lại onboarding được nữa
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => RegisterScreen(),
+          builder: (context) => const LoginScreen(),
         ),
       );
     }
@@ -63,6 +64,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Phần Slider ảnh và nội dung
             Expanded(
               flex: 3,
               child: PageView.builder(
@@ -118,12 +120,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
               ),
             ),
 
+            // Phần Footer (Chấm tròn + Nút bấm)
             Expanded(
               flex: 1,
               child: Column(
                 children: [
                   const Spacer(),
                 
+                  // Chấm tròn chỉ số trang
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
@@ -135,8 +139,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentIndex == index
-                              ? AppColors.brandColor // Dùng màu cam FPT
-                              : AppColors.brandColor.withOpacity(0.2), // Màu mờ khi chưa active
+                              ? AppColors.brandColor 
+                              : AppColors.brandColor.withOpacity(0.2), 
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -145,6 +149,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   
                   const Spacer(),
 
+                  // Nút Tiếp tục / Bắt đầu ngay
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SizedBox(
@@ -173,33 +178,9 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  RichText(
-                    text: TextSpan(
-                      text: "Bạn đã có tài khoản? ",
-                      style: const TextStyle(fontSize: 14, color: Colors.black54),
-                      children: [
-                        TextSpan(
-                          text: "Đăng nhập",
-                          style: TextStyle(
-                            color: AppColors.brandColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          recognizer: TapGestureRecognizer()
-                            ..onTap = () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LoginScreen(),
-                                ),
-                              );
-                            },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  // 👉 SỬA ĐỔI: Đã xóa phần RichText "Bạn đã có tài khoản?" ở đây
+                  
+                  const SizedBox(height: 30), // Padding đáy cho thoáng
                 ],
               ),
             ),
