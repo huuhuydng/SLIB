@@ -37,8 +37,7 @@ public class UserService {
         this.webClient = webClientBuilder.build();
     }
 
-    // --- LOGIN GOOGLE & SYNC DB ---
-    public Map<String, Object> loginWithGoogle(String idToken, String fullNameFromClient) {
+    public Map<String, Object> loginWithGoogle(String idToken, String fullNameFromClient, String fcmToken) {
         Map<String, Object> body = new HashMap<>();
         body.put("id_token", idToken);
         body.put("provider", "google");
@@ -53,17 +52,16 @@ public class UserService {
                     .bodyToMono(String.class)
                     .block();
 
-            UserEntity user = syncGoogleUserToLocalDB(jsonResponse, fullNameFromClient);
+            UserEntity user = syncGoogleUserToLocalDB(jsonResponse, fullNameFromClient, fcmToken);
 
-            // 3. Lấy Access Token từ Supabase response
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(jsonResponse);
             String accessToken = root.path("access_token").asText();
 
-            // 4. Đóng gói kết quả trả về cho Flutter
+
             Map<String, Object> finalResponse = new HashMap<>();
             finalResponse.put("access_token", accessToken);
-            finalResponse.put("user", user); // Trả về object UserEntity đã lưu trong DB
+            finalResponse.put("user", user);
 
             return finalResponse;
 
@@ -71,12 +69,12 @@ public class UserService {
             System.err.println("Supabase Error: " + e.getResponseBodyAsString());
             throw new RuntimeException("Lỗi xác thực Google: " + e.getResponseBodyAsString());
         } catch (Exception e) {
-            e.printStackTrace(); // In lỗi ra console để debug
+            e.printStackTrace(); 
             throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
         }
     }
 
-    private UserEntity syncGoogleUserToLocalDB(String jsonResponse, String clientFullName) throws Exception {
+    private UserEntity syncGoogleUserToLocalDB(String jsonResponse, String clientFullName, String fcmToken) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(jsonResponse);
         JsonNode userNode = root.get("user");
@@ -117,12 +115,13 @@ public class UserService {
         if (user == null) {
             user = UserEntity.builder()
                     .email(email)
-                    .studentCode(studentCode) // Lưu MSSV đã cắt chuẩn
+                    .studentCode(studentCode) 
                     .fullName(fullName)
                     .supabaseUid(supabaseUid)
                     .role(Role.student)
                     .reputationScore(100)
                     .isActive(true)
+                    .notiDevice(fcmToken)
                     .build();
             System.out.println("✅ INSERT USER MỚI: " + email);
         } else {
@@ -131,8 +130,11 @@ public class UserService {
                 userRepository.save(user);
                 System.out.println("♻️ LINK SUPABASE UID: " + email);
             }
+            if (fcmToken != null && !fcmToken.isEmpty()) {
+                user.setNotiDevice(fcmToken);
+                System.out.println("📲 Updated FCM Token for: " + email);
+            }
         }
-
         return userRepository.save(user);
     }
 
@@ -143,18 +145,17 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return UserProfileResponse.builder()
-                .id(user.getId()) // Lưu ý: dùng getId()
+                .id(user.getId())
                 .supabaseUid(user.getSupabaseUid())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
                 .studentCode(user.getStudentCode())
-                .role(user.getRole().name()) // Chuyển enum thành string
+                .role(user.getRole().name()) 
                 .reputationScore(user.getReputationScore() != null ? user.getReputationScore() : 100)
                 .isActive(user.getIsActive())
                 .build();
     }
 
-    // Admin functions
     public List<UserEntity> getAllUsers() {
         return userRepository.findAll();
     }
@@ -167,8 +168,8 @@ public class UserService {
             user.setFullName(req.getFullName());
         if (req.getNotiDevice() != null)
             user.setNotiDevice(req.getNotiDevice());
-        // Thêm các trường khác nếu cần
 
         return userRepository.save(user);
     }
 }
+

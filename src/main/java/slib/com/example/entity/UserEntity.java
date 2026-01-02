@@ -23,11 +23,9 @@ public class UserEntity implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID) 
-    // 👉 CHÍNH XÁC: Map vào cột "id" như trong SQL của bạn
     @Column(name = "id", nullable = false, updatable = false) 
     private UUID id; 
 
-    // 👉 CHÍNH XÁC: Kiểu UUID và tên cột là "supabase_uid"
     @Column(name = "supabase_uid", unique = true, columnDefinition = "uuid") 
     private UUID supabaseUid;
 
@@ -40,7 +38,7 @@ public class UserEntity implements UserDetails {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    // 👉 CHÍNH XÁC: Map vào enum "user_role" của PostgreSQL
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private Role role; 
@@ -62,7 +60,7 @@ public class UserEntity implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // --- UserDetails Override ---
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
