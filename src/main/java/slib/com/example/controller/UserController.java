@@ -24,26 +24,25 @@ public class UserController {
         this.userService = userService;
     }
 
-    // --- API QUAN TRỌNG NHẤT: LOGIN GOOGLE ---
     @PostMapping("/login-google")
     public ResponseEntity<?> loginWithGoogle(@RequestBody Map<String, String> request) {
         String idToken = request.get("id_token");
         String fullName = request.get("full_name");
+        String fcmToken = request.get("noti_device"); 
 
         if (idToken == null || idToken.isEmpty()) {
             return ResponseEntity.badRequest().body("Thiếu Google ID Token");
         }
 
         try {
-            // Hàm này giờ trả về Map (token + user)
-            Map<String, Object> response = userService.loginWithGoogle(idToken, fullName);
+            // 👉 2. Truyền fcmToken vào Service
+            Map<String, Object> response = userService.loginWithGoogle(idToken, fullName, fcmToken);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(401).body("Lỗi: " + e.getMessage());
         }
     }
 
-    // --- LẤY THÔNG TIN CÁ NHÂN ---
     @GetMapping("/me")
     public ResponseEntity<?> getMyProfile(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
@@ -59,7 +58,8 @@ public class UserController {
     }
 
     // --- UPDATE (Vd: FCM Token) ---
-    @PutMapping("/update/{id}")
+
+    // Update current user's profile (including FCM token)
     public ResponseEntity<?> updateUser(@PathVariable UUID id, @RequestBody UserEntity userDetails) {
         try {
             UserEntity updatedUser = userService.updateUser(id, userDetails);

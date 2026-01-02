@@ -2,8 +2,9 @@
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/AppConfig.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/ApplicationConfig.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/SecurityConfig.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/controller/HCEController.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/controller/UserController.java
-/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/dto/RegisterRequest.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/dto/AuthResponse.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/dto/UserProfileResponse.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/entity/Role.java
 /Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/entity/UserEntity.java
