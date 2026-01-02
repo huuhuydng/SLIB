@@ -37,7 +37,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <service android:name="com.example.slib.MyHostApduService"
+        <service android:name="vn.edu.dlu.slib.MyHostApduService"
                  android:exported="true"
                  android:permission="android.permission.BIND_NFC_SERVICE">
             <intent-filter>

@@ -7,12 +7,20 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:262933313086:android:6f353067edec08d2d0c36f",
+        "mobilesdk_app_id": "1:262933313086:android:bf23a6161e0b7811d0c36f",
         "android_client_info": {
-          "package_name": "com.example.slib"
+          "package_name": "vn.edu.dlu.slib"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "262933313086-j561vjds69obiint5i7co4bbhumrgc65.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.edu.dlu.slib",
+            "certificate_hash": "b681be76e19bf2e505dc9446a574252d9bf1569d"
+          }
+        },
         {
           "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
           "client_type": 3
@@ -29,6 +37,13 @@
             {
               "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "262933313086-a8qlfim80jpdnjc634c1t026aalqj20f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.slib"
+              }
             }
           ]
         }

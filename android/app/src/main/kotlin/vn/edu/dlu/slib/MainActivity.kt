@@ -1,4 +1,4 @@
-package com.example.slib
+package vn.edu.dlu.slib
 
 import android.content.Context
 import io.flutter.embedding.android.FlutterActivity
