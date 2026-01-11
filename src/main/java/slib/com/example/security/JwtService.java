@@ -21,7 +21,7 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(getSignInKeyInLocal())
+                .setSigningKey(getSignInKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -49,16 +49,8 @@ public class JwtService {
     }
 
     // 👉 QUAN TRỌNG: SỬA LẠI HÀM NÀY
-    // private Key getSignInKey() {
-    //     // Giải mã chuỗi Base64 thành byte array
-    //     byte[] keyBytes = Decoders.BASE64.decode(secretKey);
-    //     return Keys.hmacShaKeyFor(keyBytes);
-    // }
-
-    private Key getSignInKeyInLocal() {
-        // Supabase JWT Secret thường là chuỗi text thuần túy
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    private Key getSignInKey() {
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public boolean isTokenValid(String token, String username) {

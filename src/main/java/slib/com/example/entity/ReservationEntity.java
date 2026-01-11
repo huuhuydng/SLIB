@@ -19,6 +19,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import slib.com.example.entity.users.User;
+
 @Entity
 @Table(name = "reservations")
 @Data
@@ -35,7 +37,7 @@ public class ReservationEntity {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity user;
+    private User user;
 
     @ManyToOne
     @JoinColumn(name = "seat_id", nullable = false)

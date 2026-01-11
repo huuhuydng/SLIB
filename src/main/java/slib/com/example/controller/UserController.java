@@ -6,7 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.UserProfileResponse;
-import slib.com.example.entity.UserEntity;
+import slib.com.example.entity.users.User;
 import slib.com.example.service.UserService;
 
 import java.util.List;
@@ -29,13 +29,10 @@ public class UserController {
         String idToken = request.get("id_token");
         String fullName = request.get("full_name");
         String fcmToken = request.get("noti_device"); 
-
         if (idToken == null || idToken.isEmpty()) {
             return ResponseEntity.badRequest().body("Thiếu Google ID Token");
         }
-
         try {
-            // 👉 2. Truyền fcmToken vào Service
             Map<String, Object> response = userService.loginWithGoogle(idToken, fullName, fcmToken);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -49,7 +46,6 @@ public class UserController {
             return ResponseEntity.status(401).body("Token không hợp lệ hoặc hết hạn");
         }
         try {
-            // userDetails.getUsername() trả về email (do config trong UserEntity)
             UserProfileResponse profile = userService.getMyProfile(userDetails.getUsername());
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
@@ -57,21 +53,29 @@ public class UserController {
         }
     }
 
-    // --- UPDATE (Vd: FCM Token) ---
+    @PatchMapping("/me")
+    public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal UserDetails userDetails, 
+                                             @RequestBody User updateRequest) {
 
-    // Update current user's profile (including FCM token)
-    public ResponseEntity<?> updateUser(@PathVariable UUID id, @RequestBody UserEntity userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body("Token không hợp lệ");
+        }
+
         try {
-            UserEntity updatedUser = userService.updateUser(id, userDetails);
+            String email = userDetails.getUsername();
+            UserProfileResponse currentProfile = userService.getMyProfile(email);
+
+            User updatedUser = userService.updateUser(currentProfile.getId(), updateRequest);
+
             return ResponseEntity.ok(updatedUser);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi update: " + e.getMessage());
         }
     }
 
-    // --- ADMIN (Optional) ---
     @GetMapping("/getall")
-    public List<UserEntity> getAllUsers() {
+    public List<User> getAllUsers() {
         return userService.getAllUsers();
     }
 }

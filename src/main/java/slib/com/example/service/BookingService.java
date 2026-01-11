@@ -12,7 +12,7 @@ import slib.com.example.dto.SeatDTO;
 import slib.com.example.entity.ReservationEntity;
 import slib.com.example.entity.SeatEntity;
 import slib.com.example.entity.SeatStatus;
-import slib.com.example.entity.UserEntity;
+import slib.com.example.entity.users.User;
 import slib.com.example.entity.ZoneEntity;
 import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
@@ -36,7 +36,7 @@ public class BookingService {
 
     public ReservationEntity createBooking(UUID userId, Integer seatId,
             LocalDateTime startTime, LocalDateTime endTime) {
-        UserEntity user = userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
