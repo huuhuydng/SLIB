@@ -14,7 +14,6 @@ class MyHostApduService : HostApduService() {
     override fun processCommandApdu(commandApdu: ByteArray?, extras: Bundle?): ByteArray {
         if (commandApdu == null) {
             Log.e("HCE", "Received NULL APDU")
-            showToast("❌ NFC Error: NULL APDU")
             return hexStringToByteArray("6F00")
         }
 
@@ -25,30 +24,23 @@ class MyHostApduService : HostApduService() {
             commandApdu[0] == 0x00.toByte() && 
             commandApdu[1] == 0xA4.toByte() && 
             commandApdu[2] == 0x04.toByte()) {
-            
-            Log.d("HCE", "✅ SELECT AID Command detected!")
 
-            // Đọc mã sinh viên từ SharedPreferences
             val prefs = getSharedPreferences("hce_prefs", Context.MODE_PRIVATE)
-            val studentCode = prefs.getString("HCE_STUDENT_CODE", null)
+            val userId = prefs.getString("HCE_USER_ID", null)
             
-            if (studentCode == null || studentCode.isEmpty()) {
-                Log.e("HCE", "❌ No student code found!")
-                showToast("❌ NFC: Chưa đăng nhập")
+            if (userId == null || userId.isEmpty()) {
+                Log.e("HCE", "❌ No user ID found!")
                 return hexStringToByteArray("6A82") // File not found
             }
-
-            showToast("✅ NFC: Gửi token $studentCode")
             
-            // Trả về Token + Status OK (90 00)
-            val tokenBytes = studentCode.toByteArray(Charset.forName("UTF-8"))
-            val statusBytes = hexStringToByteArray("9000")
+            val tokenBytes = userId.toByteArray(Charset.forName("UTF-8"))
+            val statusBytes = hexStringToByteArray("9000") // Thanh cong
             
             val response = ByteArray(tokenBytes.size + statusBytes.size)
             System.arraycopy(tokenBytes, 0, response, 0, tokenBytes.size)
             System.arraycopy(statusBytes, 0, response, tokenBytes.size, statusBytes.size)
             
-            Log.d("HCE", "Sending Token: $studentCode")
+            Log.d("HCE", "Sending User ID: $userId")
             Log.d("HCE", "Response HEX: " + toHex(response))
             return response
         }

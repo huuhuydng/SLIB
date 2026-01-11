@@ -15,13 +15,13 @@ class MainActivity : FlutterActivity() {
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
 			.setMethodCallHandler { call, result ->
 				when (call.method) {
-					"setStudentCode" -> {
-						val code = call.argument<String>("code") ?: ""
-						saveStudentCode(code)
+					"setUserId" -> {
+						val userId = call.argument<String>("userId") ?: ""
+						saveUserId(userId)
 						result.success(null)
 					}
-					"clearStudentCode" -> {
-						clearStudentCode()
+					"clearUserId" -> {
+						clearUserId()
 						result.success(null)
 					}
 					else -> result.notImplemented()
@@ -29,13 +29,13 @@ class MainActivity : FlutterActivity() {
 			}
 	}
 
-	private fun saveStudentCode(code: String) {
+	private fun saveUserId(userId: String) {
 		val prefs = getSharedPreferences("hce_prefs", Context.MODE_PRIVATE)
-		prefs.edit().putString("HCE_STUDENT_CODE", code).apply()
+		prefs.edit().putString("HCE_USER_ID", userId).apply()
 	}
 
-	private fun clearStudentCode() {
+	private fun clearUserId() {
 		val prefs = getSharedPreferences("hce_prefs", Context.MODE_PRIVATE)
-		prefs.edit().remove("HCE_STUDENT_CODE").apply()
+		prefs.edit().remove("HCE_USER_ID").apply()
 	}
 }
