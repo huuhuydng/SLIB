@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Nhớ import Provider
 import 'package:slib/models/user_profile.dart';
+import 'package:slib/models/zones.dart';
 import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/booking_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
@@ -18,16 +20,31 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  
+
   // Biến này để lưu user lấy từ Provider
   UserProfile? _currentUser;
+  List<Zones> _zones = [];
 
   @override
   void initState() {
     super.initState();
-    // Gọi hàm lấy thông tin ngay khi màn hình hiện lên
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserInfo();
+      _loadZones();
+    });
+  }
+
+  void _loadZones() async {
+    final bookingService = context.read<BookingService>();
+    final zones = await bookingService.getAllZones();
+    debugPrint("Zones fetched: ${zones.length}");
+    for (var z in zones) {
+      debugPrint(
+        "Zone: id=${z.id}, name=${z.name}, desc=${z.description}, hasPower=${z.hasPowerOutlet}",
+      );
+    }
+    setState(() {
+      _zones = zones;
     });
   }
 
@@ -35,7 +52,7 @@ class _MainScreenState extends State<MainScreen> {
     // Dùng context.read để lấy AuthService gốc từ main.dart
     final authService = context.read<AuthService>();
     final profile = await authService.getProfile();
-    
+
     if (mounted) {
       setState(() {
         _currentUser = profile;
@@ -46,10 +63,10 @@ class _MainScreenState extends State<MainScreen> {
   // Danh sách màn hình
   List<Widget> get _screens => [
     HomeScreen(user: _currentUser),
-    const BookingZoneScreen(),
+    BookingZoneScreen(zones: _zones),
     const HceCardScreen(),
     const ChatScreen(),
-    MenuScreen(user: _currentUser), 
+    MenuScreen(user: _currentUser),
   ];
 
   void _onItemTapped(int index) {
@@ -64,17 +81,14 @@ class _MainScreenState extends State<MainScreen> {
     final authService = context.watch<AuthService>();
     // Cập nhật lại _currentUser nếu AuthService thay đổi
     if (authService.currentUser != _currentUser) {
-       _currentUser = authService.currentUser;
+      _currentUser = authService.currentUser;
     }
 
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex, 
-        children: _screens,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: BottomNavWidget(
-        selectedIndex: _selectedIndex, 
-        onItemTapped: _onItemTapped,  
+        selectedIndex: _selectedIndex,
+        onItemTapped: _onItemTapped,
       ),
     );
   }
