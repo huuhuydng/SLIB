@@ -17,10 +17,10 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter; 
+    private final JwtAuthenticationFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,7 +29,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify",
-                                "/slib/users/resend-otp", "/slib/users/forgot-password", "/slib/users/login-google")
+                                "/slib/users/resend-otp", "/slib/users/login-google",
+                                "/slib/bookings/getall", "/slib/bookings/create",
+                                "slib/bookings/updateStatusReserv/{reservationId}", "/slib/zones/getAllZones",
+                                "/slib/seats/getAllSeat/{zoneId}",
+                                "/slib/seats/getAvailableSeat/{zoneId}", "/slib/seats/getSeatsByTime/{zoneId}",
+                                "slib/seats/getSeatsByDate/{zoneId}", "slib/bookings/cancel/{reservationId}")
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
