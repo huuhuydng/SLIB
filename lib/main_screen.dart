@@ -7,8 +7,8 @@ import 'package:slib/services/booking_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
-import 'package:slib/views/others/chat_screen.dart';
-import 'package:slib/views/others/menu_screen.dart';
+import 'package:slib/views/chat/chat_screen.dart';
+import 'package:slib/views/menu/menu_screen.dart';
 import 'package:slib/views/widgets/bottom_nav_widget.dart';
 
 class MainScreen extends StatefulWidget {

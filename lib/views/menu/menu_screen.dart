@@ -14,18 +14,17 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  // Trạng thái các nút gạt (Switch)
-  bool _isBiometricEnabled = true;
-  bool _isNotificationEnabled = true;
-  bool _isDarkMode = false;
-
+  bool _isNfcEnabled = true;         
+  bool _isNotificationEnabled = true; 
+  bool _isAiEnabled = true;           
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA), 
       appBar: AppBar(
         title: const Text(
-          "Cài đặt & Tài khoản",
+          "Tài khoản & Cài đặt",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
@@ -37,54 +36,54 @@ class _MenuScreenState extends State<MenuScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           children: [
-            // 1. Profile Header (Avatar chữ cái)
+            // 1. Profile Header (Giữ nguyên logic chữ cái đầu)
             _buildModernProfileHeader(),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
 
-            // 2. Nhóm Cài đặt Ứng dụng
-            _buildSectionTitle("Ứng dụng"),
+            // 3. Nhóm Cấu hình Thư viện (Đã đổi nội dung)
+            _buildSectionTitle("Cấu hình Thư viện"),
             const SizedBox(height: 10),
             _buildSettingsGroup([
               _buildSwitchTile(
-                icon: Icons.fingerprint,
+                icon: Icons.nfc_rounded, // Icon NFC
+                iconColor: Colors.deepOrange,
+                title: "Check-in NFC (HCE)",
+                subtitle: "Chạm điện thoại để vào cửa",
+                value: _isNfcEnabled,
+                onChanged: (val) => setState(() => _isNfcEnabled = val),
+              ),
+              _buildDivider(),
+              _buildSwitchTile(
+                icon: Icons.auto_awesome_rounded, // Icon AI
                 iconColor: Colors.purple,
-                title: "Đăng nhập sinh trắc học",
-                subtitle: "Sử dụng FaceID/Vân tay",
-                value: _isBiometricEnabled,
-                onChanged: (val) => setState(() => _isBiometricEnabled = val),
+                title: "Gợi ý thông minh (AI)",
+                subtitle: "Đề xuất chỗ ngồi phù hợp",
+                value: _isAiEnabled,
+                onChanged: (val) => setState(() => _isAiEnabled = val),
               ),
               _buildDivider(),
               _buildSwitchTile(
                 icon: Icons.notifications_none_rounded,
-                iconColor: Colors.orange,
-                title: "Thông báo đẩy",
-                subtitle: "Nhắc nhở lịch & Check-in",
+                iconColor: Colors.blue,
+                title: "Thông báo lịch đặt",
+                subtitle: "Nhắc nhở trước 15 phút",
                 value: _isNotificationEnabled,
                 onChanged: (val) =>
                     setState(() => _isNotificationEnabled = val),
-              ),
-              _buildDivider(),
-              _buildSwitchTile(
-                icon: Icons.dark_mode_outlined,
-                iconColor: Colors.blueGrey,
-                title: "Chế độ tối",
-                subtitle: "Giao diện nền tối",
-                value: _isDarkMode,
-                onChanged: (val) => setState(() => _isDarkMode = val),
               ),
             ]),
 
             const SizedBox(height: 30),
 
-            // 3. Nhóm Tài khoản (Đã bỏ Đổi mật khẩu)
-            _buildSectionTitle("Tài khoản"),
+            // 4. Nhóm Quản lý (Đổi nội dung)
+            _buildSectionTitle("Quản lý cá nhân"),
             const SizedBox(height: 10),
             _buildSettingsGroup([
               _buildNavTile(
                 icon: Icons.person_outline_rounded,
                 iconColor: Colors.blue,
-                title: "Thông tin cá nhân",
+                title: "Thông tin sinh viên",
                 onTap: () {
                   if (widget.user != null) {
                     Navigator.push(
@@ -99,25 +98,35 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
               _buildDivider(),
               _buildNavTile(
-                icon: Icons.history_rounded,
-                iconColor: Colors.indigo,
-                title: "Lịch sử giao dịch",
+                icon: Icons.history_edu_rounded, // Icon lịch sử học tập
+                iconColor: Colors.teal,
+                title: "Lịch sử đặt chỗ",
                 onTap: () {
-                   // TODO: Navigate to Transaction History
+                   // TODO: Navigate to Booking History
+                }, 
+              ),
+               _buildDivider(),
+              _buildNavTile(
+                icon: Icons.warning_amber_rounded, // Icon cảnh báo
+                iconColor: Colors.redAccent,
+                title: "Lịch sử vi phạm",
+                trailingText: "0 vi phạm",
+                onTap: () {
+                   // TODO: Navigate to Violation History
                 }, 
               ),
             ]),
 
             const SizedBox(height: 30),
 
-            // 4. Nhóm Hỗ trợ
+            // 5. Nhóm Hỗ trợ (Giữ nguyên)
             _buildSectionTitle("Hỗ trợ"),
             const SizedBox(height: 10),
             _buildSettingsGroup([
               _buildNavTile(
                 icon: Icons.help_outline_rounded,
                 iconColor: Colors.green,
-                title: "Hướng dẫn sử dụng",
+                title: "Hướng dẫn check-in",
                 onTap: () {},
               ),
               _buildDivider(),
@@ -132,7 +141,7 @@ class _MenuScreenState extends State<MenuScreen> {
 
             const SizedBox(height: 40),
 
-            // 5. Nút Đăng xuất
+            // 6. Nút Đăng xuất (Giữ nguyên style)
             SizedBox(
               width: double.infinity,
               child: TextButton(
@@ -169,10 +178,10 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  // --- WIDGETS CON ---
+  // --- WIDGETS CON (GIỮ NGUYÊN STYLE GỐC) ---
 
   Widget _buildModernProfileHeader() {
-    // Lấy chữ cái đầu của tên
+    // Logic lấy chữ cái đầu (Đã có sẵn trong code cũ của bạn - Rất tốt)
     String firstLetter = (widget.user?.fullName.isNotEmpty ?? false) 
         ? widget.user!.fullName[0].toUpperCase() 
         : "S";
@@ -180,8 +189,8 @@ class _MenuScreenState extends State<MenuScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white, const Color(0xFFFFF3E0)], 
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFFFF3E0)], 
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -251,6 +260,58 @@ class _MenuScreenState extends State<MenuScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // WIDGET MỚI: ĐIỂM UY TÍN (Style trùng khớp với SettingsGroup)
+  Widget _buildReputationSection() {
+    int score = widget.user?.reputationScore ?? 100;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1), // Màu xanh uy tín
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.shield_outlined, color: Colors.green, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Điểm uy tín",
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),
+                ),
+                Text(
+                  "Đủ điều kiện đặt chỗ",
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            "$score/100",
+            style: const TextStyle(
+              fontSize: 18, 
+              fontWeight: FontWeight.bold, 
+              color: Colors.green
             ),
           ),
         ],

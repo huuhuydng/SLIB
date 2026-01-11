@@ -18,14 +18,14 @@ class HomeAppBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Chào ${user?.fullName ?? 'Bạn'},",
+                "Xin chào ${user?.fullName ?? 'Bạn'},",
                 style: const TextStyle(
                   fontSize: 26, 
                   fontWeight: FontWeight.bold, 
                   color: Colors.white,
                 ),
-                maxLines: 2, // Giới hạn tối đa 2 dòng (tùy chọn)
-                overflow: TextOverflow.ellipsis, // Nếu dài hơn 2 dòng thì hiện dấu ...
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               const Text(

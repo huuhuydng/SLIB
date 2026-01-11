@@ -43,7 +43,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   icons_plus: ^5.0.0
   flutter_launcher_icons: ^0.14.4
-  intl: ^0.20.2
+  flutter_widget_from_html: ^0.10.0  # Render nội dung bài viết HTML
+  intl: ^0.19.0               # Format ngày tháng
+
 
 
 dev_dependencies:
