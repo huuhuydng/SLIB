@@ -5,4 +5,6 @@ class ApiConstants {
   
   static const String authUrl = "$domain/slib/users";
 
+  static const String newsUrl = "$domain/slib/news";
+
 }

@@ -11,7 +11,6 @@ import 'views/authentication/on_boarding_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- FIX LỖI DUPLICATE APP (Giữ nguyên logic của bạn) ---
   try {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
@@ -23,7 +22,6 @@ void main() async {
   } catch (e) {
     print("Firebase init warning: $e");
   }
-  // ----------------------------------------
 
   runApp(
     MultiProvider(
@@ -70,33 +68,27 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final AuthService authService = context.read<AuthService>();
       
-      // 1. Chạy song song: Chờ 2 giây (để hiện Logo) VÀ Check Token
       final results = await Future.wait([
         Future.delayed(const Duration(seconds: 2)),
         authService.checkLoginStatus(),
       ]);
 
-      // Kết quả checkLoginStatus nằm ở vị trí số 1
       final bool isLoggedIn = results[1] as bool;
 
       if (!mounted) return;
 
-      // 2. Điều hướng dựa trên kết quả
       if (isLoggedIn) {
-        // Đã đăng nhập -> Vào màn hình chính
         Navigator.pushReplacement(
           context, 
           MaterialPageRoute(builder: (_) => const MainScreen())
         );
       } else {
-        // Chưa đăng nhập / Token hết hạn -> Ra màn hình giới thiệu
         Navigator.pushReplacement(
           context, 
           MaterialPageRoute(builder: (_) => const OnBoardingScreen())
         );
       }
     } catch (e) {
-      // Nếu có lỗi bất ngờ, cứ đưa về Onboarding cho an toàn
       print("Lỗi Navigation: $e");
       if (mounted) {
         Navigator.pushReplacement(
@@ -113,12 +105,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
             Image.asset(
               'assets/images/logo.png',
               width: 150,
               height: 150,
-              // Thêm errorBuilder để tránh màn hình đỏ nếu lỡ file ảnh lỗi
               errorBuilder: (context, error, stackTrace) => const Icon(
                 Icons.local_library_rounded, 
                 size: 100, 

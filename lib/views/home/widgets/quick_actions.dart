@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
-import 'package:slib/views/others/history_screen.dart';
-import 'package:slib/views/others/map_screen.dart';
+import 'package:slib/views/history/history_screen.dart';
+import 'package:slib/views/map/map_screen.dart';
 // Import các màn hình đích
 
 class QuickActions extends StatelessWidget {

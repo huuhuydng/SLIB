@@ -18,7 +18,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     {
       "image": "assets/images/on_boarding_1.png",
       "title": "Thư viện thông minh\ntrong tầm tay!",
-      "desc": "Khám phá SmartLib – nơi kết nối và quản lý mọi hoạt động thư viện chỉ với một ứng dụng duy nhất."
+      "desc": "Khám phá SLIB – nơi kết nối và quản lý mọi hoạt động thư viện chỉ với một ứng dụng duy nhất."
     },
     {
       "image": "assets/images/on_boarding_2.png",
