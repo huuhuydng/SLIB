@@ -21,7 +21,7 @@ class QuickActions extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildItem(context, Icons.chair_alt_rounded, "Đặt chỗ", Colors.blue,
-                () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingZoneScreen()))),
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookingZoneScreen(zones: [])))),
             _buildItem(context, Icons.badge_outlined, "Thẻ SV", AppColors.brandColor,
                 () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HceCardScreen()))),
             _buildItem(context, Icons.history_rounded, "Lịch sử", Colors.purple,
