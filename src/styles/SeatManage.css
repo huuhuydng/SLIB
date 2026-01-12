@@ -1,4 +1,3 @@
-/* --- VARIABLES & RESET --- */
 :root {
   --color-primary-start: #f58220;
   --color-primary-end: #ef6f12;
@@ -30,14 +29,12 @@ body {
   color: var(--color-text-main);
 }
 
-/* --- MAIN CONTAINER --- */
 .seatManage {
   display: flex;
   min-height: 100vh;
   width: 100%;
 }
 
-/* --- SIDEBAR --- */
 .seatManage__sidebar {
   width: var(--sidebar-width);
   background: linear-gradient(180deg, var(--color-primary-start) 0%, var(--color-primary-end) 100%);
@@ -102,7 +99,6 @@ body {
   padding: 0 24px;
 }
 
-/* --- CONTENT AREA --- */
 .seatManage__main {
   margin-left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width));
@@ -111,7 +107,6 @@ body {
   position: relative;
 }
 
-/* --- TOPBAR --- */
 .seatManage__topbar {
   display: flex;
   align-items: center;
@@ -238,7 +233,6 @@ body {
   color: var(--color-text-sub);
 }
 
-/* --- TITLE --- */
 .seatManage__title {
   font-size: 20px;
   font-weight: 700;
@@ -246,7 +240,6 @@ body {
   color: var(--color-text-main);
 }
 
-/* --- TOP CARDS SECTION --- */
 .seatManage__topCards {
   display: flex;
   gap: 20px;
@@ -256,11 +249,10 @@ body {
 .seatManage__leftStack {
   display: flex;
   flex-direction: column;
-  gap: 20px; /* Space between the two stacked cards */
+  gap: 20px;
   flex: 0 0 400px;
 }
 
-/* 1. Occupied Card */
 .seatManage__statCard {
   background: white;
   border-radius: var(--radius-card);
@@ -275,7 +267,7 @@ body {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background-color: #f0fdf4; /* Light green bg */
+  background-color: #f0fdf4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -298,7 +290,6 @@ body {
   margin-top: 4px;
 }
 
-/* 2. Restricted Card */
 .seatManage__restrictedCard {
   background: white;
   border-radius: var(--radius-card);
@@ -353,7 +344,6 @@ body {
   padding-left: 4px;
 }
 
-/* 3. AI Card (Right Column) */
 .seatManage__aiCard {
   flex: 1;
   background: white;
@@ -379,7 +369,7 @@ body {
 }
 
 .seatManage__aiContent {
-  background: #fff7ed; /* Light orange warning bg */
+  background: #fff7ed;
   border: 1px solid #fed7aa;
   border-radius: 12px;
   padding: 16px;
@@ -404,7 +394,6 @@ body {
   line-height: 1.5;
 }
 
-/* --- CONTROLS --- */
 .seatManage__controls {
   display: flex;
   justify-content: space-between;
@@ -477,7 +466,6 @@ body {
   padding-right: 4px;
 }
 
-/* --- MAP PANEL --- */
 .seatManage__mapPanel {
   background: white;
   border-radius: var(--radius-card);
@@ -485,7 +473,6 @@ body {
   padding: 30px;
   position: relative;
   min-height: 600px;
-  /* Grid Pattern Background */
   background-image: 
     linear-gradient(#f3f4f6 1px, transparent 1px),
     linear-gradient(90deg, #f3f4f6 1px, transparent 1px);
@@ -495,15 +482,12 @@ body {
 
 .seatManage__mapGrid {
   display: grid;
-  /* Columns: Bookshelf(100px) Gap(40px) CenterGroup(Dynamic) Gap(40px) RightGroup(Dynamic) */
-  grid-template-columns: 100px 40px 2fr 40px 3fr; 
-  /* Rows: Entrance(50), Hall(250), Lib(50), Spacer(20), ZoneA(auto) */
+  grid-template-columns: 100px 40px 3fr 40px 3fr; 
   grid-template-rows: 50px 250px 50px 20px auto;
   gap: 10px;
   height: 100%;
 }
 
-/* Static Elements */
 .seatManage__staticElement {
   background-color: #e5e5e5;
   border-radius: 30px;
@@ -561,35 +545,29 @@ body {
   align-self: center;
 }
 
-/* Zones */
 .seatManage__zone {
   display: grid;
   gap: 8px;
 }
 
-/* Zone B: Top Right (5 rows x 7 cols) */
 .seatManage__zoneB {
   grid-column: 5;
-  grid-row: 1 / span 2; /* Span upper area */
+  grid-row: 1 / span 2;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 10px;
   align-content: start;
 }
 
-/* Zone A: Bottom Left (3 rows x 5 cols) */
 .seatManage__zoneA {
   grid-column: 3;
   grid-row: 5;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 10px;
-  justify-content: center;
-  width: 90%;
-  margin: 0 auto;
+  align-content: start;
 }
 
-/* Zone C: Bottom Right (2 rows x 7 cols) */
 .seatManage__zoneC {
   grid-column: 5;
   grid-row: 5;
@@ -599,7 +577,6 @@ body {
   align-content: end;
 }
 
-/* Individual Seat */
 .seatManage__seat {
   aspect-ratio: 1;
   background-color: var(--seat-empty);
@@ -644,7 +621,6 @@ body {
   pointer-events: none;
 }
 
-/* Floating Action Card */
 .seatManage__seatActionCard {
   position: absolute;
   top: 20px;
@@ -715,12 +691,11 @@ body {
   background-color: #bae6fd;
 }
 
-/* Toast */
 .seatManage__toast {
   position: fixed;
   bottom: 40px;
   left: 50%;
-  transform: translateX(-50% + 120px); /* Adjust for sidebar center */
+  transform: translateX(-50% + 120px);
   background-color: #1f2937;
   color: white;
   padding: 12px 24px;
@@ -736,10 +711,9 @@ body {
   to { opacity: 1; transform: translate(-50% + 120px, 0); }
 }
 
-/* 1) Top cards: chuyển flex -> grid để cân cột */
 .seatManage__topCards{
   display: grid !important;
-  grid-template-columns: minmax(320px, 420px) minmax(520px, 1fr);
+  grid-template-columns: minmax(320px, 420px) minmax(420px, 520px);
   gap: 20px;
   align-items: start;
   margin-bottom: 24px;
@@ -753,11 +727,16 @@ body {
 
 .seatManage__aiCard{
   width: 100%;
-  min-width: 520px;
+  min-width: 420px;
+  max-width: 520px;
+  width: 350px;
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* 2) Main padding + giới hạn max width để nhìn “cân” trên màn hình lớn
-   (vẫn full width nền, chỉ nội dung cân giữa) */
+
 .seatManage__main{
   padding: 18px 28px 26px !important;
 }
@@ -768,7 +747,6 @@ body {
   margin-right: auto;
 }
 
-/* 3) Controls: chống tràn trên màn hình vừa/nhỏ */
 .seatManage__controls{
   gap: 12px;
   flex-wrap: wrap;
@@ -778,20 +756,18 @@ body {
   flex-wrap: wrap;
 }
 
-/* 4) Map panel: chiều cao linh hoạt hơn (đỡ “dài” và cân bố cục) */
+
 .seatManage__mapPanel{
   min-height: clamp(520px, 62vh, 720px) !important;
   padding: 26px !important;
 }
 
 .seatManage__mapGrid{
-  /* cân tỉ lệ trái/phải (tránh bên phải quá nặng) */
   grid-template-columns: 100px 32px 2fr 32px 2fr !important;
   grid-template-rows: 50px 240px 50px 16px auto !important;
   gap: 10px !important;
 }
 
-/* 5) Responsive: xuống 1 cột khi màn hình nhỏ */
 @media (max-width: 1100px){
   .seatManage__topCards{
     grid-template-columns: 1fr !important;
@@ -807,10 +783,13 @@ body {
   }
 }
 
-/* 6) FIX TOAST transform (cú pháp hiện tại đang sai) */
 .seatManage__toast{
-  left: calc(50% + (var(--sidebar-width) / 2));
-  transform: translateX(-50%) !important;
+  position: absolute;
+  top: -60px;
+  left: 0;
+  right: 0;
+  margin: auto;
+  transform: none !important;
 }
 
 @keyframes fadeIn{

@@ -1,0 +1,507 @@
+// ============================================
+// FILE: SeatManage.jsx (Frontend)
+// Thay thế toàn bộ file bằng code dưới đây
+// ============================================
+
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  Armchair,
+  Sparkles,
+  Check,
+  Filter,
+  CircleAlert,
+  ChevronDown,
+} from "lucide-react";
+import Header from './Header';
+import { seatService } from '../services/seatService';
+import "../styles/SeatManage.css";
+
+const generateSeats = (prefix, start, count, zoneName) => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${prefix}${i + 1}`,
+    zone: zoneName,
+  }));
+};
+
+const SEATS_A = generateSeats("A", 1, 21, "Khu tự học");
+const SEATS_B = generateSeats("B", 1, 28, "Khu yên tĩnh");
+const SEATS_C = generateSeats("C", 1, 21, "Khu thảo luận");
+
+const ALL_SEATS = [...SEATS_A, ...SEATS_B, ...SEATS_C];
+const TOTAL_SEATS = SEATS_A.length + SEATS_B.length + SEATS_C.length;
+
+const TIME_SLOTS = [
+  "Hiện tại",
+  "07:00 - 09:00",
+  "09:00 - 11:00",
+  "11:00 - 13:00",
+  "13:00 - 15:00",
+  "15:00 - 17:00",
+];
+
+const FILTER_OPTIONS = [
+  "Tất cả khu vực",
+  "Khu yên tĩnh",
+  "Khu thảo luận",
+  "Khu tự học",
+];
+
+const SeatManage = () => {
+  const [currentSlotIndex, setCurrentSlotIndex] = useState(0);
+  // ✅ Thay vì occupancyMap, dùng seatStatusMap để lưu status từ database
+  const [seatStatusMap, setSeatStatusMap] = useState({});
+  
+  const [selectedSeatId, setSelectedSeatId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState("Tất cả khu vực");
+  const [toastMsg, setToastMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalSeats: TOTAL_SEATS,
+    bookedSeats: 0,
+    unavailableSeats: 0,
+    availableSeats: TOTAL_SEATS
+  });
+
+  const parseTimeSlot = (slotIndex) => {
+    if (slotIndex === 0) {
+      return null;
+    }
+
+    const slot = TIME_SLOTS[slotIndex];
+    const [startStr, endStr] = slot.split(' - ');
+    
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    const startTime = `${year}-${month}-${day}T${startStr}:00`;
+    const endTime = `${year}-${month}-${day}T${endStr}:00`;
+    
+    console.log(`📅 Parsed slot ${slotIndex} (${slot}):`, { startTime, endTime });
+    
+    return { startTime, endTime };
+  };
+
+  const loadSeatDataForTimeSlot = async (slotIndex) => {
+    try {
+      setLoading(true);
+      
+      let response;
+      if (slotIndex === 0) {
+        console.log('🔴 Loading REAL-TIME data (no params)');
+        response = await seatService.getAllSeats();
+      } else {
+        const timeRange = parseTimeSlot(slotIndex);
+        console.log('🟢 Loading TIME-RANGE data:', timeRange);
+        response = await seatService.getAllSeats({
+          startTime: timeRange.startTime,
+          endTime: timeRange.endTime
+        });
+      }
+      
+      console.log(`=== DATA FOR SLOT ${slotIndex} (${TIME_SLOTS[slotIndex]}) ===`, response);
+      
+      let seatsData = [];
+      
+      if (response) {
+        if (Array.isArray(response.seats)) {
+          seatsData = response.seats;
+        } else if (Array.isArray(response.seatResponses)) {
+          seatsData = response.seatResponses;
+        } else if (Array.isArray(response)) {
+          seatsData = response;
+        }
+      }
+      
+      // ✅ TẠO MAP: seat_code -> status
+      const statusMap = {};
+      seatsData.forEach(seat => {
+        const seatCode = seat.seatCode || seat.seat_code || seat.code;
+        const status = seat.status; // "AVAILABLE" | "BOOKED" | "UNAVAILABLE"
+        if (seatCode && status) {
+          statusMap[seatCode] = status;
+        }
+      });
+      
+      console.log('📊 Status Map:', statusMap);
+      setSeatStatusMap(statusMap);
+      
+      // ✅ Tính toán stats
+      const bookedCount = Object.values(statusMap).filter(s => s === 'BOOKED').length;
+      const unavailableCount = Object.values(statusMap).filter(s => s === 'UNAVAILABLE').length;
+      const availableCount = TOTAL_SEATS - bookedCount - unavailableCount;
+      
+      setStats({
+        totalSeats: TOTAL_SEATS,
+        bookedSeats: bookedCount,
+        unavailableSeats: unavailableCount,
+        availableSeats: Math.max(0, availableCount)
+      });
+      
+    } catch (error) {
+      console.error(`=== ERROR LOADING SLOT ${slotIndex} ===`, error);
+      showToast('Lỗi tải dữ liệu khung giờ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSeatDataForTimeSlot(0);
+    
+    const interval = setInterval(() => {
+      if (currentSlotIndex === 0) {
+        loadSeatDataForTimeSlot(0);
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [currentSlotIndex]);
+
+  useEffect(() => {
+    loadSeatDataForTimeSlot(currentSlotIndex);
+  }, [currentSlotIndex]);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
+
+  const handleSeatClick = (seat) => {
+    const status = seatStatusMap[seat.id] || 'AVAILABLE';
+    
+    if (status === 'BOOKED') {
+      showToast(`Ghế ${seat.id} đã có người đặt!`);
+      return;
+    }
+    
+    if (status === 'UNAVAILABLE') {
+      showToast(`Ghế ${seat.id} đang bị hạn chế!`);
+    }
+
+    setSelectedSeatId(seat.id);
+  };
+
+  const toggleRestriction = async (seatId) => {
+    if (!seatId) return;
+
+    try {
+      const status = seatStatusMap[seatId] || 'AVAILABLE';
+      const isRestricted = status === 'UNAVAILABLE';
+      
+      if (isRestricted) {
+        await seatService.removeRestriction(seatId);
+        showToast(`Đã bỏ hạn chế ghế ${seatId}`);
+      } else {
+        const now = new Date();
+        const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+        
+        const restrictionData = {
+          seatCode: seatId,
+          reason: "Hạn chế bởi thủ thư",
+          startTime: now.toISOString(),
+          endTime: oneYearLater.toISOString()
+        };
+        
+        console.log('🔒 Adding restriction:', restrictionData);
+        await seatService.addRestriction(restrictionData);
+        showToast(`Đã hạn chế ghế ${seatId}`);
+      }
+      
+      await loadSeatDataForTimeSlot(currentSlotIndex);
+      
+    } catch (error) {
+      console.error('Error toggling restriction:', error);
+      showToast('Lỗi cập nhật hạn chế. Vui lòng thử lại.');
+    }
+
+    setSelectedSeatId(null);
+  };
+
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+
+    if (val.trim()) {
+      const found = ALL_SEATS.find(
+        (s) => s.id.toLowerCase() === val.toLowerCase()
+      );
+      if (found) {
+        setSelectedSeatId(found.id);
+      }
+    } else {
+      setSelectedSeatId(null);
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    setActiveFilter(e.target.value);
+  };
+
+  const renderSeat = (seat) => {
+    // ✅ Đọc status từ map thay vì isOccupied
+    const status = seatStatusMap[seat.id] || 'AVAILABLE';
+    const isSelected = selectedSeatId === seat.id;
+    
+    let isDimmed = false;
+    if (activeFilter !== "Tất cả khu vực" && seat.zone !== activeFilter) {
+      isDimmed = true;
+    }
+
+    // ✅ Xác định CSS class dựa vào status
+    let statusClass = "seatManage__seat--empty"; // AVAILABLE → xanh lá
+    if (status === 'UNAVAILABLE') {
+      statusClass = "seatManage__seat--restricted"; // UNAVAILABLE → đỏ
+    } else if (status === 'BOOKED') {
+      statusClass = "seatManage__seat--occupied"; // BOOKED → vàng/cam
+    }
+
+    return (
+      <div
+        key={seat.id}
+        className={`seatManage__seat ${statusClass} ${
+          isSelected ? "seatManage__seat--selected" : ""
+        } ${isDimmed ? "seatManage__seat--dimmed" : ""}`}
+        onClick={() => handleSeatClick(seat)}
+      >
+        {seat.id}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <main style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#f9fafb',
+        minHeight: '100vh',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div>Đang tải dữ liệu...</div>
+      </main>
+    );
+  }
+
+  return (
+    <>
+      <main style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#f9fafb',
+        minHeight: '100vh'
+      }}>
+        <Header 
+          searchValue={searchTerm}
+          onSearchChange={handleSearch}
+          searchPlaceholder="Search for anything..."
+        />
+
+        <div style={{
+          padding: '2rem',
+          maxWidth: '1400px',
+          margin: '0 auto',
+          width: '100%'
+        }}>
+          <h2 className="seatManage__title" style={{
+            fontSize: '2rem',
+            fontWeight: '700',
+            color: '#1a1a1a',
+            marginBottom: '1.5rem',
+          }}>Quản lý chỗ ngồi</h2>
+
+          <section className="seatManage__topCards" style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '1.5rem',
+            marginBottom: '1.5rem',
+          }}>
+            <div className="seatManage__leftStack">
+              <div className="seatManage__statCard">
+                <div className="seatManage__statIconCircle">
+                  <Armchair size={28} color="#8dc63f" fill="#8dc63f" />
+                </div>
+                <div className="seatManage__statInfo">
+                  <div className="seatManage__statNumber">
+                    {stats.bookedSeats}/{stats.totalSeats}
+                  </div>
+                  <div className="seatManage__statLabel">
+                    Chỗ ngồi đang được sử dụng
+                  </div>
+                </div>
+              </div>
+
+              <div className="seatManage__restrictedCard">
+                <div className="seatManage__restrictedHeader">
+                  <span className="seatManage__restrictedTitle">
+                    Ghế bị hạn chế
+                  </span>
+                  <span className="seatManage__restrictedCount">
+                    {stats.unavailableSeats} ghế
+                  </span>
+                </div>
+                <div className="seatManage__chipList">
+                  {Object.keys(seatStatusMap)
+                    .filter(code => seatStatusMap[code] === 'UNAVAILABLE')
+                    .slice(0, 6)
+                    .map((id) => (
+                      <span key={id} className="seatManage__chip">
+                        {id}
+                      </span>
+                    ))}
+                  {stats.unavailableSeats > 6 && (
+                    <span className="seatManage__chipMore">
+                      +{stats.unavailableSeats - 6}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="seatManage__aiCard">
+              <div className="seatManage__aiHeader">
+                <Sparkles size={18} className="seatManage__sparkle" />
+                <span>AI phân tích</span>
+              </div>
+              <div className="seatManage__aiContent">
+                <div className="seatManage__aiAlertIcon">
+                  <CircleAlert size={24} color="#ff7b00" />
+                </div>
+                <div>
+                  <div className="seatManage__aiAlertTitle">Cảnh báo đông đúc</div>
+                  <div className="seatManage__aiAlertDesc">
+                    Khu yên tĩnh đã được lấp 95% khu vực. <br />
+                    Hãy điều hướng sinh viên sang khu thảo luận.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="seatManage__controls" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.5rem',
+            gap: '1rem',
+            flexWrap: 'wrap',
+          }}>
+            <div className="seatManage__slots">
+              {TIME_SLOTS.map((slot, index) => (
+                <button
+                  key={slot}
+                  className={`seatManage__slotBtn ${
+                    index === currentSlotIndex ? "seatManage__slotBtn--active" : ""
+                  }`}
+                  onClick={() => setCurrentSlotIndex(index)}
+                >
+                  {index === currentSlotIndex && <Check size={16} />}
+                  {slot}
+                </button>
+              ))}
+            </div>
+
+            <div className="seatManage__filterWrapper">
+              <div className="seatManage__dropdownTrigger">
+                <Filter size={16} />
+                <select 
+                  value={activeFilter} 
+                  onChange={handleFilterChange}
+                  className="seatManage__filterSelect"
+                >
+                  {FILTER_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="seatManage__dropdownArrow"/>
+              </div>
+            </div>
+          </section>
+
+          <section className="seatManage__mapPanel" style={{
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            padding: '2rem',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            position: 'relative',
+          }}>
+            <div className="seatManage__mapGrid">
+              <div className="seatManage__staticElement seatManage__bookshelf">
+                Kệ<br />sách
+              </div>
+              <div className="seatManage__staticElement seatManage__entrance">
+                Cửa ra vào
+              </div>
+              <div className="seatManage__staticElement seatManage__hall">
+                Sảnh chính
+              </div>
+              <div className="seatManage__staticElement seatManage__librarian">
+                Thủ thư
+              </div>
+              <div className="seatManage__staticElement seatManage__pillar"></div>
+
+              <div className="seatManage__zone seatManage__zoneB">
+                {SEATS_B.map(renderSeat)}
+              </div>
+
+              <div className="seatManage__zone seatManage__zoneA">
+                {SEATS_A.map(renderSeat)}
+              </div>
+
+              <div className="seatManage__divider-wall"></div>
+
+              <div className="seatManage__zone seatManage__zoneC">
+                {SEATS_C.map(renderSeat)}
+              </div>
+            </div>
+
+            {selectedSeatId && seatStatusMap[selectedSeatId] !== 'BOOKED' && (
+              <div className="seatManage__seatActionCard">
+                <div className="seatManage__actionHeader">
+                  <Armchair size={20} />
+                  <span>{selectedSeatId}</span>
+                  <span className="seatManage__actionZone">
+                    - {ALL_SEATS.find(s => s.id === selectedSeatId)?.zone}
+                  </span>
+                </div>
+                <div className="seatManage__actionBody">
+                  <button
+                    className={`seatManage__actionBtn ${
+                      seatStatusMap[selectedSeatId] === 'UNAVAILABLE'
+                        ? "seatManage__actionBtn--unrestrict"
+                        : "seatManage__actionBtn--restrict"
+                    }`}
+                    onClick={() => toggleRestriction(selectedSeatId)}
+                  >
+                    {seatStatusMap[selectedSeatId] === 'UNAVAILABLE'
+                      ? "Bỏ hạn chế"
+                      : "Hạn chế"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+
+        {toastMsg && <div className="seatManage__toast" style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          backgroundColor: '#333',
+          color: '#fff',
+          padding: '0.75rem 1.25rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+        }}>{toastMsg}</div>}
+      </main>
+    </>
+  );
+};
+
+export default SeatManage;

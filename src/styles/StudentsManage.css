@@ -9,7 +9,6 @@
   --border-radius-pill: 50px;
   --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
   
-  /* Status Colors */
   --green: #2ecc71;
   --yellow: #f1c40f;
   --red: #e74c3c;
@@ -35,7 +34,6 @@ body {
   min-height: 100vh;
 }
 
-/* --- SIDEBAR --- */
 .slib-sidebar {
   width: 240px;
   height: 100vh;
@@ -57,7 +55,7 @@ body {
   margin-top: 10px;
   padding-left: 10px;
 }
-.logo-dot { color: white; } /* Or custom color */
+.logo-dot { color: white; }
 
 .sidebar-menu {
   flex: 1;
@@ -105,7 +103,6 @@ body {
   cursor: pointer;
 }
 
-/* --- MAIN CONTENT --- */
 .slib-main {
   margin-left: 240px;
   flex: 1;
@@ -113,7 +110,6 @@ body {
   flex-direction: column;
 }
 
-/* Topbar */
 .slib-topbar {
   height: 80px;
   display: flex;
@@ -177,7 +173,6 @@ body {
 .profile-info .name { font-weight: 600; font-size: 14px; color: var(--text-dark); }
 .profile-info .role { font-size: 11px; color: var(--text-gray); }
 
-/* Content Body */
 .content-body {
   padding: 0 40px 40px 40px;
 }
@@ -188,7 +183,6 @@ body {
   color: var(--text-dark);
 }
 
-/* Stats */
 .stats-container {
   display: flex;
   gap: 20px;
@@ -221,7 +215,6 @@ body {
 .stat-info h3 { font-size: 32px; font-weight: 700; color: var(--text-dark); }
 .stat-info p { font-size: 14px; color: var(--text-gray); margin-top: 4px; }
 
-/* Time Slots */
 .time-slots {
   display: flex;
   gap: 15px;
@@ -245,14 +238,26 @@ body {
 }
 
 .slot-pill.active {
-  background: #fff3e0; /* Cam nhạt */
+  background: #fff3e0;
   border-color: var(--primary-orange);
   color: var(--primary-orange);
 }
 
 .slot-check { width: 16px; height: 16px; }
 
-/* Table Card */
+.slot-pill.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
+  color: var(--text-gray);
+  pointer-events: none;
+}
+
+.slot-pill.disabled:hover {
+  background: #f5f5f5;
+  transform: none;
+}
+
 .table-card {
   background: white;
   border-radius: var(--border-radius-card);
@@ -260,7 +265,7 @@ body {
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  height: 500px; /* Cố định chiều cao để scroll */
+  height: 500px;
 }
 
 .table-header {
@@ -337,7 +342,6 @@ body {
 .dot.yellow { background: var(--yellow); }
 .dot.red { background: var(--red); }
 
-/* Table Styles */
 .table-responsive {
   flex: 1;
   overflow-y: auto;
@@ -380,7 +384,6 @@ body {
 .font-medium { font-weight: 500; }
 .text-center { text-align: center; }
 
-/* Badges & Pills */
 .score-badge {
   display: inline-flex;
   width: 32px;

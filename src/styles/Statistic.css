@@ -1,4 +1,3 @@
-/* Base Reset */
 * {
   box-sizing: border-box;
 }
@@ -10,13 +9,11 @@ body {
   color: #333;
 }
 
-/* Layout */
 .st-layout {
   display: flex;
   min-height: 100vh;
 }
 
-/* Sidebar - Gradient Orange */
 .st-sidebar {
   width: 240px;
   background: linear-gradient(180deg, #F26F21 0%, #EA580C 100%);
@@ -91,7 +88,6 @@ body {
   cursor: pointer;
 }
 
-/* Main Content */
 .st-main-content {
   margin-left: 240px;
   width: calc(100% - 240px);
@@ -100,7 +96,6 @@ body {
   background-color: #f6f7fb;
 }
 
-/* Topbar */
 .st-topbar {
   display: flex;
   align-items: center;
@@ -146,6 +141,7 @@ body {
   font-size: 14px;
 }
 
+
 .st-profile-pill {
   display: flex;
   align-items: center;
@@ -185,7 +181,6 @@ body {
   margin-left: 4px;
 }
 
-/* Grid Layout */
 .st-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -198,7 +193,6 @@ body {
   }
 }
 
-/* Card General */
 .st-card {
   background: white;
   border-radius: 18px;
@@ -232,7 +226,6 @@ body {
   border: 1px solid #e5e5e5;
 }
 
-/* Booking Card */
 .st-ai-box {
   margin-bottom: 30px;
 }
@@ -247,7 +240,7 @@ body {
 }
 
 .st-warning-box {
-  background-color: #FFF7ED; /* Orange 50 */
+  background-color: #FFF7ED;
   border: 1px solid #FFEDD5;
   border-radius: 12px;
   padding: 16px;
@@ -285,7 +278,7 @@ body {
   justify-content: space-between;
   font-size: 11px;
   color: #999;
-  padding-bottom: 24px; /* Align with bars bottom */
+  padding-bottom: 24px;
 }
 
 .st-bars-wrapper {
@@ -306,13 +299,13 @@ body {
 
 .st-bar {
   width: 32px;
-  background-color: #FED7AA; /* Light Orange */
+  background-color: #FED7AA;
   border-radius: 6px;
   transition: height 0.3s ease;
 }
 
 .st-bar.active {
-  background-color: #F97316; /* Strong Orange */
+  background-color: #F97316;
 }
 
 .st-bar-label {
@@ -320,7 +313,6 @@ body {
   color: #666;
 }
 
-/* Violation Card */
 .st-violation-main {
   text-align: left;
   margin-bottom: 32px;
@@ -413,7 +405,6 @@ body {
   line-height: 1.3;
 }
 
-/* Zones Card */
 .st-card-zones {
   display: flex;
   flex-direction: column;
@@ -452,7 +443,6 @@ body {
   border-radius: 5px;
 }
 
-/* Feedback Card */
 .st-nav-controls {
   display: flex;
   gap: 8px;

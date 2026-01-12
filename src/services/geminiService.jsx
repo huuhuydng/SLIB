@@ -12,6 +12,8 @@ const MOCK_INSIGHTS = [
   },
 ];
 
-export const getLibraryInsights = async () => {
+export const getLibraryInsights = async (stats) => {
+  // Mock function - can be replaced with actual Gemini API call
+  // For now, return mock insights based on stats
   return MOCK_INSIGHTS;
 };

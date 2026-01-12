@@ -12,19 +12,19 @@ import {
   HelpCircle,
 } from "lucide-react";
 
-import logo from "../../assets/logo.png";
+import logo from "../assets/logo.png";
 
-const Sidebar = () => {
+const Sidebar = ({ currentPage, onPageChange }) => {
   const menuItems = [
-    { icon: LayoutDashboard, label: "Tổng quan", active: true },
-    { icon: ArrowLeftRight, label: "Kiểm tra ra/vào" },
-    { icon: Flame, label: "Bản đồ nhiệt" },
-    { icon: Armchair, label: "Quản lý chỗ ngồi" },
-    { icon: Users, label: "Sinh viên" },
-    { icon: AlertTriangle, label: "Vi phạm" },
-    { icon: MessageSquare, label: "Trò chuyện" },
-    { icon: BarChart2, label: "Thống kê" },
-    { icon: Bell, label: "Thông báo" },
+    { icon: LayoutDashboard, label: "Tổng quan", page: "dashboard" },
+    { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", page: "checkinout" },
+    { icon: Flame, label: "Sơ đồ thư viện", page: "heatmap" },
+    { icon: Armchair, label: "Quản lý chỗ ngồi", page: "seatmanage" },
+    { icon: Users, label: "Sinh viên", page: "students" },
+    { icon: AlertTriangle, label: "Vi phạm", page: "violation" },
+    { icon: MessageSquare, label: "Trò chuyện", page: "chat" },
+    { icon: BarChart2, label: "Thống kê", page: "statistic" },
+    { icon: Bell, label: "Thông báo", page: "notification" },
   ];
 
   return (
@@ -54,7 +54,8 @@ const Sidebar = () => {
             <button
               key={idx}
               type="button"
-              className={`sidebar__item ${item.active ? "sidebar__item--active" : ""}`}
+              className={`sidebar__item ${currentPage === item.page ? "sidebar__item--active" : ""}`}
+              onClick={() => onPageChange(item.page)}
             >
               <Icon size={18} />
               <span>{item.label}</span>

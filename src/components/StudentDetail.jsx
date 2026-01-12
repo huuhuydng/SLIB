@@ -1,17 +1,23 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ChevronLeft, 
-  ChevronDown, 
-  LayoutGrid, LogOut, Map, Armchair, User, AlertCircle, MessageCircle, Layers, Bell,
+  ChevronLeft,
   CheckCircle2
 } from 'lucide-react';
-import '../../styles/StudentDetail.css';
+import Header from './Header';
+import '../styles/StudentDetail.css';
 
 // --- MOCK DATA ---
 const MOCK_STUDENTS = [
-    { id: 1, studentId: 'DE170706', name: 'Nguyễn Hoàng Phúc', email: 'phucnhde170706@fpt.edu.vn', score: 90, seat: 'A1', avatar: 'https://i.pravatar.cc/150?u=phuc' },
-    // ... bạn có thể import data này từ file constant chung
+    { id: 1, studentId: 'DE170706', name: 'Nguyễn Hoàng Phúc', email: 'phucnhde170706@fpt.edu.vn', score: 90, seat: 'A1', avatar: 'https://i.pravatar.cc/150?u=1' },
+    { id: 2, studentId: 'DE170707', name: 'Trần Văn An', email: 'antv@fpt.edu.vn', score: 69, seat: 'B1', avatar: 'https://i.pravatar.cc/150?u=2' },
+    { id: 3, studentId: 'DE170708', name: 'Lê Thị Bình', email: 'binhlt@fpt.edu.vn', score: 59, seat: 'C1', avatar: 'https://i.pravatar.cc/150?u=3' },
+    { id: 4, studentId: 'DE170709', name: 'Phạm Minh Cường', email: 'cuongpm@fpt.edu.vn', score: 95, seat: 'A2', avatar: 'https://i.pravatar.cc/150?u=4' },
+    { id: 5, studentId: 'DE170710', name: 'Đỗ Hải Đăng', email: 'dangdh@fpt.edu.vn', score: 75, seat: 'B2', avatar: 'https://i.pravatar.cc/150?u=5' },
+    { id: 6, studentId: 'DE170711', name: 'Hoàng Thùy Linh', email: 'linhht@fpt.edu.vn', score: 45, seat: 'C2', avatar: 'https://i.pravatar.cc/150?u=6' },
+    { id: 7, studentId: 'DE170712', name: 'Ngô Kiến Huy', email: 'huynk@fpt.edu.vn', score: 82, seat: 'A3', avatar: 'https://i.pravatar.cc/150?u=7' },
+    { id: 8, studentId: 'DE170713', name: 'Sơn Tùng MTP', email: 'tungmtp@fpt.edu.vn', score: 68, seat: 'B3', avatar: 'https://i.pravatar.cc/150?u=8' },
+    { id: 9, studentId: 'DE170714', name: 'Đen Vâu', email: 'denvau@fpt.edu.vn', score: 60, seat: 'C3', avatar: 'https://i.pravatar.cc/150?u=9' },
+    { id: 10, studentId: 'DE170715', name: 'Bích Phương', email: 'phuongb@fpt.edu.vn', score: 88, seat: 'A4', avatar: 'https://i.pravatar.cc/150?u=10' },
 ];
 
 const MOCK_HISTORY = [
@@ -25,12 +31,9 @@ const MOCK_HISTORY = [
     { date: '15/12/2025', slot: '07:00 - 09:00', seat: 'B3' },
 ];
 
-const StudentDetail = () => {
-    const { studentId } = useParams();
-    const navigate = useNavigate();
-
-    // Logic tìm sinh viên (Mock)
-    const student = MOCK_STUDENTS.find(s => s.studentId === studentId) || MOCK_STUDENTS[0];
+const StudentDetail = ({ student: studentProp, onBack }) => {
+    // Use the student from props, or fallback to first mock student
+    const student = studentProp || MOCK_STUDENTS[0];
 
     const getRankInfo = (score) => {
         if(score >= 80) return { label: 'Gương mẫu', color: '#2ecc71', icon: true, desc: 'Tuyệt vời! Bạn đang giữ kỷ luật check-in rất tốt.' };
@@ -41,49 +44,20 @@ const StudentDetail = () => {
     const rankInfo = getRankInfo(student.score);
 
     return (
-        <div className="slib-container">
-             {/* --- SIDEBAR (Giữ nguyên như trang trước) --- */}
-            <aside className="slib-sidebar">
-                <div className="sidebar-logo">
-                    <h1>Slib<span className="logo-dot">.</span></h1>
-                </div>
-                <nav className="sidebar-menu">
-                    <div className="menu-item"><LayoutGrid size={20} /> Tổng quan</div>
-                    <div className="menu-item"><LogOut size={20} /> Kiểm tra ra/vào</div>
-                    <div className="menu-item"><Map size={20} /> Bản đồ nhiệt</div>
-                    <div className="menu-item"><Armchair size={20} /> Quản lý chỗ ngồi</div>
-                    <div className="menu-item active"><User size={20} /> Sinh viên</div>
-                    <div className="menu-item"><AlertCircle size={20} /> Vi phạm</div>
-                    <div className="menu-item"><MessageCircle size={20} /> Trò chuyện</div>
-                    <div className="menu-item"><Layers size={20} /> Thống kê</div>
-                    <div className="menu-item"><Bell size={20} /> Thông báo</div>
-                </nav>
-                <div className="sidebar-help">
-                    <div className="help-icon">?</div>
-                </div>
-            </aside>
+        <>
+            <Header 
+                searchPlaceholder="Search for anything..."
+                showBackButton={true}
+                onBackClick={onBack}
+            />
 
-            {/* --- MAIN CONTENT --- */}
-            <main className="slib-main">
-                {/* Topbar */}
-                <header className="slib-topbar">
-                    <button className="btn-back" onClick={() => navigate('/students')}>
-                        <ChevronLeft size={24} />
-                    </button>
-                    <div className="search-bar">
-                        <input type="text" placeholder="Search for anything..." />
-                    </div>
-                    <div className="profile-pill">
-                        <img src="https://i.pravatar.cc/150?u=phuc" alt="Avatar" className="avatar" />
-                        <div className="profile-info">
-                            <span className="name">PhucNH</span>
-                            <span className="role">Librarian</span>
-                        </div>
-                        <ChevronDown size={16} />
-                    </div>
-                </header>
-
-                <div className="content-body">
+                <div className="content-body" style={{
+                    padding: '2rem',
+                    maxWidth: '1400px',
+                    margin: '0 auto',
+                    backgroundColor: '#f9fafb',
+                    minHeight: 'calc(100vh - 80px)'
+                }}>
                     <h2 className="page-title">Thông tin sinh viên</h2>
 
                     {/* Info & Rank Row */}
@@ -154,9 +128,8 @@ const StudentDetail = () => {
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
-    );
-};
+            </>
+        );
+    };
 
 export default StudentDetail;
