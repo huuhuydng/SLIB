@@ -8,6 +8,12 @@ class ApiConstants {
 
   static const String newsUrl = "$domain/slib/news";
 
+  static const String bookingUrl = "$domain/slib/bookings";
+
+  static const String zoneUrl = "$domain/slib/zones";
+
+  static const String seatUrl = "$domain/slib/seats";
+
   static const String settingUrl = "$domain/slib/settings";
 
 }

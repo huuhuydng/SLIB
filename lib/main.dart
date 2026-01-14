@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:slib/services/booking_service.dart';
 import 'firebase_options.dart';
 
 // Import các file của bạn
@@ -27,6 +28,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        Provider<BookingService>(create: (_) => BookingService()),
       ],
       child: const MyApp(),
     ),
