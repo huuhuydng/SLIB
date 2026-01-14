@@ -6,7 +6,7 @@ import 'firebase_options.dart';
 
 // Import các file của bạn
 import 'services/auth_service.dart';
-import 'main_screen.dart'; // Đảm bảo import đúng đường dẫn file MainScreen của bạn
+import 'main_screen.dart'; 
 import 'views/authentication/on_boarding_screen.dart';
 
 void main() async {

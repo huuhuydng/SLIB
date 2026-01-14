@@ -8,7 +8,7 @@ import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/home/widgets/booking_zone.dart';
 import 'package:slib/views/chat/chat_screen.dart';
-import 'package:slib/views/menu/menu_screen.dart';
+import 'package:slib/views/menu/setting_screen.dart';
 import 'package:slib/views/widgets/bottom_nav_widget.dart';
 
 class MainScreen extends StatefulWidget {
@@ -66,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
     BookingZoneScreen(zones: _zones),
     const HceCardScreen(),
     const ChatScreen(),
-    MenuScreen(user: _currentUser),
+    SettingScreen(user: _currentUser), 
   ];
 
   void _onItemTapped(int index) {

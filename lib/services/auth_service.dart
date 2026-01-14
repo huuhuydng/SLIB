@@ -3,19 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slib/core/constants/api_constants.dart';
-import 'package:slib/models/user_profile.dart';
-import 'package:slib/services/hce_bridge.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+// --- IMPORTS MỚI ---
+import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/models/user_profile.dart';
+import 'package:slib/models/user_setting.dart';   
+import 'package:slib/services/hce_bridge.dart';
+import 'package:slib/services/user_setting_service.dart'; 
+import 'package:slib/services/app/local_storage_service.dart'; 
+
 class AuthService extends ChangeNotifier {
-  static const String _webClientId =
-      '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
+  static const String _webClientId = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
 
   static String getBaseUrl() {
-    return ApiConstants.authUrl;
+    return ApiConstants.authUrl; 
   }
-
   static String baseUrl = getBaseUrl();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
@@ -24,79 +27,22 @@ class AuthService extends ChangeNotifier {
   );
 
   final _storage = const FlutterSecureStorage();
-  UserProfile? currentUser;
+  
+  final UserSettingService _settingApiService = UserSettingService();
+  final LocalStorageService _localService = LocalStorageService();
 
-  Future<UserProfile?> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  UserProfile? _currentUser;
+  UserSetting? _currentSetting;
 
-      if (googleUser == null) return null; 
-
-      if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
-        await _googleSignIn.signOut();
-        throw Exception('Vui lòng sử dụng email sinh viên FPT (@fpt.edu.vn)!');
-      }
-
-      String rawName = googleUser.displayName ?? googleUser.email.split('@')[0];
-
-      String googleName = rawName.split('(')[0].trim();
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw Exception('Không lấy được ID Token từ Google.');
-      }
-
-      String? fcmToken;
-      try {
-        fcmToken = await FirebaseMessaging.instance.getToken();
-      } catch (e) {
-        print("Không lấy được FCM Token lúc login: $e");
-      }
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/login-google'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'id_token': idToken,
-          'full_name': googleName,
-          'noti_device': fcmToken, 
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final decodedBody = utf8.decode(response.bodyBytes);
-        final jsonMap = jsonDecode(decodedBody);
-
-        final String accessToken = jsonMap['access_token'];
-        await _saveToken(accessToken);
-
-        if (jsonMap['user'] != null) {
-          currentUser = UserProfile.fromJson(jsonMap['user']);
-          await _saveStudentCode(currentUser!.studentCode);
-          await HceBridge.setUserId(currentUser!.id);
-        }
-        notifyListeners();
-        return currentUser;
-      } else {
-        throw Exception(
-          'Đăng nhập thất bại (Code: ${response.statusCode}): ${response.body}',
-        );
-      }
-    } catch (e) {
-      if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
-      print('Google Sign-In Error: $e');
-      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
-    }
-  }
+  UserProfile? get currentUser => _currentUser;
+  UserSetting? get currentSetting => _currentSetting;
 
   Future<bool> checkLoginStatus() async {
+    _currentSetting = await _localService.loadSettings();
+    notifyListeners(); 
+
     String? token = await getToken();
-    if (token == null) {
-      return false;
-    }
+    if (token == null) return false;
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/me'),
@@ -105,15 +51,16 @@ class AuthService extends ChangeNotifier {
           'Authorization': 'Bearer $token',
         },
       );
+
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
+        _currentUser = UserProfile.fromJson(jsonMap);
 
-        currentUser = UserProfile.fromJson(jsonMap);
-
-        if (currentUser != null) {
-          await HceBridge.setUserId(currentUser!.id);
-          syncFcmToken(currentUser!.id);
+        if (_currentUser != null) {
+          await HceBridge.setUserId(_currentUser!.id);
+          syncFcmToken(_currentUser!.id);
+          await _fetchAndSyncSettings(_currentUser!.id);
         }
         notifyListeners();
         return true;
@@ -127,34 +74,84 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
+  Future<UserProfile?> signInWithGoogle() async {
     try {
-      if (currentUser != null && !forceRefresh) {
-        return currentUser;
-      }
-      String? token = await getToken();
-      if (token == null) return null;
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
+      if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
+        await _googleSignIn.signOut();
+        throw Exception('Vui lòng sử dụng email sinh viên FPT (@fpt.edu.vn)!');
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) throw Exception('Không lấy được ID Token từ Google.');
+
+      String? fcmToken;
+      try {
+        fcmToken = await FirebaseMessaging.instance.getToken();
+      } catch (_) {}
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/login-google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'id_token': idToken,
+          'full_name': googleUser.displayName, 
+          'noti_device': fcmToken,
+        }),
       );
 
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
 
-        currentUser = UserProfile.fromJson(jsonMap);
+        final String accessToken = jsonMap['access_token'];
+        await _saveToken(accessToken);
+
+        if (jsonMap['user'] != null) {
+          _currentUser = UserProfile.fromJson(jsonMap['user']);
+          await _saveStudentCode(_currentUser!.studentCode);
+          await HceBridge.setUserId(_currentUser!.id);
+          await _fetchAndSyncSettings(_currentUser!.id);
+
+        }
         notifyListeners();
-        return currentUser;
+        return _currentUser;
+      } else {
+        throw Exception('Đăng nhập thất bại: ${response.statusCode}');
       }
     } catch (e) {
-      print("Lỗi getProfile: $e");
+      if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
+      print('Google Sign-In Error: $e');
+      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
     }
-    return null;
+  }
+
+
+  Future<void> _fetchAndSyncSettings(String userId) async {
+    try {
+      final freshSetting = await _settingApiService.getSettings(userId);
+      _currentSetting = freshSetting;
+      await _localService.saveSettings(freshSetting); 
+    } catch (e) {
+      print("⚠️ Lỗi sync setting từ server: $e");
+    }
+  }
+
+  Future<void> updateSetting(UserSetting newSetting) async {
+    _currentSetting = newSetting;
+    notifyListeners();
+
+    await _localService.saveSettings(newSetting);
+
+    try {
+      await _settingApiService.updateSettings(newSetting.userId, newSetting);
+    } catch (e) {
+      print("❌ Lỗi sync setting lên server: $e");
+    }
   }
 
   Future<void> logout() async {
@@ -162,15 +159,20 @@ class AuthService extends ChangeNotifier {
       await _storage.deleteAll();
       await _googleSignIn.signOut();
       await HceBridge.clearUserId();
-      currentUser = null;
+      
+      _currentUser = null;
+      _currentSetting = null;
+      await _localService.clearData();
+      
       notifyListeners();
     } catch (e) {
       print("Lỗi logout: $e");
-      currentUser = null;
+      _currentUser = null;
+      _currentSetting = null;
       notifyListeners();
     }
   }
-
+  
   Future<void> syncFcmToken(String userId) async {
     try {
       String? fcmToken = await FirebaseMessaging.instance.getToken();
@@ -178,10 +180,7 @@ class AuthService extends ChangeNotifier {
 
       if (fcmToken == null || jwt == null) return;
 
-      if (currentUser?.notiDevice == fcmToken) {
-        print("FCM Token is up-to-date, skipping sync.");
-        return;
-      }
+      if (_currentUser?.notiDevice == fcmToken) return;
 
       final response = await http.patch(
         Uri.parse('$baseUrl/me'),
@@ -191,26 +190,19 @@ class AuthService extends ChangeNotifier {
         },
         body: jsonEncode({'noti_device': fcmToken}),
       );
-
-      if (response.statusCode == 200) {
-        print("✅ FCM Token synced manually via /me");
-      }
+      if(response.statusCode == 200) print("✅ FCM Synced");
     } catch (e) {
       print("❌ FCM Sync Error: $e");
     }
   }
 
-  Future<void> _saveToken(String token) async{
-    await _storage.write(key: 'jwt_token', value: token);
-  }
-      
-
+  Future<void> _saveToken(String token) async => await _storage.write(key: 'jwt_token', value: token);
   Future<String?> getToken() async => await _storage.read(key: 'jwt_token');
+  Future<void> _saveStudentCode(String code) async => await _storage.write(key: 'student_code', value: code);
   
-  Future<void> _saveStudentCode(String code) async =>
-      await _storage.write(key: 'student_code', value: code);
-
-  Future<void> signInWithFEID() async {
-    print("Tính năng đang phát triển...");
+  Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
+    if (_currentUser != null && !forceRefresh) return _currentUser;
+    await checkLoginStatus(); 
+    return _currentUser;
   }
 }

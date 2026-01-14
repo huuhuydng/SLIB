@@ -17,18 +17,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // --- XỬ LÝ ĐĂNG NHẬP GOOGLE ---
   Future<void> _handleGoogleSignIn() async {
-    // 1. Hiện loading ngay lập tức
     _showLoadingDialog();
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      
-      // Gọi hàm bên Service. 
-      // Nếu mail không phải @fpt.edu.vn, Service sẽ ném Exception và nhảy thẳng xuống catch
       final result = await authService.signInWithGoogle();
 
-      // 2. Nếu code chạy đến đây nghĩa là không có lỗi -> Tắt loading
-      // Dùng Navigator.of(context, rootNavigator: true).pop() để chắc chắn tắt đúng cái Dialog
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); 
       }
@@ -44,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
 
-          // Chuyển hướng vào màn hình chính
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -52,18 +46,15 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } 
-      // Trường hợp result == null (người dùng bấm hủy chọn Google) thì không làm gì cả
+
       
     } catch (e) {
-      // 3. Nếu có lỗi (bao gồm lỗi sai mail FPT) -> Tắt loading trước
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // 4. Xử lý thông báo lỗi cho thân thiện
       String errorMessage = e.toString().replaceAll("Exception: ", "");
       
-      // Tùy chỉnh thông báo nếu lỗi là do sai email (để highlight rõ hơn)
       if (errorMessage.contains("fpt.edu.vn")) {
         errorMessage = "Truy cập bị từ chối: Vui lòng dùng mail @fpt.edu.vn";
       }
