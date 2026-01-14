@@ -26,13 +26,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .authorizeHttpRequests(request -> request
-                        .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify",
-                                "/slib/users/resend-otp", "/slib/users/forgot-password", "/slib/users/login-google")
-                        .permitAll()
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .authorizeHttpRequests(request -> request.anyRequest().permitAll());
         return http.build();
     }
 
