@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(request -> request
                         .requestMatchers("/slib/users/login", "/slib/users/register", "/slib/users/verify",
-                                "/slib/users/resend-otp", "/slib/users/forgot-password", "/slib/users/login-google", "/slib/hce/**", "/slib/news/public/**")
+                                "/slib/users/resend-otp", "/slib/users/forgot-password", "/slib/users/login-google", "/slib/hce/**", "/slib/news/public/**", "/slib/settings/**", "/slib/files/upload_news_image")
                         .permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

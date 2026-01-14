@@ -61,6 +61,10 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn 
+    private UserSetting settings;
+
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
