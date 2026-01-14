@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\config\AppConfig.java
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\config\ApplicationConfig.java
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\config\SecurityConfig.java
@@ -38,3 +39,19 @@ C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\service\SeatService.java
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\service\UserService.java
 C:\Users\ADMIN\Downloads\Doan_2026\slib_be-master\slib_be\src\main\java\slib\com\example\service\ZoneService.java
+=======
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/DemoApplication.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/AppConfig.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/ApplicationConfig.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/config/SecurityConfig.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/controller/HCEController.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/controller/UserController.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/dto/AuthResponse.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/dto/UserProfileResponse.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/entity/Role.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/entity/UserEntity.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/repository/UserRepository.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/security/JwtAuthenticationFilter.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/security/JwtService.java
+/Users/hadi/Desktop/slib_be/src/main/java/slib/com/example/service/UserService.java
+>>>>>>> 9e7981680528c51139544e478f7f9919199c239c
