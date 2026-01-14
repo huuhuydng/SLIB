@@ -1,5 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart'; // Import Cache Ảnh
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart'; // THƯ VIỆN QUAN TRỌNG
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
 import 'package:slib/models/news_model.dart';
 import 'package:slib/services/news_service.dart';
@@ -18,8 +19,18 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   @override
   void initState() {
     super.initState();
-    // Gọi API để tăng View (Gọi ngầm không cần chờ kết quả)
-    NewsService().fetchNewsDetail(widget.news.id);
+    // Vẫn gọi API để tính View Count phía Server (Fire & Forget)
+    // Nhưng không cần chờ (await) nó, để UI hiện ngay lập tức
+    _updateViewCount();
+  }
+
+  Future<void> _updateViewCount() async {
+    try {
+      await NewsService().fetchNewsDetail(widget.news.id);
+    } catch (e) {
+      // Mất mạng thì thôi, không tăng view, không báo lỗi làm phiền user
+      print("Offline: Không thể update view count");
+    }
   }
 
   @override
@@ -34,24 +45,39 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // AppBar với Ảnh bìa
+          // 1. APPBAR VỚI ẢNH CACHE
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: Hero(
-                tag: "news_${widget.news.id}",
-                child: Image.network(
-                  widget.news.imageUrl,
+                // Lưu ý: Tag này phải trùng với Tag ở màn hình trước (NewsScreen hoặc HomeScreen)
+                // Ở NewsScreen mình đặt là "news_list_${id}", bạn nên check lại cho khớp
+                tag: "news_list_${widget.news.id}", 
+                child: CachedNetworkImage(
+                  imageUrl: widget.news.imageUrl,
                   fit: BoxFit.cover,
                   color: Colors.black26,
                   colorBlendMode: BlendMode.darken,
+                  placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                  ),
                 ),
               ),
             ),
+            // Nút back tròn trắng cho dễ nhìn trên nền ảnh
+            leading: IconButton(
+              icon: const CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Icon(Icons.arrow_back, color: Colors.black),
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
 
-          // Nội dung bài viết
+          // 2. NỘI DUNG BÀI VIẾT
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20.0),
@@ -79,7 +105,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Metadata (Ngày + View)
+                  // Metadata (Ngày + Tác giả)
                   Row(
                     children: [
                       const CircleAvatar(radius: 14, backgroundColor: Colors.orange, child: Icon(Icons.person, size: 16, color: Colors.white)),
@@ -103,18 +129,21 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- WIDGET HIỂN THỊ HTML & ẢNH TỪ BACKEND ---
+                  // --- NỘI DUNG HTML ---
+                  // Widget này tự động render HTML thành giao diện Flutter
                   HtmlWidget(
                     widget.news.content,
                     textStyle: const TextStyle(fontSize: 16, height: 1.6, color: Color(0xFF4A5568)),
-                    // Tùy chỉnh loading ảnh
-                    onLoadingBuilder: (context, element, loadingProgress) => const Center(child: CircularProgressIndicator()),
-                    // Khi user bấm vào ảnh trong bài viết
+                    
+                    // Tùy chỉnh ảnh trong bài viết
+                    // Nếu muốn ảnh trong bài viết cũng Cache được thì cần cấu hình thêm
+                    // Nhưng mặc định HtmlWidget đã xử lý khá tốt rồi.
                     onTapImage: (ImageMetadata meta) {
-                       print("User tapped image: ${meta.sources.first.url}");
+                       // Có thể mở ảnh to xem chi tiết
+                       print("Xem ảnh: ${meta.sources.first.url}");
                     },
                   ),
-                  // ---------------------------------------------
+                  // ---------------------
                   
                   const SizedBox(height: 40),
                 ],

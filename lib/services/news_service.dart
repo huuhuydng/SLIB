@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/news_model.dart';
+import 'package:slib/services/app/local_storage_service.dart';
 
 class NewsService {
   static String baseUrl = ApiConstants.newsUrl; 
+  final LocalStorageService _localService = LocalStorageService();
 
   Future<List<News>> fetchPublicNews() async {
     try {

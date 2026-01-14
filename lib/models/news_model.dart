@@ -29,15 +29,30 @@ class News {
       title: json['title'],
       summary: json['summary'] ?? "",
       content: json['content'] ?? "",
-      imageUrl: json['imageUrl'] ?? "https://via.placeholder.com/400x200", // Ảnh mặc định nếu null
-      categoryName: json['category'] != null ? json['category']['name'] : "Tin tức",
+      imageUrl: json['imageUrl'] ?? "https://via.placeholder.com/400x200",
+      categoryName: json['category'] != null 
+          ? json['category']['name'] 
+          : (json['categoryName'] ?? "Tin tức"), 
       publishedAt: json['publishedAt'] ?? DateTime.now().toString(),
       viewCount: json['viewCount'] ?? 0,
       isPinned: json['isPinned'] ?? false,
     );
   }
 
-  // Hàm phụ trợ để lấy màu tag dựa trên tên Category (Hardcode tạm thời cho đẹp)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'summary': summary,
+      'content': content,
+      'imageUrl': imageUrl,
+      'categoryName': categoryName, 
+      'publishedAt': publishedAt,
+      'viewCount': viewCount,
+      'isPinned': isPinned,
+    };
+  }
+
   Color getTagColor() {
     switch (categoryName) {
       case "Sự kiện": return Colors.blue;

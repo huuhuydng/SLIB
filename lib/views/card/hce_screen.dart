@@ -1,12 +1,23 @@
+import 'package:barcode_widget/barcode_widget.dart'; // Import thư viện Barcode
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:slib/services/auth_service.dart';
 
 class HceCardScreen extends StatelessWidget {
   const HceCardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Lấy thông tin user từ Provider (Real-time)
+    final authService = context.watch<AuthService>();
+    final user = authService.currentUser;
+
+    // Dữ liệu hiển thị (Nếu chưa login thì dùng data mẫu)
+    final String studentName = user?.fullName.toUpperCase() ?? "NGUYỄN VĂN A";
+    final String studentCode = user?.studentCode ?? "SE123456";
+
     return Scaffold(
-      backgroundColor: Colors.white, // Nền trắng theo thiết kế
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -28,7 +39,7 @@ class HceCardScreen extends StatelessWidget {
               // 1. THẺ SINH VIÊN (CARD CHÍNH)
               Container(
                 width: double.infinity,
-                height: 520,
+                height: 540, // Tăng nhẹ chiều cao để chứa barcode
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(30),
                   // Gradient Cam FPT
@@ -36,8 +47,8 @@ class HceCardScreen extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xFFF39F59), // Cam nhạt hơn chút ở trên
-                      Color(0xFFF08132), // Cam đậm dần
+                      Color(0xFFF39F59),
+                      Color(0xFFF08132),
                       Color(0xFFE67E46),
                     ],
                   ),
@@ -51,7 +62,6 @@ class HceCardScreen extends StatelessWidget {
                 ),
                 child: Stack(
                   children: [
-                    // Nội dung chi tiết thẻ
                     Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24,
@@ -60,31 +70,26 @@ class HceCardScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          // Logo FPT
                           Image.asset(
                             "assets/images/fpt_logo.png",
                             width: 100,
                             height: 40,
                             fit: BoxFit.contain,
+                            // Xử lý nếu ảnh lỗi hoặc chưa có
+                            errorBuilder: (context, error, stackTrace) => 
+                                const Text("FPT UNIVERSITY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
 
                           const SizedBox(height: 10),
 
-                          const Text(
-                            "FPT UNIVERSITY",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           const Text(
                             "STUDENT ID CARD",
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
+                              letterSpacing: 2,
                             ),
                           ),
 
@@ -100,20 +105,17 @@ class HceCardScreen extends StatelessWidget {
                                 color: Colors.white.withOpacity(0.3),
                                 width: 1,
                               ),
-                              color: Colors.white.withOpacity(
-                                0.2,
-                              ), // Nền mờ sau avatar
+                              color: Colors.white.withOpacity(0.2),
                             ),
                             child: const Center(
                               child: CircleAvatar(
                                 radius: 68,
-                                backgroundColor: Colors
-                                    .white, // Nền trắng của avatar silhouette
+                                backgroundColor: Colors.white,
                                 child: Icon(
                                   Icons.person,
                                   size: 100,
                                   color: Colors.grey,
-                                ), // Thay bằng Image.network
+                                ),
                               ),
                             ),
                           ),
@@ -121,11 +123,12 @@ class HceCardScreen extends StatelessWidget {
                           const SizedBox(height: 20),
 
                           // C. TÊN SINH VIÊN
-                          const Text(
-                            "NGUYỄN HỮU HUY",
-                            style: TextStyle(
+                          Text(
+                            studentName,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -139,14 +142,12 @@ class HceCardScreen extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFD35400,
-                              ).withOpacity(0.8), // Cam đậm hơn nền
+                              color: const Color(0xFFD35400).withOpacity(0.8),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text(
-                              "DE180295",
-                              style: TextStyle(
+                            child: Text(
+                              studentCode,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -154,32 +155,26 @@ class HceCardScreen extends StatelessWidget {
                             ),
                           ),
 
-                          const SizedBox(height: 30),
+                          const Spacer(),
 
-                          // E. BARCODE GIẢ LẬP
-                          SizedBox(
-                            height: 50,
-                            width: double.infinity,
-                            // Vẽ các vạch đen ngẫu nhiên để giả lập Barcode
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: List.generate(40, (index) {
-                                return Container(
-                                  width: index % 3 == 0
-                                      ? 4
-                                      : (index % 2 == 0 ? 2 : 6),
-                                  height: 50,
-                                  color: Colors.black87,
-                                  margin: const EdgeInsets.symmetric(
-                                    horizontal: 1.5,
-                                  ),
-                                );
-                              }),
+                          // E. BARCODE THẬT (CODE 128)
+                          // Barcode cần nền trắng để máy quét đọc được
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: BarcodeWidget(
+                              barcode: Barcode.code128(), // Loại barcode phổ biến nhất cho thẻ
+                              data: studentCode, // Dữ liệu là MSSV
+                              height: 60,
+                              width: double.infinity,
+                              drawText: false, // Không cần vẽ text MSSV ở dưới vì đã có Badge ở trên
+                              color: Colors.black,
                             ),
                           ),
-
-                          const Spacer(),
-                        
+                          const SizedBox(height: 10),
                         ],
                       ),
                     ),
@@ -189,14 +184,14 @@ class HceCardScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // 2. NÚT CHỨC NĂNG DƯỚI CÙNG
+              // 2. NÚT CHỨC NĂNG
               TextButton.icon(
                 onPressed: () {
-                  _showQrBackup(context);
+                  _showQrBackup(context, studentCode);
                 },
                 icon: const Icon(Icons.qr_code_2, color: Colors.black54),
                 label: const Text(
-                  "Mã Barcode dự phòng",
+                  "Mở rộng mã Barcode",
                   style: TextStyle(
                     color: Colors.black54,
                     fontSize: 16,
@@ -211,38 +206,39 @@ class HceCardScreen extends StatelessWidget {
     );
   }
 
-  // Dialog hiển thị mã dự phòng (Giữ nguyên logic cũ)
-  void _showQrBackup(BuildContext context) {
+  // Dialog hiển thị mã dự phòng to hơn
+  void _showQrBackup(BuildContext context, String studentCode) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(30),
-          height: 350,
+          height: 300,
           child: Column(
             children: [
               const Text(
-                "Mã Barcode dự phòng",
+                "Mã Barcode của bạn",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 20),
-              // Barcode lớn
-              SizedBox(
-                height: 80,
+              const SizedBox(height: 10),
+              Text(
+                "Đưa mã này vào máy quét tại cổng",
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 30),
+              
+              // Barcode Lớn
+              BarcodeWidget(
+                barcode: Barcode.code128(),
+                data: studentCode,
+                height: 100,
                 width: double.infinity,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(50, (index) {
-                    return Container(
-                      width: index % 3 == 0 ? 3 : (index % 2 == 0 ? 1 : 5),
-                      color: Colors.black,
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                    );
-                  }),
-                ),
+                drawText: true, // Show text MSSV bên dưới cho dễ đối chiếu
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),

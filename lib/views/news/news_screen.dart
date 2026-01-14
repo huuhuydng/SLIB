@@ -1,8 +1,10 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Import để format ngày
+import 'package:intl/intl.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/models/news_model.dart'; // Import model mới
-import 'package:slib/services/news_service.dart'; // Import service
+import 'package:slib/models/news_model.dart';
+import 'package:slib/services/news_service.dart';
+import 'package:slib/services/app/local_storage_service.dart';
 import 'news_detail_screen.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -13,36 +15,87 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  late Future<List<News>> _newsFuture;
+  List<News> _allNews = [];
+  List<News> _displayNews = [];
+  bool _isLoading = true;
+
   String _selectedCategory = "Tất cả";
-  final List<String> _categories = ["Tất cả", "Quan trọng", "Sự kiện", "Sách mới"];
+  final List<String> _categories = ["Tất cả", "Quan trọng", "Sự kiện", "Sách mới", "Ưu đãi"];
+
+  final NewsService _newsService = NewsService();
+  final LocalStorageService _localService = LocalStorageService();
 
   @override
   void initState() {
     super.initState();
-    _newsFuture = NewsService().fetchPublicNews(); // Gọi API khi màn hình khởi tạo
+    _loadData();
   }
 
-  // Hàm refresh khi kéo xuống
-  Future<void> _refreshNews() async {
-    setState(() {
-      _newsFuture = NewsService().fetchPublicNews();
-    });
+  void _loadData() async {
+    // 1. Cache
+    final cachedNews = await _localService.loadNewsList();
+    if (cachedNews.isNotEmpty && mounted) {
+      setState(() {
+        _allNews = cachedNews;
+        _applyFilter();
+        _isLoading = false;
+      });
+    }
+
+    // 2. API
+    try {
+      final freshNews = await _newsService.fetchPublicNews();
+      if (mounted) {
+        setState(() {
+          _allNews = freshNews;
+          _applyFilter();
+          _isLoading = false;
+        });
+      }
+      await _localService.saveNewsList(freshNews);
+    } catch (e) {
+      if (mounted && _allNews.isEmpty) setState(() => _isLoading = false);
+    }
+  }
+
+  void _applyFilter() {
+    if (_selectedCategory == "Tất cả") {
+      _displayNews = List.from(_allNews);
+    } else {
+      _displayNews = _allNews.where((item) => item.categoryName == _selectedCategory).toList();
+    }
+    // Sắp xếp mới nhất lên đầu
+    _displayNews.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+  }
+
+  Future<void> _onRefresh() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final freshNews = await _newsService.fetchPublicNews();
+      if (mounted) {
+        setState(() {
+          _allNews = freshNews;
+          _applyFilter();
+        });
+      }
+      await _localService.saveNewsList(freshNews);
+    } catch (e) { print(e); }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], // AppColors.backgroundPrimary
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text("Tin tức & Sự kiện", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Tin tức & Sự kiện", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: Column(
         children: [
-          // 1. Bộ lọc (Giữ nguyên UI của bạn)
+          // Filter Chips
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -58,16 +111,15 @@ class _NewsScreenState extends State<NewsScreen> {
                       label: Text(category),
                       selected: isSelected,
                       onSelected: (bool selected) {
-                        setState(() {
-                          _selectedCategory = category;
-                          // Nếu muốn lọc Server-side thì gọi API khác ở đây
-                        });
+                        if (selected) {
+                          setState(() {
+                            _selectedCategory = category;
+                            _applyFilter();
+                          });
+                        }
                       },
-                      selectedColor: Colors.orange, // AppColors.brandColor
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
+                      selectedColor: AppColors.brandColor,
+                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
                       backgroundColor: Colors.grey.shade100,
                       side: BorderSide.none,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -78,36 +130,22 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
           ),
 
-          // 2. Danh sách tin tức (Dùng FutureBuilder)
+          // List
           Expanded(
             child: RefreshIndicator(
-              onRefresh: _refreshNews,
-              child: FutureBuilder<List<News>>(
-                future: _newsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text("Lỗi: ${snapshot.error}"));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Text("Chưa có tin tức nào"));
-                  }
-
-                  // Lọc Client-side (nếu cần)
-                  List<News> newsList = snapshot.data!;
-                  if (_selectedCategory != "Tất cả") {
-                    newsList = newsList.where((item) => item.categoryName == _selectedCategory).toList();
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: newsList.length,
-                    itemBuilder: (context, index) {
-                      return _buildBigNewsCard(context, newsList[index]);
-                    },
-                  );
-                },
-              ),
+              onRefresh: _onRefresh,
+              color: AppColors.brandColor,
+              child: _isLoading && _allNews.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : _displayNews.isEmpty
+                      ? ListView(children: const [SizedBox(height: 100), Center(child: Text("Chưa có tin tức nào", style: TextStyle(color: Colors.grey)))])
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _displayNews.length,
+                          itemBuilder: (context, index) {
+                            return _buildBigNewsCard(context, _displayNews[index]);
+                          },
+                        ),
             ),
           ),
         ],
@@ -116,52 +154,39 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildBigNewsCard(BuildContext context, News item) {
-    // Format ngày: 2025-12-12T10:00:00 -> 12/12/2025
     String formattedDate = "";
     try {
       DateTime dt = DateTime.parse(item.publishedAt);
       formattedDate = DateFormat('dd/MM/yyyy').format(dt);
-    } catch (e) {
-      formattedDate = item.publishedAt;
-    }
+    } catch (e) { formattedDate = item.publishedAt; }
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => NewsDetailScreen(news: item)),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => NewsDetailScreen(news: item)));
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ảnh bìa
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: Hero(
-                    tag: "news_${item.id}", // Tag unique
-                    child: Image.network(
-                      item.imageUrl,
+                    tag: "news_list_${item.id}", // Tag khác với Slider để tránh lỗi
+                    child: CachedNetworkImage(
+                      imageUrl: item.imageUrl,
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 180, color: Colors.grey[200], child: const Icon(Icons.broken_image),
-                      ),
+                      placeholder: (context, url) => Container(height: 180, color: Colors.grey[100]),
+                      errorWidget: (context, url, error) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.broken_image)),
                     ),
                   ),
                 ),
@@ -172,10 +197,9 @@ class _NewsScreenState extends State<NewsScreen> {
                     decoration: BoxDecoration(color: item.getTagColor(), borderRadius: BorderRadius.circular(8)),
                     child: Text(item.categoryName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
-                )
+                ),
               ],
             ),
-            // Nội dung
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -193,7 +217,7 @@ class _NewsScreenState extends State<NewsScreen> {
                   const SizedBox(height: 8),
                   Text(item.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3)),
                   const SizedBox(height: 8),
-                  Text(item.summary, style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(item.summary, style: const TextStyle(fontSize: 14, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
