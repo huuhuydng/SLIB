@@ -48,6 +48,18 @@ public class SeatEntity {
     @Column(name = "position_y", nullable = false)
     private Integer positionY;
 
+    @Column(name = "row_number", nullable = false)
+    private Integer rowNumber;
+
+    @Column(name = "column_number", nullable = false)
+    private Integer columnNumber; 
+    
+    @Column(name = "width")
+    private Integer width;
+
+    @Column(name = "height")
+    private Integer height;
+
     @OneToMany(mappedBy = "seat")
     private List<ReservationEntity> reservation;
 }
