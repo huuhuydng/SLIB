@@ -1,25 +1,218 @@
-# --- QUAN TRỌNG: BẢO MẬT ---
-# Bỏ qua file chứa mật khẩu Database
-docker-compose.yml
-.env
+# ============================================
+# GLOBAL IGNORES
+# ============================================
 
-# --- Spring Boot & Java ---
-target/
-*.class
-*.jar
-*.war
-*.ear
-*.log
-
-# --- IDE (Cấu hình riêng của máy bạn) ---
-.idea/
-*.iml
-.vscode/
-.settings/
-.classpath
-.project
-bin/
-
-# --- OS System Files ---
+# System Files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+.history/
+*.iml
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.envrc
+docker-compose.yml
+
+# ============================================
+# FRONTEND (ReactJS/Node.js)
+# ============================================
+
+# Dependencies
+/frontend/node_modules/
+/frontend/package-lock.json
+/frontend/yarn.lock
+/frontend/pnpm-lock.yaml
+
+# Build outputs
+/frontend/build/
+/frontend/dist/
+/frontend/.vite/
+/frontend/.next/
+/frontend/out/
+
+# Testing
+/frontend/coverage/
+/frontend/.nyc_output/
+
+# Misc
+/frontend/.eslintcache
+/frontend/.cache/
+/frontend/tsconfig.tsbuildinfo
+
+# ============================================
+# BACKEND (Spring Boot/Maven/Java)
+# ============================================
+
+# Maven
+/backend/target/
+/backend/pom.xml.tag
+/backend/pom.xml.releaseBackup
+/backend/pom.xml.versionsBackup
+/backend/pom.xml.next
+/backend/release.properties
+/backend/dependency-reduced-pom.xml
+/backend/buildNumber.properties
+/backend/.mvn/timing.properties
+/backend/.mvn/wrapper/maven-wrapper.jar
+
+# Java
+/backend/*.class
+/backend/*.jar
+/backend/*.war
+/backend/*.ear
+/backend/*.zip
+/backend/*.tar.gz
+/backend/*.rar
+/backend/hs_err_pid*
+/backend/replay_pid*
+
+# Spring Boot
+/backend/.spring-boot-devtools.properties
+/backend/application-local.properties
+
+# Build outputs
+/backend/build/
+/backend/out/
+/backend/bin/
+
+# Gradle (if ever used)
+/backend/.gradle/
+/backend/gradle-app.setting
+/backend/!gradle-wrapper.jar
+
+# ============================================
+# MOBILE (Flutter)
+# ============================================
+
+# Flutter/Dart
+/mobile/.dart_tool/
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/.packages
+/mobile/.pub-cache/
+/mobile/.pub/
+/mobile/build/
+/mobile/flutter_*.png
+/mobile/linked_*.ds
+/mobile/unlinked.ds
+/mobile/unlinked_spec.ds
+
+# iOS
+/mobile/ios/Flutter/App.framework
+/mobile/ios/Flutter/Flutter.framework
+/mobile/ios/Flutter/Flutter.podspec
+/mobile/ios/Flutter/Generated.xcconfig
+/mobile/ios/Flutter/ephemeral/
+/mobile/ios/Flutter/app.flx
+/mobile/ios/Flutter/app.zip
+/mobile/ios/Flutter/.last_build_id
+/mobile/ios/Pods/
+/mobile/ios/.symlinks/
+/mobile/ios/Runner/GeneratedPluginRegistrant.*
+/mobile/ios/ServiceDefinitions.json
+/mobile/ios/Runner/GoogleService-Info.plist
+
+# Android
+/mobile/android/.gradle/
+/mobile/android/gradle/
+/mobile/android/captures/
+/mobile/android/gradlew
+/mobile/android/gradlew.bat
+/mobile/android/local.properties
+/mobile/android/**/GeneratedPluginRegistrant.java
+/mobile/android/key.properties
+/mobile/android/.cxx/
+/mobile/android/app/google-services.json
+/mobile/android/app/debug/
+/mobile/android/app/profile/
+/mobile/android/app/release/
+
+# Build artifacts
+/mobile/android/build/
+/mobile/android/app/build/
+/mobile/android/.gradle/
+/mobile/ios/build/
+
+# Code generation
+/mobile/**/*.g.dart
+/mobile/**/*.freezed.dart
+/mobile/**/*.gr.dart
+
+# Firebase
+/mobile/firebase.json
+/mobile/.firebaserc
+/mobile/firebase-debug.log
+
+# Web
+/mobile/web/manifest.json
+
+# Windows
+/mobile/windows/flutter/ephemeral/
+
+# Linux
+/mobile/linux/flutter/ephemeral/
+
+# macOS
+/mobile/macos/Flutter/ephemeral/
+/mobile/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Coverage
+/mobile/coverage/
+
+# Exceptions (keep these)
+!/mobile/android/gradle/wrapper/
+!/mobile/android/gradlew
+!/mobile/android/gradlew.bat
+
+# ============================================
+# SUPABASE (Backend Database)
+# ============================================
+
+/backend/supabase/.env
+/backend/supabase/.branches/
+/backend/supabase/.temp/
+
+# ============================================
+# MISCELLANEOUS
+# ============================================
+
+# Certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.keystore
+*.jks
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup

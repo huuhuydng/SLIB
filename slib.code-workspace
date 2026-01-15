@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": "backend"
+		},
+		{
+			"path": "frontend"
+		},
+		{
+			"path": "mobile",
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.compile.nullAnalysis.mode": "automatic",
+		"workbench.colorCustomizations": {
+			"titleBar.activeBackground": "#2d2d2d", 
+            "titleBar.activeForeground": "#ffffff"
+		}
+	}
+}
