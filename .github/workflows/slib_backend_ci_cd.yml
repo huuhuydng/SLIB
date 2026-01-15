@@ -13,6 +13,14 @@ on:
       - '.github/workflows/slib_backend_ci_cd.yml'  # Re-run if workflow itself changes
 
 # =============================================
+# PERMISSIONS: Required for dorny/test-reporter
+# =============================================
+permissions:
+  contents: read    # Read repository contents
+  actions: read     # Read workflow artifacts
+  checks: write     # Create check runs for test reports
+
+# =============================================
 # WORKFLOW JOBS
 # =============================================
 jobs:
