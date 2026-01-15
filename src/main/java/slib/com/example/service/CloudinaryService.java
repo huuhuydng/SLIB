@@ -15,7 +15,7 @@ public class CloudinaryService {
     @Autowired
     private Cloudinary cloudinary;
 
-    public String uploadImage(MultipartFile file) {
+    public String uploadImageNews(MultipartFile file) {
         try {
             Map uploadResult = cloudinary.uploader().upload(file.getBytes(), 
                     ObjectUtils.asMap("folder", "slib_news"));

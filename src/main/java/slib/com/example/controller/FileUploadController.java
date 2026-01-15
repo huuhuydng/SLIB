@@ -13,9 +13,9 @@ public class FileUploadController {
     @Autowired
     private CloudinaryService cloudinaryService;
 
-    @PostMapping("/upload")
+    @PostMapping("/upload_news_image")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
-        String imageUrl = cloudinaryService.uploadImage(file);
+        String imageUrl = cloudinaryService.uploadImageNews(file);
         return ResponseEntity.ok(imageUrl);
     }
 }
