@@ -12,7 +12,6 @@ public class ZoneResponse {
     private Integer zoneId;
     private String zoneName;
     private String zoneDes;
-    private Boolean hasPowerOutlet;
 
     private Integer positionX;
     private Integer positionY;

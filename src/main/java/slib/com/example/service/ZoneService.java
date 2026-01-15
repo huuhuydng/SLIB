@@ -50,7 +50,6 @@ public class ZoneService {
         ZoneEntity zone = ZoneEntity.builder()
                 .zoneName(req.getZoneName())
                 .zoneDes(req.getZoneDes())
-                .hasPowerOutlet(req.getHasPowerOutlet())
                 .area(area)
 
                 //  LẤY TỪ FRONTEND
@@ -73,7 +72,6 @@ public class ZoneService {
 
         if (req.getZoneName() != null) zone.setZoneName(req.getZoneName());
         if (req.getZoneDes() != null) zone.setZoneDes(req.getZoneDes());
-        if (req.getHasPowerOutlet() != null) zone.setHasPowerOutlet(req.getHasPowerOutlet());
         if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());
         if (req.getColor() != null) zone.setColor(req.getColor());
 
@@ -128,7 +126,6 @@ public class ZoneService {
     // info
     if (req.getZoneName() != null) zone.setZoneName(req.getZoneName());
     if (req.getZoneDes() != null) zone.setZoneDes(req.getZoneDes());
-    if (req.getHasPowerOutlet() != null) zone.setHasPowerOutlet(req.getHasPowerOutlet());
     if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());   
     if (req.getColor() != null) zone.setColor(req.getColor());            
 
@@ -156,7 +153,6 @@ public class ZoneService {
         res.setZoneId(zone.getZoneId());
         res.setZoneName(zone.getZoneName());
         res.setZoneDes(zone.getZoneDes());
-        res.setHasPowerOutlet(zone.getHasPowerOutlet());
 
         // mapping cho kéo thả
         res.setPositionX(zone.getPositionX());

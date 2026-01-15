@@ -7,6 +7,8 @@
     import slib.com.example.entity.ZoneEntity;
     import slib.com.example.repository.SeatRepository;
     import slib.com.example.repository.ZoneRepository;
+    import slib.com.example.entity.SeatStatus;
+
 
     import java.util.List;
     import java.util.stream.Collectors;
@@ -70,7 +72,7 @@
                     .rowNumber(rowNumber)
                     .columnNumber(columnNumber)
                     .seatCode(seatCode)
-                    .isActive(req.getIsActive() != null ? req.getIsActive() : true)
+                    .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
                     .width(seatWidth)
                     .height(ROW_HEIGHT)
                     .positionX(positionX)
@@ -93,7 +95,7 @@
             seat.setRowNumber(rowNumber);
             seat.setColumnNumber(columnNumber);
             seat.setSeatCode(generateSeatCode(rowNumber, columnNumber));
-            seat.setIsActive(req.getIsActive() != null ? req.getIsActive() : seat.getIsActive());
+            seat.setSeatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : seat.getSeatStatus());
             seat.setWidth(seatWidth);
             seat.setHeight(ROW_HEIGHT);
             seat.setPositionX((columnNumber - 1) * seatWidth);
@@ -145,6 +147,34 @@
             seatRepository.deleteById(id);
         }
 
+
+        // ================= UPDATE SEAT (FULL) =================
+        public SeatResponse updateSeat(Integer id, SeatResponse req) {
+            SeatEntity seat = seatRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Seat not found"));
+
+            if (req.getSeatCode() != null) {
+                seat.setSeatCode(req.getSeatCode());
+            }
+            if (req.getSeatStatus() != null) {
+                seat.setSeatStatus(req.getSeatStatus());
+            }
+            if (req.getPositionX() != null) {
+                seat.setPositionX(req.getPositionX());
+            }
+            if (req.getPositionY() != null) {
+                seat.setPositionY(req.getPositionY());
+            }
+            if (req.getWidth() != null) {
+                seat.setWidth(req.getWidth());
+            }
+            if (req.getHeight() != null) {
+                seat.setHeight(req.getHeight());
+            }
+
+            return toResponse(seatRepository.save(seat));
+        }
+
         // ================= UTIL =================
         private String generateSeatCode(int row, int column) {
             char rowChar = (char) ('A' + row - 1);
@@ -157,7 +187,7 @@
             res.setSeatId(seat.getSeatId());
             res.setZoneId(seat.getZone().getZoneId());
             res.setSeatCode(seat.getSeatCode());
-            res.setIsActive(seat.getIsActive());
+            res.setSeatStatus(seat.getSeatStatus());
             res.setPositionX(seat.getPositionX());
             res.setPositionY(seat.getPositionY());
             res.setRowNumber(seat.getRowNumber());

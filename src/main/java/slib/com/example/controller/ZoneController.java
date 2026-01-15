@@ -1,23 +1,42 @@
 package slib.com.example.controller;
 
-<<<<<<< HEAD
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import slib.com.example.dto.ZoneResponse;
-import slib.com.example.service.ZoneService;
-
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import slib.com.example.dto.ZoneResponse;
+import slib.com.example.entity.ZoneEntity;
+import slib.com.example.service.BookingService;
+import slib.com.example.service.ZoneService;
 
 @RestController
 @RequestMapping("/slib/zones")
-@CrossOrigin(origins = "http://localhost:5173")
-@RequiredArgsConstructor
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ZoneController {
-
+    private final BookingService bookingService;
     private final ZoneService zoneService;
 
+    public ZoneController(BookingService bookingService, ZoneService zoneService) {
+        this.bookingService = bookingService;
+        this.zoneService = zoneService;
+    }
+
+    @GetMapping("/getAllZones")
+    public List<ZoneEntity> getAllZones() {
+        return bookingService.getAllZones();
+    }
+
+    
     @GetMapping
     public ResponseEntity<List<ZoneResponse>> getZones(
             @RequestParam(required = false) Long areaId
@@ -83,32 +102,5 @@ public class ZoneController {
     ) {
         return ResponseEntity.ok(zoneService.updateZonePositionAndDimensions(id, request));
     }
-
-
-=======
-import java.util.List;
-
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import slib.com.example.entity.ZoneEntity;
-import slib.com.example.service.BookingService;
-
-@RestController
-@RequestMapping("/slib/zones")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
-public class ZoneController {
-    private final BookingService bookingService;
-
-    public ZoneController(BookingService bookingService) {
-        this.bookingService = bookingService;
-    }
-
-    @GetMapping("/getAllZones")
-    public List<ZoneEntity> getAllZones() {
-        return bookingService.getAllZones();
-    }
->>>>>>> 9e7981680528c51139544e478f7f9919199c239c
 }
+
