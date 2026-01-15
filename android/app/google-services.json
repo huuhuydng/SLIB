@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "262933313086",
+    "project_id": "slib-6da39",
+    "storage_bucket": "slib-6da39.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:262933313086:android:bf23a6161e0b7811d0c36f",
+        "android_client_info": {
+          "package_name": "vn.edu.dlu.slib"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "262933313086-07ekmtr2hrdfhhd7o34u8dhgtf9q9bd0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.edu.dlu.slib",
+            "certificate_hash": "c6de883fc87e3e5562d1bca5512fd0006e2223ba"
+          }
+        },
+        {
+          "client_id": "262933313086-j561vjds69obiint5i7co4bbhumrgc65.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "vn.edu.dlu.slib",
+            "certificate_hash": "b681be76e19bf2e505dc9446a574252d9bf1569d"
+          }
+        },
+        {
+          "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAB_RTMsVAP2iwmEZl2tmlo0LoHGyc5hPs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "262933313086-a8qlfim80jpdnjc634c1t026aalqj20f.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.slib"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
