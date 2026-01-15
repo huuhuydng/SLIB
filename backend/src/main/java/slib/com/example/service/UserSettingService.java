@@ -2,7 +2,8 @@ package slib.com.example.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import slib.com.example.dto.UserSettingDTO;
+
+import slib.com.example.dto.users.UserSettingDTO;
 import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.UserSettingRepository;
 

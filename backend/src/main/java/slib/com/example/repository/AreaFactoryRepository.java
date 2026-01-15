@@ -1,7 +1,8 @@
 package slib.com.example.repository;
 
-import slib.com.example.entity.AreaFactoryEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import slib.com.example.entity.zone_config.AreaFactoryEntity;
 
 import java.util.List;
 

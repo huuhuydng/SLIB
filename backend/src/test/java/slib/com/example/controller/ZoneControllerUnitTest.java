@@ -13,8 +13,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.ZoneResponse;
-import slib.com.example.entity.ZoneEntity;
+import slib.com.example.controller.zone_config.ZoneController;
+import slib.com.example.dto.zone_config.ZoneResponse;
+import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.service.BookingService;
 import slib.com.example.service.ZoneService;
 

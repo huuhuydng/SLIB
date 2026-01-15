@@ -13,7 +13,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.UserSettingDTO;
+import slib.com.example.controller.users.UserSettingController;
+import slib.com.example.dto.users.UserSettingDTO;
 import slib.com.example.entity.users.UserSetting;
 import slib.com.example.service.UserSettingService;
 

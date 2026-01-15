@@ -2,9 +2,10 @@ package slib.com.example.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import slib.com.example.dto.ZoneResponse;
-import slib.com.example.entity.AreaEntity;
-import slib.com.example.entity.ZoneEntity;
+
+import slib.com.example.dto.zone_config.ZoneResponse;
+import slib.com.example.entity.zone_config.AreaEntity;
+import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.AreaRepository;
 import slib.com.example.repository.ZoneRepository;
 

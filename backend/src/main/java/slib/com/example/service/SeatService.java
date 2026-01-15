@@ -2,15 +2,15 @@
 
     import lombok.RequiredArgsConstructor;
     import org.springframework.stereotype.Service;
-    import slib.com.example.dto.SeatResponse;
-    import slib.com.example.entity.SeatEntity;
-    import slib.com.example.entity.ZoneEntity;
-    import slib.com.example.repository.SeatRepository;
+
+import slib.com.example.dto.zone_config.SeatResponse;
+import slib.com.example.entity.zone_config.SeatEntity;
+import slib.com.example.entity.zone_config.SeatStatus;
+import slib.com.example.entity.zone_config.ZoneEntity;
+import slib.com.example.repository.SeatRepository;
     import slib.com.example.repository.ZoneRepository;
-    import slib.com.example.entity.SeatStatus;
 
-
-    import java.util.List;
+import java.util.List;
     import java.util.stream.Collectors;
 
     @Service

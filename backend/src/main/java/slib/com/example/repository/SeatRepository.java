@@ -4,8 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import slib.com.example.entity.SeatEntity;
-import slib.com.example.entity.SeatStatus;
+
+import slib.com.example.entity.zone_config.SeatEntity;
+import slib.com.example.entity.zone_config.SeatStatus;
 
 import java.util.List;
 

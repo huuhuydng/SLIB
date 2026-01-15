@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
+import slib.com.example.controller.news.NewsController;
 import slib.com.example.entity.news.News;
 import slib.com.example.service.NewsService;
 

@@ -1,12 +1,11 @@
     package slib.com.example.service;
 
-    import slib.com.example.entity.AreaFactoryEntity;
-    import slib.com.example.entity.AreaEntity;
     import slib.com.example.repository.AreaFactoryRepository;
     import slib.com.example.repository.AreaRepository;
-    import slib.com.example.dto.AreaFactoryResponse;
-
-    import lombok.RequiredArgsConstructor;
+import slib.com.example.dto.zone_config.AreaFactoryResponse;
+import slib.com.example.entity.zone_config.AreaEntity;
+import slib.com.example.entity.zone_config.AreaFactoryEntity;
+import lombok.RequiredArgsConstructor;
     import org.springframework.stereotype.Service;
     import org.springframework.transaction.annotation.Transactional;
 

@@ -13,8 +13,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+
+import slib.com.example.controller.hce.HCEController;
+import slib.com.example.dto.hce.CheckInRequest;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.CheckInRequest;
 import slib.com.example.service.CheckInService;
 
 import java.util.HashMap;

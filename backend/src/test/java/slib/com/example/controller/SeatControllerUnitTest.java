@@ -13,9 +13,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.SeatDTO;
-import slib.com.example.dto.SeatResponse;
-import slib.com.example.entity.SeatStatus;
+import slib.com.example.controller.zone_config.SeatController;
+import slib.com.example.dto.zone_config.SeatDTO;
+import slib.com.example.dto.zone_config.SeatResponse;
+import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.service.BookingService;
 import slib.com.example.service.SeatService;
 

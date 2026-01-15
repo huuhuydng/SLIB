@@ -12,7 +12,9 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import slib.com.example.dto.AmenityResponse;
+
+import slib.com.example.controller.zone_config.AmenityController;
+import slib.com.example.dto.zone_config.AmenityResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.AmenityService;
 

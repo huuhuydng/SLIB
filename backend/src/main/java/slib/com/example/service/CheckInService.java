@@ -1,5 +1,5 @@
 package slib.com.example.service;
-import slib.com.example.dto.CheckInRequest;
+import slib.com.example.dto.hce.CheckInRequest;
 import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.AccessLogRepository;

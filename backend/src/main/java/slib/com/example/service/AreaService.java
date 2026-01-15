@@ -1,7 +1,7 @@
 package slib.com.example.service;
 
-import slib.com.example.dto.AreaResponse;
-import slib.com.example.entity.AreaEntity;
+import slib.com.example.dto.zone_config.AreaResponse;
+import slib.com.example.entity.zone_config.AreaEntity;
 import slib.com.example.repository.AreaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

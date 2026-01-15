@@ -13,8 +13,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.AreaFactoryResponse;
-import slib.com.example.entity.AreaFactoryEntity;
+import slib.com.example.controller.zone_config.AreaFactoryController;
+import slib.com.example.dto.zone_config.AreaFactoryResponse;
+import slib.com.example.entity.zone_config.AreaFactoryEntity;
 import slib.com.example.service.AreaFactoryService;
 
 import java.util.Arrays;

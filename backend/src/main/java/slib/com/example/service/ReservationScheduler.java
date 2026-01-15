@@ -6,9 +6,9 @@ import java.util.List;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import slib.com.example.entity.ReservationEntity;
-import slib.com.example.entity.SeatEntity;
-import slib.com.example.entity.SeatStatus;
+import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.entity.zone_config.SeatEntity;
+import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
 

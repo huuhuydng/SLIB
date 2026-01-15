@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+
+import slib.com.example.controller.system.FileUploadController;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.CloudinaryService;
 

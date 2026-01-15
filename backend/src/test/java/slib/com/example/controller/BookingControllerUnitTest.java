@@ -13,10 +13,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.ReservationDTO;
-import slib.com.example.entity.ReservationEntity;
-import slib.com.example.entity.SeatEntity;
+import slib.com.example.controller.booking.BookingController;
+import slib.com.example.dto.booking.ReservationDTO;
+import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.repository.ReservationRepository;
 import slib.com.example.service.BookingService;
 

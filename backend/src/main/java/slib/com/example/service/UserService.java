@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import slib.com.example.dto.UserProfileResponse;
+import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.UserRepository;

@@ -14,7 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.dto.UserProfileResponse;
+import slib.com.example.controller.users.UserController;
+import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.User;
 import slib.com.example.service.UserService;
 
