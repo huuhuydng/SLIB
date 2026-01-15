@@ -8,20 +8,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import slib.com.example.dto.SeatDTO;
-import slib.com.example.dto.SeatResponse;
 import slib.com.example.service.BookingService;
-import slib.com.example.service.SeatService;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/slib/seats")
@@ -29,78 +23,11 @@ import slib.com.example.service.SeatService;
 public class SeatController {
     @Autowired
     private final BookingService bookingService;
-    private final SeatService seatService;
 
-      public SeatController(BookingService bookingService, SeatService seatService) {
+    public SeatController(BookingService bookingService) {
         this.bookingService = bookingService;
-        this.seatService = seatService;
     }
 
-    // create mới
-    @PostMapping
-    public ResponseEntity<SeatResponse> createSeat(@RequestBody SeatResponse request) {
-        return ResponseEntity.ok(seatService.createSeat(request));
-    }
-
-     @GetMapping
-    public ResponseEntity<List<SeatResponse>> getSeats(
-            @RequestParam(required = false) Integer zoneId
-    ) {
-        if (zoneId != null) {
-            return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
-        }
-        return ResponseEntity.ok(seatService.getAllSeats());
-    }
-
-     @GetMapping("/{id}")
-    public ResponseEntity<SeatResponse> getSeatById(@PathVariable Integer id) {
-        return ResponseEntity.ok(seatService.getSeatById(id));
-    }
-
-    
-    // update vị trí kéo thả
-    @PutMapping("/{id}/position")
-    public ResponseEntity<SeatResponse> updateSeatPosition(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatPosition(id, request));
-    }
-
-    // update chiều dài và chiều rộng (resize only)
-    @PutMapping("/{id}/dimensions")
-    public ResponseEntity<SeatResponse> updateSeatDimensions(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatDimensions(id, request));
-    }
-
-    // update cả vị trí và kích thước (resize + move)
-    @PutMapping("/{id}/position-and-dimensions")
-    public ResponseEntity<SeatResponse> updateSeatPositionAndDimensions(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatPositionAndDimensions(id, request));
-    }
-
-    // UPDATE SEAT 
-    @PutMapping("/{id}")
-    public ResponseEntity<SeatResponse> updateSeat(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeat(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteSeat(@PathVariable Integer id) {
-        seatService.deleteSeat(id);
-        return ResponseEntity.ok("Deleted seat with id = " + id);
-    }
-
-    
     @GetMapping("/getAvailableSeat/{zoneId}")
     public ResponseEntity<Long> getAvailableSeats(@PathVariable Integer zoneId) {
         long count = bookingService.countAvailableSeats(zoneId);
@@ -116,22 +43,28 @@ public class SeatController {
     @GetMapping("/getSeatsByTime/{zoneId}")
     public ResponseEntity<List<SeatDTO>> getSeatsByTime(
             @PathVariable Integer zoneId,
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime start,
-            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime end) {
+            @RequestParam(value = "date", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "start", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime start,
+            @RequestParam(value = "end", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime end) {
 
-        List<SeatDTO> seats = bookingService.getSeatsByTime(zoneId, date, start, end);
+        // Use defaults if not provided
+        LocalDate queryDate = (date != null) ? date : LocalDate.now();
+        LocalTime queryStart = (start != null) ? start : LocalTime.of(0, 0);
+        LocalTime queryEnd = (end != null) ? end : LocalTime.of(23, 59);
+
+        List<SeatDTO> seats = bookingService.getSeatsByTime(zoneId, queryDate, queryStart, queryEnd);
         return ResponseEntity.ok(seats);
     }
 
     @GetMapping("/getSeatsByDate/{zoneId}")
-    public List<SeatDTO> getSeatsByDate(@PathVariable Integer zoneId,
-            @RequestParam String date) {
-        LocalDate localDate = LocalDate.parse(date);
+    public List<SeatDTO> getSeatsByDate(
+            @PathVariable Integer zoneId,
+            @RequestParam(required = false) String date) {
+        // If no date provided, use today
+        LocalDate localDate = (date != null && !date.isEmpty()) 
+            ? LocalDate.parse(date) 
+            : LocalDate.now();
         return bookingService.getSeatsByDate(zoneId, localDate);
     }
+
 }
-
-
-
-

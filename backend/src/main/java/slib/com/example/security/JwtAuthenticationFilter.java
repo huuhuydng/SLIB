@@ -28,35 +28,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
+        
+        System.out.println("🔍 [JWT Filter] Request: " + request.getMethod() + " " + request.getRequestURI());
+        
+        // Skip JWT validation for OPTIONS requests (CORS preflight)
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            System.out.println("⏭️ [JWT Filter] Skipping OPTIONS request");
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
         final String userEmail;
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("❌ [JWT Filter] No Bearer token found");
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7).trim(); 
+        jwt = authHeader.substring(7).trim();
+        System.out.println("✅ [JWT Filter] Token found: " + jwt.substring(0, Math.min(30, jwt.length())) + "...");
 
         try {
             userEmail = jwtService.extractUsername(jwt);
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                // Load user details từ database (bao gồm role từ User entity)
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+                
+                System.out.println("🎯 [JWT Filter] User email: " + userEmail);
+                System.out.println("🔑 [JWT Filter] Authorities: " + userDetails.getAuthorities());
+                
                 if (jwtService.isTokenValid(jwt, userDetails.getUsername())) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
                             null, 
-                            userDetails.getAuthorities() 
+                            userDetails.getAuthorities() // Role từ User entity (via UserDetailsService)
                     );
                     authToken.setDetails(
                             new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    
+                    System.out.println("✅ [JWT Filter] Authentication set successfully");
                 }
             }
         } catch (Exception e) {
-            System.err.println("Cannot set user authentication: " + e.getMessage());
+            System.err.println("❌ [JWT Filter] Cannot set user authentication: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

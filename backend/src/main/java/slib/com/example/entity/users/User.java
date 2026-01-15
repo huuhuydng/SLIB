@@ -40,7 +40,7 @@ public class User implements UserDetails {
     private String email;
 
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = RoleConverter.class)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private Role role; 
 
@@ -53,6 +53,9 @@ public class User implements UserDetails {
     @Column(name = "noti_device")
     private String notiDevice; 
 
+    @Column(name = "dob")
+    private java.time.LocalDate dob;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -60,10 +63,6 @@ public class User implements UserDetails {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    @PrimaryKeyJoinColumn 
-    private UserSetting settings;
 
 
     @Override

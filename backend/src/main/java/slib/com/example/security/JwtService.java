@@ -66,4 +66,18 @@ public class JwtService {
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
+    /**
+     * Tạo JWT token mới cho user với email và role
+     * Dùng cho web admin tạo token custom hoặc testing
+     */
+    public String generateToken(String email, String role) {
+        return Jwts.builder()
+                .claim("email", email)
+                .claim("role", role)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)) // 24 hours
+                .signWith(getSignInKey())
+                .compact();
+    }
 }

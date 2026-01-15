@@ -28,7 +28,6 @@ import slib.com.example.entity.users.User;
 @AllArgsConstructor
 @Builder
 public class ReservationEntity {
-    private LocalDateTime createdTime;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,7 +39,7 @@ public class ReservationEntity {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "seat_id", nullable = false)
+    @JoinColumn(name = "seat_id", nullable = false, referencedColumnName = "seat_id")
     private SeatEntity seat;
 
     @Column(name = "start_time", nullable = false)
@@ -49,15 +48,17 @@ public class ReservationEntity {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
-    @Column(name = "status", nullable = false)
-    private String status;
+    @Column(name = "status", length = 50)
+    private String status; // pending, confirmed, cancelled, completed
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
-    public void prePersist() {
-        createdTime = LocalDateTime.now();
+    protected void onCreate() {
+        if (status == null) {
+            status = "BOOKED";
+        }
     }
 }

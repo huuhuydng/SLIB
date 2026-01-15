@@ -7,11 +7,10 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ZoneResponse {
-    private Integer zoneId;
-    private String zoneName;
-    private String zoneDescription;
-    private Boolean hasPowerOutlet;
+public class SeatOccupancyStats {
     private Integer totalSeats;
-    private Integer activeSeats;
+    private Integer occupiedSeats;
+    private Integer restrictedSeats;
+    private Integer availableSeats;
+    private Double occupancyRate;
 }

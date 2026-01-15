@@ -2,10 +2,12 @@ package slib.com.example.entity;
 
 import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -17,6 +19,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "seats")
@@ -31,35 +35,24 @@ public class SeatEntity {
     @Column(name = "seat_id", nullable = false, updatable = false)
     private Integer seatId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "zone_id", nullable = false)
     private ZoneEntity zone;
 
-    @Column(name = "seat_code", nullable = false, unique = true)
+    @Column(name = "seat_code", nullable = false, unique = true, length = 50)
     private String seatCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "seat_status", nullable = false, columnDefinition = "seat_status")
-    private SeatStatus seatStatus;
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "seat_status", nullable = false)
+    private SeatStatus seatStatus = SeatStatus.AVAILABLE;
 
-    @Column(name = "position_x", nullable = false)
+    @Column(name = "position_x")
     private Integer positionX;
 
-    @Column(name = "position_y", nullable = false)
+    @Column(name = "position_y")
     private Integer positionY;
 
-    @Column(name = "row_number", nullable = false)
-    private Integer rowNumber;
-
-    @Column(name = "column_number", nullable = false)
-    private Integer columnNumber; 
-    
-    @Column(name = "width")
-    private Integer width;
-
-    @Column(name = "height")
-    private Integer height;
-
-    @OneToMany(mappedBy = "seat")
-    private List<ReservationEntity> reservation;
+    @OneToMany(mappedBy = "seat", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<ReservationEntity> reservations;
 }

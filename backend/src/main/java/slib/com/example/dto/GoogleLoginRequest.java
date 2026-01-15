@@ -7,9 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AmenityResponse {
-
-    private Integer amenityId;
-    private Integer zoneId;
-    private String amenityName;
+public class GoogleLoginRequest {
+    private String idToken; // Google ID Token từ frontend
 }

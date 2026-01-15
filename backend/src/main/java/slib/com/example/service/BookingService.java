@@ -42,7 +42,7 @@ public class BookingService {
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
         // kiểm tra overlap với reservation cùng ngày
-        boolean isBooked = seat.getReservation().stream()
+        boolean isBooked = seat.getReservations().stream()
                 .anyMatch(r -> r.getStatus().equalsIgnoreCase("BOOKED") &&
                         r.getStartTime().toLocalDate().equals(startTime.toLocalDate()) &&
                         r.getStartTime().isBefore(endTime) &&
@@ -80,7 +80,7 @@ public class BookingService {
         List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
         return seats.stream()
-                .filter(seat -> seat.getReservation().stream()
+                .filter(seat -> seat.getReservations().stream()
                         .noneMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED")
                                 || r.getStatus().equalsIgnoreCase("PROCESSING"))
                                 && r.getStartTime().toLocalDate().equals(today)))
@@ -148,7 +148,7 @@ public class BookingService {
         LocalDateTime endDateTime = LocalDateTime.of(date, end);
 
         return seats.stream().map(seat -> {
-            boolean isBooked = seat.getReservation().stream()
+            boolean isBooked = seat.getReservations().stream()
                     .anyMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED")
                             || r.getStatus().equalsIgnoreCase("PROCESSING")) &&
                             r.getStartTime().toLocalDate().equals(date) &&
@@ -170,7 +170,7 @@ public class BookingService {
         List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
         return seats.stream().map(seat -> {
-            boolean isBooked = seat.getReservation().stream()
+            boolean isBooked = seat.getReservations().stream()
                     .anyMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
                             r.getStatus().equalsIgnoreCase("PROCESSING")) &&
                             r.getStartTime().toLocalDate().equals(date));

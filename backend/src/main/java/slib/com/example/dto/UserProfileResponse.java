@@ -8,6 +8,7 @@ import java.util.UUID;
 @Builder
 public class UserProfileResponse {
     private UUID id;
+    private UUID supabaseUid;
     private String email;
     private String fullName;
     private String studentCode;
