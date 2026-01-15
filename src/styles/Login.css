@@ -1,0 +1,156 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-page {
+  width: 100vw;
+  height: 100vh;
+  background-color: #FFD1B0; /* Màu cam nhạt nền ngoài cùng */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.login-card {
+  width: 85%;
+  max-width: 900px; /* Thu hẹp chiều rộng */
+  height: auto;
+  max-height: 580px; /* Giới hạn chiều cao để nhỏ gọn */
+  background-color: #FEDDC6; /* Màu nền card theo Figma */
+  border-radius: 30px;
+  display: flex;
+  padding: 35px; /* Giảm padding để gọn hơn */
+  box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+/* Khối Form bên trái */
+.login-box {
+  flex: 1;
+  background-color: #fbe9dc; /* Màu nền riêng cho vùng form */
+  border-radius: 20px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.input-group {
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  font-size: 13px;
+  margin-bottom: 5px;
+  display: block;
+  color: #666;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  background: white;
+  outline: none;
+  font-size: 14px;
+}
+
+/* Con mắt nằm trong ô Password */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+
+.forgot-password {
+  text-align: right;
+  margin-bottom: 15px;
+}
+
+.forgot-password a {
+  color: #d35400;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.btn-signin {
+  width: 100%;
+  padding: 12px;
+  background-color: #ff5722;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-signin:hover {
+  background-color: #e64a19;
+}
+
+.divider {
+  text-align: center;
+  margin: 15px 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.btn-google {
+  width: 100%;
+  padding: 8px;
+  background: white;
+  border: none;
+  border-radius: 20px;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn-google img {
+  height: 20px;
+}
+
+.signup-text {
+  text-align: center;
+  margin-top: 15px;
+  font-size: 13px;
+}
+
+.signup-text a {
+  color: #ff5722;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+/* Khối Logo bên phải */
+.logo-display {
+  flex: 1.2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.slib-logo-img {
+  width: 100%;
+  max-width: 320px; /* Thu nhỏ logo lại cho cân đối */
+  height: auto;
+}

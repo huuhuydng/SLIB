@@ -1,0 +1,552 @@
+/* ================================================= */
+/* ==================== RESET ====================== */
+/* ================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+/* ================================================= */
+/* ================== AUTH PAGE ==================== */
+/* ================================================= */
+.auth-page {
+  width: 100vw;
+  height: 100vh;
+  background: #FFD1B0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* ================================================= */
+/* =================== AUTH CARD =================== */
+/* ================================================= */
+.auth-card {
+  position: relative;
+  width: 90%;
+  max-width: 900px;
+  height: 580px;
+  background: #FEDDC6;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+/* ================================================= */
+/* ==================== PANELS ===================== */
+/* ================================================= */
+.panel {
+  position: absolute;
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+}
+
+.panel-login {
+  left: 0;
+  z-index: 2;
+  opacity: 1;
+}
+
+.panel-forgot {
+  left: 0;
+  opacity: 0;
+  z-index: 1;
+}
+
+/* ================================================= */
+/* ================ OVERLAY LOGO =================== */
+/* ================================================= */
+.overlay {
+  position: absolute;
+  left: 50%;
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.6s ease-in-out;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.slib-logo-img {
+  width: 90%;
+  max-width: 320px;
+  object-fit: contain;
+}
+
+/* ================================================= */
+/* ======== FORGOT PASSWORD MODE ANIMATION ========= */
+/* ================================================= */
+.auth-page.forgot-password-mode .panel-login {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auth-page.forgot-password-mode .panel-forgot {
+  transform: translateX(100%);
+  opacity: 1;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.auth-page.forgot-password-mode .overlay {
+  transform: translateX(-100%);
+}
+
+/* ================================================= */
+/* ================= FORM CONTAINER ================ */
+/* ================================================= */
+.auth-form-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-form-box {
+  width: 100%;
+  max-width: 380px;
+  background: #FFFFFF;
+  padding: 30px 25px;
+  border-radius: 35px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* ================================================= */
+/* ================== FORM TITLE =================== */
+/* ================================================= */
+.form-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1E293B;
+  margin-bottom: 20px;
+}
+
+/* ================================================= */
+/* ================ INPUT FIELDS =================== */
+/* ================================================= */
+.input-group {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-field {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  padding-right: 40px;
+  border-radius: 12px;
+  border: 1px solid #EAEAEA;
+  background: #FFFFFF;
+  outline: none;
+  font-size: 13px;
+  color: #333;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.input-field:focus {
+  border-color: #FF642F;
+  box-shadow: 0 0 0 3px rgba(255, 100, 47, 0.1);
+}
+
+.input-field::placeholder {
+  color: #94A3B8;
+  font-size: 13px;
+}
+
+.input-field:disabled {
+  background-color: #F9FAFB;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ================================================= */
+/* ============== INPUT ROW (2 COLUMNS) ============ */
+/* ================================================= */
+.input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.input-row .input-field {
+  width: 100%;
+}
+
+/* ================================================= */
+/* ================ FIELD ICONS ==================== */
+/* ================================================= */
+.field-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94A3B8;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.3s;
+  z-index: 1;
+}
+
+.field-icon:hover {
+  color: #FF642F;
+}
+
+.inner-icon-svg {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94A3B8;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.3s;
+}
+
+.inner-icon-svg:hover {
+  color: #FF642F;
+}
+
+/* ================================================= */
+/* ============== FORGOT PASSWORD BOX ============== */
+/* ================================================= */
+.forgot-password-box {
+  text-align: right;
+  margin-bottom: 10px;
+}
+
+.switch-link-small {
+  font-size: 11px;
+  color: #64748B;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.switch-link-small:hover {
+  color: #FF642F;
+  text-decoration: underline;
+}
+
+/* ================================================= */
+/* ================ PRIMARY BUTTON ================= */
+/* ================================================= */
+.btn-primary {
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+  border: none;
+  background: #FF642F;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.btn-primary:hover {
+  background: #E5572A;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  background: #FCA68D;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ================================================= */
+/* =================== DIVIDER ===================== */
+/* ================================================= */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.divider span {
+  padding: 0 12px;
+  font-weight: 500;
+}
+
+/* ================================================= */
+/* ================ GOOGLE BUTTON ================== */
+/* ================================================= */
+.btn-google {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1E293B;
+  cursor: pointer;
+  transition: background 0.3s, border-color 0.3s, transform 0.2s;
+}
+
+.btn-google:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  transform: translateY(-1px);
+}
+
+.btn-google:active {
+  transform: translateY(0);
+}
+
+.btn-google img {
+  width: 18px;
+  height: 18px;
+}
+
+/* ================================================= */
+/* ================ SWITCH TEXT ==================== */
+/* ================================================= */
+.switch-text {
+  text-align: center;
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 16px;
+}
+
+.switch-link {
+  color: #FF642F;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.switch-link:hover {
+  color: #E5572A;
+  text-decoration: underline;
+}
+
+/* ================================================= */
+/* ============== OTP INPUT CONTAINER ============== */
+/* ================================================= */
+.otp-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.otp-input {
+  width: 45px;
+  height: 52px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  border: 2px solid #E2E8F0;
+  border-radius: 12px;
+  outline: none;
+  color: #1E293B;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+  background: #FFFFFF;
+}
+
+.otp-input:focus {
+  border-color: #FF642F;
+  box-shadow: 0 0 0 3px rgba(255, 100, 47, 0.1);
+  transform: scale(1.05);
+}
+
+.otp-input:valid {
+  border-color: #10B981;
+}
+
+.otp-input:disabled {
+  background-color: #F9FAFB;
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+/* ================================================= */
+/* ============= DATE INPUT STYLING ================ */
+/* ================================================= */
+input[type="date"] {
+  color: #94A3B8;
+  cursor: pointer;
+}
+
+input[type="date"]:focus,
+input[type="date"]:valid {
+  color: #1E293B;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: opacity(0.5);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  filter: opacity(1);
+}
+
+/* ================================================= */
+/* ============== RESPONSIVE DESIGN ================ */
+/* ================================================= */
+@media (max-width: 768px) {
+  .auth-card {
+    width: 95%;
+    height: auto;
+    min-height: 500px;
+    flex-direction: column;
+    padding: 30px 20px;
+  }
+
+  .panel {
+    position: relative;
+    width: 100%;
+    height: auto;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .panel-login,
+  .panel-forgot {
+    display: none;
+  }
+
+  .auth-page:not(.forgot-password-mode) .panel-login {
+    display: flex;
+  }
+
+  .auth-page.forgot-password-mode .panel-forgot {
+    display: flex;
+  }
+
+  .overlay {
+    position: relative;
+    width: 100%;
+    left: 0;
+    margin-bottom: 20px;
+    transform: none !important;
+  }
+
+  .slib-logo-img {
+    max-width: 200px;
+  }
+
+  .auth-form-box {
+    max-width: 100%;
+  }
+
+  .otp-container {
+    gap: 6px;
+  }
+
+  .otp-input {
+    width: 40px;
+    height: 48px;
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    border-radius: 20px;
+  }
+
+  .auth-form-box {
+    padding: 25px 20px;
+    border-radius: 25px;
+  }
+
+  .form-title {
+    font-size: 18px;
+  }
+
+  .input-field {
+    height: 40px;
+    font-size: 12px;
+  }
+
+  .btn-primary {
+    height: 40px;
+    font-size: 13px;
+  }
+
+  .otp-input {
+    width: 35px;
+    height: 44px;
+    font-size: 16px;
+  }
+}
+
+/* ================================================= */
+/* ============== LOADING ANIMATION ================ */
+/* ================================================= */
+.btn-primary:disabled::after {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================================================= */
+/* ============== SMOOTH TRANSITIONS =============== */
+/* ================================================= */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+.switch-link,
+.switch-link-small {
+  -webkit-tap-highlight-color: transparent;
+}
