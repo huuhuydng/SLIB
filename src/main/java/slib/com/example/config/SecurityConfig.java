@@ -17,10 +17,10 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter; 
+    private final JwtAuthenticationFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -35,6 +35,29 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
+
+    // @Bean
+    // public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    //     http
+    //             .csrf(AbstractHttpConfigurer::disable)
+    //             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    //             .authorizeHttpRequests(request -> request
+    //                     .requestMatchers(
+    //                         "/slib/users/login-google",
+    //                             "/slib/bookings/getall", "/slib/bookings/create",
+    //                             "slib/bookings/updateStatusReserv/{reservationId}", "/slib/zones/getAllZones",
+    //                             "/slib/seats/getAllSeat/{zoneId}",
+    //                             "/slib/seats/getAvailableSeat/{zoneId}", "/slib/seats/getSeatsByTime/{zoneId}",
+    //                             "slib/seats/getSeatsByDate/{zoneId}", "slib/bookings/cancel/{reservationId}", "/slib/hce/**", "/slib/news/public/**",
+    //                             "/slib/areas/*","/slib/seats/*","/slib/zones","/slib/zone_amenities"
+                                
+                                
+    //                             )
+    //                     .permitAll()
+    //                     .anyRequest().authenticated())
+    //             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+    //     return http.build();
+    // }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
