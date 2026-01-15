@@ -33,6 +33,7 @@ public class SeatEntity {
 
     @ManyToOne
     @JoinColumn(name = "zone_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private ZoneEntity zone;
 
     @Column(name = "seat_code", nullable = false, unique = true)
@@ -52,8 +53,8 @@ public class SeatEntity {
     private Integer rowNumber;
 
     @Column(name = "column_number", nullable = false)
-    private Integer columnNumber; 
-    
+    private Integer columnNumber;
+
     @Column(name = "width")
     private Integer width;
 
@@ -61,5 +62,6 @@ public class SeatEntity {
     private Integer height;
 
     @OneToMany(mappedBy = "seat")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ReservationEntity> reservation;
 }

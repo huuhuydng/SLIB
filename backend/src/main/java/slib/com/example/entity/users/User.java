@@ -15,23 +15,25 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users") 
+@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "authorities", "accountNonExpired", "accountNonLocked",
+        "credentialsNonExpired", "enabled", "username", "password" })
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) 
-    @Column(name = "id", nullable = false, updatable = false) 
-    private UUID id; 
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
 
-    @Column(name = "supabase_uid", unique = true, columnDefinition = "uuid") 
+    @Column(name = "supabase_uid", unique = true, columnDefinition = "uuid")
     private UUID supabaseUid;
 
     @Column(name = "student_code", length = 20, unique = true, nullable = false)
-    private String studentCode; 
+    private String studentCode;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -39,10 +41,9 @@ public class User implements UserDetails {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
-    private Role role; 
+    private Role role;
 
     @Column(name = "reputation_score")
     private Integer reputationScore;
@@ -51,7 +52,7 @@ public class User implements UserDetails {
     private Boolean isActive;
 
     @Column(name = "noti_device")
-    private String notiDevice; 
+    private String notiDevice;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -62,24 +63,42 @@ public class User implements UserDetails {
     private LocalDateTime updatedAt;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    @PrimaryKeyJoinColumn 
+    @PrimaryKeyJoinColumn
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private UserSetting settings;
-
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
+
     @Override
-    public String getPassword() { return ""; }
+    public String getPassword() {
+        return "";
+    }
+
     @Override
-    public String getUsername() { return email; }
+    public String getUsername() {
+        return email;
+    }
+
     @Override
-    public boolean isAccountNonExpired() { return true; }
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
     @Override
-    public boolean isCredentialsNonExpired() { return true; }
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
     @Override
-    public boolean isEnabled() { return isActive != null ? isActive : true; }
+    public boolean isEnabled() {
+        return isActive != null ? isActive : true;
+    }
 }

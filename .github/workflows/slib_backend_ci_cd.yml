@@ -1,0 +1,105 @@
+name: SLIB Backend CI/CD Pipeline
+
+# =============================================
+# TRIGGER: Only run on main branch pushes
+# and only when backend files change
+# =============================================
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'           # Only trigger when backend folder changes
+      - '.github/workflows/slib_backend_ci_cd.yml'  # Re-run if workflow itself changes
+
+# =============================================
+# WORKFLOW JOBS
+# =============================================
+jobs:
+  # =========================================
+  # JOB 1: BUILD & CONTROLLER TESTING
+  # =========================================
+  build-and-test:
+    name: Build & Controller Testing
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      # Step 2: Set up JDK 21 (Temurin Distribution)
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'  # Cache Maven dependencies for faster builds
+      
+      # Step 3: Run Controller Unit Tests ONLY
+      # TESTING STRATEGY:
+      # - Uses strict naming convention: {Name}ControllerUnitTest.java
+      # - Filter: -Dtest="*ControllerUnitTest" runs only Controller tests
+      # - Skips Service/Repository/Integration tests for faster CI feedback
+      # - Verifies API endpoints work correctly before deployment
+      - name: Run Controller Unit Tests
+        working-directory: backend  # ← Spring Boot root directory
+        run: mvn test -Dtest="*ControllerUnitTest"
+        continue-on-error: false  # Fail the workflow if tests fail
+      
+      # Step 4: Upload Test Reports (Always run - even if tests fail)
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload reports whether tests pass or fail
+        with:
+          name: surefire-test-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7  # Keep reports for 7 days
+      
+      # Step 5: Display Test Summary
+      - name: Publish Test Summary
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Test Results
+          path: backend/target/surefire-reports/TEST-*.xml
+          reporter: java-junit
+          fail-on-error: true
+
+  # =========================================
+  # JOB 2: DEPLOY TO RENDER
+  # =========================================
+  deploy-to-render:
+    name: Deploy to Render.com
+    runs-on: ubuntu-latest
+    needs: build-and-test  # Only run if build-and-test succeeds
+    
+    steps:
+      # Step 1: Trigger Render Deploy Hook
+      - name: Trigger Render Deployment
+        run: |
+          echo "🚀 Triggering Render.com deployment..."
+          response=$(curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -w "\n%{http_code}" \
+            -s)
+          
+          http_code=$(echo "$response" | tail -n1)
+          
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+            echo "✅ Deployment triggered successfully (HTTP $http_code)"
+          else
+            echo "❌ Deployment failed with HTTP code: $http_code"
+            echo "Response: $(echo "$response" | head -n-1)"
+            exit 1
+          fi
+      
+      # Step 2: Notify deployment status
+      - name: Deployment Status
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✅ DEPLOYMENT TRIGGERED SUCCESSFULLY"
+          echo "=========================================="
+          echo "Backend will be live on Render.com shortly."
+          echo "Monitor your Render dashboard for deployment progress."
