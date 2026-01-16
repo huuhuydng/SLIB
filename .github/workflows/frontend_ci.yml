@@ -1,0 +1,52 @@
+name: Frontend CI (Test & Build)
+
+# Trigger: Chạy khi có thay đổi ở thư mục frontend
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'                 # Chỉ chạy khi sửa code frontend
+      - '.github/workflows/frontend_ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+
+jobs:
+  build-and-test-frontend:
+    name: ⚛️ Test & Build Frontend
+    runs-on: ubuntu-latest
+    
+    # Thiết lập thư mục làm việc mặc định là frontend
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Cài đặt Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'          # Hoặc phiên bản bạn đang dùng (18, 20...)
+          cache: 'npm'                # Cache thư viện để lần sau chạy nhanh hơn
+          cache-dependency-path: frontend/package-lock.json
+
+      # 2. Cài đặt thư viện (Clean Install)
+      - name: Install Dependencies
+        run: npm ci                   # 'npm ci' tốt hơn 'npm install' cho CI/CD
+
+      # 3. Chạy Linter (Kiểm tra cú pháp code - Optional)
+      # Nếu trong package.json bạn có script "lint"
+      # - name: Run Lint
+      #   run: npm run lint
+
+      # 4. Chạy Unit Test
+      - name: Run Unit Tests
+        run: npm test -- --run
+        
+      # 5. Build thử (Để chắc chắn code build được ra HTML/CSS/JS)
+      - name: Build Project
+        run: npm run build
