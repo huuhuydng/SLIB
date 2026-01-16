@@ -1,0 +1,205 @@
+:root {
+  --zone-bg: #d1f7d8;
+  --zone-border: #34a853;
+  --zone-selected: #22c55e;
+  --badge-bg: #f59e0b;
+  --badge-text: #fff;
+  --header-bg: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --header-tint: rgba(52, 168, 83, 0.15);
+}
+
+
+.zone {
+  background: var(--zone-bg);
+  border: 2px solid var(--zone-border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.zone.selected {
+  outline: 2px dashed var(--zone-selected);
+  outline-offset: 4px;
+}
+
+.zone.locked {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.zone.resize-invalid {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+/* ===== HEADER TABBAR ===== */
+.zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--header-bg);
+  color: white;
+  border-bottom: 3px solid var(--zone-border);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.zone-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.zone-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Badge cho loại cố định */
+.zone-badge.fixed {
+  background: rgba(255,255,255,0.25);
+  color: white;
+  border-radius: 8px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255,255,255,0.4);
+  font-weight: 500;
+}
+
+/* ===== AMENITIES DROPDOWN ===== */
+.amenities-dropdown-container {
+  position: relative;
+}
+
+.amenities-dropdown-btn {
+  background: rgba(255,255,255,0.25);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.amenities-dropdown-btn:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+.amenities-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  min-width: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.amenity-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 13px;
+  color: #333;
+}
+
+.amenity-item:last-child {
+  border-bottom: none;
+}
+
+.amenity-item:hover {
+  background: #f5f5f5;
+}
+
+.amenity-icon {
+  font-size: 16px;
+  min-width: 20px;
+}
+
+.amenity-name {
+  font-weight: 500;
+  color: #0f5132;
+}
+
+.amenity-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
+
+/* ===== NỘI DUNG ===== */
+.zone-content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.seats-grid {
+  gap: 8px;
+  padding: 8px;
+}
+
+.zone-fixed-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 8px;
+}
+
+.fixed-icon {
+  font-size: 32px;
+}
+
+.zone-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+}
+
+/* ===== FOOTER ===== */
+.zone-footer {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.5);
+  border-top: 1px solid rgba(0,0,0,0.06);
+  font-size: 12px;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.zone-direction::before {
+  content: "\2195"; /* ↕ */
+  margin-right: 6px;
+  color: #888;
+}
