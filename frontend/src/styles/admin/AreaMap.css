@@ -1,0 +1,148 @@
+.area-map {
+  background-color: #f3e6de;
+  border-radius: 10px;
+  padding: 16px;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.area-map--self .map {
+  background-color: #ffffff;
+  height: 260px;
+  border-radius: 8px;
+  position: relative;
+  background-image: 
+    linear-gradient(#eaeaea 1px, transparent 1px),
+    linear-gradient(90deg, #eaeaea 1px, transparent 1px);
+  background-size: 40px 40px;
+  margin: 12px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+
+/* Khu chung */
+.zone {
+  flex: 1 1 120px; 
+  height: 120px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent; 
+}
+
+.zone:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.zone.active {
+  border: 3px solid #e53935; 
+  background-color: #ffe5e0;
+}
+
+/* Canvas that contains zones inside the map (scoped to AreaMap component) */
+.area-map--self .zone-canvas {
+  margin: 0 auto;
+  position: relative;
+  display: block;
+}
+
+/* default color for existing zones in the map */
+.area-map--self .zone-card {
+  background: rgba(209, 247, 216, 0.9);
+  border: 1px solid #34a853;
+  color: #06361a;
+}
+
+.area-map--self .area-toolbar {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+
+/* Keep closed select/button colored, but dropdown options neutral */
+.area-map--self .area-toolbar .zone-btn,
+.area-map--self .area-toolbar select {
+  background: linear-gradient(90deg,#ff7a18,#ff9b3d);
+  color: #fff;
+  border: 1px solid rgba(0,0,0,0.06);
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.area-map--self .area-toolbar select option {
+  background: #fff;
+  color: #222;
+}
+
+/* selected zone visual */
+.area-map--self .zone-card.selected {
+  outline: 3px solid #1976d2;
+  box-shadow: 0 4px 10px rgba(25,118,210,0.12);
+}
+
+/* Highlight when zones overlap during editing */
+.area-map--self .zone-card.overlap {
+  border: 2px solid rgba(229, 57, 53, 0.95);
+  background: rgba(255, 205, 210, 0.9);
+  box-shadow: 0 6px 18px rgba(229,57,53,0.18);
+}
+
+.area-map--self .zone-card.editing.overlap {
+  outline: 2px solid rgba(229,57,53,0.95);
+}
+
+
+
+/* Style chung cho nút */
+.btn-action {
+  padding: 5px 15px;
+  border: none;
+  border-radius: 8px;       
+  font-weight: 600;         
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease; 
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ */
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-edit {
+  background-color: #3b82f6; 
+  color: white;
+}
+.btn-edit:hover {
+  background-color: #2563eb;
+}
+
+.btn-save {
+  background-color: #10b981;
+  color: white;
+}
+.btn-save:hover {
+  background-color: #059669;
+}
+
+.btn-cancel {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db; 
+  box-shadow: none; 
+}
+.btn-cancel:hover {
+  background-color: #e5e7eb;
+}

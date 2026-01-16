@@ -1,0 +1,27 @@
+.area-layout{
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.map-pane{
+  flex: 1 1 auto;
+  min-width: 0; /* allow flex child to shrink */
+}
+
+.list-pane{
+  width: 360px;
+  max-width: 40%;
+}
+
+/* On small screens stack vertically */
+@media (max-width: 800px){
+  .area-layout{
+    flex-direction: column;
+  }
+
+  .list-pane{
+    width: 100%;
+    max-width: 100%;
+  }
+}

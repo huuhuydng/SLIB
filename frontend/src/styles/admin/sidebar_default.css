@@ -1,0 +1,164 @@
+/* --- BIẾN CẤU HÌNH (Dễ dàng thay đổi màu sắc tại đây) --- */
+:root {
+  --sidebar-bg: linear-gradient(180deg, #FF751F 100%, #feb47b 100%); 
+  
+  /* Kích thước */
+  --sb-width-collapsed: 72px;  /* Đủ rộng để icon không bị bí */
+  --sb-width-expanded: 260px;
+  
+  /* Màu sắc item */
+  --item-color: rgba(255, 255, 255, 0.8);
+  --item-color-hover: #ffffff;
+  --item-bg-hover: rgba(255, 255, 255, 0.15);
+  --item-bg-active: #ffffff;
+  --item-text-active: #ff7e5f; 
+  /* Hiệu ứng chuyển động chuẩn Apple/Google */
+  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1); 
+}
+
+/* --- LAYOUT CHÍNH --- */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: var(--sb-width-collapsed);
+  background: var(--sidebar-bg);
+  padding: 24px 12px; /* Padding trên dưới rộng hơn chút */
+  display: flex;
+  flex-direction: column;
+  transition: width 0.4s var(--ease-spring);
+  box-shadow: 4px 0 20px rgba(255, 126, 95, 0.25); /* Bóng đổ cam nhẹ */
+  z-index: 1000;
+  overflow: hidden;
+}
+
+/* Mở rộng khi hover */
+.sidebar:hover {
+  width: var(--sb-width-expanded);
+}
+
+/* --- LOGO AREA --- */
+.sidebar__brand {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Mặc định căn giữa icon */
+  margin-bottom: 30px;
+  transition: all 0.4s var(--ease-spring);
+}
+
+.sidebar__brandIcon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  transition: transform 0.4s var(--ease-spring);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+/* Khi mở sidebar, logo phóng to nhẹ hoặc dịch chuyển nếu cần */
+.sidebar:hover .sidebar__brand {
+  justify-content: flex-start;
+  padding-left: 12px;
+}
+
+/* --- NAVIGATION MENU --- */
+.sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Khoảng cách giữa các nút */
+  flex: 1; /* Đẩy phần help xuống dưới */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Ẩn thanh cuộn xấu xí */
+.sidebar__nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* ITEM STYLE */
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: var(--item-color);
+  padding: 12px 14px;
+  border-radius: 12px; /* Bo góc mềm mại */
+  transition: all 0.2s ease;
+  white-space: nowrap; /* Giữ chữ không xuống dòng */
+  position: relative;
+}
+
+/* Icon căn chỉnh */
+.sidebar__item svg {
+  min-width: 24px;
+  margin-right: 16px; /* Khoảng cách giữa icon và chữ */
+}
+
+/* Chữ menu */
+.sidebar__label {
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s var(--ease-spring);
+  pointer-events: none;
+}
+
+/* Hiện chữ khi hover sidebar */
+.sidebar:hover .sidebar__label {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  transition-delay: 0.05s;
+}
+
+/* --- TRẠNG THÁI HOVER & ACTIVE --- */
+
+/* Hover nhẹ */
+.sidebar__item:hover {
+  background: var(--item-bg-hover);
+  color: var(--item-color-hover);
+}
+
+/* Active (Đang chọn) - Style "Viên thuốc trắng" nổi bật */
+.sidebar__item--active {
+  background: var(--item-bg-active);
+  color: var(--item-text-active);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Bóng đổ nhẹ tạo độ nổi */
+}
+
+/* Giữ icon màu cam khi active để đồng bộ */
+.sidebar__item--active svg {
+  stroke-width: 2.5px;
+}
+
+/* --- HELP SECTION (FOOTER) --- */
+.sidebar__helpWrap {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2); /* Đường kẻ mờ ngăn cách */
+}
+
+.sidebar__helpItem {
+  display: flex;
+  align-items: center;
+  color: var(--item-color);
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sidebar__helpItem:hover {
+  background: var(--item-bg-hover);
+  color: var(--item-color-hover);
+}
+
+/* Để icon help thẳng hàng với menu trên */
+.sidebar__helpItem svg {
+  min-width: 24px;
+  margin-right: 16px;
+}
