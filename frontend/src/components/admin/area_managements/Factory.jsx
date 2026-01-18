@@ -154,7 +154,7 @@ function Factory({ factory }) {
       console.log('📡 Calling dragAreaFactory API...');
       const response = await dragAreaFactory(factory.factoryId, d.x, d.y);
       console.log('✅ dragAreaFactory response:', response.data);
-      
+
       dispatch({
         type: actions.UPDATE_FACTORY,
         payload: {
@@ -273,7 +273,7 @@ function Factory({ factory }) {
             pointerEvents: 'none',
           }}
         >
-          🔴 Chồng lấp
+          Chồng lấp
         </div>
       )}
 
@@ -305,7 +305,7 @@ function Factory({ factory }) {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: factory.color || '#90EE90',
+            backgroundColor: '#9CA3AF',  // Fixed gray for obstacles
             border: isSelected ? '3px solid #0066CC' : '2px solid #999',
             borderRadius: '6px',
             cursor: 'move',

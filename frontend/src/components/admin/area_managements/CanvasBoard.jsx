@@ -1,12 +1,16 @@
 import { useRef, useState, useCallback, useEffect } from "react";
-import { useLayout } from "../../../context/admin/area_management/LayoutContext"
+import { useLayout } from "../../../context/admin/area_management/LayoutContext";
+import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
-import { getAreas } from "../../../services/admin/area_management/api";
+import { getAreas, updateAreaFactory } from "../../../services/admin/area_management/api";
 import "../../../styles/admin/canvas.css";
 
 function CanvasBoard() {
   const { state, dispatch, actions } = useLayout();
-  const { areas, canvas, selectedAreaId } = state;
+  const { areas, zones, seats, factories, canvas, selectedAreaId, hasUnsavedChanges, isSaving } = state;
+
+  // Warn user about unsaved changes when leaving
+  useUnsavedChanges(hasUnsavedChanges);
 
   const containerRef = useRef(null);
   const boardRef = useRef(null);
@@ -16,6 +20,7 @@ function CanvasBoard() {
   const [panMode, setPanMode] = useState(false);
   const [didAutoFit, setDidAutoFit] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
+  const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'preview'
 
   /* =============================
      LOAD AREA FROM BACKEND
@@ -25,7 +30,6 @@ function CanvasBoard() {
       try {
         const res = await getAreas();
         const raw = Array.isArray(res?.data) ? res.data : [];
-        // Normalize snake_case -> camelCase to match UI expectations
         const areasNormalized = raw.map((a) => ({
           areaId: a.area_id ?? a.areaId,
           areaName: a.area_name ?? a.areaName,
@@ -42,7 +46,6 @@ function CanvasBoard() {
             type: actions.SET_AREAS,
             payload: areasNormalized,
           });
-          // Auto-select first area
           dispatch({
             type: actions.SELECT_AREA,
             payload: areasNormalized[0].areaId,
@@ -193,138 +196,247 @@ function CanvasBoard() {
     }
   }, [areas, didAutoFit]);
 
+  // Calculate statistics
+  const totalSeats = seats.length;
+  const activeSeats = seats.filter(s => s.isActive !== false).length;
+  const totalZones = zones.length;
+
+  // Handle Save - batch save all changes to API
+  const handleSave = async () => {
+    if (!hasUnsavedChanges || isSaving) return;
+
+    dispatch({ type: actions.SET_SAVING, payload: true });
+
+    try {
+      const { pendingChanges } = state;
+
+      // 1. Delete all pending deleted seats
+      const deletePromises = (pendingChanges?.deletedSeats || []).map(seatId =>
+        import('../../../services/admin/area_management/api').then(({ deleteSeat }) =>
+          deleteSeat(seatId).catch(e => console.error(`Failed to delete seat ${seatId}:`, e))
+        )
+      );
+
+      // 2. Update all pending updated seats
+      const updatePromises = (pendingChanges?.updatedSeats || []).map(seat =>
+        import('../../../services/admin/area_management/api').then(({ updateSeat }) =>
+          updateSeat(seat.seatId, {
+            seatId: seat.seatId,
+            seatCode: seat.seatCode,
+            columnNumber: seat.columnNumber,
+            positionX: seat.positionX,
+            rowNumber: seat.rowNumber,
+          }).catch(e => console.error(`Failed to update seat ${seat.seatId}:`, e))
+        )
+      );
+
+      // 3. Save all factories (shapes)
+      const factoryPromises = factories.map(factory =>
+        updateAreaFactory(factory.factoryId, {
+          factoryId: factory.factoryId,
+          factoryName: factory.factoryName,
+          positionX: factory.positionX,
+          positionY: factory.positionY,
+          width: factory.width,
+          height: factory.height,
+          color: factory.color,
+          areaId: factory.areaId,
+          shapeType: factory.shapeType || 'rectangle',
+        })
+      );
+
+      await Promise.all([...deletePromises, ...updatePromises, ...factoryPromises]);
+      dispatch({ type: actions.MARK_SAVED });
+      console.log('All changes saved successfully');
+    } catch (error) {
+      console.error('Failed to save:', error);
+      alert('Lưu thất bại: ' + (error.response?.data?.message || error.message));
+      dispatch({ type: actions.SET_SAVING, payload: false });
+    }
+  };
+
   return (
     <main className="canvas-container" ref={containerRef}>
+      {/* Header Toolbar */}
       <div className="canvas-header" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '8px',
-        padding: '9px 20px',
-        background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
-        borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        gap: '12px',
+        padding: '12px 20px',
+        background: 'linear-gradient(135deg, #ffffff 0%, #F8FAFC 100%)',
+        borderBottom: '1px solid #E2E8F0',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
       }}>
-        {/* Pan Control - Left */}
-        <button 
-          onClick={() => setPanMode(!panMode)}
-          title={panMode ? "Pan Mode: On (Click to turn off)" : "Pan Mode: Off (Click to turn on)"}
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '6px',
-            border: panMode ? '2px solid #3b82f6' : '1px solid #d1d5db',
-            background: panMode ? '#dbeafe' : 'white',
-            cursor: 'pointer',
-            fontSize: '16px',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: panMode ? '#1e40af' : '#666'
-          }}
-          onMouseEnter={(e) => {
-            if (!panMode) {
-              e.target.style.background = '#f3f4f6';
-              e.target.style.borderColor = '#9ca3af';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!panMode) {
-              e.target.style.background = 'white';
-              e.target.style.borderColor = '#d1d5db';
-            }
-          }}
-        >
-          ✋
-        </button>
-
-        {/* Spacer - Push zoom to center */}
-        <div style={{ flex: 1 }} />
-
-        {/* Zoom Controls - Center */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#f3f4f6', borderRadius: '8px', padding: '4px' }}>
-          <button 
-            onClick={handleZoomOut}
-            title="Zoom Out"
+        {/* Left: View Mode Toggle */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: '#F1F5F9',
+          borderRadius: '10px',
+          padding: '4px'
+        }}>
+          <button
+            onClick={() => setViewMode('edit')}
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              background: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: viewMode === 'edit'
+                ? 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)'
+                : 'transparent',
+              color: viewMode === 'edit' ? 'white' : '#64748B',
               cursor: 'pointer',
-              fontSize: '16px',
+              fontSize: '13px',
+              fontWeight: '600',
               transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#eff6ff';
-              e.target.style.borderColor = '#3b82f6';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'white';
-              e.target.style.borderColor = '#d1d5db';
+              gap: '6px'
             }}
           >
-            −
+            Chỉnh sửa
           </button>
-          
-          <span style={{
-            minWidth: '50px',
-            textAlign: 'center',
-            fontSize: '12px',
-            fontWeight: '600',
-            color: '#374151'
-          }}>
-            {Math.round(canvas.zoom * 100)}%
-          </span>
-          
-          <button 
-            onClick={handleZoomIn}
-            title="Zoom In"
+          <button
+            onClick={() => setViewMode('preview')}
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              background: 'white',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: 'none',
+              background: viewMode === 'preview'
+                ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
+                : 'transparent',
+              color: viewMode === 'preview' ? 'white' : '#64748B',
               cursor: 'pointer',
-              fontSize: '16px',
+              fontSize: '13px',
+              fontWeight: '600',
               transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#eff6ff';
-              e.target.style.borderColor = '#3b82f6';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'white';
-              e.target.style.borderColor = '#d1d5db';
+              gap: '6px'
             }}
           >
-            +
+            Xem trước
           </button>
         </div>
 
-        {/* Spacer - Push fit & fullscreen to right */}
-        <div style={{ flex: 1 }} />
+        {/* Center: Statistics */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          fontSize: '13px',
+          color: '#475569'
+        }}>
+          <span><strong>{areas.length}</strong> Phòng</span>
+          <span style={{ color: '#CBD5E1' }}>|</span>
+          <span><strong>{totalZones}</strong> Khu vực</span>
+          <span style={{ color: '#CBD5E1' }}>|</span>
+          <span><strong>{activeSeats}/{totalSeats}</strong> Ghế</span>
+        </div>
 
-        {/* Fit to View & Fullscreen - Right */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          
-          <button 
-            onClick={handleFitToView}
-            title="Fit all areas to view"
+        {/* Right: Tools */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Pan Mode */}
+          <button
+            onClick={() => setPanMode(!panMode)}
+            title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
+              background: panMode
+                ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
+                : 'white',
+              cursor: 'pointer',
+              fontSize: '16px',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: panMode ? '#1E40AF' : '#64748B'
+            }}
+          >
+            ☰
+          </button>
+
+          {/* Zoom Controls */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            backgroundColor: '#F1F5F9',
+            borderRadius: '10px',
+            padding: '4px'
+          }}>
+            <button
+              onClick={handleZoomOut}
+              title="Thu nhỏ"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#64748B',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              −
+            </button>
+
+            <span style={{
+              minWidth: '60px',
+              textAlign: 'center',
+              fontSize: '13px',
+              fontWeight: '700',
+              color: '#1F2937'
+            }}>
+              {Math.round(canvas.zoom * 100)}%
+            </span>
+
+            <button
+              onClick={handleZoomIn}
+              title="Phóng to"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'white',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: '700',
+                color: '#64748B',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}
+            >
+              +
+            </button>
+          </div>
+
+          {/* Fit to View */}
+          <button
+            onClick={handleFitToView}
+            title="Vừa với màn hình"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: '2px solid #E2E8F0',
               background: 'white',
               cursor: 'pointer',
               fontSize: '16px',
@@ -332,66 +444,99 @@ function CanvasBoard() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#666'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = '#f0fdf4';
-              e.target.style.borderColor = '#22c55e';
-              e.target.style.color = '#15803d';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'white';
-              e.target.style.borderColor = '#d1d5db';
-              e.target.style.color = '#666';
+              color: '#64748B'
             }}
           >
             ⬜
           </button>
 
           {/* Fullscreen Toggle */}
-          <button 
+          <button
             onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
-            title={state.isCanvasFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '6px',
-              border: state.isCanvasFullscreen ? '2px solid #dc2626' : '1px solid #d1d5db',
-              background: state.isCanvasFullscreen ? '#fee2e2' : 'white',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              border: state.isCanvasFullscreen ? '2px solid #EF4444' : '2px solid #E2E8F0',
+              background: state.isCanvasFullscreen
+                ? 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'
+                : 'white',
               cursor: 'pointer',
               fontSize: '16px',
               transition: 'all 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: state.isCanvasFullscreen ? '#dc2626' : '#666'
-            }}
-            onMouseEnter={(e) => {
-              if (!state.isCanvasFullscreen) {
-                e.target.style.background = '#fef3c7';
-                e.target.style.borderColor = '#f59e0b';
-                e.target.style.color = '#d97706';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!state.isCanvasFullscreen) {
-                e.target.style.background = 'white';
-                e.target.style.borderColor = '#d1d5db';
-                e.target.style.color = '#666';
-              }
+              color: state.isCanvasFullscreen ? '#DC2626' : '#64748B'
             }}
           >
-            {state.isCanvasFullscreen ? '❌' : '⛶'}
+            {state.isCanvasFullscreen ? '✕' : '⛶'}
+          </button>
+
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            disabled={!hasUnsavedChanges || isSaving}
+            title={hasUnsavedChanges ? "Lưu thay đổi" : "Không có thay đổi"}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: hasUnsavedChanges ? '2px solid #22C55E' : '2px solid #E2E8F0',
+              background: hasUnsavedChanges
+                ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
+                : '#F1F5F9',
+              color: hasUnsavedChanges ? 'white' : '#94A3B8',
+              cursor: hasUnsavedChanges && !isSaving ? 'pointer' : 'not-allowed',
+              fontSize: '13px',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isSaving ? 0.7 : 1,
+            }}
+          >
+            {isSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'Lưu' : 'Đã lưu'}
           </button>
         </div>
       </div>
 
+      {/* Canvas Board */}
       <div
         ref={boardRef}
-        className={`canvas-board ${panMode || spacePressed ? 'pan-mode' : ''}`}
+        className={`canvas-board ${panMode || spacePressed ? 'pan-mode' : ''} ${viewMode === 'preview' ? 'preview-mode' : ''}`}
         onMouseDown={handleMouseDown}
         onWheel={handleWheel}
+        style={{
+          background: viewMode === 'preview'
+            ? 'linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 50%, #D1FAE5 100%)'
+            : undefined
+        }}
       >
+        {/* Preview Mode Banner */}
+        {viewMode === 'preview' && (
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+            color: 'white',
+            padding: '10px 24px',
+            borderRadius: '30px',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            Chế độ xem trước - Sinh viên sẽ nhìn thấy như này
+          </div>
+        )}
+
         <div
           className="canvas-grid"
           style={{
@@ -401,14 +546,77 @@ function CanvasBoard() {
           }}
         >
           {areas.map((area) => (
-            <Area key={area.areaId} area={area} />
+            <Area
+              key={area.areaId}
+              area={area}
+              isPreviewMode={viewMode === 'preview'}
+            />
           ))}
 
           {areas.length === 0 && (
-            <div className="canvas-empty">
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              padding: '60px',
+              background: 'white',
+              borderRadius: '20px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+              border: '2px dashed #E2E8F0'
+            }}>
+              <div style={{ fontSize: '60px', marginBottom: '20px' }}></div>
+              <h3 style={{
+                margin: '0 0 10px 0',
+                color: '#1F2937',
+                fontSize: '20px',
+                fontWeight: '700'
+              }}>
+                Chưa có phòng thư viện
+              </h3>
+              <p style={{
+                margin: 0,
+                color: '#64748B',
+                fontSize: '14px'
+              }}>
+                Nhấn "Thêm Phòng" ở sidebar để bắt đầu thiết kế
+              </p>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Keyboard Shortcuts Help */}
+      <div style={{
+        position: 'absolute',
+        bottom: '16px',
+        left: '16px',
+        display: 'flex',
+        gap: '12px',
+        fontSize: '11px',
+        color: '#94A3B8'
+      }}>
+        <span>
+          <kbd style={{
+            background: '#F1F5F9',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            border: '1px solid #E2E8F0',
+            marginRight: '4px'
+          }}>Space</kbd>
+          + Kéo để di chuyển
+        </span>
+        <span>
+          <kbd style={{
+            background: '#F1F5F9',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            border: '1px solid #E2E8F0',
+            marginRight: '4px'
+          }}>Scroll</kbd>
+          để zoom
+        </span>
       </div>
     </main>
   );

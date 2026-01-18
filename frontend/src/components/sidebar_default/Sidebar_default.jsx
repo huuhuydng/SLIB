@@ -2,73 +2,107 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
-  ArrowLeftRight,
-  Flame,
-  Armchair,
+  Map,
   Users,
-  AlertTriangle,
-  MessageSquare,
-  BarChart2,
-  Bell,
+  Cpu,
+  Settings,
+  Activity,
+  Sparkles,
   HelpCircle,
+  Shield
 } from "lucide-react";
 
 import logo from "../../assets/logonencam.png";
 import "../../styles/admin/sidebar_default.css";
 
-const Sidebar = () => {
-  const menuItems = [
+const SidebarAdmin = () => {
+  // Menu items dành riêng cho Admin
+  const adminMenuItems = [
     { icon: LayoutDashboard, label: "Tổng quan", path: "/dashboard" },
-    { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", path: "/checkinout" },
-    { icon: Flame, label: "Sơ đồ thư viện", path: "/areas" },
-    { icon: Armchair, label: "Quản lý chỗ ngồi", path: "/seatmanage" },
-    { icon: Users, label: "Sinh viên", path: "/students" },
-    { icon: AlertTriangle, label: "Vi phạm", path: "/violation" },
-    { icon: MessageSquare, label: "Trò chuyện", path: "/chat" },
-    { icon: BarChart2, label: "Thống kê", path: "/statistic" },
-    { icon: Bell, label: "Thông báo", path: "/notification" },
+    { icon: Map, label: "Sơ đồ thư viện", path: "/library-map" },
+    { icon: Users, label: "Quản lý người dùng", path: "/users" },
+    { icon: Cpu, label: "Quản lý thiết bị", path: "/devices" },
+  ];
+
+  const systemMenuItems = [
+    { icon: Settings, label: "Cấu hình hệ thống", path: "/config" },
+    { icon: Activity, label: "Giám sát hệ thống", path: "/health" },
+    { icon: Sparkles, label: "Cấu hình AI", path: "/ai-config" },
   ];
 
   return (
     <aside className="sidebar">
       {/* Brand / Logo */}
       <div className="sidebar__brand">
-        {/* Class này giúp canh chỉnh logo đẹp hơn */}
         <div className="sidebar__brandRow"> 
           <img src={logo} alt="Slib" className="sidebar__brandIcon" />
         </div>
       </div>
 
+      {/* Admin Badge */}
+      <div className="sidebar__badge">
+        <Shield size={14} />
+        <span className="sidebar__badgeText">Admin</span>
+      </div>
+
       {/* Navigation */}
       <nav className="sidebar__nav">
-        {menuItems.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={idx}
-              to={item.path}
-              className={({ isActive }) =>
-                `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
-              }
-            >
-              {/* Tăng độ dày icon một chút cho rõ nét */}
-              <Icon size={20} strokeWidth={2} />
-              <span className="sidebar__label">{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {/* Quản lý Section */}
+        <div className="sidebar__section">
+          <div className="sidebar__sectionLabel">Quản lý</div>
+          {adminMenuItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={idx}
+                to={item.path}
+                className={({ isActive }) =>
+                  `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
+                }
+              >
+                <span className="sidebar__icon">
+                  <Icon size={22} strokeWidth={2} />
+                </span>
+                <span className="sidebar__label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* Hệ thống Section */}
+        <div className="sidebar__section">
+          <div className="sidebar__sectionLabel">Hệ thống</div>
+          {systemMenuItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={idx}
+                to={item.path}
+                className={({ isActive }) =>
+                  `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
+                }
+              >
+                <span className="sidebar__icon">
+                  <Icon size={22} strokeWidth={2} />
+                </span>
+                <span className="sidebar__label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Footer / Help */}
       <div className="sidebar__helpWrap">
-        {/* Giả lập Help như một button để có hover effect và label giống menu trên */}
         <div className="sidebar__helpItem">
-           <HelpCircle size={20} strokeWidth={2} />
-           <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
+          <span className="sidebar__icon">
+            <HelpCircle size={22} strokeWidth={2} />
+          </span>
+          <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
         </div>
       </div>
     </aside>
   );
 };
 
-export default Sidebar;
+export default SidebarAdmin;

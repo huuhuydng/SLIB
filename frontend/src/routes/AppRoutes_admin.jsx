@@ -1,42 +1,51 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// import AuthPage from "../components/AuthPage";
+// Layout
 import MainLayout from "../layouts/admin/area_management/MainLayOut";
 
+// Pages - Admin Dashboard
 import Dashboard from "../pages/admin/AreaManagement/dashboard/Dashboard";
-// import CheckInOut from "../components/CheckInOut";
 import AreaManagement from "../pages/admin/AreaManagement/AreaManagement";
-// import SeatManage from "../components/SeatManage";
-// import StudentsManage from "../components/StudentsManage";
-// import ViolationManage from "../components/ViolationManage";
-// import ChatManage from "../components/ChatManage";
-// import Statistic from "../components/Statistic";
-// import NotificationManage from "../components/NotificationManage";
+
+// Admin-specific Components
+import UserManagement from "../components/UserManagement";
+import DeviceManagement from "../components/DeviceManagement";
+import SystemConfig from "../components/SystemConfig";
+import SystemHealth from "../components/SystemHealth";
+import AIConfig from "../components/AIConfig";
 
 function AppRoutes() {
   const isLoggedIn = true;
+  const userRole = "admin"; // Should come from auth context
 
   if (!isLoggedIn) {
-    return <AuthPage />;
+    return <Navigate to="/login" />;
   }
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* Layout có Sidebar */}
+        {/* Admin Layout with Sidebar */}
         <Route element={<MainLayout />}>
+          {/* Dashboard */}
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/areas" element={<AreaManagement />} />
-          {/* <Route path="/checkinout" element={<CheckInOut />} />
-          <Route path="/seatmanage" element={<SeatManage />} />
-          <Route path="/students" element={<StudentsManage />} />
-          <Route path="/violation" element={<ViolationManage />} />
-          <Route path="/chat" element={<ChatManage />} />
-          <Route path="/statistic" element={<Statistic />} />
-          <Route path="/notification" element={<NotificationManage />} /> */}
+          
+          {/* Quản lý thư viện */}
+          <Route path="/library-map" element={<AreaManagement />} />
+          
+          {/* Quản lý người dùng */}
+          <Route path="/users" element={<UserManagement />} />
+          
+          {/* Quản lý thiết bị */}
+          <Route path="/devices" element={<DeviceManagement />} />
+
+          {/* Hệ thống */}
+          <Route path="/config" element={<SystemConfig />} />
+          <Route path="/health" element={<SystemHealth />} />
+          <Route path="/ai-config" element={<AIConfig />} />
         </Route>
 
-        {/* Mặc định */}
+        {/* Default Redirects */}
         <Route path="/" element={<Navigate to="/dashboard" />} />
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>

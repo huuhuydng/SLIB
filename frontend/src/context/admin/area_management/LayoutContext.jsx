@@ -38,6 +38,14 @@ const initialState = {
   selectedZoneId: null,
   selectedItem: null, // { type: 'area' | 'zone' | 'seat', id }
   isCanvasFullscreen: false,
+  hasUnsavedChanges: false,  // Track if there are unsaved changes
+  isSaving: false,           // Track if save is in progress
+
+  // ===== PENDING CHANGES (for batch save) =====
+  pendingChanges: {
+    deletedSeats: [],    // Array of seat IDs to delete
+    updatedSeats: [],    // Array of seat objects with updates
+  },
 
   canvas: {
     panX: 0,
@@ -91,6 +99,16 @@ export const ACTIONS = {
   SET_PAN: "SET_PAN",
   SET_ZOOM: "SET_ZOOM",
   TOGGLE_CANVAS_FULLSCREEN: "TOGGLE_CANVAS_FULLSCREEN",
+
+  // ===== SAVE STATE =====
+  SET_UNSAVED_CHANGES: "SET_UNSAVED_CHANGES",
+  SET_SAVING: "SET_SAVING",
+  MARK_SAVED: "MARK_SAVED",
+
+  // ===== PENDING CHANGES =====
+  ADD_PENDING_SEAT_DELETE: "ADD_PENDING_SEAT_DELETE",
+  ADD_PENDING_SEAT_UPDATE: "ADD_PENDING_SEAT_UPDATE",
+  CLEAR_PENDING_CHANGES: "CLEAR_PENDING_CHANGES",
 };
 
 /**
@@ -198,7 +216,7 @@ function layoutReducer(state, action) {
       const { zoneId, seats: newSeats } = action.payload || {};
       const otherSeats = state.seats.filter((s) => s.zoneId !== zoneId);
       const mergedSeats = [...otherSeats, ...(newSeats || [])];
-      
+
       // Sort by seatId to maintain consistent order
       return {
         ...state,
@@ -279,8 +297,8 @@ function layoutReducer(state, action) {
         ...state,
         selectedItem: action.payload,
         // ✅ Nếu select area, cập nhật selectedAreaId
-        selectedAreaId: action.payload?.type === 'area' 
-          ? action.payload.id 
+        selectedAreaId: action.payload?.type === 'area'
+          ? action.payload.id
           : state.selectedAreaId,
         // ✅ Nếu select zone, cập nhật selectedZoneId, ngược lại reset về null
         selectedZoneId: action.payload?.type === 'zone'
@@ -309,6 +327,69 @@ function layoutReducer(state, action) {
       return {
         ...state,
         isCanvasFullscreen: !state.isCanvasFullscreen,
+      };
+
+    // ===== SAVE STATE =====
+    case ACTIONS.SET_UNSAVED_CHANGES:
+      return {
+        ...state,
+        hasUnsavedChanges: action.payload,
+      };
+
+    case ACTIONS.SET_SAVING:
+      return {
+        ...state,
+        isSaving: action.payload,
+      };
+
+    case ACTIONS.MARK_SAVED:
+      return {
+        ...state,
+        hasUnsavedChanges: false,
+        isSaving: false,
+        pendingChanges: {
+          deletedSeats: [],
+          updatedSeats: [],
+        },
+      };
+
+    // ===== PENDING CHANGES =====
+    case ACTIONS.ADD_PENDING_SEAT_DELETE:
+      return {
+        ...state,
+        hasUnsavedChanges: true,
+        pendingChanges: {
+          ...state.pendingChanges,
+          deletedSeats: [...state.pendingChanges.deletedSeats, action.payload],
+        },
+      };
+
+    case ACTIONS.ADD_PENDING_SEAT_UPDATE:
+      // Replace if seat already in pendingUpdates, otherwise add
+      const existingIndex = state.pendingChanges.updatedSeats.findIndex(
+        s => s.seatId === action.payload.seatId
+      );
+      const newUpdatedSeats = existingIndex >= 0
+        ? state.pendingChanges.updatedSeats.map((s, i) =>
+          i === existingIndex ? action.payload : s
+        )
+        : [...state.pendingChanges.updatedSeats, action.payload];
+      return {
+        ...state,
+        hasUnsavedChanges: true,
+        pendingChanges: {
+          ...state.pendingChanges,
+          updatedSeats: newUpdatedSeats,
+        },
+      };
+
+    case ACTIONS.CLEAR_PENDING_CHANGES:
+      return {
+        ...state,
+        pendingChanges: {
+          deletedSeats: [],
+          updatedSeats: [],
+        },
       };
 
     default:

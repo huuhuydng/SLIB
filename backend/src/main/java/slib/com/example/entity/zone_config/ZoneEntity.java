@@ -41,7 +41,4 @@ public class ZoneEntity {
     @Builder.Default
     @Column(name = "is_locked", nullable = false)
     private Boolean isLocked = false;
-
-    @Column(name = "color")
-    private String color;
 }

@@ -24,7 +24,7 @@ function Seat({ seat }) {
   const handleDoubleClick = async (e) => {
     e.stopPropagation();
 
-    const newIsActive = seat.isActive !== true; 
+    const newIsActive = seat.isActive !== true;
     console.log("[Seat] DoubleClick - toggling seat", {
       seatId: seat.seatId,
       currentIsActive: seat.isActive,
@@ -86,7 +86,8 @@ function Seat({ seat }) {
 
   /* ================= RENDER ================= */
 
-  const statusColor = seat.isActive !== false ? "var(--color-seat-available)" : "var(--color-seat-reserved)"; // Green/available for active, Red for maintenance
+  // Màu cam (#F97316) cho ghế hoạt động, xám (#9CA3AF) cho ghế bảo trì
+  const statusColor = seat.isActive !== false ? "#F97316" : "#9CA3AF";
 
   return (
     <div
