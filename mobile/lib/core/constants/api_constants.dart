@@ -5,6 +5,7 @@ class ApiConstants {
   // static const String domain = "https://slib-backend-oftc.onrender.com";
   
   static const String authUrl = "$domain/slib/users";
+  static const String authBaseUrl = "$domain/slib/auth";  // New auth endpoints
 
   static const String newsUrl = "$domain/slib/news";
 

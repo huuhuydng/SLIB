@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import ZoneSimple from './ZoneSimple';
-import Factory from './Factory';
+import Shape from './Shape';
 import { getZonesByArea, getAreaFactoriesByArea, updateAreaPosition, updateAreaDimensions, updateAreaPositionAndDimensions } from '../../../services/admin/area_management/api';
 import { Rnd } from 'react-rnd';
 function Area({ area }) {
@@ -161,7 +161,7 @@ function Area({ area }) {
       ) {
         return {
           isValid: false,
-          message: `❌ Không thể resize: Zone "${zone.zoneName}" sẽ bị cắt tỏa`,
+          message: `Không thể resize: Zone "${zone.zoneName}" sẽ bị cắt tỏa`,
           offendingZone: zone,
         };
       }
@@ -173,9 +173,9 @@ function Area({ area }) {
   const handleDrag = (e, d) => {
     // Check for collision with other areas
     const { hasCollision, collidingArea } = getAreaCollisionInfo(area.areaId, d.x, d.y, area.width || 300, area.height || 250);
-    
+
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
+      console.warn(`Chồng lấp: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
       setCollidingWith(collidingArea);
       return; // Block the drag
     }
@@ -208,9 +208,9 @@ function Area({ area }) {
   const handleDragStop = async (e, d) => {
     // Final collision check before saving
     const { hasCollision, collidingArea } = getAreaCollisionInfo(area.areaId, d.x, d.y, area.width || 300, area.height || 250);
-    
+
     if (hasCollision) {
-      console.warn(`❌ Vị trí bị từ chối: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
+      console.warn(`Vị trí bị từ chối: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
       setCollidingWith(collidingArea);
       setResetKey(prev => prev + 1);
       return;
@@ -255,7 +255,7 @@ function Area({ area }) {
     // Check for collision with other areas
     const { hasCollision, collidingArea } = getAreaCollisionInfo(area.areaId, position.x, position.y, newWidth, newHeight);
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
+      console.warn(`Chồng lấp: "${area.areaName}" chồng lấp với "${collidingArea.areaName}"`);
       setCollidingWith(collidingArea);
       setResetKey(prev => prev + 1); // Reset to original position
       return; // Block the resize
@@ -334,14 +334,14 @@ function Area({ area }) {
           height: '100%',
           border: collidingWith
             ? '3px solid #dc2626'
-            : resizeError 
-            ? '3px solid #dc2626' 
-            : 'none',
+            : resizeError
+              ? '3px solid #dc2626'
+              : 'none',
           boxShadow: collidingWith
             ? '0 0 15px rgba(220, 38, 38, 0.6), inset 0 0 10px rgba(220, 38, 38, 0.1)'
-            : resizeError 
-            ? '0 0 15px rgba(220, 38, 38, 0.4)' 
-            : 'none',
+            : resizeError
+              ? '0 0 15px rgba(220, 38, 38, 0.4)'
+              : 'none',
           transition: 'all 0.2s ease',
           borderRadius: '4px',
           position: 'relative',
@@ -362,7 +362,7 @@ function Area({ area }) {
         }}
       >
 
-        
+
         {/* Collision Warning */}
         {collidingWith && (
           <div style={{
@@ -380,7 +380,7 @@ function Area({ area }) {
             whiteSpace: 'nowrap',
             boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
           }}>
-            🔴 Chồng lấp với: {collidingWith.areaName}
+            Chồng lấp với: {collidingWith.areaName}
           </div>
         )}
 
@@ -405,46 +405,46 @@ function Area({ area }) {
           </div>
         )}
 
-      <div className="room" style={{ width: '100%', height: '100%', position: 'relative' }}>
-        <div className="room-header" ref={headerRef}>
-          <div className="room-title">
-            📐 {area.areaName || 'Unnamed Area'}
+        <div className="room" style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <div className="room-header" ref={headerRef}>
+            <div className="room-title">
+              {area.areaName || 'Unnamed Area'}
+            </div>
+            <div className="room-dimensions">
+              {area.width} × {area.height}
+            </div>
           </div>
-          <div className="room-dimensions">
-            {area.width} × {area.height}
-          </div>
-        </div>
 
-        <div className="room-content">
-          {loadingZones && loadingFactories ? (
-            <div className="room-empty">
-              <p>Đang tải...</p>
-            </div>
-          ) : areaZones.length === 0 && areaFactories.length === 0 ? (
-            <div className="room-empty">
-              <p>Không có khu vực hoặc vật cản</p>
-              <small>Nhấn "Thêm phòng" hoặc "Thêm vật cản"</small>
-            </div>
-          ) : (
-            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-              {areaZones.map((zone) => (
-                <ZoneSimple
-                  key={zone.zoneId}
-                  zone={zone}
-                  area={area}
-                />
-              ))}
-              {areaFactories.map((factory) => (
-                <Factory
-                  key={factory.factoryId}
-                  factory={factory}
-                />
-              ))}
-            </div>
-          )}
+          <div className="room-content">
+            {loadingZones && loadingFactories ? (
+              <div className="room-empty">
+                <p>Đang tải...</p>
+              </div>
+            ) : areaZones.length === 0 && areaFactories.length === 0 ? (
+              <div className="room-empty">
+                <p>Không có khu vực hoặc vật cản</p>
+                <small>Nhấn "Thêm phòng" hoặc "Thêm vật cản"</small>
+              </div>
+            ) : (
+              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                {areaZones.map((zone) => (
+                  <ZoneSimple
+                    key={zone.zoneId}
+                    zone={zone}
+                    area={area}
+                  />
+                ))}
+                {areaFactories.map((factory) => (
+                  <Shape
+                    key={factory.factoryId}
+                    factory={factory}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </Rnd>
   );
 }

@@ -1,39 +1,46 @@
 package slib.com.example.controller.users;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.User;
+import slib.com.example.service.AuthService;
 import slib.com.example.service.UserService;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/slib/users")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
-
+    /**
+     * Login with Google ID Token
+     * Note: This endpoint wraps the new AuthService for backward compatibility.
+     * Consider migrating clients to use /slib/auth/google directly.
+     */
     @PostMapping("/login-google")
     public ResponseEntity<?> loginWithGoogle(@RequestBody Map<String, String> request) {
         String idToken = request.get("id_token");
         String fullName = request.get("full_name");
-        String fcmToken = request.get("noti_device"); 
+        String fcmToken = request.get("noti_device");
+        String deviceInfo = request.get("device_info");
+
         if (idToken == null || idToken.isEmpty()) {
             return ResponseEntity.badRequest().body("Thiếu Google ID Token");
         }
         try {
-            Map<String, Object> response = userService.loginWithGoogle(idToken, fullName, fcmToken);
+            AuthResponse response = authService.loginWithGoogle(idToken, fullName, fcmToken, deviceInfo);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(401).body("Lỗi: " + e.getMessage());
@@ -54,8 +61,8 @@ public class UserController {
     }
 
     @PatchMapping("/me")
-    public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal UserDetails userDetails, 
-                                             @RequestBody User updateRequest) {
+    public ResponseEntity<?> updateMyProfile(@AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody User updateRequest) {
 
         if (userDetails == null) {
             return ResponseEntity.status(401).body("Token không hợp lệ");
@@ -73,7 +80,6 @@ public class UserController {
             return ResponseEntity.badRequest().body("Lỗi update: " + e.getMessage());
         }
     }
-
 
     @GetMapping("/getall")
     public List<User> getAllUsers() {

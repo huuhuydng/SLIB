@@ -53,28 +53,28 @@ public class ZoneService {
                 .zoneDes(req.getZoneDes())
                 .area(area)
 
-                //  LẤY TỪ FRONTEND
+                // LẤY TỪ FRONTEND
                 .positionX(req.getPositionX())
                 .positionY(req.getPositionY())
                 .width(req.getWidth())
                 .height(req.getHeight())
                 .isLocked(req.getIsLocked() != null ? req.getIsLocked() : false)
-                .color(req.getColor() != null ? req.getColor() : "#d1f7d8")
                 .build();
 
         return toResponse(zoneRepository.save(zone));
     }
-
 
     // UPDATE (thông tin)
     public ZoneResponse updateZone(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
 
-        if (req.getZoneName() != null) zone.setZoneName(req.getZoneName());
-        if (req.getZoneDes() != null) zone.setZoneDes(req.getZoneDes());
-        if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());
-        if (req.getColor() != null) zone.setColor(req.getColor());
+        if (req.getZoneName() != null)
+            zone.setZoneName(req.getZoneName());
+        if (req.getZoneDes() != null)
+            zone.setZoneDes(req.getZoneDes());
+        if (req.getIsLocked() != null)
+            zone.setIsLocked(req.getIsLocked());
 
         return toResponse(zoneRepository.save(zone));
     }
@@ -86,22 +86,21 @@ public class ZoneService {
 
         zone.setPositionX(req.getPositionX());
         zone.setPositionY(req.getPositionY());
-        if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());
-        if (req.getColor() != null) zone.setColor(req.getColor());
+        if (req.getIsLocked() != null)
+            zone.setIsLocked(req.getIsLocked());
 
         return toResponse(zoneRepository.save(zone));
     }
 
-
-     // UPDATE DIMENSIONS (RESIZE) - chỉ cập nhật kích thước
+    // UPDATE DIMENSIONS (RESIZE) - chỉ cập nhật kích thước
     public ZoneResponse updateZoneDimensions(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
 
         zone.setWidth(req.getWidth());
         zone.setHeight(req.getHeight());
-        if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());
-        if (req.getColor() != null) zone.setColor(req.getColor());
+        if (req.getIsLocked() != null)
+            zone.setIsLocked(req.getIsLocked());
 
         return toResponse(zoneRepository.save(zone));
     }
@@ -119,26 +118,31 @@ public class ZoneService {
         return toResponse(zoneRepository.save(zone));
     }
 
-    // UPDATE VỊ TRÍ - INFOR 
+    // UPDATE VỊ TRÍ - INFOR
     public ZoneResponse updateZoneFull(Integer id, ZoneResponse req) {
-    ZoneEntity zone = zoneRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ZoneEntity zone = zoneRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Zone not found"));
 
-    // info
-    if (req.getZoneName() != null) zone.setZoneName(req.getZoneName());
-    if (req.getZoneDes() != null) zone.setZoneDes(req.getZoneDes());
-    if (req.getIsLocked() != null) zone.setIsLocked(req.getIsLocked());   
-    if (req.getColor() != null) zone.setColor(req.getColor());            
+        // info
+        if (req.getZoneName() != null)
+            zone.setZoneName(req.getZoneName());
+        if (req.getZoneDes() != null)
+            zone.setZoneDes(req.getZoneDes());
+        if (req.getIsLocked() != null)
+            zone.setIsLocked(req.getIsLocked());
 
-    // position + size
-    if (req.getPositionX() != null) zone.setPositionX(req.getPositionX());
-    if (req.getPositionY() != null) zone.setPositionY(req.getPositionY());
-    if (req.getWidth() != null) zone.setWidth(req.getWidth());
-    if (req.getHeight() != null) zone.setHeight(req.getHeight());
+        // position + size
+        if (req.getPositionX() != null)
+            zone.setPositionX(req.getPositionX());
+        if (req.getPositionY() != null)
+            zone.setPositionY(req.getPositionY());
+        if (req.getWidth() != null)
+            zone.setWidth(req.getWidth());
+        if (req.getHeight() != null)
+            zone.setHeight(req.getHeight());
 
-    return toResponse(zoneRepository.save(zone));
+        return toResponse(zoneRepository.save(zone));
     }
-
 
     // DELETE
     public void deleteZone(Integer id) {
@@ -161,8 +165,7 @@ public class ZoneService {
         res.setWidth(zone.getWidth());
         res.setHeight(zone.getHeight());
         res.setAreaId(zone.getArea().getAreaId());
-        res.setIsLocked(zone.getIsLocked());   // new
-        res.setColor(zone.getColor());
+        res.setIsLocked(zone.getIsLocked());
 
         return res;
     }

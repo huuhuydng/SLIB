@@ -33,9 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Testing Framework: JUnit 5, Mockito, MockMvc
  * Test Type: @WebMvcTest (Unit Tests only - no full context)
  */
-@WebMvcTest(value = ZoneController.class, 
-    excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, 
-    classes = {slib.com.example.security.JwtAuthenticationFilter.class}))
+@WebMvcTest(value = ZoneController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
+        slib.com.example.security.JwtAuthenticationFilter.class }))
 @Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("ZoneController Unit Tests")
@@ -75,7 +74,7 @@ class ZoneControllerUnitTest {
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones/getAllZones")
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -93,15 +92,17 @@ class ZoneControllerUnitTest {
     @DisplayName("getZones_withoutFilter_returns200WithAllZones")
     void getZones_withoutFilter_returns200WithAllZones() throws Exception {
         // Arrange
-        ZoneResponse zone1 = createZoneResponse(1, "Reading Zone", "Quiet area", 100, 200, 800, 600, 5L, false, "#3498db");
-        ZoneResponse zone2 = createZoneResponse(2, "Study Zone", "Group study", 200, 300, 700, 500, 5L, false, "#e74c3c");
+        ZoneResponse zone1 = createZoneResponse(1, "Reading Zone", "Quiet area", 100, 200, 800, 600, 5L, false,
+                "#3498db");
+        ZoneResponse zone2 = createZoneResponse(2, "Study Zone", "Group study", 200, 300, 700, 500, 5L, false,
+                "#e74c3c");
         List<ZoneResponse> zones = Arrays.asList(zone1, zone2);
 
         when(zoneService.getAllZones()).thenReturn(zones);
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones")
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -117,15 +118,16 @@ class ZoneControllerUnitTest {
     void getZones_withAreaIdFilter_returns200WithFilteredZones() throws Exception {
         // Arrange
         Long areaId = 10L;
-        ZoneResponse zone1 = createZoneResponse(3, "Computer Lab", "Tech zone", 50, 100, 900, 700, areaId, false, "#2ecc71");
+        ZoneResponse zone1 = createZoneResponse(3, "Computer Lab", "Tech zone", 50, 100, 900, 700, areaId, false,
+                "#2ecc71");
         List<ZoneResponse> zones = List.of(zone1);
 
         when(zoneService.getZonesByAreaId(areaId)).thenReturn(zones);
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones")
-                        .param("areaId", areaId.toString())
-                        .contentType(MediaType.APPLICATION_JSON))
+                .param("areaId", areaId.toString())
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -143,7 +145,7 @@ class ZoneControllerUnitTest {
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones")
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
@@ -160,13 +162,14 @@ class ZoneControllerUnitTest {
     void getZoneById_validId_returns200WithZone() throws Exception {
         // Arrange
         Integer zoneId = 5;
-        ZoneResponse zone = createZoneResponse(zoneId, "VIP Zone", "Premium seating", 300, 400, 1000, 800, 15L, true, "#9b59b6");
+        ZoneResponse zone = createZoneResponse(zoneId, "VIP Zone", "Premium seating", 300, 400, 1000, 800, 15L, true,
+                "#9b59b6");
 
         when(zoneService.getZoneById(zoneId)).thenReturn(zone);
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(zoneId))
                 .andExpect(jsonPath("$.zoneName").value("VIP Zone"))
@@ -185,7 +188,7 @@ class ZoneControllerUnitTest {
 
         // Act & Assert
         mockMvc.perform(get("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError());
 
         verify(zoneService, times(1)).getZoneById(zoneId);
@@ -199,15 +202,17 @@ class ZoneControllerUnitTest {
     @DisplayName("createZone_validData_returns200WithCreatedZone")
     void createZone_validData_returns200WithCreatedZone() throws Exception {
         // Arrange
-        ZoneResponse request = createZoneResponse(null, "New Zone", "Brand new", 100, 100, 600, 400, 8L, false, "#16a085");
-        ZoneResponse response = createZoneResponse(10, "New Zone", "Brand new", 100, 100, 600, 400, 8L, false, "#16a085");
+        ZoneResponse request = createZoneResponse(null, "New Zone", "Brand new", 100, 100, 600, 400, 8L, false,
+                "#16a085");
+        ZoneResponse response = createZoneResponse(10, "New Zone", "Brand new", 100, 100, 600, 400, 8L, false,
+                "#16a085");
 
         when(zoneService.createZone(any(ZoneResponse.class))).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(post("/slib/zones")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(10))
                 .andExpect(jsonPath("$.zoneName").value("New Zone"))
@@ -221,8 +226,8 @@ class ZoneControllerUnitTest {
     void createZone_emptyRequestBody_returns400() throws Exception {
         // Act & Assert
         mockMvc.perform(post("/slib/zones")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(""))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(""))
                 .andExpect(status().isBadRequest());
 
         verify(zoneService, never()).createZone(any());
@@ -237,15 +242,17 @@ class ZoneControllerUnitTest {
     void updateZone_validData_returns200WithUpdatedZone() throws Exception {
         // Arrange
         Integer zoneId = 7;
-        ZoneResponse request = createZoneResponse(null, "Updated Zone", "Updated description", 150, 250, 850, 650, 12L, true, "#c0392b");
-        ZoneResponse response = createZoneResponse(zoneId, "Updated Zone", "Updated description", 150, 250, 850, 650, 12L, true, "#c0392b");
+        ZoneResponse request = createZoneResponse(null, "Updated Zone", "Updated description", 150, 250, 850, 650, 12L,
+                true, "#c0392b");
+        ZoneResponse response = createZoneResponse(zoneId, "Updated Zone", "Updated description", 150, 250, 850, 650,
+                12L, true, "#c0392b");
 
         when(zoneService.updateZoneFull(eq(zoneId), any(ZoneResponse.class))).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(put("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(zoneId))
                 .andExpect(jsonPath("$.zoneName").value("Updated Zone"))
@@ -259,15 +266,16 @@ class ZoneControllerUnitTest {
     void updateZone_notFound_throwsRuntimeException() throws Exception {
         // Arrange
         Integer zoneId = 999;
-        ZoneResponse request = createZoneResponse(null, "Non-existent", "N/A", 100, 100, 600, 400, 5L, false, "#95a5a6");
+        ZoneResponse request = createZoneResponse(null, "Non-existent", "N/A", 100, 100, 600, 400, 5L, false,
+                "#95a5a6");
 
         when(zoneService.updateZoneFull(eq(zoneId), any(ZoneResponse.class)))
                 .thenThrow(new RuntimeException("Zone not found"));
 
         // Act & Assert
         mockMvc.perform(put("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isInternalServerError());
 
         verify(zoneService, times(1)).updateZoneFull(eq(zoneId), any(ZoneResponse.class));
@@ -283,14 +291,15 @@ class ZoneControllerUnitTest {
         // Arrange
         Integer zoneId = 4;
         ZoneResponse request = createZoneResponse(null, null, null, 200, 300, null, null, null, null, null);
-        ZoneResponse response = createZoneResponse(zoneId, "Existing Zone", "Desc", 200, 300, 700, 500, 6L, false, "#34495e");
+        ZoneResponse response = createZoneResponse(zoneId, "Existing Zone", "Desc", 200, 300, 700, 500, 6L, false,
+                "#34495e");
 
         when(zoneService.updateZonePosition(eq(zoneId), any(ZoneResponse.class))).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(put("/slib/zones/{id}/position", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(zoneId))
                 .andExpect(jsonPath("$.positionX").value(200))
@@ -309,14 +318,15 @@ class ZoneControllerUnitTest {
         // Arrange
         Integer zoneId = 6;
         ZoneResponse request = createZoneResponse(null, null, null, null, null, 1000, 800, null, null, null);
-        ZoneResponse response = createZoneResponse(zoneId, "Resized Zone", "Bigger", 100, 200, 1000, 800, 9L, false, "#27ae60");
+        ZoneResponse response = createZoneResponse(zoneId, "Resized Zone", "Bigger", 100, 200, 1000, 800, 9L, false,
+                "#27ae60");
 
         when(zoneService.updateZoneDimensions(eq(zoneId), any(ZoneResponse.class))).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(put("/slib/zones/{id}/dimensions", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(zoneId))
                 .andExpect(jsonPath("$.width").value(1000))
@@ -335,14 +345,15 @@ class ZoneControllerUnitTest {
         // Arrange
         Integer zoneId = 8;
         ZoneResponse request = createZoneResponse(null, null, null, 300, 400, 1200, 900, null, null, null);
-        ZoneResponse response = createZoneResponse(zoneId, "Combined Update Zone", "Both", 300, 400, 1200, 900, 11L, false, "#8e44ad");
+        ZoneResponse response = createZoneResponse(zoneId, "Combined Update Zone", "Both", 300, 400, 1200, 900, 11L,
+                false, "#8e44ad");
 
         when(zoneService.updateZonePositionAndDimensions(eq(zoneId), any(ZoneResponse.class))).thenReturn(response);
 
         // Act & Assert
         mockMvc.perform(put("/slib/zones/{id}/position-and-dimensions", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.zoneId").value(zoneId))
                 .andExpect(jsonPath("$.positionX").value(300))
@@ -366,7 +377,7 @@ class ZoneControllerUnitTest {
 
         // Act & Assert
         mockMvc.perform(delete("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").value("Deleted zone with id = " + zoneId));
 
@@ -382,7 +393,7 @@ class ZoneControllerUnitTest {
 
         // Act & Assert
         mockMvc.perform(delete("/slib/zones/{id}", zoneId)
-                        .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isInternalServerError());
 
         verify(zoneService, times(1)).deleteZone(zoneId);
@@ -396,9 +407,18 @@ class ZoneControllerUnitTest {
      * Helper method to create ZoneResponse objects for testing
      */
     private ZoneResponse createZoneResponse(Integer zoneId, String zoneName, String zoneDes,
-                                            Integer positionX, Integer positionY,
-                                            Integer width, Integer height,
-                                            Long areaId, Boolean isLocked, String color) {
-        return new ZoneResponse(zoneId, zoneName, zoneDes, positionX, positionY, width, height, areaId, isLocked, color);
+            Integer positionX, Integer positionY,
+            Integer width, Integer height,
+            Long areaId, Boolean isLocked) {
+        return new ZoneResponse(zoneId, zoneName, zoneDes, positionX, positionY, width, height, areaId, isLocked);
+    }
+
+    // Overload for backwards compatibility with existing test calls that include
+    // color
+    private ZoneResponse createZoneResponse(Integer zoneId, String zoneName, String zoneDes,
+            Integer positionX, Integer positionY,
+            Integer width, Integer height,
+            Long areaId, Boolean isLocked, String ignored) {
+        return new ZoneResponse(zoneId, zoneName, zoneDes, positionX, positionY, width, height, areaId, isLocked);
     }
 }

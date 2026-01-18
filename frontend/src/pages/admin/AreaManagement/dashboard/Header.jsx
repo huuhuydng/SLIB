@@ -1,20 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronDown, Search, User, LogOut } from 'lucide-react';
+import { ChevronDown, Search, User, LogOut, Bell, Settings } from 'lucide-react';
 import avatarImage from "../../../../assets/avatar.svg";
 
 const Header = ({ 
   searchValue = '', 
   onSearchChange = () => {},
-  searchPlaceholder = "Search for anything...",
-  showBackButton = false,
-  onBackClick = () => {},
+  searchPlaceholder = "Tìm kiếm...",
   onLogout = () => {}
 }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [userData, setUserData] = useState({ name: 'User', role: 'Librarian' });
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Load user data from localStorage
   useEffect(() => {
     try {
       const userStr = localStorage.getItem('librarian_user');
@@ -25,10 +23,9 @@ const Header = ({
           role: user.user_metadata?.role || 'Librarian',
           email: user.email
         });
-        console.log('✅ User data loaded:', user);
       }
     } catch (error) {
-      console.error('❌ Error loading user data:', error);
+      console.error('Error loading user data:', error);
     }
   }, []);
 
@@ -53,53 +50,31 @@ const Header = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '1.25rem 2rem',
-      backgroundColor: '#ffffff',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-      marginBottom: '0',
-      borderRadius: '24px',
+      padding: '16px 32px',
+      backgroundColor: 'var(--slib-bg-card, #ffffff)',
+      boxShadow: 'var(--slib-shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05))',
+      borderRadius: '16px',
       position: 'sticky',
       top: 0,
-      zIndex: 50
+      zIndex: 50,
+      margin: '16px 24px',
+      gap: '24px'
     }}>
-      {showBackButton ? (
-        <button 
-          onClick={onBackClick}
-          style={{
-            padding: '0.625rem',
-            border: 'none',
-            background: '#f3f4f6',
-            borderRadius: '16px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s',
-            color: '#374151'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#f3f4f6'}
-        >
-          <ChevronLeft size={20} />
-        </button>
-      ) : (
-        <div style={{ width: '42px' }}></div>
-      )}
-      
+      {/* Search Bar */}
       <div style={{
         flex: 1,
-        maxWidth: '650px',
-        margin: '0 2rem',
+        maxWidth: '520px',
         position: 'relative'
       }}>
         <Search 
           size={18} 
           style={{
             position: 'absolute',
-            left: '1.125rem',
+            left: '16px',
             top: '50%',
             transform: 'translateY(-50%)',
-            color: '#9ca3af',
+            color: isSearchFocused ? 'var(--slib-primary, #FF751F)' : 'var(--slib-text-muted, #A0AEC0)',
+            transition: 'color 0.2s ease',
             pointerEvents: 'none'
           }}
         />
@@ -108,144 +83,235 @@ const Header = ({
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={onSearchChange}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
           style={{
             width: '100%',
-            padding: '0.75rem 1.25rem 0.75rem 3rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '20px',
-            fontSize: '0.875rem',
+            padding: '12px 16px 12px 48px',
+            border: isSearchFocused 
+              ? '2px solid var(--slib-primary, #FF751F)' 
+              : '2px solid var(--slib-border-light, #E2E8F0)',
+            borderRadius: '12px',
+            fontSize: '14px',
+            color: 'var(--slib-text-primary, #1A1A1A)',
+            backgroundColor: isSearchFocused 
+              ? 'var(--slib-bg-card, #ffffff)' 
+              : 'var(--slib-bg-main, #F7FAFC)',
             outline: 'none',
-            transition: 'all 0.2s',
-            backgroundColor: '#f9fafb'
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#8b5cf6';
-            e.target.style.backgroundColor = '#ffffff';
-            e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '#e5e7eb';
-            e.target.style.backgroundColor = '#f9fafb';
-            e.target.style.boxShadow = 'none';
+            transition: 'all 0.2s ease',
+            boxShadow: isSearchFocused 
+              ? '0 0 0 4px rgba(255, 117, 31, 0.1)' 
+              : 'none'
           }}
         />
       </div>
       
-      <div style={{ position: 'relative' }} ref={dropdownRef}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.875rem',
-          padding: '0.5rem 1rem 0.5rem 0.75rem',
-          backgroundColor: '#f9fafb',
-          borderRadius: '30px',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          border: '1px solid transparent'
-        }}
-        onClick={() => setShowDropdown(!showDropdown)}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f3f4f6';
-          e.currentTarget.style.borderColor = '#e5e7eb';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f9fafb';
-          e.currentTarget.style.borderColor = 'transparent';
-        }}
-        >
-          <img 
-            src={avatarImage} 
-            alt="Avatar" 
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              border: '2px solid #ffffff',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-            }} 
-          />
-          <div style={{
+      {/* Right Section */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px'
+      }}>
+        {/* Notification Bell */}
+        <button
+          style={{
+            position: 'relative',
+            width: '44px',
+            height: '44px',
             display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start'
-          }}>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}>{userData.name}</span>
-            <span style={{
-              fontSize: '0.75rem',
-              color: '#6b7280'
-            }}>{userData.role}</span>
-          </div>
-          <ChevronDown size={16} style={{
-            transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s'
-          }} />
-        </div>
-
-        {showDropdown && (
-          <div style={{
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'var(--slib-bg-main, #F7FAFC)',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--slib-primary-subtle, #FFF7F2)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--slib-bg-main, #F7FAFC)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <Bell size={20} color="var(--slib-text-secondary, #4A5568)" />
+          <span style={{
             position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            border: '1px solid #e5e7eb',
-            minWidth: '180px',
-            overflow: 'hidden',
-            zIndex: 1000
-          }}>
-            <div 
-              onClick={() => {
-                setShowDropdown(false);
-                // TODO: Navigate to profile page
-              }}
+            top: '8px',
+            right: '8px',
+            width: '10px',
+            height: '10px',
+            backgroundColor: 'var(--slib-primary, #FF751F)',
+            borderRadius: '50%',
+            border: '2px solid var(--slib-bg-card, #ffffff)'
+          }} />
+        </button>
+
+        {/* Settings */}
+        <button
+          style={{
+            width: '44px',
+            height: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'var(--slib-bg-main, #F7FAFC)',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--slib-primary-subtle, #FFF7F2)';
+            e.currentTarget.style.transform = 'translateY(-2px)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--slib-bg-main, #F7FAFC)';
+            e.currentTarget.style.transform = 'translateY(0)';
+          }}
+        >
+          <Settings size={20} color="var(--slib-text-secondary, #4A5568)" />
+        </button>
+
+        {/* Divider */}
+        <div style={{
+          width: '1px',
+          height: '32px',
+          backgroundColor: 'var(--slib-border-light, #E2E8F0)'
+        }} />
+
+        {/* User Profile */}
+        <div style={{ position: 'relative' }} ref={dropdownRef}>
+          <div 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 16px 8px 8px',
+              backgroundColor: 'var(--slib-bg-main, #F7FAFC)',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              border: showDropdown 
+                ? '2px solid var(--slib-primary, #FF751F)' 
+                : '2px solid transparent'
+            }}
+            onClick={() => setShowDropdown(!showDropdown)}
+            onMouseEnter={(e) => {
+              if (!showDropdown) {
+                e.currentTarget.style.backgroundColor = 'var(--slib-primary-subtle, #FFF7F2)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showDropdown) {
+                e.currentTarget.style.backgroundColor = 'var(--slib-bg-main, #F7FAFC)';
+              }
+            }}
+          >
+            <img 
+              src={avatarImage} 
+              alt="Avatar" 
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-                borderBottom: '1px solid #f3f4f6'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
-              <User size={18} style={{ color: '#6b7280' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>Profile</span>
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: '2px solid var(--slib-bg-card, #ffffff)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+              }} 
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--slib-text-primary, #1A1A1A)' }}>
+                {userData.name}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--slib-text-muted, #A0AEC0)', fontWeight: '500' }}>
+                {userData.role}
+              </span>
             </div>
-            <div 
-              onClick={() => {
-                setShowDropdown(false);
-                onLogout();
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fef2f2';
-                e.currentTarget.querySelector('svg').style.color = '#dc2626';
-                e.currentTarget.querySelector('span').style.color = '#dc2626';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.querySelector('svg').style.color = '#6b7280';
-                e.currentTarget.querySelector('span').style.color = '#000000';
-              }}
-            >
-              <LogOut size={18} style={{ color: '#6b7280', transition: 'color 0.2s' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500', transition: 'color 0.2s' }}>Logout</span>
-            </div>
+            <ChevronDown 
+              size={18} 
+              color="var(--slib-text-muted, #A0AEC0)"
+              style={{ transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} 
+            />
           </div>
-        )}
+
+          {/* Dropdown */}
+          {showDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              right: 0,
+              backgroundColor: 'var(--slib-bg-card, #ffffff)',
+              borderRadius: '12px',
+              boxShadow: 'var(--slib-shadow-lg)',
+              border: '1px solid var(--slib-border-light, #E2E8F0)',
+              minWidth: '200px',
+              overflow: 'hidden',
+              zIndex: 1000
+            }}>
+              <div style={{
+                padding: '16px',
+                borderBottom: '1px solid var(--slib-border-light, #E2E8F0)',
+                background: 'var(--slib-bg-main, #F7FAFC)'
+              }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: 'var(--slib-text-primary, #1A1A1A)', margin: '0 0 4px 0' }}>
+                  {userData.name}
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--slib-text-muted, #A0AEC0)', margin: 0 }}>
+                  {userData.email || 'user@example.com'}
+                </p>
+              </div>
+
+              <div 
+                onClick={() => setShowDropdown(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--slib-bg-main, #F7FAFC)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <User size={18} color="var(--slib-text-secondary, #4A5568)" />
+                <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slib-text-secondary, #4A5568)' }}>
+                  Hồ sơ cá nhân
+                </span>
+              </div>
+
+              <div 
+                onClick={() => { setShowDropdown(false); onLogout(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 16px',
+                  cursor: 'pointer',
+                  borderTop: '1px solid var(--slib-border-light, #E2E8F0)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--slib-status-error-bg, #FFEBEE)';
+                  e.currentTarget.querySelector('svg').style.color = 'var(--slib-status-error, #D32F2F)';
+                  e.currentTarget.querySelector('span').style.color = 'var(--slib-status-error, #D32F2F)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.querySelector('svg').style.color = 'var(--slib-text-secondary, #4A5568)';
+                  e.currentTarget.querySelector('span').style.color = 'var(--slib-text-secondary, #4A5568)';
+                }}
+              >
+                <LogOut size={18} style={{ color: 'var(--slib-text-secondary, #4A5568)', transition: 'color 0.2s ease' }} />
+                <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slib-text-secondary, #4A5568)', transition: 'color 0.2s ease' }}>
+                  Đăng xuất
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

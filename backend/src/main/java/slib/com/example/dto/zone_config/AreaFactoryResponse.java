@@ -16,5 +16,5 @@ public class AreaFactoryResponse {
     private Integer positionY;
     private Integer width;
     private Integer height;
-    private String color;
+    private Boolean isLocked;
 }

@@ -108,16 +108,30 @@ class AuthService extends ChangeNotifier {
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
 
-        final String accessToken = jsonMap['access_token'];
+        // New JWT response format - accessToken and user data at root level
+        final String accessToken = jsonMap['accessToken'] ?? jsonMap['access_token'];
+        final String? refreshToken = jsonMap['refreshToken'];
+        
         await _saveToken(accessToken);
-
-        if (jsonMap['user'] != null) {
-          _currentUser = UserProfile.fromJson(jsonMap['user']);
-          await _saveStudentCode(_currentUser!.studentCode);
-          await HceBridge.setUserId(_currentUser!.id);
-          await _fetchAndSyncSettings(_currentUser!.id);
-
+        if (refreshToken != null) {
+          await _saveRefreshToken(refreshToken);
         }
+
+        // User data is now at root level, not nested in 'user'
+        _currentUser = UserProfile(
+          id: jsonMap['id'] ?? '',
+          email: jsonMap['email'] ?? '',
+          fullName: jsonMap['fullName'] ?? '',
+          studentCode: jsonMap['studentCode'] ?? '',
+          role: jsonMap['role'] ?? 'STUDENT',
+          reputationScore: jsonMap['reputationScore'] ?? 100,
+          isActive: jsonMap['isActive'] ?? true,
+        );
+        
+        await _saveStudentCode(_currentUser!.studentCode);
+        await HceBridge.setUserId(_currentUser!.id);
+        await _fetchAndSyncSettings(_currentUser!.id);
+
         notifyListeners();
         return _currentUser;
       } else {
@@ -196,13 +210,40 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Token storage methods
   Future<void> _saveToken(String token) async => await _storage.write(key: 'jwt_token', value: token);
   Future<String?> getToken() async => await _storage.read(key: 'jwt_token');
+  Future<void> _saveRefreshToken(String token) async => await _storage.write(key: 'refresh_token', value: token);
+  Future<String?> getRefreshToken() async => await _storage.read(key: 'refresh_token');
   Future<void> _saveStudentCode(String code) async => await _storage.write(key: 'student_code', value: code);
   
   Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
     if (_currentUser != null && !forceRefresh) return _currentUser;
     await checkLoginStatus(); 
     return _currentUser;
+  }
+
+  /// Refresh access token using refresh token
+  Future<bool> refreshAccessToken() async {
+    try {
+      final refreshToken = await getRefreshToken();
+      if (refreshToken == null) return false;
+
+      final response = await http.post(
+        Uri.parse('${ApiConstants.authBaseUrl}/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonMap = jsonDecode(utf8.decode(response.bodyBytes));
+        await _saveToken(jsonMap['accessToken']);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("❌ Token refresh error: $e");
+      return false;
+    }
   }
 }
