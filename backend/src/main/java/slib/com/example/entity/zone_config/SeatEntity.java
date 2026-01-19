@@ -37,30 +37,18 @@ public class SeatEntity {
     @com.fasterxml.jackson.annotation.JsonIgnore
     private ZoneEntity zone;
 
-    @Column(name = "seat_code", nullable = false, unique = true)
+    @Column(name = "seat_code", nullable = false)
     private String seatCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "seat_status", nullable = false, columnDefinition = "seat_status")
     private SeatStatus seatStatus;
 
-    @Column(name = "position_x", nullable = false)
-    private Integer positionX;
-
-    @Column(name = "position_y", nullable = false)
-    private Integer positionY;
-
     @Column(name = "row_number", nullable = false)
     private Integer rowNumber;
 
     @Column(name = "column_number", nullable = false)
     private Integer columnNumber;
-
-    @Column(name = "width")
-    private Integer width;
-
-    @Column(name = "height")
-    private Integer height;
 
     @OneToMany(mappedBy = "seat")
     @com.fasterxml.jackson.annotation.JsonIgnore

@@ -3,10 +3,51 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/models/area.dart';
+import 'package:slib/models/area_factory.dart';
 import 'package:slib/models/seat.dart';
 import 'package:slib/models/zones.dart';
 
 class BookingService {
+  // ================= AREAS =================
+  Future<List<Area>> getAllAreas() async {
+    final url = Uri.parse(ApiConstants.areaUrl);
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Area.fromJson(json)).toList();
+    } else {
+      throw Exception("Failed to load areas: ${response.body}");
+    }
+  }
+
+  // ================= FACTORIES (Obstacles) =================
+  Future<List<AreaFactory>> getFactoriesByArea(int areaId) async {
+    final url = Uri.parse("${ApiConstants.factoriesUrl}?areaId=$areaId");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => AreaFactory.fromJson(json)).toList();
+    } else {
+      throw Exception("Failed to load factories: ${response.body}");
+    }
+  }
+
+  // ================= ZONES =================
+  Future<List<Zone>> getZonesByArea(int areaId) async {
+    final url = Uri.parse("${ApiConstants.zoneUrl}?areaId=$areaId");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Zone.fromJson(json)).toList();
+    } else {
+      throw Exception("Failed to load zones: ${response.body}");
+    }
+  }
+
   Future<List<Zones>> getAllZones() async {
     final url = Uri.parse("${ApiConstants.zoneUrl}/getAllZones");
     final response = await http.get(url);
@@ -19,6 +60,7 @@ class BookingService {
     }
   }
 
+  // ================= SEATS =================
   Future<int> getAvailableSeat(int zoneId) async {
     final url = Uri.parse("${ApiConstants.seatUrl}/getAvailableSeat/$zoneId");
     final response = await http.get(url);
@@ -27,7 +69,7 @@ class BookingService {
       final int count = int.parse(response.body);
       return count;
     } else {
-      print("Status: ${response.statusCode}, Body: ${response.body}");
+      debugPrint("Status: ${response.statusCode}, Body: ${response.body}");
       throw Exception("Lỗi: ${response.body}");
     }
   }
@@ -36,7 +78,6 @@ class BookingService {
     final url = Uri.parse("${ApiConstants.seatUrl}/getAllSeat/$zoneId");
     final response = await http.get(url);
 
-    // In ra status code và body để debug
     debugPrint("Status: ${response.statusCode}");
     debugPrint("Body: ${response.body}");
 
@@ -86,6 +127,7 @@ class BookingService {
     }
   }
 
+  // ================= BOOKING =================
   Future<Map<String, dynamic>> createBooking({
     required String userId,
     required int seatId,
@@ -109,7 +151,7 @@ class BookingService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body); // JSON có reservationId
+      return jsonDecode(response.body);
     } else {
       throw Exception("Failed to create booking: ${response.body}");
     }

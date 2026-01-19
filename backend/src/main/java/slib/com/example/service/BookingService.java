@@ -136,8 +136,8 @@ public class BookingService {
                 seat.getSeatId(),
                 seat.getSeatCode(),
                 seat.getSeatStatus(),
-                seat.getPositionX(),
-                seat.getPositionY(),
+                seat.getRowNumber(),
+                seat.getColumnNumber(),
                 seat.getZone().getZoneId());
     }
 
@@ -159,8 +159,8 @@ public class BookingService {
                     seat.getSeatId(),
                     seat.getSeatCode(),
                     isBooked ? SeatStatus.BOOKED : SeatStatus.AVAILABLE,
-                    seat.getPositionX(),
-                    seat.getPositionY(),
+                    seat.getRowNumber(),
+                    seat.getColumnNumber(),
                     seat.getZone().getZoneId());
             return dto;
         }).toList();
@@ -179,8 +179,8 @@ public class BookingService {
                     seat.getSeatId(),
                     seat.getSeatCode(),
                     isBooked ? SeatStatus.BOOKED : SeatStatus.AVAILABLE,
-                    seat.getPositionX(),
-                    seat.getPositionY(),
+                    seat.getRowNumber(),
+                    seat.getColumnNumber(),
                     seat.getZone().getZoneId());
         }).toList();
     }

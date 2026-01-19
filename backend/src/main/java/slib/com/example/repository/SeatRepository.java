@@ -12,8 +12,13 @@ import java.util.List;
 
 @Repository
 public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
-    List<SeatEntity> findByZone_ZoneId(Integer zoneId);  
+    List<SeatEntity> findByZone_ZoneId(Integer zoneId);
+
     long countByZone_ZoneIdAndSeatStatus(Integer zoneId, SeatStatus seatStatus);
+
     @Query("SELECT MAX(s.columnNumber) FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.rowNumber = :rowNumber")
     Integer findMaxColumnByZoneIdAndRow(@Param("zoneId") Integer zoneId, @Param("rowNumber") Integer rowNumber);
+
+    // Delete all seats by zone ID (for cascade delete when zone is deleted)
+    void deleteByZone_ZoneId(Integer zoneId);
 }
