@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   LayoutGrid,
   ArrowRightLeft,
@@ -16,28 +17,21 @@ import {
   Trash2,
   Pencil,
   Paperclip,
-  ArrowLeft
+  ArrowLeft,
+  ChevronDown
 } from 'lucide-react';
 import Header from './Header';
 import '../styles/NotificationManage.css';
-
-
-// Mock Data
-const MOCK_NOTIFICATIONS = Array.from({ length: 14 }, (_, i) => ({
-  id: i + 1,
-  subject: i % 2 === 0 ? 'Thông báo' : 'Sự kiện',
-  title:
-    i % 2 === 0
-      ? 'Thông báo lịch trả sách tháng 12'
-      : 'Triển khai dự án "nuôi anh" bằng sách',
-  time: '12:21:10 15/12/2025'
-}));
+import { getAllNewsForAdmin, deleteNews } from '../services/newsService';
 
 
 const NotificationManage = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('list'); // list | create | detail
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   // Create Form State
   const [formData, setFormData] = useState({
     startTime: '',
@@ -46,6 +40,55 @@ const NotificationManage = () => {
     subject: 'Thông báo',
     description: ''
   });
+
+  // Fetch notifications from API
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllNewsForAdmin();
+      console.log('📰 Fetched news:', data);
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) return;
+    
+    try {
+      await deleteNews(id);
+      alert('Xóa thành báo thành công!');
+      fetchNotifications(); // Refresh list
+    } catch (error) {
+      alert('Lỗi khi xóa thông báo!');
+      console.error(error);
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = date.toLocaleDateString('vi-VN');
+    return `${time} ${dateStr}`;
+  };
+
+  const getCategoryName = (categoryId) => {
+    const categories = {
+      1: 'Thông báo',
+      2: 'Sự kiện',
+      3: 'Tin tức'
+    };
+    return categories[categoryId] || 'Khác';
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -123,7 +166,7 @@ const NotificationManage = () => {
                   <Bell size={24} color="white" />
                 </div>
                 <div className="nt-stat-info">
-                  <span className="nt-stat-num">18</span>
+                  <span className="nt-stat-num">{notifications.length}</span>
                   <span className="nt-stat-label">Thông báo</span>
                 </div>
               </div>
@@ -133,9 +176,9 @@ const NotificationManage = () => {
                   <Calendar size={24} color="white" />
                 </div>
                 <div className="nt-stat-info">
-                  <span className="nt-stat-num">3</span>
+                  <span className="nt-stat-num">{notifications.filter(n => n.categoryId === 2).length}</span>
                   <span className="nt-stat-label">
-                    Sự kiện đang diễn ra
+                    Sự kiện
                   </span>
                 </div>
               </div>
@@ -176,50 +219,68 @@ const NotificationManage = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_NOTIFICATIONS.map((item) => (
-                      <tr
-      key={item.id}
-      onClick={() => {
-        setSelectedNotification(item);
-        setViewMode('detail');
-      }}
-    >
-                        <td>{item.subject}</td>
-                        <td className="nt-font-medium">
-                          {item.title}
+                    {loading ? (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                          Đang tải...
                         </td>
-                        <td className="nt-text-gray">
-                          {item.time}
+                      </tr>
+                    ) : notifications.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                          Chưa có thông báo nào
                         </td>
-                        <td>
-                          <div className="nt-actions">
-                            <button
+                      </tr>
+                    ) : (
+                      notifications.map((item) => (
+                        <tr
+                          key={item.id}
+                          onClick={() => {
+                            navigate(`/notification/view/${item.id}`);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <td>{getCategoryName(item.categoryId)}</td>
+                          <td className="nt-font-medium">
+                            {item.title}
+                          </td>
+                          <td className="nt-text-gray">
+                            {formatDateTime(item.createdAt)}
+                          </td>
+                          <td>
+                            <div className="nt-actions">
+                              <button
                                 className="nt-action-btn nt-btn-edit"
                                 onClick={(e) => {
-                                  e.stopPropagation(); // 🔑 CHẶN LAN EVENT
-
+                                  e.stopPropagation();
                                   setSelectedNotification(item);
                                   setFormData({
                                     startTime: item.startTime || '',
                                     endTime: item.endTime || '',
                                     title: item.title || '',
-                                    subject: item.subject || 'Thông báo',
-                                    description: item.description || ''
+                                    subject: getCategoryName(item.categoryId),
+                                    description: item.content || ''
                                   });
-
                                   setIsEditing(true);
                                   setViewMode('detail');
                                 }}
                               >
                                 <Pencil size={16} />
                               </button>
-                            <button className="nt-action-btn nt-btn-delete">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <button 
+                                className="nt-action-btn nt-btn-delete"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(item.id);
+                                }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -340,7 +401,7 @@ const NotificationManage = () => {
                     <div className="nt-form-group">
                       <label>Thời gian</label>
                       <div className="nt-view-text">
-                        {selectedNotification.time}
+                        {formatDateTime(selectedNotification.createdAt)}
                       </div>
                     </div>
                   </div>
@@ -355,7 +416,7 @@ const NotificationManage = () => {
                     <div className="nt-form-group">
                       <label>Chủ đề</label>
                       <div className="nt-view-text nt-tag">
-                        {selectedNotification.subject}
+                        {getCategoryName(selectedNotification.categoryId)}
                       </div>
                     </div>
                   </div>
@@ -363,7 +424,7 @@ const NotificationManage = () => {
                   <div className="nt-form-group nt-flex-grow">
                     <label>Mô tả</label>
                     <div className="nt-view-text nt-description">
-                      Chưa có mô tả chi tiết
+                      {selectedNotification.content || 'Chưa có mô tả chi tiết'}
                     </div>
                   </div>
                 </div>

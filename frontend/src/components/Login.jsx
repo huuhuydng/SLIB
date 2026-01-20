@@ -71,16 +71,20 @@ function Login({ onLogin }) {
                     backendResponse.session?.access_token || 
                     backendResponse.token;
       
-      if (token) {
+      const user = backendResponse.user;
+      
+      if (token && user) {
         localStorage.setItem('librarian_token', token);
-        localStorage.setItem('librarian_user', JSON.stringify(backendResponse.user));
+        localStorage.setItem('librarian_user', JSON.stringify(user));
         console.log("✅ Token saved successfully");
+        console.log("✅ User role:", user.role);
         
+        // Truyền role cho parent component để redirect đúng
         if (onLogin) {
-          onLogin();
+          onLogin(user.role);
         }
       } else {
-        throw new Error('No token received from server');
+        throw new Error('No token or user data received from server');
       }
 
     } catch (err) {

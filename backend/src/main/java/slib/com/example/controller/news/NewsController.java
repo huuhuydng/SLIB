@@ -3,6 +3,7 @@ package slib.com.example.controller.news;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.NewsListDTO;
 import slib.com.example.entity.news.News;
 import slib.com.example.service.NewsService;
 
@@ -35,8 +36,18 @@ public class NewsController {
 
     // 2. ADMIN API (Dành cho Web Admin/Librarian)
     @GetMapping("/admin/all")
-    public ResponseEntity<List<News>> getAllNewsForAdmin() {
+    public ResponseEntity<List<NewsListDTO>> getAllNewsForAdmin() {
         return ResponseEntity.ok(newsService.getAllNewsForAdmin());
+    }
+
+    @GetMapping("/admin/detail/{id}")
+    public ResponseEntity<NewsListDTO> getNewsDetailForAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(newsService.getNewsDetailForAdmin(id));
+    }
+
+    @GetMapping("/admin/image/{id}")
+    public ResponseEntity<String> getNewsImage(@PathVariable Long id) {
+        return ResponseEntity.ok(newsService.getNewsImage(id));
     }
 
 

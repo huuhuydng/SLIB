@@ -8,9 +8,8 @@ import StudentsManage from "./components/StudentsManage";
 import ViolationManage from "./components/ViolationManage";
 import ChatManage from "./components/ChatManage";
 import Statistic from "./components/Statistic";
-import NotificationManage from "./components/NotificationManage";
 import Sidebar from "./components/sidebar_default/Sidebar_default";
-import AppRoutes from "./routes/AppRoutes_admin";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
     return <AppRoutes />;

@@ -24,53 +24,16 @@ import java.util.regex.Pattern;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final WebClient webClient;
+    private final AuthService authService;
 
-    @Value("${supabase.url}")
-    private String supabaseUrl;
-
-    @Value("${supabase.key}")
-    private String supabaseKey;
-
-    public UserService(UserRepository userRepository, WebClient.Builder webClientBuilder) {
+    public UserService(UserRepository userRepository, AuthService authService) {
         this.userRepository = userRepository;
-        this.webClient = webClientBuilder.build();
+        this.authService = authService;
     }
 
     public Map<String, Object> loginWithGoogle(String idToken, String fullNameFromClient, String fcmToken) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("id_token", idToken);
-        body.put("provider", "google");
-        try {
-            String jsonResponse = webClient.post()
-                    .uri(supabaseUrl + "/auth/v1/token?grant_type=id_token")
-                    .header("apikey", supabaseKey)
-                    .header("Authorization", "Bearer " + supabaseKey)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(body)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-
-            User user = syncGoogleUserToLocalDB(jsonResponse, fullNameFromClient, fcmToken);
-
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(jsonResponse);
-            String accessToken = root.path("access_token").asText();
-
-            Map<String, Object> finalResponse = new HashMap<>();
-            finalResponse.put("access_token", accessToken);
-            finalResponse.put("user", user);
-
-            return finalResponse;
-
-        } catch (WebClientResponseException e) {
-            System.err.println("Supabase Error: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Lỗi xác thực Google: " + e.getResponseBodyAsString());
-        } catch (Exception e) {
-            e.printStackTrace(); 
-            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
-        }
+        // Use AuthService instead of Supabase
+        return authService.loginWithGoogle(idToken, fullNameFromClient, fcmToken);
     }
 
     private User syncGoogleUserToLocalDB(String jsonResponse, String clientFullName, String fcmToken) throws Exception {

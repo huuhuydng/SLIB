@@ -16,10 +16,4 @@ public interface NewsRepository extends JpaRepository<News, Long> {
     @Query("SELECT n FROM News n WHERE n.category.id = :catId AND n.isPublished = true ORDER BY n.publishedAt DESC")
     List<News> getPublishedNewsByCategory(@Param("catId") Long categoryId);
 
-    @Query("SELECT n FROM News n WHERE n.author.id = :authId ORDER BY n.publishedAt DESC")
-    List<News> getNewsByAuthor(@Param("authId") Long authorId);
-    
-    @Query("SELECT n FROM News n WHERE n.category.id = :catId AND n.author.id = :authId ORDER BY n.publishedAt DESC")
-    List<News> getNewsByCategoryAndAuthor(@Param("catId") Long categoryId, @Param("authId") Long authorId);
-
 }

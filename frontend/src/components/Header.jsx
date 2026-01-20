@@ -219,6 +219,8 @@ const Header = ({
             </div>
             <div 
               onClick={() => {
+                console.log('🔴 Logout clicked from components/Header.jsx!');
+                console.log('🔴 onLogout:', typeof onLogout, onLogout);
                 setShowDropdown(false);
                 onLogout();
               }}

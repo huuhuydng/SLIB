@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// import AuthPage from "../components/AuthPage";
+import AuthPage from "../components/AuthPage";
 import MainLayout from "../layouts/admin/area_management/MainLayOut";
 
 import Dashboard from "../pages/admin/AreaManagement/dashboard/Dashboard";
@@ -14,7 +14,9 @@ import AreaManagement from "../pages/admin/AreaManagement/AreaManagement";
 // import NotificationManage from "../components/NotificationManage";
 
 function AppRoutes() {
-  const isLoggedIn = true;
+  // Check if user is logged in by checking localStorage or sessionStorage
+  const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+  const isLoggedIn = !!token;
 
   if (!isLoggedIn) {
     return <AuthPage />;

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.controller.news.NewsController;
 import slib.com.example.entity.news.News;
+import slib.com.example.dto.NewsListDTO;
 import slib.com.example.service.NewsService;
 
 import java.time.LocalDateTime;
@@ -181,9 +182,34 @@ class NewsControllerUnitTest {
     @DisplayName("getAllNewsForAdmin_success_returns200WithAllNews")
     void getAllNewsForAdmin_success_returns200WithAllNews() throws Exception {
         // Arrange
-        News news1 = createNews(1L, "Published News", "content", 1L, true, 100L);
-        News news2 = createNews(2L, "Draft News", "content", 2L, false, 0L);
-        List<News> newsList = Arrays.asList(news1, news2);
+        NewsListDTO news1 = NewsListDTO.builder()
+                .id(1L)
+                .title("Published News")
+                .summary("Summary 1")
+                .content("content")
+                .categoryId(1L)
+                .categoryName("Category 1")
+                .isPublished(true)
+                .isPinned(false)
+                .viewCount(100)
+                .publishedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+        
+        NewsListDTO news2 = NewsListDTO.builder()
+                .id(2L)
+                .title("Draft News")
+                .summary("Summary 2")
+                .content("content")
+                .categoryId(2L)
+                .categoryName("Category 2")
+                .isPublished(false)
+                .isPinned(false)
+                .viewCount(0)
+                .createdAt(LocalDateTime.now())
+                .build();
+        
+        List<NewsListDTO> newsList = Arrays.asList(news1, news2);
 
         when(newsService.getAllNewsForAdmin()).thenReturn(newsList);
 

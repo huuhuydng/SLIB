@@ -1,0 +1,516 @@
+/* ================================================
+   SLIB DESIGN SYSTEM - CSS Variables & Base Styles
+   Smart Library Ecosystem Admin Portal
+   ================================================ */
+
+/* ======================================
+   1. COLOR PALETTE
+   ====================================== */
+:root {
+  /* Primary Brand Colors */
+  --slib-primary: #FF751F;
+  --slib-primary-light: #FF9B5A;
+  --slib-primary-dark: #E55E0D;
+  --slib-primary-subtle: #FFF7F2;
+  
+  /* Background Colors */
+  --slib-bg-main: #F7FAFC;
+  --slib-bg-warm: #FFF7F2;
+  --slib-bg-card: #FFFFFF;
+  --slib-bg-elevated: #FFFFFF;
+  
+  /* Text Colors */
+  --slib-text-primary: #1A1A1A;
+  --slib-text-secondary: #4A5568;
+  --slib-text-muted: #A0AEC0;
+  --slib-text-inverse: #FFFFFF;
+  
+  /* Accent Colors for Charts/Icons */
+  --slib-accent-blue: #0054A6;
+  --slib-accent-green: #4CA75B;
+  --slib-accent-red: #D32F2F;
+  --slib-accent-yellow: #FDB913;
+  --slib-accent-purple: #7C3AED;
+  
+  /* Status Indicators */
+  --slib-status-success: #388E3C;
+  --slib-status-success-light: #4CAF50;
+  --slib-status-success-bg: #E8F5E9;
+  
+  --slib-status-error: #D32F2F;
+  --slib-status-error-light: #F44336;
+  --slib-status-error-bg: #FFEBEE;
+  
+  --slib-status-warning: #FF9800;
+  --slib-status-warning-light: #FFB74D;
+  --slib-status-warning-bg: #FFF3E0;
+  
+  --slib-status-info: #0054A6;
+  --slib-status-info-light: #42A5F5;
+  --slib-status-info-bg: #E3F2FD;
+  
+  /* Seat Status Colors */
+  --slib-seat-available: #E2E8F0;
+  --slib-seat-occupied: #CBD5E0;
+  --slib-seat-reserved: #FF9800;
+  --slib-seat-restricted: #D32F2F;
+  
+  /* Border Colors */
+  --slib-border-light: #E2E8F0;
+  --slib-border-default: #CBD5E0;
+  --slib-border-dark: #A0AEC0;
+  
+  /* ======================================
+     2. SHADOWS
+     ====================================== */
+  --slib-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --slib-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --slib-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --slib-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --slib-shadow-card: 0 4px 20px rgba(26, 26, 26, 0.06);
+  --slib-shadow-hover: 0 8px 30px rgba(26, 26, 26, 0.12);
+  --slib-shadow-primary: 0 4px 14px rgba(255, 117, 31, 0.25);
+  
+  /* ======================================
+     3. BORDER RADIUS
+     ====================================== */
+  --slib-radius-sm: 8px;
+  --slib-radius-md: 12px;
+  --slib-radius-lg: 16px;
+  --slib-radius-xl: 20px;
+  --slib-radius-full: 9999px;
+  
+  /* ======================================
+     4. SPACING
+     ====================================== */
+  --slib-space-1: 4px;
+  --slib-space-2: 8px;
+  --slib-space-3: 12px;
+  --slib-space-4: 16px;
+  --slib-space-5: 20px;
+  --slib-space-6: 24px;
+  --slib-space-8: 32px;
+  --slib-space-10: 40px;
+  --slib-space-12: 48px;
+  
+  /* ======================================
+     5. TYPOGRAPHY
+     ====================================== */
+  --slib-font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  --slib-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Font Sizes */
+  --slib-text-xs: 0.75rem;    /* 12px */
+  --slib-text-sm: 0.875rem;   /* 14px */
+  --slib-text-base: 1rem;     /* 16px */
+  --slib-text-lg: 1.125rem;   /* 18px */
+  --slib-text-xl: 1.25rem;    /* 20px */
+  --slib-text-2xl: 1.5rem;    /* 24px */
+  --slib-text-3xl: 1.875rem;  /* 30px */
+  --slib-text-4xl: 2.25rem;   /* 36px */
+  
+  /* Font Weights */
+  --slib-font-normal: 400;
+  --slib-font-medium: 500;
+  --slib-font-semibold: 600;
+  --slib-font-bold: 700;
+  --slib-font-extrabold: 800;
+  
+  /* Line Heights */
+  --slib-leading-tight: 1.25;
+  --slib-leading-normal: 1.5;
+  --slib-leading-relaxed: 1.625;
+  
+  /* ======================================
+     6. TRANSITIONS
+     ====================================== */
+  --slib-transition-fast: 150ms ease;
+  --slib-transition-normal: 200ms ease;
+  --slib-transition-slow: 300ms ease;
+  --slib-transition-spring: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* ======================================
+     7. LAYOUT
+     ====================================== */
+  --slib-sidebar-width-collapsed: 72px;
+  --slib-sidebar-width-expanded: 260px;
+  --slib-header-height: 72px;
+  --slib-content-max-width: 1400px;
+}
+
+/* ======================================
+   BASE STYLES
+   ====================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--slib-font-family);
+  background-color: var(--slib-bg-main);
+  color: var(--slib-text-primary);
+  line-height: var(--slib-leading-normal);
+  overflow-x: hidden;
+}
+
+/* ======================================
+   SCROLLBAR STYLES
+   ====================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--slib-border-default);
+  border-radius: var(--slib-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--slib-text-muted);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--slib-border-default) transparent;
+}
+
+/* ======================================
+   SELECTION STYLES
+   ====================================== */
+::selection {
+  background-color: var(--slib-primary-subtle);
+  color: var(--slib-primary-dark);
+}
+
+/* ======================================
+   UTILITY CLASSES
+   ====================================== */
+
+/* Cards */
+.slib-card {
+  background: var(--slib-bg-card);
+  border-radius: var(--slib-radius-lg);
+  box-shadow: var(--slib-shadow-card);
+  padding: var(--slib-space-6);
+  transition: box-shadow var(--slib-transition-normal), transform var(--slib-transition-normal);
+}
+
+.slib-card:hover {
+  box-shadow: var(--slib-shadow-hover);
+}
+
+.slib-card--elevated {
+  box-shadow: var(--slib-shadow-lg);
+}
+
+/* Buttons */
+.slib-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--slib-space-2);
+  padding: var(--slib-space-3) var(--slib-space-5);
+  font-family: var(--slib-font-family);
+  font-size: var(--slib-text-sm);
+  font-weight: var(--slib-font-semibold);
+  border: none;
+  border-radius: var(--slib-radius-md);
+  cursor: pointer;
+  transition: all var(--slib-transition-normal);
+}
+
+.slib-btn--primary {
+  background: var(--slib-primary);
+  color: var(--slib-text-inverse);
+}
+
+.slib-btn--primary:hover {
+  background: var(--slib-primary-dark);
+  box-shadow: var(--slib-shadow-primary);
+  transform: translateY(-1px);
+}
+
+.slib-btn--secondary {
+  background: var(--slib-bg-main);
+  color: var(--slib-text-secondary);
+  border: 1px solid var(--slib-border-light);
+}
+
+.slib-btn--secondary:hover {
+  background: var(--slib-bg-card);
+  border-color: var(--slib-border-default);
+}
+
+.slib-btn--ghost {
+  background: transparent;
+  color: var(--slib-text-secondary);
+}
+
+.slib-btn--ghost:hover {
+  background: var(--slib-bg-main);
+  color: var(--slib-text-primary);
+}
+
+/* Badges */
+.slib-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--slib-space-1) var(--slib-space-3);
+  font-size: var(--slib-text-xs);
+  font-weight: var(--slib-font-bold);
+  border-radius: var(--slib-radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slib-badge--success {
+  background: var(--slib-status-success-bg);
+  color: var(--slib-status-success);
+}
+
+.slib-badge--error {
+  background: var(--slib-status-error-bg);
+  color: var(--slib-status-error);
+}
+
+.slib-badge--warning {
+  background: var(--slib-status-warning-bg);
+  color: var(--slib-status-warning);
+}
+
+.slib-badge--info {
+  background: var(--slib-status-info-bg);
+  color: var(--slib-status-info);
+}
+
+/* Typography */
+.slib-heading-1 {
+  font-size: var(--slib-text-3xl);
+  font-weight: var(--slib-font-bold);
+  color: var(--slib-text-primary);
+  line-height: var(--slib-leading-tight);
+}
+
+.slib-heading-2 {
+  font-size: var(--slib-text-2xl);
+  font-weight: var(--slib-font-bold);
+  color: var(--slib-text-primary);
+  line-height: var(--slib-leading-tight);
+}
+
+.slib-heading-3 {
+  font-size: var(--slib-text-lg);
+  font-weight: var(--slib-font-semibold);
+  color: var(--slib-text-primary);
+  line-height: var(--slib-leading-tight);
+}
+
+.slib-text-body {
+  font-size: var(--slib-text-sm);
+  color: var(--slib-text-secondary);
+  line-height: var(--slib-leading-normal);
+}
+
+.slib-text-caption {
+  font-size: var(--slib-text-xs);
+  color: var(--slib-text-muted);
+  line-height: var(--slib-leading-normal);
+}
+
+/* Inputs */
+.slib-input {
+  width: 100%;
+  padding: var(--slib-space-3) var(--slib-space-4);
+  font-family: var(--slib-font-family);
+  font-size: var(--slib-text-sm);
+  color: var(--slib-text-primary);
+  background: var(--slib-bg-card);
+  border: 1px solid var(--slib-border-light);
+  border-radius: var(--slib-radius-md);
+  transition: all var(--slib-transition-fast);
+}
+
+.slib-input:hover {
+  border-color: var(--slib-border-default);
+}
+
+.slib-input:focus {
+  outline: none;
+  border-color: var(--slib-primary);
+  box-shadow: 0 0 0 3px rgba(255, 117, 31, 0.1);
+}
+
+.slib-input::placeholder {
+  color: var(--slib-text-muted);
+}
+
+/* Tables */
+.slib-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.slib-table th {
+  text-align: left;
+  padding: var(--slib-space-3) var(--slib-space-4);
+  font-size: var(--slib-text-xs);
+  font-weight: var(--slib-font-semibold);
+  color: var(--slib-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--slib-border-light);
+}
+
+.slib-table td {
+  padding: var(--slib-space-4);
+  font-size: var(--slib-text-sm);
+  color: var(--slib-text-secondary);
+  border-bottom: 1px solid var(--slib-border-light);
+}
+
+.slib-table tbody tr {
+  transition: background-color var(--slib-transition-fast);
+}
+
+.slib-table tbody tr:hover {
+  background-color: var(--slib-primary-subtle);
+}
+
+.slib-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Progress Bars */
+.slib-progress {
+  height: 8px;
+  background: var(--slib-border-light);
+  border-radius: var(--slib-radius-full);
+  overflow: hidden;
+}
+
+.slib-progress__fill {
+  height: 100%;
+  border-radius: var(--slib-radius-full);
+  transition: width var(--slib-transition-slow);
+}
+
+.slib-progress__fill--success {
+  background: linear-gradient(90deg, var(--slib-accent-green), #6DD47E);
+}
+
+.slib-progress__fill--warning {
+  background: linear-gradient(90deg, var(--slib-accent-yellow), #FFD54F);
+}
+
+.slib-progress__fill--error {
+  background: linear-gradient(90deg, var(--slib-status-error), #EF5350);
+}
+
+/* Animations */
+@keyframes slib-fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slib-slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slib-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.slib-animate-fadeIn {
+  animation: slib-fadeIn 0.3s ease forwards;
+}
+
+.slib-animate-slideIn {
+  animation: slib-slideIn 0.3s ease forwards;
+}
+
+/* Status Dots */
+.slib-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--slib-radius-full);
+  display: inline-block;
+}
+
+.slib-status-dot--success {
+  background: var(--slib-status-success-light);
+}
+
+.slib-status-dot--warning {
+  background: var(--slib-status-warning);
+}
+
+.slib-status-dot--error {
+  background: var(--slib-status-error-light);
+}
+
+/* Tooltips */
+.slib-tooltip {
+  position: relative;
+}
+
+.slib-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--slib-space-2) var(--slib-space-3);
+  font-size: var(--slib-text-xs);
+  font-weight: var(--slib-font-medium);
+  color: var(--slib-text-inverse);
+  background: var(--slib-text-primary);
+  border-radius: var(--slib-radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--slib-transition-fast);
+}
+
+.slib-tooltip:hover::after {
+  opacity: 1;
+}
+
+/* Focus Ring */
+.slib-focus-ring:focus-visible {
+  outline: 2px solid var(--slib-primary);
+  outline-offset: 2px;
+}

@@ -44,11 +44,21 @@ public class SeatController {
 
      @GetMapping
     public ResponseEntity<List<SeatResponse>> getSeats(
-            @RequestParam(required = false) Integer zoneId
+            @RequestParam(required = false) Integer zoneId,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime
     ) {
+        // Nếu có startTime và endTime, trả về seats với status động theo time range
+        if (startTime != null && endTime != null) {
+            return ResponseEntity.ok(seatService.getSeatsByTimeRange(startTime, endTime, zoneId));
+        }
+        
+        // Nếu chỉ có zoneId, trả về tất cả seats của zone
         if (zoneId != null) {
             return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
         }
+        
+        // Nếu không có params nào, trả về tất cả seats
         return ResponseEntity.ok(seatService.getAllSeats());
     }
 
@@ -129,6 +139,37 @@ public class SeatController {
             @RequestParam String date) {
         LocalDate localDate = LocalDate.parse(date);
         return bookingService.getSeatsByDate(zoneId, localDate);
+    }
+
+    // ==================== RESTRICTION ENDPOINTS ====================
+    /**
+     * Thêm hạn chế cho ghế
+     * POST /slib/seats/restrict/{seatCode}
+     */
+    @PostMapping("/restrict/{seatCode}")
+    public ResponseEntity<SeatResponse> restrictSeat(
+            @PathVariable String seatCode,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        try {
+            SeatResponse response = seatService.restrictSeat(seatCode);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    /**
+     * Bỏ hạn chế ghế
+     * DELETE /slib/seats/restrict/{seatCode}
+     */
+    @DeleteMapping("/restrict/{seatCode}")
+    public ResponseEntity<String> unrestrictSeat(@PathVariable String seatCode) {
+        try {
+            seatService.unrestrictSeat(seatCode);
+            return ResponseEntity.ok("Đã bỏ hạn chế ghế: " + seatCode);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi bỏ hạn chế: " + e.getMessage());
+        }
     }
 }
 

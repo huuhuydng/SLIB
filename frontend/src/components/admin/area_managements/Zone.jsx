@@ -49,7 +49,7 @@ function Zone({ zone, areaBounds }) {
       };
 
       if (isColliding(newRect, factoryRect, -2)) {
-        console.warn(`❌ Zone "${zone.zoneName}" chồng lấp với Factory "${factory.factoryName}"`);
+        console.warn(`Zone "${zone.zoneName}" chồng lấp với Factory "${factory.factoryName}"`);
         return { hasCollision: true, collidingWith: `Factory: ${factory.factoryName}` };
       }
     }
@@ -65,7 +65,7 @@ function Zone({ zone, areaBounds }) {
       };
 
       if (isColliding(newRect, otherRect, -2)) {
-        console.warn(`❌ Zone "${zone.zoneName}" chồng lấp với Zone "${otherZone.zoneName}"`);
+        console.warn(`Zone "${zone.zoneName}" chồng lấp với Zone "${otherZone.zoneName}"`);
         return { hasCollision: true, collidingWith: `Zone: ${otherZone.zoneName}` };
       }
     }
@@ -83,7 +83,7 @@ function Zone({ zone, areaBounds }) {
     (async () => {
       try {
         const res = await getSeats(zone.zoneId);
-        console.log("🪑 Loaded seats for zone", zone.zoneId, ":", res.data);
+        console.log("Loaded seats for zone", zone.zoneId, ":", res.data);
         dispatch({
           type: actions.SET_SEATS,
           payload: res.data || [],
@@ -97,16 +97,16 @@ function Zone({ zone, areaBounds }) {
   /* ================= AUTO-RESIZE IF TOO SMALL ================= */
   useEffect(() => {
     if (zoneSeats.length === 0) return;
-    
+
     const minDims = calculateMinZoneDimensions(zoneSeats);
-    
+
     // If zone is smaller than required, auto-resize it
     if (zone.width < minDims.minWidth || zone.height < minDims.minHeight) {
       const newWidth = Math.max(zone.width, minDims.minWidth);
       const newHeight = Math.max(zone.height, minDims.minHeight);
-      
-      console.log(`🔧 Zone ${zone.zoneId} auto-resized: ${zone.width}×${zone.height} → ${newWidth}×${newHeight}`);
-      
+
+      console.log(`Zone ${zone.zoneId} auto-resized: ${zone.width}×${zone.height} → ${newWidth}×${newHeight}`);
+
       updateZoneDimensions(zone.zoneId, newWidth, newHeight).then(() => {
         dispatch({
           type: actions.UPDATE_ZONE,
@@ -124,8 +124,8 @@ function Zone({ zone, areaBounds }) {
   /* ================= DERIVED ================= */
 
   const zoneSeats = seats.filter(s => s.zoneId === zone.zoneId);
-  
-  console.log(`🔷 Zone ${zone.zoneId} rendered - seats: ${zoneSeats.length}`);
+
+  console.log(`Zone ${zone.zoneId} rendered - seats: ${zoneSeats.length}`);
 
   const isSelected =
     selectedItem?.type === "zone" &&
@@ -159,7 +159,7 @@ function Zone({ zone, areaBounds }) {
     // Check collision
     const { hasCollision, collidingWith } = getCollisionInfo(zone.zoneId, x, y, zone.width, zone.height);
     if (hasCollision) {
-      console.warn(`❌ Kéo bị chặn: ${collidingWith}`);
+      console.warn(`Kéo bị chặn: ${collidingWith}`);
       setCollidingWith(collidingWith);
       return;
     }
@@ -169,7 +169,7 @@ function Zone({ zone, areaBounds }) {
     // update backend
     try {
       await updateZonePosition(zone.zoneId, x, y);
-      console.log(`✅ Zone position saved: (${x}, ${y})`);
+      console.log(`Zone position saved: (${x}, ${y})`);
     } catch (e) {
       console.error('Failed to save zone position', e);
       return;
@@ -195,18 +195,18 @@ function Zone({ zone, areaBounds }) {
 
     // Get minimum dimensions required to fit all seats
     const minDimensions = calculateMinZoneDimensions(zoneSeats);
-    
+
     // Check if new dimensions can fit all seats
     if (newWidth < minDimensions.minWidth) {
-      console.warn(`❌ Zone Resize BLOCKED: newWidth(${newWidth}) < minWidth(${minDimensions.minWidth})`);
+      console.warn(`Zone Resize BLOCKED: newWidth(${newWidth}) < minWidth(${minDimensions.minWidth})`);
       return false;
     }
-    
+
     if (newHeight < minDimensions.minHeight) {
-      console.warn(`❌ Zone Resize BLOCKED: newHeight(${newHeight}) < minHeight(${minDimensions.minHeight})`);
+      console.warn(`Zone Resize BLOCKED: newHeight(${newHeight}) < minHeight(${minDimensions.minHeight})`);
       return false;
     }
-    
+
     return true;
   };
 
@@ -218,17 +218,17 @@ function Zone({ zone, areaBounds }) {
     // Check collision with new size
     const { hasCollision, collidingWith } = getCollisionInfo(zone.zoneId, zone.positionX, zone.positionY, size.width, size.height);
     if (hasCollision) {
-      console.warn(`❌ Resize BLOCKED by collision: ${collidingWith}`);
+      console.warn(`Resize BLOCKED by collision: ${collidingWith}`);
       setCollidingWith(collidingWith);
       setIsResizeInvalid(true);
       return;
     }
 
     setCollidingWith(null);
-    
+
     const isValid = validateZoneResize(size.width, size.height);
     setIsResizeInvalid(!isValid);
-    
+
     if (isValid) {
       setLiveSize(size);
     }
@@ -240,7 +240,7 @@ function Zone({ zone, areaBounds }) {
     // Check collision
     const { hasCollision, collidingWith } = getCollisionInfo(zone.zoneId, zone.positionX, zone.positionY, size.width, size.height);
     if (hasCollision) {
-      console.warn(`❌ Resize REJECTED by collision: ${collidingWith}`);
+      console.warn(`Resize REJECTED by collision: ${collidingWith}`);
       setCollidingWith(collidingWith);
       setIsResizeInvalid(false);
       setLiveSize({ width: zone.width, height: zone.height });
@@ -250,7 +250,7 @@ function Zone({ zone, areaBounds }) {
     setCollidingWith(null);
 
     const isValid = validateZoneResize(size.width, size.height);
-    
+
     if (!isValid) {
       setIsResizeInvalid(false);
       setLiveSize({ width: zone.width, height: zone.height });
@@ -259,7 +259,7 @@ function Zone({ zone, areaBounds }) {
 
     try {
       await updateZoneDimensions(zone.zoneId, size.width, size.height);
-      console.log(`✅ Zone ${zone.zoneId} saved: ${size.width}×${size.height}`);
+      console.log(`Zone ${zone.zoneId} saved: ${size.width}×${size.height}`);
     } catch (e) {
       console.error('Failed to save zone dimensions', e);
       setLiveSize({ width: zone.width, height: zone.height });
@@ -304,19 +304,8 @@ function Zone({ zone, areaBounds }) {
   /* ================= FIXED ICON ================= */
 
   const getFixedZoneIcon = () => {
-    const icons = {
-      bookshelf: "📚",
-      planter: "🌿",
-      divider: "🧱",
-      librarian: "👩‍💼",
-      entrance: "🚪",
-      restroom: "🚻",
-      elevator: "🛗",
-      stairs: "🪜",
-      storage: "📦",
-      custom: "⬜",
-    };
-    return icons[zone.fixedType] || "⬜";
+    // No icons - clean UI
+    return '';
   };
 
   /* ================= RENDER ================= */
@@ -339,7 +328,7 @@ function Zone({ zone, areaBounds }) {
           height={liveSize.height}
           minConstraints={(() => {
             const dims = calculateMinZoneDimensions(zoneSeats);
-            console.log(`⚙️ Zone ${zone.zoneId} - minConstraints set to: [${dims.minWidth}, ${dims.minHeight}]`);
+            console.log(`Zone ${zone.zoneId} - minConstraints set to: [${dims.minWidth}, ${dims.minHeight}]`);
             return [dims.minWidth, dims.minHeight];
           })()}
           maxConstraints={[
@@ -351,15 +340,14 @@ function Zone({ zone, areaBounds }) {
           resizeHandles={zone.isLocked ? [] : ["se"]}
         >
           <div
-            className={`zone ${isSelected ? "selected" : ""} ${
-              zone.isFixed ? "fixed" : ""
-            } ${zone.isLocked ? "locked" : ""} ${isResizeInvalid ? "resize-invalid" : ""}`}
+            className={`zone ${isSelected ? "selected" : ""} ${zone.isFixed ? "fixed" : ""
+              } ${zone.isLocked ? "locked" : ""} ${isResizeInvalid ? "resize-invalid" : ""}`}
             onClick={handleClick}
             style={{
               width: "100%",
               height: "100%",
-              backgroundColor: zone.color,
-              borderColor: zone.borderColor,
+              backgroundColor: "#E5E7EB",  // Light gray for all zones
+              borderColor: "#9CA3AF",
             }}
           >
             {/* ===== HEADER TABBAR ===== */}
@@ -389,15 +377,15 @@ function Zone({ zone, areaBounds }) {
                   <div className="seats-container" style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
                     {zoneSeats && zoneSeats.length > 0 ? (
                       <>
-                        {console.log(`🔷 Zone ${zone.zoneId} rendering ${zoneSeats.length} seats`)}
+                        {console.log(`Zone ${zone.zoneId} rendering ${zoneSeats.length} seats`)}
                         {(() => {
                           const minDims = calculateMinZoneDimensions(zoneSeats);
                           const headerHeight = 40;
                           const padding = 8;
                           const minContentHeight = minDims.minHeight - headerHeight - padding;
-                          
-                          console.log(`📏 Zone ${zone.zoneId} - minDims: ${minDims.minWidth}×${minDims.minHeight}, liveSize: ${liveSize.width}×${liveSize.height}`);
-                          
+
+                          console.log(`Zone ${zone.zoneId} - minDims: ${minDims.minWidth}×${minDims.minHeight}, liveSize: ${liveSize.width}×${liveSize.height}`);
+
                           return (
                             <div style={{
                               position: "relative",
@@ -411,13 +399,13 @@ function Zone({ zone, areaBounds }) {
                                 const layout = calculateSeatLayout(seat);
                                 const finalLeft = layout.positionX + padding;
                                 const finalTop = layout.positionY - headerHeight + padding;
-                                
+
                                 if (idx === 0) {
                                   console.log(`   Seat[0] ${seat.seatId} (${seat.seatCode}): row=${seat.rowNumber}, col=${seat.columnNumber}`);
                                   console.log(`       layout.positionX=${layout.positionX}, layout.positionY=${layout.positionY}`);
                                   console.log(`       finalLeft=${finalLeft}, finalTop=${finalTop}`);
                                 }
-                                
+
                                 return (
                                   <div
                                     key={seat.seatId}

@@ -2,14 +2,16 @@ package slib.com.example.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders; // 👉 Import cái này
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import slib.com.example.entity.users.User;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -19,6 +21,28 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
+    @Value("${jwt.expiration:3600000}") // Default 1 hour
+    private Long jwtExpiration;
+
+    /**
+     * Generate JWT access token for user
+     */
+    public String generateAccessToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", user.getEmail());
+        claims.put("role", user.getRole().name());
+        claims.put("student_code", user.getStudentCode());
+        claims.put("user_id", user.getId().toString());
+        
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(user.getEmail())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -27,7 +51,6 @@ public class JwtService {
                 .getBody();
     }
 
-    // Supabase để email ở root claim, không phải trong sub
     public String extractUsername(String token) {
         return extractClaim(token, claims -> claims.get("email", String.class));
     }
@@ -37,25 +60,16 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    // Hàm này giữ lại để tham khảo (nếu cần lấy code từ token)
     public String extractStudentCode(String token) {
-        return extractClaim(token, claims -> {
-            Map<String, Object> metadata = claims.get("user_metadata", Map.class);
-            if (metadata != null && metadata.containsKey("student_code")) {
-                return (String) metadata.get("student_code");
-            }
-            return null;
-        });
+        return extractClaim(token, claims -> claims.get("student_code", String.class));
     }
 
-    // 👉 QUAN TRỌNG: SỬA LẠI HÀM NÀY
     private Key getSignInKey() {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public boolean isTokenValid(String token, String username) {
         final String extractedEmail = extractUsername(token);
-        // Kiểm tra email khớp và token chưa hết hạn
         return (extractedEmail != null && extractedEmail.equals(username) && !isTokenExpired(token));
     }
 

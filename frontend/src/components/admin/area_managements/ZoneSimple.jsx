@@ -9,8 +9,8 @@ function ZoneSimple({ zone, area }) {
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, seats, canvas } = state;
   const zoneSeats = (seats || []).filter((s) => String(s.zoneId) === String(zone.zoneId));
-  
-  console.log(`🔍 ZoneSimple ${zone.zoneId} - zoneSeats count:`, zoneSeats.length, zoneSeats.map(s => ({ id: s.seatId, code: s.seatCode, row: s.rowNumber, col: s.columnNumber })));
+
+  console.log(`ZoneSimple ${zone.zoneId} - zoneSeats count:`, zoneSeats.length, zoneSeats.map(s => ({ id: s.seatId, code: s.seatCode, row: s.rowNumber, col: s.columnNumber })));
 
   // Load seats for this zone
   useEffect(() => {
@@ -72,7 +72,7 @@ function ZoneSimple({ zone, area }) {
       };
 
       if (isColliding(newRect, factoryRect, -2)) {
-        console.warn(`❌ Chồng lấp: "${zone.zoneName}" chồng lấp với Factory "${factory.factoryName}"`);
+        console.warn(`Chồng lấp: "${zone.zoneName}" chồng lấp với Factory "${factory.factoryName}"`);
         return { hasCollision: true, collidingZone: { ...factory, isFactory: true } };
       }
     }
@@ -90,7 +90,7 @@ function ZoneSimple({ zone, area }) {
       };
 
       if (isColliding(newRect, otherRect, -2)) {
-        console.warn(`❌ Chồng lấp: "${zone.zoneName}" chồng lấp với "${otherZone.zoneName}"`);
+        console.warn(`Chồng lấp: "${zone.zoneName}" chồng lấp với "${otherZone.zoneName}"`);
         return { hasCollision: true, collidingZone: otherZone };
       }
     }
@@ -108,9 +108,9 @@ function ZoneSimple({ zone, area }) {
   const handleDrag = (e, d) => {
     // Check for collision before allowing drag
     const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, d.x, d.y, zone.width || 120, zone.height || 100);
-    
+
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
+      console.warn(`Chồng lấp: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
       setCollidingWith(collidingZone);
       return; // Block the drag
     }
@@ -143,9 +143,9 @@ function ZoneSimple({ zone, area }) {
   const handleDragStop = async (e, d) => {
     // Final collision check before saving
     const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, d.x, d.y, zone.width || 120, zone.height || 100);
-    
+
     if (hasCollision) {
-      console.warn(`❌ Vị trí bị từ chối: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
+      console.warn(`Vị trí bị từ chối: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
       setCollidingWith(collidingZone);
       // Force reset to original position by changing key
       setResetKey(prev => prev + 1);
@@ -182,9 +182,9 @@ function ZoneSimple({ zone, area }) {
 
     // Check for collision with new size/position
     const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, position.x, position.y, newWidth, newHeight);
-    
+
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
+      console.warn(`Chồng lấp: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
       setCollidingWith(collidingZone);
       setResetKey(prev => prev + 1); // Reset to original position
       return; // Block the resize
@@ -254,14 +254,14 @@ function ZoneSimple({ zone, area }) {
         style={{
           width: '100%',
           height: '100%',
-          backgroundColor: zone.color || '#d1f7d8',
+          backgroundColor: '#E5E7EB',  // Light gray for all zones
           border: collidingWith
             ? '3px solid #dc2626'
-            : isSelected 
-            ? '3px solid #1976d2' 
-            : zone.isLocked 
-            ? '2px solid #fca5a5' 
-            : '1px solid #34a853',
+            : isSelected
+              ? '3px solid #1976d2'
+              : zone.isLocked
+                ? '2px solid #fca5a5'
+                : '1px solid #9CA3AF',
           borderRadius: '8px',
           padding: '8px',
           boxSizing: 'border-box',
@@ -271,11 +271,11 @@ function ZoneSimple({ zone, area }) {
           flexDirection: 'column',
           boxShadow: collidingWith
             ? '0 0 15px rgba(220, 38, 38, 0.6), inset 0 0 10px rgba(220, 38, 38, 0.1)'
-            : zone.isLocked 
-            ? '0 0 10px rgba(220, 38, 38, 0.2)' 
-            : 'none',
+            : zone.isLocked
+              ? '0 0 10px rgba(220, 38, 38, 0.2)'
+              : 'none',
           transition: 'all 0.2s ease',
-          backgroundColor: collidingWith ? '#fee8e8' : zone.color || '#d1f7d8',
+          backgroundColor: collidingWith ? '#fee8e8' : '#E5E7EB',  // Light gray
         }}
         onClick={handleZoneClick}
       >
@@ -302,65 +302,65 @@ function ZoneSimple({ zone, area }) {
           </div>
         )}
 
-      <div style={{
-        fontSize: '12px',
-        fontWeight: '600',
-        marginBottom: '4px',
-        color: collidingWith ? '#991b1b' : '#06361a',
-      }}>
-        {zone.zoneName || 'Unnamed Zone'}
-      </div>
+        <div style={{
+          fontSize: '12px',
+          fontWeight: '600',
+          marginBottom: '4px',
+          color: collidingWith ? '#991b1b' : '#06361a',
+        }}>
+          {zone.zoneName || 'Unnamed Zone'}
+        </div>
 
-      {/* Collision Info */}
-      {collidingWith && (
+        {/* Collision Info */}
+        {collidingWith && (
+          <div style={{
+            fontSize: '10px',
+            color: '#991b1b',
+            padding: '4px',
+            backgroundColor: '#fecaca',
+            borderRadius: '4px',
+            marginBottom: '4px',
+            fontWeight: '500',
+          }}>
+            Chồng lấp với: {collidingWith.zoneName}
+          </div>
+        )}
+
+        <div style={{
+          flex: 1,
+          overflow: 'hidden',
+          position: 'relative',
+          minHeight: '100px',
+        }}>
+          {zoneSeats.map((seat) => {
+            const layout = calculateSeatLayout(seat);
+            console.log(`[ZoneSimple] Seat ${seat.seatId}: layout =`, layout);
+
+            return (
+              <div
+                key={seat.seatId}
+                style={{
+                  position: 'absolute',
+                  left: layout.positionX,
+                  top: layout.positionY - 40, // Trừ headerHeight vì container không phải full zone
+                  width: layout.width,
+                  height: layout.height,
+                }}
+              >
+                <Seat seat={seat} zone={zone} />
+              </div>
+            );
+          })}
+        </div>
+
         <div style={{
           fontSize: '10px',
-          color: '#991b1b',
-          padding: '4px',
-          backgroundColor: '#fecaca',
-          borderRadius: '4px',
-          marginBottom: '4px',
-          fontWeight: '500',
+          color: collidingWith ? '#991b1b' : '#666',
+          marginTop: '4px',
         }}>
-          🔴 Chồng lấp với: {collidingWith.zoneName}
+          {zoneSeats.length} seats
         </div>
-      )}
-      
-      <div style={{
-        flex: 1,
-        overflow: 'hidden',
-        position: 'relative',
-        minHeight: '100px',
-      }}>
-        {zoneSeats.map((seat) => {
-          const layout = calculateSeatLayout(seat);
-          console.log(`📐 [ZoneSimple] Seat ${seat.seatId}: layout =`, layout);
-          
-          return (
-            <div
-              key={seat.seatId}
-              style={{
-                position: 'absolute',
-                left: layout.positionX,
-                top: layout.positionY - 40, // Trừ headerHeight vì container không phải full zone
-                width: layout.width,
-                height: layout.height,
-              }}
-            >
-              <Seat seat={seat} zone={zone} />
-            </div>
-          );
-        })}
       </div>
-
-      <div style={{
-        fontSize: '10px',
-        color: collidingWith ? '#991b1b' : '#666',
-        marginTop: '4px',
-      }}>
-        {zoneSeats.length} seats
-      </div>
-    </div>
     </Rnd>
   );
 }
