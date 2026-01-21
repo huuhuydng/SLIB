@@ -1,5 +1,6 @@
 package slib.com.example.service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -8,6 +9,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -25,13 +27,18 @@ public class BookingService {
     private final UserRepository userRepository;
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
+    private final SeatStatusSyncService seatStatusSyncService;
+    private final LibrarySettingService librarySettingService;
 
     public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
-            SeatRepository seatRepository, ZoneRepository zoneRepository) {
+            SeatRepository seatRepository, ZoneRepository zoneRepository,
+            SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService) {
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
         this.seatRepository = seatRepository;
         this.zoneRepository = zoneRepository;
+        this.seatStatusSyncService = seatStatusSyncService;
+        this.librarySettingService = librarySettingService;
     }
 
     public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -41,15 +48,56 @@ public class BookingService {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
-        // kiểm tra overlap với reservation cùng ngày
-        boolean isBooked = seat.getReservation().stream()
-                .anyMatch(r -> r.getStatus().equalsIgnoreCase("BOOKED") &&
+        // Lấy cấu hình giới hạn đặt chỗ
+        LibrarySetting settings = librarySettingService.getSettings();
+        LocalDate bookingDate = startTime.toLocalDate();
+
+        // Đếm số lượt đặt của user trong ngày này (chỉ tính BOOKED và PROCESSING)
+        List<ReservationEntity> userBookingsToday = reservationRepository.findByUserId(userId).stream()
+                .filter(r -> r.getStartTime().toLocalDate().equals(bookingDate))
+                .filter(r -> r.getStatus().equalsIgnoreCase("BOOKED") ||
+                        r.getStatus().equalsIgnoreCase("PROCESSING"))
+                .toList();
+
+        int bookingsCount = userBookingsToday.size();
+        int maxBookingsPerDay = settings.getMaxBookingsPerDay() != null ? settings.getMaxBookingsPerDay() : 3;
+
+        if (bookingsCount >= maxBookingsPerDay) {
+            throw new RuntimeException(
+                    "Bạn đã đạt giới hạn " + maxBookingsPerDay + " lần đặt trong ngày " + bookingDate);
+        }
+
+        // Tính tổng số giờ đã đặt trong ngày
+        long totalMinutesBooked = userBookingsToday.stream()
+                .mapToLong(r -> Duration.between(r.getStartTime(), r.getEndTime()).toMinutes())
+                .sum();
+        long newBookingMinutes = Duration.between(startTime, endTime).toMinutes();
+        int maxHoursPerDay = settings.getMaxHoursPerDay() != null ? settings.getMaxHoursPerDay() : 4;
+
+        if ((totalMinutesBooked + newBookingMinutes) > maxHoursPerDay * 60) {
+            throw new RuntimeException("Bạn đã đạt giới hạn " + maxHoursPerDay + " giờ đặt trong ngày " + bookingDate);
+        }
+
+        // Kiểm tra user đã đặt ghế nào trong cùng time slot chưa (chỉ được đặt 1
+        // ghế/slot)
+        boolean hasBookingInSlot = userBookingsToday.stream()
+                .anyMatch(r -> r.getStartTime().equals(startTime) && r.getEndTime().equals(endTime));
+
+        if (hasBookingInSlot) {
+            throw new RuntimeException(
+                    "Bạn đã đặt ghế trong khung giờ này rồi. Mỗi người chỉ được đặt 1 ghế/khung giờ.");
+        }
+
+        // kiểm tra overlap với reservation cùng time slot (BOOKED hoặc PROCESSING)
+        boolean isConflict = seat.getReservation().stream()
+                .anyMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
+                        r.getStatus().equalsIgnoreCase("PROCESSING")) &&
                         r.getStartTime().toLocalDate().equals(startTime.toLocalDate()) &&
                         r.getStartTime().isBefore(endTime) &&
                         r.getEndTime().isAfter(startTime));
 
-        if (isBooked) {
-            throw new RuntimeException("Ghế đã được đặt");
+        if (isConflict) {
+            throw new RuntimeException("Ghế đã được đặt hoặc đang chờ xác nhận");
         }
 
         ReservationEntity reservation = ReservationEntity.builder()
@@ -60,11 +108,13 @@ public class BookingService {
                 .status("PROCESSING")
                 .build();
 
-        // 👉 cập nhật seat thành BOOKED ngay khi có PROCESSING
-        seat.setSeatStatus(SeatStatus.BOOKED);
-        seatRepository.save(seat);
+        // KHÔNG thay đổi seat_status trực tiếp - status được tính động từ reservations
+        ReservationEntity saved = reservationRepository.save(reservation);
 
-        return reservationRepository.save(reservation);
+        // Sync seat status ngay lập tức (nếu trong khung giờ hiện tại)
+        seatStatusSyncService.updateSeatStatus(seat, startTime, endTime, "PROCESSING");
+
+        return saved;
     }
 
     public List<ZoneEntity> getAllZones() {
@@ -95,31 +145,26 @@ public class BookingService {
         ReservationEntity reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
         reservation.setStatus("CANCEL");
-        reservationRepository.save(reservation);
+        ReservationEntity saved = reservationRepository.save(reservation);
 
-        // 👉 trả ghế về AVAILABLE
-        SeatEntity seat = reservation.getSeat();
-        seat.setSeatStatus(SeatStatus.AVAILABLE);
-        seatRepository.save(seat);
+        // Sync seat status ngay - trả về AVAILABLE nếu đang trong khung giờ
+        seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
+                reservation.getStartTime(), reservation.getEndTime(), "CANCEL");
 
-        return reservation;
+        return saved;
     }
 
     public ReservationEntity updateStatus(UUID reservationId, String status) {
         ReservationEntity reserv = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
         reserv.setStatus(status);
-        reservationRepository.save(reserv);
+        ReservationEntity saved = reservationRepository.save(reserv);
 
-        SeatEntity seat = reserv.getSeat();
-        if ("CANCEL".equalsIgnoreCase(status)) {
-            seat.setSeatStatus(SeatStatus.AVAILABLE);
-        } else if ("BOOKED".equalsIgnoreCase(status) || "PROCESSING".equalsIgnoreCase(status)) {
-            seat.setSeatStatus(SeatStatus.BOOKED);
-        }
-        seatRepository.save(seat);
+        // Sync seat status ngay lập tức
+        seatStatusSyncService.updateSeatStatus(reserv.getSeat(),
+                reserv.getStartTime(), reserv.getEndTime(), status);
 
-        return reserv;
+        return saved;
     }
 
     public List<ReservationEntity> getAllBookings() {
@@ -148,21 +193,33 @@ public class BookingService {
         LocalDateTime endDateTime = LocalDateTime.of(date, end);
 
         return seats.stream().map(seat -> {
-            boolean isBooked = seat.getReservation().stream()
-                    .anyMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED")
-                            || r.getStatus().equalsIgnoreCase("PROCESSING")) &&
+            // Tìm reservation trùng time slot
+            var matchingReservation = seat.getReservation().stream()
+                    .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
+                            r.getStatus().equalsIgnoreCase("PROCESSING")) &&
                             r.getStartTime().toLocalDate().equals(date) &&
                             r.getStartTime().isBefore(endDateTime) &&
-                            r.getEndTime().isAfter(startDateTime));
+                            r.getEndTime().isAfter(startDateTime))
+                    .findFirst();
 
-            SeatDTO dto = new SeatDTO(
+            // Xác định seat status dựa trên reservation status
+            SeatStatus status = SeatStatus.AVAILABLE;
+            if (matchingReservation.isPresent()) {
+                String reservStatus = matchingReservation.get().getStatus();
+                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                    status = SeatStatus.BOOKED;
+                } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
+                    status = SeatStatus.HOLDING;
+                }
+            }
+
+            return new SeatDTO(
                     seat.getSeatId(),
                     seat.getSeatCode(),
-                    isBooked ? SeatStatus.BOOKED : SeatStatus.AVAILABLE,
+                    status,
                     seat.getRowNumber(),
                     seat.getColumnNumber(),
                     seat.getZone().getZoneId());
-            return dto;
         }).toList();
     }
 
@@ -170,19 +227,51 @@ public class BookingService {
         List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
         return seats.stream().map(seat -> {
-            boolean isBooked = seat.getReservation().stream()
-                    .anyMatch(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
+            // Tìm reservation trong ngày
+            var matchingReservation = seat.getReservation().stream()
+                    .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
                             r.getStatus().equalsIgnoreCase("PROCESSING")) &&
-                            r.getStartTime().toLocalDate().equals(date));
+                            r.getStartTime().toLocalDate().equals(date))
+                    .findFirst();
+
+            // Xác định seat status dựa trên reservation status
+            SeatStatus status = SeatStatus.AVAILABLE;
+            if (matchingReservation.isPresent()) {
+                String reservStatus = matchingReservation.get().getStatus();
+                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                    status = SeatStatus.BOOKED;
+                } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
+                    status = SeatStatus.HOLDING;
+                }
+            }
 
             return new SeatDTO(
                     seat.getSeatId(),
                     seat.getSeatCode(),
-                    isBooked ? SeatStatus.BOOKED : SeatStatus.AVAILABLE,
+                    status,
                     seat.getRowNumber(),
                     seat.getColumnNumber(),
                     seat.getZone().getZoneId());
         }).toList();
+    }
+
+    /**
+     * Lấy tất cả seats của 1 area theo time slot
+     * Trả về Map<zoneId, List<SeatDTO>> - tối ưu từ N query thành 1 batch
+     */
+    public java.util.Map<Integer, List<SeatDTO>> getAllSeatsByArea(Integer areaId, LocalDate date, LocalTime start,
+            LocalTime end) {
+        // Lấy tất cả zones thuộc area
+        List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(Long.valueOf(areaId));
+
+        java.util.Map<Integer, List<SeatDTO>> result = new java.util.HashMap<>();
+
+        for (ZoneEntity zone : zones) {
+            List<SeatDTO> seats = getSeatsByTime(zone.getZoneId(), date, start, end);
+            result.put(zone.getZoneId(), seats);
+        }
+
+        return result;
     }
 
 }
