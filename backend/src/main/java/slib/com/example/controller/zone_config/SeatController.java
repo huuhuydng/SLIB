@@ -99,4 +99,19 @@ public class SeatController {
         LocalDate localDate = LocalDate.parse(date);
         return bookingService.getSeatsByDate(zoneId, localDate);
     }
+
+    /**
+     * Lấy tất cả seats của 1 area theo time slot - tối ưu performance
+     * Trả về Map<zoneId, List<SeatDTO>> để mobile chỉ cần gọi 1 API
+     */
+    @GetMapping("/area/{areaId}/all-seats")
+    public ResponseEntity<java.util.Map<Integer, List<SeatDTO>>> getAllSeatsByArea(
+            @PathVariable Integer areaId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime end) {
+
+        java.util.Map<Integer, List<SeatDTO>> result = bookingService.getAllSeatsByArea(areaId, date, start, end);
+        return ResponseEntity.ok(result);
+    }
 }

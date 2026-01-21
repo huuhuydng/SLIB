@@ -34,6 +34,10 @@ public class SecurityConfig {
                         .requestMatchers("/slib/users/login-google").permitAll()
                         .requestMatchers("/slib/users/getall").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
+                        // AI Admin endpoints (cho thủ thư)
+                        .requestMatchers("/slib/ai/admin/**").permitAll() // TODO: restrict to LIBRARIAN role
+                        // AI Chat endpoints (cho sinh viên - cần authenticated)
+                        .requestMatchers("/slib/ai/chat/**").authenticated()
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()

@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import slib.com.example.dto.zone_config.ZoneOccupancyDTO;
 import slib.com.example.dto.zone_config.ZoneResponse;
+import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.AreaEntity;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.ZoneEntity;
@@ -172,7 +174,6 @@ public class ZoneService {
         zoneRepository.deleteById(id);
     }
 
-    // MAP ENTITY -> DTO
     private ZoneResponse toResponse(ZoneEntity zone) {
         ZoneResponse res = new ZoneResponse();
         res.setZoneId(zone.getZoneId());
@@ -188,5 +189,37 @@ public class ZoneService {
         res.setIsLocked(zone.getIsLocked());
 
         return res;
+    }
+
+    /**
+     * Get zone occupancy information for all zones in an area
+     * Used by mobile app to display zone density colors
+     */
+    public List<ZoneOccupancyDTO> getZoneOccupancy(Long areaId) {
+        List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(areaId);
+
+        return zones.stream().map(zone -> {
+            // Count total seats in zone
+            long totalSeats = seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.AVAILABLE)
+                    + seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.BOOKED);
+
+            // Count occupied (booked) seats
+            long occupiedSeats = seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.BOOKED);
+
+            // Calculate occupancy rate (0.0 to 1.0)
+            double occupancyRate = totalSeats > 0 ? (double) occupiedSeats / totalSeats : 0.0;
+
+            return ZoneOccupancyDTO.builder()
+                    .zoneId(zone.getZoneId())
+                    .zoneName(zone.getZoneName())
+                    .positionX(zone.getPositionX())
+                    .positionY(zone.getPositionY())
+                    .width(zone.getWidth())
+                    .height(zone.getHeight())
+                    .totalSeats(totalSeats)
+                    .occupiedSeats(occupiedSeats)
+                    .occupancyRate(occupancyRate)
+                    .build();
+        }).collect(Collectors.toList());
     }
 }
