@@ -83,19 +83,47 @@
 .sidebar__item {
   display: flex;
   align-items: center;
+  justify-content: center;
   text-decoration: none;
   color: var(--item-color);
-  padding: 12px 14px;
+  padding: 0;
   border-radius: 12px; /* Bo góc mềm mại */
   transition: all 0.2s ease;
   white-space: nowrap; /* Giữ chữ không xuống dòng */
   position: relative;
+  min-height: 48px;
+  height: 48px;
+  width: 48px;
+  margin: 0 auto;
 }
 
 /* Icon căn chỉnh */
+.sidebar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  transition: margin 0.3s var(--ease-spring);
+}
+
 .sidebar__item svg {
-  min-width: 24px;
-  margin-right: 16px; /* Khoảng cách giữa icon và chữ */
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s ease;
+}
+
+/* Expanded state */
+.sidebar:hover .sidebar__item {
+  justify-content: flex-start;
+  padding: 12px 16px;
+  width: 100%;
+  margin: 0;
+}
+
+.sidebar:hover .sidebar__icon {
+  margin-right: 12px;
 }
 
 /* Chữ menu */

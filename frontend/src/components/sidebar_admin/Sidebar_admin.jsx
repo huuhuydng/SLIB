@@ -1,79 +1,129 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import React from "react";
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   Map,
   Users,
-  Monitor,
+  Cpu,
   Settings,
   Activity,
-  Brain,
-  LogOut,
+  Sparkles,
+  HelpCircle,
+  Shield,
+  LogOut
 } from "lucide-react";
+
+import logo from "../../assets/logonencam.png";
 import "../../styles/admin/sidebar_default.css";
 
 const Sidebar = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  // Menu items dành riêng cho Admin
+  const adminMenuItems = [
+    { icon: LayoutDashboard, label: "Tổng quan", path: "/admin/dashboard" },
+    { icon: Map, label: "Bản đồ thư viện", path: "/admin/library-map" },
+    { icon: Users, label: "Quản lý người dùng", path: "/admin/users" },
+    { icon: Cpu, label: "Quản lý thiết bị", path: "/admin/devices" },
+  ];
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Tổng quan", path: "/dashboard" },
-    { icon: Map, label: "Bản đồ thư viện", path: "/library-map" },
-    { icon: Users, label: "Quản lý người dùng", path: "/users" },
-    { icon: Monitor, label: "Quản lý thiết bị", path: "/devices" },
-    { icon: Settings, label: "Cấu hình hệ thống", path: "/config" },
-    { icon: Activity, label: "Sức khỏe hệ thống", path: "/health" },
-    { icon: Brain, label: "Cấu hình AI", path: "/ai-config" },
+  const systemMenuItems = [
+    { icon: Settings, label: "Cấu hình hệ thống", path: "/admin/config" },
+    { icon: Activity, label: "Sức khỏe hệ thống", path: "/admin/health" },
+    { icon: Sparkles, label: "Cấu hình AI", path: "/admin/ai-config" },
   ];
 
   const handleLogout = () => {
-    console.log('🔴🔴🔴 LOGOUT FROM SIDEBAR!');
-    localStorage.clear();
-    sessionStorage.clear();
-    console.log('✅ Storage cleared');
-    console.log('🔄 Reloading page...');
-    window.location.reload(true); // Force reload from server
+    if (confirm('Bạn có chắc muốn đăng xuất?')) {
+      console.log('🔴 LOGOUT FROM ADMIN SIDEBAR!');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.reload(true);
+    }
   };
 
   return (
     <aside className="sidebar">
-      {/* Logo */}
+      {/* Brand / Logo */}
       <div className="sidebar__brand">
-        <div className="sidebar__brandIcon">
-          <span style={{ color: "#FF6B00", fontWeight: "bold", fontSize: "24px" }}>
-            S
-          </span>
+        <div className="sidebar__brandRow">
+          <img src={logo} alt="Slib" className="sidebar__brandIcon" />
         </div>
-        <span className="sidebar__brandText">
-          <span style={{ fontWeight: 700, color: "#333" }}>SLIB</span>
-          <span style={{ fontWeight: 400, color: "#FF6B00" }}>.</span>
-        </span>
+      </div>
+
+      {/* Admin Badge */}
+      <div className="sidebar__badge">
+        <Shield size={14} />
+        <span className="sidebar__badgeText">Admin</span>
       </div>
 
       {/* Navigation */}
       <nav className="sidebar__nav">
-        {menuItems.map((item, index) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+        {/* Quản lý Section */}
+        <div className="sidebar__section">
+          <div className="sidebar__sectionLabel">Quản lý</div>
+          {adminMenuItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={idx}
+                to={item.path}
+                className={({ isActive }) =>
+                  `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
+                }
+              >
+                <span className="sidebar__icon">
+                  <Icon size={22} strokeWidth={2} />
+                </span>
+                <span className="sidebar__label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
 
-          return (
-            <button
-              key={index}
-              className={`sidebar__item ${isActive ? "sidebar__item--active" : ""}`}
-              onClick={() => navigate(item.path)}
-            >
-              <Icon className="sidebar__itemIcon" size={20} />
-              <span className="sidebar__itemLabel">{item.label}</span>
-            </button>
-          );
-        })}
+        {/* Hệ thống Section */}
+        <div className="sidebar__section">
+          <div className="sidebar__sectionLabel">Hệ thống</div>
+          {systemMenuItems.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={idx}
+                to={item.path}
+                className={({ isActive }) =>
+                  `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
+                }
+              >
+                <span className="sidebar__icon">
+                  <Icon size={22} strokeWidth={2} />
+                </span>
+                <span className="sidebar__label">{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* Logout Button */}
-      <div className="sidebar__footer">
-        <button className="sidebar__item sidebar__item--logout" onClick={handleLogout}>
-          <LogOut className="sidebar__itemIcon" size={20} />
-          <span className="sidebar__itemLabel">Đăng xuất</span>
-        </button>
+      {/* Footer - Help & Logout */}
+      <div className="sidebar__helpWrap">
+        <div className="sidebar__helpItem" style={{ cursor: 'pointer' }}>
+          <span className="sidebar__icon">
+            <HelpCircle size={22} strokeWidth={2} />
+          </span>
+          <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
+        </div>
+        <div
+          className="sidebar__helpItem sidebar__logoutItem"
+          onClick={handleLogout}
+          style={{
+            cursor: 'pointer',
+            color: '#FF751F',
+            marginTop: '4px'
+          }}
+        >
+          <span className="sidebar__icon">
+            <LogOut size={22} strokeWidth={2} />
+          </span>
+          <span className="sidebar__label">Đăng xuất</span>
+        </div>
       </div>
     </aside>
   );

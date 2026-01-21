@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import librarianService from "../services/librarianService";
 import "../styles/Auth.css";
 
-const GOOGLE_CLIENT_ID = '1071538292660-pf2ma4esd8lt1d2rclm27ipe1n3ch098.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
 
 function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
@@ -66,12 +66,13 @@ function Login({ onLogin }) {
       const backendResponse = await librarianService.googleLogin(idToken);
       console.log("✅ GOOGLE BACKEND RESPONSE:", backendResponse);
 
-      // Lưu token và user info (backend trả về camelCase: accessToken)
+      // Backend trả về AuthResponse: { accessToken, refreshToken, id, email, fullName, studentCode, role, expiresIn }
       const token = backendResponse.accessToken ||
         backendResponse.access_token ||
         backendResponse.token;
 
-      const user = backendResponse.user || {
+      // Build user object from flat response
+      const user = {
         id: backendResponse.id,
         email: backendResponse.email,
         fullName: backendResponse.fullName,
@@ -79,15 +80,17 @@ function Login({ onLogin }) {
         studentCode: backendResponse.studentCode
       };
 
-      if (token) {
+      if (token && user.role) {
         localStorage.setItem('librarian_token', token);
         localStorage.setItem('librarian_user', JSON.stringify(user));
         console.log("✅ Token saved successfully");
+        console.log("✅ User:", user);
 
         if (onLogin) {
           onLogin(user.role);
         }
       } else {
+        console.error("❌ Missing token or role:", { token: !!token, role: user.role });
         throw new Error('No token or user data received from server');
       }
 

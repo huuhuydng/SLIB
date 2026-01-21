@@ -18,15 +18,15 @@ import "../../styles/librarian/sidebar_default.css";
 
 const Sidebar = () => {
   const menuItems = [
-    { icon: LayoutDashboard, label: "Tổng quan", path: "/dashboard" },
-    { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", path: "/checkinout" },
-    { icon: Flame, label: "Sơ đồ thư viện", path: "/areas" },
-    { icon: Armchair, label: "Quản lý chỗ ngồi", path: "/seatmanage" },
-    { icon: Users, label: "Sinh viên", path: "/students" },
-    { icon: AlertTriangle, label: "Vi phạm", path: "/violation" },
-    { icon: MessageSquare, label: "Trò chuyện", path: "/chat" },
-    { icon: BarChart2, label: "Thống kê", path: "/statistic" },
-    { icon: Bell, label: "Thông báo", path: "/notification" },
+    { icon: LayoutDashboard, label: "Tổng quan", path: "/librarian/dashboard" },
+    { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", path: "/librarian/checkinout" },
+    { icon: Flame, label: "Sơ đồ thư viện", path: "/librarian/areas" },
+    { icon: Armchair, label: "Quản lý chỗ ngồi", path: "/librarian/seatmanage" },
+    { icon: Users, label: "Sinh viên", path: "/librarian/students" },
+    { icon: AlertTriangle, label: "Vi phạm", path: "/librarian/violation" },
+    { icon: MessageSquare, label: "Trò chuyện", path: "/librarian/chat" },
+    { icon: BarChart2, label: "Thống kê", path: "/librarian/statistic" },
+    { icon: Bell, label: "Thông báo", path: "/librarian/notification" },
   ];
 
   return (
@@ -34,7 +34,7 @@ const Sidebar = () => {
       {/* Brand / Logo */}
       <div className="sidebar__brand">
         {/* Class này giúp canh chỉnh logo đẹp hơn */}
-        <div className="sidebar__brandRow"> 
+        <div className="sidebar__brandRow">
           <img src={logo} alt="Slib" className="sidebar__brandIcon" />
         </div>
       </div>
@@ -63,8 +63,8 @@ const Sidebar = () => {
       <div className="sidebar__helpWrap">
         {/* Giả lập Help như một button để có hover effect và label giống menu trên */}
         <div className="sidebar__helpItem">
-           <HelpCircle size={20} strokeWidth={2} />
-           <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
+          <HelpCircle size={20} strokeWidth={2} />
+          <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
         </div>
       </div>
     </aside>

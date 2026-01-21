@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import librarianService from "../../services/librarianService";
 import "../../styles/Auth.css";
 
-const GOOGLE_CLIENT_ID = '1071538292660-pf2ma4esd8lt1d2rclm27ipe1n3ch098.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
 
 function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
@@ -66,12 +66,19 @@ function Login({ onLogin }) {
       const backendResponse = await librarianService.googleLogin(idToken);
       console.log("✅ GOOGLE BACKEND RESPONSE:", backendResponse);
 
-      // Backend trả về: { access_token: "...", user: {...} }
-      const token = backendResponse.access_token || 
-                    backendResponse.accessToken ||
+      // Backend trả về AuthResponse: { accessToken, refreshToken, id, email, fullName, studentCode, role, expiresIn }
+      const token = backendResponse.accessToken || 
+                    backendResponse.access_token ||
                     backendResponse.token;
       
-      const user = backendResponse.user;
+      // Build user object from flat response
+      const user = {
+        id: backendResponse.id,
+        email: backendResponse.email,
+        fullName: backendResponse.fullName,
+        studentCode: backendResponse.studentCode,
+        role: backendResponse.role
+      };
       
       if (token && user && user.role) {
         // Kiểm tra role trước khi cho phép login

@@ -22,41 +22,42 @@ function LibrarianRoutes() {
       {/* Librarian Layout with Sidebar */}
       <Route element={<MainLayout />}>
         {/* Dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+
         {/* Check In/Out */}
-        <Route path="/checkinout" element={<CheckInOut />} />
-        
+        <Route path="checkinout" element={<CheckInOut />} />
+
         {/* Sơ đồ nhiệt */}
-        <Route path="/areas" element={<HeatMap />} />
-        
+        <Route path="areas" element={<HeatMap />} />
+
         {/* Quản lý chỗ ngồi */}
-        <Route path="/seatmanage" element={<SeatManage />} />
-        
+        <Route path="seatmanage" element={<SeatManage />} />
+
         {/* Quản lý sinh viên */}
-        <Route path="/students" element={<StudentsManage />} />
-        
+        <Route path="students" element={<StudentsManage />} />
+
         {/* Vi phạm */}
-        <Route path="/violation" element={<ViolationManage />} />
-        
+        <Route path="violation" element={<ViolationManage />} />
+
         {/* Trò chuyện */}
-        <Route path="/chat" element={<ChatManage />} />
-        
+        <Route path="chat" element={<ChatManage />} />
+
         {/* Thống kê */}
-        <Route path="/statistic" element={<Statistic />} />
-        
+        <Route path="statistic" element={<Statistic />} />
+
         {/* Thông báo */}
-        <Route path="/notification" element={<NotificationManage />} />
-        <Route path="/notification/create" element={<NewCreate />} />
-        <Route path="/notification/edit/:id" element={<NewCreate />} />
-        <Route path="/notification/view/:id" element={<NewsDetailView />} />
+        <Route path="notification" element={<NotificationManage />} />
+        <Route path="notification/create" element={<NewCreate />} />
+        <Route path="notification/edit/:id" element={<NewCreate />} />
+        <Route path="notification/view/:id" element={<NewsDetailView />} />
       </Route>
 
       {/* Redirect any unmatched routes */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
 }
 
 export default LibrarianRoutes;
+

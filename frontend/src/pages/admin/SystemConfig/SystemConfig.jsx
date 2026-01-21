@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { 
-  Users, 
-  Armchair, 
-  AlertCircle, 
-  Sparkles, 
-  Clock, 
-  Bell, 
-  Calendar, 
-  ChevronRight, 
-  Wrench, 
+import {
+  Users,
+  Armchair,
+  AlertCircle,
+  Sparkles,
+  Clock,
+  Bell,
+  Calendar,
+  ChevronRight,
+  Wrench,
   BookOpen,
   TrendingUp,
   MapPin,
@@ -29,19 +29,19 @@ const MOCK_STUDENTS = [
 ];
 
 const MOCK_NOTIFICATIONS = [
-  { 
+  {
     title: "FPT Techday 2025: Công nghệ tương lai",
     date: "12/12/2025",
     type: "event",
     tag: "SỰ KIỆN"
   },
-  { 
+  {
     title: "Thông báo bảo trì khu vực thư viện",
     date: "10/12/2025",
     type: "maintenance",
     tag: "QUAN TRỌNG"
   },
-  { 
+  {
     title: "Top 100 đầu sách AI mới về thư viện",
     date: "08/12/2025",
     type: "info",
@@ -55,14 +55,14 @@ const AREAS = [
   { name: "Khu tự học", percentage: 70, icon: "📚" },
 ];
 
-const DASHBOARD_STATS = { 
-  currentUsers: 69, 
-  occupancyRate: 69, 
+const DASHBOARD_STATS = {
+  currentUsers: 69,
+  occupancyRate: 69,
   violations: 9,
   totalSeats: 100
 };
 
-const Dashboard = () => {
+const SystemConfig = () => {
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
 
@@ -97,7 +97,7 @@ const Dashboard = () => {
   };
 
   const getNotificationIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'event': return <Calendar size={18} />;
       case 'maintenance': return <Wrench size={18} />;
       case 'info': return <BookOpen size={18} />;
@@ -106,7 +106,7 @@ const Dashboard = () => {
   };
 
   const getNotificationColors = (type) => {
-    switch(type) {
+    switch (type) {
       case 'event': return { bg: '#E3F2FD', color: '#0054A6', border: '#BBDEFB' };
       case 'maintenance': return { bg: '#FFEBEE', color: '#D32F2F', border: '#FFCDD2' };
       case 'info': return { bg: '#E8F5E9', color: '#388E3C', border: '#C8E6C9' };
@@ -116,7 +116,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchValue={searchText}
         onSearchChange={(e) => setSearchText(e.target.value)}
         searchPlaceholder="Tìm kiếm sinh viên, mã số..."
@@ -270,14 +270,14 @@ const Dashboard = () => {
                 gap: '6px',
                 transition: 'all 0.2s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--slib-primary-subtle, #FFF7F2)';
-                e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)';
-                e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
-              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--slib-primary-subtle, #FFF7F2)';
+                  e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)';
+                  e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
+                }}
               >
                 Xem tất cả
                 <ChevronRight size={16} />
@@ -328,11 +328,11 @@ const Dashboard = () => {
                 </thead>
                 <tbody>
                   {filteredStudents.map((student, index) => (
-                    <tr 
+                    <tr
                       key={student.id}
                       style={{
-                        borderBottom: index === filteredStudents.length - 1 
-                          ? 'none' 
+                        borderBottom: index === filteredStudents.length - 1
+                          ? 'none'
                           : '1px solid var(--slib-border-light, #E2E8F0)',
                         transition: 'background-color 0.2s ease',
                         cursor: 'pointer'
@@ -380,11 +380,11 @@ const Dashboard = () => {
                           borderRadius: '8px',
                           fontSize: '12px',
                           fontWeight: '600',
-                          background: student.action === "Check in" 
-                            ? 'var(--slib-status-success-bg, #E8F5E9)' 
+                          background: student.action === "Check in"
+                            ? 'var(--slib-status-success-bg, #E8F5E9)'
                             : 'var(--slib-status-error-bg, #FFEBEE)',
-                          color: student.action === "Check in" 
-                            ? 'var(--slib-status-success, #388E3C)' 
+                          color: student.action === "Check in"
+                            ? 'var(--slib-status-success, #388E3C)'
                             : 'var(--slib-status-error, #D32F2F)'
                         }}>
                           <span style={{
@@ -462,8 +462,8 @@ const Dashboard = () => {
                 <div
                   key={idx}
                   style={{
-                    background: insight.type === "warning" 
-                      ? 'var(--slib-status-warning-bg, #FFF3E0)' 
+                    background: insight.type === "warning"
+                      ? 'var(--slib-status-warning-bg, #FFF3E0)'
                       : 'var(--slib-status-info-bg, #E3F2FD)',
                     border: `1px solid ${insight.type === "warning" ? '#FFE0B2' : '#BBDEFB'}`,
                     borderRadius: '12px',
@@ -476,7 +476,7 @@ const Dashboard = () => {
                   onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'}
                   onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
                 >
-                  <div style={{ 
+                  <div style={{
                     flexShrink: 0,
                     width: '32px',
                     height: '32px',
@@ -486,8 +486,8 @@ const Dashboard = () => {
                     alignItems: 'center',
                     justifyContent: 'center'
                   }}>
-                    {insight.type === "warning" 
-                      ? <AlertCircle size={16} color="#fff" /> 
+                    {insight.type === "warning"
+                      ? <AlertCircle size={16} color="#fff" />
                       : <Clock size={16} color="#fff" />
                     }
                   </div>
@@ -737,7 +737,7 @@ const Dashboard = () => {
               {AREAS.map((area, idx) => {
                 const colors = getProgressColor(area.percentage);
                 return (
-                  <div 
+                  <div
                     key={idx}
                     style={{
                       padding: '16px',
@@ -799,4 +799,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default SystemConfig;

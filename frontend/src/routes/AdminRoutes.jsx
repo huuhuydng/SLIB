@@ -10,7 +10,7 @@ import AreaManagement from "../pages/admin/AreaManagement/AreaManagement";
 // Admin-specific Components
 import UserManagement from "../pages/admin/UserManagement/UserManagement";
 import DeviceManagement from "../pages/admin/DeviceManagement/DeviceManagement";
-import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
+import SystemConfig from "../components/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
 
@@ -20,28 +20,29 @@ function AdminRoutes() {
       {/* Admin Layout with Sidebar */}
       <Route element={<MainLayout />}>
         {/* Dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<Dashboard />} />
+
         {/* Quản lý bản đồ thư viện */}
-        <Route path="/library-map" element={<AreaManagement />} />
-        
+        <Route path="library-map" element={<AreaManagement />} />
+
         {/* Quản lý người dùng */}
-        <Route path="/users" element={<UserManagement />} />
-        
+        <Route path="users" element={<UserManagement />} />
+
         {/* Quản lý thiết bị */}
-        <Route path="/devices" element={<DeviceManagement />} />
+        <Route path="devices" element={<DeviceManagement />} />
 
         {/* Hệ thống */}
-        <Route path="/config" element={<SystemConfig />} />
-        <Route path="/health" element={<SystemHealth />} />
-        <Route path="/ai-config" element={<AIConfig />} />
+        <Route path="config" element={<SystemConfig />} />
+        <Route path="health" element={<SystemHealth />} />
+        <Route path="ai-config" element={<AIConfig />} />
       </Route>
 
       {/* Redirect any unmatched routes */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="dashboard" replace />} />
     </Routes>
   );
 }
 
 export default AdminRoutes;
+
