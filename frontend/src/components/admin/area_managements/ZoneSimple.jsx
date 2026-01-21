@@ -2,15 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import { useLayout } from '../../../context/admin/area_management/LayoutContext';
 import Seat from './Seat';
 import { getSeats, updateZonePosition, updateZoneDimensions, updateZonePositionAndDimensions } from '../../../services/admin/area_management/api';
-import { calculateSeatLayout, calculateMinZoneDimensions } from '../../../utils/admin/seatLayout';
+import { calculateDynamicSeatLayout, calculateMinZoneDimensions } from '../../../utils/admin/seatLayout';
 import { Rnd } from 'react-rnd';
 
 function ZoneSimple({ zone, area }) {
   const { state, dispatch, actions } = useLayout();
-  const { selectedItem, seats, canvas } = state;
+  const { selectedItem, selectedItems, seats, canvas, isPreviewMode } = state;
   const zoneSeats = (seats || []).filter((s) => String(s.zoneId) === String(zone.zoneId));
 
-  console.log(`ZoneSimple ${zone.zoneId} - zoneSeats count:`, zoneSeats.length, zoneSeats.map(s => ({ id: s.seatId, code: s.seatCode, row: s.rowNumber, col: s.columnNumber })));
+  // Check if this zone is selected (either single or multi-select)
+  const isSelected = (selectedItem?.type === 'zone' && selectedItem?.id === zone.zoneId) ||
+    (selectedItems || []).some(item => item.type === 'zone' && item.id === zone.zoneId);
+
+  // Delay rendering until after initial render cycle to ensure position and zoom are stable
+  // react-rnd has issues reading controlled position correctly when scale changes on mount
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Wait for canvas zoom to stabilize after handleFitToView
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, []);
+
+
 
   // Load seats for this zone
   useEffect(() => {
@@ -35,9 +51,9 @@ function ZoneSimple({ zone, area }) {
     })();
   }, [zone?.zoneId, dispatch, actions]);
 
-  const isSelected = selectedItem?.type === 'zone' && selectedItem?.id === zone.zoneId;
-
   const saveTimerRef = useRef(null);
+  const dragStartPos = useRef({ x: 0, y: 0 }); // Track start position for multi-select drag
+  const resizeStartSize = useRef({ width: 0, height: 0, x: 0, y: 0 }); // Track original size for resize
   const [collidingWith, setCollidingWith] = useState(null);
   const [resetKey, setResetKey] = useState(0);
 
@@ -99,10 +115,47 @@ function ZoneSimple({ zone, area }) {
 
   const handleZoneClick = (e) => {
     e.stopPropagation();
-    dispatch({
-      type: actions.SELECT_ITEM,
-      payload: { type: 'zone', id: zone.zoneId },
-    });
+    const isMac = navigator.platform.toUpperCase().includes('MAC');
+    const isMultiSelectKey = isMac ? e.metaKey : e.ctrlKey;
+
+    if (isMultiSelectKey) {
+      // Ctrl+Click: Toggle this zone in/out of selection
+      dispatch({
+        type: actions.TOGGLE_SELECT,
+        payload: { type: 'zone', id: zone.zoneId },
+      });
+    } else if (isSelected) {
+      // Clicking on already selected item - keep selection, just update selectedItem
+      dispatch({
+        type: actions.SELECT_ITEM,
+        payload: { type: 'zone', id: zone.zoneId },
+      });
+    } else {
+      // Normal click on non-selected item: Select only this zone, clear others
+      dispatch({ type: actions.DESELECT });
+      dispatch({
+        type: actions.SELECT_ITEM,
+        payload: { type: 'zone', id: zone.zoneId },
+      });
+    }
+  };
+
+  // Push history when starting drag/resize so user can undo
+  const handleDragStart = (e, d) => {
+    dispatch({ type: actions.PUSH_HISTORY });
+    // Save start position for multi-select drag delta calculation
+    dragStartPos.current = { x: zone.positionX || 0, y: zone.positionY || 0 };
+  };
+
+  const handleResizeStart = () => {
+    dispatch({ type: actions.PUSH_HISTORY });
+    // Save original size to compare in resizeStop
+    resizeStartSize.current = {
+      width: zone.width || 120,
+      height: zone.height || 100,
+      x: zone.positionX || 0,
+      y: zone.positionY || 0,
+    };
   };
 
   const handleDrag = (e, d) => {
@@ -117,50 +170,21 @@ function ZoneSimple({ zone, area }) {
 
     setCollidingWith(null);
 
-    // Update UI immediately
-    dispatch({
-      type: actions.UPDATE_ZONE,
-      payload: {
-        ...zone,
-        positionX: d.x,
-        positionY: d.y,
-      },
-    });
+    // Check if this zone is part of multi-select
+    const isMultiSelected = (selectedItems || []).length > 1 &&
+      (selectedItems || []).some(item => item.type === 'zone' && item.id === zone.zoneId);
 
-    // Debounce API call
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        await updateZonePosition(zone.zoneId, d.x, d.y);
-      } catch (e) {
-        console.error('Failed to update zone position', e);
+    if (isMultiSelected) {
+      // Calculate delta from last known position
+      const dx = d.x - (zone.positionX || 0);
+      const dy = d.y - (zone.positionY || 0);
+
+      if (dx !== 0 || dy !== 0) {
+        // Move all selected items by delta (realtime)
+        dispatch({ type: actions.MOVE_ALL_SELECTED, payload: { dx, dy } });
       }
-    }, 300);
-  };
-
-  const handleDragStop = async (e, d) => {
-    // Final collision check before saving
-    const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, d.x, d.y, zone.width || 120, zone.height || 100);
-
-    if (hasCollision) {
-      console.warn(`Vị trí bị từ chối: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
-      setCollidingWith(collidingZone);
-      // Force reset to original position by changing key
-      setResetKey(prev => prev + 1);
-      return;
-    }
-
-    setCollidingWith(null);
-
-    // Clear debounce timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    // Save immediately on stop
-    try {
-      await updateZonePosition(zone.zoneId, d.x, d.y);
+    } else {
+      // Update only this zone
       dispatch({
         type: actions.UPDATE_ZONE,
         payload: {
@@ -169,84 +193,153 @@ function ZoneSimple({ zone, area }) {
           positionY: d.y,
         },
       });
-    } catch (e) {
-      console.error('Failed to update zone position', e);
     }
+
+    // Mark as having unsaved changes
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
-  const handleResizeStop = async (e, direction, ref, delta, position) => {
+  const handleDragStop = (e, d) => {
+    // Check if position actually changed (user dragged, not just clicked)
+    const startX = dragStartPos.current.x;
+    const startY = dragStartPos.current.y;
+    const hasPositionChanged = Math.abs(d.x - startX) > 1 || Math.abs(d.y - startY) > 1;
+
+    // If no actual movement, do nothing (prevents cache pollution on click)
+    if (!hasPositionChanged) {
+      return;
+    }
+
+    // Final collision check
+    const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, d.x, d.y, zone.width || 120, zone.height || 100);
+
+    if (hasCollision) {
+      console.warn(`Vị trí bị từ chối: "${zone.zoneName}" chồng lấp`);
+      setCollidingWith(collidingZone);
+      setResetKey(prev => prev + 1);
+      // Clear warning after reset animation
+      setTimeout(() => setCollidingWith(null), 300);
+      return;
+    }
+
+    setCollidingWith(null);
+
+    // Check if this zone is part of multi-select
+    const isMultiSelected = (selectedItems || []).length > 1 &&
+      (selectedItems || []).some(item => item.type === 'zone' && item.id === zone.zoneId);
+
+    // For single selection, update the zone position 
+    // (for multi-select, realtime drag already updated all positions)
+    if (!isMultiSelected) {
+      dispatch({
+        type: actions.UPDATE_ZONE,
+        payload: {
+          ...zone,
+          positionX: d.x,
+          positionY: d.y,
+        },
+      });
+    }
+
+    // Cache position for instant restore on reload (only when position changed)
+    // REMOVED: cacheZonePosition - don't cache unsaved changes to localStorage
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+  };
+
+  // Handle resize in real-time (updates zone dimensions while dragging)
+  const handleResize = (e, direction, ref, delta, position) => {
     const newWidth = parseInt(ref.style.width);
     const newHeight = parseInt(ref.style.height);
-    const positionChanged = position.x !== zone.positionX || position.y !== zone.positionY;
-    const dimensionsChanged = newWidth !== zone.width || newHeight !== zone.height;
+
+    // Update zone dimensions immediately for real-time seat repositioning
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...zone,
+        positionX: position.x,
+        positionY: position.y,
+        width: newWidth,
+        height: newHeight,
+      },
+    });
+  };
+
+  const handleResizeStop = (e, direction, ref, delta, position) => {
+    const newWidth = parseInt(ref.style.width);
+    const newHeight = parseInt(ref.style.height);
+
+    // Check if size or position actually changed (compare with ORIGINAL size, not current state)
+    const originalSize = resizeStartSize.current;
+    const hasSizeChanged = Math.abs(newWidth - originalSize.width) > 1 ||
+      Math.abs(newHeight - originalSize.height) > 1;
+    const hasPositionChanged = Math.abs(position.x - originalSize.x) > 1 ||
+      Math.abs(position.y - originalSize.y) > 1;
+
+    // If no actual change, do nothing
+    if (!hasSizeChanged && !hasPositionChanged) {
+      return;
+    }
 
     // Check for collision with new size/position
     const { hasCollision, collidingZone } = getCollisionInfo(zone.zoneId, position.x, position.y, newWidth, newHeight);
 
     if (hasCollision) {
-      console.warn(`Chồng lấp: "${zone.zoneName}" chồng lấp với "${collidingZone.zoneName}"`);
+      console.warn(`Chồng lấp: "${zone.zoneName}"`);
       setCollidingWith(collidingZone);
-      setResetKey(prev => prev + 1); // Reset to original position
-      return; // Block the resize
+      setResetKey(prev => prev + 1);
+      // Clear warning after reset animation
+      setTimeout(() => setCollidingWith(null), 300);
+      return;
     }
 
     setCollidingWith(null);
 
-    try {
-      // If both position and dimensions changed, update both
-      if (positionChanged && dimensionsChanged) {
-        await updateZonePositionAndDimensions(zone.zoneId, {
-          positionX: position.x,
-          positionY: position.y,
-          width: newWidth,
-          height: newHeight,
-        });
-      }
-      // If only dimensions changed, update dimensions only
-      else if (dimensionsChanged) {
-        await updateZoneDimensions(zone.zoneId, newWidth, newHeight);
-      }
-      // If only position changed (shouldn't happen in resize, but handle it)
-      else if (positionChanged) {
-        await updateZonePosition(zone.zoneId, position.x, position.y);
-      }
-
-      // Update local state
-      dispatch({
-        type: actions.UPDATE_ZONE,
-        payload: {
-          ...zone,
-          positionX: position.x,
-          positionY: position.y,
-          width: newWidth,
-          height: newHeight,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to update zone size/position', e);
-    }
+    // Update local state only (no API call)
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...zone,
+        positionX: position.x,
+        positionY: position.y,
+        width: newWidth,
+        height: newHeight,
+      },
+    });
+    // REMOVED: cacheZonePosition - don't cache unsaved changes to localStorage
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
+
+  // Don't render until we're ready (position data is stable)
+  if (!isReady) {
+    return null;
+  }
 
   return (
     <Rnd
       key={`zone-${zone.zoneId}-${resetKey}`}
       scale={canvas?.zoom || 1}
-      default={{
+      position={{
         x: zone.positionX || 0,
         y: zone.positionY || 0,
+      }}
+      size={{
         width: zone.width || 120,
         height: zone.height || 100,
       }}
-      onDrag={zone.isLocked ? undefined : handleDrag}
-      onDragStop={zone.isLocked ? undefined : handleDragStop}
-      onResizeStop={zone.isLocked ? undefined : handleResizeStop}
-      disableDragging={!!zone.isLocked}
+      onDragStart={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleDragStart}
+      onDrag={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleDrag}
+      onDragStop={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleDragStop}
+      onResizeStart={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleResizeStart}
+      onResize={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleResize}
+      onResizeStop={(zone.isLocked || isPreviewMode || area?.locked) ? undefined : handleResizeStop}
+      disableDragging={!!zone.isLocked || isPreviewMode || !!area?.locked}
+      enableResizing={!zone.isLocked && !isPreviewMode && !area?.locked}
       bounds="parent"
       minWidth={calculateMinZoneDimensions(zoneSeats).minWidth}
       minHeight={calculateMinZoneDimensions(zoneSeats).minHeight}
       style={{
-        zIndex: isSelected ? 5 : 1,
-        cursor: zone.isLocked ? 'not-allowed' : 'move',
+        zIndex: isSelected ? 100 : (zone.isPending ? 50 : 1),
+        cursor: isPreviewMode ? 'default' : ((zone.isLocked || area?.locked) ? 'not-allowed' : 'move'),
       }}
     >
       <div
@@ -254,7 +347,6 @@ function ZoneSimple({ zone, area }) {
         style={{
           width: '100%',
           height: '100%',
-          backgroundColor: '#E5E7EB',  // Light gray for all zones
           border: collidingWith
             ? '3px solid #dc2626'
             : isSelected
@@ -275,7 +367,7 @@ function ZoneSimple({ zone, area }) {
               ? '0 0 10px rgba(220, 38, 38, 0.2)'
               : 'none',
           transition: 'all 0.2s ease',
-          backgroundColor: collidingWith ? '#fee8e8' : '#E5E7EB',  // Light gray
+          backgroundColor: collidingWith ? '#fee8e8' : '#E5E7EB',
         }}
         onClick={handleZoneClick}
       >
@@ -311,20 +403,7 @@ function ZoneSimple({ zone, area }) {
           {zone.zoneName || 'Unnamed Zone'}
         </div>
 
-        {/* Collision Info */}
-        {collidingWith && (
-          <div style={{
-            fontSize: '10px',
-            color: '#991b1b',
-            padding: '4px',
-            backgroundColor: '#fecaca',
-            borderRadius: '4px',
-            marginBottom: '4px',
-            fontWeight: '500',
-          }}>
-            Chồng lấp với: {collidingWith.zoneName}
-          </div>
-        )}
+
 
         <div style={{
           flex: 1,
@@ -333,8 +412,7 @@ function ZoneSimple({ zone, area }) {
           minHeight: '100px',
         }}>
           {zoneSeats.map((seat) => {
-            const layout = calculateSeatLayout(seat);
-            console.log(`[ZoneSimple] Seat ${seat.seatId}: layout =`, layout);
+            const layout = calculateDynamicSeatLayout(seat, zone.width || 120, zone.height || 100, zoneSeats);
 
             return (
               <div
@@ -342,9 +420,10 @@ function ZoneSimple({ zone, area }) {
                 style={{
                   position: 'absolute',
                   left: layout.positionX,
-                  top: layout.positionY - 40, // Trừ headerHeight vì container không phải full zone
+                  top: layout.positionY,
                   width: layout.width,
                   height: layout.height,
+                  transition: 'left 0.15s ease-out, top 0.15s ease-out',
                 }}
               >
                 <Seat seat={seat} zone={zone} />

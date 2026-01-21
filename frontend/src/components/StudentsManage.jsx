@@ -3,13 +3,18 @@ import {
   Users, 
   AlertTriangle, 
   Filter, 
-  Clock
+  Clock,
+  Search,
+  ChevronDown,
+  Star,
+  TrendingUp,
+  MapPin
 } from 'lucide-react';
 import StudentDetail from './StudentDetail';
 import Header from './Header';
 import '../styles/StudentsManage.css';
 
-// --- MOCK DATA ---
+// Mock Data with reputation scores
 const MOCK_STUDENTS = [
   { id: 1, studentId: 'DE170706', name: 'Nguyễn Hoàng Phúc', email: 'phucnhde170706@fpt.edu.vn', score: 90, seat: 'A1', checkInTime: '2025-12-26T08:30:00' },
   { id: 2, studentId: 'DE170707', name: 'Trần Văn An', email: 'antv@fpt.edu.vn', score: 69, seat: 'B1', checkInTime: '2025-12-26T09:15:00' },
@@ -27,44 +32,54 @@ const StudentsManage = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [globalSearch, setGlobalSearch] = useState('');
   const [tableSearch, setTableSearch] = useState('');
-  const [filterRank, setFilterRank] = useState('all'); // all, good, average, bad
+  const [filterRank, setFilterRank] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null); // For detail view
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
-  // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 60000); // Update every minute
-
+    }, 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // --- LOGIC ---
   const getRank = (score) => {
-    if (score >= 80) return 'good'; // Gương mẫu
-    if (score >= 65) return 'average'; // Khá
-    return 'bad'; // Trung bình (kém)
+    if (score >= 80) return 'good';
+    if (score >= 65) return 'average';
+    return 'bad';
+  };
+
+  const getRankLabel = (rank) => {
+    switch (rank) {
+      case 'good': return 'Gương mẫu';
+      case 'average': return 'Khá';
+      case 'bad': return 'Trung bình';
+      default: return '';
+    }
   };
 
   const formatCheckInTime = (dateString) => {
     const date = new Date(dateString);
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
   const getTimeDuration = (checkInTime) => {
     const checkIn = new Date(checkInTime);
-    const now = currentTime;
-    const diff = Math.floor((now - checkIn) / 1000 / 60); // minutes
+    const diff = Math.floor((currentTime - checkIn) / 1000 / 60);
     
-    if (diff < 60) {
-      return `${diff} phút`;
-    } else {
-      const hours = Math.floor(diff / 60);
-      const minutes = diff % 60;
-      return minutes > 0 ? `${hours}h ${minutes}ph` : `${hours} giờ`;
+    if (diff < 60) return `${diff} phút`;
+    const hours = Math.floor(diff / 60);
+    const minutes = diff % 60;
+    return minutes > 0 ? `${hours}h ${minutes}ph` : `${hours} giờ`;
+  };
+
+  const getScoreColor = (score) => {
+    const rank = getRank(score);
+    switch (rank) {
+      case 'good': return { bg: 'var(--slib-status-success-bg, #E8F5E9)', color: 'var(--slib-status-success, #388E3C)' };
+      case 'average': return { bg: 'var(--slib-status-warning-bg, #FFF3E0)', color: 'var(--slib-status-warning, #FF9800)' };
+      case 'bad': return { bg: 'var(--slib-status-error-bg, #FFEBEE)', color: 'var(--slib-status-error, #D32F2F)' };
+      default: return { bg: '#F7FAFC', color: '#4A5568' };
     }
   };
 
@@ -75,23 +90,21 @@ const StudentsManage = () => {
       const matchTable = s.studentId.toLowerCase().includes(tableSearch.toLowerCase());
       
       let matchFilter = true;
-      const rank = getRank(s.score);
       if (filterRank !== 'all') {
-        matchFilter = rank === filterRank;
+        matchFilter = getRank(s.score) === filterRank;
       }
 
       return matchGlobal && matchTable && matchFilter;
     });
   }, [globalSearch, tableSearch, filterRank]);
 
-  const handleRowClick = (studentId) => {
-    const student = MOCK_STUDENTS.find(s => s.studentId === studentId);
-    if (student) {
-      setSelectedStudent(student);
-    }
-  };
+  const stats = useMemo(() => {
+    const total = MOCK_STUDENTS.length;
+    const lowScore = MOCK_STUDENTS.filter(s => s.score < 65).length;
+    const avgScore = Math.round(MOCK_STUDENTS.reduce((acc, s) => acc + s.score, 0) / total);
+    return { total, lowScore, avgScore };
+  }, []);
 
-  // If a student is selected, show StudentDetail
   if (selectedStudent) {
     return <StudentDetail student={selectedStudent} onBack={() => setSelectedStudent(null)} />;
   }
@@ -101,414 +114,620 @@ const StudentsManage = () => {
       <Header 
         searchValue={globalSearch}
         onSearchChange={(e) => setGlobalSearch(e.target.value)}
-        searchPlaceholder="Search for anything..."
+        searchPlaceholder="Tìm kiếm sinh viên..."
       />
 
-        {/* Content Body */}
+      <div style={{
+        padding: '0 24px 32px',
+        maxWidth: '1440px',
+        margin: '0 auto',
+        minHeight: 'calc(100vh - 120px)'
+      }}>
+        {/* Page Header */}
         <div style={{
-          padding: '2rem',
-          maxWidth: '1400px',
-          margin: '0 auto',
-          backgroundColor: '#f9fafb',
-          minHeight: 'calc(100vh - 80px)'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
         }}>
+          <div>
+            <h1 style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              color: 'var(--slib-text-primary, #1A1A1A)',
+              margin: '0 0 4px 0'
+            }}>Quản lý sinh viên</h1>
+            <p style={{
+              fontSize: '14px',
+              color: 'var(--slib-text-muted, #A0AEC0)',
+              margin: 0
+            }}>Theo dõi và quản lý sinh viên trong thư viện</p>
+          </div>
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '1.5rem'
+            gap: '8px',
+            padding: '10px 16px',
+            background: 'var(--slib-bg-card, #ffffff)',
+            borderRadius: '12px',
+            boxShadow: 'var(--slib-shadow-sm)'
           }}>
-            <h2 style={{
-              fontSize: '1.875rem',
-              fontWeight: '700',
-              color: '#1f2937'
-            }}>Quản lý sinh viên</h2>
+            <Clock size={18} color="var(--slib-primary, #FF751F)" />
+            <span style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: 'var(--slib-text-secondary, #4A5568)'
+            }}>
+              {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '20px',
+          marginBottom: '24px'
+        }}>
+          {/* Current Students */}
+          <div style={{
+            background: 'var(--slib-bg-card, #ffffff)',
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: 'var(--slib-shadow-card)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '16px',
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'all 0.3s ease'
+          }}>
             <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '100px',
+              height: '100px',
+              background: 'linear-gradient(135deg, #F3E8FF40 0%, transparent 60%)',
+              borderRadius: '0 16px 0 100%'
+            }} />
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
+              background: '#F3E8FF',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: '#f3f4f6',
-              padding: '0.5rem 1rem',
-              borderRadius: '8px'
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px #F3E8FF80'
             }}>
-              <Clock size={20} color="#6b7280" />
-              <span style={{
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                color: '#374151'
+              <Users size={24} color="#7C3AED" />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: '700',
+                color: 'var(--slib-text-primary, #1A1A1A)',
+                lineHeight: '1.2'
+              }}>{stats.total}</div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--slib-text-secondary, #4A5568)',
+                fontWeight: '500'
+              }}>Sinh viên trong thư viện</div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '8px',
+                padding: '4px 10px',
+                background: 'var(--slib-status-success-bg, #E8F5E9)',
+                borderRadius: '20px',
+                width: 'fit-content'
               }}>
-                {currentTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-              </span>
+                <TrendingUp size={12} color="var(--slib-status-success, #388E3C)" />
+                <span style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: 'var(--slib-status-success, #388E3C)'
+                }}>+15% so với hôm qua</span>
+              </div>
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Low Score Students */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '1.5rem',
-            marginBottom: '2rem'
+            background: 'var(--slib-bg-card, #ffffff)',
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: 'var(--slib-shadow-card)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '16px',
+            position: 'relative',
+            overflow: 'hidden'
           }}>
             <div style={{
-              backgroundColor: '#fff',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem'
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: '#8b5cf6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff'
-              }}>
-                <Users size={24} />
-              </div>
-              <div>
-                <h3 style={{
-                  fontSize: '1.875rem',
-                  fontWeight: '700',
-                  marginBottom: '0.25rem'
-                }}>69</h3>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280'
-                }}>Đang trong thư viện</p>
-              </div>
-            </div>
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '100px',
+              height: '100px',
+              background: 'linear-gradient(135deg, #FFEBEE40 0%, transparent 60%)',
+              borderRadius: '0 16px 0 100%'
+            }} />
             <div style={{
-              backgroundColor: '#fff',
-              padding: '1.5rem',
-              borderRadius: '12px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
+              background: 'var(--slib-status-error-bg, #FFEBEE)',
               display: 'flex',
               alignItems: 'center',
-              gap: '1rem'
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(211, 47, 47, 0.2)'
             }}>
+              <AlertTriangle size={24} color="var(--slib-status-error, #D32F2F)" />
+            </div>
+            <div>
               <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff'
-              }}>
-                <AlertTriangle size={24} />
-              </div>
-              <div>
-                <h3 style={{
-                  fontSize: '1.875rem',
-                  fontWeight: '700',
-                  marginBottom: '0.25rem'
-                }}>18</h3>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: '#6b7280'
-                }}>Điểm đánh giá dưới 65%</p>
-              </div>
+                fontSize: '32px',
+                fontWeight: '700',
+                color: 'var(--slib-text-primary, #1A1A1A)',
+                lineHeight: '1.2'
+              }}>{stats.lowScore}</div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--slib-text-secondary, #4A5568)',
+                fontWeight: '500'
+              }}>Điểm đánh giá dưới 65%</div>
+              <div style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                color: 'var(--slib-text-muted, #A0AEC0)'
+              }}>Cần chú ý theo dõi</div>
             </div>
           </div>
+
+          {/* Average Score */}
+          <div style={{
+            background: 'var(--slib-bg-card, #ffffff)',
+            borderRadius: '16px',
+            padding: '24px',
+            boxShadow: 'var(--slib-shadow-card)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '16px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              width: '100px',
+              height: '100px',
+              background: 'linear-gradient(135deg, #E8F5E940 0%, transparent 60%)',
+              borderRadius: '0 16px 0 100%'
+            }} />
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '14px',
+              background: 'var(--slib-status-success-bg, #E8F5E9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(56, 142, 60, 0.2)'
+            }}>
+              <Star size={24} color="var(--slib-status-success, #388E3C)" />
+            </div>
+            <div>
+              <div style={{
+                fontSize: '32px',
+                fontWeight: '700',
+                color: 'var(--slib-text-primary, #1A1A1A)',
+                lineHeight: '1.2'
+              }}>{stats.avgScore}%</div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--slib-text-secondary, #4A5568)',
+                fontWeight: '500'
+              }}>Điểm đánh giá trung bình</div>
+              <div style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                color: 'var(--slib-status-success, #388E3C)',
+                fontWeight: '500'
+              }}>Khá tốt</div>
+            </div>
+          </div>
+        </div>
 
         {/* Table Section */}
         <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          overflow: 'hidden',
-          marginBottom: '2rem'
+          background: 'var(--slib-bg-card, #ffffff)',
+          borderRadius: '16px',
+          boxShadow: 'var(--slib-shadow-card)',
+          overflow: 'hidden'
         }}>
+          {/* Table Header */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '1.5rem',
-            borderBottom: '1px solid #e5e7eb'
+            padding: '20px 24px',
+            borderBottom: '1px solid var(--slib-border-light, #E2E8F0)'
           }}>
-              <h3 style={{
-                fontSize: '1.125rem',
-                fontWeight: '600',
-                color: '#1f2937'
-              }}>Danh sách sinh viên đang có mặt tại thư viện</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: 'var(--slib-primary-subtle, #FFF7F2)',
                 display: 'flex',
-                gap: '0.75rem',
-                alignItems: 'center'
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <div>
-                  <input 
-                    type="text" 
-                    placeholder="Tìm kiếm mã số sinh viên" 
-                    value={tableSearch}
-                    onChange={(e) => setTableSearch(e.target.value)}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '0.875rem',
-                      width: '220px'
-                    }}
-                  />
-                </div>
-                
-                <div style={{ position: 'relative' }}>
-                  <button 
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                    style={{
-                      padding: '0.5rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      backgroundColor: '#fff',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Filter size={20} />
-                  </button>
-                  {isFilterOpen && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 0.5rem)',
-                      right: 0,
-                      backgroundColor: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                      minWidth: '200px',
-                      zIndex: 10
-                    }}>
-                      <div style={{
-                        padding: '0.75rem 1rem',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: '#6b7280',
-                        borderBottom: '1px solid #e5e7eb'
-                      }}>Điểm đánh giá</div>
-                      <div 
-                        onClick={() => { setFilterRank('all'); setIsFilterOpen(false); }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer'
-                        }}
-                      >Tất cả</div>
-                      <div 
-                        onClick={() => { setFilterRank('good'); setIsFilterOpen(false); }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}
-                      >
-                        <span style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#10b981'
-                        }}></span> Gương mẫu
-                      </div>
-                      <div 
-                        onClick={() => { setFilterRank('average'); setIsFilterOpen(false); }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}
-                      >
-                        <span style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#f59e0b'
-                        }}></span> Khá
-                      </div>
-                      <div 
-                        onClick={() => { setFilterRank('bad'); setIsFilterOpen(false); }}
-                        style={{
-                          padding: '0.75rem 1rem',
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem'
-                        }}
-                      >
-                        <span style={{
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          backgroundColor: '#ef4444'
-                        }}></span> Trung bình
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <Users size={20} color="var(--slib-primary, #FF751F)" />
+              </div>
+              <div>
+                <h3 style={{
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  color: 'var(--slib-text-primary, #1A1A1A)',
+                  margin: 0
+                }}>Danh sách sinh viên có mặt</h3>
+                <p style={{
+                  fontSize: '12px',
+                  color: 'var(--slib-text-muted, #A0AEC0)',
+                  margin: 0
+                }}>{filteredStudents.length} sinh viên</p>
               </div>
             </div>
-
-          <div style={{
-            overflowX: 'auto',
-            padding: '1.5rem'
-          }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse'
-            }}>
-                <thead>
-                  <tr style={{
-                    borderBottom: '2px solid #e5e7eb'
+            
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {/* Table Search */}
+              <div style={{ position: 'relative' }}>
+                <Search 
+                  size={16} 
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--slib-text-muted, #A0AEC0)'
+                  }}
+                />
+                <input 
+                  type="text"
+                  placeholder="Tìm mã số sinh viên"
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  style={{
+                    padding: '10px 12px 10px 38px',
+                    border: '2px solid var(--slib-border-light, #E2E8F0)',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    width: '200px',
+                    transition: 'all 0.2s ease',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--slib-primary, #FF751F)';
+                    e.target.style.boxShadow = '0 0 0 4px rgba(255, 117, 31, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = 'var(--slib-border-light, #E2E8F0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+              
+              {/* Filter Dropdown */}
+              <div style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                  style={{
+                    padding: '10px 16px',
+                    border: '2px solid var(--slib-border-light, #E2E8F0)',
+                    borderRadius: '10px',
+                    background: 'var(--slib-bg-card, #ffffff)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: 'var(--slib-text-secondary, #4A5568)',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--slib-primary, #FF751F)';
+                    e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isFilterOpen) {
+                      e.currentTarget.style.borderColor = 'var(--slib-border-light, #E2E8F0)';
+                      e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
+                    }
+                  }}
+                >
+                  <Filter size={16} />
+                  <span>Lọc</span>
+                  <ChevronDown size={14} style={{
+                    transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0)',
+                    transition: 'transform 0.2s ease'
+                  }} />
+                </button>
+                
+                {isFilterOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    background: 'var(--slib-bg-card, #ffffff)',
+                    border: '1px solid var(--slib-border-light, #E2E8F0)',
+                    borderRadius: '12px',
+                    boxShadow: 'var(--slib-shadow-lg)',
+                    minWidth: '200px',
+                    zIndex: 100,
+                    overflow: 'hidden'
                   }}>
-                    <th style={{
-                      textAlign: 'left',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
+                    <div style={{
+                      padding: '12px 16px',
+                      fontSize: '12px',
                       fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Tên sinh viên</th>
-                    <th style={{
-                      textAlign: 'left',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Mã số sinh viên</th>
-                    <th style={{
-                      textAlign: 'center',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Giờ check in</th>
-                    <th style={{
-                      textAlign: 'center',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Thời gian có mặt</th>
-                    <th style={{
-                      textAlign: 'center',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Điểm đánh giá</th>
-                    <th style={{
-                      textAlign: 'center',
-                      padding: '0.75rem',
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: '#6b7280'
-                    }}>Vị trí</th>
-                  </tr>
-                </thead>
-                <tbody>
-                {filteredStudents.map((student) => {
-                  const rank = getRank(student.score);
-                  const scoreBgColor = rank === 'good' ? '#dcfce7' : rank === 'average' ? '#fef3c7' : '#fee2e2';
-                  const scoreTextColor = rank === 'good' ? '#166534' : rank === 'average' ? '#92400e' : '#991b1b';
-                  return (
-                    <tr 
-                      key={student.id} 
-                      onClick={() => handleRowClick(student.studentId)}
-                      style={{
-                        borderBottom: '1px solid #f3f4f6',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        fontSize: '0.875rem',
-                        fontWeight: '500'
-                      }}>{student.name}</td>
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        fontSize: '0.875rem',
-                        color: '#6b7280'
-                      }}>{student.studentId}</td>
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        textAlign: 'center',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: '#374151'
-                      }}>
-                        <div style={{
+                      color: 'var(--slib-text-muted, #A0AEC0)',
+                      borderBottom: '1px solid var(--slib-border-light, #E2E8F0)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>Điểm đánh giá</div>
+                    
+                    {[
+                      { value: 'all', label: 'Tất cả', dot: null },
+                      { value: 'good', label: 'Gương mẫu (≥80%)', dot: 'var(--slib-status-success, #388E3C)' },
+                      { value: 'average', label: 'Khá (65-79%)', dot: 'var(--slib-status-warning, #FF9800)' },
+                      { value: 'bad', label: 'Trung bình (<65%)', dot: 'var(--slib-status-error, #D32F2F)' }
+                    ].map((option) => (
+                      <div 
+                        key={option.value}
+                        onClick={() => { setFilterRank(option.value); setIsFilterOpen(false); }}
+                        style={{
+                          padding: '12px 16px',
+                          fontSize: '14px',
+                          cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.25rem'
-                        }}>
-                          <Clock size={14} color="#6b7280" />
-                          {formatCheckInTime(student.checkInTime)}
+                          gap: '10px',
+                          transition: 'background-color 0.2s ease',
+                          background: filterRank === option.value ? 'var(--slib-primary-subtle, #FFF7F2)' : 'transparent'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = filterRank === option.value ? 'var(--slib-primary-subtle, #FFF7F2)' : 'transparent'}
+                      >
+                        {option.dot && (
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: option.dot
+                          }} />
+                        )}
+                        <span style={{
+                          fontWeight: filterRank === option.value ? '600' : '400',
+                          color: filterRank === option.value ? 'var(--slib-primary, #FF751F)' : 'var(--slib-text-secondary, #4A5568)'
+                        }}>{option.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Table Content */}
+          <div style={{ overflow: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{
+                    textAlign: 'left',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Sinh viên</th>
+                  <th style={{
+                    textAlign: 'left',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Mã số</th>
+                  <th style={{
+                    textAlign: 'center',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Giờ check-in</th>
+                  <th style={{
+                    textAlign: 'center',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Thời gian</th>
+                  <th style={{
+                    textAlign: 'center',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Điểm đánh giá</th>
+                  <th style={{
+                    textAlign: 'center',
+                    padding: '16px 24px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--slib-text-muted, #A0AEC0)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    background: 'var(--slib-bg-main, #F7FAFC)'
+                  }}>Vị trí</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.map((student, index) => {
+                  const scoreColors = getScoreColor(student.score);
+                  return (
+                    <tr 
+                      key={student.id}
+                      onClick={() => setSelectedStudent(student)}
+                      style={{
+                        borderBottom: index === filteredStudents.length - 1 
+                          ? 'none' 
+                          : '1px solid var(--slib-border-light, #E2E8F0)',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--slib-primary-subtle, #FFF7F2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ padding: '16px 24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            background: 'linear-gradient(135deg, var(--slib-primary, #FF751F), var(--slib-primary-light, #FF9B5A))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fff',
+                            fontSize: '13px',
+                            fontWeight: '600'
+                          }}>
+                            {student.name.split(' ').slice(-2).map(n => n[0]).join('')}
+                          </div>
+                          <div>
+                            <div style={{
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              color: 'var(--slib-text-primary, #1A1A1A)'
+                            }}>{student.name}</div>
+                            <div style={{
+                              fontSize: '12px',
+                              color: 'var(--slib-text-muted, #A0AEC0)'
+                            }}>{student.email}</div>
+                          </div>
                         </div>
                       </td>
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        textAlign: 'center',
-                        fontSize: '0.875rem',
-                        fontWeight: '500',
-                        color: '#6b7280'
-                      }}>
-                        {getTimeDuration(student.checkInTime)}
-                      </td>
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        textAlign: 'center'
-                      }}>
+                      <td style={{ padding: '16px 24px' }}>
                         <span style={{
-                          display: 'inline-block',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '12px',
-                          fontSize: '0.875rem',
+                          fontSize: '13px',
                           fontWeight: '600',
-                          backgroundColor: scoreBgColor,
-                          color: scoreTextColor
-                        }}>
-                          {student.score}
-                        </span>
+                          color: 'var(--slib-text-secondary, #4A5568)',
+                          fontFamily: 'monospace'
+                        }}>{student.studentId}</span>
                       </td>
-                      <td style={{
-                        padding: '1rem 0.75rem',
-                        textAlign: 'center'
-                      }}>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 12px',
+                          background: 'var(--slib-bg-main, #F7FAFC)',
+                          borderRadius: '8px'
+                        }}>
+                          <Clock size={14} color="var(--slib-text-muted, #A0AEC0)" />
+                          <span style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: 'var(--slib-text-primary, #1A1A1A)'
+                          }}>{formatCheckInTime(student.checkInTime)}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
                         <span style={{
-                          display: 'inline-block',
-                          padding: '0.25rem 0.75rem',
-                          borderRadius: '8px',
-                          fontSize: '0.875rem',
+                          fontSize: '13px',
                           fontWeight: '500',
-                          backgroundColor: '#f3f4f6',
-                          color: '#374151'
-                        }}>{student.seat}</span>
+                          color: 'var(--slib-text-secondary, #4A5568)'
+                        }}>{getTimeDuration(student.checkInTime)}</span>
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 14px',
+                            borderRadius: '20px',
+                            fontSize: '14px',
+                            fontWeight: '700',
+                            background: scoreColors.bg,
+                            color: scoreColors.color
+                          }}>
+                            <Star size={14} />
+                            {student.score}
+                          </span>
+                          <span style={{
+                            fontSize: '11px',
+                            color: scoreColors.color,
+                            fontWeight: '500'
+                          }}>{getRankLabel(getRank(student.score))}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          background: 'var(--slib-bg-main, #F7FAFC)',
+                          color: 'var(--slib-text-secondary, #4A5568)'
+                        }}>
+                          <MapPin size={14} />
+                          {student.seat}
+                        </span>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+            
             {filteredStudents.length === 0 && (
               <div style={{
-                padding: '3rem',
-                textAlign: 'center',
-                color: '#9ca3af',
-                fontSize: '0.875rem'
-              }}>Không tìm thấy sinh viên nào.</div>
+                padding: '48px',
+                textAlign: 'center'
+              }}>
+                <Users size={48} color="var(--slib-text-muted, #A0AEC0)" style={{ marginBottom: '16px', opacity: 0.5 }} />
+                <p style={{
+                  fontSize: '16px',
+                  fontWeight: '500',
+                  color: 'var(--slib-text-muted, #A0AEC0)',
+                  margin: 0
+                }}>Không tìm thấy sinh viên nào</p>
+              </div>
             )}
           </div>
         </div>

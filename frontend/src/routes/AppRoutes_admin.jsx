@@ -1,47 +1,63 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import AuthPage from "../components/AuthPage";
+// Context
+import { AuthProvider } from "../context/AuthContext";
+
+// Components
+import ProtectedRoute from "../components/ProtectedRoute";
+import LoginPage from "../pages/LoginPage";
+
+// Layout
 import MainLayout from "../layouts/admin/area_management/MainLayOut";
 
+// Pages - Admin Dashboard
 import Dashboard from "../pages/admin/AreaManagement/dashboard/Dashboard";
-// import CheckInOut from "../components/CheckInOut";
 import AreaManagement from "../pages/admin/AreaManagement/AreaManagement";
-// import SeatManage from "../components/SeatManage";
-// import StudentsManage from "../components/StudentsManage";
-// import ViolationManage from "../components/ViolationManage";
-// import ChatManage from "../components/ChatManage";
-// import Statistic from "../components/Statistic";
-// import NotificationManage from "../components/NotificationManage";
+
+// Admin-specific Components
+import UserManagement from "../components/UserManagement";
+import DeviceManagement from "../components/DeviceManagement";
+import SystemConfig from "../components/SystemConfig";
+import SystemHealth from "../components/SystemHealth";
+import AIConfig from "../components/AIConfig";
 
 function AppRoutes() {
-  // Check if user is logged in by checking localStorage or sessionStorage
-  const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-  const isLoggedIn = !!token;
-
-  if (!isLoggedIn) {
-    return <AuthPage />;
-  }
-
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Layout có Sidebar */}
-        <Route element={<MainLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/areas" element={<AreaManagement />} />
-          {/* <Route path="/checkinout" element={<CheckInOut />} />
-          <Route path="/seatmanage" element={<SeatManage />} />
-          <Route path="/students" element={<StudentsManage />} />
-          <Route path="/violation" element={<ViolationManage />} />
-          <Route path="/chat" element={<ChatManage />} />
-          <Route path="/statistic" element={<Statistic />} />
-          <Route path="/notification" element={<NotificationManage />} /> */}
-        </Route>
+      <AuthProvider>
+        <Routes>
+          {/* Public Route - Login */}
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Mặc định */}
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+          {/* Protected Routes - Admin Layout with Sidebar */}
+          <Route element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }>
+            {/* Dashboard */}
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Quản lý thư viện */}
+            <Route path="/library-map" element={<AreaManagement />} />
+
+            {/* Quản lý người dùng */}
+            <Route path="/users" element={<UserManagement />} />
+
+            {/* Quản lý thiết bị */}
+            <Route path="/devices" element={<DeviceManagement />} />
+
+            {/* Hệ thống */}
+            <Route path="/config" element={<SystemConfig />} />
+            <Route path="/health" element={<SystemHealth />} />
+            <Route path="/ai-config" element={<AIConfig />} />
+          </Route>
+
+          {/* Default Redirects */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

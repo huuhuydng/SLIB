@@ -1,12 +1,13 @@
 package slib.com.example.entity.zone_config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 @Table(name = "area_factories")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -32,8 +33,10 @@ public class AreaFactoryEntity {
     @Column(name = "height", nullable = false)
     private Integer height;
 
-    @Column(name = "color")
-    private String color;
+    @Column(name = "is_locked", nullable = false)
+    @Builder.Default
+    @JsonProperty("isLocked")
+    private Boolean isLocked = false;
 
     @ManyToOne
     @JoinColumn(name = "area_id", nullable = false)

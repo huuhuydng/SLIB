@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:slib/services/booking_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
 // Import các file của bạn
@@ -11,6 +12,9 @@ import 'views/authentication/on_boarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Vietnamese locale for date formatting
+  await initializeDateFormatting('vi', null);
 
   try {
     if (Firebase.apps.isEmpty) {

@@ -190,57 +190,14 @@
   min-height: 48px;
   width: 48px;
   margin: 0 auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.sidebar__item:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.sidebar__item--active {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
 }
 
 /* ICON WRAPPER - Always centered */
-.sidebar__itemIcon {
+.sidebar__icon {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-}
-
-/* LABEL - Hidden by default */
-.sidebar__itemLabel {
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  margin-left: 0;
-  transition: all 0.3s var(--sidebar-transition);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* EXPANDED STATE - Show labels */
-.sidebar:hover .sidebar__item {
-  width: auto;
-  padding: 12px 16px;
-  justify-content: flex-start;
-  gap: 12px;
-}
-
-.sidebar:hover .sidebar__itemLabel {
-  opacity: 1;
-  width: auto;
-  margin-left: 0;
-}
   height: 24px;
   flex-shrink: 0;
 }
@@ -334,22 +291,6 @@
 /* ======================================
    HELP SECTION (FOOTER)
    ====================================== */
-.sidebar__footer {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  flex-shrink: 0;
-}
-
-.sidebar__item--logout {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar__item--logout:hover {
-  background: rgba(255, 0, 0, 0.2);
-  color: #ffffff;
-}
-
 .sidebar__helpWrap {
   margin-top: auto;
   padding-top: 16px;

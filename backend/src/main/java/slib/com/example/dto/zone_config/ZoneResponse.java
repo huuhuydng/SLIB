@@ -22,5 +22,4 @@ public class ZoneResponse {
     private Long areaId;
 
     private Boolean isLocked;
-    private String color;
 }

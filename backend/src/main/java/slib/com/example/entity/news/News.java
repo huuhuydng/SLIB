@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 @Table(name = "news", indexes = {
     @Index(name = "idx_news_published", columnList = "is_published, published_at DESC")
 })
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

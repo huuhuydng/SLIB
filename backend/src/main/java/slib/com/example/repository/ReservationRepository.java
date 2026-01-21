@@ -19,4 +19,6 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
 
+    // Delete all reservations by seat ID (for cascade delete when seat is deleted)
+    void deleteBySeat_SeatId(Integer seatId);
 }

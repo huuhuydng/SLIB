@@ -5,7 +5,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "zone_amenities")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

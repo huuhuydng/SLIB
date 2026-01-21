@@ -12,7 +12,7 @@ public class SeatDTO {
     private Integer seatId;
     private String seatCode;
     private SeatStatus seatStatus;
-    private Integer positionX;
-    private Integer positionY;
+    private Integer rowNumber;
+    private Integer columnNumber;
     private Integer zoneId;
 }

@@ -8,8 +8,12 @@ const api = axios.create({
   },
 });
 
-// Debug logging for requests/responses to trace 404s
+// Add Authorization header if token exists
 api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('librarian_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   console.log("[API][Request]", config.method?.toUpperCase(), config.baseURL + config.url, config.params || config.data);
   return config;
 });

@@ -6,9 +6,10 @@ import { getZonesByArea, getAreaFactoriesByArea, updateAreaPosition, updateAreaD
 import { Rnd } from 'react-rnd';
 function Area({ area }) {
   const { state, dispatch, actions } = useLayout();
-  const { zones, factories, selectedItem, canvas } = state;
-  const [loadingZones, setLoadingZones] = useState(false);
-  const [loadingFactories, setLoadingFactories] = useState(false);
+  const { zones, factories, selectedItem, canvas, isPreviewMode } = state;
+  // Start with loading=true to prevent rendering before API data arrives
+  const [loadingZones, setLoadingZones] = useState(true);
+  const [loadingFactories, setLoadingFactories] = useState(true);
 
   // Load zones for this area
   useEffect(() => {
@@ -30,6 +31,7 @@ function Area({ area }) {
           color: z.color ?? '#d1f7d8',
           isLocked: z.is_locked ?? z.isLocked ?? false,
         }));
+        // Use data directly from database (no localStorage cache override)
         dispatch({
           type: actions.MERGE_ZONES,
           payload: {
@@ -55,16 +57,18 @@ function Area({ area }) {
         // Convert snake_case response to camelCase
         const convertedFactories = (res.data || []).map(f => {
           return {
-            factoryId: f.factory_id || f.factoryId,
-            factoryName: f.factory_name || f.factoryName,
-            positionX: f.position_x || f.positionX,
-            positionY: f.position_y || f.positionY,
-            width: f.width,
-            height: f.height,
-            color: f.color || "#90EE90",
-            areaId: f.area_id || f.areaId,
+            factoryId: f.factory_id ?? f.factoryId,
+            factoryName: f.factory_name ?? f.factoryName,
+            positionX: f.position_x ?? f.positionX ?? 0,
+            positionY: f.position_y ?? f.positionY ?? 0,
+            width: f.width ?? 120,
+            height: f.height ?? 80,
+            color: f.color ?? "#9CA3AF",
+            areaId: f.area_id ?? f.areaId,
+            isLocked: f.is_locked ?? f.isLocked ?? false,
           };
         });
+        // Use data directly from database (no localStorage cache override)
         dispatch({
           type: actions.MERGE_FACTORIES,
           payload: {
@@ -309,15 +313,15 @@ function Area({ area }) {
         width: area.width || 300,
         height: area.height || 250,
       }}
-      onDrag={handleDrag}
-      onDragStop={handleDragStop}
-      onResizeStop={handleResizeStop}
+      onDrag={isPreviewMode ? undefined : handleDrag}
+      onDragStop={isPreviewMode ? undefined : handleDragStop}
+      onResizeStop={isPreviewMode ? undefined : handleResizeStop}
       dragHandleClassName="room-header"
       cancel=".zone-card, .zone-card *"
       minWidth={200}
       minHeight={150}
-      disableDragging={area.locked === true || area.isActive === false}
-      enableResizing={area.locked === true || area.isActive === false ? false : true}
+      disableDragging={isPreviewMode || area.locked === true || area.isActive === false}
+      enableResizing={isPreviewMode ? false : (area.locked === true || area.isActive === false ? false : true)}
       resizeHandleClasses={{
         bottom: 'resize-handle-bottom',
         right: 'resize-handle-right',
@@ -415,8 +419,16 @@ function Area({ area }) {
             </div>
           </div>
 
-          <div className="room-content">
-            {loadingZones && loadingFactories ? (
+          <div
+            className="room-content"
+            onClick={(e) => {
+              // Deselect all when clicking on empty area
+              if (e.target === e.currentTarget) {
+                dispatch({ type: actions.DESELECT });
+              }
+            }}
+          >
+            {(loadingZones || loadingFactories) ? (
               <div className="room-empty">
                 <p>Đang tải...</p>
               </div>
@@ -426,7 +438,15 @@ function Area({ area }) {
                 <small>Nhấn "Thêm phòng" hoặc "Thêm vật cản"</small>
               </div>
             ) : (
-              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <div
+                style={{ position: 'relative', width: '100%', height: '100%' }}
+                onClick={(e) => {
+                  // Deselect all when clicking on empty area inside content
+                  if (e.target === e.currentTarget) {
+                    dispatch({ type: actions.DESELECT });
+                  }
+                }}
+              >
                 {areaZones.map((zone) => (
                   <ZoneSimple
                     key={zone.zoneId}
@@ -438,6 +458,7 @@ function Area({ area }) {
                   <Shape
                     key={factory.factoryId}
                     factory={factory}
+                    area={area}
                   />
                 ))}
               </div>

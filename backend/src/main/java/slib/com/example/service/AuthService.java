@@ -8,14 +8,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.dto.users.AuthResponse;
+import slib.com.example.entity.users.RefreshToken;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
+import slib.com.example.repository.RefreshTokenRepository;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.security.JwtService;
 
+import java.time.Instant;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,25 +26,27 @@ import java.util.regex.Pattern;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
 
     @Value("${google.client-id}")
     private String googleClientId;
 
     /**
-     * Login with Google ID token (no refresh token)
+     * Login with Google ID token
      */
     @Transactional
-    public Map<String, Object> loginWithGoogle(String googleIdToken, String fullNameFromClient, String fcmToken) {
+    public AuthResponse loginWithGoogle(String googleIdToken, String fullNameFromClient, String fcmToken,
+            String deviceInfo) {
         // Verify Google ID token
         GoogleIdToken.Payload payload = verifyGoogleToken(googleIdToken);
 
         String email = payload.getEmail();
         String googleName = (String) payload.get("name");
 
-        // Validate email: Allow @fpt.edu.vn OR specific admin emails
-        if (!email.endsWith("@fpt.edu.vn") && !"phuckirito19@gmail.com".equalsIgnoreCase(email)) {
-            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn hoặc email quản trị viên");
+        // Validate FPT email
+        if (!email.endsWith("@fpt.edu.vn")) {
+            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn");
         }
 
         // Extract student code from email
@@ -56,14 +60,11 @@ public class AuthService {
                     ? fullNameFromClient
                     : googleName;
 
-            // Determine role based on email
-            Role role = determineRole(email);
-
             user = User.builder()
                     .email(email)
                     .studentCode(studentCode)
                     .fullName(fullName != null ? fullName : studentCode)
-                    .role(role)
+                    .role(Role.STUDENT)
                     .reputationScore(100)
                     .isActive(true)
                     .notiDevice(fcmToken)
@@ -77,42 +78,81 @@ public class AuthService {
             }
         }
 
-        // Generate access token
+        // Generate tokens
         String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
 
-        // Return response
-        Map<String, Object> response = new HashMap<>();
-        response.put("access_token", accessToken);
-        response.put("user", user);
+        // Save refresh token hash to database
+        saveRefreshToken(user, refreshToken, deviceInfo);
 
-        return response;
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .id(user.getId().toString())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .studentCode(user.getStudentCode())
+                .role(user.getRole().name())
+                .expiresIn(3600L) // 1 hour in seconds
+                .build();
     }
 
     /**
-     * Determine user role based on email pattern
-     * - phucnhde170706@fpt.edu.vn -> LIBRARIAN (specific email)
-     * - phuckirito19@gmail.com -> ADMIN (specific email)
-     * - *admin*@fpt.edu.vn -> ADMIN
-     * - Default -> STUDENT
+     * Refresh access token using refresh token
      */
-    public Role determineRole(String email) {
-        // Check for specific LIBRARIAN emails
-        if ("phucnhde170706@fpt.edu.vn".equalsIgnoreCase(email)) {
-            return Role.LIBRARIAN;
+    @Transactional
+    public AuthResponse refreshAccessToken(String refreshToken) {
+        // Validate refresh token format
+        if (!jwtService.isRefreshToken(refreshToken)) {
+            throw new RuntimeException("Token không hợp lệ - không phải refresh token");
         }
-        
-        // Check for specific ADMIN emails
-        if ("phuckirito19@gmail.com".equalsIgnoreCase(email)) {
-            return Role.ADMIN;
+
+        // Check if token exists and not revoked
+        String tokenHash = jwtService.hashToken(refreshToken);
+        RefreshToken storedToken = refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new RuntimeException("Refresh token không tồn tại"));
+
+        if (!storedToken.isValid()) {
+            throw new RuntimeException("Refresh token đã hết hạn hoặc bị thu hồi");
         }
-        
-        // Check for ADMIN pattern in email
-        if (email.toLowerCase().contains("admin")) {
-            return Role.ADMIN;
-        }
-        
-        // Default is STUDENT
-        return Role.STUDENT;
+
+        // Get user from token
+        String email = jwtService.extractEmail(refreshToken);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        // Generate new access token
+        String newAccessToken = jwtService.generateAccessToken(user);
+
+        return AuthResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken) // Keep same refresh token
+                .id(user.getId().toString())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .studentCode(user.getStudentCode())
+                .role(user.getRole().name())
+                .expiresIn(3600L)
+                .build();
+    }
+
+    /**
+     * Logout - revoke refresh token
+     */
+    @Transactional
+    public void logout(String refreshToken) {
+        String tokenHash = jwtService.hashToken(refreshToken);
+        refreshTokenRepository.revokeByTokenHash(tokenHash);
+    }
+
+    /**
+     * Logout all devices - revoke all refresh tokens
+     */
+    @Transactional
+    public void logoutAllDevices(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+        refreshTokenRepository.revokeAllByUserId(user.getId());
     }
 
     // ==========================================
@@ -149,5 +189,38 @@ public class AuthService {
             }
         }
         return emailPrefix;
+    }
+
+    private void saveRefreshToken(User user, String refreshToken, String deviceInfo) {
+        RefreshToken token = RefreshToken.builder()
+                .user(user)
+                .tokenHash(jwtService.hashToken(refreshToken))
+                .expiresAt(Instant.now().plusMillis(jwtService.getRefreshTokenExpiration()))
+                .deviceInfo(deviceInfo)
+                .revoked(false)
+                .build();
+        refreshTokenRepository.save(token);
+    }
+
+
+    //TEST
+    public Role determineRole(String email) {
+        // Check for specific LIBRARIAN emails
+        if ("phucnhde170706@fpt.edu.vn".equalsIgnoreCase(email)) {
+            return Role.LIBRARIAN;
+        }
+        
+        // Check for specific ADMIN emails
+        if ("phuckirito19@gmail.com".equalsIgnoreCase(email)) {
+            return Role.ADMIN;
+        }
+        
+        // Check for ADMIN pattern in email
+        if (email.toLowerCase().contains("admin")) {
+            return Role.ADMIN;
+        }
+        
+        // Default is STUDENT
+        return Role.STUDENT;
     }
 }

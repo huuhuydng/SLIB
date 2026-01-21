@@ -10,9 +10,13 @@ import slib.com.example.entity.users.User;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
@@ -21,26 +25,77 @@ public class JwtService {
     @Value("${jwt.secret}")
     private String secretKey;
 
-    @Value("${jwt.expiration:3600000}") // Default 1 hour
-    private Long jwtExpiration;
+    @Value("${jwt.access-token-expiration:3600000}")
+    private long accessTokenExpiration; // 1 hour default
+
+    @Value("${jwt.refresh-token-expiration:604800000}")
+    private long refreshTokenExpiration; // 7 days default
+
+    // ==========================================
+    // === TOKEN GENERATION ===
+    // ==========================================
 
     /**
-     * Generate JWT access token for user
+     * Generate access token for user
      */
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", user.getEmail());
         claims.put("role", user.getRole().name());
-        claims.put("student_code", user.getStudentCode());
-        claims.put("user_id", user.getId().toString());
-        
+        claims.put("studentCode", user.getStudentCode());
+        claims.put("type", "access");
+
+        return buildToken(claims, user.getEmail(), accessTokenExpiration);
+    }
+
+    /**
+     * Generate refresh token for user
+     */
+    public String generateRefreshToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh");
+        claims.put("tokenId", UUID.randomUUID().toString());
+
+        return buildToken(claims, user.getEmail(), refreshTokenExpiration);
+    }
+
+    private String buildToken(Map<String, Object> extraClaims, String subject, long expiration) {
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(user.getEmail())
+                .setClaims(extraClaims)
+                .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    // ==========================================
+    // === TOKEN PARSING ===
+    // ==========================================
+
+    public String extractUsername(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+
+    public String extractEmail(String token) {
+        return extractClaim(token, claims -> claims.get("email", String.class));
+    }
+
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractStudentCode(String token) {
+        return extractClaim(token, claims -> claims.get("studentCode", String.class));
+    }
+
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get("type", String.class));
+    }
+
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
     }
 
     private Claims extractAllClaims(String token) {
@@ -51,26 +106,23 @@ public class JwtService {
                 .getBody();
     }
 
-    public String extractUsername(String token) {
-        return extractClaim(token, claims -> claims.get("email", String.class));
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
-    }
-
-    public String extractStudentCode(String token) {
-        return extractClaim(token, claims -> claims.get("student_code", String.class));
-    }
-
-    private Key getSignInKey() {
-        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
-    }
+    // ==========================================
+    // === TOKEN VALIDATION ===
+    // ==========================================
 
     public boolean isTokenValid(String token, String username) {
-        final String extractedEmail = extractUsername(token);
-        return (extractedEmail != null && extractedEmail.equals(username) && !isTokenExpired(token));
+        final String extractedUsername = extractUsername(token);
+        return (extractedUsername != null && extractedUsername.equals(username) && !isTokenExpired(token));
+    }
+
+    public boolean isAccessToken(String token) {
+        String type = extractTokenType(token);
+        return "access".equals(type);
+    }
+
+    public boolean isRefreshToken(String token) {
+        String type = extractTokenType(token);
+        return "refresh".equals(type);
     }
 
     private boolean isTokenExpired(String token) {
@@ -79,5 +131,30 @@ public class JwtService {
 
     private Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
+    }
+
+    // ==========================================
+    // === UTILITY ===
+    // ==========================================
+
+    private Key getSignInKey() {
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Hash a token for storage (we don't store raw refresh tokens)
+     */
+    public String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Failed to hash token", e);
+        }
+    }
+
+    public long getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
     }
 }

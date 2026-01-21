@@ -1,5 +1,6 @@
 package slib.com.example.dto.zone_config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -16,5 +17,7 @@ public class AreaFactoryResponse {
     private Integer positionY;
     private Integer width;
     private Integer height;
-    private String color;
+
+    @JsonProperty("isLocked")
+    private Boolean isLocked;
 }

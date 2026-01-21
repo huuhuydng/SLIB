@@ -283,19 +283,7 @@ const Header = ({
               </div>
 
               <div 
-                onClick={() => { 
-                  console.log('🔴🔴🔴 FORCE LOGOUT!');
-                  setShowDropdown(false);
-                  
-                  // Clear all storage
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  console.log('✅ Storage cleared');
-                  
-                  // FORCE COMPLETE PAGE RELOAD from server
-                  console.log('🔄 Reloading from server...');
-                  window.location.reload(true); // Force reload from server, not cache
-                }}
+                onClick={() => { setShowDropdown(false); onLogout(); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
