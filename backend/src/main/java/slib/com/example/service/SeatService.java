@@ -165,6 +165,33 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Hạn chế ghế theo seatId (unique ID)
+     */
+    public SeatResponse restrictSeatById(Integer seatId) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
+        return toResponse(seatRepository.save(seat));
+    }
+
+    /**
+     * Bỏ hạn chế ghế theo seatId
+     */
+    public void unrestrictSeatById(Integer seatId) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        seat.setSeatStatus(SeatStatus.AVAILABLE);
+        seatRepository.save(seat);
+    }
+
+    /**
+     * @deprecated Use restrictSeatById instead (seatCode is not unique across
+     *             zones)
+     */
+    @Deprecated
     public SeatResponse restrictSeat(String seatCode) {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
@@ -174,8 +201,10 @@ public class SeatService {
     }
 
     /**
-     * Bỏ hạn chế ghế (set status back to AVAILABLE)
+     * @deprecated Use unrestrictSeatById instead (seatCode is not unique across
+     *             zones)
      */
+    @Deprecated
     public void unrestrictSeat(String seatCode) {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));

@@ -48,7 +48,7 @@ public class SeatController {
         if (zoneId != null) {
             return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
         }
-        
+
         // Nếu không có params nào, trả về tất cả seats
         return ResponseEntity.ok(seatService.getAllSeats());
     }
@@ -104,32 +104,33 @@ public class SeatController {
 
     // ==================== RESTRICTION ENDPOINTS ====================
     /**
-     * Thêm hạn chế cho ghế
-     * POST /slib/seats/restrict/{seatCode}
+     * Thêm hạn chế cho ghế (chức năng hạn chế sử dụng theo seatId vì seatCode không
+     * unique)
+     * POST /slib/seats/{seatId}/restrict
      */
-    @PostMapping("/restrict/{seatCode}")
-    public ResponseEntity<SeatResponse> restrictSeat(
-            @PathVariable String seatCode,
+    @PostMapping("/{seatId}/restrict")
+    public ResponseEntity<?> restrictSeat(
+            @PathVariable Integer seatId,
             @RequestBody(required = false) java.util.Map<String, String> body) {
         try {
-            SeatResponse response = seatService.restrictSeat(seatCode);
+            SeatResponse response = seatService.restrictSeatById(seatId);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 
     /**
      * Bỏ hạn chế ghế
-     * DELETE /slib/seats/restrict/{seatCode}
+     * DELETE /slib/seats/{seatId}/restrict
      */
-    @DeleteMapping("/restrict/{seatCode}")
-    public ResponseEntity<String> unrestrictSeat(@PathVariable String seatCode) {
+    @DeleteMapping("/{seatId}/restrict")
+    public ResponseEntity<?> unrestrictSeat(@PathVariable Integer seatId) {
         try {
-            seatService.unrestrictSeat(seatCode);
-            return ResponseEntity.ok("Đã bỏ hạn chế ghế: " + seatCode);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi bỏ hạn chế: " + e.getMessage());
+            seatService.unrestrictSeatById(seatId);
+            return ResponseEntity.ok(java.util.Map.of("message", "Đã bỏ hạn chế ghế với id: " + seatId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 
