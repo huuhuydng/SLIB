@@ -39,29 +39,29 @@ class LibrarianService {
       email,
       password
     });
-    
+
     const token = response.data.accessToken || response.data.token || response.data.access_token;
     const user = response.data.user || response.data.librarian;
-    
+
     if (token) {
       localStorage.setItem('librarian_token', token);
       console.log('✅ [Service] Token saved:', token.substring(0, 20) + '...');
     } else {
       console.error('❌ [Service] No token in response:', response.data);
     }
-    
+
     if (user) {
       localStorage.setItem('librarian_user', JSON.stringify(user));
       console.log('✅ [Service] User saved:', user);
     }
-    
+
     return response.data;
   }
 
   async googleLogin(idToken) {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
-      
+
 
       const response = await axios.post('http://localhost:8080/slib/users/login-google', {
         id_token: idToken,
@@ -69,25 +69,26 @@ class LibrarianService {
       });
 
       console.log('✅ [Service] googleLogin success:', response.data);
-      
-      const token = response.data.access_token || 
-                    response.data.session?.access_token || 
-                    response.data.token;
-      
+
+      // Backend trả về camelCase (accessToken), fallback snake_case for compatibility
+      const token = response.data.accessToken ||
+        response.data.access_token ||
+        response.data.token;
+
       if (token) {
         localStorage.setItem('librarian_token', token);
         console.log('✅ [Service] Google token saved:', token.substring(0, 20) + '...');
       } else {
         console.error('❌ [Service] No token in Google response:', response.data);
       }
-      
+
       if (response.data.user) {
         localStorage.setItem('librarian_user', JSON.stringify(response.data.user));
         console.log('✅ [Service] Google user saved:', response.data.user);
       }
-      
+
       return response.data;
-      
+
     } catch (error) {
       console.error('❌ [Service] googleLogin error:', error);
       throw error;
@@ -97,14 +98,14 @@ class LibrarianService {
   async forgotPassword(email) {
     try {
       console.log('🟡 [Service] Calling forgotPassword with:', email);
-      
+
       const response = await axiosInstance.post('/forgot-password', {
         email: email.trim().toLowerCase()
       });
 
       console.log('✅ [Service] forgotPassword success:', response.data);
       return response.data;
-      
+
     } catch (error) {
       console.error('❌ [Service] forgotPassword error:', error);
       throw error;
@@ -114,7 +115,7 @@ class LibrarianService {
   async verifyOtp(email, token, type = 'recovery') {
     try {
       console.log('🟡 [Service] Calling verifyOtp:', { email, token, type });
-      
+
       const response = await axiosInstance.post('/verify-otp', {
         email: email.trim().toLowerCase(),
         token: token.trim(),
@@ -122,7 +123,7 @@ class LibrarianService {
       });
 
       console.log('✅ [Service] verifyOtp success:', response.data);
-      
+
       if (response.data.result) {
         try {
           const resultData = JSON.parse(response.data.result);
@@ -134,9 +135,9 @@ class LibrarianService {
           console.warn('⚠️ [Service] Cannot parse result JSON:', e);
         }
       }
-      
+
       return response.data;
-      
+
     } catch (error) {
       console.error('❌ [Service] verifyOtp error:', error);
       throw error;
@@ -146,7 +147,7 @@ class LibrarianService {
   async resendOtp(email, type = 'recovery') {
     try {
       console.log('🟡 [Service] Calling resendOtp:', { email, type });
-      
+
       const response = await axiosInstance.post('/resend-otp', {
         email: email.trim().toLowerCase(),
         type: type
@@ -154,7 +155,7 @@ class LibrarianService {
 
       console.log('✅ [Service] resendOtp success:', response.data);
       return response.data;
-      
+
     } catch (error) {
       console.error('❌ [Service] resendOtp error:', error);
       throw error;
@@ -164,13 +165,13 @@ class LibrarianService {
   async updatePassword(newPassword) {
     try {
       const token = localStorage.getItem('temp_reset_token');
-      
+
       if (!token) {
         throw new Error('Không tìm thấy token xác thực. Vui lòng xác thực OTP lại.');
       }
 
       console.log('🟡 [Service] Calling updatePassword');
-      
+
       const response = await axiosInstance.post('/update-password', {
         password: newPassword
       }, {
@@ -180,11 +181,11 @@ class LibrarianService {
       });
 
       console.log('✅ [Service] updatePassword success:', response.data);
-      
+
       localStorage.removeItem('temp_reset_token');
-      
+
       return response.data;
-      
+
     } catch (error) {
       console.error('❌ [Service] updatePassword error:', error);
       throw error;

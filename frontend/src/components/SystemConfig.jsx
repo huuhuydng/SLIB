@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { 
-  Settings, 
-  Clock, 
-  Star, 
+import React, { useState, useEffect } from 'react';
+import {
+  Settings,
+  Clock,
+  Star,
   AlertTriangle,
   Save,
   RotateCcw,
@@ -16,9 +16,12 @@ import {
   Timer,
   Award,
   MinusCircle,
-  PlusCircle
+  PlusCircle,
+  Loader2
 } from 'lucide-react';
 import Header from './Header';
+
+const API_BASE_URL = 'http://localhost:8080/slib/settings';
 
 // Mock Data
 const VIOLATION_RULES = [
@@ -41,18 +44,67 @@ const SystemConfig = () => {
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [ruleType, setRuleType] = useState('violation');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Library Config State
   const [libraryConfig, setLibraryConfig] = useState({
     openTime: '07:00',
     closeTime: '22:00',
-    maxBookingDuration: 180,
-    gracePeriod: 15,
+    slotDuration: 60,
     maxBookingsPerDay: 3,
-    advanceBookingDays: 7,
-    autoCheckoutEnabled: true,
-    autoCheckoutAfter: 30,
+    maxHoursPerDay: 4,
+    maxBookingDays: 14,
+    workingDays: '2,3,4,5,6',
   });
+
+  // Load settings from API on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/library`);
+        if (response.ok) {
+          const data = await response.json();
+          setLibraryConfig({
+            openTime: data.openTime || '07:00',
+            closeTime: data.closeTime || '22:00',
+            slotDuration: data.slotDuration || 60,
+            maxBookingsPerDay: data.maxBookingsPerDay || 3,
+            maxHoursPerDay: data.maxHoursPerDay || 4,
+            maxBookingDays: data.maxBookingDays || 14,
+            workingDays: data.workingDays || '2,3,4,5,6',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Save settings to API
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(libraryConfig),
+      });
+      if (response.ok) {
+        alert('Lưu cài đặt thành công!');
+      } else {
+        alert('Lỗi khi lưu cài đặt');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Lỗi kết nối server');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const tabs = [
     { id: 'library', label: 'Tham số thư viện', icon: Clock },
@@ -66,7 +118,7 @@ const SystemConfig = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchPlaceholder="Tìm kiếm cài đặt..."
       />
 
@@ -108,22 +160,25 @@ const SystemConfig = () => {
               <RotateCcw size={18} />
               Khôi phục mặc định
             </button>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: '#FF751F',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#fff',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
-            }}>
-              <Save size={18} />
-              Lưu thay đổi
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: saving ? '#ccc' : '#FF751F',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
+              }}>
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
         </div>
@@ -199,8 +254,8 @@ const SystemConfig = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
                           Giờ mở cửa
                         </label>
-                        <input 
-                          type="time" 
+                        <input
+                          type="time"
                           value={libraryConfig.openTime}
                           onChange={(e) => handleConfigChange('openTime', e.target.value)}
                           style={{
@@ -210,15 +265,15 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
                           Giờ đóng cửa
                         </label>
-                        <input 
-                          type="time" 
+                        <input
+                          type="time"
                           value={libraryConfig.closeTime}
                           onChange={(e) => handleConfigChange('closeTime', e.target.value)}
                           style={{
@@ -228,7 +283,7 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                     </div>
@@ -243,12 +298,12 @@ const SystemConfig = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Thời gian đặt chỗ tối đa (phút)
+                          Thời lượng mỗi slot (phút)
                         </label>
-                        <input 
-                          type="number" 
-                          value={libraryConfig.maxBookingDuration}
-                          onChange={(e) => handleConfigChange('maxBookingDuration', parseInt(e.target.value))}
+                        <input
+                          type="number"
+                          value={libraryConfig.slotDuration}
+                          onChange={(e) => handleConfigChange('slotDuration', parseInt(e.target.value))}
                           style={{
                             width: '100%',
                             padding: '12px 16px',
@@ -256,17 +311,17 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Thời gian ân hạn check-in (phút)
+                          Đặt trước tối đa (ngày)
                         </label>
-                        <input 
-                          type="number" 
-                          value={libraryConfig.gracePeriod}
-                          onChange={(e) => handleConfigChange('gracePeriod', parseInt(e.target.value))}
+                        <input
+                          type="number"
+                          value={libraryConfig.maxBookingDays}
+                          onChange={(e) => handleConfigChange('maxBookingDays', parseInt(e.target.value))}
                           style={{
                             width: '100%',
                             padding: '12px 16px',
@@ -274,15 +329,15 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Số lượt đặt tối đa/ngày
+                          Số lượt đặt tối đa/ngày/người
                         </label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={libraryConfig.maxBookingsPerDay}
                           onChange={(e) => handleConfigChange('maxBookingsPerDay', parseInt(e.target.value))}
                           style={{
@@ -292,17 +347,17 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Đặt trước tối đa (ngày)
+                          Số giờ tối đa/ngày/người
                         </label>
-                        <input 
-                          type="number" 
-                          value={libraryConfig.advanceBookingDays}
-                          onChange={(e) => handleConfigChange('advanceBookingDays', parseInt(e.target.value))}
+                        <input
+                          type="number"
+                          value={libraryConfig.maxHoursPerDay}
+                          onChange={(e) => handleConfigChange('maxHoursPerDay', parseInt(e.target.value))}
                           style={{
                             width: '100%',
                             padding: '12px 16px',
@@ -310,7 +365,26 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
+                        />
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Ngày làm việc (1=CN, 2=T2, ..., 7=T7)
+                        </label>
+                        <input
+                          type="text"
+                          value={libraryConfig.workingDays}
+                          onChange={(e) => handleConfigChange('workingDays', e.target.value)}
+                          placeholder="VD: 2,3,4,5,6"
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
                         />
                       </div>
                     </div>
@@ -336,8 +410,8 @@ const SystemConfig = () => {
                         <div style={{ fontSize: '13px', color: '#A0AEC0' }}>Tự động check-out khi quá thời gian</div>
                       </div>
                       <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           checked={libraryConfig.autoCheckoutEnabled}
                           onChange={(e) => handleConfigChange('autoCheckoutEnabled', e.target.checked)}
                           style={{ opacity: 0, width: 0, height: 0 }}
@@ -373,8 +447,8 @@ const SystemConfig = () => {
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
                           Tự động check-out sau (phút)
                         </label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           value={libraryConfig.autoCheckoutAfter}
                           onChange={(e) => handleConfigChange('autoCheckoutAfter', parseInt(e.target.value))}
                           style={{
@@ -384,7 +458,7 @@ const SystemConfig = () => {
                             borderRadius: '12px',
                             fontSize: '14px',
                             outline: 'none'
-                          }} 
+                          }}
                         />
                       </div>
                     )}
@@ -410,7 +484,7 @@ const SystemConfig = () => {
                       Cấu hình điểm thưởng và điểm phạt cho sinh viên
                     </p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => { setRuleType('violation'); setEditingRule(null); setShowRuleModal(true); }}
                     style={{
                       display: 'flex',
@@ -430,7 +504,7 @@ const SystemConfig = () => {
                     Thêm quy tắc
                   </button>
                 </div>
-                
+
                 <div style={{ padding: '24px' }}>
                   {/* Violation Rules */}
                   <div style={{ marginBottom: '32px' }}>

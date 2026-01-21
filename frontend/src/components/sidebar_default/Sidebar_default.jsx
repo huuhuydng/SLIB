@@ -9,13 +9,17 @@ import {
   Activity,
   Sparkles,
   HelpCircle,
-  Shield
+  Shield,
+  LogOut
 } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 
 import logo from "../../assets/logonencam.png";
 import "../../styles/admin/sidebar_default.css";
 
 const SidebarAdmin = () => {
+  const { user, logout } = useAuth();
+
   // Menu items dành riêng cho Admin
   const adminMenuItems = [
     { icon: LayoutDashboard, label: "Tổng quan", path: "/dashboard" },
@@ -30,11 +34,17 @@ const SidebarAdmin = () => {
     { icon: Sparkles, label: "Cấu hình AI", path: "/ai-config" },
   ];
 
+  const handleLogout = () => {
+    if (confirm('Bạn có chắc muốn đăng xuất?')) {
+      logout();
+    }
+  };
+
   return (
     <aside className="sidebar">
       {/* Brand / Logo */}
       <div className="sidebar__brand">
-        <div className="sidebar__brandRow"> 
+        <div className="sidebar__brandRow">
           <img src={logo} alt="Slib" className="sidebar__brandIcon" />
         </div>
       </div>
@@ -92,13 +102,41 @@ const SidebarAdmin = () => {
         </div>
       </nav>
 
-      {/* Footer / Help */}
+      {/* Footer - User & Logout */}
       <div className="sidebar__helpWrap">
-        <div className="sidebar__helpItem">
+        {user && (
+          <div className="sidebar__userInfo" style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid rgba(255,255,255,0.1)',
+            marginBottom: '8px'
+          }}>
+            <div style={{ fontSize: '13px', color: '#fff', fontWeight: '600', marginBottom: '2px' }}>
+              {user.full_name || user.email || 'Admin'}
+            </div>
+            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
+              {user.email}
+            </div>
+          </div>
+        )}
+        <div className="sidebar__helpItem" style={{ cursor: 'pointer' }}>
           <span className="sidebar__icon">
             <HelpCircle size={22} strokeWidth={2} />
           </span>
           <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
+        </div>
+        <div
+          className="sidebar__helpItem sidebar__logoutItem"
+          onClick={handleLogout}
+          style={{
+            cursor: 'pointer',
+            color: '#FF751F',
+            marginTop: '4px'
+          }}
+        >
+          <span className="sidebar__icon">
+            <LogOut size={22} strokeWidth={2} />
+          </span>
+          <span className="sidebar__label">Đăng xuất</span>
         </div>
       </div>
     </aside>
