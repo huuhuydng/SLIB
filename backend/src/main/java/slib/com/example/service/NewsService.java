@@ -3,11 +3,13 @@ package slib.com.example.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.dto.NewsListDTO;
 import slib.com.example.entity.news.News; 
 import slib.com.example.repository.NewsRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NewsService {
@@ -37,8 +39,46 @@ public class NewsService {
 
     // --- ADMIN/LIBRARIAN (WEB PORTAL) ---
 
-    public List<News> getAllNewsForAdmin() {
-        return newsRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+    public List<NewsListDTO> getAllNewsForAdmin() {
+        return newsRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(news -> NewsListDTO.builder()
+                        .id(news.getId())
+                        .title(news.getTitle())
+                        .summary(news.getSummary())
+                        .categoryId(news.getCategory() != null ? news.getCategory().getId() : null)
+                        .categoryName(news.getCategory() != null ? news.getCategory().getName() : null)
+                        .isPublished(news.getIsPublished())
+                        .isPinned(news.getIsPinned())
+                        .viewCount(news.getViewCount())
+                        .createdAt(news.getCreatedAt())
+                        .publishedAt(news.getPublishedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    public NewsListDTO getNewsDetailForAdmin(Long id) {
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
+        return NewsListDTO.builder()
+                .id(news.getId())
+                .title(news.getTitle())
+                .summary(news.getSummary())
+                .content(news.getContent())
+                .categoryId(news.getCategory() != null ? news.getCategory().getId() : null)
+                .categoryName(news.getCategory() != null ? news.getCategory().getName() : null)
+                .isPublished(news.getIsPublished())
+                .isPinned(news.getIsPinned())
+                .viewCount(news.getViewCount())
+                .createdAt(news.getCreatedAt())
+                .publishedAt(news.getPublishedAt())
+                .build();
+    }
+
+    public String getNewsImage(Long id) {
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
+        return news.getImageUrl();
     }
 
 

@@ -44,13 +44,28 @@ public class AuthService {
         String email = payload.getEmail();
         String googleName = (String) payload.get("name");
 
-        // Validate FPT email
-        if (!email.endsWith("@fpt.edu.vn")) {
-            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn");
+        // Whitelist for testing (add your email here)
+        String[] whitelistEmails = {
+                "huuhuydng@gmail.com"
+        };
+
+        // Validate FPT email or whitelist
+        boolean isWhitelisted = false;
+        for (String whitelistedEmail : whitelistEmails) {
+            if (email.equalsIgnoreCase(whitelistedEmail)) {
+                isWhitelisted = true;
+                break;
+            }
         }
 
-        // Extract student code from email
-        String studentCode = extractStudentCode(email);
+        if (!email.endsWith("@fpt.edu.vn") && !isWhitelisted) {
+            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn hoặc email trong whitelist");
+        }
+
+        // Extract student code from email (or use email prefix for non-FPT emails)
+        String studentCode = email.endsWith("@fpt.edu.vn")
+                ? extractStudentCode(email)
+                : email.split("@")[0].toUpperCase();
 
         // Get or create user
         User user = userRepository.findByEmail(email).orElse(null);

@@ -1,79 +1,83 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AuthPage from "./components/AuthPage";
-import Dashboard from "./components/Dashboard";
-import CheckInOut from "./components/CheckInOut";
-import HeatMap from "./components/HeatMap";
-import SeatManage from "./components/SeatManage";
-import StudentsManage from "./components/StudentsManage";
-import ViolationManage from "./components/ViolationManage";
-import ChatManage from "./components/ChatManage";
-import Statistic from "./components/Statistic";
-import NotificationManage from "./components/NotificationManage";
-import Sidebar from "./components/sidebar_default/Sidebar_default";
-import AppRoutes from "./routes/AppRoutes_admin";
+import AdminRoutes from "./routes/AdminRoutes";
+import LibrarianRoutes from "./routes/LibrarianRoutes";
 
 function App() {
-    return <AppRoutes />;
+    const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+    const [userRole, setUserRole] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
 
+    React.useEffect(() => {
+        // Check for existing auth
+        const token = localStorage.getItem('librarian_token');
+        const userStr = localStorage.getItem('librarian_user');
+        
+        if (token && userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const role = user.role;
+                
+                if (role === 'LIBRARIAN' || role === 'ADMIN') {
+                    setIsLoggedIn(true);
+                    setUserRole(role);
+                }
+            } catch (error) {
+                console.error('Error parsing user:', error);
+            }
+        }
+        setLoading(false);
+    }, []);
 
+    const handleLogin = (role) => {
+        setIsLoggedIn(true);
+        setUserRole(role);
+    };
 
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // const [currentPage, setCurrentPage] = useState("dashboard");
+    if (loading) {
+        return <div>Đang tải...</div>;
+    }
 
-  
-  // const handleLogout = () => {
-  //   // Clear all authentication data from localStorage
-  //   localStorage.removeItem('librarian_token');
-  //   localStorage.removeItem('librarian_user');
-  //   sessionStorage.removeItem('librarian_token');
-  //   sessionStorage.removeItem('librarian_user');
-  //   // Set logged out state
-  //   setIsLoggedIn(false);
-  //   // Reset to dashboard page
-  //   setCurrentPage('dashboard');
-  // };
+    return (
+        <BrowserRouter>
+            <Routes>
+                {/* Admin Routes */}
+                <Route path="/admin/login" element={
+                    isLoggedIn && userRole === 'ADMIN' 
+                        ? <Navigate to="/admin/dashboard" replace />
+                        : <AuthPage onLogin={handleLogin} />
+                } />
+                <Route path="/admin/*" element={
+                    isLoggedIn && userRole === 'ADMIN'
+                        ? <AdminRoutes />
+                        : <Navigate to="/admin/login" replace />
+                } />
 
-  // if (!isLoggedIn) {
-  //   return (
-  //     <AuthPage 
-  //       onLogin={() => setIsLoggedIn(true)}
-  //     />
-  //   );
-  // }
+                {/* Librarian Routes */}
+                <Route path="/librarian/login" element={
+                    isLoggedIn && userRole === 'LIBRARIAN'
+                        ? <Navigate to="/librarian/dashboard" replace />
+                        : <AuthPage onLogin={handleLogin} />
+                } />
+                <Route path="/librarian/*" element={
+                    isLoggedIn && userRole === 'LIBRARIAN'
+                        ? <LibrarianRoutes />
+                        : <Navigate to="/librarian/login" replace />
+                } />
 
-  // const renderPage = () => {
-  //   switch (currentPage) {
-  //     case "dashboard":
-  //       return <Dashboard />;
-  //     case "checkinout":
-  //       return <CheckInOut />;
-  //     case "heatmap":
-  //       return <HeatMap />;
-  //     case "seatmanage":
-  //       return <SeatManage />;
-  //     case "students":
-  //       return <StudentsManage />;
-  //     case "violation":
-  //       return <ViolationManage />;
-  //     case "chat":
-  //       return <ChatManage />;
-  //     case "statistic":
-  //       return <Statistic />;
-  //     case "notification":
-  //       return <NotificationManage />;
-  //     default:
-  //       return <Dashboard />;
-  //   }
-  // };
-
-  // return (
-  //   <div className="appLayout">
-  //     <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-  //     <div className="main" style={{ marginLeft: '240px', width: 'calc(100% - 240px)', padding: '18px 22px 26px' }}>
-  //       {renderPage()}
-  //     </div>
-  //   </div>
-  // );
+                {/* Root redirects based on role */}
+                <Route path="/" element={
+                    isLoggedIn 
+                        ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
+                        : <Navigate to="/admin/login" />
+                } />
+                
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </BrowserRouter>
+    );
 }
 
 export default App;

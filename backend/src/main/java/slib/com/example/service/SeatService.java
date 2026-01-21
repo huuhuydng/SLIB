@@ -10,6 +10,7 @@ import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.SeatRepository;
 import slib.com.example.repository.ZoneRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -113,5 +114,102 @@ public class SeatService {
         res.setRowNumber(seat.getRowNumber());
         res.setColumnNumber(seat.getColumnNumber());
         return res;
+    }
+
+    public List<SeatResponse> getSeatsByTimeRange(String startTimeStr, String endTimeStr, Integer zoneId) {
+        // Parse ISO 8601 time strings (e.g., "2026-01-20T13:00:00")
+        LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
+        LocalDateTime endTime = LocalDateTime.parse(endTimeStr);
+
+        List<SeatEntity> seats;
+        if (zoneId != null) {
+            seats = seatRepository.findByZone_ZoneId(zoneId);
+        } else {
+            seats = seatRepository.findAll();
+        }
+
+        return seats.stream()
+                .map(seat -> {
+                    SeatResponse response = toResponse(seat);
+
+                    // Tính toán status động dựa trên reservations trong time range
+                    boolean isBookedInTimeRange = seat.getReservation().stream()
+                            .anyMatch(r -> {
+                                String status = r.getStatus();
+                                boolean isActiveStatus = "BOOKED".equalsIgnoreCase(status)
+                                        || "PROCESSING".equalsIgnoreCase(status)
+                                        || "CONFIRMED".equalsIgnoreCase(status);
+
+                                if (!isActiveStatus) {
+                                    return false;
+                                }
+
+                                // Kiểm tra overlap: reservation có giao với time range không
+                                LocalDateTime resStart = r.getStartTime();
+                                LocalDateTime resEnd = r.getEndTime();
+
+                                return resStart.isBefore(endTime) && resEnd.isAfter(startTime);
+                            });
+
+                    // Nếu seat có status UNAVAILABLE trong DB, ưu tiên status này
+                    if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
+                        response.setSeatStatus(SeatStatus.UNAVAILABLE);
+                    } else if (isBookedInTimeRange) {
+                        response.setSeatStatus(SeatStatus.BOOKED);
+                    } else {
+                        response.setSeatStatus(SeatStatus.AVAILABLE);
+                    }
+
+                    return response;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Hạn chế ghế theo seatId (unique ID)
+     */
+    public SeatResponse restrictSeatById(Integer seatId) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
+        return toResponse(seatRepository.save(seat));
+    }
+
+    /**
+     * Bỏ hạn chế ghế theo seatId
+     */
+    public void unrestrictSeatById(Integer seatId) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        seat.setSeatStatus(SeatStatus.AVAILABLE);
+        seatRepository.save(seat);
+    }
+
+    /**
+     * @deprecated Use restrictSeatById instead (seatCode is not unique across
+     *             zones)
+     */
+    @Deprecated
+    public SeatResponse restrictSeat(String seatCode) {
+        SeatEntity seat = seatRepository.findBySeatCode(seatCode)
+                .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
+
+        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
+        return toResponse(seatRepository.save(seat));
+    }
+
+    /**
+     * @deprecated Use unrestrictSeatById instead (seatCode is not unique across
+     *             zones)
+     */
+    @Deprecated
+    public void unrestrictSeat(String seatCode) {
+        SeatEntity seat = seatRepository.findBySeatCode(seatCode)
+                .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
+
+        seat.setSeatStatus(SeatStatus.AVAILABLE);
+        seatRepository.save(seat);
     }
 }

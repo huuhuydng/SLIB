@@ -1,0 +1,39 @@
+/* Layout chính với sidebar */
+.appLayout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* Phần nội dung chính */
+.main {
+  margin-left: 72px; /* Width của sidebar collapsed */
+  flex: 1;
+  width: calc(100% - 72px);
+  transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 24px; /* Tăng padding lên 24px cho đều */
+  overflow-y: auto; /* Cho phép scroll dọc */
+  overflow-x: hidden; /* Ẩn scroll ngang */
+  max-height: 100vh;
+  height: 100vh;
+}
+
+/* Scrollbar đẹp hơn */
+.main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.main::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Khi sidebar hover, main không cần thay đổi vì sidebar là fixed */

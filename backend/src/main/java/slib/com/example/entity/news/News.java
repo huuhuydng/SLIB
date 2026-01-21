@@ -2,13 +2,11 @@ package slib.com.example.entity.news;
 
 import jakarta.persistence.*;
 import lombok.*;
-import slib.com.example.entity.users.User;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "news", indexes = {
@@ -34,7 +32,7 @@ public class News {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content; 
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl; 
 
     @ManyToOne(fetch = FetchType.EAGER) 
@@ -42,15 +40,6 @@ public class News {
     @ToString.Exclude 
     @EqualsAndHashCode.Exclude 
     private Category category;
-
-    @ManyToOne(fetch = FetchType.LAZY) 
-    @JoinColumn(name = "user_id", nullable = false)
-    @ToString.Exclude 
-    @EqualsAndHashCode.Exclude 
-    private User author;
-    
-    @Column(name = "user_id", insertable = false, updatable = false)
-    private UUID authorId;
 
     @Column(name = "is_published", nullable = false)
     @Builder.Default

@@ -1,5 +1,5 @@
 const API_BASE_URL = 'http://localhost:8080/api';
-  
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return {
@@ -20,7 +20,7 @@ export const seatService = {
     try {
       // ✅ Build query string từ params
       const queryParams = new URLSearchParams();
-      
+
       if (params.startTime) {
         queryParams.append('startTime', params.startTime);
       }
@@ -30,24 +30,24 @@ export const seatService = {
       if (params.zone) {
         queryParams.append('zone', params.zone);
       }
-      
+
       const queryString = queryParams.toString();
-      const url = queryString 
-        ? `${API_BASE_URL}/seat-management/seats?${queryString}`
-        : `${API_BASE_URL}/seat-management/seats`;
-      
+      const url = queryString
+        ? `http://localhost:8080/slib/seats?${queryString}`
+        : `http://localhost:8080/slib/seats`;
+
       console.log('📡 API URL:', url);
-      
+
       const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders()
       });
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to fetch seats (${response.status}): ${errorText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error('❌ Error fetching seats:', error);
@@ -56,27 +56,27 @@ export const seatService = {
   },
 
   /**
-   * Thêm hạn chế cho ghế
+   * Thêm hạn chế cho ghế (dùng seatId thay vì seatCode vì seatCode không unique)
+   * POST /slib/seats/{seatId}/restrict
    */
-  async addRestriction(restrictionData) {
+  async addRestriction(seatId) {
     try {
-      console.log('📤 POST /seat-management/restrictions', restrictionData);
-      
-      const response = await fetch(`${API_BASE_URL}/seat-management/restrictions`, {
+      const url = `http://localhost:8080/slib/seats/${seatId}/restrict`;
+
+      console.log('🔒 Adding restriction for seatId:', seatId);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(restrictionData)
+        body: JSON.stringify({})
       });
-      
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Add restriction failed:', errorText);
-        throw new Error(`Failed to add restriction (${response.status}): ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to add restriction (${response.status})`);
       }
-      
-      const result = await response.json();
-      console.log('✅ Add restriction success:', result);
-      return result;
+
+      return await response.json();
     } catch (error) {
       console.error('❌ Error adding restriction:', error);
       throw error;
@@ -84,26 +84,26 @@ export const seatService = {
   },
 
   /**
-   * Bỏ hạn chế cho ghế
+   * Bỏ hạn chế cho ghế (dùng seatId)
+   * DELETE /slib/seats/{seatId}/restrict
    */
-  async removeRestriction(seatCode) {
+  async removeRestriction(seatId) {
     try {
-      console.log('📤 DELETE /seat-management/restrictions/' + seatCode);
-      
-      const response = await fetch(`${API_BASE_URL}/seat-management/restrictions/${seatCode}`, {
+      const url = `http://localhost:8080/slib/seats/${seatId}/restrict`;
+
+      console.log('🔓 Removing restriction for seatId:', seatId);
+
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
-      
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Remove restriction failed:', errorText);
-        throw new Error(`Failed to remove restriction (${response.status}): ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to remove restriction (${response.status})`);
       }
-      
-      const result = await response.json();
-      console.log('✅ Remove restriction success:', result);
-      return result;
+
+      return await response.json();
     } catch (error) {
       console.error('❌ Error removing restriction:', error);
       throw error;

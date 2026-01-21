@@ -48,6 +48,8 @@ public class SeatController {
         if (zoneId != null) {
             return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
         }
+
+        // Nếu không có params nào, trả về tất cả seats
         return ResponseEntity.ok(seatService.getAllSeats());
     }
 
@@ -98,6 +100,38 @@ public class SeatController {
             @RequestParam String date) {
         LocalDate localDate = LocalDate.parse(date);
         return bookingService.getSeatsByDate(zoneId, localDate);
+    }
+
+    // ==================== RESTRICTION ENDPOINTS ====================
+    /**
+     * Thêm hạn chế cho ghế (chức năng hạn chế sử dụng theo seatId vì seatCode không
+     * unique)
+     * POST /slib/seats/{seatId}/restrict
+     */
+    @PostMapping("/{seatId}/restrict")
+    public ResponseEntity<?> restrictSeat(
+            @PathVariable Integer seatId,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        try {
+            SeatResponse response = seatService.restrictSeatById(seatId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Bỏ hạn chế ghế
+     * DELETE /slib/seats/{seatId}/restrict
+     */
+    @DeleteMapping("/{seatId}/restrict")
+    public ResponseEntity<?> unrestrictSeat(@PathVariable Integer seatId) {
+        try {
+            seatService.unrestrictSeatById(seatId);
+            return ResponseEntity.ok(java.util.Map.of("message", "Đã bỏ hạn chế ghế với id: " + seatId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     /**
