@@ -6,7 +6,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "area_factories")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
