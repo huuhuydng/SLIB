@@ -19,6 +19,8 @@ class ApiConstants {
 
   static const String factoriesUrl = "$domain/slib/area_factories";
 
+  static const String amenitiesUrl = "$domain/slib/zone_amenities";
+
   static const String settingUrl = "$domain/slib/settings";
 
 }
