@@ -27,7 +27,7 @@ function AppRoutes() {
       <AuthProvider>
         <Routes>
           {/* Public Route - Login */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* <Route path="/login" element={<LoginPage />} /> */}
 
           {/* Protected Routes - Admin Layout with Sidebar */}
           <Route element={
