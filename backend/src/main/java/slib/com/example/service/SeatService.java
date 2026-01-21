@@ -17,10 +17,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SeatService {
 
-    // ===== CONSTANTS (BẮT BUỘC) =====
-    private static final int ROW_HEIGHT = 40;
-    private static final int DEFAULT_SEAT_WIDTH = 80;
-
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
 
@@ -47,25 +43,19 @@ public class SeatService {
     }
 
     // ================= CREATE =================
-    // FE chỉ gửi: zoneId, rowNumber
+    // FE gửi: zoneId, rowNumber, columnNumber, seatCode, seatStatus
     public SeatResponse createSeat(SeatResponse req) {
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
 
         int rowNumber = req.getRowNumber();
+        int columnNumber = req.getColumnNumber() != null ? req.getColumnNumber() : 1;
 
-        // tìm column tiếp theo trong cùng row
-        Integer maxColumn = seatRepository
-                .findMaxColumnByZoneIdAndRow(zone.getZoneId(), rowNumber);
-
-        int columnNumber = (maxColumn == null) ? 1 : maxColumn + 1;
-
-        int seatWidth = req.getWidth() != null ? req.getWidth() : DEFAULT_SEAT_WIDTH;
-
-        int positionX = (columnNumber - 1) * seatWidth;
-        int positionY = (rowNumber - 1) * ROW_HEIGHT;
-
-        String seatCode = generateSeatCode(rowNumber, columnNumber);
+        // Generate seatCode if not provided
+        String seatCode = req.getSeatCode();
+        if (seatCode == null || seatCode.isEmpty()) {
+            seatCode = generateSeatCode(rowNumber, columnNumber);
+        }
 
         SeatEntity seat = SeatEntity.builder()
                 .zone(zone)
@@ -73,81 +63,12 @@ public class SeatService {
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
                 .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
-                .width(seatWidth)
-                .height(ROW_HEIGHT)
-                .positionX(positionX)
-                .positionY(positionY)
                 .build();
 
         return toResponse(seatRepository.save(seat));
     }
 
-    // ================= UPDATE FULL =================
-    // update theo row + column → tự tính lại seatCode & position
-    public SeatResponse updateSeatFull(Integer id, SeatResponse req) {
-        SeatEntity seat = seatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Seat not found"));
-
-        int rowNumber = req.getRowNumber();
-        int columnNumber = req.getColumnNumber();
-        int seatWidth = req.getWidth() != null ? req.getWidth() : seat.getWidth();
-
-        seat.setRowNumber(rowNumber);
-        seat.setColumnNumber(columnNumber);
-        seat.setSeatCode(generateSeatCode(rowNumber, columnNumber));
-        seat.setSeatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : seat.getSeatStatus());
-        seat.setWidth(seatWidth);
-        seat.setHeight(ROW_HEIGHT);
-        seat.setPositionX((columnNumber - 1) * seatWidth);
-        seat.setPositionY((rowNumber - 1) * ROW_HEIGHT);
-
-        return toResponse(seatRepository.save(seat));
-    }
-
-    // ================= UPDATE POSITION (KÉO THẢ) =================
-    public SeatResponse updateSeatPosition(Integer id, SeatResponse req) {
-        SeatEntity seat = seatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Seat not found"));
-
-        seat.setPositionX(req.getPositionX());
-        seat.setPositionY(req.getPositionY());
-
-        return toResponse(seatRepository.save(seat));
-    }
-
-    // ================= UPDATE DIMENSIONS =================
-    public SeatResponse updateSeatDimensions(Integer id, SeatResponse req) {
-        SeatEntity seat = seatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Seat not found"));
-
-        seat.setWidth(req.getWidth());
-        seat.setHeight(req.getHeight());
-
-        return toResponse(seatRepository.save(seat));
-    }
-
-    // ================= UPDATE POSITION + DIMENSIONS =================
-    public SeatResponse updateSeatPositionAndDimensions(Integer id, SeatResponse req) {
-        SeatEntity seat = seatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Seat not found"));
-
-        seat.setPositionX(req.getPositionX());
-        seat.setPositionY(req.getPositionY());
-        seat.setWidth(req.getWidth());
-        seat.setHeight(req.getHeight());
-
-        return toResponse(seatRepository.save(seat));
-    }
-
-    // ================= DELETE =================
-    public void deleteSeat(Integer id) {
-        if (!seatRepository.existsById(id)) {
-            throw new RuntimeException("Seat not found");
-        }
-        seatRepository.deleteById(id);
-    }
-
-    // ================= UPDATE SEAT (FULL) =================
+    // ================= UPDATE =================
     public SeatResponse updateSeat(Integer id, SeatResponse req) {
         SeatEntity seat = seatRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
@@ -158,18 +79,6 @@ public class SeatService {
         if (req.getSeatStatus() != null) {
             seat.setSeatStatus(req.getSeatStatus());
         }
-        if (req.getPositionX() != null) {
-            seat.setPositionX(req.getPositionX());
-        }
-        if (req.getPositionY() != null) {
-            seat.setPositionY(req.getPositionY());
-        }
-        if (req.getWidth() != null) {
-            seat.setWidth(req.getWidth());
-        }
-        if (req.getHeight() != null) {
-            seat.setHeight(req.getHeight());
-        }
         if (req.getColumnNumber() != null) {
             seat.setColumnNumber(req.getColumnNumber());
         }
@@ -178,6 +87,14 @@ public class SeatService {
         }
 
         return toResponse(seatRepository.save(seat));
+    }
+
+    // ================= DELETE =================
+    public void deleteSeat(Integer id) {
+        if (!seatRepository.existsById(id)) {
+            throw new RuntimeException("Seat not found");
+        }
+        seatRepository.deleteById(id);
     }
 
     // ================= UTIL =================
@@ -193,12 +110,8 @@ public class SeatService {
         res.setZoneId(seat.getZone().getZoneId());
         res.setSeatCode(seat.getSeatCode());
         res.setSeatStatus(seat.getSeatStatus());
-        res.setPositionX(seat.getPositionX());
-        res.setPositionY(seat.getPositionY());
         res.setRowNumber(seat.getRowNumber());
         res.setColumnNumber(seat.getColumnNumber());
-        res.setWidth(seat.getWidth());
-        res.setHeight(seat.getHeight());
         return res;
     }
 }

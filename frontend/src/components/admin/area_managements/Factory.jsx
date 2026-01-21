@@ -244,7 +244,10 @@ function Factory({ factory }) {
   const handleDeleteFactory = async () => {
     if (confirm(`Delete factory "${factory.factoryName}"?`)) {
       try {
-        await deleteAreaFactory(factory.factoryId);
+        // Only call API if factory has real ID (positive) - pending factories have negative tempId
+        if (factory.factoryId > 0) {
+          await deleteAreaFactory(factory.factoryId);
+        }
         dispatch({
           type: actions.DELETE_FACTORY,
           payload: factory.factoryId,

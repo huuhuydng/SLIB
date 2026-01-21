@@ -31,66 +31,36 @@ public class SeatController {
     private final BookingService bookingService;
     private final SeatService seatService;
 
-      public SeatController(BookingService bookingService, SeatService seatService) {
+    public SeatController(BookingService bookingService, SeatService seatService) {
         this.bookingService = bookingService;
         this.seatService = seatService;
     }
 
-    // create mới
+    // Create new seat
     @PostMapping
     public ResponseEntity<SeatResponse> createSeat(@RequestBody SeatResponse request) {
         return ResponseEntity.ok(seatService.createSeat(request));
     }
 
-     @GetMapping
+    @GetMapping
     public ResponseEntity<List<SeatResponse>> getSeats(
-            @RequestParam(required = false) Integer zoneId
-    ) {
+            @RequestParam(required = false) Integer zoneId) {
         if (zoneId != null) {
             return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
         }
         return ResponseEntity.ok(seatService.getAllSeats());
     }
 
-     @GetMapping("/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<SeatResponse> getSeatById(@PathVariable Integer id) {
         return ResponseEntity.ok(seatService.getSeatById(id));
     }
 
-    
-    // update vị trí kéo thả
-    @PutMapping("/{id}/position")
-    public ResponseEntity<SeatResponse> updateSeatPosition(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatPosition(id, request));
-    }
-
-    // update chiều dài và chiều rộng (resize only)
-    @PutMapping("/{id}/dimensions")
-    public ResponseEntity<SeatResponse> updateSeatDimensions(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatDimensions(id, request));
-    }
-
-    // update cả vị trí và kích thước (resize + move)
-    @PutMapping("/{id}/position-and-dimensions")
-    public ResponseEntity<SeatResponse> updateSeatPositionAndDimensions(
-            @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
-        return ResponseEntity.ok(seatService.updateSeatPositionAndDimensions(id, request));
-    }
-
-    // UPDATE SEAT 
+    // Update seat (seatCode, seatStatus, rowNumber, columnNumber)
     @PutMapping("/{id}")
     public ResponseEntity<SeatResponse> updateSeat(
             @PathVariable Integer id,
-            @RequestBody SeatResponse request
-    ) {
+            @RequestBody SeatResponse request) {
         return ResponseEntity.ok(seatService.updateSeat(id, request));
     }
 
@@ -100,7 +70,6 @@ public class SeatController {
         return ResponseEntity.ok("Deleted seat with id = " + id);
     }
 
-    
     @GetMapping("/getAvailableSeat/{zoneId}")
     public ResponseEntity<Long> getAvailableSeats(@PathVariable Integer zoneId) {
         long count = bookingService.countAvailableSeats(zoneId);
@@ -130,8 +99,19 @@ public class SeatController {
         LocalDate localDate = LocalDate.parse(date);
         return bookingService.getSeatsByDate(zoneId, localDate);
     }
+
+    /**
+     * Lấy tất cả seats của 1 area theo time slot - tối ưu performance
+     * Trả về Map<zoneId, List<SeatDTO>> để mobile chỉ cần gọi 1 API
+     */
+    @GetMapping("/area/{areaId}/all-seats")
+    public ResponseEntity<java.util.Map<Integer, List<SeatDTO>>> getAllSeatsByArea(
+            @PathVariable Integer areaId,
+            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime start,
+            @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime end) {
+
+        java.util.Map<Integer, List<SeatDTO>> result = bookingService.getAllSeatsByArea(areaId, date, start, end);
+        return ResponseEntity.ok(result);
+    }
 }
-
-
-
-

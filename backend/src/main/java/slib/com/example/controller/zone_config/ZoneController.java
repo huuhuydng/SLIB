@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import slib.com.example.dto.zone_config.ZoneOccupancyDTO;
 import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.service.BookingService;
@@ -36,11 +37,9 @@ public class ZoneController {
         return bookingService.getAllZones();
     }
 
-    
     @GetMapping
     public ResponseEntity<List<ZoneResponse>> getZones(
-            @RequestParam(required = false) Long areaId
-    ) {
+            @RequestParam(required = false) Long areaId) {
         if (areaId != null) {
             return ResponseEntity.ok(zoneService.getZonesByAreaId(areaId));
         }
@@ -52,30 +51,25 @@ public class ZoneController {
         return ResponseEntity.ok(zoneService.getZoneById(id));
     }
 
-
     // create mới
     @PostMapping
     public ResponseEntity<ZoneResponse> createZone(@RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.createZone(request));
     }
 
-
     // update toàn bộ thông tin
     @PutMapping("/{id}")
     public ResponseEntity<ZoneResponse> updateZone(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request
-    ) {
+            @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZoneFull(id, request));
     }
-
 
     // update vị trí kéo thả
     @PutMapping("/{id}/position")
     public ResponseEntity<ZoneResponse> updateZonePosition(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request
-    ) {
+            @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZonePosition(id, request));
     }
 
@@ -89,8 +83,7 @@ public class ZoneController {
     @PutMapping("/{id}/dimensions")
     public ResponseEntity<ZoneResponse> updateZoneDimensions(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request
-    ) {
+            @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZoneDimensions(id, request));
     }
 
@@ -98,9 +91,16 @@ public class ZoneController {
     @PutMapping("/{id}/position-and-dimensions")
     public ResponseEntity<ZoneResponse> updateZonePositionAndDimensions(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request
-    ) {
+            @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZonePositionAndDimensions(id, request));
     }
-}
 
+    /**
+     * Get zone occupancy for mobile app
+     * Returns zones with their occupancy rate for density coloring
+     */
+    @GetMapping("/occupancy/{areaId}")
+    public ResponseEntity<List<ZoneOccupancyDTO>> getZoneOccupancy(@PathVariable Long areaId) {
+        return ResponseEntity.ok(zoneService.getZoneOccupancy(areaId));
+    }
+}

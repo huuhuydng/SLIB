@@ -3,6 +3,9 @@
    Smart Library Ecosystem Admin Portal
    ================================================ */
 
+/* Import Google Fonts - must be at top */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* ======================================
    1. COLOR PALETTE
    ====================================== */
@@ -12,54 +15,54 @@
   --slib-primary-light: #FF9B5A;
   --slib-primary-dark: #E55E0D;
   --slib-primary-subtle: #FFF7F2;
-  
+
   /* Background Colors */
   --slib-bg-main: #F7FAFC;
   --slib-bg-warm: #FFF7F2;
   --slib-bg-card: #FFFFFF;
   --slib-bg-elevated: #FFFFFF;
-  
+
   /* Text Colors */
   --slib-text-primary: #1A1A1A;
   --slib-text-secondary: #4A5568;
   --slib-text-muted: #A0AEC0;
   --slib-text-inverse: #FFFFFF;
-  
+
   /* Accent Colors for Charts/Icons */
   --slib-accent-blue: #0054A6;
   --slib-accent-green: #4CA75B;
   --slib-accent-red: #D32F2F;
   --slib-accent-yellow: #FDB913;
   --slib-accent-purple: #7C3AED;
-  
+
   /* Status Indicators */
   --slib-status-success: #388E3C;
   --slib-status-success-light: #4CAF50;
   --slib-status-success-bg: #E8F5E9;
-  
+
   --slib-status-error: #D32F2F;
   --slib-status-error-light: #F44336;
   --slib-status-error-bg: #FFEBEE;
-  
+
   --slib-status-warning: #FF9800;
   --slib-status-warning-light: #FFB74D;
   --slib-status-warning-bg: #FFF3E0;
-  
+
   --slib-status-info: #0054A6;
   --slib-status-info-light: #42A5F5;
   --slib-status-info-bg: #E3F2FD;
-  
+
   /* Seat Status Colors */
   --slib-seat-available: #E2E8F0;
   --slib-seat-occupied: #CBD5E0;
   --slib-seat-reserved: #FF9800;
   --slib-seat-restricted: #D32F2F;
-  
+
   /* Border Colors */
   --slib-border-light: #E2E8F0;
   --slib-border-default: #CBD5E0;
   --slib-border-dark: #A0AEC0;
-  
+
   /* ======================================
      2. SHADOWS
      ====================================== */
@@ -70,7 +73,7 @@
   --slib-shadow-card: 0 4px 20px rgba(26, 26, 26, 0.06);
   --slib-shadow-hover: 0 8px 30px rgba(26, 26, 26, 0.12);
   --slib-shadow-primary: 0 4px 14px rgba(255, 117, 31, 0.25);
-  
+
   /* ======================================
      3. BORDER RADIUS
      ====================================== */
@@ -79,7 +82,7 @@
   --slib-radius-lg: 16px;
   --slib-radius-xl: 20px;
   --slib-radius-full: 9999px;
-  
+
   /* ======================================
      4. SPACING
      ====================================== */
@@ -92,35 +95,43 @@
   --slib-space-8: 32px;
   --slib-space-10: 40px;
   --slib-space-12: 48px;
-  
+
   /* ======================================
      5. TYPOGRAPHY
      ====================================== */
   --slib-font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   --slib-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-  
+
   /* Font Sizes */
-  --slib-text-xs: 0.75rem;    /* 12px */
-  --slib-text-sm: 0.875rem;   /* 14px */
-  --slib-text-base: 1rem;     /* 16px */
-  --slib-text-lg: 1.125rem;   /* 18px */
-  --slib-text-xl: 1.25rem;    /* 20px */
-  --slib-text-2xl: 1.5rem;    /* 24px */
-  --slib-text-3xl: 1.875rem;  /* 30px */
-  --slib-text-4xl: 2.25rem;   /* 36px */
-  
+  --slib-text-xs: 0.75rem;
+  /* 12px */
+  --slib-text-sm: 0.875rem;
+  /* 14px */
+  --slib-text-base: 1rem;
+  /* 16px */
+  --slib-text-lg: 1.125rem;
+  /* 18px */
+  --slib-text-xl: 1.25rem;
+  /* 20px */
+  --slib-text-2xl: 1.5rem;
+  /* 24px */
+  --slib-text-3xl: 1.875rem;
+  /* 30px */
+  --slib-text-4xl: 2.25rem;
+  /* 36px */
+
   /* Font Weights */
   --slib-font-normal: 400;
   --slib-font-medium: 500;
   --slib-font-semibold: 600;
   --slib-font-bold: 700;
   --slib-font-extrabold: 800;
-  
+
   /* Line Heights */
   --slib-leading-tight: 1.25;
   --slib-leading-normal: 1.5;
   --slib-leading-relaxed: 1.625;
-  
+
   /* ======================================
      6. TRANSITIONS
      ====================================== */
@@ -128,7 +139,7 @@
   --slib-transition-normal: 200ms ease;
   --slib-transition-slow: 300ms ease;
   --slib-transition-spring: cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   /* ======================================
      7. LAYOUT
      ====================================== */
@@ -141,9 +152,10 @@
 /* ======================================
    BASE STYLES
    ====================================== */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -428,6 +440,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -439,6 +452,7 @@ body {
     opacity: 0;
     transform: translateX(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -446,9 +460,12 @@ body {
 }
 
 @keyframes slib-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }

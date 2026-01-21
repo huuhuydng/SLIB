@@ -7,7 +7,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
 @Table(name = "categories")
-@Data 
+@Getter
+@Setter 
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

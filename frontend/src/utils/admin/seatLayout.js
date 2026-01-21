@@ -14,12 +14,12 @@ const SEAT_MARGIN = 4; // margin giữa các ghế
  */
 export const calculateSeatsPerRow = (zoneWidth) => {
   if (!zoneWidth || zoneWidth <= 0) return 1;
-  
+
   // Tính: width = (seatsPerRow * seatWidth) + ((seatsPerRow - 1) * margin)
   // width = seatsPerRow * (seatWidth + margin) - margin
   const availableWidth = zoneWidth;
   const effectiveWidth = SEAT_DEFAULT_WIDTH + SEAT_MARGIN;
-  
+
   const seatsPerRow = Math.floor((availableWidth + SEAT_MARGIN) / effectiveWidth);
   return Math.max(1, seatsPerRow);
 };
@@ -32,11 +32,11 @@ export const calculateSeatsPerRow = (zoneWidth) => {
  */
 export const calculateResponsiveSeatWidth = (zoneWidth, seatsInRow) => {
   if (!seatsInRow || seatsInRow <= 0) return SEAT_DEFAULT_WIDTH;
-  
+
 
   const totalMargin = (seatsInRow - 1) * SEAT_MARGIN;
   const seatWidth = (zoneWidth - totalMargin) / seatsInRow;
-  
+
   return Math.max(20, seatWidth); // Minimum 20px
 };
 
@@ -61,7 +61,7 @@ export const calculateMinZoneDimensions = (seats) => {
 
   // Min width = (maxColumn - 1) * 48 + 44 + padding
   const minWidth = (maxColumn - 1) * (SEAT_DEFAULT_WIDTH + SEAT_MARGIN) + SEAT_DEFAULT_WIDTH + horizontalPadding;
-  
+
   // Min height = headerHeight + (maxRow - 1) * 48 + 44 + padding
   const headerHeight = 40;
   const minHeight = headerHeight + (maxRow - 1) * (SEAT_DEFAULT_HEIGHT + SEAT_MARGIN) + SEAT_DEFAULT_HEIGHT + verticalPadding;
@@ -101,15 +101,76 @@ export const calculateSeatPositionY = (rowNumber) => {
  */
 export const calculateSeatLayout = (seat) => {
   const { rowNumber, columnNumber, seatId } = seat;
-  
+
   const positionX = calculateSeatPositionX(columnNumber);
   const positionY = calculateSeatPositionY(rowNumber);
-  
+
   console.log(`📐 calculateSeatLayout - seatId:${seatId}, row:${rowNumber}, col:${columnNumber} -> X:${positionX}, Y:${positionY}`);
-  
+
   return {
     width: SEAT_DEFAULT_WIDTH,
     height: SEAT_DEFAULT_HEIGHT,
+    positionX,
+    positionY,
+  };
+};
+
+/**
+ * Tính layout ghế ĐỘNG theo kích thước zone hiện tại
+ * Ghế giữ nguyên size 44x44, chỉ giãn khoảng cách giữa các ghế khi resize zone
+ * 
+ * @param {Object} seat - Ghế object với rowNumber, columnNumber
+ * @param {number} zoneWidth - Width hiện tại của zone
+ * @param {number} zoneHeight - Height hiện tại của zone  
+ * @param {Array} zoneSeats - Tất cả ghế trong zone (để tính maxRow/maxCol)
+ * @returns {Object} Layout data với position động, size cố định
+ */
+export const calculateDynamicSeatLayout = (seat, zoneWidth, zoneHeight, zoneSeats) => {
+  const { rowNumber, columnNumber, seatId } = seat;
+
+  // Tìm số cột max và số hàng max từ tất cả ghế trong zone
+  const maxColumn = zoneSeats.length > 0
+    ? Math.max(...zoneSeats.map(s => s.columnNumber || 1))
+    : 1;
+  const maxRow = zoneSeats.length > 0
+    ? Math.max(...zoneSeats.map(s => s.rowNumber || 1))
+    : 1;
+
+  // Zone layout constants
+  const zonePadding = 8;
+  const headerHeight = 24;
+  const footerHeight = 20;
+
+  // Tính available space trong content area
+  const availableWidth = Math.max(40, zoneWidth - zonePadding * 2);
+  const availableHeight = Math.max(40, zoneHeight - zonePadding * 2 - headerHeight - footerHeight);
+
+  // Giữ nguyên kích thước ghế cố định
+  const seatWidth = SEAT_DEFAULT_WIDTH;  // 44px
+  const seatHeight = SEAT_DEFAULT_HEIGHT; // 44px
+
+  // Tính khoảng cách (gap) động giữa các ghế
+  // Gap = (available space - total seat size) / số khoảng cách
+  // Số khoảng cách = số ghế - 1 (giữa các ghế) + 2 (padding 2 bên)
+  const totalSeatsWidth = maxColumn * seatWidth;
+  const totalSeatsHeight = maxRow * seatHeight;
+
+  // Gap ngang: chia đều không gian còn lại cho các khoảng cách
+  // Với maxColumn ghế, có (maxColumn + 1) khoảng cách (2 bên + giữa các ghế)
+  const horizontalGaps = maxColumn + 1;
+  const horizontalGap = Math.max(SEAT_MARGIN, (availableWidth - totalSeatsWidth) / horizontalGaps);
+
+  // Gap dọc: tương tự
+  const verticalGaps = maxRow + 1;
+  const verticalGap = Math.max(SEAT_MARGIN, (availableHeight - totalSeatsHeight) / verticalGaps);
+
+  // Tính position - ghế được phân bố đều với gap động
+  const positionX = horizontalGap + (columnNumber - 1) * (seatWidth + horizontalGap);
+  const positionY = verticalGap + (rowNumber - 1) * (seatHeight + verticalGap);
+
+  return {
+    width: seatWidth,
+    height: seatHeight,
     positionX,
     positionY,
   };
@@ -124,7 +185,7 @@ export const calculateSeatLayout = (seat) => {
  */
 export const validateSeatPosition = (rowNumber, columnNumber, zoneWidth) => {
   const seatsPerRow = calculateSeatsPerRow(zoneWidth);
-  
+
   if (columnNumber > seatsPerRow) {
     return {
       isValid: false,
@@ -132,7 +193,7 @@ export const validateSeatPosition = (rowNumber, columnNumber, zoneWidth) => {
       seatsPerRow,
     };
   }
-  
+
   if (columnNumber < 1 || !Number.isInteger(columnNumber)) {
     return {
       isValid: false,
@@ -140,7 +201,7 @@ export const validateSeatPosition = (rowNumber, columnNumber, zoneWidth) => {
       seatsPerRow,
     };
   }
-  
+
   if (rowNumber < 1 || !Number.isInteger(rowNumber)) {
     return {
       isValid: false,
@@ -148,7 +209,7 @@ export const validateSeatPosition = (rowNumber, columnNumber, zoneWidth) => {
       seatsPerRow,
     };
   }
-  
+
   return {
     isValid: true,
     reason: "OK",
@@ -173,7 +234,7 @@ export const getNextColumnNumber = (seatsInZone, rowNumber) => {
 
   // Lọc ghế trong cùng row
   const seatsInRow = seatsInZone.filter(s => s.rowNumber === rowNumber);
-  
+
   if (seatsInRow.length === 0) {
     return 1;
   }
@@ -197,14 +258,10 @@ const getRowLetter = (rowNumber) => {
  * @returns {Object} Toàn bộ data cần gửi API
  */
 export const generateNewSeatData = (options) => {
-  const { zoneId, rowNumber, seatsInZone, seatHeight = SEAT_DEFAULT_HEIGHT } = options;
+  const { zoneId, rowNumber, seatsInZone } = options;
 
   // Tính column tiếp theo
   const columnNumber = getNextColumnNumber(seatsInZone, rowNumber);
-
-  // Tính position cố định
-  const positionX = calculateSeatPositionX(columnNumber);
-  const positionY = calculateSeatPositionY(rowNumber);
 
   // Generate seat code with letter format (A1, B2, etc.)
   const rowLetter = getRowLetter(rowNumber);
@@ -215,10 +272,6 @@ export const generateNewSeatData = (options) => {
     seatCode,
     rowNumber,
     columnNumber,
-    positionX,
-    positionY,
-    width: SEAT_DEFAULT_WIDTH,
-    height: seatHeight,
-    isActive: true,
+    seatStatus: 'AVAILABLE',
   };
 };

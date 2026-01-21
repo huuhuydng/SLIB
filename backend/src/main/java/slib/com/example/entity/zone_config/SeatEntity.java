@@ -1,6 +1,8 @@
 package slib.com.example.entity.zone_config;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -16,12 +18,15 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import slib.com.example.entity.booking.ReservationEntity;
 
 @Entity
 @Table(name = "seats")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -37,18 +42,12 @@ public class SeatEntity {
     @com.fasterxml.jackson.annotation.JsonIgnore
     private ZoneEntity zone;
 
-    @Column(name = "seat_code", nullable = false, unique = true)
+    @Column(name = "seat_code", nullable = false)
     private String seatCode;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "seat_status", nullable = false, columnDefinition = "seat_status")
     private SeatStatus seatStatus;
-
-    @Column(name = "position_x", nullable = false)
-    private Integer positionX;
-
-    @Column(name = "position_y", nullable = false)
-    private Integer positionY;
 
     @Column(name = "row_number", nullable = false)
     private Integer rowNumber;
@@ -56,11 +55,12 @@ public class SeatEntity {
     @Column(name = "column_number", nullable = false)
     private Integer columnNumber;
 
-    @Column(name = "width")
-    private Integer width;
+    // Temporary Hold fields
+    @Column(name = "hold_expires_at")
+    private LocalDateTime holdExpiresAt;
 
-    @Column(name = "height")
-    private Integer height;
+    @Column(name = "held_by_user")
+    private UUID heldByUser;
 
     @OneToMany(mappedBy = "seat")
     @com.fasterxml.jackson.annotation.JsonIgnore

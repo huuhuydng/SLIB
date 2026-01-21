@@ -10,7 +10,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "user_settings")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
