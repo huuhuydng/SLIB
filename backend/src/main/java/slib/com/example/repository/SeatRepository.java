@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -19,6 +20,10 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     @Query("SELECT MAX(s.columnNumber) FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.rowNumber = :rowNumber")
     Integer findMaxColumnByZoneIdAndRow(@Param("zoneId") Integer zoneId, @Param("rowNumber") Integer rowNumber);
 
-    // Delete all seats by zone ID (for cascade delete when zone is deleted)
+    // Delete all seats by zone ID
     void deleteByZone_ZoneId(Integer zoneId);
+
+    // Find expired HOLDING seats
+    @Query("SELECT s FROM SeatEntity s WHERE s.seatStatus = :status AND s.holdExpiresAt < :now")
+    List<SeatEntity> findByStatusAndExpired(@Param("status") SeatStatus status, @Param("now") LocalDateTime now);
 }
