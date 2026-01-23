@@ -22,4 +22,10 @@ public interface NewsRepository extends JpaRepository<News, Long> {
     @Query("SELECT n FROM News n WHERE n.publishedAt <= :now AND n.isPublished = false")
     List<News> findScheduledNewsToPublish(@Param("now") java.time.LocalDateTime now);
 
+    /**
+     * Tìm các tin tức có lịch publish trong tương lai (chưa đến giờ)
+     */
+    @Query("SELECT n FROM News n WHERE n.publishedAt > :now AND n.isPublished = false")
+    List<News> findFutureScheduledNews(@Param("now") java.time.LocalDateTime now);
+
 }

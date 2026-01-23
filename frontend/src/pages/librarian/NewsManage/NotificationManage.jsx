@@ -43,6 +43,7 @@ const NotificationManage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [viewFilter, setViewFilter] = useState('all'); // all | scheduled | draft
+  const [searchQuery, setSearchQuery] = useState(''); // Search query
 
   const classifyStatus = (item, now = new Date()) => {
     const publishedFlag = item?.isPublished === true || item?.isPublished === 'true';
@@ -183,7 +184,12 @@ const NotificationManage = () => {
 
   return (
     <>
-      <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
+      <Header
+        searchPlaceholder="Tìm kiếm tin tức..."
+        onLogout={handleLogout}
+        searchValue={searchQuery}
+        onSearchChange={(e) => setSearchQuery(e.target.value)}
+      />
 
       <div style={{
         padding: '2rem',
@@ -310,14 +316,36 @@ const NotificationManage = () => {
                   }
 
                   const now = new Date();
-                  const scheduled = notifications?.filter(n => classifyStatus(n, now).isScheduled) || [];
-                  const drafts = notifications?.filter(n => classifyStatus(n, now).isDraft) || [];
-                  const published = (notifications || []).filter(n => classifyStatus(n, now).effectivePublished);
+
+                  // Search filter function - search in title only
+                  const matchesSearch = (item) => {
+                    if (!searchQuery.trim()) return true;
+                    const query = searchQuery.toLowerCase().trim();
+                    const title = (item.title || '').toLowerCase();
+                    return title.includes(query);
+                  };
+
+                  // Apply search filter first, then status filter
+                  const searchFiltered = (notifications || []).filter(matchesSearch);
+                  const scheduled = searchFiltered.filter(n => classifyStatus(n, now).isScheduled);
+                  const drafts = searchFiltered.filter(n => classifyStatus(n, now).isDraft);
+                  const published = searchFiltered.filter(n => classifyStatus(n, now).effectivePublished);
 
                   if ((notifications?.length || 0) === 0) {
                     return (
                       <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
                         Chưa có thông báo nào
+                      </div>
+                    );
+                  }
+
+                  // Check if search has no results
+                  if (searchQuery.trim() && searchFiltered.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
+                        <div style={{ fontWeight: 500, marginBottom: '4px' }}>Không tìm thấy kết quả</div>
+                        <div style={{ fontSize: '14px' }}>Thử tìm kiếm với từ khóa khác</div>
                       </div>
                     );
                   }
@@ -500,13 +528,13 @@ const NotificationManage = () => {
                     );
                   }
 
-                  // Default: published/visible items (effectivePublished)
-                  const listToShow = published;
+                  // Default 'all' tab: hiển thị TẤT CẢ items (kể cả draft, scheduled) - đã filter theo search
+                  const listToShow = searchFiltered;
 
                   if (listToShow.length === 0) {
                     return (
                       <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                        Chưa có thông báo đã đăng
+                        Chưa có thông báo nào
                       </div>
                     );
                   }
@@ -515,12 +543,13 @@ const NotificationManage = () => {
                     <table className="nt-table">
                       <thead>
                         <tr>
-                          <th width="15%">Chủ đề</th>
-                          <th width="45%">
+                          <th width="12%">Chủ đề</th>
+                          <th width="35%">
                             Tiêu đề thông báo / sự kiện
                           </th>
-                          <th width="25%">Thời gian đăng tải</th>
-                          <th width="15%"></th>
+                          <th width="12%">Trạng thái</th>
+                          <th width="20%">Thời gian đăng tải</th>
+                          <th width="12%"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -532,19 +561,69 @@ const NotificationManage = () => {
                           >
                             <td>{getSubjectFromCategory(item)}</td>
                             <td className="nt-font-medium">
-                              {item.title}
-                              {item.isPinned && (
-                                <span style={{
-                                  marginLeft: '0.5rem',
-                                  fontSize: '0.8rem',
-                                  padding: '0.2rem 0.5rem',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  borderRadius: '4px'
-                                }}>
-                                  📌 Ghim
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
+                                  {item.title}
                                 </span>
-                              )}
+                                {item.isPinned && (
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    padding: '0.15rem 0.4rem',
+                                    backgroundColor: '#fef3c7',
+                                    color: '#92400e',
+                                    borderRadius: '4px',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                  }}>
+                                    📌 Ghim
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              {(() => {
+                                const status = classifyStatus(item, new Date());
+                                if (status.isDraft) {
+                                  return (
+                                    <span style={{
+                                      fontSize: '0.8rem',
+                                      padding: '0.25rem 0.6rem',
+                                      backgroundColor: '#e5e7eb',
+                                      color: '#4b5563',
+                                      borderRadius: '6px',
+                                      fontWeight: 500
+                                    }}>
+                                      Nháp
+                                    </span>
+                                  );
+                                } else if (status.isScheduled) {
+                                  return (
+                                    <span style={{
+                                      fontSize: '0.8rem',
+                                      padding: '0.25rem 0.6rem',
+                                      backgroundColor: '#dbeafe',
+                                      color: '#1e40af',
+                                      borderRadius: '6px',
+                                      fontWeight: 500
+                                    }}>
+                                      ⏰ Lên lịch
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span style={{
+                                      fontSize: '0.8rem',
+                                      padding: '0.25rem 0.6rem',
+                                      backgroundColor: '#dcfce7',
+                                      color: '#166534',
+                                      borderRadius: '6px',
+                                      fontWeight: 500
+                                    }}>
+                                      ✓ Đã đăng
+                                    </span>
+                                  );
+                                }
+                              })()}
                             </td>
                             <td className="nt-text-gray">
                               {formatDateTime(item.publishedAt || item.createdAt)}

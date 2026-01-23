@@ -1,12 +1,13 @@
 // File: lib/core/constants/api_constants.dart
 class ApiConstants {
   // Chỉ sửa 1 chỗ này duy nhất cho cả app
-  // Android Emulator: dùng 10.0.2.2 để truy cập localhost của host machine
-  static const String domain = "http://10.0.2.2:8080";
-  // static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+  // ⚠️ REAL DEVICE: Dùng ngrok URL
+  static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+  // 📱 EMULATOR: Dùng 10.0.2.2 (uncomment nếu chạy emulator)
+  // static const String domain = "http://10.0.2.2:8080";
   
   static const String authUrl = "$domain/slib/users";
-  static const String authBaseUrl = "$domain/slib/auth";  // New auth endpoints
+  static const String authBaseUrl = "$domain/slib/auth";
 
   static const String newsUrl = "$domain/slib/news";
 
