@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
 import Header from "../../../components/shared/Header";
 import '../../../styles/librarian/NewsDetailView.css';
@@ -8,11 +8,17 @@ import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } f
 
 const NewsDetailView = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const [newsData, setNewsData] = useState(null);
   const [relatedNews, setRelatedNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Detect base path from current URL (/librarian/news or /librarian/notification)
+  const basePath = location.pathname.startsWith('/librarian/news')
+    ? '/librarian/news'
+    : '/librarian/notification';
 
   useEffect(() => {
     loadNewsDetail();
@@ -23,7 +29,7 @@ const NewsDetailView = () => {
     try {
       setLoading(true);
       const data = await getNewsDetailForAdmin(id);
-      
+
       // Load image
       try {
         const imageUrl = await getNewsImage(id);
@@ -31,7 +37,7 @@ const NewsDetailView = () => {
       } catch (error) {
         console.warn('Could not load image');
       }
-      
+
       setNewsData(data);
     } catch (err) {
       setError('Không thể tải thông tin tin tức');
@@ -48,7 +54,7 @@ const NewsDetailView = () => {
       const filtered = allNews
         .filter(news => news.id !== parseInt(id) && news.isPublished)
         .slice(0, 10);
-      
+
       // Load images for related news
       const newsWithImages = await Promise.all(
         filtered.map(async (news) => {
@@ -60,7 +66,7 @@ const NewsDetailView = () => {
           }
         })
       );
-      
+
       setRelatedNews(newsWithImages);
     } catch (err) {
       console.error('Could not load related news:', err);
@@ -69,11 +75,11 @@ const NewsDetailView = () => {
 
   const handleDelete = async () => {
     if (!confirm('Bạn có chắc chắn muốn xóa tin tức này?')) return;
-    
+
     try {
       await deleteNews(id);
       alert('Xóa tin tức thành công!');
-      navigate('/notification');
+      navigate(basePath);
     } catch (error) {
       alert('Lỗi khi xóa tin tức!');
       console.error(error);
@@ -120,7 +126,7 @@ const NewsDetailView = () => {
         <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
         <div className="news-detail-error">
           <p>{error || 'Không tìm thấy tin tức'}</p>
-          <button onClick={() => navigate('/notification')} className="btn-back">
+          <button onClick={() => navigate(basePath)} className="btn-back">
             Quay lại
           </button>
         </div>
@@ -131,14 +137,14 @@ const NewsDetailView = () => {
   return (
     <>
       <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
-      
+
       <div className="news-detail-wrapper">
         {/* Breadcrumb */}
-        <div 
+        <div
           className="breadcrumb-section"
           style={{
-            backgroundImage: newsData.imageUrl 
-              ? `url(${newsData.imageUrl})` 
+            backgroundImage: newsData.imageUrl
+              ? `url(${newsData.imageUrl})`
               : 'url(https://lib.tdtu.edu.vn/sites/tdt_lib/files/breadcrumb-tvvv.png)'
           }}
         >
@@ -153,7 +159,7 @@ const NewsDetailView = () => {
             <nav className="breadcrumb-nav">
               <a href="/">Trang chủ</a>
               <span className="separator">/</span>
-              <a href="/notification">Tin tức</a>
+              <a href={basePath}>Tin tức</a>
               <span className="separator">/</span>
               <span className="current">{newsData.title}</span>
             </nav>
@@ -181,7 +187,7 @@ const NewsDetailView = () => {
               </div>
 
               <article className="news-article">
-                <div 
+                <div
                   className="news-content"
                   dangerouslySetInnerHTML={{ __html: newsData.content }}
                 />
@@ -189,8 +195,8 @@ const NewsDetailView = () => {
 
               <div className="news-actions-bar actions-bottom">
                 <div className="actions-left">
-                  <button 
-                    onClick={() => navigate('/notification')}
+                  <button
+                    onClick={() => navigate(basePath)}
                     className="btn-action btn-back"
                   >
                     <ArrowLeft size={16} />
@@ -199,7 +205,7 @@ const NewsDetailView = () => {
                 </div>
                 <div className="actions-right">
                   <button
-                    onClick={() => navigate(`/notification/edit/${id}`)}
+                    onClick={() => navigate(`${basePath}/edit/${id}`)}
                     className="btn-action btn-edit"
                   >
                     <Pencil size={16} />
@@ -223,14 +229,14 @@ const NewsDetailView = () => {
                 <h3 className="sidebar-title">Tin tức</h3>
                 <div className="related-news-list">
                   {relatedNews.map((item) => (
-                    <div 
-                      key={item.id} 
+                    <div
+                      key={item.id}
                       className="related-news-item"
-                      onClick={() => navigate(`/notification/view/${item.id}`)}
+                      onClick={() => navigate(`${basePath}/view/${item.id}`)}
                     >
                       <div className="related-news-image">
-                        <img 
-                          src={item.imageUrl || 'https://via.placeholder.com/150'} 
+                        <img
+                          src={item.imageUrl || 'https://via.placeholder.com/150'}
                           alt={item.title}
                         />
                       </div>
@@ -245,39 +251,39 @@ const NewsDetailView = () => {
 
               <div className="sidebar-section">
                 <h3 className="sidebar-title">Thông tin bài viết</h3>
-                
+
                 <div className="info-card">
                   <div className="info-row">
                     <span className="info-label">ID:</span>
                     <span className="info-value">{newsData.id}</span>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Chủ đề:</span>
                     <span className="info-value">
                       {getCategoryName(newsData.categoryId)}
                     </span>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Trạng thái:</span>
                     <span className="info-value">
                       {newsData.isPublished ? '✓ Đã đăng' : '📝 Nháp'}
                     </span>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Ghim:</span>
                     <span className="info-value">
                       {newsData.isPinned ? 'Có' : 'Không'}
                     </span>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Lượt xem:</span>
                     <span className="info-value">{newsData.viewCount || 0}</span>
                   </div>
-                  
+
                   <div className="info-row">
                     <span className="info-label">Ngày tạo:</span>
                     <span className="info-value">{formatDate(newsData.createdAt)}</span>

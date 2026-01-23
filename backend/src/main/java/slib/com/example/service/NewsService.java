@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.NewsListDTO;
-import slib.com.example.entity.news.News; 
+import slib.com.example.entity.news.News;
 import slib.com.example.repository.NewsRepository;
 
 import java.time.LocalDateTime;
@@ -17,17 +17,14 @@ public class NewsService {
     @Autowired
     private NewsRepository newsRepository;
 
-
     public List<News> getPublicNews() {
         return newsRepository.getAllPublishedNews();
     }
 
-    
     public List<News> getPublicNewsByCategory(Long categoryId) {
         return newsRepository.getPublishedNewsByCategory(categoryId);
     }
 
-    
     @Transactional
     public News getNewsDetailAndIncrementView(Long newsId) {
         News news = newsRepository.findById(newsId)
@@ -36,11 +33,12 @@ public class NewsService {
         return newsRepository.save(news);
     }
 
-
     // --- ADMIN/LIBRARIAN (WEB PORTAL) ---
 
     public List<NewsListDTO> getAllNewsForAdmin() {
-        return newsRepository.findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        return newsRepository
+                .findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
+                        "createdAt"))
                 .stream()
                 .map(news -> NewsListDTO.builder()
                         .id(news.getId())
@@ -81,7 +79,6 @@ public class NewsService {
         return news.getImageUrl();
     }
 
-
     public News createNews(News news) {
         if (Boolean.TRUE.equals(news.getIsPublished())) {
             news.setPublishedAt(LocalDateTime.now());
@@ -103,7 +100,6 @@ public class NewsService {
         existingNews.setCategory(newsDetails.getCategory());
         existingNews.setIsPinned(newsDetails.getIsPinned());
 
-
         if (!existingNews.getIsPublished() && Boolean.TRUE.equals(newsDetails.getIsPublished())) {
             existingNews.setPublishedAt(LocalDateTime.now());
         }
@@ -111,11 +107,20 @@ public class NewsService {
         return newsRepository.save(existingNews);
     }
 
-
     public void deleteNews(Long id) {
         if (!newsRepository.existsById(id)) {
             throw new RuntimeException("Không tồn tại tin tức để xóa!");
         }
         newsRepository.deleteById(id);
+    }
+
+    /**
+     * Toggle pin status của tin tức
+     */
+    public News togglePin(Long id) {
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức: " + id));
+        news.setIsPinned(!Boolean.TRUE.equals(news.getIsPinned()));
+        return newsRepository.save(news);
     }
 }

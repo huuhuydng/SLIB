@@ -107,12 +107,28 @@ public class SeatStatusSyncService {
      * Broadcast seat update qua WebSocket
      */
     private void broadcastSeatUpdate(SeatEntity seat, String status) {
+        broadcastSeatUpdateWithTimeSlot(seat, status, null, null);
+    }
+
+    /**
+     * Broadcast seat update với thông tin time slot
+     * Dùng cho booking future time slots để clients có thể filter
+     */
+    public void broadcastSeatUpdateWithTimeSlot(SeatEntity seat, String status,
+            LocalDateTime startTime, LocalDateTime endTime) {
         Map<String, Object> message = new HashMap<>();
         message.put("seatId", seat.getSeatId());
         message.put("zoneId", seat.getZone().getZoneId());
         message.put("seatCode", seat.getSeatCode());
         message.put("status", status);
         message.put("action", "STATUS_CHANGED");
+
+        // Include time slot info for filtering on clients
+        if (startTime != null && endTime != null) {
+            message.put("date", startTime.toLocalDate().toString());
+            message.put("startTime", String.format("%02d:%02d", startTime.getHour(), startTime.getMinute()));
+            message.put("endTime", String.format("%02d:%02d", endTime.getHour(), endTime.getMinute()));
+        }
 
         messagingTemplate.convertAndSend("/topic/seats", message);
     }

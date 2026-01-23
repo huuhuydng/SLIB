@@ -62,7 +62,7 @@ const NotificationManage = () => {
 
   const handleDelete = async (id) => {
     if (!confirm('Bạn có chắc chắn muốn xóa thông báo này?')) return;
-    
+
     try {
       await deleteNews(id);
       alert('Xóa thành báo thành công!');
@@ -146,7 +146,7 @@ const NotificationManage = () => {
       {/* Main Content */}
       <main className="nt-main-content">
         <Header searchPlaceholder="Search for anything..." />
-        
+
         <div style={{
           padding: '2rem',
           maxWidth: '1400px',
@@ -155,316 +155,316 @@ const NotificationManage = () => {
           minHeight: 'calc(100vh - 80px)'
         }}>
 
-        {/* ================= LIST VIEW ================= */}
-        {viewMode === 'list' && (
-          <div className="nt-fade-in">
-            <h2 className="nt-page-title">Quản lý thông báo</h2>
+          {/* ================= LIST VIEW ================= */}
+          {viewMode === 'list' && (
+            <div className="nt-fade-in">
+              <h2 className="nt-page-title">Quản lý thông báo</h2>
 
-            <div className="nt-stats-row">
-              <div className="nt-stat-card">
-                <div className="nt-icon-circle nt-bg-purple">
-                  <Bell size={24} color="white" />
+              <div className="nt-stats-row">
+                <div className="nt-stat-card">
+                  <div className="nt-icon-circle nt-bg-purple">
+                    <Bell size={24} color="white" />
+                  </div>
+                  <div className="nt-stat-info">
+                    <span className="nt-stat-num">{notifications.length}</span>
+                    <span className="nt-stat-label">Thông báo</span>
+                  </div>
                 </div>
-                <div className="nt-stat-info">
-                  <span className="nt-stat-num">{notifications.length}</span>
-                  <span className="nt-stat-label">Thông báo</span>
+
+                <div className="nt-stat-card">
+                  <div className="nt-icon-circle nt-bg-pink">
+                    <Calendar size={24} color="white" />
+                  </div>
+                  <div className="nt-stat-info">
+                    <span className="nt-stat-num">{notifications.filter(n => n.categoryId === 2).length}</span>
+                    <span className="nt-stat-label">
+                      Sự kiện
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className="nt-stat-card nt-card-action"
+                  onClick={() => setViewMode('create')}
+                >
+                  <div className="nt-icon-circle nt-bg-action">
+                    <Plus size={24} color="white" />
+                  </div>
+                  <div className="nt-stat-info">
+                    <span className="nt-stat-label nt-text-lg">
+                      Tạo mới
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="nt-stat-card">
-                <div className="nt-icon-circle nt-bg-pink">
-                  <Calendar size={24} color="white" />
+              <div className="nt-panel">
+                <div className="nt-panel-header">
+                  <h3>Danh sách thông báo</h3>
+                  <button className="nt-filter-btn">
+                    <Filter size={18} />
+                  </button>
                 </div>
-                <div className="nt-stat-info">
-                  <span className="nt-stat-num">{notifications.filter(n => n.categoryId === 2).length}</span>
-                  <span className="nt-stat-label">
-                    Sự kiện
-                  </span>
-                </div>
-              </div>
 
-              <div
-                className="nt-stat-card nt-card-action"
-                onClick={() => setViewMode('create')}
-              >
-                <div className="nt-icon-circle nt-bg-action">
-                  <Plus size={24} color="white" />
-                </div>
-                <div className="nt-stat-info">
-                  <span className="nt-stat-label nt-text-lg">
-                    Tạo mới
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="nt-panel">
-              <div className="nt-panel-header">
-                <h3>Danh sách thông báo</h3>
-                <button className="nt-filter-btn">
-                  <Filter size={18} />
-                </button>
-              </div>
-
-              <div className="nt-table-container">
-                <table className="nt-table">
-                  <thead>
-                    <tr>
-                      <th width="15%">Chủ đề</th>
-                      <th width="45%">
-                        Tiêu đề thông báo / sự kiện
-                      </th>
-                      <th width="25%">Thời gian đăng tải</th>
-                      <th width="15%"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
+                <div className="nt-table-container">
+                  <table className="nt-table">
+                    <thead>
                       <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
-                          Đang tải...
-                        </td>
+                        <th width="15%">Chủ đề</th>
+                        <th width="45%">
+                          Tiêu đề thông báo / sự kiện
+                        </th>
+                        <th width="25%">Thời gian đăng tải</th>
+                        <th width="15%"></th>
                       </tr>
-                    ) : notifications.length === 0 ? (
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
-                          Chưa có thông báo nào
-                        </td>
-                      </tr>
-                    ) : (
-                      notifications.map((item) => (
-                        <tr
-                          key={item.id}
-                          onClick={() => {
-                            navigate(`/notification/view/${item.id}`);
-                          }}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <td>{getCategoryName(item.categoryId)}</td>
-                          <td className="nt-font-medium">
-                            {item.title}
-                          </td>
-                          <td className="nt-text-gray">
-                            {formatDateTime(item.createdAt)}
-                          </td>
-                          <td>
-                            <div className="nt-actions">
-                              <button
-                                className="nt-action-btn nt-btn-edit"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedNotification(item);
-                                  setFormData({
-                                    startTime: item.startTime || '',
-                                    endTime: item.endTime || '',
-                                    title: item.title || '',
-                                    subject: getCategoryName(item.categoryId),
-                                    description: item.content || ''
-                                  });
-                                  setIsEditing(true);
-                                  setViewMode('detail');
-                                }}
-                              >
-                                <Pencil size={16} />
-                              </button>
-                              <button 
-                                className="nt-action-btn nt-btn-delete"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(item.id);
-                                }}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                            Đang tải...
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : notifications.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
+                            Chưa có thông báo nào
+                          </td>
+                        </tr>
+                      ) : (
+                        notifications.map((item) => (
+                          <tr
+                            key={item.id}
+                            onClick={() => {
+                              navigate(`/notification/view/${item.id}`);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td>{getCategoryName(item.categoryId)}</td>
+                            <td className="nt-font-medium">
+                              {item.title}
+                            </td>
+                            <td className="nt-text-gray">
+                              {formatDateTime(item.createdAt)}
+                            </td>
+                            <td>
+                              <div className="nt-actions">
+                                <button
+                                  className="nt-action-btn nt-btn-edit"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedNotification(item);
+                                    setFormData({
+                                      startTime: item.startTime || '',
+                                      endTime: item.endTime || '',
+                                      title: item.title || '',
+                                      subject: getCategoryName(item.categoryId),
+                                      description: item.content || ''
+                                    });
+                                    setIsEditing(true);
+                                    setViewMode('detail');
+                                  }}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  className="nt-action-btn nt-btn-delete"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(item.id);
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ================= CREATE VIEW ================= */}
-        {viewMode === 'create' && (
-          <div className="nt-fade-in">
-            <h2 className="nt-page-title">
-  {isEditing ? 'Chỉnh sửa thông báo / sự kiện' : 'Tạo mới'}
-</h2>
-            <div className="nt-create-panel">
-              <div className="nt-form-layout">
-                <div className="nt-form-left">
-                  <div className="nt-row-2">
-                    <div className="nt-form-group">
-                      <label>Thời gian bắt đầu</label>
-                      <input
-                        type="text"
-                        name="startTime"
-                        className="nt-input"
-                        value={formData.startTime}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="nt-form-group">
-                      <label>Thời gian kết thúc</label>
-                      <input
-                        type="text"
-                        name="endTime"
-                        className="nt-input"
-                        value={formData.endTime}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="nt-row-2">
-                    <div className="nt-form-group">
-                      <label>Tiêu đề</label>
-                      <input
-                        type="text"
-                        name="title"
-                        className="nt-input"
-                        value={formData.title}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                    <div className="nt-form-group">
-                      <label>Chủ đề</label>
-                      <div className="nt-select-wrapper">
-                        <select
-                          name="subject"
-                          className="nt-input nt-select"
-                          value={formData.subject}
+          {/* ================= CREATE VIEW ================= */}
+          {viewMode === 'create' && (
+            <div className="nt-fade-in">
+              <h2 className="nt-page-title">
+                {isEditing ? 'Chỉnh sửa thông báo / sự kiện' : 'Tạo mới'}
+              </h2>
+              <div className="nt-create-panel">
+                <div className="nt-form-layout">
+                  <div className="nt-form-left">
+                    <div className="nt-row-2">
+                      <div className="nt-form-group">
+                        <label>Thời gian bắt đầu</label>
+                        <input
+                          type="text"
+                          name="startTime"
+                          className="nt-input"
+                          value={formData.startTime}
                           onChange={handleInputChange}
-                        >
-                          <option value="Thông báo">
-                            Thông báo
-                          </option>
-                          <option value="Sự kiện">Sự kiện</option>
-                        </select>
-                        <ChevronDown
-                          size={16}
-                          className="nt-select-arrow"
+                        />
+                      </div>
+                      <div className="nt-form-group">
+                        <label>Thời gian kết thúc</label>
+                        <input
+                          type="text"
+                          name="endTime"
+                          className="nt-input"
+                          value={formData.endTime}
+                          onChange={handleInputChange}
                         />
                       </div>
                     </div>
+
+                    <div className="nt-row-2">
+                      <div className="nt-form-group">
+                        <label>Tiêu đề</label>
+                        <input
+                          type="text"
+                          name="title"
+                          className="nt-input"
+                          value={formData.title}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="nt-form-group">
+                        <label>Chủ đề</label>
+                        <div className="nt-select-wrapper">
+                          <select
+                            name="subject"
+                            className="nt-input nt-select"
+                            value={formData.subject}
+                            onChange={handleInputChange}
+                          >
+                            <option value="Thông báo">
+                              Thông báo
+                            </option>
+                            <option value="Sự kiện">Sự kiện</option>
+                          </select>
+                          <ChevronDown
+                            size={16}
+                            className="nt-select-arrow"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="nt-form-group nt-flex-grow">
+                      <label>Mô tả</label>
+                      <textarea
+                        name="description"
+                        className="nt-textarea"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                      />
+                    </div>
                   </div>
 
-                  <div className="nt-form-group nt-flex-grow">
-                    <label>Mô tả</label>
-                    <textarea
-                      name="description"
-                      className="nt-textarea"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-
-                <div className="nt-form-right">
-                  <button className="nt-btn-primary-blue">
-                    <Paperclip size={16} /> File đính kèm
-                  </button>
-                  <div className="nt-dropzone">
-                    <p>Hoặc di chuyển tệp vào vùng này</p>
+                  <div className="nt-form-right">
+                    <button className="nt-btn-primary-blue">
+                      <Paperclip size={16} /> File đính kèm
+                    </button>
+                    <div className="nt-dropzone">
+                      <p>Hoặc di chuyển tệp vào vùng này</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="nt-footer-actions">
-              <button className="nt-btn-draft">Save Draft</button>
-              <button
-                className="nt-btn-submit"
-                disabled={!formData.title}
-              >
-                Submit
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ================= DETAIL VIEW ================= */}
-        {viewMode === 'detail' && selectedNotification && (
-          <div className="nt-fade-in">
-            <h2 className="nt-page-title">
-              Chi tiết thông báo / sự kiện
-            </h2>
-
-            <div className="nt-create-panel">
-              <div className="nt-form-layout">
-                <div className="nt-form-left">
-                  <div className="nt-row-2">
-                    <div className="nt-form-group">
-                      <label>Thời gian</label>
-                      <div className="nt-view-text">
-                        {formatDateTime(selectedNotification.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="nt-row-2">
-                    <div className="nt-form-group">
-                      <label>Tiêu đề</label>
-                      <div className="nt-view-text">
-                        {selectedNotification.title}
-                      </div>
-                    </div>
-                    <div className="nt-form-group">
-                      <label>Chủ đề</label>
-                      <div className="nt-view-text nt-tag">
-                        {getCategoryName(selectedNotification.categoryId)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="nt-form-group nt-flex-grow">
-                    <label>Mô tả</label>
-                    <div className="nt-view-text nt-description">
-                      {selectedNotification.content || 'Chưa có mô tả chi tiết'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="nt-form-right">
-                  <label>File đính kèm</label>
-                  <p className="nt-empty-text">
-                    Không có file đính kèm
-                  </p>
-                </div>
+              <div className="nt-footer-actions">
+                <button className="nt-btn-draft">Save Draft</button>
+                <button
+                  className="nt-btn-submit"
+                  disabled={!formData.title}
+                >
+                  Submit
+                </button>
               </div>
             </div>
+          )}
 
-            <div className="nt-footer-actions">
-              <button
-                className="nt-btn-draft"
-                onClick={() => setViewMode('list')}
-              >
-                Quay lại
-              </button>
-              <button
-                    className="nt-btn-primary-blue"
-                    onClick={() => {
-                      setFormData({
-                        startTime: selectedNotification.startTime || '',
-                        endTime: selectedNotification.endTime || '',
-                        title: selectedNotification.title || '',
-                        subject: selectedNotification.subject || 'Thông báo',
-                        description: selectedNotification.description || ''
-                      });
+          {/* ================= DETAIL VIEW ================= */}
+          {viewMode === 'detail' && selectedNotification && (
+            <div className="nt-fade-in">
+              <h2 className="nt-page-title">
+                Chi tiết thông báo / sự kiện
+              </h2>
 
-                      setIsEditing(true);
-                      setViewMode('create');
-                    }}
-                  >
-                    Chỉnh sửa
-                  </button>
+              <div className="nt-create-panel">
+                <div className="nt-form-layout">
+                  <div className="nt-form-left">
+                    <div className="nt-row-2">
+                      <div className="nt-form-group">
+                        <label>Thời gian</label>
+                        <div className="nt-view-text">
+                          {formatDateTime(selectedNotification.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="nt-row-2">
+                      <div className="nt-form-group">
+                        <label>Tiêu đề</label>
+                        <div className="nt-view-text">
+                          {selectedNotification.title}
+                        </div>
+                      </div>
+                      <div className="nt-form-group">
+                        <label>Chủ đề</label>
+                        <div className="nt-view-text nt-tag">
+                          {getCategoryName(selectedNotification.categoryId)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="nt-form-group nt-flex-grow">
+                      <label>Mô tả</label>
+                      <div className="nt-view-text nt-description">
+                        {selectedNotification.content || 'Chưa có mô tả chi tiết'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="nt-form-right">
+                    <label>File đính kèm</label>
+                    <p className="nt-empty-text">
+                      Không có file đính kèm
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="nt-footer-actions">
+                <button
+                  className="nt-btn-draft"
+                  onClick={() => setViewMode('list')}
+                >
+                  Quay lại
+                </button>
+                <button
+                  className="nt-btn-primary-blue"
+                  onClick={() => {
+                    setFormData({
+                      startTime: selectedNotification.startTime || '',
+                      endTime: selectedNotification.endTime || '',
+                      title: selectedNotification.title || '',
+                      subject: selectedNotification.subject || 'Thông báo',
+                      description: selectedNotification.description || ''
+                    });
+
+                    setIsEditing(true);
+                    setViewMode('create');
+                  }}
+                >
+                  Chỉnh sửa
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
       </main>
     </div>

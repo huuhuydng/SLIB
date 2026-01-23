@@ -1,0 +1,536 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import {
+  ArrowLeft,
+  X,
+  Send,
+  CloudUpload,
+  Save,
+  Clock,
+  Plus,
+  Trash2
+} from 'lucide-react';
+import Header from "../../../components/shared/Header";
+import TipTapEditor from "../../../components/editor/TipTapEditor";
+import '../../../styles/librarian/NewsCreate.css';
+import { handleLogout } from "../../../utils/auth";
+import {
+  createNews,
+  updateNews,
+  getNewsDetailForAdmin,
+  getNewsImage,
+  getAllCategories,
+  createCategory,
+  deleteCategory,
+  uploadImage
+} from '../../../services/newsService';
+
+const NewCreate = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+  const fileInputRef = useRef(null);
+
+  const basePath = location.pathname.startsWith('/librarian/news')
+    ? '/librarian/news'
+    : '/librarian/notification';
+
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    summary: '',
+    content: '',
+    imageUrl: '',
+    categoryId: '',
+  });
+
+  // Status: 'draft' | 'publish' | 'schedule'
+  const [publishStatus, setPublishStatus] = useState('publish');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+
+  // Categories state
+  const [categories, setCategories] = useState([]);
+
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+    if (isEditMode) {
+      loadNewsData();
+    }
+  }, [id]);
+
+  const loadCategories = async () => {
+    try {
+      const data = await getAllCategories();
+      setCategories(data);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+    }
+  };
+
+  const loadNewsData = async () => {
+    try {
+      setLoading(true);
+      const data = await getNewsDetailForAdmin(id);
+      const imageUrl = await getNewsImage(id);
+
+      setFormData({
+        title: data.title || '',
+        summary: data.summary || '',
+        content: data.content || '',
+        imageUrl: imageUrl || '',
+        categoryId: data.categoryId?.toString() || '',
+      });
+
+      if (imageUrl) {
+        setImagePreview(imageUrl);
+      }
+
+      // Determine status based on data
+      if (!data.isPublished && !data.publishedAt) {
+        setPublishStatus('draft');
+      } else if (data.publishedAt && new Date(data.publishedAt) > new Date()) {
+        setPublishStatus('schedule');
+        const dt = new Date(data.publishedAt);
+        setScheduleDate(dt.toISOString().split('T')[0]);
+        setScheduleTime(dt.toTimeString().slice(0, 5));
+      } else {
+        setPublishStatus('publish');
+      }
+    } catch (err) {
+      setError('Không thể tải dữ liệu tin tức');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle category add
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await createCategory(newCategoryName.trim());
+      await loadCategories();
+      setNewCategoryName('');
+      setShowAddCategory(false);
+    } catch (err) {
+      alert('Không thể thêm danh mục: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Handle category delete
+  const handleDeleteCategory = async (categoryId) => {
+    if (!confirm('Bạn có chắc muốn xoá danh mục này?')) return;
+    try {
+      await deleteCategory(categoryId);
+      await loadCategories();
+      if (formData.categoryId === categoryId.toString()) {
+        setFormData(prev => ({ ...prev, categoryId: '' }));
+      }
+    } catch (err) {
+      alert('Không thể xoá danh mục: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  // Handle image upload via Backend API
+  const handleImageUpload = async (file) => {
+    try {
+      setUploading(true);
+      const url = await uploadImage(file);
+      setFormData(prev => ({ ...prev, imageUrl: url }));
+      setImagePreview(url);
+      return url;
+    } catch (err) {
+      alert('Lỗi upload ảnh: ' + err.message);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle thumbnail file selection
+  const handleThumbnailSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      await handleImageUpload(file);
+    }
+  };
+
+  // Remove thumbnail
+  const handleRemoveThumbnail = () => {
+    setFormData(prev => ({ ...prev, imageUrl: '' }));
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Generate random color for new categories
+  const generateRandomColor = () => {
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
+  // Handle form submit
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!formData.title.trim()) {
+        setError('Vui lòng nhập tiêu đề');
+        setLoading(false);
+        return;
+      }
+
+      let isPublished = false;
+      let publishedAt = null;
+
+      if (publishStatus === 'publish') {
+        isPublished = true;
+        publishedAt = new Date().toISOString();
+      } else if (publishStatus === 'schedule') {
+        if (!scheduleDate || !scheduleTime) {
+          setError('Vui lòng chọn ngày và giờ đăng');
+          setLoading(false);
+          return;
+        }
+        isPublished = false;
+        publishedAt = `${scheduleDate}T${scheduleTime}:00`;
+      }
+      // draft: isPublished = false, publishedAt = null
+
+      // Handle category - create new if 'other' is selected
+      let categoryId = null;
+      if (formData.categoryId === 'other' && formData.customCategory?.trim()) {
+        try {
+          const newCat = await createCategory(formData.customCategory.trim(), generateRandomColor());
+          categoryId = newCat.id;
+          await loadCategories(); // Refresh categories list
+        } catch (err) {
+          console.error('Error creating category:', err);
+          // If category already exists, try to find it
+          const existingCat = categories.find(c => c.name.toLowerCase() === formData.customCategory.trim().toLowerCase());
+          if (existingCat) {
+            categoryId = existingCat.id;
+          }
+        }
+      } else if (formData.categoryId && formData.categoryId !== 'other') {
+        categoryId = parseInt(formData.categoryId);
+      }
+
+      const newsData = {
+        title: formData.title,
+        summary: formData.summary || null,
+        content: formData.content || null,
+        imageUrl: formData.imageUrl || null,
+        category: categoryId ? { id: categoryId } : null,
+        isPublished,
+        isPinned: false,
+        viewCount: 0,
+        publishedAt
+      };
+
+      if (isEditMode) {
+        await updateNews(id, newsData);
+      } else {
+        await createNews(newsData);
+      }
+
+      navigate(basePath);
+    } catch (err) {
+      setError(isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Render submit button based on status
+  const renderSubmitButton = () => {
+    if (publishStatus === 'draft') {
+      return (
+        <button
+          type="button"
+          className="news-btn news-btn-primary"
+          onClick={handleSubmit}
+          disabled={loading || !formData.title.trim()}
+        >
+          <Save size={16} />
+          {loading ? 'Đang lưu...' : 'Lưu nháp'}
+        </button>
+      );
+    } else if (publishStatus === 'schedule') {
+      return (
+        <button
+          type="button"
+          className="news-btn news-btn-primary"
+          onClick={handleSubmit}
+          disabled={loading || !formData.title.trim() || !scheduleDate || !scheduleTime}
+        >
+          <Clock size={16} />
+          {loading ? 'Đang lên lịch...' : 'Lên lịch gửi'}
+        </button>
+      );
+    } else {
+      return (
+        <button
+          type="button"
+          className="news-btn news-btn-primary"
+          onClick={handleSubmit}
+          disabled={loading || !formData.title.trim()}
+        >
+          <Send size={16} />
+          {loading ? 'Đang đăng...' : 'Đăng tin ngay'}
+        </button>
+      );
+    }
+  };
+
+  // Get minimum datetime for schedule
+  const getMinDate = () => {
+    const now = new Date();
+    return now.toISOString().split('T')[0];
+  };
+
+  return (
+    <div className="news-create-container">
+      <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
+
+      <div className="news-card">
+        {error && (
+          <div className="news-error-alert">
+            <X size={18} />
+            {error}
+          </div>
+        )}
+
+        <div className="news-form-grid">
+          {/* Left Column - Main Content */}
+          <div className="news-form-left">
+            <div className="news-form-group">
+              <label className="news-form-label">
+                Tiêu đề bài viết <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                className="news-form-input"
+                placeholder="Nhập tiêu đề tin tức..."
+                value={formData.title}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="news-form-group">
+              <label className="news-form-label">Tóm tắt ngắn</label>
+              <textarea
+                className="news-form-textarea"
+                placeholder="Mô tả ngắn gọn nội dung hiển thị ở danh sách..."
+                value={formData.summary}
+                onChange={(e) => setFormData(prev => ({ ...prev, summary: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="news-form-group">
+              <label className="news-form-label">Nội dung chi tiết</label>
+              <TipTapEditor
+                content={formData.content}
+                onChange={(html) => setFormData(prev => ({ ...prev, content: html }))}
+                onImageUpload={handleImageUpload}
+              />
+            </div>
+          </div>
+
+          {/* Right Column - Settings */}
+          <div className="news-form-right">
+            {/* Thumbnail Upload */}
+            <div className="news-form-group">
+              <label className="news-form-label">Ảnh bìa (Thumbnail)</label>
+              {imagePreview ? (
+                <div className="news-image-preview">
+                  <img src={imagePreview} alt="Thumbnail" />
+                  <button
+                    type="button"
+                    className="news-remove-image"
+                    onClick={handleRemoveThumbnail}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="news-upload-zone"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <CloudUpload size={40} className="news-upload-icon" />
+                  <p className="news-upload-text">Kéo thả ảnh vào đây</p>
+                  <p className="news-upload-text">hoặc</p>
+                  <button type="button" className="news-upload-btn-mini">
+                    {uploading ? 'Đang tải...' : 'Chọn file'}
+                  </button>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleThumbnailSelect}
+              />
+              <input
+                type="text"
+                className="news-form-input"
+                placeholder="Hoặc nhập URL hình ảnh..."
+                value={formData.imageUrl}
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, imageUrl: e.target.value }));
+                  setImagePreview(e.target.value);
+                }}
+                style={{ marginTop: '12px' }}
+              />
+            </div>
+
+            {/* Category Selection - Simplified */}
+            <div className="news-form-group">
+              <label className="news-form-label">Danh mục</label>
+
+              <select
+                className="news-form-select"
+                value={formData.categoryId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'other') {
+                    setFormData(prev => ({ ...prev, categoryId: 'other' }));
+                  } else {
+                    setFormData(prev => ({ ...prev, categoryId: val, customCategory: '' }));
+                  }
+                }}
+              >
+                <option value="">-- Chọn danh mục --</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+                <option value="other">Khác...</option>
+              </select>
+
+              {/* Custom category input when 'Khác' is selected */}
+              {formData.categoryId === 'other' && (
+                <input
+                  type="text"
+                  className="news-form-input"
+                  placeholder="Nhập tên danh mục mới..."
+                  value={formData.customCategory || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customCategory: e.target.value }))}
+                  style={{ marginTop: '12px' }}
+                />
+              )}
+            </div>
+
+            {/* Publish Status */}
+            <div className="news-form-group">
+              <label className="news-form-label">Trạng thái</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="publishStatus"
+                    value="draft"
+                    checked={publishStatus === 'draft'}
+                    onChange={(e) => setPublishStatus(e.target.value)}
+                  />
+                  <span>Lưu nháp</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="publishStatus"
+                    value="publish"
+                    checked={publishStatus === 'publish'}
+                    onChange={(e) => setPublishStatus(e.target.value)}
+                  />
+                  <span>Gửi ngay</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="publishStatus"
+                    value="schedule"
+                    checked={publishStatus === 'schedule'}
+                    onChange={(e) => setPublishStatus(e.target.value)}
+                  />
+                  <span>Lên lịch gửi</span>
+                </label>
+              </div>
+
+              {/* Schedule DateTime Picker */}
+              {publishStatus === 'schedule' && (
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: '#f8fafc',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Ngày đăng</label>
+                      <input
+                        type="date"
+                        className="news-form-input"
+                        value={scheduleDate}
+                        min={getMinDate()}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        style={{ marginTop: '6px' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>Giờ đăng</label>
+                      <input
+                        type="time"
+                        className="news-form-input"
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        style={{ marginTop: '6px' }}
+                      />
+                    </div>
+                  </div>
+                  {scheduleDate && scheduleTime && (
+                    <p style={{ marginTop: '12px', fontSize: '13px', color: '#f97316', fontWeight: 500 }}>
+                      Tin sẽ được đăng vào: {new Date(`${scheduleDate}T${scheduleTime}`).toLocaleString('vi-VN')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="news-btn-group">
+          <button
+            type="button"
+            className="news-btn news-btn-secondary"
+            onClick={() => navigate(basePath)}
+            disabled={loading}
+          >
+            <X size={16} />
+            Huỷ bỏ
+          </button>
+          {renderSubmitButton()}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NewCreate;

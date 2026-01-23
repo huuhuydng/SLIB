@@ -16,4 +16,10 @@ public interface NewsRepository extends JpaRepository<News, Long> {
     @Query("SELECT n FROM News n WHERE n.category.id = :catId AND n.isPublished = true ORDER BY n.publishedAt DESC")
     List<News> getPublishedNewsByCategory(@Param("catId") Long categoryId);
 
+    /**
+     * Tìm các tin tức đã đến thời gian hẹn nhưng chưa được publish
+     */
+    @Query("SELECT n FROM News n WHERE n.publishedAt <= :now AND n.isPublished = false")
+    List<News> findScheduledNewsToPublish(@Param("now") java.time.LocalDateTime now);
+
 }

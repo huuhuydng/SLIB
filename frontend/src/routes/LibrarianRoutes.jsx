@@ -12,9 +12,9 @@ import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
-import NotificationManage from "../pages/librarian/NotificationManage/NotificationManage";
-import NewCreate from "../pages/librarian/NotificationManage/NewCreate";
-import NewsDetailView from "../pages/librarian/NotificationManage/NewsDetailView";
+import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
+import NewCreate from "../pages/librarian/NewsManage/NewCreate";
+import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 
 function LibrarianRoutes() {
   return (
@@ -46,7 +46,13 @@ function LibrarianRoutes() {
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
 
-        {/* Thông báo */}
+        {/* Tin tức */}
+        <Route path="news" element={<NotificationManage />} />
+        <Route path="news/create" element={<NewCreate />} />
+        <Route path="news/edit/:id" element={<NewCreate />} />
+        <Route path="news/view/:id" element={<NewsDetailView />} />
+
+        {/* Thông báo (legacy routes - giữ để tương thích) */}
         <Route path="notification" element={<NotificationManage />} />
         <Route path="notification/create" element={<NewCreate />} />
         <Route path="notification/edit/:id" element={<NewCreate />} />
