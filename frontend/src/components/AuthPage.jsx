@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Login from "./Login";
-import ForgotPassword from "./ForgotPassword";
+import Login from "./auth/Login";
+import ForgotPassword from "./auth/ForgotPassword";
 import logo from "../assets/logo.png";
 import "../styles/Auth.css";
 
@@ -13,7 +13,7 @@ function AuthPage({ onLogin }) {
 
         {/* ============ LOGIN PANEL ============ */}
         <div className="panel panel-login">
-          <Login 
+          <Login
             onLogin={onLogin}
             onForgotPassword={() => setShowForgotPassword(true)}
           />
@@ -21,7 +21,7 @@ function AuthPage({ onLogin }) {
 
         {/* ============ FORGOT PASSWORD PANEL ============ */}
         <div className="panel panel-forgot">
-          <ForgotPassword 
+          <ForgotPassword
             onSwitch={() => setShowForgotPassword(false)}
           />
         </div>
