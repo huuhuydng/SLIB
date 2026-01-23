@@ -8,6 +8,7 @@ import slib.com.example.service.CloudinaryService;
 
 @RestController
 @RequestMapping("/slib/files")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class FileUploadController {
 
     @Autowired

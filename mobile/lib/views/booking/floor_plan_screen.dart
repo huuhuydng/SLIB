@@ -76,31 +76,54 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final seatId = data['seatId'] as int?;
     final zoneId = data['zoneId'] as int?;
     final status = data['status'] as String?;
+    final msgDate = data['date'] as String?;         // "2026-01-22"
+    final msgStartTime = data['startTime'] as String?; // "09:00"
+    final msgEndTime = data['endTime'] as String?;     // "10:00"
     
     if (seatId == null || zoneId == null || status == null) return;
     
-    setState(() {
-      final seats = _zoneSeats[zoneId];
-      if (seats != null) {
-        final index = seats.indexWhere((s) => s.seatId == seatId);
-        if (index != -1) {
-          // Update seat status
-          final newStatus = status == 'AVAILABLE' ? 'AVAILABLE' 
-                          : status == 'HOLDING' ? 'HOLDING'
-                          : 'BOOKED';
-          seats[index] = Seat(
-            seatId: seats[index].seatId,
-            zoneId: seats[index].zoneId,
-            seatCode: seats[index].seatCode,
-            seatStatus: newStatus,
-            rowNumber: seats[index].rowNumber,
-            columnNumber: seats[index].columnNumber,
-          );
-        }
-      }
-    });
+    debugPrint('🔔 Seat update: seatId=$seatId, status=$status, date=$msgDate, time=$msgStartTime-$msgEndTime');
     
-    debugPrint('Seat update received: $data');
+    // Kiểm tra xem update này có thuộc về time slot đang xem không
+    bool isRelevant = true;
+    if (msgDate != null && msgStartTime != null && msgEndTime != null && _selectedTimeSlot != null) {
+      final selectedDateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+      final selectedSlot = '$msgStartTime - $msgEndTime';
+      
+      // Chỉ apply update nếu đúng date VÀ đúng time slot
+      isRelevant = (msgDate == selectedDateStr) && (_selectedTimeSlot == selectedSlot);
+      
+      if (!isRelevant) {
+        debugPrint('⏭️ Skipping update (different time slot: viewing $_selectedTimeSlot on $selectedDateStr, got $selectedSlot on $msgDate)');
+      }
+    }
+    
+    // Clear cache để lần sau fetch sẽ lấy data mới
+    _clearSeatsCache();
+    
+    // Chỉ update UI nếu update thuộc time slot đang xem
+    if (isRelevant) {
+      setState(() {
+        final seats = _zoneSeats[zoneId];
+        if (seats != null) {
+          final index = seats.indexWhere((s) => s.seatId == seatId);
+          if (index != -1) {
+            final newStatus = status == 'AVAILABLE' ? 'AVAILABLE' 
+                            : status == 'HOLDING' ? 'HOLDING'
+                            : 'BOOKED';
+            seats[index] = Seat(
+              seatId: seats[index].seatId,
+              zoneId: seats[index].zoneId,
+              seatCode: seats[index].seatCode,
+              seatStatus: newStatus,
+              rowNumber: seats[index].rowNumber,
+              columnNumber: seats[index].columnNumber,
+            );
+            debugPrint('✅ Updated seat $seatId to $newStatus');
+          }
+        }
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -124,22 +147,39 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
       // Filter time slots: nếu là hôm nay, chỉ hiển thị slot từ giờ hiện tại trở đi
       final filteredSlots = _filterTimeSlotsForDate(_selectedDate, allTimeSlots);
       
-      // Auto-select slot phù hợp với giờ hiện tại
-      String? defaultSlot = _findCurrentSlot(filteredSlots);
+      // Giữ nguyên slot đang chọn nếu còn valid, nếu không thì chọn slot mặc định
+      String? newTimeSlot = _selectedTimeSlot;
+      if (newTimeSlot != null) {
+        // Kiểm tra slot cũ còn trong danh sách valid không
+        final isStillValid = filteredSlots.any((s) => s.label == newTimeSlot);
+        if (!isStillValid) {
+          // Slot cũ không còn valid (đã qua), chọn slot mới
+          newTimeSlot = _findCurrentSlot(filteredSlots);
+        }
+      } else {
+        // Chưa có slot nào, chọn slot mặc định
+        newTimeSlot = _findCurrentSlot(filteredSlots);
+      }
       
       setState(() {
         _areas = areas.where((a) => a.isActive).toList();
         _librarySettings = settings;
         _timeSlots = allTimeSlots; // Giữ tất cả slots gốc
-        _selectedTimeSlot = defaultSlot;
+        _selectedTimeSlot = newTimeSlot;
         _isLoading = false;
         
-        // Nếu không có slot valid (hết giờ làm việc), hiển thị message
+        // Nếu không có slot valid cho hôm nay (hết giờ làm việc), chỉ thông báo nhưng vẫn cho chọn ngày khác
         if (filteredSlots.isEmpty && allTimeSlots.isNotEmpty) {
-          _errorMessage = 'Thư viện đã đóng cửa hôm nay. Vui lòng chọn ngày khác.';
-        } else if (_areas.isNotEmpty && defaultSlot != null) {
+          _errorMessage = 'Thư viện đã đóng cửa hôm nay. Vui lòng chọn ngày khác phía trên.';
+        }
+        
+        // Vẫn load areas để user có thể chọn ngày khác
+        if (_areas.isNotEmpty) {
           _selectedArea = _areas.first;
-          _loadZonesAndFactories();
+          // Chỉ load zones/seats nếu có time slot hợp lệ
+          if (newTimeSlot != null) {
+            _loadZonesAndFactories();
+          }
         }
       });
       
@@ -179,14 +219,22 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }).toList();
   }
 
-  /// Tìm slot phù hợp với thời gian hiện tại
-  String? _findCurrentSlot(List<TimeSlot> slots) {
+  /// Tìm slot phù hợp với thời gian - nếu là hôm nay dùng giờ hiện tại, ngày khác dùng slot đầu tiên
+  String? _findCurrentSlot(List<TimeSlot> slots, {DateTime? forDate}) {
     if (slots.isEmpty) return null;
     
     final now = DateTime.now();
+    final date = forDate ?? _selectedDate;
+    final isToday = date.year == now.year && date.month == now.month && date.day == now.day;
+    
+    // Nếu không phải hôm nay, trả về slot đầu tiên (giờ mở cửa)
+    if (!isToday) {
+      return slots.first.label;
+    }
+    
+    // Nếu là hôm nay, tìm slot chứa hoặc gần giờ hiện tại
     final currentHour = now.hour;
     
-    // Tìm slot chứa giờ hiện tại hoặc slot gần nhất
     for (final slot in slots) {
       final startParts = slot.startTime.split(':');
       final startHour = int.tryParse(startParts[0]) ?? 0;
@@ -1107,8 +1155,22 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       },
                     );
                     if (date != null) {
-                      setState(() => _selectedDate = date);
-                      _loadZonesAndFactories(); // Reload seats for new date
+                      // Filter slots cho ngày mới
+                      final validSlots = _filterTimeSlotsForDate(date, _timeSlots);
+                      // Reset time slot về slot đầu tiên của ngày mới (giờ mở cửa nếu là ngày mai)
+                      final newTimeSlot = _findCurrentSlot(validSlots, forDate: date);
+                      
+                      setState(() {
+                        _selectedDate = date;
+                        _selectedTimeSlot = newTimeSlot;
+                        _errorMessage = validSlots.isEmpty 
+                            ? 'Không còn khung giờ trống cho ngày này' 
+                            : null;
+                      });
+                      
+                      // Clear cache và reload seats for new date
+                      _clearSeatsCache();
+                      _loadZonesAndFactories();
                     }
                   },
                   child: Container(

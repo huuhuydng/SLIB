@@ -114,6 +114,10 @@ public class BookingService {
         // Sync seat status ngay lập tức (nếu trong khung giờ hiện tại)
         seatStatusSyncService.updateSeatStatus(seat, startTime, endTime, "PROCESSING");
 
+        // LUÔN broadcast WebSocket cho tất cả bookings (kể cả future) để clients sync
+        // được
+        seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(seat, "HOLDING", startTime, endTime);
+
         return saved;
     }
 
@@ -151,6 +155,10 @@ public class BookingService {
         seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
                 reservation.getStartTime(), reservation.getEndTime(), "CANCEL");
 
+        // Broadcast cho tất cả clients kể cả đang xem future time slots
+        seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "AVAILABLE",
+                reservation.getStartTime(), reservation.getEndTime());
+
         return saved;
     }
 
@@ -163,6 +171,12 @@ public class BookingService {
         // Sync seat status ngay lập tức
         seatStatusSyncService.updateSeatStatus(reserv.getSeat(),
                 reserv.getStartTime(), reserv.getEndTime(), status);
+
+        // Broadcast cho tất cả clients
+        String wsStatus = "BOOKED".equalsIgnoreCase(status) ? "BOOKED"
+                : "CANCEL".equalsIgnoreCase(status) ? "AVAILABLE" : "HOLDING";
+        seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reserv.getSeat(), wsStatus,
+                reserv.getStartTime(), reserv.getEndTime());
 
         return saved;
     }

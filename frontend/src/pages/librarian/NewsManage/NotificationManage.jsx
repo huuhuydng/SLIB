@@ -18,17 +18,25 @@ import {
   Pencil,
   Paperclip,
   ArrowLeft,
-  ChevronDown
+  ChevronDown,
+  Pin
 } from 'lucide-react';
 import Header from "../../../components/shared/Header";
 import '../../../styles/librarian/NotificationManage.css';
 import { handleLogout } from "../../../utils/auth";
 import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
+import axios from 'axios';
 
 
 const NotificationManage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Detect base path from current URL (/librarian/news or /librarian/notification)
+  const basePath = location.pathname.startsWith('/librarian/news')
+    ? '/librarian/news'
+    : '/librarian/notification';
+
   const [viewMode, setViewMode] = useState('list'); // list | create | detail
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -47,7 +55,7 @@ const NotificationManage = () => {
     const isDraft = !effectivePublished && !isScheduled;
     return { publishedFlag, publishedBySchedule, effectivePublished, isScheduled, isDraft, publishedAtDate };
   };
-  
+
   // Create Form State
   const [formData, setFormData] = useState({
     startTime: '',
@@ -72,7 +80,7 @@ const NotificationManage = () => {
       console.log('📊 Response type:', typeof data);
       console.log('📊 Is Array:', Array.isArray(data));
       console.log('📊 Data length:', data?.length);
-      
+
       // API trả về trực tiếp là array
       if (data && Array.isArray(data)) {
         // Sắp xếp: tin tức được ghim lên đầu, sau đó sắp xếp theo thời gian mới nhất
@@ -85,7 +93,7 @@ const NotificationManage = () => {
           const dateB = new Date(b.publishedAt || b.createdAt);
           return dateB - dateA;
         });
-        
+
         console.log('✅ Setting notifications array, length:', sortedData.length);
         setNotifications(sortedData);
       } else {
@@ -104,7 +112,7 @@ const NotificationManage = () => {
 
   const handleDelete = async (id, event) => {
     event.stopPropagation();
-    
+
     if (!window.confirm('Bạn có chắc chắn muốn xóa tin tức này?')) {
       return;
     }
@@ -119,9 +127,20 @@ const NotificationManage = () => {
     }
   };
 
+  const handleTogglePin = async (id, event) => {
+    event.stopPropagation();
+    try {
+      await axios.patch(`http://localhost:8080/slib/news/admin/${id}/pin`);
+      loadNotifications();
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      alert('Không thể ghim/bỏ ghim tin tức');
+    }
+  };
+
   const handleViewDetail = async (item) => {
     // Navigate to detail view page
-    navigate(`/notification/view/${item.id}`);
+    navigate(`${basePath}/view/${item.id}`);
   };
 
   const formatDateTime = (dateString) => {
@@ -165,7 +184,7 @@ const NotificationManage = () => {
   return (
     <>
       <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
-      
+
       <div style={{
         padding: '2rem',
         maxWidth: '1400px',
@@ -174,7 +193,7 @@ const NotificationManage = () => {
         minHeight: 'calc(100vh - 80px)'
       }}>
 
-      {/* ================= LIST VIEW ================= */}
+        {/* ================= LIST VIEW ================= */}
         {viewMode === 'list' && (
           <div className="nt-fade-in">
             <h2 className="nt-page-title">Quản lý thông báo</h2>
@@ -206,7 +225,7 @@ const NotificationManage = () => {
 
               <div
                 className="nt-stat-card nt-card-action"
-                onClick={() => navigate('/notification/create')}
+                onClick={() => navigate(`${basePath}/create`)}
               >
                 <div className="nt-icon-circle nt-bg-action">
                   <Plus size={24} color="white" />
@@ -219,7 +238,7 @@ const NotificationManage = () => {
               </div>
             </div>
 
-              <div className="nt-panel">
+            <div className="nt-panel">
               <div className="nt-panel-header">
                 <h3>Danh sách thông báo</h3>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -239,7 +258,7 @@ const NotificationManage = () => {
                   >
                     Tất cả ({notifications?.length || 0})
                   </button>
-                  <button 
+                  <button
                     className="nt-filter-btn"
                     onClick={() => setViewFilter('scheduled')}
                     style={{
@@ -253,12 +272,12 @@ const NotificationManage = () => {
                       fontSize: '13px'
                     }}
                   >
-                    ⏰ Chờ lịch ({notifications?.filter(n => {
+                    Chờ lịch ({notifications?.filter(n => {
                       const { isScheduled } = classifyStatus(n);
                       return isScheduled;
                     }).length || 0})
                   </button>
-                  <button 
+                  <button
                     className="nt-filter-btn"
                     onClick={() => setViewFilter('draft')}
                     style={{
@@ -272,7 +291,7 @@ const NotificationManage = () => {
                       fontSize: '13px'
                     }}
                   >
-                    📝 Nháp ({notifications?.filter(n => {
+                    Nháp ({notifications?.filter(n => {
                       const { isDraft } = classifyStatus(n);
                       return isDraft;
                     }).length || 0})
@@ -356,10 +375,21 @@ const NotificationManage = () => {
                               <td>
                                 <div className="nt-actions">
                                   <button
+                                    className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
+                                    onClick={(e) => handleTogglePin(item.id, e)}
+                                    title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
+                                    style={{
+                                      background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                                      color: item.isPinned ? '#92400e' : '#64748b'
+                                    }}
+                                  >
+                                    <Pin size={16} />
+                                  </button>
+                                  <button
                                     className="nt-action-btn nt-btn-edit"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/notification/create/${item.id}`);
+                                      navigate(`${basePath}/edit/${item.id}`);
                                     }}
                                   >
                                     <Pencil size={16} />
@@ -436,15 +466,26 @@ const NotificationManage = () => {
                               <td>
                                 <div className="nt-actions">
                                   <button
+                                    className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
+                                    onClick={(e) => handleTogglePin(item.id, e)}
+                                    title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
+                                    style={{
+                                      background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                                      color: item.isPinned ? '#92400e' : '#64748b'
+                                    }}
+                                  >
+                                    <Pin size={16} />
+                                  </button>
+                                  <button
                                     className="nt-action-btn nt-btn-edit"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate(`/notification/edit/${item.id}`);
+                                      navigate(`${basePath}/edit/${item.id}`);
                                     }}
                                   >
                                     <Pencil size={16} />
                                   </button>
-                                  <button 
+                                  <button
                                     className="nt-action-btn nt-btn-delete"
                                     onClick={(e) => handleDelete(item.id, e)}
                                   >
@@ -511,15 +552,26 @@ const NotificationManage = () => {
                             <td>
                               <div className="nt-actions">
                                 <button
+                                  className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
+                                  onClick={(e) => handleTogglePin(item.id, e)}
+                                  title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
+                                  style={{
+                                    background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                                    color: item.isPinned ? '#92400e' : '#64748b'
+                                  }}
+                                >
+                                  <Pin size={16} />
+                                </button>
+                                <button
                                   className="nt-action-btn nt-btn-edit"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    navigate(`/notification/edit/${item.id}`);
+                                    navigate(`${basePath}/edit/${item.id}`);
                                   }}
                                 >
                                   <Pencil size={16} />
                                 </button>
-                                <button 
+                                <button
                                   className="nt-action-btn nt-btn-delete"
                                   onClick={(e) => handleDelete(item.id, e)}
                                 >
@@ -542,8 +594,8 @@ const NotificationManage = () => {
         {viewMode === 'create' && (
           <div className="nt-fade-in">
             <h2 className="nt-page-title">
-  {isEditing ? 'Chỉnh sửa thông báo / sự kiện' : 'Tạo mới'}
-</h2>
+              {isEditing ? 'Chỉnh sửa thông báo / sự kiện' : 'Tạo mới'}
+            </h2>
             <div className="nt-create-panel">
               <div className="nt-form-layout">
                 <div className="nt-form-left">
@@ -640,9 +692,9 @@ const NotificationManage = () => {
         {/* ================= DETAIL VIEW ================= */}
         {viewMode === 'detail' && selectedNotification && (
           <div className="nt-fade-in">
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '1.5rem'
             }}>
@@ -658,7 +710,7 @@ const NotificationManage = () => {
                 </button>
                 <button
                   className="nt-btn-primary-blue"
-                  onClick={() => navigate(`/notification/edit/${selectedNotification.id}`)}
+                  onClick={() => navigate(`${basePath}/edit/${selectedNotification.id}`)}
                 >
                   Chỉnh sửa
                 </button>
@@ -666,14 +718,14 @@ const NotificationManage = () => {
             </div>
 
             {/* HTML Content Preview */}
-            <div style={{ 
+            <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
               padding: '2rem',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
               marginBottom: '1.5rem'
             }}>
-              <div 
+              <div
                 dangerouslySetInnerHTML={{ __html: selectedNotification.content }}
                 style={{
                   maxWidth: '100%',
@@ -689,7 +741,7 @@ const NotificationManage = () => {
               padding: '1.5rem',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}>
-              <h3 style={{ 
+              <h3 style={{
                 margin: '0 0 1rem 0',
                 fontSize: '1.1rem',
                 fontWeight: '600',
@@ -697,7 +749,7 @@ const NotificationManage = () => {
               }}>
                 Thông tin bài viết
               </h3>
-              <div style={{ 
+              <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                 gap: '1rem',
@@ -747,7 +799,7 @@ const NotificationManage = () => {
             </div>
           </div>
         )}
-        </div>
+      </div>
     </>
   );
 };
