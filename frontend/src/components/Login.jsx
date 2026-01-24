@@ -71,12 +71,22 @@ function Login({ onLogin }) {
         backendResponse.access_token ||
         backendResponse.token;
 
+      // Bắt mọi biến thể tên trường role từ backend
+      const derivedRoleRaw = backendResponse.role
+        || backendResponse.userRole
+        || backendResponse.user_role
+        || backendResponse.roleName
+        || backendResponse.user_role_name
+        || backendResponse.roles?.[0]?.role
+        || backendResponse.roles?.[0]?.name;
+      const derivedRole = derivedRoleRaw ? derivedRoleRaw.toString().toUpperCase() : null;
+
       // Build user object from flat response
       const user = {
         id: backendResponse.id,
         email: backendResponse.email,
         fullName: backendResponse.fullName,
-        role: backendResponse.role,
+        role: derivedRole,
         studentCode: backendResponse.studentCode
       };
 
@@ -89,6 +99,17 @@ function Login({ onLogin }) {
         if (onLogin) {
           onLogin(user.role);
         }
+
+        // Force redirect sau khi login thành công
+        setTimeout(() => {
+          if (user.role === 'ADMIN') {
+            window.location.href = '/admin/dashboard';
+          } else if (user.role === 'LIBRARIAN') {
+            window.location.href = '/librarian/dashboard';
+          } else {
+            window.location.href = '/';
+          }
+        }, 100);
       } else {
         console.error("❌ Missing token or role:", { token: !!token, role: user.role });
         throw new Error('No token or user data received from server');
@@ -109,7 +130,7 @@ function Login({ onLogin }) {
   return (
     <div className="auth-form-container">
       <div className="auth-form-box">
-        <h2 className="form-title">Đăng Nhập Thủ Thư</h2>
+        <h2 className="form-title">Đăng Nhập Hệ Thống</h2>
 
         <p style={{
           textAlign: 'center',
@@ -143,7 +164,7 @@ function Login({ onLogin }) {
           fontSize: '12px',
           color: '#999'
         }}>
-          <p>Chỉ dành cho thủ thư có tài khoản Google được ủy quyền</p>
+          <p>Dành cho Admin và Thủ thư có tài khoản được ủy quyền</p>
         </div>
       </div>
     </div>

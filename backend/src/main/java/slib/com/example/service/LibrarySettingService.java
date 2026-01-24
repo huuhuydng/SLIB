@@ -1,41 +1,27 @@
 package slib.com.example.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slib.com.example.dto.LibrarySettingDTO;
 import slib.com.example.dto.TimeSlotDTO;
 import slib.com.example.entity.LibrarySetting;
-import slib.com.example.repository.LibrarySettingRepository;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
-@RequiredArgsConstructor
 public class LibrarySettingService {
 
-    private final LibrarySettingRepository repository;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
+    private final AtomicReference<LibrarySetting> settingsRef = new AtomicReference<>(createDefaultSettings());
 
     /**
      * Lấy cấu hình thư viện, tạo default nếu chưa có
      */
     public LibrarySetting getSettings() {
-        return repository.findById(1).orElseGet(() -> {
-            LibrarySetting defaultSettings = LibrarySetting.builder()
-                    .id(1)
-                    .openTime("07:00")
-                    .closeTime("21:00")
-                    .slotDuration(60)
-                    .maxBookingDays(14)
-                    .workingDays("2,3,4,5,6")
-                    .maxBookingsPerDay(3)
-                    .maxHoursPerDay(4)
-                    .build();
-            return repository.save(defaultSettings);
-        });
+        return settingsRef.get();
     }
 
     /**
@@ -82,7 +68,7 @@ public class LibrarySettingService {
             settings.setMaxHoursPerDay(dto.getMaxHoursPerDay());
         }
 
-        repository.save(settings);
+        settingsRef.set(settings);
         return getSettingsDTO();
     }
 
@@ -116,5 +102,18 @@ public class LibrarySettingService {
         }
 
         return slots;
+    }
+
+    private LibrarySetting createDefaultSettings() {
+        return LibrarySetting.builder()
+                .id(1)
+                .openTime("07:00")
+                .closeTime("21:00")
+                .slotDuration(60)
+                .maxBookingDays(14)
+                .workingDays("2,3,4,5,6")
+                .maxBookingsPerDay(3)
+                .maxHoursPerDay(4)
+                .build();
     }
 }

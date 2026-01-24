@@ -94,3 +94,14 @@ export const getNewsDetail = async (id) => {
     throw error;
   }
 };
+
+// Toggle pin status của news
+export const togglePinNews = async (id) => {
+  try {
+    const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`);
+    return response.data;
+  } catch (error) {
+    console.error('Error toggling pin status:', error);
+    throw error;
+  }
+};

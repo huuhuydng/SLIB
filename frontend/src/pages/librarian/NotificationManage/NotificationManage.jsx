@@ -18,12 +18,14 @@ import {
   Pencil,
   Paperclip,
   ArrowLeft,
-  ChevronDown
+  ChevronDown,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import Header from "../../../components/shared/Header";
 import '../../../styles/librarian/NotificationManage.css';
 import { handleLogout } from "../../../utils/auth";
-import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
+import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage, togglePinNews } from '../../../services/newsService';
 
 
 const NotificationManage = () => {
@@ -77,9 +79,14 @@ const NotificationManage = () => {
       if (data && Array.isArray(data)) {
         // Sắp xếp: tin tức được ghim lên đầu, sau đó sắp xếp theo thời gian mới nhất
         const sortedData = [...data].sort((a, b) => {
+          // Convert to boolean để chắc chắn
+          const aPinned = a.isPinned === true || a.isPinned === 'true';
+          const bPinned = b.isPinned === true || b.isPinned === 'true';
+          
           // Tin được ghim lên trước
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          
           // Cùng trạng thái ghim, sắp xếp theo thời gian (mới nhất trước)
           const dateA = new Date(a.publishedAt || a.createdAt);
           const dateB = new Date(b.publishedAt || b.createdAt);
@@ -87,6 +94,7 @@ const NotificationManage = () => {
         });
         
         console.log('✅ Setting notifications array, length:', sortedData.length);
+        console.log('📌 Pinned items:', sortedData.filter(n => n.isPinned === true || n.isPinned === 'true').length);
         setNotifications(sortedData);
       } else {
         console.log('⚠️ Data is not array, setting empty array');
@@ -111,11 +119,22 @@ const NotificationManage = () => {
 
     try {
       await deleteNews(id);
-      // Reload notifications after delete
       loadNotifications();
     } catch (error) {
       console.error('Error deleting notification:', error);
       alert('Không thể xóa tin tức');
+    }
+  };
+  
+  const handleTogglePin = async (id, event) => {
+    event.stopPropagation();
+    
+    try {
+      await togglePinNews(id);
+      loadNotifications();
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      alert('Không thể ghim/bỏ ghim tin tức');
     }
   };
 
@@ -356,6 +375,13 @@ const NotificationManage = () => {
                               <td>
                                 <div className="nt-actions">
                                   <button
+                                    className={`nt-action-btn ${item.isPinned ? 'nt-btn-unpin' : 'nt-btn-pin'}`}
+                                    onClick={(e) => handleTogglePin(item.id, e)}
+                                    title={item.isPinned ? 'Bỏ ghim' : 'Ghim tin'}
+                                  >
+                                    {item.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+                                  </button>
+                                  <button
                                     className="nt-action-btn nt-btn-edit"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -436,6 +462,13 @@ const NotificationManage = () => {
                               <td>
                                 <div className="nt-actions">
                                   <button
+                                    className={`nt-action-btn ${item.isPinned ? 'nt-btn-unpin' : 'nt-btn-pin'}`}
+                                    onClick={(e) => handleTogglePin(item.id, e)}
+                                    title={item.isPinned ? 'Bỏ ghim' : 'Ghim tin'}
+                                  >
+                                    {item.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+                                  </button>
+                                  <button
                                     className="nt-action-btn nt-btn-edit"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -510,6 +543,13 @@ const NotificationManage = () => {
                             </td>
                             <td>
                               <div className="nt-actions">
+                                <button
+                                  className={`nt-action-btn ${item.isPinned ? 'nt-btn-unpin' : 'nt-btn-pin'}`}
+                                  onClick={(e) => handleTogglePin(item.id, e)}
+                                  title={item.isPinned ? 'Bỏ ghim' : 'Ghim tin'}
+                                >
+                                  {item.isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+                                </button>
                                 <button
                                   className="nt-action-btn nt-btn-edit"
                                   onClick={(e) => {

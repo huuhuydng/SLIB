@@ -121,6 +121,8 @@ public class SeatService {
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
         LocalDateTime endTime = LocalDateTime.parse(endTimeStr);
 
+        System.out.println("🔍 [getSeatsByTimeRange] startTime: " + startTime + ", endTime: " + endTime + ", zoneId: " + zoneId);
+
         List<SeatEntity> seats;
         if (zoneId != null) {
             seats = seatRepository.findByZone_ZoneId(zoneId);
@@ -131,6 +133,18 @@ public class SeatService {
         return seats.stream()
                 .map(seat -> {
                     SeatResponse response = toResponse(seat);
+
+                    // Log seat details
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println("📍 [A7 Debug] seatId: " + seat.getSeatId() + ", seatCode: " + seat.getSeatCode());
+                        System.out.println("📍 [A7 Debug] DB seatStatus: " + seat.getSeatStatus());
+                        System.out.println("📍 [A7 Debug] Reservations count: " + (seat.getReservation() != null ? seat.getReservation().size() : 0));
+                        if (seat.getReservation() != null) {
+                            seat.getReservation().forEach(r -> {
+                                System.out.println("  - Reservation: status=" + r.getStatus() + ", start=" + r.getStartTime() + ", end=" + r.getEndTime());
+                            });
+                        }
+                    }
 
                     // Tính toán status động dựa trên reservations trong time range
                     boolean isBookedInTimeRange = seat.getReservation().stream()
@@ -151,6 +165,10 @@ public class SeatService {
                                 return resStart.isBefore(endTime) && resEnd.isAfter(startTime);
                             });
 
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println("📍 [A7 Debug] isBookedInTimeRange: " + isBookedInTimeRange);
+                    }
+
                     // Nếu seat có status UNAVAILABLE trong DB, ưu tiên status này
                     if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
                         response.setSeatStatus(SeatStatus.UNAVAILABLE);
@@ -158,6 +176,10 @@ public class SeatService {
                         response.setSeatStatus(SeatStatus.BOOKED);
                     } else {
                         response.setSeatStatus(SeatStatus.AVAILABLE);
+                    }
+
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println("📍 [A7 Debug] Final response status: " + response.getSeatStatus());
                     }
 
                     return response;

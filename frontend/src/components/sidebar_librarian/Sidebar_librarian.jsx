@@ -21,7 +21,7 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: "Tổng quan", path: "/librarian/dashboard" },
     { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", path: "/librarian/checkinout" },
     { icon: Flame, label: "Sơ đồ thư viện", path: "/librarian/areas" },
-    { icon: Armchair, label: "Quản lý chỗ ngồi", path: "/librarian/seatmanage" },
+    // Đã xóa mục Quản lý chỗ ngồi khỏi sidebar
     { icon: Users, label: "Sinh viên", path: "/librarian/students" },
     { icon: AlertTriangle, label: "Vi phạm", path: "/librarian/violation" },
     { icon: MessageSquare, label: "Trò chuyện", path: "/librarian/chat" },

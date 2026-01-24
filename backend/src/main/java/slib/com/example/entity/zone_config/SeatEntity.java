@@ -62,7 +62,7 @@ public class SeatEntity {
     @Column(name = "held_by_user")
     private UUID heldByUser;
 
-    @OneToMany(mappedBy = "seat")
+    @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.EAGER)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ReservationEntity> reservation;
 }

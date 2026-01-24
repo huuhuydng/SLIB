@@ -11,7 +11,17 @@ import {
   List,
   Link,
   Image,
-  Clock
+  Clock,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ListOrdered,
+  Code,
+  Strikethrough,
+  Type,
+  Heading1,
+  Heading2,
+  Heading3
 } from 'lucide-react';
 import { Save } from 'lucide-react';
 import Header from "../../../components/shared/Header";
@@ -43,6 +53,9 @@ const NewCreate = () => {
   const [error, setError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [statusMode, setStatusMode] = useState('draft'); // 'public', 'draft', 'scheduled'
+  const contentImageInputRef = useRef(null);
 
   const hours24 = Array.from({ length: 25 }, (_, i) => String(i).padStart(2, '0')); // 00-24
   const minuteSteps = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')); // 00-59
@@ -171,9 +184,29 @@ const NewCreate = () => {
   };
   
   const handleImage = () => {
-    const url = prompt('Nhập URL hình ảnh:');
-    if (url) execCommand('insertImage', url);
+    contentImageInputRef.current?.click();
   };
+  
+  const handleContentImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        execCommand('insertImage', reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // More toolbar functions
+  const handleStrikethrough = () => execCommand('strikeThrough');
+  const handleAlignLeft = () => execCommand('justifyLeft');
+  const handleAlignCenter = () => execCommand('justifyCenter');
+  const handleAlignRight = () => execCommand('justifyRight');
+  const handleOrderedList = () => execCommand('insertOrderedList');
+  const handleHeading = (level) => execCommand('formatBlock', `<h${level}>`);
+  const handleCode = () => execCommand('formatBlock', '<pre>');
+  const handleClearFormat = () => execCommand('removeFormat');
 
   const sanitizeBidi = (html) => {
     // Loại bỏ ký tự điều khiển bidi gây đảo ngược (bao gồm LRM/RLM/ALM)
@@ -260,14 +293,11 @@ const NewCreate = () => {
         return;
       }
 
-      // Create preview
+      // Store file và create preview
+      setThumbnailFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
-        setFormData(prev => ({
-          ...prev,
-          imageUrl: reader.result // Store base64 for now
-        }));
       };
       reader.readAsDataURL(file);
     }
@@ -284,13 +314,14 @@ const NewCreate = () => {
     
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Kích thước file không được vượt quá 5MB!');
+        return;
+      }
+      setThumbnailFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
-        setFormData(prev => ({
-          ...prev,
-          imageUrl: reader.result
-        }));
       };
       reader.readAsDataURL(file);
     } else {
@@ -300,6 +331,7 @@ const NewCreate = () => {
 
   const handleRemoveImage = () => {
     setImagePreview(null);
+    setThumbnailFile(null);
     setFormData(prev => ({
       ...prev,
       imageUrl: ''
@@ -323,6 +355,32 @@ const NewCreate = () => {
         return;
       }
 
+      let finalImageUrl = formData.imageUrl;
+      
+      // Upload ảnh lên Cloudinary nếu có file
+      if (thumbnailFile) {
+        try {
+          const formDataToUpload = new FormData();
+          formDataToUpload.append('file', thumbnailFile);
+          
+          const uploadResponse = await fetch('http://localhost:8080/slib/cloudinary/upload-news-image', {
+            method: 'POST',
+            body: formDataToUpload
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error('Upload ảnh thất bại');
+          }
+          
+          finalImageUrl = await uploadResponse.text();
+          console.log('✅ Uploaded image URL:', finalImageUrl);
+        } catch (uploadErr) {
+          setError('Không thể upload ảnh lên Cloudinary');
+          console.error(uploadErr);
+          return;
+        }
+      }
+
       // Tạo HTML content từ template
       const htmlContent = createNewsTemplate({
         title: formData.title,
@@ -330,23 +388,22 @@ const NewCreate = () => {
         content: formData.content,
         categoryName: formData.categoryId === '1' ? 'Thông báo' : 
                       formData.categoryId === '2' ? 'Sự kiện' : 'Tin tức',
-        imageUrl: formData.imageUrl
+        imageUrl: finalImageUrl
       });
 
-      const isDraftFlag = isDraft || !formData.isPublished; // tôn trọng chọn Nháp hoặc nút Lưu nháp
-      const hasSchedule = !!formData.scheduledPublishTime;
+      const isDraftFlag = isDraft || statusMode === 'draft';
+      const hasSchedule = statusMode === 'scheduled' && !!formData.scheduledPublishTime;
 
       const newsData = {
         title: formData.title,
         summary: formData.summary || null,
-        content: htmlContent, // Gửi HTML đã format
-        imageUrl: formData.imageUrl || null,
+        content: htmlContent,
+        imageUrl: finalImageUrl || null,
         category: formData.categoryId ? { id: parseInt(formData.categoryId) } : null,
-        isPublished: !isDraftFlag && !hasSchedule, // nếu chọn Nháp hoặc có lịch tương lai thì không publish ngay
+        isPublished: statusMode === 'public' && !hasSchedule,
         isPinned: formData.isPinned || false,
         viewCount: 0,
-        // Nếu có scheduledPublishTime và không phải draft thì set giờ đăng, còn lại null
-        publishedAt: (!isDraftFlag && hasSchedule)
+        publishedAt: (statusMode === 'scheduled' && hasSchedule)
           ? `${formData.scheduledPublishTime}${formData.scheduledPublishTime.length === 16 ? ':00' : ''}`
           : null
       };
@@ -359,7 +416,6 @@ const NewCreate = () => {
         await createNews(newsData);
       }
 
-      // Chuyển về trang quản lý notification
       navigate('/notification');
     } catch (err) {
       setError(isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới');
@@ -428,26 +484,83 @@ const NewCreate = () => {
                   <label className="news-form-label">Nội dung chi tiết</label>
                   <div className="news-editor-container">
                     <div className="news-editor-toolbar">
-                      <button type="button" className="news-tool-btn" onClick={handleBold} title="Bold">
+                      {/* Text Formatting */}
+                      <button type="button" className="news-tool-btn" onClick={handleBold} title="Bold (Ctrl+B)">
                         <Bold size={14} />
                       </button>
-                      <button type="button" className="news-tool-btn" onClick={handleItalic} title="Italic">
+                      <button type="button" className="news-tool-btn" onClick={handleItalic} title="Italic (Ctrl+I)">
                         <Italic size={14} />
                       </button>
-                      <button type="button" className="news-tool-btn" onClick={handleUnderline} title="Underline">
+                      <button type="button" className="news-tool-btn" onClick={handleUnderline} title="Underline (Ctrl+U)">
                         <Underline size={14} />
                       </button>
+                      <button type="button" className="news-tool-btn" onClick={handleStrikethrough} title="Strikethrough">
+                        <Strikethrough size={14} />
+                      </button>
+                      
                       <div className="news-tool-divider"></div>
-                      <button type="button" className="news-tool-btn" onClick={handleList} title="List">
+                      
+                      {/* Headings */}
+                      <button type="button" className="news-tool-btn" onClick={() => handleHeading(1)} title="Heading 1">
+                        <Heading1 size={14} />
+                      </button>
+                      <button type="button" className="news-tool-btn" onClick={() => handleHeading(2)} title="Heading 2">
+                        <Heading2 size={14} />
+                      </button>
+                      <button type="button" className="news-tool-btn" onClick={() => handleHeading(3)} title="Heading 3">
+                        <Heading3 size={14} />
+                      </button>
+                      
+                      <div className="news-tool-divider"></div>
+                      
+                      {/* Alignment */}
+                      <button type="button" className="news-tool-btn" onClick={handleAlignLeft} title="Align Left">
+                        <AlignLeft size={14} />
+                      </button>
+                      <button type="button" className="news-tool-btn" onClick={handleAlignCenter} title="Align Center">
+                        <AlignCenter size={14} />
+                      </button>
+                      <button type="button" className="news-tool-btn" onClick={handleAlignRight} title="Align Right">
+                        <AlignRight size={14} />
+                      </button>
+                      
+                      <div className="news-tool-divider"></div>
+                      
+                      {/* Lists */}
+                      <button type="button" className="news-tool-btn" onClick={handleList} title="Bullet List">
                         <List size={14} />
                       </button>
-                      <button type="button" className="news-tool-btn" onClick={handleLink} title="Link">
+                      <button type="button" className="news-tool-btn" onClick={handleOrderedList} title="Numbered List">
+                        <ListOrdered size={14} />
+                      </button>
+                      
+                      <div className="news-tool-divider"></div>
+                      
+                      {/* Insert */}
+                      <button type="button" className="news-tool-btn" onClick={handleLink} title="Insert Link">
                         <Link size={14} />
                       </button>
-                      <button type="button" className="news-tool-btn" onClick={handleImage} title="Image">
+                      <button type="button" className="news-tool-btn" onClick={handleImage} title="Insert Image">
                         <Image size={14} />
                       </button>
+                      <button type="button" className="news-tool-btn" onClick={handleCode} title="Code Block">
+                        <Code size={14} />
+                      </button>
+                      
+                      <div className="news-tool-divider"></div>
+                      
+                      {/* Clear Formatting */}
+                      <button type="button" className="news-tool-btn" onClick={handleClearFormat} title="Clear Formatting">
+                        <Type size={14} />
+                      </button>
                     </div>
+                    <input
+                      ref={contentImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleContentImageChange}
+                      style={{ display: 'none' }}
+                    />
                     <div
                       ref={editorRef}
                       className="news-editor-content"
@@ -543,185 +656,141 @@ const NewCreate = () => {
                 </div>
 
                 <div className="news-form-group">
-                  <label className="news-form-label">Ghim tin tức</label>
-                  <div className="news-toggle-desc" style={{ marginBottom: '8px' }}>
-                    Đưa tin này lên đầu trang chủ
-                  </div>
-                  <label className="news-checkbox-container">
-                    <input
-                      type="checkbox"
-                      name="isPinned"
-                      checked={formData.isPinned}
-                      onChange={handleInputChange}
-                      className="news-checkbox"
-                    />
-                  </label>
-                </div>
-
-                <div className="news-form-group">
-                  <label className="news-form-label">Trạng thái</label>
+                  <label className="news-form-label">Trạng thái đăng</label>
                   <select
-                    name="isPublished"
                     className="news-form-select"
-                    value={formData.isPublished ? 'public' : 'draft'}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      isPublished: e.target.value === 'public' 
-                    }))}
+                    value={statusMode}
+                    onChange={(e) => {
+                      setStatusMode(e.target.value);
+                      if (e.target.value === 'scheduled') {
+                        setShowScheduleForm(true);
+                        // Set default schedule time if not set
+                        if (!formData.scheduledPublishTime) {
+                          const now = new Date();
+                          const dateStr = now.toISOString().split('T')[0];
+                          setFormData(prev => ({
+                            ...prev,
+                            scheduledPublishTime: `${dateStr}T00:00`
+                          }));
+                        }
+                      } else {
+                        setShowScheduleForm(false);
+                      }
+                    }}
                   >
-                    <option value="draft">Nháp (Draft)</option>
-                    <option value="public">Công khai (Public)</option>
+                    <option value="public">📢 Công khai ngay</option>
+                    <option value="draft">📝 Lưu nháp</option>
+                    <option value="scheduled">⏰ Hẹn lịch đăng</option>
                   </select>
                 </div>
 
-                <div className="news-form-group">
-                  <label className="news-form-label">Hẹn giờ đăng tin</label>
-                  <button
-                    type="button"
-                    className="news-schedule-btn"
-                    onClick={() => setShowScheduleForm(!showScheduleForm)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 15px',
-                      borderRadius: '6px',
-                      border: '2px solid #2196F3',
-                      background: formData.scheduledPublishTime ? '#e3f2fd' : '#fff',
-                      color: '#2196F3',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      width: '100%',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <Clock size={16} />
-                    {formData.scheduledPublishTime 
-                      ? `Đã hẹn: ${new Date(formData.scheduledPublishTime).toLocaleString('vi-VN')}`
-                      : 'Thiết lập lịch đăng'
-                    }
-                  </button>
-
-                  {showScheduleForm && (
-                    <div className="news-schedule-form" style={{
-                      marginTop: '15px',
-                      padding: '15px',
-                      background: '#f5f5f5',
-                      borderRadius: '6px',
-                      border: '1px solid #ddd'
-                    }}>
-                      <div style={{ marginBottom: '12px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500', fontSize: '14px' }}>
-                          Ngày đăng
-                        </label>
-                        <input
-                          type="date"
-                          className="news-form-input"
-                          value={formData.scheduledPublishTime ? formData.scheduledPublishTime.split('T')[0] : ''}
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              const currentTime = formData.scheduledPublishTime
-                                ? formData.scheduledPublishTime.split('T')[1] || '00:00'
-                                : '00:00';
-                              setFormData(prev => ({
-                                ...prev,
-                                scheduledPublishTime: `${e.target.value}T${currentTime.substring(0,5)}`
-                              }));
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <div style={{ marginBottom: '12px' }}>
-                        <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '14px' }}>
-                          Giờ đăng (24h)
-                        </label>
-                        <div className="news-time-picker">
-                          <div className="news-time-column">
-                            <div className="news-time-label">Giờ</div>
-                            <div className="news-time-grid">
-                              {hours24.map(h => {
-                                const isActive = getScheduleTime().hh === h;
-                                return (
-                                  <button
-                                    type="button"
-                                    key={h}
-                                    className={`news-time-chip ${isActive ? 'active' : ''}`}
-                                    onClick={() => updateScheduleTime(h, null)}
-                                  >
-                                    {h}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="news-time-column">
-                            <div className="news-time-label">Phút</div>
-                            <div className="news-time-grid minutes">
-                              {minuteSteps.map(m => {
-                                const isActive = getScheduleTime().mm === m;
-                                return (
-                                  <button
-                                    type="button"
-                                    key={m}
-                                    className={`news-time-chip ${isActive ? 'active' : ''}`}
-                                    onClick={() => updateScheduleTime(null, m)}
-                                  >
-                                    {m}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ marginTop: '6px', fontSize: '12px', color: '#6b7280' }}>
-                          Chọn khung giờ 00:00 - 23:59 (bước 5 phút)
-                        </div>
-                      </div>
-
-                      {formData.scheduledPublishTime && (
-                        <div style={{
-                          padding: '10px',
-                          background: '#e8f5e9',
-                          borderRadius: '4px',
-                          color: '#2e7d32',
-                          fontSize: '13px',
-                          marginBottom: '10px'
-                        }}>
-                          ✓ Tin sẽ được đăng tự động vào: {formData.scheduledPublishTime.replace('T', ' ')}
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        className="news-btn news-btn-secondary"
-                        onClick={() => {
-                          setFormData(prev => ({
-                            ...prev,
-                            scheduledPublishTime: null
-                          }));
-                          setShowScheduleForm(false);
+                {statusMode === 'scheduled' && (
+                  <div className="news-form-group" style={{
+                    padding: '15px',
+                    background: '#f0f9ff',
+                    borderRadius: '8px',
+                    border: '1px solid #bae6fd'
+                  }}>
+                    <label className="news-form-label" style={{ marginBottom: '10px', display: 'block' }}>
+                      Chọn thời gian đăng
+                    </label>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: '500', color: '#334155' }}>
+                        Ngày đăng
+                      </label>
+                      <input
+                        type="date"
+                        className="news-form-input"
+                        value={getScheduleDate()}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const currentTime = getScheduleTime();
+                            setFormData(prev => ({
+                              ...prev,
+                              scheduledPublishTime: `${e.target.value}T${currentTime.hh}:${currentTime.mm}`
+                            }));
+                          }
                         }}
-                        style={{ width: '100%', marginTop: '10px' }}
-                      >
-                        Hủy lịch đăng
-                      </button>
+                      />
                     </div>
-                  )}
-                </div>
+
+                    <div style={{ marginBottom: '15px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: '500', color: '#334155' }}>
+                        Thời gian (giờ : phút)
+                      </label>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="24"
+                            className="news-form-input"
+                            value={getScheduleTime().hh}
+                            onChange={(e) => {
+                              let val = parseInt(e.target.value) || 0;
+                              if (val > 24) val = 24;
+                              if (val < 0) val = 0;
+                              updateScheduleTime(String(val).padStart(2, '0'), null);
+                            }}
+                            placeholder="00"
+                            style={{ textAlign: 'center', fontSize: '16px' }}
+                          />
+                          <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', textAlign: 'center' }}>Giờ</span>
+                        </div>
+                        <span style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>:</span>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="59"
+                            className="news-form-input"
+                            value={getScheduleTime().mm}
+                            onChange={(e) => {
+                              let val = parseInt(e.target.value) || 0;
+                              if (val > 59) val = 59;
+                              if (val < 0) val = 0;
+                              updateScheduleTime(null, String(val).padStart(2, '0'));
+                            }}
+                            placeholder="00"
+                            style={{ textAlign: 'center', fontSize: '16px' }}
+                          />
+                          <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', textAlign: 'center' }}>Phút</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {formData.scheduledPublishTime && (
+                      <div style={{
+                        padding: '12px',
+                        background: '#dcfce7',
+                        borderRadius: '6px',
+                        color: '#166534',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <Clock size={16} />
+                        <span>
+                          Sẽ đăng vào: {new Date(formData.scheduledPublishTime).toLocaleString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="news-btn-group">
-              <button
-                type="button"
-                className="news-btn news-btn-secondary"
-                onClick={() => handleSubmit(true)}
-                disabled={loading || !formData.title || !formData.content}
-              >
-                <Save size={16} />
-                Lưu nháp
-              </button>
               <button
                 type="button"
                 className="news-btn news-btn-secondary"
@@ -731,13 +800,25 @@ const NewCreate = () => {
                 <X size={16} />
                 Hủy bỏ
               </button>
-              {formData.scheduledPublishTime ? (
+              
+              {statusMode === 'draft' ? (
+                <button
+                  type="button"
+                  className="news-btn news-btn-primary"
+                  onClick={() => handleSubmit(true)}
+                  disabled={loading || !formData.title || !formData.content}
+                  style={{ background: '#6b7280' }}
+                >
+                  <Save size={16} />
+                  {loading ? 'Đang lưu...' : 'Lưu nháp'}
+                </button>
+              ) : statusMode === 'scheduled' ? (
                 <button
                   type="button"
                   className="news-btn news-btn-primary"
                   onClick={() => handleSubmit(false)}
-                  disabled={loading || !formData.title || !formData.content}
-                  style={{ background: '#4CAF50' }}
+                  disabled={loading || !formData.title || !formData.content || !formData.scheduledPublishTime}
+                  style={{ background: '#3b82f6' }}
                 >
                   <Clock size={16} />
                   {loading ? 'Đang lên lịch...' : 'Lên lịch đăng'}

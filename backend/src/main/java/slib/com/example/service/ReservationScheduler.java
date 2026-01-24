@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.zone_config.SeatEntity;
@@ -24,36 +25,43 @@ public class ReservationScheduler {
     }
 
     @Scheduled(fixedRate = 60000) // check mỗi 60s
+    @Transactional
     public void releaseExpiredSeats() {
-        LocalDateTime now = LocalDateTime.now();
+        try {
+            LocalDateTime now = LocalDateTime.now();
 
-        // 1. Hủy các reservation BOOKED đã hết hạn
-        List<ReservationEntity> expired = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
-        for (ReservationEntity r : expired) {
-            r.setStatus("EXPIRED");
-            reservationRepository.save(r);
+            // 1. Hủy các reservation BOOKED đã hết hạn
+            List<ReservationEntity> expired = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
+            for (ReservationEntity r : expired) {
+                r.setStatus("EXPIRED");
+                reservationRepository.save(r);
 
-            SeatEntity seat = r.getSeat();
-            seat.setSeatStatus(SeatStatus.AVAILABLE);
-            seatRepository.save(seat);
+                SeatEntity seat = r.getSeat();
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+                seatRepository.save(seat);
+            }
+
+            // 2. Hủy các reservation PROCESSING quá 2 phút (120s)
+            LocalDateTime cutoff = now.minusSeconds(120);
+            List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
+                    "PROCESSING");
+
+            for (ReservationEntity r : processingExpired) {
+                r.setStatus("CANCEL");
+                reservationRepository.save(r);
+
+                SeatEntity seat = r.getSeat();
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+                seatRepository.save(seat);
+            }
+
+            // 3. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
+            activateBookedSeats(now);
+        } catch (Exception e) {
+            // Log error nhưng không để crash application
+            System.err.println("Error in releaseExpiredSeats: " + e.getMessage());
+            e.printStackTrace();
         }
-
-        // 2. Hủy các reservation PROCESSING quá 2 phút (120s)
-        LocalDateTime cutoff = now.minusSeconds(120);
-        List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
-                "PROCESSING");
-
-        for (ReservationEntity r : processingExpired) {
-            r.setStatus("CANCEL");
-            reservationRepository.save(r);
-
-            SeatEntity seat = r.getSeat();
-            seat.setSeatStatus(SeatStatus.AVAILABLE);
-            seatRepository.save(seat);
-        }
-
-        // 3. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
-        activateBookedSeats(now);
     }
 
     /**

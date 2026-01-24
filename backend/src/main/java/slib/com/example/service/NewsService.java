@@ -118,4 +118,11 @@ public class NewsService {
         }
         newsRepository.deleteById(id);
     }
+    
+    public News togglePinNews(Long id) {
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức để ghim/bỏ ghim!"));
+        news.setIsPinned(!news.getIsPinned());
+        return newsRepository.save(news);
+    }
 }

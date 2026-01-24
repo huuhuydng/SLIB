@@ -42,35 +42,34 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* Admin Routes */}
-                <Route path="/admin/login" element={
-                    isLoggedIn && userRole === 'ADMIN' 
-                        ? <Navigate to="/admin/dashboard" replace />
+                {/* Unified Login Route */}
+                <Route path="/login" element={
+                    isLoggedIn
+                        ? (userRole === 'ADMIN' 
+                            ? <Navigate to="/admin/dashboard" replace />
+                            : <Navigate to="/librarian/dashboard" replace />)
                         : <AuthPage onLogin={handleLogin} />
                 } />
+
+                {/* Admin Routes */}
                 <Route path="/admin/*" element={
                     isLoggedIn && userRole === 'ADMIN'
                         ? <AdminRoutes />
-                        : <Navigate to="/admin/login" replace />
+                        : <Navigate to="/login" replace />
                 } />
 
                 {/* Librarian Routes */}
-                <Route path="/librarian/login" element={
-                    isLoggedIn && userRole === 'LIBRARIAN'
-                        ? <Navigate to="/librarian/dashboard" replace />
-                        : <AuthPage onLogin={handleLogin} />
-                } />
                 <Route path="/librarian/*" element={
                     isLoggedIn && userRole === 'LIBRARIAN'
                         ? <LibrarianRoutes />
-                        : <Navigate to="/librarian/login" replace />
+                        : <Navigate to="/login" replace />
                 } />
 
                 {/* Root redirects based on role */}
                 <Route path="/" element={
                     isLoggedIn 
                         ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
-                        : <Navigate to="/admin/login" />
+                        : <Navigate to="/login" />
                 } />
                 
                 {/* Fallback */}

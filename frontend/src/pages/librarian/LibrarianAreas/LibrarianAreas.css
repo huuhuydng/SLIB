@@ -1,0 +1,371 @@
+/* Librarian Areas Page - Custom CSS (không dùng admin CSS) */
+
+.librarian-areas-page {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f9fafb;
+}
+
+.librarian-areas-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+}
+
+/* Top bar */
+.librarian-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  margin-bottom: 6px;
+}
+
+.librarian-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.librarian-time-select {
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.librarian-time-select:hover {
+  border-color: #3b82f6;
+}
+
+.librarian-time-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Statistics */
+.librarian-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.librarian-stat-card {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.librarian-stat-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.librarian-stat-icon--green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.librarian-stat-icon--blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.librarian-stat-icon--amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.librarian-stat-icon--mint {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.librarian-stat-title {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-bottom: 2px;
+}
+
+.librarian-stat-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+/* Message banner */
+.librarian-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  color: #1e40af;
+  font-size: 13px;
+}
+
+.librarian-message--error {
+  background: #fee;
+  border-color: #fcc;
+  color: #dc2626;
+}
+
+/* Loading */
+.librarian-loading {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Main content area */
+.librarian-content {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  overflow: hidden;
+  min-height: 0; /* Allow flexbox to shrink properly */
+}
+
+/* Canvas - with zoom/pan support */
+.librarian-canvas {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  min-height: 0; /* Allow flexbox to shrink properly */
+}
+
+.librarian-canvas-board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.05s ease-out;
+}
+
+/* Zoom controls */
+.librarian-zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.librarian-zoom-btn {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: #374151;
+}
+
+.librarian-zoom-btn:hover {
+  background: #f9fafb;
+  border-color: #3b82f6;
+  color: #3b82f6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.librarian-zoom-btn:active {
+  transform: translateY(0);
+}
+
+.librarian-zoom-info {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: #4b5563;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pan hint */
+.librarian-pan-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #6b7280;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  pointer-events: none; /* Don't block mouse events */
+}
+
+/* Sidebar */
+.librarian-sidebar {
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+.librarian-sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.librarian-sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Seat detail */
+.librarian-seat-detail {
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.librarian-seat-code {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.librarian-seat-info {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.librarian-btn {
+  width: 100%;;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.librarian-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.librarian-btn:disabled {
+  cursor: not-allowed;
+}
+
+.librarian-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* Legend */
+.librarian-legend {
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.librarian-legend-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.librarian-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.librarian-legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.librarian-legend-dot--green {
+  background: #93c5fd;
+}
+
+.librarian-legend-dot--orange {
+  background: #f97316;
+}
+
+.librarian-legend-dot--gray {
+  background: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .librarian-content {
+    flex-direction: column;
+  }
+
+  .librarian-sidebar {
+    width: 100%;
+    max-height: 400px;
+  }
+}

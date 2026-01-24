@@ -43,14 +43,28 @@ public class SeatController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SeatResponse>> getSeats(
-            @RequestParam(required = false) Integer zoneId) {
-        if (zoneId != null) {
-            return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
-        }
+    public ResponseEntity<?> getSeats(
+            @RequestParam(required = false) Integer zoneId,
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime) {
+        try {
+            // Nếu truyền startTime + endTime → tính trạng thái động theo khoảng thời gian
+            if (startTime != null && endTime != null) {
+                return ResponseEntity.ok(seatService.getSeatsByTimeRange(startTime, endTime, zoneId));
+            }
 
-        // Nếu không có params nào, trả về tất cả seats
-        return ResponseEntity.ok(seatService.getAllSeats());
+            // Nếu chỉ filter theo zone
+            if (zoneId != null) {
+                return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
+            }
+
+            // Mặc định: tất cả seats
+            return ResponseEntity.ok(seatService.getAllSeats());
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "error", "Invalid request",
+                    "message", ex.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")

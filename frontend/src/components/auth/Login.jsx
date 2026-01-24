@@ -71,13 +71,23 @@ function Login({ onLogin }) {
                     backendResponse.access_token ||
                     backendResponse.token;
       
+      // Bắt mọi biến thể tên trường role từ backend
+      const derivedRoleRaw = backendResponse.role
+        || backendResponse.userRole
+        || backendResponse.user_role
+        || backendResponse.roleName
+        || backendResponse.user_role_name
+        || backendResponse.roles?.[0]?.role
+        || backendResponse.roles?.[0]?.name;
+      const derivedRole = derivedRoleRaw ? derivedRoleRaw.toString().toUpperCase() : null;
+
       // Build user object from flat response
       const user = {
         id: backendResponse.id,
         email: backendResponse.email,
         fullName: backendResponse.fullName,
         studentCode: backendResponse.studentCode,
-        role: backendResponse.role
+        role: derivedRole
       };
       
       if (token && user && user.role) {
@@ -92,8 +102,8 @@ function Login({ onLogin }) {
           return;
         }
         
-        localStorage.setItem('librarian_token', token);
-        localStorage.setItem('librarian_user', JSON.stringify(user));
+        sessionStorage.setItem('librarian_token', token);
+        sessionStorage.setItem('librarian_user', JSON.stringify(user));
         console.log("✅ Token saved successfully");
         console.log("✅ User role:", user.role);
         

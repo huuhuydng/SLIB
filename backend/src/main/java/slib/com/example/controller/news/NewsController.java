@@ -68,4 +68,10 @@ public class NewsController {
         newsService.deleteNews(id);
         return ResponseEntity.ok("Đã xóa tin tức thành công!");
     }
+    
+    @PatchMapping("/admin/{id}/toggle-pin")
+    public ResponseEntity<News> togglePinNews(@PathVariable Long id) {
+        News toggledNews = newsService.togglePinNews(id);
+        return ResponseEntity.ok(toggledNews);
+    }
 }
