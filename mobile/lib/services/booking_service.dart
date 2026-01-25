@@ -267,6 +267,23 @@ class BookingService {
     }
   }
 
+  /// Get upcoming booking for a user
+  /// Returns null if no upcoming booking
+  Future<dynamic> getUpcomingBooking(String userId) async {
+    final url = Uri.parse("${ApiConstants.bookingUrl}/upcoming/$userId");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      return jsonDecode(decodedBody);
+    } else if (response.statusCode == 204) {
+      // No content - no upcoming booking
+      return null;
+    } else {
+      throw Exception("Failed to load upcoming booking: ${response.body}");
+    }
+  }
+
   Future<void> updateStatus(String reservationId, String status) async {
     final url = Uri.parse(
       "${ApiConstants.bookingUrl}/updateStatusReserv/$reservationId?status=$status",
@@ -275,6 +292,24 @@ class BookingService {
 
     if (response.statusCode != 200) {
       throw Exception("Failed to update status: ${response.body}");
+    }
+  }
+
+  /// Confirm seat with NFC tag data
+  Future<Map<String, dynamic>> confirmSeatWithNfc(String reservationId, String nfcData) async {
+    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc/$reservationId");
+    
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"nfc_data": nfcData}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorMsg = utf8.decode(response.bodyBytes);
+      throw Exception(errorMsg);
     }
   }
 }

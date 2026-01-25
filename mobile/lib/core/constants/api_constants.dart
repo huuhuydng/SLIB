@@ -25,4 +25,7 @@ class ApiConstants {
 
   static const String settingUrl = "$domain/slib/settings";
 
+  static const String studentProfileUrl = "$domain/slib/student-profile";
+
+  static const String activityUrl = "$domain/slib/activities";
 }

@@ -336,7 +336,7 @@ class _BookingConfirmScreenState extends State<BookingConfirmScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Về trang chủ', style: TextStyle(color: Colors.white, fontSize: 16)),
+                child: const Text('Hoàn tất đặt chỗ', style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
             ),
           ],

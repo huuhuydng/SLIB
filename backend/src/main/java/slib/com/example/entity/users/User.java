@@ -43,9 +43,6 @@ public class User implements UserDetails {
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private Role role;
 
-    @Column(name = "reputation_score")
-    private Integer reputationScore;
-
     @Column(name = "is_active")
     private Boolean isActive;
 

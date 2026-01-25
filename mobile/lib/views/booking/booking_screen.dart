@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/area.dart';
+import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
 import 'package:slib/models/zones.dart';
 import 'package:slib/services/booking_service.dart';
@@ -37,13 +38,54 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _isLoadingSeats = false;
   String? _errorMessage;
 
+  // Library settings
+  LibrarySetting? _librarySetting;
+  bool _isNonWorkingDay = false;
+
   // View mode: 'map' or 'seats'
   String _viewMode = 'map';
 
   @override
   void initState() {
     super.initState();
+    _loadLibrarySettings();
     _loadAreas();
+  }
+
+  Future<void> _loadLibrarySettings() async {
+    try {
+      final settings = await _bookingService.getLibrarySettings();
+      setState(() {
+        _librarySetting = settings;
+        _checkWorkingDay();
+      });
+    } catch (e) {
+      debugPrint('Error loading library settings: $e');
+      // Use default settings
+      setState(() {
+        _librarySetting = LibrarySetting(
+          openTime: '07:00',
+          closeTime: '21:00',
+          slotDuration: 60,
+          maxBookingDays: 14,
+          workingDays: '2,3,4,5,6',
+        );
+        _checkWorkingDay();
+      });
+    }
+  }
+
+  void _checkWorkingDay() {
+    if (_librarySetting != null) {
+      setState(() {
+        _isNonWorkingDay = !_librarySetting!.isWorkingDay(_selectedDate);
+      });
+    }
+  }
+
+  String _getVietnameseDayName(DateTime date) {
+    const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    return dayNames[date.weekday % 7];
   }
 
   Future<void> _loadAreas() async {
@@ -149,11 +191,12 @@ class _BookingScreenState extends State<BookingScreen> {
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(Duration(days: _librarySetting?.maxBookingDays ?? 30)),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
-      if (_selectedZone != null) _loadSeats();
+      _checkWorkingDay();
+      if (_selectedZone != null && !_isNonWorkingDay) _loadSeats();
     }
   }
 
@@ -239,14 +282,18 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     // Date & time selector (always visible)
                     _buildDateTimeSelector(),
+                    // Non-working day warning
+                    if (_isNonWorkingDay) _buildNonWorkingDayWarning(),
                     // Main content
                     Expanded(
-                      child: _viewMode == 'map'
-                          ? _buildFloorPlanView()
-                          : _buildSeatGridView(),
+                      child: _isNonWorkingDay
+                          ? _buildClosedDayMessage()
+                          : _viewMode == 'map'
+                              ? _buildFloorPlanView()
+                              : _buildSeatGridView(),
                     ),
                     // Booking button
-                    if (_selectedSeat != null && _viewMode == 'seats') _buildBookingButton(),
+                    if (_selectedSeat != null && _viewMode == 'seats' && !_isNonWorkingDay) _buildBookingButton(),
                   ],
                 ),
     );
@@ -289,6 +336,130 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNonWorkingDayWarning() {
+    final dayName = _getVietnameseDayName(_selectedDate);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        border: Border.all(color: Colors.orange),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Thư viện không hoạt động vào $dayName',
+              style: const TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClosedDayMessage() {
+    final dayName = _getVietnameseDayName(_selectedDate);
+    
+    // Find next working day
+    DateTime nextWorkingDay = _selectedDate.add(const Duration(days: 1));
+    while (_librarySetting != null && !_librarySetting!.isWorkingDay(nextWorkingDay)) {
+      nextWorkingDay = nextWorkingDay.add(const Duration(days: 1));
+      if (nextWorkingDay.difference(_selectedDate).inDays > 7) break;
+    }
+    final nextDayName = _getVietnameseDayName(nextWorkingDay);
+    final nextDateStr = DateFormat('dd/MM').format(nextWorkingDay);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.event_busy,
+                size: 64,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Thư viện đóng cửa',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Thư viện không hoạt động vào $dayName.\nVui lòng chọn ngày khác để đặt chỗ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Thư viện mở cửa: Thứ Hai - Thứ Sáu',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedDate = nextWorkingDay;
+                });
+                _checkWorkingDay();
+              },
+              icon: const Icon(Icons.calendar_today),
+              label: Text('Chọn $nextDayName ($nextDateStr)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _selectDate,
+              icon: const Icon(Icons.date_range),
+              label: const Text('Chọn ngày khác'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.brandColor,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

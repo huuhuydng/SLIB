@@ -81,7 +81,6 @@ public class AuthService {
                     .studentCode(studentCode)
                     .fullName(fullName != null ? fullName : studentCode)
                     .role(Role.STUDENT)
-                    .reputationScore(100)
                     .isActive(true)
                     .notiDevice(fcmToken)
                     .build();

@@ -12,11 +12,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -31,7 +29,6 @@ import slib.com.example.entity.zone_config.SeatEntity;
 @AllArgsConstructor
 @Builder
 public class ReservationEntity {
-    private LocalDateTime createdTime;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -58,9 +55,4 @@ public class ReservationEntity {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @PrePersist
-    public void prePersist() {
-        createdTime = LocalDateTime.now();
-    }
 }

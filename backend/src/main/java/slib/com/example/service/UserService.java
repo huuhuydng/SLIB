@@ -32,7 +32,6 @@ public class UserService {
                 .email(user.getEmail())
                 .studentCode(user.getStudentCode())
                 .role(user.getRole().name())
-                .reputationScore(user.getReputationScore() != null ? user.getReputationScore() : 100)
                 .isActive(user.getIsActive())
                 .build();
     }

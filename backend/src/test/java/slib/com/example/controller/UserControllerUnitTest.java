@@ -186,7 +186,6 @@ class UserControllerUnitTest {
                                 .fullName("Test User")
                                 .studentCode("SV001")
                                 .role("STUDENT")
-                                .reputationScore(100)
                                 .isActive(true)
                                 .build();
 
@@ -200,7 +199,6 @@ class UserControllerUnitTest {
                                 .andExpect(jsonPath("$.fullName").value("Test User"))
                                 .andExpect(jsonPath("$.studentCode").value("SV001"))
                                 .andExpect(jsonPath("$.role").value("STUDENT"))
-                                .andExpect(jsonPath("$.reputationScore").value(100))
                                 .andExpect(jsonPath("$.active").value(true));
 
                 verify(userService, times(1)).getMyProfile(email);
@@ -254,7 +252,6 @@ class UserControllerUnitTest {
                                 .fullName("Old Name")
                                 .studentCode("SV001")
                                 .role("STUDENT")
-                                .reputationScore(100)
                                 .isActive(true)
                                 .build();
 
@@ -330,7 +327,6 @@ class UserControllerUnitTest {
                                 .fullName("Current Name")
                                 .studentCode("SV001")
                                 .role("STUDENT")
-                                .reputationScore(100)
                                 .isActive(true)
                                 .build();
 

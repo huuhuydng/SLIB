@@ -1,125 +1,125 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
-  Users,
-  Armchair,
-  AlertCircle,
-  Sparkles,
+  Settings,
   Clock,
+  Star,
+  AlertTriangle,
+  Save,
+  RotateCcw,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  ChevronRight,
   Bell,
   Calendar,
-  ChevronRight,
-  Wrench,
-  BookOpen,
-  TrendingUp,
-  MapPin,
-  Activity
-} from "lucide-react";
-import StatCard from "../Dashboard/StatCard";
-import Header from "../Dashboard/Header";
-import { getLibraryInsights } from "../../../services/geminiService.jsx";
-import "../../../styles/Dashboard.css";
+  Timer,
+  Award,
+  MinusCircle,
+  PlusCircle,
+  Loader2
+} from 'lucide-react';
+import Header from '../Dashboard/Header';
+
+const API_BASE_URL = 'http://localhost:8080/slib/settings';
 
 // Mock Data
-const MOCK_STUDENTS = [
-  { id: "1", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check in", time: "12:21:10", date: "15/12/2025", avatar: "NP" },
-  { id: "2", name: "Trần Văn An", studentId: "DE170707", action: "Check out", time: "12:15:30", date: "15/12/2025", avatar: "TA" },
-  { id: "3", name: "Lê Thị Bình", studentId: "DE170708", action: "Check out", time: "11:45:20", date: "15/12/2025", avatar: "LB" },
-  { id: "4", name: "Phạm Minh Cường", studentId: "DE170709", action: "Check in", time: "11:30:00", date: "15/12/2025", avatar: "PC" },
-  { id: "5", name: "Đỗ Hải Đăng", studentId: "DE170710", action: "Check out", time: "10:55:45", date: "15/12/2025", avatar: "ĐD" },
+const VIOLATION_RULES = [
+  { id: 1, name: 'Gây ồn ào', points: -10, description: 'Vi phạm quy định về tiếng ồn trong thư viện' },
+  { id: 2, name: 'No-show (không đến)', points: -15, description: 'Đặt chỗ nhưng không đến check-in' },
+  { id: 3, name: 'Ngủ trong thư viện', points: -5, description: 'Ngủ tại bàn học quá 30 phút' },
+  { id: 4, name: 'Ăn uống', points: -8, description: 'Mang đồ ăn/nước uống vào khu vực cấm' },
+  { id: 5, name: 'Sử dụng điện thoại gây ồn', points: -5, description: 'Nghe gọi điện thoại trong khu yên tĩnh' },
+  { id: 6, name: 'Hủy đặt chỗ muộn', points: -3, description: 'Hủy đặt chỗ trong vòng 30 phút trước giờ hẹn' },
 ];
 
-const MOCK_NOTIFICATIONS = [
-  {
-    title: "FPT Techday 2025: Công nghệ tương lai",
-    date: "12/12/2025",
-    type: "event",
-    tag: "SỰ KIỆN"
-  },
-  {
-    title: "Thông báo bảo trì khu vực thư viện",
-    date: "10/12/2025",
-    type: "maintenance",
-    tag: "QUAN TRỌNG"
-  },
-  {
-    title: "Top 100 đầu sách AI mới về thư viện",
-    date: "08/12/2025",
-    type: "info",
-    tag: "SÁCH MỚI"
-  },
+const REWARD_RULES = [
+  { id: 1, name: 'Check-in đúng giờ', points: 2, description: 'Check-in trong vòng 10 phút sau khi đặt' },
+  { id: 2, name: 'Sử dụng đủ thời gian', points: 3, description: 'Sử dụng ít nhất 80% thời gian đã đặt' },
+  { id: 3, name: 'Không vi phạm trong tuần', points: 10, description: 'Bonus cuối tuần nếu không vi phạm' },
 ];
-
-const AREAS = [
-  { name: "Khu yên tĩnh", percentage: 95, icon: "🤫" },
-  { name: "Khu thảo luận", percentage: 45, icon: "💬" },
-  { name: "Khu tự học", percentage: 70, icon: "📚" },
-];
-
-const DASHBOARD_STATS = {
-  currentUsers: 69,
-  occupancyRate: 69,
-  violations: 9,
-  totalSeats: 100
-};
 
 const SystemConfig = () => {
-  const [searchText, setSearchText] = useState("");
-  const [insights, setInsights] = useState([]);
+  const [activeTab, setActiveTab] = useState('library');
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [editingRule, setEditingRule] = useState(null);
+  const [ruleType, setRuleType] = useState('violation');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
-    (async () => {
+  // Library Config State
+  const [libraryConfig, setLibraryConfig] = useState({
+    openTime: '07:00',
+    closeTime: '22:00',
+    slotDuration: 60,
+    maxBookingsPerDay: 3,
+    maxHoursPerDay: 4,
+    maxBookingDays: 14,
+    workingDays: '2,3,4,5,6',
+  });
+
+  // Load settings from API on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
       try {
-        const data = await getLibraryInsights(DASHBOARD_STATS);
-        setInsights(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error(e);
-        setInsights([]);
+        const response = await fetch(`${API_BASE_URL}/library`);
+        if (response.ok) {
+          const data = await response.json();
+          setLibraryConfig({
+            openTime: data.openTime || '07:00',
+            closeTime: data.closeTime || '22:00',
+            slotDuration: data.slotDuration || 60,
+            maxBookingsPerDay: data.maxBookingsPerDay || 3,
+            maxHoursPerDay: data.maxHoursPerDay || 4,
+            maxBookingDays: data.maxBookingDays || 14,
+            workingDays: data.workingDays || '2,3,4,5,6',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      } finally {
+        setLoading(false);
       }
-    })();
+    };
+    fetchSettings();
   }, []);
 
-  const filteredStudents = useMemo(() => {
-    const q = searchText.trim().toLowerCase();
-    if (!q) return MOCK_STUDENTS;
-    return MOCK_STUDENTS.filter((s) => {
-      return (
-        s.name.toLowerCase().includes(q) ||
-        s.studentId.toLowerCase().includes(q) ||
-        s.action.toLowerCase().includes(q)
-      );
-    });
-  }, [searchText]);
-
-  const getProgressColor = (percentage) => {
-    if (percentage >= 90) return { bar: '#D32F2F', bg: '#FFEBEE' };
-    if (percentage >= 60) return { bar: '#FF9800', bg: '#FFF3E0' };
-    return { bar: '#4CA75B', bg: '#E8F5E9' };
-  };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'event': return <Calendar size={18} />;
-      case 'maintenance': return <Wrench size={18} />;
-      case 'info': return <BookOpen size={18} />;
-      default: return <Bell size={18} />;
+  // Save settings to API
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(libraryConfig),
+      });
+      if (response.ok) {
+        alert('Lưu cài đặt thành công!');
+      } else {
+        alert('Lỗi khi lưu cài đặt');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Lỗi kết nối server');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getNotificationColors = (type) => {
-    switch (type) {
-      case 'event': return { bg: '#E3F2FD', color: '#0054A6', border: '#BBDEFB' };
-      case 'maintenance': return { bg: '#FFEBEE', color: '#D32F2F', border: '#FFCDD2' };
-      case 'info': return { bg: '#E8F5E9', color: '#388E3C', border: '#C8E6C9' };
-      default: return { bg: '#F7FAFC', color: '#4A5568', border: '#E2E8F0' };
-    }
+  const tabs = [
+    { id: 'library', label: 'Tham số thư viện', icon: Clock },
+    { id: 'reputation', label: 'Quy tắc điểm uy tín', icon: Star },
+    { id: 'notifications', label: 'Cấu hình thông báo', icon: Bell },
+  ];
+
+  const handleConfigChange = (key, value) => {
+    setLibraryConfig(prev => ({ ...prev, [key]: value }));
   };
 
   return (
     <>
       <Header
-        searchValue={searchText}
-        onSearchChange={(e) => setSearchText(e.target.value)}
-        searchPlaceholder="Tìm kiếm sinh viên, mã số..."
+        searchPlaceholder="Tìm kiếm cài đặt..."
       />
 
       <div style={{
@@ -128,673 +128,701 @@ const SystemConfig = () => {
         margin: '0 auto',
         minHeight: 'calc(100vh - 120px)'
       }}>
-        {/* Page Title */}
+        {/* Page Header */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
           justifyContent: 'space-between',
+          alignItems: 'center',
           marginBottom: '24px'
         }}>
           <div>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: '700',
-              color: 'var(--slib-text-primary, #1A1A1A)',
-              margin: '0 0 4px 0',
-              fontFamily: 'var(--slib-font-family, Inter, sans-serif)'
-            }}>
-              Tổng quan
+            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+              Cấu hình hệ thống
             </h1>
-            <p style={{
-              fontSize: '14px',
-              color: 'var(--slib-text-muted, #A0AEC0)',
-              margin: 0
-            }}>
-              Xin chào! Đây là tổng quan hoạt động thư viện hôm nay.
+            <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
+              Thiết lập các tham số vận hành của SLIB
             </p>
           </div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '12px',
-            boxShadow: 'var(--slib-shadow-sm)'
-          }}>
-            <Activity size={18} color="var(--slib-primary, #FF751F)" />
-            <span style={{
-              fontSize: '13px',
-              fontWeight: '600',
-              color: 'var(--slib-text-secondary, #4A5568)'
-            }}>
-              Cập nhật: {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
-        </div>
-
-        {/* Stats Cards Row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px',
-          marginBottom: '24px'
-        }}>
-          <StatCard
-            icon={<Users size={24} />}
-            value={DASHBOARD_STATS.currentUsers}
-            label="Sinh viên trong thư viện"
-            bg="#F3E8FF"
-            color="#7C3AED"
-            trend="up"
-            trendValue="+12% so với hôm qua"
-          />
-          <StatCard
-            icon={<Armchair size={24} />}
-            value={`${DASHBOARD_STATS.occupancyRate}%`}
-            label="Tỷ lệ chỗ ngồi đã sử dụng"
-            bg="#E8F5E9"
-            color="#388E3C"
-            trend="neutral"
-            trendValue="Ổn định"
-          />
-          <StatCard
-            icon={<AlertCircle size={24} />}
-            value={DASHBOARD_STATS.violations}
-            label="Vi phạm xảy ra hôm nay"
-            bg="#FFEBEE"
-            color="#D32F2F"
-            trend="down"
-            trendValue="-3 so với tuần trước"
-          />
-        </div>
-
-        {/* Main Content Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1.5fr 1fr',
-          gap: '20px',
-          marginBottom: '24px'
-        }}>
-          {/* Student List Table */}
-          <div style={{
-            background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
-            boxShadow: 'var(--slib-shadow-card)',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid var(--slib-border-light, #E2E8F0)',
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              gap: '8px',
+              padding: '12px 20px',
+              background: '#F7FAFC',
+              border: '2px solid #E2E8F0',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#4A5568',
+              cursor: 'pointer'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: 'var(--slib-primary-subtle, #FFF7F2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Users size={20} color="var(--slib-primary, #FF751F)" />
-                </div>
-                <div>
-                  <h3 style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: 'var(--slib-text-primary, #1A1A1A)',
-                    margin: 0
-                  }}>Hoạt động ra vào</h3>
-                  <p style={{
-                    fontSize: '12px',
-                    color: 'var(--slib-text-muted, #A0AEC0)',
-                    margin: 0
-                  }}>Cập nhật theo thời gian thực</p>
-                </div>
-              </div>
-              <button style={{
-                padding: '8px 16px',
-                background: 'var(--slib-bg-main, #F7FAFC)',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: 'var(--slib-text-secondary, #4A5568)',
-                cursor: 'pointer',
+              <RotateCcw size={18} />
+              Khôi phục mặc định
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--slib-primary-subtle, #FFF7F2)';
-                  e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)';
-                  e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
-                }}
-              >
-                Xem tất cả
-                <ChevronRight size={16} />
-              </button>
-            </div>
-
-            <div style={{ padding: '0 8px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr>
-                    <th style={{
-                      textAlign: 'left',
-                      padding: '16px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: 'var(--slib-text-muted, #A0AEC0)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>Sinh viên</th>
-                    <th style={{
-                      textAlign: 'left',
-                      padding: '16px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: 'var(--slib-text-muted, #A0AEC0)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>Mã số</th>
-                    <th style={{
-                      textAlign: 'center',
-                      padding: '16px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: 'var(--slib-text-muted, #A0AEC0)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>Trạng thái</th>
-                    <th style={{
-                      textAlign: 'right',
-                      padding: '16px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: 'var(--slib-text-muted, #A0AEC0)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px'
-                    }}>Thời gian</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((student, index) => (
-                    <tr
-                      key={student.id}
-                      style={{
-                        borderBottom: index === filteredStudents.length - 1
-                          ? 'none'
-                          : '1px solid var(--slib-border-light, #E2E8F0)',
-                        transition: 'background-color 0.2s ease',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--slib-primary-subtle, #FFF7F2)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <td style={{ padding: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            background: 'linear-gradient(135deg, var(--slib-primary, #FF751F), var(--slib-primary-light, #FF9B5A))',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fff',
-                            fontSize: '12px',
-                            fontWeight: '600'
-                          }}>
-                            {student.avatar}
-                          </div>
-                          <span style={{
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            color: 'var(--slib-text-primary, #1A1A1A)'
-                          }}>{student.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '16px' }}>
-                        <span style={{
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          color: 'var(--slib-text-secondary, #4A5568)',
-                          fontFamily: 'var(--slib-font-mono, monospace)'
-                        }}>{student.studentId}</span>
-                      </td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          background: student.action === "Check in"
-                            ? 'var(--slib-status-success-bg, #E8F5E9)'
-                            : 'var(--slib-status-error-bg, #FFEBEE)',
-                          color: student.action === "Check in"
-                            ? 'var(--slib-status-success, #388E3C)'
-                            : 'var(--slib-status-error, #D32F2F)'
-                        }}>
-                          <span style={{
-                            width: '6px',
-                            height: '6px',
-                            borderRadius: '50%',
-                            background: 'currentColor'
-                          }} />
-                          {student.action}
-                        </span>
-                      </td>
-                      <td style={{ padding: '16px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                          <span style={{
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--slib-text-primary, #1A1A1A)'
-                          }}>{student.time}</span>
-                          <span style={{
-                            fontSize: '12px',
-                            color: 'var(--slib-text-muted, #A0AEC0)'
-                          }}>{student.date}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                gap: '8px',
+                padding: '12px 20px',
+                background: saving ? '#ccc' : '#FF751F',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
+              }}>
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
           </div>
+        </div>
 
-          {/* AI Insights Panel */}
+        {/* Main Content */}
+        <div style={{ display: 'flex', gap: '24px' }}>
+          {/* Sidebar Tabs */}
           <div style={{
-            background: 'var(--slib-bg-card, #ffffff)',
+            width: '280px',
+            flexShrink: 0,
+            background: '#fff',
             borderRadius: '16px',
-            boxShadow: 'var(--slib-shadow-card)',
-            padding: '24px',
+            padding: '16px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
             height: 'fit-content'
           }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '20px'
-            }}>
-              <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #FDB913 0%, #FF9800 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(253, 185, 19, 0.3)'
-              }}>
-                <Sparkles size={20} color="#fff" />
-              </div>
-              <div>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: 'var(--slib-text-primary, #1A1A1A)',
-                  margin: 0
-                }}>AI Phân tích</h3>
-                <p style={{
-                  fontSize: '12px',
-                  color: 'var(--slib-text-muted, #A0AEC0)',
-                  margin: 0
-                }}>Đề xuất thông minh</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {insights.length > 0 ? insights.map((insight, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: insight.type === "warning"
-                      ? 'var(--slib-status-warning-bg, #FFF3E0)'
-                      : 'var(--slib-status-info-bg, #E3F2FD)',
-                    border: `1px solid ${insight.type === "warning" ? '#FFE0B2' : '#BBDEFB'}`,
-                    borderRadius: '12px',
-                    padding: '16px',
-                    display: 'flex',
-                    gap: '12px',
-                    transition: 'transform 0.2s ease',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
-                >
-                  <div style={{
-                    flexShrink: 0,
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: insight.type === "warning" ? '#FF9800' : '#0054A6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {insight.type === "warning"
-                      ? <AlertCircle size={16} color="#fff" />
-                      : <Clock size={16} color="#fff" />
-                    }
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: 'var(--slib-text-primary, #1A1A1A)',
-                      margin: '0 0 4px 0',
-                      lineHeight: '1.4'
-                    }}>{insight.title}</p>
-                    <p style={{
-                      fontSize: '13px',
-                      color: 'var(--slib-text-secondary, #4A5568)',
-                      margin: 0,
-                      lineHeight: '1.5'
-                    }}>{insight.message}</p>
-                  </div>
-                </div>
-              )) : (
-                <div style={{
-                  padding: '32px',
-                  textAlign: 'center',
-                  color: 'var(--slib-text-muted, #A0AEC0)',
-                  fontSize: '14px'
-                }}>
-                  <Sparkles size={32} style={{ marginBottom: '12px', opacity: 0.5 }} />
-                  <p>Đang phân tích dữ liệu...</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '20px'
-        }}>
-          {/* Notifications Panel */}
-          <div style={{
-            background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
-            boxShadow: 'var(--slib-shadow-card)',
-            padding: '24px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '10px',
-                  background: 'var(--slib-status-info-bg, #E3F2FD)',
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  width: '100%',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Bell size={20} color="var(--slib-accent-blue, #0054A6)" />
-                </div>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: 'var(--slib-text-primary, #1A1A1A)',
-                  margin: 0
-                }}>Thông báo gần đây</h3>
-              </div>
-              <span style={{
-                padding: '4px 12px',
-                background: 'var(--slib-primary, #FF751F)',
-                color: '#fff',
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: '600'
-              }}>{MOCK_NOTIFICATIONS.length} mới</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {MOCK_NOTIFICATIONS.map((notification, idx) => {
-                const colors = getNotificationColors(notification.type);
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      padding: '14px',
-                      borderRadius: '12px',
-                      border: `1px solid var(--slib-border-light, #E2E8F0)`,
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = colors.border;
-                      e.currentTarget.style.background = colors.bg;
-                      e.currentTarget.style.transform = 'translateX(4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--slib-border-light, #E2E8F0)';
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      background: colors.bg,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: colors.color,
-                      flexShrink: 0
-                    }}>
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginBottom: '6px'
-                      }}>
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          color: colors.color,
-                          background: colors.bg,
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          letterSpacing: '0.5px'
-                        }}>{notification.tag}</span>
-                      </div>
-                      <p style={{
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: 'var(--slib-text-primary, #1A1A1A)',
-                        margin: '0 0 6px 0',
-                        lineHeight: '1.4'
-                      }}>{notification.title}</p>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        <Calendar size={12} color="var(--slib-text-muted, #A0AEC0)" />
-                        <span style={{
-                          fontSize: '12px',
-                          color: 'var(--slib-text-muted, #A0AEC0)'
-                        }}>{notification.date}</span>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} color="var(--slib-text-muted, #A0AEC0)" style={{ flexShrink: 0 }} />
-                  </div>
-                );
-              })}
-            </div>
+                  gap: '12px',
+                  padding: '14px 16px',
+                  background: activeTab === tab.id ? '#FFF7F2' : 'transparent',
+                  border: activeTab === tab.id ? '2px solid #FF751F' : '2px solid transparent',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: activeTab === tab.id ? '600' : '500',
+                  color: activeTab === tab.id ? '#FF751F' : '#4A5568',
+                  cursor: 'pointer',
+                  marginBottom: '8px',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <tab.icon size={20} />
+                {tab.label}
+                {activeTab === tab.id && <ChevronRight size={16} style={{ marginLeft: 'auto' }} />}
+              </button>
+            ))}
           </div>
 
-          {/* Area Status Panel */}
-          <div style={{
-            background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
-            boxShadow: 'var(--slib-shadow-card)',
-            padding: '24px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '20px'
-            }}>
+          {/* Content Area */}
+          <div style={{ flex: 1 }}>
+            {/* Library Parameters Tab */}
+            {activeTab === 'library' && (
               <div style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'var(--slib-accent-green, #4CA75B)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(76, 167, 91, 0.3)'
+                background: '#fff',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                overflow: 'hidden'
               }}>
-                <MapPin size={20} color="#fff" />
-              </div>
-              <div>
-                <h3 style={{
-                  fontSize: '16px',
-                  fontWeight: '600',
-                  color: 'var(--slib-text-primary, #1A1A1A)',
-                  margin: 0
-                }}>Trạng thái khu vực</h3>
-                <p style={{
-                  fontSize: '12px',
-                  color: 'var(--slib-text-muted, #A0AEC0)',
-                  margin: 0
-                }}>Mức độ sử dụng theo thời gian thực</p>
-              </div>
-            </div>
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                    Tham số thư viện
+                  </h2>
+                  <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
+                    Cấu hình giờ hoạt động và các quy định đặt chỗ
+                  </p>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  {/* Operating Hours */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={18} color="#FF751F" />
+                      Giờ hoạt động
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Giờ mở cửa
+                        </label>
+                        <input
+                          type="time"
+                          value={libraryConfig.openTime}
+                          onChange={(e) => handleConfigChange('openTime', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Giờ đóng cửa
+                        </label>
+                        <input
+                          type="time"
+                          value={libraryConfig.closeTime}
+                          onChange={(e) => handleConfigChange('closeTime', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Legend */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              marginBottom: '20px',
-              padding: '12px 16px',
-              background: 'var(--slib-bg-main, #F7FAFC)',
-              borderRadius: '10px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--slib-accent-green, #4CA75B)'
-                }} />
-                <span style={{ fontSize: '12px', color: 'var(--slib-text-secondary, #4A5568)', fontWeight: '500' }}>Trống</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--slib-accent-yellow, #FDB913)'
-                }} />
-                <span style={{ fontSize: '12px', color: 'var(--slib-text-secondary, #4A5568)', fontWeight: '500' }}>Khá đông</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--slib-status-error, #D32F2F)'
-                }} />
-                <span style={{ fontSize: '12px', color: 'var(--slib-text-secondary, #4A5568)', fontWeight: '500' }}>Đầy</span>
-              </div>
-            </div>
+                  {/* Booking Rules */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Calendar size={18} color="#FF751F" />
+                      Quy định đặt chỗ
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Thời lượng mỗi slot (phút)
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.slotDuration}
+                          onChange={(e) => handleConfigChange('slotDuration', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Đặt trước tối đa (ngày)
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.maxBookingDays}
+                          onChange={(e) => handleConfigChange('maxBookingDays', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Số lượt đặt tối đa/ngày/người
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.maxBookingsPerDay}
+                          onChange={(e) => handleConfigChange('maxBookingsPerDay', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Số giờ tối đa/ngày/người
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.maxHoursPerDay}
+                          onChange={(e) => handleConfigChange('maxHoursPerDay', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Ngày làm việc (1=CN, 2=T2, ..., 7=T7)
+                        </label>
+                        <input
+                          type="text"
+                          value={libraryConfig.workingDays}
+                          onChange={(e) => handleConfigChange('workingDays', e.target.value)}
+                          placeholder="VD: 2,3,4,5,6"
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Area Progress Bars */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {AREAS.map((area, idx) => {
-                const colors = getProgressColor(area.percentage);
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--slib-border-light, #E2E8F0)',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = colors.bar;
-                      e.currentTarget.style.background = colors.bg;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--slib-border-light, #E2E8F0)';
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
+                  {/* Auto Checkout */}
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Timer size={18} color="#FF751F" />
+                      Tự động check-out
+                    </h3>
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      marginBottom: '12px'
+                      padding: '16px',
+                      background: '#F7FAFC',
+                      borderRadius: '12px',
+                      marginBottom: '16px'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '18px' }}>{area.icon}</span>
-                        <span style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: 'var(--slib-text-primary, #1A1A1A)'
-                        }}>{area.name}</span>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>Bật tự động check-out</div>
+                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>Tự động check-out khi quá thời gian</div>
                       </div>
-                      <span style={{
-                        fontSize: '16px',
-                        fontWeight: '700',
-                        color: colors.bar
-                      }}>{area.percentage}%</span>
+                      <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
+                        <input
+                          type="checkbox"
+                          checked={libraryConfig.autoCheckoutEnabled}
+                          onChange={(e) => handleConfigChange('autoCheckoutEnabled', e.target.checked)}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          cursor: 'pointer',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: libraryConfig.autoCheckoutEnabled ? '#FF751F' : '#E2E8F0',
+                          borderRadius: '14px',
+                          transition: 'all 0.3s'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            content: '',
+                            height: '22px',
+                            width: '22px',
+                            left: libraryConfig.autoCheckoutEnabled ? '25px' : '3px',
+                            bottom: '3px',
+                            background: '#fff',
+                            borderRadius: '50%',
+                            transition: 'all 0.3s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }} />
+                        </span>
+                      </label>
                     </div>
-                    <div style={{
-                      height: '8px',
-                      background: 'var(--slib-border-light, #E2E8F0)',
-                      borderRadius: '100px',
-                      overflow: 'hidden'
-                    }}>
-                      <div style={{
-                        height: '100%',
-                        width: `${area.percentage}%`,
-                        background: `linear-gradient(90deg, ${colors.bar}, ${colors.bar}CC)`,
-                        borderRadius: '100px',
-                        transition: 'width 0.5s ease'
-                      }} />
+                    {libraryConfig.autoCheckoutEnabled && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tự động check-out sau (phút)
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.autoCheckoutAfter}
+                          onChange={(e) => handleConfigChange('autoCheckoutAfter', parseInt(e.target.value))}
+                          style={{
+                            width: '200px',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reputation Rules Tab */}
+            {activeTab === 'reputation' && (
+              <div style={{
+                background: '#fff',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                overflow: 'hidden'
+              }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                      Quy tắc điểm uy tín
+                    </h2>
+                    <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
+                      Cấu hình điểm thưởng và điểm phạt cho sinh viên
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setRuleType('violation'); setEditingRule(null); setShowRuleModal(true); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      background: '#FF751F',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#fff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Plus size={16} />
+                    Thêm quy tắc
+                  </button>
+                </div>
+
+                <div style={{ padding: '24px' }}>
+                  {/* Violation Rules */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#DC2626', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <MinusCircle size={18} />
+                      Quy tắc trừ điểm (Vi phạm)
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {VIOLATION_RULES.map((rule) => (
+                        <div key={rule.id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '16px',
+                          background: '#FEF2F2',
+                          borderRadius: '12px',
+                          border: '1px solid #FECACA'
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
+                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span style={{
+                              padding: '6px 14px',
+                              background: '#DC2626',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              color: '#fff'
+                            }}>{rule.points}</span>
+                            <button style={{
+                              padding: '8px',
+                              background: '#fff',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              cursor: 'pointer'
+                            }}>
+                              <Edit size={16} color="#4A5568" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Reward Rules */}
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <PlusCircle size={18} />
+                      Quy tắc cộng điểm (Thưởng)
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {REWARD_RULES.map((rule) => (
+                        <div key={rule.id} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '16px',
+                          background: '#ECFDF5',
+                          borderRadius: '12px',
+                          border: '1px solid #A7F3D0'
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
+                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <span style={{
+                              padding: '6px 14px',
+                              background: '#059669',
+                              borderRadius: '20px',
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              color: '#fff'
+                            }}>+{rule.points}</span>
+                            <button style={{
+                              padding: '8px',
+                              background: '#fff',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '8px',
+                              cursor: 'pointer'
+                            }}>
+                              <Edit size={16} color="#4A5568" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notifications Tab */}
+            {activeTab === 'notifications' && (
+              <div style={{
+                background: '#fff',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                overflow: 'hidden'
+              }}>
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                    Cấu hình thông báo
+                  </h2>
+                  <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
+                    Thiết lập các loại thông báo gửi đến người dùng
+                  </p>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  {[
+                    { label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công', enabled: true },
+                    { label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt', enabled: true },
+                    { label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt', enabled: true },
+                    { label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm', enabled: true },
+                    { label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin', enabled: false },
+                    { label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố', enabled: true },
+                  ].map((item, idx) => (
+                    <div key={idx} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '16px',
+                      background: '#F7FAFC',
+                      borderRadius: '12px',
+                      marginBottom: '12px'
+                    }}>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.label}</div>
+                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{item.description}</div>
+                      </div>
+                      <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
+                        <input type="checkbox" defaultChecked={item.enabled} style={{ opacity: 0, width: 0, height: 0 }} />
+                        <span style={{
+                          position: 'absolute',
+                          cursor: 'pointer',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: item.enabled ? '#FF751F' : '#E2E8F0',
+                          borderRadius: '14px',
+                          transition: 'all 0.3s'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            height: '22px',
+                            width: '22px',
+                            left: item.enabled ? '25px' : '3px',
+                            bottom: '3px',
+                            background: '#fff',
+                            borderRadius: '50%',
+                            transition: 'all 0.3s',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }} />
+                        </span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Add/Edit Rule Modal */}
+      {showRuleModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '20px',
+            width: '500px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #E2E8F0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+                {editingRule ? 'Sửa quy tắc' : 'Thêm quy tắc mới'}
+              </h2>
+              <button onClick={() => setShowRuleModal(false)} style={{
+                padding: '8px',
+                background: '#F7FAFC',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                <X size={20} color="#4A5568" />
+              </button>
+            </div>
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Loại quy tắc
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setRuleType('violation')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: ruleType === 'violation' ? '#FEE2E2' : '#F7FAFC',
+                      border: `2px solid ${ruleType === 'violation' ? '#DC2626' : '#E2E8F0'}`,
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: ruleType === 'violation' ? '#DC2626' : '#4A5568',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <MinusCircle size={18} style={{ marginRight: '8px' }} />
+                    Trừ điểm
+                  </button>
+                  <button
+                    onClick={() => setRuleType('reward')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: ruleType === 'reward' ? '#D1FAE5' : '#F7FAFC',
+                      border: `2px solid ${ruleType === 'reward' ? '#059669' : '#E2E8F0'}`,
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: ruleType === 'reward' ? '#059669' : '#4A5568',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <PlusCircle size={18} style={{ marginRight: '8px' }} />
+                    Cộng điểm
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Tên quy tắc
+                </label>
+                <input type="text" placeholder="Nhập tên quy tắc" style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }} />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Số điểm
+                </label>
+                <input type="number" placeholder="Nhập số điểm" style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }} />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Mô tả
+                </label>
+                <textarea placeholder="Mô tả chi tiết quy tắc" style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  resize: 'none',
+                  height: '80px'
+                }} />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={() => setShowRuleModal(false)} style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#F7FAFC',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#4A5568',
+                  cursor: 'pointer'
+                }}>Hủy</button>
+                <button style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#FF751F',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}>Lưu quy tắc</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
