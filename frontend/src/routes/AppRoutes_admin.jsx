@@ -21,6 +21,9 @@ import SystemConfig from "../components/SystemConfig";
 import SystemHealth from "../components/SystemHealth";
 import AIConfig from "../components/AIConfig";
 
+//chat
+import ChatManagement from "../components/ChatManagement";
+
 function AppRoutes() {
   return (
     <BrowserRouter>

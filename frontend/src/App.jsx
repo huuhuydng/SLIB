@@ -53,6 +53,8 @@ function App() {
                         ? <AdminRoutes />
                         : <Navigate to="/admin/login" replace />
                 } />
+                {/* 3. Logic hiển thị ChatWidget */}
+            {<ChatWidget />}
 
                 {/* Librarian Routes */}
                 <Route path="/librarian/login" element={
