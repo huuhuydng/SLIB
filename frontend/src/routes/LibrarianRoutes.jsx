@@ -12,9 +12,11 @@ import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
+import ChatManagement from "../components/ChatManagement";
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
+
 
 function LibrarianRoutes() {
   return (
@@ -41,7 +43,7 @@ function LibrarianRoutes() {
         <Route path="violation" element={<ViolationManage />} />
 
         {/* Trò chuyện */}
-        <Route path="chat" element={<ChatManage />} />
+        <Route path="chat" element={<ChatManagement />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />

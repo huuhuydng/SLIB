@@ -77,10 +77,16 @@ function Login({ onLogin }) {
       setError(null);
 
       const idToken = response.credential;
-      console.log("✅ Google ID Token received:", idToken?.substring(0, 20) + "...");
+      console.log("🔹 BƯỚC 1: Nhận Google ID Token thành công");
 
+      // 2. Gọi Backend
+      console.log("🔹 BƯỚC 2: Đang gọi API googleLogin...");
       const backendResponse = await librarianService.googleLogin(idToken);
-      console.log("✅ GOOGLE BACKEND RESPONSE:", backendResponse);
+      
+      // 🔥 LOG QUAN TRỌNG: Xem cấu trúc dữ liệu Backend trả về
+      console.group("🔥 RAW BACKEND RESPONSE (Dữ liệu gốc)");
+      console.log(backendResponse);
+      console.groupEnd();
 
       // Backend trả về AuthResponse: { accessToken, refreshToken, id, email, fullName, studentCode, role, expiresIn }
       const token = backendResponse.accessToken ||
@@ -89,7 +95,7 @@ function Login({ onLogin }) {
 
       // Build user object from flat response
       const user = {
-        id: backendResponse.id,
+        id: backendResponse.id || backendResponse.userId || backendResponse.uuid, // Thử nhiều trường hợp
         email: backendResponse.email,
         fullName: backendResponse.fullName,
         role: backendResponse.role,
@@ -145,6 +151,7 @@ function Login({ onLogin }) {
         if (onLogin) {
           onLogin(user.role);
         }
+
       } else {
         console.error("❌ Missing token or role:", { token: !!token, role: user.role });
         setError({

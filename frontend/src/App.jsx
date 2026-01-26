@@ -1,9 +1,28 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
+import ChatWidget from "./components/ChatWidget";
+
+
+const ConditionalChatWidget = () => {
+    const location = useLocation(); 
+
+    // Danh sách các đường dẫn muốn ẨN bong bóng chat
+    const hiddenRoutes = [
+        '/admin/chat',             
+        '/librarian/chat',          
+        '/admin/login',            // Trang login
+        '/librarian/login',        // Trang login
+        '/login'
+    ];
+
+    const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
+
+    return shouldHide ? null : <ChatWidget />;
+};
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = React.useState(false);
