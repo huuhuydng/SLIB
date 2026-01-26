@@ -10,6 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/files")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class FileUploadController {
 
     @Autowired

@@ -46,7 +46,8 @@ public class AuthService {
 
         // Whitelist for testing (add your email here)
         String[] whitelistEmails = {
-                "huuhuydng@gmail.com","tbhhjqk87976@gmail.com", "phanphuongg979@gmail.com"
+                "huuhuydng@gmail.com",
+                "huuhuy.k4@gmail.com"
         };
 
         // Validate FPT email or whitelist
@@ -80,7 +81,6 @@ public class AuthService {
                     .studentCode(studentCode)
                     .fullName(fullName != null ? fullName : studentCode)
                     .role(Role.STUDENT)
-                    .reputationScore(100)
                     .isActive(true)
                     .notiDevice(fcmToken)
                     .build();
@@ -96,6 +96,9 @@ public class AuthService {
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
+
+        // Revoke all old refresh tokens before saving new one (single device policy)
+        refreshTokenRepository.revokeAllByUserId(user.getId());
 
         // Save refresh token hash to database
         saveRefreshToken(user, refreshToken, deviceInfo);

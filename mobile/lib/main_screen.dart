@@ -14,11 +14,14 @@ import 'package:slib/views/widgets/bottom_nav_widget.dart';
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
+  // Static key to access MainScreen state from anywhere
+  static final GlobalKey<MainScreenState> globalKey = GlobalKey<MainScreenState>();
+
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() => MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   // Biến này để lưu user lấy từ Provider
@@ -73,6 +76,11 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  /// Public method to switch tabs programmatically
+  void switchToTab(int index) {
+    _onItemTapped(index);
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:slib/services/booking_service.dart';
@@ -47,6 +48,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SLIB App',
+      // Add localization delegates for DatePicker, TimePicker, etc.
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('vi', 'VN'),
+        Locale('en', 'US'),
+      ],
+      locale: const Locale('vi', 'VN'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF751F)),
         useMaterial3: true,
@@ -86,7 +98,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (isLoggedIn) {
         Navigator.pushReplacement(
           context, 
-          MaterialPageRoute(builder: (_) => const MainScreen())
+          MaterialPageRoute(builder: (_) => MainScreen(key: MainScreen.globalKey))
         );
       } else {
         Navigator.pushReplacement(

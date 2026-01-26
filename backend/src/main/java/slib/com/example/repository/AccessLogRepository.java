@@ -13,4 +13,7 @@ import java.util.UUID;
 public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
     @Query("SELECT a FROM AccessLog a WHERE a.user.id = :userId AND a.checkOutTime IS NULL ORDER BY a.checkInTime DESC")
     Optional<AccessLog> checkInUser(UUID userId);
+
+    // Delete all access logs by user ID (for cascade delete when user is deleted)
+    void deleteByUser_Id(UUID userId);
 }
