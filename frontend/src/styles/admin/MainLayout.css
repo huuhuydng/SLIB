@@ -8,9 +8,9 @@
   flex: 1;
   margin-left: 72px;
   padding: 24px;
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
-  max-height: 100vh;
+  height: 100vh;
 }
 
 @media (max-width: 768px) {

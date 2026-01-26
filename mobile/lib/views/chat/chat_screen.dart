@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/services/chat_service.dart';
 
 // --- CẤU HÌNH MÀU SẮC ---
 
@@ -13,12 +14,15 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ChatService _chatService = ChatService();
+  
   bool _isTyping = false; // Trạng thái Bot đang gõ
+  bool _isEscalated = false; // Đã chuyển sang thủ thư
 
-  // Dữ liệu tin nhắn mẫu
+  // Dữ liệu tin nhắn
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: "Chào Huy! Mình là trợ lý ảo SLIB. Mình có thể giúp gì cho việc học tập của bạn hôm nay?",
+      text: "Chào bạn! Mình là trợ lý ảo SLIB. Mình có thể giúp gì cho việc học tập của bạn hôm nay? 📚",
       isUser: false,
       time: DateTime.now().subtract(const Duration(minutes: 1)),
     ),
@@ -29,8 +33,15 @@ class _ChatScreenState extends State<ChatScreen> {
     "Thư viện mở đến mấy giờ?",
     "Làm sao để đặt phòng họp?",
     "Wifi thư viện mật khẩu là gì?",
-    "Tôi bị trừ điểm uy tín oan!"
+    "Cho em gặp thủ thư",
   ];
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,29 +54,49 @@ class _ChatScreenState extends State<ChatScreen> {
         shadowColor: Colors.black.withOpacity(0.1),
         title: Row(
           children: [
-            // Avatar Bot
+            // Avatar Bot hoặc Librarian
             Container(
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: AppColors.brandColor, width: 2),
+                border: Border.all(
+                  color: _isEscalated ? Colors.green : AppColors.brandColor, 
+                  width: 2
+                ),
               ),
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 18,
-                backgroundColor: AppColors.brandColor,
-                child: Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                backgroundColor: _isEscalated ? Colors.green : AppColors.brandColor,
+                child: Icon(
+                  _isEscalated ? Icons.support_agent : Icons.auto_awesome, 
+                  color: Colors.white, 
+                  size: 20
+                ),
               ),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("SLIB AI Assistant", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  _isEscalated ? "Thủ thư SLIB" : "SLIB AI Assistant", 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                ),
                 Row(
                   children: [
-                    Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                    Container(
+                      width: 8, 
+                      height: 8, 
+                      decoration: BoxDecoration(
+                        color: _isEscalated ? Colors.orange : Colors.green, 
+                        shape: BoxShape.circle
+                      )
+                    ),
                     const SizedBox(width: 4),
-                    const Text("Luôn sẵn sàng", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(
+                      _isEscalated ? "Đang chờ..." : "Luôn sẵn sàng", 
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)
+                    ),
                   ],
                 )
               ],
@@ -73,11 +104,35 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: "Bắt đầu cuộc trò chuyện mới",
+            onPressed: _resetConversation,
+          ),
         ],
       ),
       body: Column(
         children: [
+          // Escalation Banner
+          if (_isEscalated)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: Colors.orange[50],
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Bạn đã được chuyển đến thủ thư. Vui lòng chờ...",
+                      style: TextStyle(color: Colors.orange[800], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
           // 1. Danh sách tin nhắn
           Expanded(
             child: ListView.builder(
@@ -95,7 +150,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
           // 2. Khu vực Gợi ý (Suggestions)
-          if (_messages.length < 3) // Chỉ hiện gợi ý khi hội thoại còn ngắn
+          if (_messages.length < 4 && !_isEscalated) // Chỉ hiện gợi ý khi hội thoại còn ngắn
             SizedBox(
               height: 50,
               child: ListView.builder(
@@ -106,7 +161,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ActionChip(
-                      label: Text(_suggestions[index], style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+                      label: Text(
+                        _suggestions[index], 
+                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)
+                      ),
                       backgroundColor: Colors.grey[100],
                       side: BorderSide.none,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -127,12 +185,15 @@ class _ChatScreenState extends State<ChatScreen> {
             child: SafeArea(
               child: Row(
                 children: [
-                  IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.grey), onPressed: () {}),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, color: Colors.grey), 
+                    onPressed: () {}
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _textController,
                       decoration: InputDecoration(
-                        hintText: "Nhập tin nhắn...",
+                        hintText: _isEscalated ? "Nhắn tin cho thủ thư..." : "Nhập tin nhắn...",
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         filled: true,
                         fillColor: Colors.grey[100],
@@ -144,7 +205,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    decoration: const BoxDecoration(color: AppColors.brandColor, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: _isEscalated ? Colors.green : AppColors.brandColor, 
+                      shape: BoxShape.circle
+                    ),
                     child: IconButton(
                       icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                       onPressed: () => _handleSubmitted(_textController.text),
@@ -169,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.brandColor : Colors.grey[100],
+          color: isUser ? AppColors.brandColor : (message.isEscalation ? Colors.orange[100] : Colors.grey[100]),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -177,13 +241,30 @@ class _ChatScreenState extends State<ChatScreen> {
             bottomRight: isUser ? Radius.zero : const Radius.circular(16),
           ),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: isUser ? Colors.white : AppColors.textPrimary,
-            fontSize: 15,
-            height: 1.4,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (message.isEscalation)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.support_agent, size: 14, color: Colors.orange[700]),
+                    const SizedBox(width: 4),
+                    Text("Chuyển tiếp", style: TextStyle(fontSize: 11, color: Colors.orange[700], fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            Text(
+              message.text,
+              style: TextStyle(
+                color: isUser ? Colors.white : AppColors.textPrimary,
+                fontSize: 15,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -223,8 +304,8 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Xử lý gửi tin nhắn & Giả lập AI trả lời
-  void _handleSubmitted(String text) {
+  // Xử lý gửi tin nhắn & Gọi AI Service
+  void _handleSubmitted(String text) async {
     if (text.trim().isEmpty) return;
 
     _textController.clear();
@@ -234,32 +315,69 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     // Cuộn xuống cuối
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _scrollController.animateTo(_scrollController.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-    });
+    _scrollToBottom();
 
-    // Giả lập độ trễ của AI (1.5 giây)
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    try {
+      // Gọi AI Service API
+      final response = await _chatService.sendMessage(text);
+      
+      if (!mounted) return;
+      
+      setState(() {
+        _isTyping = false;
+        
+        // Thêm tin nhắn phản hồi
+        _messages.add(ChatMessage(
+          text: response.reply,
+          isUser: false,
+          time: DateTime.now(),
+          isEscalation: response.escalated,
+        ));
+        
+        // Cập nhật trạng thái escalation
+        if (response.escalated) {
+          _isEscalated = true;
+        }
+      });
+      
+      _scrollToBottom();
+      
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isTyping = false;
-        // Logic trả lời đơn giản (Mock AI)
-        String response = "Xin lỗi, mình chưa hiểu ý bạn.";
-        if (text.toLowerCase().contains("wifi")) {
-          response = "Mật khẩu Wifi thư viện là: FPTU_Library_2025. Bạn cần đăng nhập bằng tài khoản sinh viên nhé!";
-        } else if (text.toLowerCase().contains("mở") || text.toLowerCase().contains("giờ")) {
-          response = "Thư viện mở cửa từ 07:30 đến 21:00 (Thứ 2 - Thứ 7). Chủ nhật nghỉ ạ.";
-        } else if (text.toLowerCase().contains("đặt") || text.toLowerCase().contains("chỗ")) {
-          response = "Để đặt chỗ, bạn quay lại màn hình chính và chọn mục 'Đặt chỗ' hoặc biểu tượng cái ghế nhé!";
-        }
+        _messages.add(ChatMessage(
+          text: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
+          isUser: false,
+          time: DateTime.now(),
+        ));
+      });
+      _scrollToBottom();
+    }
+  }
 
-        _messages.add(ChatMessage(text: response, isUser: false, time: DateTime.now()));
-      });
-      
-      // Cuộn xuống lần nữa khi bot trả lời xong
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollController.animateTo(_scrollController.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-      });
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _resetConversation() {
+    setState(() {
+      _messages.clear();
+      _messages.add(ChatMessage(
+        text: "Chào bạn! Mình là trợ lý ảo SLIB. Mình có thể giúp gì cho việc học tập của bạn hôm nay? 📚",
+        isUser: false,
+        time: DateTime.now(),
+      ));
+      _isEscalated = false;
+      _chatService.clearSession();
     });
   }
 }
@@ -269,6 +387,12 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime time;
+  final bool isEscalation;
 
-  ChatMessage({required this.text, required this.isUser, required this.time});
+  ChatMessage({
+    required this.text, 
+    required this.isUser, 
+    required this.time,
+    this.isEscalation = false,
+  });
 }

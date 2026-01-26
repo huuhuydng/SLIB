@@ -3,7 +3,7 @@ package slib.com.example.entity.chat;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import slib.com.example.entity.users.User; 
+import slib.com.example.entity.users.User;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -20,7 +20,7 @@ public class Message {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY) 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", nullable = false)
     private User sender;
 
@@ -41,12 +41,17 @@ public class Message {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
+
     // Helper method để code logic check nhanh các validate
     public boolean hasAttachment() {
         return this.attachmentUrl != null && !this.attachmentUrl.isEmpty();
     }
-    
+
     @Column(name = "is_read", nullable = false)
-    private boolean isRead = false; 
+    private boolean isRead = false;
+
+    // Quan hệ với Conversation (optional - để backward compatible)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
 }

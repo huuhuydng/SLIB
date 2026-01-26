@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.*;
 // 👇 Import các DTO và Entity cần thiết
 import slib.com.example.dto.chat.ChatMessageDTO;
 import slib.com.example.dto.chat.ChatPartnerDTO;
+import slib.com.example.dto.chat.ConversationDTO;
 import slib.com.example.entity.chat.Message;
 
 import slib.com.example.service.chat.UserChatService;
+import slib.com.example.service.chat.ConversationService;
 import slib.com.example.service.UserService;
 
 import java.util.List;
@@ -29,6 +31,7 @@ public class UserChatController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final UserChatService chatService;
+    private final ConversationService conversationService;
     private final UserService userService;
 
     // ==========================================
@@ -41,15 +44,13 @@ public class UserChatController {
 
         // Gửi cho người nhận
         messagingTemplate.convertAndSend(
-            "/topic/chat/" + savedMsg.getReceiverId(),
-            savedMsg
-        );
+                "/topic/chat/" + savedMsg.getReceiverId(),
+                savedMsg);
 
         // Gửi lại cho người gửi (để đồng bộ realtime trên các tab khác của họ)
         messagingTemplate.convertAndSend(
-            "/topic/chat/" + savedMsg.getSenderId(),
-            savedMsg
-        );
+                "/topic/chat/" + savedMsg.getSenderId(),
+                savedMsg);
     }
 
     // ==========================================
@@ -75,15 +76,15 @@ public class UserChatController {
         return ResponseEntity.ok(chatService.getConversations(currentUserId));
     }
 
-    // 3. API TÌM KIẾM 
+    // 3. API TÌM KIẾM
     @GetMapping("/search")
     public ResponseEntity<List<ChatMessageDTO>> searchInConversation(
             @RequestParam UUID partnerId,
             @RequestParam String keyword,
-            @AuthenticationPrincipal UserDetails userDetails) { 
-        
-        UUID myId = getCurrentUserId(userDetails); 
-        
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        UUID myId = getCurrentUserId(userDetails);
+
         // Gọi Service
         List<Message> messages = chatService.searchConversation(myId, partnerId, keyword);
 
@@ -91,8 +92,8 @@ public class UserChatController {
         List<ChatMessageDTO> dtos = messages.stream().map(msg -> {
             ChatMessageDTO dto = new ChatMessageDTO();
             dto.setId(msg.getId());
-            dto.setSenderId(msg.getSender().getId());    
-            dto.setReceiverId(msg.getReceiver().getId()); 
+            dto.setSenderId(msg.getSender().getId());
+            dto.setReceiverId(msg.getReceiver().getId());
             dto.setContent(msg.getContent());
             dto.setAttachmentUrl(msg.getAttachmentUrl());
             dto.setType(msg.getType());
@@ -109,10 +110,10 @@ public class UserChatController {
             @RequestParam UUID partnerId,
             @RequestParam UUID messageId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         UUID myId = getCurrentUserId(userDetails);
         int pageIndex = chatService.getPageNumberOfMessage(myId, partnerId, messageId);
-        
+
         return ResponseEntity.ok(pageIndex);
     }
 
@@ -120,47 +121,103 @@ public class UserChatController {
     @GetMapping("/unread-count")
     public ResponseEntity<Long> getUnreadCount(@AuthenticationPrincipal UserDetails userDetails) {
         UUID myId = getCurrentUserId(userDetails);
-        
+
         // ❌ LỖI CŨ: messageRepository.countUnreadMessages(myId);
         long count = chatService.getUnreadCount(myId);
-        
+
         return ResponseEntity.ok(count);
     }
 
     // 👇 [SỬA] 6. API Đánh dấu đã đọc
     @PostMapping("/mark-read")
     public ResponseEntity<Void> markAsRead(
-        @RequestBody Map<String, String> payload, 
-        @AuthenticationPrincipal UserDetails userDetails) {
-    
-    UUID myId = getCurrentUserId(userDetails);
-    UUID partnerId = UUID.fromString(payload.get("senderId")); 
-    
-    // 1. Cập nhật Database (is_read = true)
-    chatService.markMessagesAsRead(myId, partnerId);
-    
-    // 2. 👇 GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
-    messagingTemplate.convertAndSend(
-        "/topic/chat/seen/" + partnerId, 
-        Map.of("partnerId", myId)
-    );
-    
-    return ResponseEntity.ok().build();
+            @RequestBody Map<String, String> payload,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        UUID myId = getCurrentUserId(userDetails);
+        UUID partnerId = UUID.fromString(payload.get("senderId"));
+
+        // 1. Cập nhật Database (is_read = true)
+        chatService.markMessagesAsRead(myId, partnerId);
+
+        // 2. 👇 GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
+        messagingTemplate.convertAndSend(
+                "/topic/chat/seen/" + partnerId,
+                Map.of("partnerId", myId));
+
+        return ResponseEntity.ok().build();
     }
-    
+
     // 7. API LẤY KHO LƯU TRỮ (MEDIA & FILES)
     @GetMapping("/media/{partnerId}")
     public ResponseEntity<List<ChatMessageDTO>> getMedia(
             @PathVariable UUID partnerId,
             @RequestParam String type, // 'IMAGE' hoặc 'FILE'
             @AuthenticationPrincipal UserDetails userDetails) {
-        
+
         UUID myId = getCurrentUserId(userDetails);
-        
+
         // Gọi Service đã có của bạn
         List<ChatMessageDTO> mediaList = chatService.getConversationMedia(myId, partnerId, type);
-        
+
         return ResponseEntity.ok(mediaList);
+    }
+
+    // ==========================================
+    // CONVERSATION MANAGEMENT (AI-to-Human Escalation)
+    // ==========================================
+
+    // 8. Lấy danh sách conversation đang chờ xử lý (QUEUE_WAITING)
+    @GetMapping("/conversations/waiting")
+    public ResponseEntity<List<ConversationDTO>> getWaitingConversations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // Chỉ Librarian mới có quyền xem
+        getCurrentUserId(userDetails);
+        return ResponseEntity.ok(conversationService.getWaitingConversations());
+    }
+
+    // 9. Lấy danh sách conversation đang chat (HUMAN_CHATTING) của librarian
+    @GetMapping("/conversations/active")
+    public ResponseEntity<List<ConversationDTO>> getActiveConversations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID myId = getCurrentUserId(userDetails);
+        return ResponseEntity.ok(conversationService.getActiveConversations(myId));
+    }
+
+    // 10. Lấy tất cả conversations (waiting + active)
+    @GetMapping("/conversations/all")
+    public ResponseEntity<List<ConversationDTO>> getAllConversations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID myId = getCurrentUserId(userDetails);
+        return ResponseEntity.ok(conversationService.getAllConversationsForLibrarian(myId));
+    }
+
+    // 11. Librarian tiếp nhận conversation
+    @PostMapping("/conversations/{conversationId}/take-over")
+    public ResponseEntity<ConversationDTO> takeOverConversation(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID librarianId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.takeOverConversation(conversationId, librarianId);
+        return ResponseEntity.ok(result);
+    }
+
+    // 12. Đánh dấu conversation đã hoàn thành
+    @PostMapping("/conversations/{conversationId}/resolve")
+    public ResponseEntity<ConversationDTO> resolveConversation(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.resolveConversation(conversationId);
+        return ResponseEntity.ok(result);
+    }
+
+    // 13. Đếm số conversation đang chờ
+    @GetMapping("/conversations/waiting/count")
+    public ResponseEntity<Long> countWaitingConversations(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        return ResponseEntity.ok(conversationService.countWaitingConversations());
     }
 
     // ==========================================
