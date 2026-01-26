@@ -58,6 +58,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   // Đang fetch seats?
   bool _isFetchingSeats = false;
 
+  // Non-working day check
+  bool _isNonWorkingDay = false;
+
   @override
   void initState() {
     super.initState();
@@ -126,6 +129,32 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }
   }
 
+  String _getVietnameseDayName(DateTime date) {
+    const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    return dayNames[date.weekday % 7];
+  }
+
+  /// Tính ngày cuối cùng có thể đặt - chỉ tính ngày làm việc
+  /// VD: maxBookingDays = 3, hôm nay thứ 7 -> chỉ đếm T2, T3, T4 = 3 ngày làm việc
+  DateTime _getLastBookableDate(int maxWorkingDays) {
+    if (_librarySettings == null) {
+      return DateTime.now().add(Duration(days: maxWorkingDays));
+    }
+    
+    DateTime currentDate = DateTime.now();
+    int workingDaysCount = 0;
+    
+    // Đếm đủ số ngày làm việc
+    while (workingDaysCount < maxWorkingDays) {
+      currentDate = currentDate.add(const Duration(days: 1));
+      if (_librarySettings!.isWorkingDay(currentDate)) {
+        workingDaysCount++;
+      }
+    }
+    
+    return currentDate;
+  }
+
   Future<void> _loadData() async {
     try {
       setState(() {
@@ -144,8 +173,11 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
       final settings = results[1] as LibrarySetting;
       final allTimeSlots = results[2] as List<TimeSlot>;
       
+      // Check if selected date is a working day
+      final isWorkingDay = settings.isWorkingDay(_selectedDate);
+      
       // Filter time slots: nếu là hôm nay, chỉ hiển thị slot từ giờ hiện tại trở đi
-      final filteredSlots = _filterTimeSlotsForDate(_selectedDate, allTimeSlots);
+      final filteredSlots = isWorkingDay ? _filterTimeSlotsForDate(_selectedDate, allTimeSlots) : <TimeSlot>[];
       
       // Giữ nguyên slot đang chọn nếu còn valid, nếu không thì chọn slot mặc định
       String? newTimeSlot = _selectedTimeSlot;
@@ -167,9 +199,14 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         _timeSlots = allTimeSlots; // Giữ tất cả slots gốc
         _selectedTimeSlot = newTimeSlot;
         _isLoading = false;
+        _isNonWorkingDay = !isWorkingDay;
         
+        // Kiểm tra ngày làm việc trước
+        if (!isWorkingDay) {
+          _errorMessage = null; // Sẽ hiển thị màn hình thư viện đóng cửa riêng
+        }
         // Nếu không có slot valid cho hôm nay (hết giờ làm việc), chỉ thông báo nhưng vẫn cho chọn ngày khác
-        if (filteredSlots.isEmpty && allTimeSlots.isNotEmpty) {
+        else if (filteredSlots.isEmpty && allTimeSlots.isNotEmpty) {
           _errorMessage = 'Thư viện đã đóng cửa hôm nay. Vui lòng chọn ngày khác phía trên.';
         }
         
@@ -959,6 +996,16 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }
     selectedDate = firstWorkingDay;
 
+    // Tính ngày cuối cùng được phép đặt (chỉ tính ngày làm việc)
+    DateTime lastBookableDate = DateTime.now();
+    int workingDaysCount = 0;
+    while (workingDaysCount < settings!.maxBookingDays) {
+      lastBookableDate = lastBookableDate.add(const Duration(days: 1));
+      if (settings.isWorkingDay(lastBookableDate)) {
+        workingDaysCount++;
+      }
+    }
+
     if (!mounted) return null;
 
     return showDialog<Map<String, dynamic>>(
@@ -986,7 +1033,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(Duration(days: settings!.maxBookingDays)),
+                        lastDate: lastBookableDate,
                         selectableDayPredicate: (DateTime day) {
                           // Chỉ cho phép chọn ngày làm việc
                           return settings!.isWorkingDay(day);
@@ -1112,26 +1159,125 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                     if (_areas.length > 1) _buildAreaTabs(),
                     // Date and Time Slot Filter
                     _buildDateTimeFilter(),
-                    // Floor plan
-                    Expanded(child: _buildFloorPlan()),
-                    // Tip
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: const Color(0xFFFFF5EE),
-                      child: const Text(
-                        'Chạm vào ghế màu xanh để đặt chỗ',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                    // Non-working day message OR Floor plan
+                    Expanded(
+                      child: _isNonWorkingDay 
+                          ? _buildClosedDayMessage()
+                          : _buildFloorPlan(),
                     ),
+                    // Tip (only show when working day)
+                    if (!_isNonWorkingDay)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        color: const Color(0xFFFFF5EE),
+                        child: const Text(
+                          'Chạm vào ghế màu xanh để đặt chỗ',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                        ),
+                      ),
                   ],
                 ),
+    );
+  }
+
+  /// Widget hiển thị khi chọn ngày thư viện không hoạt động
+  Widget _buildClosedDayMessage() {
+    final dayName = _getVietnameseDayName(_selectedDate);
+    
+    // Find next working day
+    DateTime nextWorkingDay = _selectedDate.add(const Duration(days: 1));
+    while (_librarySettings != null && !_librarySettings!.isWorkingDay(nextWorkingDay)) {
+      nextWorkingDay = nextWorkingDay.add(const Duration(days: 1));
+      if (nextWorkingDay.difference(_selectedDate).inDays > 7) break;
+    }
+    final nextDayName = _getVietnameseDayName(nextWorkingDay);
+    final nextDateStr = DateFormat('dd/MM').format(nextWorkingDay);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.event_busy,
+                size: 64,
+                color: Colors.orange[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Thư viện không hoạt động',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Thư viện không mở cửa vào $dayName.\nVui lòng chọn ngày khác để đặt chỗ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Thư viện mở cửa: Thứ Hai - Thứ Sáu',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _selectedDate = nextWorkingDay;
+                  _isNonWorkingDay = false;
+                });
+                _clearSeatsCache();
+                _loadData();
+              },
+              icon: const Icon(Icons.calendar_today),
+              label: Text('Chọn $nextDayName ($nextDateStr)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   /// Widget chọn ngày và khung giờ
   Widget _buildDateTimeFilter() {
     final maxDays = _librarySettings?.maxBookingDays ?? 14;
+    final lastBookableDate = _getLastBookableDate(maxDays);
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1149,7 +1295,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       context: context,
                       initialDate: _selectedDate,
                       firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(Duration(days: maxDays)),
+                      lastDate: lastBookableDate,
                       selectableDayPredicate: (day) {
                         return _librarySettings?.isWorkingDay(day) ?? true;
                       },

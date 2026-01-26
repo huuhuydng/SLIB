@@ -111,6 +111,30 @@
     border-color: #1e293b;
 }
 
+/* Font Size List */
+.tiptap-fontsize-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 140px;
+}
+
+.tiptap-fontsize-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+    color: #374151;
+}
+
+.tiptap-fontsize-btn:hover {
+    background: #fff7ed;
+    color: #f97316;
+}
+
 /* Table Controls */
 .tiptap-table-controls {
     display: flex;
@@ -332,4 +356,19 @@
 
 .tiptap-content::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
+}
+
+/* Link styling */
+.tiptap-content .ProseMirror a {
+    color: #2563eb;
+    text-decoration: underline;
+    cursor: pointer;
+    text-decoration-color: #93c5fd;
+    text-underline-offset: 2px;
+    transition: all 0.15s;
+}
+
+.tiptap-content .ProseMirror a:hover {
+    color: #1d4ed8;
+    text-decoration-color: #2563eb;
 }

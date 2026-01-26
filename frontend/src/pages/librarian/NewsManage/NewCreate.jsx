@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -8,7 +8,10 @@ import {
   Save,
   Clock,
   Plus,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff,
+  Check
 } from 'lucide-react';
 import Header from "../../../components/shared/Header";
 import TipTapEditor from "../../../components/editor/TipTapEditor";
@@ -43,6 +46,7 @@ const NewCreate = () => {
     content: '',
     imageUrl: '',
     categoryId: '',
+    isPinned: false, // Track pin status for edit mode
   });
 
   // Status: 'draft' | 'publish' | 'schedule'
@@ -59,13 +63,155 @@ const NewCreate = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
 
+  // Preview mode
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Unsaved changes tracking - use ref to store initial data
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const initialFormDataRef = useRef(null);
+  const isInitializedRef = useRef(false);
+
+  // Auto-save state
+  const [autoSaveStatus, setAutoSaveStatus] = useState(''); // '' | 'saving' | 'saved' | 'error'
+  const autoSaveTimerRef = useRef(null);
+  const AUTO_SAVE_DELAY = 30000; // 30 seconds
+
   // Load categories on mount
   useEffect(() => {
     loadCategories();
     if (isEditMode) {
       loadNewsData();
+    } else {
+      // Load draft from localStorage for new posts
+      const savedDraft = localStorage.getItem('news_draft');
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          if (draft && draft.title) {
+            const useDraft = window.confirm('Pát hiện bản nháp chưa lưu. Bạn có muốn khôi phục?');
+            if (useDraft) {
+              setFormData(draft.formData || {});
+              setPublishStatus(draft.publishStatus || 'publish');
+              setScheduleDate(draft.scheduleDate || '');
+              setScheduleTime(draft.scheduleTime || '');
+              if (draft.imagePreview) setImagePreview(draft.imagePreview);
+            } else {
+              localStorage.removeItem('news_draft');
+            }
+          }
+        } catch (e) {
+          localStorage.removeItem('news_draft');
+        }
+      }
     }
   }, [id]);
+
+  // Track unsaved changes - only after initial data is set
+  useEffect(() => {
+    // Skip if not initialized yet
+    if (!isInitializedRef.current) return;
+
+    // Compare current data with initial data
+    if (initialFormDataRef.current) {
+      const currentData = JSON.stringify({
+        formData,
+        publishStatus,
+        scheduleDate,
+        scheduleTime
+      });
+      const initialData = JSON.stringify(initialFormDataRef.current);
+      setHasUnsavedChanges(currentData !== initialData);
+    }
+  }, [formData, publishStatus, scheduleDate, scheduleTime]);
+
+  // Set initial data after loading (for edit mode) or on mount (for new mode)
+  useEffect(() => {
+    // For edit mode: set initial after loadNewsData completes
+    if (isEditMode && formData.title && !isInitializedRef.current) {
+      initialFormDataRef.current = {
+        formData: { ...formData },
+        publishStatus,
+        scheduleDate,
+        scheduleTime
+      };
+      isInitializedRef.current = true;
+    }
+  }, [isEditMode, formData.title, formData, publishStatus, scheduleDate, scheduleTime]);
+
+  // For new mode: set initial on first mount only
+  useEffect(() => {
+    if (!isEditMode && !isInitializedRef.current) {
+      // Use timeout to ensure this runs after initial render
+      const timer = setTimeout(() => {
+        initialFormDataRef.current = {
+          formData: { ...formData },
+          publishStatus,
+          scheduleDate,
+          scheduleTime
+        };
+        isInitializedRef.current = true;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Bạn có thay đổi chưa lưu. Bạn có chắc muốn thoát?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Auto-save draft every 30 seconds (only for new posts)
+  useEffect(() => {
+    if (!isEditMode && hasUnsavedChanges && formData.title) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveDraftToLocalStorage();
+      }, AUTO_SAVE_DELAY);
+    }
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [formData, publishStatus, scheduleDate, scheduleTime, hasUnsavedChanges, isEditMode]);
+
+  // Save draft to localStorage
+  const saveDraftToLocalStorage = useCallback(() => {
+    if (!isEditMode && formData.title) {
+      setAutoSaveStatus('saving');
+      try {
+        const draft = {
+          formData,
+          publishStatus,
+          scheduleDate,
+          scheduleTime,
+          imagePreview,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem('news_draft', JSON.stringify(draft));
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus(''), 3000);
+      } catch (e) {
+        setAutoSaveStatus('error');
+      }
+    }
+  }, [formData, publishStatus, scheduleDate, scheduleTime, imagePreview, isEditMode]);
+
+  // Clear draft after successful submit
+  const clearDraft = () => {
+    localStorage.removeItem('news_draft');
+    setHasUnsavedChanges(false);
+  };
 
   const loadCategories = async () => {
     try {
@@ -88,6 +234,7 @@ const NewCreate = () => {
         content: data.content || '',
         imageUrl: imageUrl || '',
         categoryId: data.categoryId?.toString() || '',
+        isPinned: data.isPinned || false, // Preserve pin status
       });
 
       if (imageUrl) {
@@ -233,7 +380,7 @@ const NewCreate = () => {
         imageUrl: formData.imageUrl || null,
         category: categoryId ? { id: categoryId } : null,
         isPublished,
-        isPinned: false,
+        isPinned: isEditMode ? formData.isPinned : false, // Preserve pin status when editing
         viewCount: 0,
         publishedAt
       };
@@ -244,6 +391,9 @@ const NewCreate = () => {
         await createNews(newsData);
       }
 
+      // Clear draft and unsaved changes flag
+      clearDraft();
+      setHasUnsavedChanges(false);
       navigate(basePath);
     } catch (err) {
       setError(isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới');
@@ -288,7 +438,7 @@ const NewCreate = () => {
           disabled={loading || !formData.title.trim()}
         >
           <Send size={16} />
-          {loading ? 'Đang đăng...' : 'Đăng tin ngay'}
+          {loading ? 'Đang đăng...' : (isEditMode ? 'Cập nhật' : 'Đăng tin ngay')}
         </button>
       );
     }
@@ -316,9 +466,37 @@ const NewCreate = () => {
           {/* Left Column - Main Content */}
           <div className="news-form-left">
             <div className="news-form-group">
-              <label className="news-form-label">
-                Tiêu đề bài viết <span style={{ color: '#ef4444' }}>*</span>
-              </label>
+              {/* Unsaved indicator - show above title */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="news-form-label" style={{ margin: 0 }}>
+                  Tiêu đề bài viết <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                {/* Status indicators */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {autoSaveStatus === 'saving' && (
+                    <span style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      💾 Đang lưu...
+                    </span>
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <span style={{ fontSize: '12px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Check size={14} /> Đã lưu nháp
+                    </span>
+                  )}
+                  {hasUnsavedChanges && !autoSaveStatus && (
+                    <span style={{
+                      fontSize: '12px',
+                      color: '#f59e0b',
+                      background: '#fef3c7',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: 500
+                    }}>
+                      ● Chưa lưu
+                    </span>
+                  )}
+                </div>
+              </div>
               <input
                 type="text"
                 className="news-form-input"
@@ -517,18 +695,178 @@ const NewCreate = () => {
 
         {/* Action Buttons */}
         <div className="news-btn-group">
-          <button
-            type="button"
-            className="news-btn news-btn-secondary"
-            onClick={() => navigate(basePath)}
-            disabled={loading}
-          >
-            <X size={16} />
-            Huỷ bỏ
-          </button>
-          {renderSubmitButton()}
+          {/* Left side - Cancel and Auto-save status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              type="button"
+              className="news-btn news-btn-secondary"
+              onClick={() => {
+                if (hasUnsavedChanges) {
+                  const leave = window.confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn thoát?');
+                  if (!leave) return;
+                }
+                clearDraft();
+                navigate(basePath);
+              }}
+              disabled={loading}
+            >
+              <X size={16} />
+              Huỷ bỏ
+            </button>
+          </div>
+
+          {/* Right side - Preview and Submit */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {/* Preview button */}
+            <button
+              type="button"
+              className="news-btn news-btn-outline"
+              onClick={() => setShowPreview(true)}
+              disabled={!formData.title.trim()}
+              style={{
+                background: 'white',
+                border: '2px solid #e2e8f0',
+                color: '#64748b'
+              }}
+            >
+              <Eye size={16} />
+              Xem trước
+            </button>
+
+            {renderSubmitButton()}
+          </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div
+          className="news-preview-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setShowPreview(false)}
+        >
+          <div
+            className="news-preview-modal"
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '800px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Preview Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#1e293b' }}>
+                <Eye size={20} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                Xem trước bài viết
+              </h3>
+              <button
+                onClick={() => setShowPreview(false)}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  background: '#f1f5f9',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div style={{ padding: '24px' }}>
+              {/* Category badge */}
+              {formData.categoryId && categories.find(c => c.id.toString() === formData.categoryId) && (
+                <span style={{
+                  display: 'inline-block',
+                  padding: '4px 12px',
+                  background: categories.find(c => c.id.toString() === formData.categoryId)?.colorCode || '#f97316',
+                  color: 'white',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  marginBottom: '12px'
+                }}>
+                  {categories.find(c => c.id.toString() === formData.categoryId)?.name}
+                </span>
+              )}
+
+              {/* Title */}
+              <h1 style={{
+                fontSize: '28px',
+                fontWeight: 700,
+                color: '#0f172a',
+                marginBottom: '12px',
+                lineHeight: 1.3
+              }}>
+                {formData.title || 'Tiêu đề bài viết'}
+              </h1>
+
+              {/* Summary */}
+              {formData.summary && (
+                <p style={{
+                  fontSize: '16px',
+                  color: '#64748b',
+                  marginBottom: '20px',
+                  fontStyle: 'italic',
+                  lineHeight: 1.6
+                }}>
+                  {formData.summary}
+                </p>
+              )}
+
+              {/* Content - images will be displayed as part of HTML content */}
+              <div
+                className="news-preview-content"
+                style={{
+                  fontSize: '15px',
+                  lineHeight: 1.8,
+                  color: '#334155'
+                }}
+                dangerouslySetInnerHTML={{ __html: formData.content || '<p style="color:#94a3b8">Chưa có nội dung...</p>' }}
+              />
+
+              {/* Style for images inside preview content */}
+              <style>{`
+                .news-preview-content img {
+                  max-width: 100%;
+                  height: auto;
+                  border-radius: 8px;
+                  margin: 12px 0;
+                }
+                .news-preview-content p {
+                  margin-bottom: 12px;
+                }
+              `}</style>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

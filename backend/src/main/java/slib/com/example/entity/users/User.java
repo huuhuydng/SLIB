@@ -30,9 +30,6 @@ public class User implements UserDetails {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "supabase_uid", unique = true, columnDefinition = "uuid")
-    private UUID supabaseUid;
-
     @Column(name = "student_code", length = 20, unique = true, nullable = false)
     private String studentCode;
 
@@ -45,9 +42,6 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private Role role;
-
-    @Column(name = "reputation_score")
-    private Integer reputationScore;
 
     @Column(name = "is_active")
     private Boolean isActive;

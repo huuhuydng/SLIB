@@ -81,7 +81,6 @@ public class AuthService {
                     .studentCode(studentCode)
                     .fullName(fullName != null ? fullName : studentCode)
                     .role(Role.STUDENT)
-                    .reputationScore(100)
                     .isActive(true)
                     .notiDevice(fcmToken)
                     .build();
@@ -97,6 +96,9 @@ public class AuthService {
         // Generate tokens
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
+
+        // Revoke all old refresh tokens before saving new one (single device policy)
+        refreshTokenRepository.revokeAllByUserId(user.getId());
 
         // Save refresh token hash to database
         saveRefreshToken(user, refreshToken, deviceInfo);

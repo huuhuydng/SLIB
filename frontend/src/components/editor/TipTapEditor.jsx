@@ -16,6 +16,7 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Heading from '@tiptap/extension-heading';
+import { Mark, mergeAttributes } from '@tiptap/core';
 import {
     Bold,
     Italic,
@@ -41,9 +42,53 @@ import {
     Palette,
     Highlighter,
     Type,
-    Trash2
+    Trash2,
+    CaseSensitive
 } from 'lucide-react';
 import './TipTapEditor.css';
+
+// Custom FontSize extension
+const FontSize = Mark.create({
+    name: 'fontSize',
+    addAttributes() {
+        return {
+            fontSize: {
+                default: null,
+                parseHTML: element => element.style.fontSize?.replace(/["']/g, ''),
+                renderHTML: attributes => {
+                    if (!attributes.fontSize) return {};
+                    return { style: `font-size: ${attributes.fontSize}` };
+                },
+            },
+        };
+    },
+    parseHTML() {
+        return [{ style: 'font-size' }];
+    },
+    renderHTML({ HTMLAttributes }) {
+        return ['span', mergeAttributes(HTMLAttributes), 0];
+    },
+    addCommands() {
+        return {
+            setFontSize: (fontSize) => ({ commands }) => {
+                return commands.setMark(this.name, { fontSize });
+            },
+            unsetFontSize: () => ({ commands }) => {
+                return commands.unsetMark(this.name);
+            },
+        };
+    },
+});
+
+// Font size options
+const FONT_SIZES = [
+    { label: 'Rất nhỏ', value: '11px' },
+    { label: 'Nhỏ', value: '13px' },
+    { label: 'Bình thường', value: '16px' },
+    { label: 'Lớn', value: '18px' },
+    { label: 'Rất lớn', value: '24px' },
+    { label: 'Tiêu đề', value: '32px' },
+];
 
 // Color palette
 const TEXT_COLORS = [
@@ -79,6 +124,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
             }),
             TextStyle,
             Color,
+            FontSize,
             Highlight.configure({
                 multicolor: true,
             }),
@@ -102,6 +148,14 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
             onChange(editor.getHTML());
         },
     });
+
+    // Sync external content changes to editor (for edit mode)
+    React.useEffect(() => {
+        if (editor && content && editor.getHTML() !== content) {
+            // Only update if content is different to avoid cursor jump
+            editor.commands.setContent(content, false);
+        }
+    }, [content, editor]);
 
     if (!editor) {
         return <div className="tiptap-loading">Đang tải editor...</div>;
@@ -130,6 +184,14 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
     const handleRedo = () => editor.chain().focus().redo().run();
 
     const handleClearFormat = () => editor.chain().focus().clearNodes().unsetAllMarks().run();
+
+    // Caption style (small gray italic text for image descriptions)
+    const handleCaption = () => {
+        editor.chain().focus()
+            .setColor('#6b7280') // gray-500
+            .toggleItalic()
+            .run();
+    };
 
     const handleLink = () => {
         const previousUrl = editor.getAttributes('link').href;
@@ -229,6 +291,36 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
                     <Heading3 size={16} />
                 </button>
                 <div className="tiptap-divider" />
+
+                {/* Font Size Dropdown */}
+                <div className="tiptap-dropdown">
+                    <button type="button" className="tiptap-btn" title="Cỡ chữ">
+                        <Type size={16} />
+                    </button>
+                    <div className="tiptap-dropdown-content">
+                        <div className="tiptap-fontsize-list">
+                            {FONT_SIZES.map(size => (
+                                <button
+                                    key={size.value}
+                                    type="button"
+                                    className="tiptap-fontsize-btn"
+                                    style={{ fontSize: size.value }}
+                                    onClick={() => editor.chain().focus().setFontSize(size.value).run()}
+                                >
+                                    {size.label}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                className="tiptap-fontsize-btn"
+                                style={{ color: '#ef4444' }}
+                                onClick={() => editor.chain().focus().unsetFontSize().run()}
+                            >
+                                Xoá cỡ chữ
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Basic Formatting */}
                 <button
@@ -393,6 +485,16 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
                     <TableIcon size={16} />
                 </button>
                 <div className="tiptap-divider" />
+
+                {/* Caption (small italic text) */}
+                <button
+                    type="button"
+                    className="tiptap-btn"
+                    onClick={handleCaption}
+                    title="Chú thích ảnh (chữ nhỏ nghiêng xám)"
+                >
+                    <CaseSensitive size={16} />
+                </button>
 
                 {/* Clear Formatting */}
                 <button type="button" className="tiptap-btn" onClick={handleClearFormat} title="Xoá định dạng">
