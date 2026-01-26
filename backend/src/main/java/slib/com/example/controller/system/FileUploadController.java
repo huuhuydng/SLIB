@@ -1,4 +1,4 @@
-package slib.com.example.controller.chat;
+package slib.com.example.controller.system;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

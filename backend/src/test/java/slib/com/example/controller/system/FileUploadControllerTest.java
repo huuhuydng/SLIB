@@ -1,4 +1,4 @@
-package slib.com.example.controller.chat;
+package slib.com.example.controller.system;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

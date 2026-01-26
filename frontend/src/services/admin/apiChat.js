@@ -66,8 +66,6 @@ export const uploadFile = (file) => {
   });
 };
 
-/* Thêm vào file apiChat.js của bạn */
-
 // Lấy kho lưu trữ (Ảnh hoặc File)
 export const getConversationMedia = (partnerId, type) => 
   chatApi.get(`/chat/media/${partnerId}`, {
