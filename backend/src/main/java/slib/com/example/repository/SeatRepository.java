@@ -10,12 +10,17 @@ import slib.com.example.entity.zone_config.SeatStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     List<SeatEntity> findByZone_ZoneId(Integer zoneId);
 
     long countByZone_ZoneIdAndSeatStatus(Integer zoneId, SeatStatus seatStatus);
+
+    Optional<SeatEntity> findBySeatCode(String seatCode);
+
+    Optional<SeatEntity> findBySeatCodeAndZone_ZoneId(String seatCode, Integer zoneId);
 
     @Query("SELECT MAX(s.columnNumber) FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.rowNumber = :rowNumber")
     Integer findMaxColumnByZoneIdAndRow(@Param("zoneId") Integer zoneId, @Param("rowNumber") Integer rowNumber);

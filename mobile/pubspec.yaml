@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   http: ^1.2.0                # Để gọi API Spring Boot
   flutter_secure_storage: ^9.0.0 # Để lưu Token an toàn (như két sắt)
   firebase_messaging: ^15.0.0  # Để nhận thông báo đẩy (push notification)
@@ -44,7 +46,7 @@ dependencies:
   icons_plus: ^5.0.0
   flutter_launcher_icons: ^0.14.4
   flutter_widget_from_html: ^0.10.0  # Render nội dung bài viết HTML
-  intl: ^0.19.0               # Format ngày tháng
+  intl: ^0.20.2               # Format ngày tháng
   shared_preferences: ^2.5.4
   cached_network_image: ^3.4.1
   qr_flutter: ^4.1.0

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:slib/main_screen.dart';
 import 'package:slib/views/checkin/qr_scan_screen.dart';
+import 'package:slib/views/profile/booking_history_screen.dart';
+import 'package:slib/views/profile/activity_history_screen.dart';
 
 class QuickActionGrid extends StatelessWidget {
   const QuickActionGrid({super.key});
@@ -19,9 +22,29 @@ class QuickActionGrid extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Bạn cần cấp quyền Camera để quét mã!")),
         );
-        // Có thể mở cài đặt: openAppSettings();
       }
     }
+  }
+
+  void _onActivityPressed(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ActivityHistoryScreen()),
+    );
+  }
+
+  void _onReportPressed(BuildContext context) {
+    // TODO: Navigate to report screen when implemented
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Tính năng báo cáo đang phát triển")),
+    );
+  }
+
+  void _onHistoryPressed(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const BookingHistoryScreen()),
+    );
   }
 
   @override
@@ -32,9 +55,15 @@ class QuickActionGrid extends StatelessWidget {
         _buildActionButton(Icons.qr_code_scanner, "Check-in", Colors.orange, () { 
           _onCheckInPressed(context);
         }),
-        _buildActionButton(Icons.add_circle_outline, "Đặt chỗ", Colors.blue, () {}),
-        _buildActionButton(Icons.map_outlined, "Sơ đồ", Colors.green, () {}),
-        _buildActionButton(Icons.history, "Lịch sử", Colors.purple, () {}),
+        _buildActionButton(Icons.timeline_outlined, "Hoạt động", Colors.blue, () {
+          _onActivityPressed(context);
+        }),
+        _buildActionButton(Icons.warning_amber_rounded, "Báo cáo", Colors.amber, () {
+          _onReportPressed(context);
+        }),
+        _buildActionButton(Icons.history, "Lịch sử", Colors.purple, () {
+          _onHistoryPressed(context);
+        }),
       ],
     );
   }

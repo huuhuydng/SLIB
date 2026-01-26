@@ -26,6 +26,7 @@ const SidebarAdmin = () => {
     { icon: Map, label: "Sơ đồ thư viện", path: "/library-map" },
     { icon: Users, label: "Quản lý người dùng", path: "/users" },
     { icon: Cpu, label: "Quản lý thiết bị", path: "/devices" },
+    { icon: Cpu, label: "Chatting", path: "/chat" },
   ];
 
   const systemMenuItems = [

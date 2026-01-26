@@ -21,4 +21,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     // Delete all reservations by seat ID (for cascade delete when seat is deleted)
     void deleteBySeat_SeatId(Integer seatId);
+
+    // Delete all reservations by user ID (for cascade delete when user is deleted)
+    void deleteByUser_Id(UUID userId);
 }

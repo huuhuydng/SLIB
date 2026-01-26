@@ -42,11 +42,11 @@
    LOGO/BRAND AREA
    ====================================== */
 .sidebar__brand {
-  height: 60px;
+  height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   transition: all 0.35s var(--sidebar-transition);
   flex-shrink: 0;
 }
@@ -55,29 +55,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  width: 100%;
 }
 
 .sidebar__brandIcon {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
-  transition: all 0.35s var(--sidebar-transition);
+  transition: transform 0.4s var(--sidebar-transition), filter 0.3s ease;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
   border-radius: 10px;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform-origin: center center;
 }
 
-/* Logo expands and stays centered when sidebar opens */
-.sidebar:hover .sidebar__brand {
-  justify-content: center;
-  padding-left: 0;
-}
-
+/* Logo zooms in smoothly and stays centered when sidebar opens */
 .sidebar:hover .sidebar__brandIcon {
-  width: 200px;
-  height: 120px;
-  min-width: 200px;
+  transform: scale(2.5);
+  filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.2));
 }
 
 /* ======================================
@@ -133,7 +129,7 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
 }
 
@@ -182,12 +178,13 @@
   justify-content: center;
   text-decoration: none;
   color: rgba(255, 255, 255, 0.85);
-  padding: 12px;
+  padding: 0;
   border-radius: var(--sidebar-radius);
   transition: all 0.25s ease;
   white-space: nowrap;
   position: relative;
   min-height: 48px;
+  height: 48px;
   width: 48px;
   margin: 0 auto;
 }
@@ -362,7 +359,7 @@
   .sidebar {
     width: var(--sidebar-width-collapsed);
   }
-  
+
   .sidebar:hover {
     width: var(--sidebar-width-expanded);
   }

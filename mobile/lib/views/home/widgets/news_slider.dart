@@ -40,10 +40,6 @@ class NewsSlider extends StatelessWidget {
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))
           ],
-          border: Border.all(
-            color: item.isPinned ? item.getTagColor() : Colors.transparent,
-            width: item.isPinned ? 2 : 0,
-          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),

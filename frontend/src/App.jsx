@@ -1,79 +1,116 @@
-import React, { useState, useEffect } from "react";
-import AuthPage from "./components/AuthPage";
-import Dashboard from "./components/Dashboard";
-import CheckInOut from "./components/CheckInOut";
-import HeatMap from "./components/HeatMap";
-import SeatManage from "./components/SeatManage";
-import StudentsManage from "./components/StudentsManage";
-import ViolationManage from "./components/ViolationManage";
-import ChatManage from "./components/ChatManage";
-import Statistic from "./components/Statistic";
-import NotificationManage from "./components/NotificationManage";
-import Sidebar from "./components/sidebar_default/Sidebar_default";
-import AppRoutes from "./routes/AppRoutes_admin";
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import AuthPage from "./components/auth/AuthPage";
+import AdminRoutes from "./routes/AdminRoutes";
+import LibrarianRoutes from "./routes/LibrarianRoutes";
+import { ModalProvider } from "./components/shared/ModalContext";
+import ChatWidget from "./components/ChatWidget";
+
+
+const ConditionalChatWidget = () => {
+    const location = useLocation(); 
+
+    // Danh sách các đường dẫn muốn ẨN bong bóng chat
+    const hiddenRoutes = [
+        '/admin/chat',             
+        '/librarian/chat',          
+        '/admin/login',            // Trang login
+        '/librarian/login',        // Trang login
+        '/login'
+    ];
+
+    const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
+
+    return shouldHide ? null : <ChatWidget />;
+};
 
 function App() {
-    return <AppRoutes />;
+    const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+    const [userRole, setUserRole] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
 
+    React.useEffect(() => {
+        // Check for existing auth
+        const token = localStorage.getItem('librarian_token');
+        const userStr = localStorage.getItem('librarian_user');
 
+        if (token && userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                const role = user.role;
 
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);
-  // const [currentPage, setCurrentPage] = useState("dashboard");
+                if (role === 'LIBRARIAN' || role === 'ADMIN') {
+                    setIsLoggedIn(true);
+                    setUserRole(role);
+                }
+            } catch (error) {
+                console.error('Error parsing user:', error);
+            }
+        }
+        setLoading(false);
+    }, []);
 
-  
-  // const handleLogout = () => {
-  //   // Clear all authentication data from localStorage
-  //   localStorage.removeItem('librarian_token');
-  //   localStorage.removeItem('librarian_user');
-  //   sessionStorage.removeItem('librarian_token');
-  //   sessionStorage.removeItem('librarian_user');
-  //   // Set logged out state
-  //   setIsLoggedIn(false);
-  //   // Reset to dashboard page
-  //   setCurrentPage('dashboard');
-  // };
+    const handleLogin = (role) => {
+        setIsLoggedIn(true);
+        setUserRole(role);
+    };
 
-  // if (!isLoggedIn) {
-  //   return (
-  //     <AuthPage 
-  //       onLogin={() => setIsLoggedIn(true)}
-  //     />
-  //   );
-  // }
+    // Update document title based on role (only when logged in)
+    React.useEffect(() => {
+        if (isLoggedIn && userRole === 'ADMIN') {
+            document.title = 'SLIB - Admin';
+        } else if (isLoggedIn && userRole === 'LIBRARIAN') {
+            document.title = 'SLIB - Thủ Thư';
+        } else {
+            document.title = 'SLIB';
+        }
+    }, [userRole, isLoggedIn]);
 
-  // const renderPage = () => {
-  //   switch (currentPage) {
-  //     case "dashboard":
-  //       return <Dashboard />;
-  //     case "checkinout":
-  //       return <CheckInOut />;
-  //     case "heatmap":
-  //       return <HeatMap />;
-  //     case "seatmanage":
-  //       return <SeatManage />;
-  //     case "students":
-  //       return <StudentsManage />;
-  //     case "violation":
-  //       return <ViolationManage />;
-  //     case "chat":
-  //       return <ChatManage />;
-  //     case "statistic":
-  //       return <Statistic />;
-  //     case "notification":
-  //       return <NotificationManage />;
-  //     default:
-  //       return <Dashboard />;
-  //   }
-  // };
+    if (loading) {
+        return <div>Đang tải...</div>;
+    }
 
-  // return (
-  //   <div className="appLayout">
-  //     <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
-  //     <div className="main" style={{ marginLeft: '240px', width: 'calc(100% - 240px)', padding: '18px 22px 26px' }}>
-  //       {renderPage()}
-  //     </div>
-  //   </div>
-  // );
+    return (
+        <ModalProvider>
+            <BrowserRouter>
+                <Routes>
+                    {/* Admin Routes */}
+                    <Route path="/admin/login" element={
+                        isLoggedIn && userRole === 'ADMIN'
+                            ? <Navigate to="/admin/dashboard" replace />
+                            : <AuthPage onLogin={handleLogin} />
+                    } />
+                    <Route path="/admin/*" element={
+                        isLoggedIn && userRole === 'ADMIN'
+                            ? <AdminRoutes />
+                            : <Navigate to="/admin/login" replace />
+                    } />
+
+                    {/* Librarian Routes */}
+                    <Route path="/librarian/login" element={
+                        isLoggedIn && userRole === 'LIBRARIAN'
+                            ? <Navigate to="/librarian/dashboard" replace />
+                            : <AuthPage onLogin={handleLogin} />
+                    } />
+                    <Route path="/librarian/*" element={
+                        isLoggedIn && userRole === 'LIBRARIAN'
+                            ? <LibrarianRoutes />
+                            : <Navigate to="/librarian/login" replace />
+                    } />
+
+                    {/* Root redirects based on role */}
+                    <Route path="/" element={
+                        isLoggedIn
+                            ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
+                            : <Navigate to="/admin/login" />
+                    } />
+
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </BrowserRouter>
+        </ModalProvider>
+    );
 }
 
 export default App;

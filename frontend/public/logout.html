@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng xuất</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f5f5f5;
+            margin: 0;
+        }
+        .logout-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .logout-box h1 {
+            color: #FF6B00;
+            margin-bottom: 20px;
+        }
+        .logout-box p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #FF6B00;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="logout-box">
+        <h1>🔐 Đang đăng xuất...</h1>
+        <div class="spinner"></div>
+        <p id="status">Đang xóa dữ liệu phiên làm việc...</p>
+    </div>
+
+    <script>
+        console.log('🔴 LOGOUT PAGE LOADED');
+        
+        // Clear all storage
+        console.log('Clearing localStorage...');
+        localStorage.clear();
+        
+        console.log('Clearing sessionStorage...');
+        sessionStorage.clear();
+        
+        console.log('✅ All storage cleared!');
+        
+        // Update status
+        document.getElementById('status').textContent = '✅ Đã xóa dữ liệu. Đang chuyển hướng...';
+        
+        // Redirect after 1 second
+        setTimeout(() => {
+            console.log('🔄 Redirecting to home...');
+            window.location.href = '/';
+        }, 1000);
+    </script>
+</body>
+</html>

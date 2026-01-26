@@ -61,12 +61,24 @@ public class BookingController {
         return ResponseEntity.ok(reservationRepository.save(reserv));
     }
 
-    // --- GET BOOKINGS BY USER ---
+    // --- GET BOOKINGS BY USER (with zone/area info) ---
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getBookingsByUser(@PathVariable UUID userId) {
         try {
-            List<ReservationEntity> reservations = bookingService.getBookingsByUser(userId);
-            return ResponseEntity.ok(reservations);
+            var bookings = bookingService.getBookingHistory(userId);
+            return ResponseEntity.ok(bookings);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    // --- GET UPCOMING BOOKING FOR USER ---
+    @GetMapping("/upcoming/{userId}")
+    public ResponseEntity<?> getUpcomingBooking(@PathVariable UUID userId) {
+        try {
+            return bookingService.getUpcomingBooking(userId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.noContent().build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
@@ -79,7 +91,24 @@ public class BookingController {
             ReservationEntity reservation = bookingService.cancelBooking(reservationId);
             return ResponseEntity.ok(reservation);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- CONFIRM SEAT WITH NFC ---
+    @PostMapping("/confirm-nfc/{reservationId}")
+    public ResponseEntity<?> confirmSeatWithNfc(
+            @PathVariable UUID reservationId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String nfcData = request.get("nfc_data");
+            if (nfcData == null || nfcData.isEmpty()) {
+                return ResponseEntity.badRequest().body("Thiếu dữ liệu NFC");
+            }
+            ReservationEntity reservation = bookingService.confirmSeatWithNfc(reservationId, nfcData);
+            return ResponseEntity.ok(reservation);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

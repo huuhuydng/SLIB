@@ -62,30 +62,39 @@ class LibrarianService {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
 
-
-      const response = await axios.post('http://localhost:8080/slib/users/login-google', {
-        id_token: idToken,
-        full_name: ""
+      const response = await axios.post('http://localhost:8080/slib/auth/google', {
+        idToken: idToken,
+        fullName: "",
+        fcmToken: "",
+        deviceInfo: navigator.userAgent
       });
 
       console.log('✅ [Service] googleLogin success:', response.data);
 
-      // Backend trả về camelCase (accessToken), fallback snake_case for compatibility
-      const token = response.data.accessToken ||
-        response.data.access_token ||
-        response.data.token;
+      // Backend trả về AuthResponse với accessToken và refreshToken
+      const { accessToken, refreshToken } = response.data;
 
-      if (token) {
-        localStorage.setItem('librarian_token', token);
-        console.log('✅ [Service] Google token saved:', token.substring(0, 20) + '...');
-      } else {
-        console.error('❌ [Service] No token in Google response:', response.data);
+      if (accessToken) {
+        localStorage.setItem('librarian_token', accessToken);
+        console.log('✅ [Service] Access token saved:', accessToken.substring(0, 20) + '...');
       }
 
-      if (response.data.user) {
-        localStorage.setItem('librarian_user', JSON.stringify(response.data.user));
-        console.log('✅ [Service] Google user saved:', response.data.user);
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+        console.log('✅ [Service] Refresh token saved');
       }
+
+      // Lưu user info
+      const user = {
+        id: response.data.id,
+        email: response.data.email,
+        fullName: response.data.fullName,
+        studentCode: response.data.studentCode,
+        role: response.data.role
+      };
+      
+      localStorage.setItem('librarian_user', JSON.stringify(user));
+      console.log('✅ [Service] Google user saved:', user);
 
       return response.data;
 
