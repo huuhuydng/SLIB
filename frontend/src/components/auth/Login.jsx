@@ -55,35 +55,51 @@ function Login({ onLogin }) {
     }
   }, []);
 
-  // ============ GOOGLE LOGIN CALLBACK ============
+ // ============ GOOGLE LOGIN CALLBACK (ĐÃ THÊM FULL LOG) ============
   const handleGoogleCallback = async (response) => {
     try {
       setLoading(true);
       
+      // 1. Nhận Google ID Token
       const idToken = response.credential;
-      console.log("✅ Google ID Token received:", idToken?.substring(0, 20) + "...");
+      console.log("🔹 BƯỚC 1: Nhận Google ID Token thành công");
 
+      // 2. Gọi Backend
+      console.log("🔹 BƯỚC 2: Đang gọi API googleLogin...");
       const backendResponse = await librarianService.googleLogin(idToken);
-      console.log("✅ GOOGLE BACKEND RESPONSE:", backendResponse);
+      
+      // 🔥 LOG QUAN TRỌNG: Xem cấu trúc dữ liệu Backend trả về
+      console.group("🔥 RAW BACKEND RESPONSE (Dữ liệu gốc)");
+      console.log(backendResponse);
+      console.groupEnd();
 
-      // Backend trả về AuthResponse: { accessToken, refreshToken, id, email, fullName, studentCode, role, expiresIn }
+      // 3. Lấy Token
       const token = backendResponse.accessToken || 
                     backendResponse.access_token ||
                     backendResponse.token;
       
-      // Build user object from flat response
+      // 4. Build User Object
+      // ⚠️ CHÚ Ý: Kiểm tra kỹ xem backend trả về 'id' hay 'userId' hay 'uuid'
       const user = {
-        id: backendResponse.id,
+        id: backendResponse.id || backendResponse.userId || backendResponse.uuid, // Thử nhiều trường hợp
         email: backendResponse.email,
         fullName: backendResponse.fullName,
         studentCode: backendResponse.studentCode,
         role: backendResponse.role
       };
       
+      // 🔥 LOG QUAN TRỌNG: Xem User Object sau khi parse
+      console.group("👤 PARSED USER OBJECT (Sẽ lưu vào Storage)");
+      console.log("Full Object:", user);
+      console.log("👉 UUID (Cần cho Chat):", user.id); // <--- QUAN TRỌNG NHẤT
+      console.log("👉 Email:", user.email);
+      console.log("👉 Role:", user.role);
+      console.groupEnd();
+      
       if (token && user && user.role) {
-        // Kiểm tra role trước khi cho phép login
+        // Check Role
         if (user.role === 'STUDENT') {
-          alert('Sinh viên không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
+          alert('Sinh viên không được phép truy cập hệ thống web.');
           return;
         }
         
@@ -92,25 +108,32 @@ function Login({ onLogin }) {
           return;
         }
         
+        // 5. Lưu vào LocalStorage
         localStorage.setItem('librarian_token', token);
         localStorage.setItem('librarian_user', JSON.stringify(user));
-        console.log("✅ Token saved successfully");
-        console.log("✅ User role:", user.role);
         
+        // 🔥 LOG KIỂM TRA STORAGE
+        console.group("💾 KIỂM TRA LOCAL STORAGE (Verification)");
+        const savedUser = JSON.parse(localStorage.getItem('librarian_user'));
+        console.log("Đọc lại từ Storage:", savedUser);
+        console.log("UUID trong Storage:", savedUser?.id);
+        console.groupEnd();
+        
+        console.log("✅ Đăng nhập thành công! Đang chuyển hướng...");
+        
+        // Cập nhật State App
         if (onLogin) {
           onLogin(user.role);
         }
+
       } else {
+        console.error("❌ Thiếu Token hoặc User info");
         throw new Error('No token or user data received from server');
       }
 
     } catch (err) {
       console.error("❌ Google login error:", err);
-      alert(
-        err.response?.data?.message || 
-        err.message || 
-        "Đăng nhập Google thất bại. Vui lòng thử lại."
-      );
+      alert(err.response?.data?.message || err.message || "Đăng nhập thất bại.");
     } finally {
       setLoading(false);
     }

@@ -46,7 +46,7 @@ public class AuthService {
 
         // Whitelist for testing (add your email here)
         String[] whitelistEmails = {
-                "huuhuydng@gmail.com"
+                "huuhuydng@gmail.com","tbhhjqk87976@gmail.com", "phanphuongg979@gmail.com"
         };
 
         // Validate FPT email or whitelist

@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/slib/ai/admin/**").permitAll() // TODO: restrict to LIBRARIAN role
                         // AI Chat endpoints (cho sinh viên - cần authenticated)
                         .requestMatchers("/slib/ai/chat/**").authenticated()
+                        .requestMatchers("/slib/files/**").permitAll()
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()

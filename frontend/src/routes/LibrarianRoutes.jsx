@@ -15,6 +15,7 @@ import Statistic from "../pages/librarian/Statistic/Statistic";
 import NotificationManage from "../pages/librarian/NotificationManage/NotificationManage";
 import NewCreate from "../pages/librarian/NotificationManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NotificationManage/NewsDetailView";
+import ChatManagement from "../components/ChatManagement";
 
 function LibrarianRoutes() {
   return (
@@ -41,7 +42,7 @@ function LibrarianRoutes() {
         <Route path="violation" element={<ViolationManage />} />
 
         {/* Trò chuyện */}
-        <Route path="chat" element={<ChatManage />} />
+        <Route path="chat" element={<ChatManagement />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
