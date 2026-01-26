@@ -22,4 +22,8 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
 
     @Query("SELECT COALESCE(SUM(p.points), 0) FROM PointTransactionEntity p WHERE p.userId = :userId AND p.points < 0")
     int getTotalLostPoints(@Param("userId") UUID userId);
+
+    // Delete all point transactions by user ID (for cascade delete when user is
+    // deleted)
+    void deleteByUserId(UUID userId);
 }

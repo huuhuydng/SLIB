@@ -3,6 +3,7 @@ package slib.com.example.controller.users;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -84,5 +85,28 @@ public class UserController {
     @GetMapping("/getall")
     public List<User> getAllUsers() {
         return userService.getAllUsers();
+    }
+
+    /**
+     * Delete user by ID (Admin/Librarian only)
+     * This will delete all related data (reservations, access logs, chat sessions,
+     * etc.)
+     */
+    @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<?> deleteUser(@PathVariable java.util.UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).body("Token không hợp lệ hoặc hết hạn");
+        }
+
+        try {
+            userService.deleteUserById(userId);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã xoá user và tất cả dữ liệu liên quan thành công",
+                    "userId", userId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body("Lỗi xoá user: " + e.getMessage());
+        }
     }
 }

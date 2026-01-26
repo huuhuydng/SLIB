@@ -24,4 +24,8 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
     // Find active session for user (if any)
     @Query("SELECT s FROM ChatSessionEntity s WHERE s.user.id = :userId AND s.status = 'ACTIVE' ORDER BY s.createdAt DESC")
     List<ChatSessionEntity> findActiveSessionsByUser(@Param("userId") UUID userId);
+
+    // Delete all chat sessions by user ID (cascade delete messages via entity
+    // config)
+    void deleteByUser_Id(UUID userId);
 }

@@ -22,4 +22,7 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLogEntity, 
 
     @Query("SELECT COALESCE(SUM(a.durationMinutes), 0) FROM ActivityLogEntity a WHERE a.userId = :userId AND a.activityType = 'CHECK_OUT'")
     long getTotalStudyMinutes(@Param("userId") UUID userId);
+
+    // Delete all activity logs by user ID (for cascade delete when user is deleted)
+    void deleteByUserId(UUID userId);
 }

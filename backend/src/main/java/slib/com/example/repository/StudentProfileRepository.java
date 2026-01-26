@@ -13,4 +13,7 @@ public interface StudentProfileRepository extends JpaRepository<StudentProfile, 
     Optional<StudentProfile> findByUserId(UUID userId);
 
     boolean existsByUserId(UUID userId);
+
+    // Delete student profile by user ID (for cascade delete when user is deleted)
+    void deleteByUserId(UUID userId);
 }
