@@ -7,7 +7,7 @@ Supports both Ollama (local) and Gemini (cloud) AI providers
 import uuid
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Union
+from typing import Dict
 
 from app.models.schemas import (
     GenerateRequest, 
@@ -21,16 +21,13 @@ from app.services.gemini_service import GeminiService, get_gemini_service
 from app.services.ollama_service import OllamaService, get_ollama_service
 from app.services.knowledge_base import knowledge_base_service
 from app.services.analytics_service import analytics_ai_service
+from app.services.java_backend_client import get_java_client
 from app.config.settings import get_settings
 
 
-def get_ai_service() -> Union[OllamaService, GeminiService]:
-    """Factory function to get the configured AI service (Ollama or Gemini)"""
-    settings = get_settings()
-    if settings.ai_provider.lower() == "ollama":
-        return get_ollama_service(settings.ollama_model)
-    else:
-        return get_gemini_service()
+def get_ai_service() -> OllamaService:
+    """Get the configured AI service (uses config from Java backend)"""
+    return get_ollama_service()
 
 
 # Create FastAPI app
@@ -68,15 +65,33 @@ async def health_check():
 
 @app.get("/api/ai/config")
 async def get_config():
-    """Get current AI configuration (masked)"""
-    settings = get_settings()
+    """Get current AI configuration from Java backend"""
+    java_client = get_java_client()
+    config = java_client.get_ai_config(force_refresh=True)
     return {
-        "configured": bool(settings.gemini_api_key),
-        "model": settings.gemini_model,
-        "temperature": settings.default_temperature,
-        "max_tokens": settings.default_max_tokens,
-        "enable_context": settings.enable_context,
-        "enable_history": settings.enable_history
+        "configured": True,
+        "provider": config.get("provider", "ollama"),
+        "model": config.get("ollamaModel", "llama3.2"),
+        "temperature": config.get("temperature", 0.7),
+        "max_tokens": config.get("maxTokens", 1024),
+        "enable_context": config.get("enableContext", True),
+        "enable_history": config.get("enableHistory", True),
+        "system_prompt": config.get("systemPrompt", "")
+    }
+
+
+@app.post("/api/ai/refresh")
+async def refresh_config():
+    """Force refresh AI configuration from Java backend"""
+    java_client = get_java_client()
+    java_client.refresh_all()
+    
+    service = get_ai_service()
+    service.refresh_config()
+    
+    return {
+        "success": True,
+        "message": "Đã refresh cấu hình AI từ database"
     }
 
 

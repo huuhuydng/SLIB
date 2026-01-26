@@ -1,6 +1,6 @@
 """
 Ollama AI Service
-Uses local Ollama server with Llama3.2 model - no rate limits!
+Uses local Ollama server with configuration from Java backend
 """
 
 import httpx
@@ -8,9 +8,9 @@ import json
 import logging
 from typing import List, Optional, Dict, Any
 
-from app.config.settings import get_settings
 from app.models.schemas import GeminiResponse, ChatMessage
 from app.services.knowledge_base import knowledge_base_service
+from app.services.java_backend_client import get_java_client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,24 +20,40 @@ logger = logging.getLogger(__name__)
 class OllamaService:
     """
     Service to interact with local Ollama server
-    No API key needed, no rate limits!
+    Configuration loaded from Java backend database
     """
     
-    OLLAMA_API_URL = "http://localhost:11434/api"
     UNCERTAINTY_MARKER = "[KHÔNG CHẮC CHẮN]"
     
-    def __init__(self, model: str = "llama3.2"):
-        """Initialize OllamaService with model name"""
-        settings = get_settings()
-        
-        self.model = model
-        self.temperature = settings.default_temperature
-        self.system_prompt = settings.default_system_prompt
-        self.enable_context = settings.enable_context
-        self.enable_history = settings.enable_history
+    def __init__(self):
+        """Initialize OllamaService with config from Java backend"""
+        self.java_client = get_java_client()
+        self._load_config()
         
         # HTTP client with longer timeout for local LLM
         self.client = httpx.Client(timeout=120.0)
+    
+    def _load_config(self):
+        """Load configuration from Java backend"""
+        config = self.java_client.get_ai_config()
+        
+        self.ollama_url = config.get("ollamaUrl", "http://localhost:11434")
+        self.model = config.get("ollamaModel", "llama3.2")
+        self.temperature = config.get("temperature", 0.7)
+        self.max_tokens = config.get("maxTokens", 1024)
+        self.system_prompt = config.get("systemPrompt", 
+            "Bạn là SLIB AI Assistant - trợ lý thông minh của hệ thống Thư viện thông minh SLIB. "
+            "Hãy trả lời ngắn gọn, thân thiện và chính xác bằng tiếng Việt."
+        )
+        self.enable_context = config.get("enableContext", True)
+        self.enable_history = config.get("enableHistory", True)
+        
+        logger.info(f"[OllamaService] Loaded config: model={self.model}, url={self.ollama_url}")
+    
+    def refresh_config(self):
+        """Refresh configuration from Java backend"""
+        self.java_client.refresh_all()
+        self._load_config()
     
     def generate_response(
         self, 
@@ -54,6 +70,9 @@ class OllamaService:
         Returns:
             GeminiResponse with content, confidence_score, needs_review
         """
+        # Refresh config to get latest settings
+        self._load_config()
+        
         # Build full prompt
         full_prompt = self._build_full_prompt(user_message, chat_history)
         
@@ -64,13 +83,14 @@ class OllamaService:
                 "prompt": full_prompt,
                 "stream": False,
                 "options": {
-                    "temperature": self.temperature
+                    "temperature": self.temperature,
+                    "num_predict": self.max_tokens
                 }
             }
             
-            url = f"{self.OLLAMA_API_URL}/generate"
+            url = f"{self.ollama_url}/api/generate"
             
-            logger.info(f"[OllamaService] Calling Ollama with model: {self.model}")
+            logger.info(f"[OllamaService] Calling Ollama: model={self.model}, url={self.ollama_url}")
             
             # Make HTTP request
             response = self.client.post(
@@ -85,7 +105,7 @@ class OllamaService:
         except httpx.ConnectError as e:
             logger.error(f"Connection error: Ollama không đang chạy? {str(e)}")
             return GeminiResponse(
-                content="Lỗi: Không thể kết nối Ollama. Hãy chạy 'ollama serve' trước.",
+                content=f"Lỗi: Không thể kết nối Ollama tại {self.ollama_url}. Hãy chạy 'ollama serve' trước.",
                 confidence_score=0.0,
                 needs_review=True
             )
@@ -98,17 +118,15 @@ class OllamaService:
             )
     
     def test_connection(self) -> Dict[str, Any]:
-        """
-        Test Ollama connection
+        """Test Ollama connection"""
+        # Refresh config first
+        self._load_config()
         
-        Returns:
-            Dict with success status and message
-        """
-        logger.info("[OllamaService] Testing connection...")
+        logger.info(f"[OllamaService] Testing connection to {self.ollama_url}...")
         
         try:
             # Simple test - list models
-            response = self.client.get(f"{self.OLLAMA_API_URL}/tags")
+            response = self.client.get(f"{self.ollama_url}/api/tags")
             response.raise_for_status()
             data = response.json()
             
@@ -134,7 +152,7 @@ class OllamaService:
             logger.error("[OllamaService] Cannot connect to Ollama")
             return {
                 "success": False,
-                "message": "Không thể kết nối Ollama. Chạy: ollama serve",
+                "message": f"Không thể kết nối Ollama tại {self.ollama_url}. Chạy: ollama serve",
                 "model": None
             }
         except Exception as e:
@@ -150,17 +168,28 @@ class OllamaService:
         user_message: str, 
         chat_history: Optional[List[ChatMessage]] = None
     ) -> str:
-        """Build complete prompt with system prompt, knowledge, and history"""
+        """Build complete prompt with system prompt, knowledge, prompts, and history"""
         prompt_parts = []
         
-        # System prompt (Vietnamese-focused for Llama)
+        # System prompt from config
         prompt_parts.append(f"### Hướng dẫn:\n{self.system_prompt}")
         prompt_parts.append("")
         
-        # Knowledge context (if enabled)
+        # Add prompt templates from database
+        prompts = self.java_client.get_prompts()
+        if prompts:
+            active_prompts = [p for p in prompts if p.get("isActive", True)]
+            if active_prompts:
+                prompt_parts.append("### Hướng dẫn bổ sung:")
+                for p in active_prompts:
+                    prompt_parts.append(f"- [{p.get('context', 'GENERAL')}] {p.get('prompt', '')}")
+                prompt_parts.append("")
+        
+        # Knowledge context from database (if enabled)
         if self.enable_context:
             knowledge_context = knowledge_base_service.build_knowledge_context()
-            prompt_parts.append(knowledge_context)
+            if knowledge_context:
+                prompt_parts.append(knowledge_context)
         
         # Chat history (if enabled)
         if self.enable_history and chat_history:
@@ -233,9 +262,9 @@ class OllamaService:
 # Singleton instance
 _ollama_service = None
 
-def get_ollama_service(model: str = "llama3.2") -> OllamaService:
+def get_ollama_service() -> OllamaService:
     """Factory function to get OllamaService instance"""
     global _ollama_service
     if _ollama_service is None:
-        _ollama_service = OllamaService(model)
+        _ollama_service = OllamaService()
     return _ollama_service

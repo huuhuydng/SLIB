@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { sendTestMessage, testAPIConnection, healthCheck } from '../../../services/admin/ai/pythonAiApi';
+import { sendTestMessage, testAPIConnection } from '../../../services/admin/ai/pythonAiApi';
+import {
+  getAIConfig, saveAIConfig, resetAIConfig,
+  getKnowledge, createKnowledge, updateKnowledge, deleteKnowledge,
+  getPrompts, createPrompt, updatePrompt, deletePrompt
+} from '../../../services/admin/ai/aiConfigApi';
 import {
   Bot,
   Key,
@@ -35,20 +40,9 @@ import {
 } from 'lucide-react';
 import Header from '../Dashboard/Header';
 
-// Mock Data
-const KNOWLEDGE_BASE = [
-  { id: 1, title: 'Quy định sử dụng thư viện', content: 'Sinh viên cần giữ im lặng, không ăn uống...', type: 'rules', updatedAt: '2025-01-15' },
-  { id: 2, title: 'Hướng dẫn đặt chỗ', content: 'Để đặt chỗ, sinh viên mở app SLIB...', type: 'guide', updatedAt: '2025-01-14' },
-  { id: 3, title: 'Giờ hoạt động', content: 'Thư viện mở cửa từ 7:00 đến 22:00...', type: 'info', updatedAt: '2025-01-12' },
-  { id: 4, title: 'Điểm uy tín', content: 'Mỗi sinh viên có 100 điểm uy tín ban đầu...', type: 'rules', updatedAt: '2025-01-10' },
-  { id: 5, title: 'Khu vực thư viện', content: 'Thư viện có 3 khu vực: Khu A yên tĩnh...', type: 'info', updatedAt: '2025-01-08' },
-];
-
-const PROMPT_TEMPLATES = [
-  { id: 1, name: 'Trả lời câu hỏi chung', prompt: 'Bạn là trợ lý AI của hệ thống SLIB - Smart Library. Hãy trả lời thân thiện, ngắn gọn và chính xác.', isActive: true },
-  { id: 2, name: 'Hỗ trợ đặt chỗ', prompt: 'Hướng dẫn sinh viên các bước đặt chỗ trong thư viện một cách chi tiết và dễ hiểu.', isActive: true },
-  { id: 3, name: 'Giải đáp quy định', prompt: 'Giải thích các quy định của thư viện một cách rõ ràng, thân thiện.', isActive: true },
-];
+// Type mapping for display
+const TYPE_MAP = { RULES: 'rules', GUIDE: 'guide', INFO: 'info' };
+const REVERSE_TYPE_MAP = { rules: 'RULES', guide: 'GUIDE', info: 'INFO' };
 
 // Initial welcome message
 const INITIAL_MESSAGE = {
@@ -59,13 +53,23 @@ const INITIAL_MESSAGE = {
 const AIConfig = () => {
   const [activeTab, setActiveTab] = useState('settings');
   const [showApiKey, setShowApiKey] = useState(false);
-  const [apiKey, setApiKey] = useState('AIzaSyD•••••••••••••••••••••••••••••');
   const [isTestingApi, setIsTestingApi] = useState(false);
-  const [apiStatus, setApiStatus] = useState('connected'); // connected, error, unknown
+  const [isSaving, setIsSaving] = useState(false);
+  const [apiStatus, setApiStatus] = useState('unknown');
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [testMessage, setTestMessage] = useState('');
   const [editingKnowledge, setEditingKnowledge] = useState(null);
+  const [editingPrompt, setEditingPrompt] = useState(null);
+
+  // Data from backend
+  const [knowledgeList, setKnowledgeList] = useState([]);
+  const [promptsList, setPromptsList] = useState([]);
+  const [systemPrompt, setSystemPrompt] = useState('');
+
+  // Modal form state
+  const [knowledgeForm, setKnowledgeForm] = useState({ title: '', content: '', type: 'info' });
+  const [promptForm, setPromptForm] = useState({ name: '', prompt: '', context: 'GENERAL' });
 
   // Chat testing state
   const [chatHistory, setChatHistory] = useState([INITIAL_MESSAGE]);
@@ -75,7 +79,7 @@ const AIConfig = () => {
 
   // AI Settings State
   const [aiSettings, setAiSettings] = useState({
-    provider: 'ollama',  // ollama or gemini
+    provider: 'ollama',
     ollamaModel: 'llama3.2',
     ollamaUrl: 'http://localhost:11434',
     geminiModel: 'gemini-2.0-flash',
@@ -87,7 +91,6 @@ const AIConfig = () => {
     autoSuggest: true,
   });
 
-  // Connected model info from API
   const [connectedModel, setConnectedModel] = useState('llama3.2');
 
   const tabs = [
@@ -97,10 +100,173 @@ const AIConfig = () => {
     { id: 'testing', label: 'Test & Preview', icon: MessageSquare },
   ];
 
-  // Check AI health on mount
+  // Load all data on mount
   useEffect(() => {
-    checkAIHealth();
+    loadAllData();
   }, []);
+
+  const loadAllData = async () => {
+    await Promise.all([loadConfig(), loadKnowledge(), loadPrompts(), checkAIHealth()]);
+  };
+
+  // Load config from Java backend
+  const loadConfig = async () => {
+    try {
+      const res = await getAIConfig();
+      if (res.data.configured && res.data.config) {
+        const c = res.data.config;
+        setAiSettings({
+          provider: c.provider || 'ollama',
+          ollamaModel: c.ollamaModel || 'llama3.2',
+          ollamaUrl: c.ollamaUrl || 'http://localhost:11434',
+          geminiModel: c.geminiModel || 'gemini-2.0-flash',
+          temperature: c.temperature || 0.7,
+          maxTokens: c.maxTokens || 1024,
+          enableContext: c.enableContext ?? true,
+          enableHistory: c.enableHistory ?? true,
+          responseLanguage: c.responseLanguage || 'vi',
+          autoSuggest: c.autoSuggest ?? true,
+        });
+        setSystemPrompt(c.systemPrompt || '');
+      }
+    } catch (e) {
+      console.error('Error loading config:', e);
+    }
+  };
+
+  // Load knowledge from Java backend
+  const loadKnowledge = async () => {
+    try {
+      const res = await getKnowledge();
+      const data = res.data.map(k => ({
+        ...k,
+        type: TYPE_MAP[k.type] || k.type?.toLowerCase() || 'info',
+        updatedAt: k.updatedAt?.split('T')[0] || ''
+      }));
+      setKnowledgeList(data);
+    } catch (e) {
+      console.error('Error loading knowledge:', e);
+    }
+  };
+
+  // Load prompts from Java backend
+  const loadPrompts = async () => {
+    try {
+      const res = await getPrompts();
+      setPromptsList(res.data);
+    } catch (e) {
+      console.error('Error loading prompts:', e);
+    }
+  };
+
+  // Save config to Java backend
+  const handleSaveConfig = async () => {
+    setIsSaving(true);
+    try {
+      await saveAIConfig({
+        provider: aiSettings.provider,
+        ollamaModel: aiSettings.ollamaModel,
+        ollamaUrl: aiSettings.ollamaUrl,
+        geminiModel: aiSettings.geminiModel,
+        temperature: aiSettings.temperature,
+        maxTokens: aiSettings.maxTokens,
+        enableContext: aiSettings.enableContext,
+        enableHistory: aiSettings.enableHistory,
+        autoSuggest: aiSettings.autoSuggest,
+        responseLanguage: aiSettings.responseLanguage,
+        systemPrompt: systemPrompt,
+      });
+      alert('Đã lưu cấu hình thành công!');
+    } catch (e) {
+      console.error('Error saving config:', e);
+      alert('Lỗi lưu cấu hình: ' + e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Reset config to defaults
+  const handleResetConfig = async () => {
+    if (!confirm('Bạn có chắc muốn reset cấu hình về mặc định?')) return;
+    try {
+      await resetAIConfig();
+      await loadConfig();
+      alert('Đã reset cấu hình về mặc định!');
+    } catch (e) {
+      console.error('Error resetting config:', e);
+      alert('Lỗi reset cấu hình: ' + e.message);
+    }
+  };
+
+  // Knowledge CRUD
+  const handleSaveKnowledge = async () => {
+    try {
+      const payload = {
+        title: knowledgeForm.title,
+        content: knowledgeForm.content,
+        type: REVERSE_TYPE_MAP[knowledgeForm.type] || 'INFO',
+        isActive: true
+      };
+      if (editingKnowledge) {
+        await updateKnowledge(editingKnowledge.id, payload);
+      } else {
+        await createKnowledge(payload);
+      }
+      await loadKnowledge();
+      setShowKnowledgeModal(false);
+      setEditingKnowledge(null);
+      setKnowledgeForm({ title: '', content: '', type: 'info' });
+    } catch (e) {
+      console.error('Error saving knowledge:', e);
+      alert('Lỗi lưu kiến thức: ' + e.message);
+    }
+  };
+
+  const handleDeleteKnowledge = async (id) => {
+    if (!confirm('Bạn có chắc muốn xóa kiến thức này?')) return;
+    try {
+      await deleteKnowledge(id);
+      await loadKnowledge();
+    } catch (e) {
+      console.error('Error deleting knowledge:', e);
+      alert('Lỗi xóa kiến thức: ' + e.message);
+    }
+  };
+
+  // Prompt CRUD
+  const handleSavePrompt = async () => {
+    try {
+      const payload = {
+        name: promptForm.name,
+        prompt: promptForm.prompt,
+        context: promptForm.context,
+        isActive: true
+      };
+      if (editingPrompt) {
+        await updatePrompt(editingPrompt.id, payload);
+      } else {
+        await createPrompt(payload);
+      }
+      await loadPrompts();
+      setShowPromptModal(false);
+      setEditingPrompt(null);
+      setPromptForm({ name: '', prompt: '', context: 'GENERAL' });
+    } catch (e) {
+      console.error('Error saving prompt:', e);
+      alert('Lỗi lưu prompt: ' + e.message);
+    }
+  };
+
+  const handleDeletePrompt = async (id) => {
+    if (!confirm('Bạn có chắc muốn xóa prompt này?')) return;
+    try {
+      await deletePrompt(id);
+      await loadPrompts();
+    } catch (e) {
+      console.error('Error deleting prompt:', e);
+      alert('Lỗi xóa prompt: ' + e.message);
+    }
+  };
 
   const checkAIHealth = async () => {
     try {
@@ -199,42 +365,47 @@ const AIConfig = () => {
               Cấu hình AI Assistant
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
-              🦙 Ollama AI - Local, không giới hạn, không cần API Key
+              Ollama AI - Local, không giới hạn, không cần API Key
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: '#F7FAFC',
-              border: '2px solid #E2E8F0',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4A5568',
-              cursor: 'pointer'
-            }}>
+            <button
+              onClick={handleResetConfig}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: '#F7FAFC',
+                border: '2px solid #E2E8F0',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#4A5568',
+                cursor: 'pointer'
+              }}>
               <RotateCcw size={18} />
               Reset mặc định
             </button>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: '#FF751F',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#fff',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
-            }}>
-              <Save size={18} />
-              Lưu cấu hình
+            <button
+              onClick={handleSaveConfig}
+              disabled={isSaving}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: isSaving ? '#A0AEC0' : '#FF751F',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#fff',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
+              }}>
+              {isSaving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+              {isSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
             </button>
           </div>
         </div>
@@ -594,7 +765,9 @@ const AIConfig = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {KNOWLEDGE_BASE.map((item) => {
+                    {knowledgeList.length === 0 ? (
+                      <p style={{ color: '#A0AEC0', textAlign: 'center', padding: '20px' }}>Chưa có kiến thức nào. Bấm "Thêm kiến thức" để bắt đầu.</p>
+                    ) : knowledgeList.map((item) => {
                       const typeStyle = getTypeStyle(item.type);
                       return (
                         <div key={item.id} style={{
@@ -627,7 +800,7 @@ const AIConfig = () => {
                               }}>{typeStyle.label}</span>
                             </div>
                             <p style={{ fontSize: '13px', color: '#A0AEC0', margin: 0 }}>
-                              {item.content.length > 80 ? item.content.substring(0, 80) + '...' : item.content}
+                              {item.content?.length > 80 ? item.content.substring(0, 80) + '...' : item.content}
                             </p>
                             <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '8px' }}>
                               Cập nhật: {item.updatedAt}
@@ -635,7 +808,11 @@ const AIConfig = () => {
                           </div>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
-                              onClick={() => { setEditingKnowledge(item); setShowKnowledgeModal(true); }}
+                              onClick={() => {
+                                setEditingKnowledge(item);
+                                setKnowledgeForm({ title: item.title, content: item.content, type: item.type });
+                                setShowKnowledgeModal(true);
+                              }}
                               style={{
                                 padding: '8px',
                                 background: '#fff',
@@ -646,13 +823,15 @@ const AIConfig = () => {
                             >
                               <Edit size={16} color="#4A5568" />
                             </button>
-                            <button style={{
-                              padding: '8px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '8px',
-                              cursor: 'pointer'
-                            }}>
+                            <button
+                              onClick={() => handleDeleteKnowledge(item.id)}
+                              style={{
+                                padding: '8px',
+                                background: '#fff',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                cursor: 'pointer'
+                              }}>
                               <Trash2 size={16} color="#DC2626" />
                             </button>
                           </div>
@@ -706,7 +885,9 @@ const AIConfig = () => {
                   <div style={{ marginBottom: '24px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '12px' }}>System Prompt (Prompt chính)</h3>
                     <textarea
-                      defaultValue="Bạn là SLIB AI Assistant - trợ lý thông minh của hệ thống Thư viện thông minh SLIB. Nhiệm vụ của bạn là hỗ trợ sinh viên về mọi vấn đề liên quan đến thư viện: hướng dẫn đặt chỗ, giải đáp quy định, thông tin khu vực, điểm uy tín, v.v. Hãy trả lời ngắn gọn, thân thiện và chính xác bằng tiếng Việt."
+                      value={systemPrompt}
+                      onChange={(e) => setSystemPrompt(e.target.value)}
+                      placeholder="Bạn là SLIB AI Assistant..."
                       style={{
                         width: '100%',
                         padding: '16px',
@@ -724,7 +905,9 @@ const AIConfig = () => {
                   {/* Additional Prompts */}
                   <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px' }}>Prompt bổ sung theo ngữ cảnh</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {PROMPT_TEMPLATES.map((template) => (
+                    {promptsList.length === 0 ? (
+                      <p style={{ color: '#A0AEC0', textAlign: 'center', padding: '20px' }}>Chưa có prompt nào. Bấm "Thêm Prompt" để bắt đầu.</p>
+                    ) : promptsList.map((template) => (
                       <div key={template.id} style={{
                         padding: '16px 20px',
                         background: '#F7FAFC',
@@ -744,16 +927,41 @@ const AIConfig = () => {
                                 color: '#059669'
                               }}>Đang dùng</span>
                             )}
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '20px',
+                              fontSize: '10px',
+                              fontWeight: '500',
+                              background: '#E2E8F0',
+                              color: '#4A5568'
+                            }}>{template.context}</span>
                           </div>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            <button style={{
-                              padding: '6px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '6px',
-                              cursor: 'pointer'
-                            }}>
+                            <button
+                              onClick={() => {
+                                setEditingPrompt(template);
+                                setPromptForm({ name: template.name, prompt: template.prompt, context: template.context });
+                                setShowPromptModal(true);
+                              }}
+                              style={{
+                                padding: '6px',
+                                background: '#fff',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                              }}>
                               <Edit size={14} color="#4A5568" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePrompt(template.id)}
+                              style={{
+                                padding: '6px',
+                                background: '#fff',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                              }}>
+                              <Trash2 size={14} color="#DC2626" />
                             </button>
                           </div>
                         </div>
@@ -990,7 +1198,7 @@ const AIConfig = () => {
               <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
                 {editingKnowledge ? 'Sửa kiến thức' : 'Thêm kiến thức mới'}
               </h2>
-              <button onClick={() => setShowKnowledgeModal(false)} style={{
+              <button onClick={() => { setShowKnowledgeModal(false); setEditingKnowledge(null); setKnowledgeForm({ title: '', content: '', type: 'info' }); }} style={{
                 padding: '8px',
                 background: '#F7FAFC',
                 border: 'none',
@@ -1008,7 +1216,8 @@ const AIConfig = () => {
                 <input
                   type="text"
                   placeholder="VD: Quy định đặt chỗ"
-                  defaultValue={editingKnowledge?.title || ''}
+                  value={knowledgeForm.title}
+                  onChange={(e) => setKnowledgeForm({ ...knowledgeForm, title: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1024,7 +1233,8 @@ const AIConfig = () => {
                   Loại
                 </label>
                 <select
-                  defaultValue={editingKnowledge?.type || 'info'}
+                  value={knowledgeForm.type}
+                  onChange={(e) => setKnowledgeForm({ ...knowledgeForm, type: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1047,7 +1257,8 @@ const AIConfig = () => {
                 </label>
                 <textarea
                   placeholder="Nhập nội dung chi tiết để AI có thể học và trả lời..."
-                  defaultValue={editingKnowledge?.content || ''}
+                  value={knowledgeForm.content}
+                  onChange={(e) => setKnowledgeForm({ ...knowledgeForm, content: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '14px 16px',
@@ -1062,7 +1273,7 @@ const AIConfig = () => {
                 />
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
-                <button onClick={() => setShowKnowledgeModal(false)} style={{
+                <button onClick={() => { setShowKnowledgeModal(false); setEditingKnowledge(null); setKnowledgeForm({ title: '', content: '', type: 'info' }); }} style={{
                   flex: 1,
                   padding: '14px',
                   background: '#F7FAFC',
@@ -1073,7 +1284,7 @@ const AIConfig = () => {
                   color: '#4A5568',
                   cursor: 'pointer'
                 }}>Hủy</button>
-                <button style={{
+                <button onClick={handleSaveKnowledge} style={{
                   flex: 1,
                   padding: '14px',
                   background: '#FF751F',
@@ -1084,6 +1295,141 @@ const AIConfig = () => {
                   color: '#fff',
                   cursor: 'pointer'
                 }}>Lưu kiến thức</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prompt Modal */}
+      {showPromptModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '20px',
+            width: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{
+              padding: '24px',
+              borderBottom: '1px solid #E2E8F0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+                {editingPrompt ? 'Sửa Prompt' : 'Thêm Prompt mới'}
+              </h2>
+              <button onClick={() => { setShowPromptModal(false); setEditingPrompt(null); setPromptForm({ name: '', prompt: '', context: 'GENERAL' }); }} style={{
+                padding: '8px',
+                background: '#F7FAFC',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}>
+                <X size={20} color="#4A5568" />
+              </button>
+            </div>
+            <div style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Tên Prompt
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: Trả lời câu hỏi chung"
+                  value={promptForm.name}
+                  onChange={(e) => setPromptForm({ ...promptForm, name: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Ngữ cảnh
+                </label>
+                <select
+                  value={promptForm.context}
+                  onChange={(e) => setPromptForm({ ...promptForm, context: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    color: '#4A5568',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="GENERAL">Câu hỏi chung</option>
+                  <option value="BOOKING">Hỗ trợ đặt chỗ</option>
+                  <option value="RULES">Giải đáp quy định</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Nội dung Prompt
+                </label>
+                <textarea
+                  placeholder="Nhập hướng dẫn cho AI khi trả lời..."
+                  value={promptForm.prompt}
+                  onChange={(e) => setPromptForm({ ...promptForm, prompt: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    resize: 'vertical',
+                    minHeight: '160px',
+                    lineHeight: '1.6'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={() => { setShowPromptModal(false); setEditingPrompt(null); setPromptForm({ name: '', prompt: '', context: 'GENERAL' }); }} style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#F7FAFC',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#4A5568',
+                  cursor: 'pointer'
+                }}>Hủy</button>
+                <button onClick={handleSavePrompt} style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#FF751F',
+                  border: 'none',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#fff',
+                  cursor: 'pointer'
+                }}>Lưu Prompt</button>
               </div>
             </div>
           </div>

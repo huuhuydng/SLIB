@@ -1,60 +1,53 @@
 """
 Knowledge Base Service
-Provides context information for AI responses
+Fetches knowledge from Java backend and provides context for AI responses
 """
 
 from typing import List, Dict
+import logging
+
+from app.services.java_backend_client import get_java_client
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeBaseService:
     """
-    Simulated Knowledge Base Service
-    In production, this would connect to a database
+    Knowledge Base Service - connects to Java backend for real data
     """
     
     def __init__(self):
-        # Simulated knowledge base data
-        self._knowledge: List[Dict] = [
-            {
-                "title": "Giờ mở cửa",
-                "content": "Thư viện mở cửa từ 7:30 sáng đến 21:00 tối các ngày trong tuần (Thứ 2 - Thứ 7). Chủ nhật nghỉ.",
-                "type": "INFO"
-            },
-            {
-                "title": "Quy định mượn sách",
-                "content": "Sinh viên được mượn tối đa 5 cuốn sách trong 14 ngày. Gia hạn tối đa 2 lần.",
-                "type": "RULES"
-            },
-            {
-                "title": "Đặt chỗ ngồi",
-                "content": "Sinh viên có thể đặt chỗ ngồi qua app SLIB. Mỗi lần đặt tối đa 4 tiếng.",
-                "type": "GUIDE"
-            }
-        ]
+        self.java_client = get_java_client()
     
     def build_knowledge_context(self) -> str:
-        """Build knowledge context string for AI prompt"""
-        if not self._knowledge:
+        """Build knowledge context string for AI prompt from database"""
+        knowledge = self.java_client.get_knowledge()
+        
+        if not knowledge:
+            logger.info("[KnowledgeBaseService] No knowledge found in database")
             return ""
         
         context = "\n--- KIẾN THỨC THƯ VIỆN ---\n"
-        for item in self._knowledge:
-            context += f"[{item['type']}] {item['title']}: {item['content']}\n"
+        for item in knowledge:
+            if item.get("isActive", True):  # Only include active items
+                title = item.get("title", "")
+                content = item.get("content", "")
+                item_type = item.get("type", "INFO")
+                context += f"[{item_type}] {title}: {content}\n"
         context += "--- HẾT KIẾN THỨC ---\n\n"
         
+        logger.info(f"[KnowledgeBaseService] Built context from {len(knowledge)} items")
         return context
     
     def get_all_knowledge(self) -> List[Dict]:
-        """Get all knowledge items"""
-        return self._knowledge
+        """Get all knowledge items from database"""
+        return self.java_client.get_knowledge()
     
-    def add_knowledge(self, title: str, content: str, knowledge_type: str = "INFO"):
-        """Add new knowledge item"""
-        self._knowledge.append({
-            "title": title,
-            "content": content,
-            "type": knowledge_type
-        })
+    def refresh(self):
+        """Force refresh knowledge from backend"""
+        self.java_client.get_knowledge(force_refresh=True)
 
 
 # Singleton instance
