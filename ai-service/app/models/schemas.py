@@ -54,6 +54,8 @@ class ChatRequest(BaseModel):
     """Simple chat request"""
     message: str
     session_id: Optional[str] = None
+    conversation_id: Optional[str] = None  # For tracking AI-to-Human escalation
+    student_id: Optional[str] = None  # Student UUID for backend integration
 
 
 class ChatResponse(BaseModel):
@@ -63,3 +65,6 @@ class ChatResponse(BaseModel):
     session_id: str
     confidence_score: float
     needs_review: bool
+    escalated: bool = False  # True if conversation was escalated to human
+    escalation_message: Optional[str] = None  # Message shown when escalated
+

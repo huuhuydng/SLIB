@@ -1,12 +1,13 @@
 """
 SLIB AI Service - FastAPI Application
 Main entry point for the AI microservice
+Supports both Ollama (local) and Gemini (cloud) AI providers
 """
 
 import uuid
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict
+from typing import Dict, Union
 
 from app.models.schemas import (
     GenerateRequest, 
@@ -17,17 +18,29 @@ from app.models.schemas import (
     AIConfig
 )
 from app.services.gemini_service import GeminiService, get_gemini_service
+from app.services.ollama_service import OllamaService, get_ollama_service
 from app.services.knowledge_base import knowledge_base_service
 from app.services.analytics_service import analytics_ai_service
 from app.config.settings import get_settings
 
+
+def get_ai_service() -> Union[OllamaService, GeminiService]:
+    """Factory function to get the configured AI service (Ollama or Gemini)"""
+    settings = get_settings()
+    if settings.ai_provider.lower() == "ollama":
+        return get_ollama_service(settings.ollama_model)
+    else:
+        return get_gemini_service()
+
+
 # Create FastAPI app
 app = FastAPI(
     title="SLIB AI Service",
-    description="AI Assistant service for SLIB Smart Library using Google Gemini",
-    version="1.0.0",
+    description="AI Assistant service for SLIB Smart Library - Supports Ollama & Gemini",
+    version="1.1.0",
     docs_url="/docs",
     redoc_url="/redoc"
+
 )
 
 # CORS middleware
@@ -69,8 +82,8 @@ async def get_config():
 
 @app.post("/api/ai/test-connection", response_model=TestConnectionResponse)
 async def test_api_connection():
-    """Test Gemini API connection"""
-    service = get_gemini_service()
+    """Test AI API connection (Ollama or Gemini)"""
+    service = get_ai_service()
     result = service.test_connection()
     return TestConnectionResponse(
         success=result["success"],
@@ -84,16 +97,20 @@ async def test_api_connection():
 @app.post("/api/ai/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """
-    Simple chat endpoint for students
+    Simple chat endpoint for students with AI-to-Human escalation support
     
     Example request:
     ```json
     {
         "message": "Thư viện mở cửa lúc mấy giờ?",
-        "session_id": "optional-session-id"
+        "session_id": "optional-session-id",
+        "conversation_id": "optional-uuid",
+        "student_id": "optional-student-uuid"
     }
     ```
     """
+    from app.services.escalation_service import escalation_service
+    
     # Get or create session
     session_id = request.session_id or str(uuid.uuid4())
     
@@ -104,9 +121,45 @@ async def chat(request: ChatRequest):
     from app.models.schemas import ChatMessage
     chat_history = [ChatMessage(role=h["role"], content=h["content"]) for h in history]
     
-    # Generate response
-    service = get_gemini_service()
+    # Check if user is requesting escalation BEFORE generating AI response
+    should_escalate, escalation_reason = escalation_service.should_escalate(request.message, "")
+    
+    if should_escalate:
+        # User explicitly wants to talk to human
+        escalation_message = "Tôi sẽ chuyển bạn đến thủ thư ngay. Vui lòng chờ trong giây lát, thủ thư sẽ tiếp nhận và hỗ trợ bạn! 👋"
+        
+        # Call backend to escalate if we have conversation/student info
+        if request.conversation_id or request.student_id:
+            await escalation_service.escalate_conversation(
+                conversation_id=request.conversation_id,
+                student_id=request.student_id,
+                reason=escalation_reason
+            )
+        
+        # Save escalation message to history
+        if session_id not in chat_sessions:
+            chat_sessions[session_id] = []
+        chat_sessions[session_id].append({"role": "user", "content": request.message})
+        chat_sessions[session_id].append({"role": "assistant", "content": escalation_message})
+        
+        return ChatResponse(
+            success=True,
+            reply=escalation_message,
+            session_id=session_id,
+            confidence_score=1.0,
+            needs_review=False,
+            escalated=True,
+            escalation_message=escalation_reason
+        )
+    
+    # Generate AI response
+    service = get_ai_service()
     response = service.generate_response(request.message, chat_history)
+    
+    # Check if AI response indicates uncertainty (needs escalation)
+    ai_needs_escalation, ai_escalation_reason = escalation_service.should_escalate(
+        request.message, response.content
+    )
     
     # Save to history
     if session_id not in chat_sessions:
@@ -118,13 +171,22 @@ async def chat(request: ChatRequest):
     if len(chat_sessions[session_id]) > 20:
         chat_sessions[session_id] = chat_sessions[session_id][-20:]
     
+    # If AI response indicates escalation is needed, notify user
+    if ai_needs_escalation and response.needs_review:
+        escalation_note = "\n\n💡 *Nếu bạn cần hỗ trợ thêm, hãy nói 'cho em gặp thủ thư' để được kết nối với nhân viên thư viện.*"
+        response_content = response.content + escalation_note
+    else:
+        response_content = response.content
+    
     return ChatResponse(
         success=True,
-        reply=response.content,
+        reply=response_content,
         session_id=session_id,
         confidence_score=response.confidence_score,
-        needs_review=response.needs_review
+        needs_review=response.needs_review,
+        escalated=False
     )
+
 
 
 @app.post("/api/ai/generate", response_model=GeminiResponse)
@@ -147,7 +209,7 @@ async def generate_response(request: GenerateRequest):
     }
     ```
     """
-    service = get_gemini_service(request.config)
+    service = get_ai_service()
     return service.generate_response(request.user_message, request.chat_history)
 
 
@@ -247,12 +309,17 @@ async def startup_event():
     settings = get_settings()
     print("=" * 50)
     print("🤖 SLIB AI Service Starting...")
-    print(f"📦 Model: {settings.gemini_model}")
-    print(f"🔑 API Key configured: {bool(settings.gemini_api_key)}")
+    print(f"🔌 AI Provider: {settings.ai_provider.upper()}")
+    if settings.ai_provider.lower() == "ollama":
+        print(f"📦 Model: {settings.ollama_model}")
+        print(f"🏠 Ollama URL: {settings.ollama_url}")
+    else:
+        print(f"📦 Model: {settings.gemini_model}")
+        print(f"🔑 API Key configured: {bool(settings.gemini_api_key)}")
     print(f"🌐 Debug mode: {settings.debug}")
     print("")
     print("📊 Available AI Features:")
-    print("   • Chat Assistant (Gemini)")
+    print(f"   • Chat Assistant ({settings.ai_provider.title()})")
     print("   • Peak Hours Analysis")
     print("   • Time Slot Recommendations")
     print("   • Usage Statistics")

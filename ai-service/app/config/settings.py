@@ -12,7 +12,14 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
-    # Gemini API Configuration
+    # AI Provider: "ollama" or "gemini"
+    ai_provider: str = os.getenv("AI_PROVIDER", "ollama")
+    
+    # Ollama Configuration (default - no API key needed!)
+    ollama_url: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2")
+    
+    # Gemini API Configuration (fallback)
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
     gemini_api_url: str = "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -39,3 +46,4 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance"""
     return Settings()
+

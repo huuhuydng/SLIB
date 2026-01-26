@@ -2,7 +2,7 @@ import axios from "axios";
 
 
 const chatApi = axios.create({
-  baseURL: "http://localhost:8080/slib", 
+  baseURL: "http://localhost:8080/slib",
   headers: {
     "Content-Type": "application/json",
   },
@@ -10,12 +10,12 @@ const chatApi = axios.create({
 
 chatApi.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("librarian_token"); 
-    
+    const token = localStorage.getItem("librarian_token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     console.log("[ChatAPI Request]", config.method?.toUpperCase(), config.url);
     return config;
   },
@@ -41,46 +41,72 @@ export const searchMessages = (partnerId, keyword) =>
   });
 
 // Tìm xem tin nhắn nằm ở trang số mấy
-export const findMessagePage = (partnerId, messageId) => 
-    chatApi.get(`/chat/find-page`, {
-        params: { partnerId, messageId }
-    });
+export const findMessagePage = (partnerId, messageId) =>
+  chatApi.get(`/chat/find-page`, {
+    params: { partnerId, messageId }
+  });
 
-    // Hàm lấy số tin nhắn chưa đọc
+// Hàm lấy số tin nhắn chưa đọc
 export const getUnreadCount = () => {
-    return chatApi.get('/chat/unread-count');
+  return chatApi.get('/chat/unread-count');
 };
 
 // Hàm đánh dấu đã đọc
 export const markMessagesAsRead = (senderId) => {
-    return chatApi.post('/chat/mark-read', { senderId });
+  return chatApi.post('/chat/mark-read', { senderId });
 };
 
 // Upload ảnh (Đoạn này bạn sửa đúng rồi)
 export const uploadFile = (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   return chatApi.post('/files/upload_chat_image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
 
 // Lấy kho lưu trữ (Ảnh hoặc File)
-export const getConversationMedia = (partnerId, type) => 
+export const getConversationMedia = (partnerId, type) =>
   chatApi.get(`/chat/media/${partnerId}`, {
     params: { type } // type là 'IMAGE' hoặc 'FILE'
   });
 
-  //hàm này để upload tài liệu (PDF, Word...)
+//hàm này để upload tài liệu (PDF, Word...)
 export const uploadDocument = (file) => {
   const formData = new FormData();
-  formData.append('file', file); 
-  
+  formData.append('file', file);
+
   // Đảm bảo /files/upload_document là chính xác ở Backend
   return chatApi.post('/files/upload_document', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
 };
+
+// ==================== CONVERSATION MANAGEMENT (AI-to-Human Escalation) ====================
+
+// Lấy danh sách conversation đang chờ xử lý
+export const getWaitingConversations = () =>
+  chatApi.get('/chat/conversations/waiting');
+
+// Lấy danh sách conversation đang được librarian xử lý
+export const getActiveConversations = () =>
+  chatApi.get('/chat/conversations/active');
+
+// Lấy tất cả conversations (waiting + active)
+export const getAllConversations = () =>
+  chatApi.get('/chat/conversations/all');
+
+// Librarian tiếp nhận conversation
+export const takeOverConversation = (conversationId) =>
+  chatApi.post(`/chat/conversations/${conversationId}/take-over`);
+
+// Đánh dấu conversation đã hoàn thành
+export const resolveConversation = (conversationId) =>
+  chatApi.post(`/chat/conversations/${conversationId}/resolve`);
+
+// Đếm số conversation đang chờ
+export const getWaitingCount = () =>
+  chatApi.get('/chat/conversations/waiting/count');
 
 export default chatApi;
