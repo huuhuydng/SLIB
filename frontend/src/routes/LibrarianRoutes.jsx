@@ -12,16 +12,11 @@ import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
-<<<<<<< HEAD
-import NotificationManage from "../pages/librarian/NotificationManage/NotificationManage";
-import NewCreate from "../pages/librarian/NotificationManage/NewCreate";
-import NewsDetailView from "../pages/librarian/NotificationManage/NewsDetailView";
 import ChatManagement from "../components/ChatManagement";
-=======
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
->>>>>>> 103c016382c7acb6aeb8970b5ee3620b6e872919
+
 
 function LibrarianRoutes() {
   return (
