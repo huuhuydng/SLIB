@@ -214,4 +214,5 @@ docker-compose.yml
 *.tmp
 *.temp
 *.bak
-*.backup
+*.backup__pycache__/
+*.pyc
