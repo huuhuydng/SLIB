@@ -1,14 +1,24 @@
 import axios from "axios";
 
 /**
- * Python AI Service API Client
+ * Python AI Service API Client (RAG Mode)
  * Connects to the FastAPI AI service on port 8001
+ * 
+ * Endpoints:
+ * - /api/ai/* - Legacy endpoints
+ * - /api/v1/chat/* - RAG Chat
+ * - /api/v1/ingest/* - Document Ingestion
  */
 const pythonAiApi = axios.create({
-    baseURL: "http://localhost:8001/api/ai",
+    baseURL: "http://localhost:8001",
     headers: {
         "Content-Type": "application/json",
     },
+});
+
+// File upload API (multipart/form-data)
+const uploadApi = axios.create({
+    baseURL: "http://localhost:8001",
 });
 
 // Request interceptor
@@ -29,57 +39,6 @@ pythonAiApi.interceptors.response.use(
     }
 );
 
-/* ========================== AI CONFIG ========================= */
-
-/**
- * GET AI CONFIG
- */
-export const getAIConfig = () => pythonAiApi.get("/config");
-
-/**
- * TEST GEMINI API CONNECTION
- */
-export const testAPIConnection = () => pythonAiApi.post("/test-connection");
-
-/* ========================== CHAT ========================= */
-
-/**
- * SIMPLE CHAT
- * @param {string} message - User message
- * @param {string} sessionId - Optional session ID
- */
-export const sendChat = (message, sessionId = null) =>
-    pythonAiApi.post("/chat", { message, session_id: sessionId });
-
-/**
- * GENERATE WITH CONFIG OVERRIDE
- * @param {string} userMessage 
- * @param {Array} chatHistory 
- * @param {Object} config - Optional config override
- */
-export const generateResponse = (userMessage, chatHistory = [], config = null) =>
-    pythonAiApi.post("/generate", {
-        user_message: userMessage,
-        chat_history: chatHistory,
-        config
-    });
-
-/* ========================== KNOWLEDGE BASE ========================= */
-
-/**
- * GET ALL KNOWLEDGE
- */
-export const getKnowledge = () => pythonAiApi.get("/knowledge");
-
-/**
- * ADD KNOWLEDGE
- * @param {string} title 
- * @param {string} content 
- * @param {string} type - INFO, RULES, GUIDE
- */
-export const addKnowledge = (title, content, type = "INFO") =>
-    pythonAiApi.post(`/knowledge?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&knowledge_type=${type}`);
-
 /* ========================== HEALTH CHECK ========================= */
 
 /**
@@ -87,46 +46,171 @@ export const addKnowledge = (title, content, type = "INFO") =>
  */
 export const healthCheck = () => axios.get("http://localhost:8001/health");
 
+/* ========================== AI CONFIG ========================= */
+
+/**
+ * GET AI CONFIG (from Python service)
+ */
+export const getAIConfig = () => pythonAiApi.get("/api/ai/config");
+
+/**
+ * TEST API CONNECTION
+ */
+export const testAPIConnection = () => pythonAiApi.post("/api/ai/test-connection");
+
+/**
+ * REFRESH CONFIG
+ */
+export const refreshConfig = () => pythonAiApi.post("/api/ai/refresh");
+
+/* ========================== RAG CHAT ========================= */
+
+/**
+ * RAG CHAT QUERY - Main chat endpoint with vector search
+ * @param {string} message - User message
+ * @param {string} sessionId - Optional session ID
+ * @param {boolean} includeSources - Whether to include source references
+ */
+export const ragQuery = (message, sessionId = null, includeSources = true) =>
+    pythonAiApi.post("/api/v1/chat/query", {
+        message,
+        session_id: sessionId,
+        include_sources: includeSources
+    });
+
+/**
+ * SIMPLE CHAT (Legacy compatible)
+ */
+export const sendChat = (message, sessionId = null) =>
+    pythonAiApi.post("/api/ai/chat", { message, session_id: sessionId });
+
+/**
+ * GENERATE RESPONSE
+ */
+export const generateResponse = (userMessage, chatHistory = [], config = null) =>
+    pythonAiApi.post("/api/ai/generate", {
+        user_message: userMessage,
+        chat_history: chatHistory,
+        config
+    });
+
+/**
+ * TEST RAG SERVICE
+ */
+export const testRAGService = () => pythonAiApi.get("/api/v1/chat/test");
+
+/**
+ * CLEAR CHAT SESSION
+ */
+export const clearChatSession = (sessionId) =>
+    pythonAiApi.delete(`/api/v1/chat/session/${sessionId}`);
+
+/* ========================== DOCUMENT INGESTION ========================= */
+
+/**
+ * UPLOAD DOCUMENT (PDF/DOCX)
+ * @param {File} file - The file to upload
+ * @param {string} category - Category for the document
+ * @param {string} source - Optional custom source name
+ */
+export const uploadDocument = (file, category = "document", source = null) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("category", category);
+    if (source) {
+        formData.append("source", source);
+    }
+    return uploadApi.post("/api/v1/ingest/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+    });
+};
+
+/**
+ * INGEST RAW TEXT
+ * @param {Object} data - { content, source, category, metadata }
+ */
+export const ingestText = (data) =>
+    pythonAiApi.post("/api/v1/ingest/text", data);
+
+/**
+ * GET KNOWLEDGE BASE STATS
+ */
+export const getKnowledgeStats = () => pythonAiApi.get("/api/v1/ingest/stats");
+
+/**
+ * DELETE SOURCE
+ * @param {string} source - Source identifier to delete
+ */
+export const deleteSource = (source) =>
+    pythonAiApi.delete(`/api/v1/ingest/source/${encodeURIComponent(source)}`);
+
+/* ========================== LEGACY KNOWLEDGE ========================= */
+
+/**
+ * GET ALL KNOWLEDGE (Legacy)
+ */
+export const getKnowledge = () => pythonAiApi.get("/api/ai/knowledge");
+
+/**
+ * ADD KNOWLEDGE (Legacy)
+ */
+export const addKnowledge = (title, content, type = "INFO") =>
+    pythonAiApi.post(`/api/ai/knowledge?title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&knowledge_type=${type}`);
+
 /* ========================== PROMPTS ========================= */
 
 /**
  * GET ALL PROMPTS
  */
-export const getPrompts = () => pythonAiApi.get("/prompts");
+export const getPrompts = () => pythonAiApi.get("/api/ai/prompts");
 
 /**
  * CREATE PROMPT
  */
 export const createPrompt = (data) =>
-    pythonAiApi.post(`/prompts?name=${encodeURIComponent(data.name)}&prompt=${encodeURIComponent(data.prompt)}&context=${data.context || 'GENERAL'}`);
+    pythonAiApi.post(`/api/ai/prompts?name=${encodeURIComponent(data.name)}&prompt=${encodeURIComponent(data.prompt)}&context=${data.context || 'GENERAL'}`);
+
+/* ========================== ANALYTICS ========================= */
 
 /**
- * UPDATE PROMPT (Stub - not implemented in Python service)
+ * GET PEAK HOURS
  */
-export const updatePrompt = (id, data) => Promise.resolve({ data: { ...data, id } });
+export const getPeakHours = (areaId = null) =>
+    pythonAiApi.get("/api/ai/analytics/peak-hours", { params: { area_id: areaId } });
 
 /**
- * DELETE PROMPT (Stub)
+ * GET TIME SLOT RECOMMENDATIONS
  */
-export const deletePrompt = (id) => Promise.resolve({ data: { success: true } });
-
-/* ========================== KNOWLEDGE CRUD (Extended) ========================= */
+export const getRecommendedSlots = (durationHours = 2) =>
+    pythonAiApi.get("/api/ai/analytics/recommend-slots", { params: { duration_hours: durationHours } });
 
 /**
- * UPDATE KNOWLEDGE (Stub)
+ * GET USAGE STATISTICS
  */
-export const updateKnowledge = (id, data) => Promise.resolve({ data: { ...data, id } });
+export const getUsageStatistics = (period = "week", areaId = null) =>
+    pythonAiApi.get("/api/ai/analytics/statistics", { params: { period, area_id: areaId } });
+
+/* ========================== TEST CHAT ========================= */
 
 /**
- * DELETE KNOWLEDGE (Stub)
+ * SEND TEST MESSAGE (for admin testing)
+ * Uses RAG query with full response data
  */
-export const deleteKnowledge = (id) => Promise.resolve({ data: { success: true } });
-
-/* ========================== CONFIG (Stub for save) ========================= */
+export const sendTestMessage = (message, sessionId = null) =>
+    ragQuery(message, sessionId, true).then(res => ({
+        data: {
+            success: res.data.success,
+            reply: res.data.reply,
+            sessionId: res.data.session_id,
+            needsLibrarian: res.data.action === "ESCALATE_TO_LIBRARIAN",
+            confidence: res.data.similarity_score,
+            action: res.data.action,
+            sources: res.data.sources || []
+        }
+    }));
 
 /**
- * SAVE AI CONFIG
- * Note: Python service reads config from ENV, this is a stub
+ * SAVE AI CONFIG (stub - config managed via ENV)
  */
 export const saveAIConfig = (payload) => {
     console.log("[Python AI API] Config save requested (config is managed via ENV):", payload);
@@ -139,36 +223,35 @@ export const saveAIConfig = (payload) => {
     });
 };
 
-/* ========================== TEST CHAT ========================= */
-
-/**
- * SEND TEST MESSAGE (for admin testing)
- */
-export const sendTestMessage = (message, sessionId = null) =>
-    pythonAiApi.post("/chat", { message, session_id: sessionId }).then(res => ({
-        data: {
-            success: true,
-            reply: res.data.reply,
-            sessionId: res.data.session_id,
-            needsLibrarian: res.data.needs_review,
-            confidence: res.data.confidence_score
-        }
-    }));
-
 export default {
+    // Health
+    healthCheck,
+    // Config
     getAIConfig,
     saveAIConfig,
     testAPIConnection,
+    refreshConfig,
+    // RAG Chat
+    ragQuery,
     sendChat,
     generateResponse,
+    testRAGService,
+    clearChatSession,
+    // Ingestion
+    uploadDocument,
+    ingestText,
+    getKnowledgeStats,
+    deleteSource,
+    // Legacy Knowledge
     getKnowledge,
     addKnowledge,
-    updateKnowledge,
-    deleteKnowledge,
+    // Prompts
     getPrompts,
     createPrompt,
-    updatePrompt,
-    deletePrompt,
-    sendTestMessage,
-    healthCheck
+    // Analytics
+    getPeakHours,
+    getRecommendedSlots,
+    getUsageStatistics,
+    // Test
+    sendTestMessage
 };
