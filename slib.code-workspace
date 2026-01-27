@@ -10,6 +10,9 @@
 			"path": "mobile"
 		},
 		{
+			"path": "ai-service"
+		},
+		{
 			"path": ".",
 			"name": "all"
 		}
@@ -18,8 +21,8 @@
 		"java.configuration.updateBuildConfiguration": "automatic",
 		"java.compile.nullAnalysis.mode": "automatic",
 		"workbench.colorCustomizations": {
-			"titleBar.activeBackground": "#2d2d2d", 
-            "titleBar.activeForeground": "#ffffff"
+			"titleBar.activeBackground": "#2d2d2d",
+			"titleBar.activeForeground": "#ffffff"
 		}
 	}
 }

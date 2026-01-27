@@ -6,11 +6,12 @@
   width: var(--properties-width);
   min-width: var(--properties-width);
   height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
-  overflow: hidden;
+  /* Removed overflow: hidden - inner content div has overflow: auto */
 }
 
 /* ================================
