@@ -18,9 +18,19 @@ RUN mvn clean package -DskipTests
 FROM amazoncorretto:21-alpine-jdk
 WORKDIR /app
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Copy file jar đã build sang
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
+
+# Default Spring profile for Docker
+ENV SPRING_PROFILES_ACTIVE=docker
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
