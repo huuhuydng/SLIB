@@ -57,9 +57,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio httpx
 
-      - name: Initialize Database
-        run: |
-          PGPASSWORD=Slib@123 psql -h localhost -U postgres -d slib -f ai-service/init_db.sql
+
 
       - name: Run Tests
         working-directory: ai-service
