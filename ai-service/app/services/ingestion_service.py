@@ -1,6 +1,6 @@
 """
 Ingestion Service
-Handles document upload, chunking, embedding, and storage in PostgreSQL
+Handles document upload, chunking, embedding, and storage in Qdrant
 """
 
 import logging
@@ -8,14 +8,11 @@ import io
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.config.settings import get_settings
 from app.services.embedding_service import get_embedding_service
-from app.models.vector_models import LibraryVector
-from app.core.database import SessionLocal
+from app.services.qdrant_service import get_qdrant_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 class IngestionService:
     """
-    Service for ingesting documents into the vector database
+    Service for ingesting documents into Qdrant vector database
     
     Workflow:
     1. Load document (PDF, DOCX, or raw text)
     2. Split into chunks using RecursiveCharacterTextSplitter
     3. Generate embeddings using Ollama
-    4. Store in PostgreSQL with pgvector
+    4. Store in Qdrant vector database
     """
     
     def __init__(self):
@@ -45,10 +42,11 @@ class IngestionService:
         )
         
         self.embedding_service = get_embedding_service()
+        self.qdrant_service = get_qdrant_service()
         
         logger.info(
             f"[IngestionService] Initialized with chunk_size={settings.chunk_size}, "
-            f"overlap={settings.chunk_overlap}"
+            f"overlap={settings.chunk_overlap}, storage=Qdrant"
         )
     
     def ingest_text(
@@ -59,7 +57,7 @@ class IngestionService:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Ingest raw text content
+        Ingest raw text content into Qdrant
         
         Args:
             content: Text content to ingest
@@ -88,48 +86,23 @@ class IngestionService:
             embeddings = self.embedding_service.embed_texts(chunks)
             logger.info(f"[IngestionService] Generated {len(embeddings)} embeddings")
             
-            # Store in database
-            db = SessionLocal()
-            try:
-                # Delete existing vectors from this source (replace mode)
-                db.execute(
-                    text("DELETE FROM library_vectors WHERE source = :source"),
-                    {"source": source}
-                )
-                
-                # Insert new vectors
-                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                    # Use raw SQL for pgvector insertion
-                    db.execute(
-                        text("""
-                            INSERT INTO library_vectors 
-                            (content, embedding, source, category, chunk_index, metadata, created_at, updated_at)
-                            VALUES (:content, :embedding, :source, :category, :chunk_index, :metadata, :created_at, :updated_at)
-                        """),
-                        {
-                            "content": chunk,
-                            "embedding": str(embedding),  # pgvector accepts string format
-                            "source": source,
-                            "category": category,
-                            "chunk_index": i,
-                            "metadata": str(metadata or {}),
-                            "created_at": datetime.now(),
-                            "updated_at": datetime.now()
-                        }
-                    )
-                
-                db.commit()
-                logger.info(f"[IngestionService] Stored {len(chunks)} chunks in database")
-                
-                return {
-                    "success": True,
-                    "message": f"Successfully ingested {len(chunks)} chunks from {source}",
-                    "chunks_created": len(chunks),
-                    "source": source
-                }
-                
-            finally:
-                db.close()
+            # Store in Qdrant
+            chunks_stored = self.qdrant_service.upsert_vectors(
+                vectors=embeddings,
+                contents=chunks,
+                source=source,
+                category=category,
+                metadata=metadata
+            )
+            
+            logger.info(f"[IngestionService] Stored {chunks_stored} chunks in Qdrant")
+            
+            return {
+                "success": True,
+                "message": f"Successfully ingested {chunks_stored} chunks from {source}",
+                "chunks_created": chunks_stored,
+                "source": source
+            }
                 
         except Exception as e:
             logger.error(f"[IngestionService] Error ingesting text: {e}")
@@ -251,60 +224,24 @@ class IngestionService:
             }
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get statistics about the knowledge base"""
-        db = SessionLocal()
-        try:
-            # Total chunks
-            result = db.execute(text("SELECT COUNT(*) FROM library_vectors"))
-            total_chunks = result.scalar() or 0
-            
-            # Unique sources
-            result = db.execute(text("SELECT COUNT(DISTINCT source) FROM library_vectors"))
-            total_sources = result.scalar() or 0
-            
-            # Categories
-            result = db.execute(text("SELECT DISTINCT category FROM library_vectors WHERE category IS NOT NULL"))
-            categories = [row[0] for row in result.fetchall()]
-            
-            # Last updated
-            result = db.execute(text("SELECT MAX(updated_at) FROM library_vectors"))
-            last_updated = result.scalar()
-            
-            return {
-                "total_chunks": total_chunks,
-                "total_sources": total_sources,
-                "categories": categories,
-                "last_updated": last_updated
-            }
-            
-        finally:
-            db.close()
+        """Get statistics about the knowledge base from Qdrant"""
+        return self.qdrant_service.get_stats()
     
     def delete_source(self, source: str) -> Dict[str, Any]:
         """Delete all vectors from a specific source"""
-        db = SessionLocal()
         try:
-            result = db.execute(
-                text("DELETE FROM library_vectors WHERE source = :source RETURNING id"),
-                {"source": source}
-            )
-            deleted_count = len(result.fetchall())
-            db.commit()
-            
+            deleted = self.qdrant_service.delete_by_source(source)
             return {
                 "success": True,
-                "message": f"Deleted {deleted_count} chunks from source: {source}",
-                "deleted_count": deleted_count
+                "message": f"Deleted vectors from source: {source}",
+                "deleted_count": deleted
             }
-            
         except Exception as e:
             logger.error(f"[IngestionService] Error deleting source: {e}")
             return {
                 "success": False,
                 "message": f"Error: {str(e)}"
             }
-        finally:
-            db.close()
 
 
 # Singleton instance

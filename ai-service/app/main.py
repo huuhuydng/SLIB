@@ -3,7 +3,7 @@ SLIB AI Service - FastAPI Application
 Main entry point for the AI microservice
 
 Features:
-- RAG Chat with pgvector similarity search
+- RAG Chat with Qdrant vector search
 - Document ingestion (PDF, DOCX, Text)
 - Strict guardrails with I_DO_NOT_KNOW detection
 - Human handoff (ESCALATE_TO_LIBRARIAN)
@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     print(f"📦 LLM Model: {settings.ollama_model}")
     print(f"🔢 Embedding Model: {settings.ollama_embedding_model}")
     print(f"🏠 Ollama URL: {settings.ollama_url}")
-    print(f"🗄️  Database: PostgreSQL with pgvector")
+    print(f"🗄️  Vector DB: Qdrant at {settings.qdrant_url}")
     print(f"📊 Similarity Threshold: {settings.similarity_threshold}")
     print(f"🌐 Debug mode: {settings.debug}")
     print("")
@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="SLIB AI Service",
-    description="AI Assistant service for SLIB Smart Library - RAG Mode with pgvector",
+    description="AI Assistant service for SLIB Smart Library - RAG Mode with Qdrant",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

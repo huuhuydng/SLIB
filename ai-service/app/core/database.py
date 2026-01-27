@@ -1,6 +1,6 @@
 """
 Database connection module for SLIB AI Service
-Uses SQLAlchemy with pgvector for vector similarity search
+Simple PostgreSQL connection for metadata operations (not used for vectors - see Qdrant)
 """
 
 import os
@@ -46,31 +46,18 @@ def get_db():
 
 def init_db():
     """
-    Initialize database tables
-    Call this on application startup
+    Initialize database connection
+    Note: Vector storage is handled by Qdrant, not PostgreSQL
     """
     try:
-        # Import all models to register them with SQLModel
-        from app.models.vector_models import LibraryVector
-        
-        # Create tables
-        SQLModel.metadata.create_all(engine)
-        
-        # Verify pgvector extension
+        # Just verify connection
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT * FROM pg_extension WHERE extname = 'vector'"))
-            if result.fetchone():
-                logger.info("✅ pgvector extension is enabled")
-            else:
-                logger.warning("⚠️ pgvector extension not found, attempting to create...")
-                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                conn.commit()
-                logger.info("✅ pgvector extension created")
+            conn.execute(text("SELECT 1"))
         
-        logger.info("✅ Database initialized successfully")
+        logger.info("✅ Database connection verified")
         
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"❌ Database connection failed: {e}")
         raise
 
 

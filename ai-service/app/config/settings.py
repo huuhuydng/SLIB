@@ -32,10 +32,14 @@ class Settings(BaseSettings):
     )
     
     # RAG Configuration
-    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.75"))
+    similarity_threshold: float = float(os.getenv("SIMILARITY_THRESHOLD", "0.5"))  # Lowered from 0.75
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "500"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
     max_retrieved_chunks: int = int(os.getenv("MAX_RETRIEVED_CHUNKS", "5"))
+    
+    # Qdrant Vector Database Configuration
+    qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
+    qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "slib_knowledge")
     
     # AI Default Settings
     default_temperature: float = 0.7

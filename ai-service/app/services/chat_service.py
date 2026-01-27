@@ -7,13 +7,11 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from sqlalchemy import text
 from langchain_community.llms import Ollama
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 
 from app.config.settings import get_settings
 from app.services.embedding_service import get_embedding_service
-from app.core.database import SessionLocal
 from app.models.schemas import ActionType
 
 # Configure logging
@@ -37,6 +35,31 @@ Nếu context không chứa câu trả lời, hãy trả lời chính xác cụm
 Câu hỏi của người dùng: {question}
 
 Trả lời (bằng tiếng Việt, ngắn gọn và thân thiện):"""
+
+
+# Greeting patterns and responses - answered WITHOUT RAG search
+GREETING_PATTERNS = {
+    # Identity questions
+    "bạn là ai": "Xin chào! 👋 Tôi là **SLIB AI Assistant** - trợ lý thông minh của hệ thống Thư viện SLIB. Tôi có thể giúp bạn:\n• Tìm kiếm thông tin về quy định thư viện\n• Hướng dẫn đặt chỗ ngồi\n• Trả lời các câu hỏi về dịch vụ thư viện\n\nHãy hỏi tôi bất cứ điều gì về thư viện nhé!",
+    "bạn là gì": "Tôi là **SLIB AI Assistant** - chatbot hỗ trợ của thư viện thông minh SLIB. Tôi được thiết kế để giúp sinh viên và giảng viên tra cứu thông tin về thư viện một cách nhanh chóng.",
+    "ai đang nói": "Tôi là **SLIB AI Assistant** - trợ lý ảo của hệ thống thư viện SLIB!",
+    "giới thiệu": "Xin chào! Tôi là **SLIB AI Assistant** 🤖\n\nTôi là trợ lý thông minh của Thư viện SLIB, được tạo ra để hỗ trợ sinh viên và giảng viên tìm kiếm thông tin nhanh chóng. Hãy đặt câu hỏi cho tôi về:\n• Quy định thư viện\n• Cách đặt chỗ ngồi\n• Điểm uy tín\n• Và nhiều thông tin khác!",
+    
+    # Greetings
+    "xin chào": "Xin chào! 👋 Tôi là SLIB AI Assistant. Tôi có thể giúp gì cho bạn hôm nay?",
+    "chào bạn": "Chào bạn! 😊 Tôi sẵn sàng hỗ trợ bạn. Bạn cần tìm hiểu thông tin gì về thư viện?",
+    "hello": "Hello! 👋 Tôi là SLIB AI Assistant. Bạn cần hỗ trợ gì về thư viện?",
+    "hi": "Hi! Tôi là SLIB AI. Bạn muốn hỏi gì về thư viện?",
+    
+    # Thanks
+    "cảm ơn": "Không có gì! 😊 Rất vui được hỗ trợ bạn. Nếu cần thêm thông tin, đừng ngần ngại hỏi nhé!",
+    "cám ơn": "Rất vui được giúp đỡ! 🙂 Chúc bạn có trải nghiệm tốt tại thư viện!",
+    "thanks": "You're welcome! 😊 Rất vui được hỗ trợ bạn!",
+    
+    # Help
+    "giúp tôi": "Tôi có thể giúp bạn:\n• Tra cứu quy định thư viện\n• Hướng dẫn đặt chỗ ngồi\n• Giải đáp thắc mắc về điểm uy tín\n• Trả lời câu hỏi về dịch vụ thư viện\n\nBạn muốn hỏi về vấn đề gì?",
+    "hỗ trợ": "Tôi sẵn sàng hỗ trợ! Bạn có thể hỏi tôi về quy định thư viện, cách đặt chỗ, điểm uy tín, v.v. Hãy đặt câu hỏi nhé!",
+}
 
 
 class RAGChatService:
@@ -83,13 +106,29 @@ class RAGChatService:
             f"threshold={self.similarity_threshold}"
         )
     
+    def _check_greeting(self, message: str) -> Optional[str]:
+        """
+        Check if message matches a greeting pattern
+        Returns response if matched, None otherwise
+        """
+        normalized = message.lower().strip()
+        # Remove punctuation for matching
+        normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
+        
+        for pattern, response in GREETING_PATTERNS.items():
+            if pattern in normalized or normalized in pattern:
+                return response
+        
+        return None
+    
+    
     def retrieve_context(
         self, 
         query: str, 
         top_k: int = None
     ) -> Tuple[List[Dict[str, Any]], float]:
         """
-        Retrieve relevant context from vector database
+        Retrieve relevant context from Qdrant vector database
         
         Args:
             query: User's question
@@ -105,52 +144,37 @@ class RAGChatService:
             # Generate query embedding
             query_embedding = self.embedding_service.embed_text(query)
             
-            db = SessionLocal()
-            try:
-                # Vector similarity search using cosine distance
-                # pgvector: 1 - cosine_distance = cosine_similarity
-                result = db.execute(
-                    text("""
-                        SELECT 
-                            id,
-                            content,
-                            source,
-                            category,
-                            1 - (embedding <=> :query_embedding::vector) as similarity_score
-                        FROM library_vectors
-                        ORDER BY embedding <=> :query_embedding::vector
-                        LIMIT :top_k
-                    """),
-                    {
-                        "query_embedding": str(query_embedding),
-                        "top_k": top_k
-                    }
-                )
-                
-                chunks = []
-                best_score = 0.0
-                
-                for row in result.fetchall():
-                    score = float(row[4]) if row[4] else 0.0
-                    chunks.append({
-                        "id": row[0],
-                        "content": row[1],
-                        "source": row[2],
-                        "category": row[3],
-                        "similarity_score": score
-                    })
-                    if score > best_score:
-                        best_score = score
-                
-                logger.info(
-                    f"[RAGChatService] Retrieved {len(chunks)} chunks, "
-                    f"best score: {best_score:.4f}"
-                )
-                
-                return chunks, best_score
-                
-            finally:
-                db.close()
+            # Search in Qdrant
+            from app.services.qdrant_service import get_qdrant_service
+            qdrant_service = get_qdrant_service()
+            
+            results = qdrant_service.search(
+                query_vector=query_embedding,
+                limit=top_k,
+                score_threshold=0.0  # Get all results, filter later
+            )
+            
+            chunks = []
+            best_score = 0.0
+            
+            for result in results:
+                score = float(result.get("score", 0))
+                chunks.append({
+                    "id": result.get("id"),
+                    "content": result.get("content", ""),
+                    "source": result.get("source", ""),
+                    "category": result.get("category", ""),
+                    "similarity_score": score
+                })
+                if score > best_score:
+                    best_score = score
+            
+            logger.info(
+                f"[RAGChatService] Retrieved {len(chunks)} chunks from Qdrant, "
+                f"best score: {best_score:.4f}"
+            )
+            
+            return chunks, best_score
                 
         except Exception as e:
             logger.error(f"[RAGChatService] Error retrieving context: {e}")
@@ -215,6 +239,18 @@ class RAGChatService:
         """
         logger.info(f"[RAGChatService] Processing query: {message}")
         
+        # Step 0: Check for greeting/common questions (no RAG needed)
+        greeting_response = self._check_greeting(message)
+        if greeting_response:
+            logger.info(f"[RAGChatService] Matched greeting pattern, returning direct response")
+            return {
+                "success": True,
+                "reply": greeting_response,
+                "action": ActionType.NONE,
+                "similarity_score": 1.0,  # Perfect match for greetings
+                "sources": []
+            }
+        
         # Step 1: Retrieve context
         chunks, best_score = self.retrieve_context(message)
         
@@ -232,7 +268,7 @@ class RAGChatService:
             )
             return {
                 "success": True,
-                "reply": "Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này trong cơ sở dữ liệu.",
+                "reply": "Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này trong cơ sở dữ liệu. Bạn có thể liên hệ thủ thư để được hỗ trợ thêm.",
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
