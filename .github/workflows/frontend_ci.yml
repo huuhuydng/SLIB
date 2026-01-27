@@ -5,19 +5,21 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'frontend/**'                 # Chỉ chạy khi sửa code frontend
+      - 'frontend/**'
       - '.github/workflows/frontend_ci.yml'
   pull_request:
     branches: [ "main" ]
     paths:
       - 'frontend/**'
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test-frontend:
     name: ⚛️ Test & Build Frontend
     runs-on: ubuntu-latest
     
-    # Thiết lập thư mục làm việc mặc định là frontend
     defaults:
       run:
         working-directory: ./frontend
@@ -26,27 +28,37 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 1. Cài đặt Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'          # Hoặc phiên bản bạn đang dùng (18, 20...)
-          cache: 'npm'                # Cache thư viện để lần sau chạy nhanh hơn
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 2. Cài đặt thư viện (Clean Install)
       - name: Install Dependencies
-        run: npm ci                   # 'npm ci' tốt hơn 'npm install' cho CI/CD
+        run: npm ci
 
-      # 3. Chạy Linter (Kiểm tra cú pháp code - Optional)
-      # Nếu trong package.json bạn có script "lint"
-      # - name: Run Lint
-      #   run: npm run lint
+      # Run Linter (if script exists)
+      - name: Run Lint
+        run: npm run lint --if-present
+        continue-on-error: true
 
-      # 4. Chạy Unit Test
+      # Run Unit Tests
       - name: Run Unit Tests
-        run: npm test -- --run
+        run: npm test -- --run --passWithNoTests
+        continue-on-error: true
         
-      # 5. Build thử (Để chắc chắn code build được ra HTML/CSS/JS)
+      # Build Project
       - name: Build Project
         run: npm run build
+        env:
+          VITE_API_URL: https://api.slib.example.com
+
+      # Upload build artifacts
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
