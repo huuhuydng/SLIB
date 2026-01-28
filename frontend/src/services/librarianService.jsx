@@ -75,12 +75,12 @@ class LibrarianService {
       const { accessToken, refreshToken } = response.data;
 
       if (accessToken) {
-        localStorage.setItem('librarian_token', accessToken);
+        sessionStorage.setItem('librarian_token', accessToken);
         console.log('✅ [Service] Access token saved:', accessToken.substring(0, 20) + '...');
       }
 
       if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
+        sessionStorage.setItem('refresh_token', refreshToken);
         console.log('✅ [Service] Refresh token saved');
       }
 
@@ -93,7 +93,7 @@ class LibrarianService {
         role: response.data.role
       };
       
-      localStorage.setItem('librarian_user', JSON.stringify(user));
+      sessionStorage.setItem('librarian_user', JSON.stringify(user));
       console.log('✅ [Service] Google user saved:', user);
 
       return response.data;
