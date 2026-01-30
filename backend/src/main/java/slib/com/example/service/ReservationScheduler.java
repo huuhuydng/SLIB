@@ -28,8 +28,8 @@ public class ReservationScheduler {
         LocalDateTime now = LocalDateTime.now();
 
         // 1. Hủy các reservation BOOKED đã hết hạn
-        List<ReservationEntity> expired = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
-        for (ReservationEntity r : expired) {
+        List<ReservationEntity> expiredBooked = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
+        for (ReservationEntity r : expiredBooked) {
             r.setStatus("EXPIRED");
             reservationRepository.save(r);
 
@@ -38,7 +38,18 @@ public class ReservationScheduler {
             seatRepository.save(seat);
         }
 
-        // 2. Hủy các reservation PROCESSING quá 2 phút (120s)
+        // 2. Hủy các reservation CONFIRMED đã hết hạn
+        List<ReservationEntity> expiredConfirmed = reservationRepository.findByEndTimeBeforeAndStatus(now, "CONFIRMED");
+        for (ReservationEntity r : expiredConfirmed) {
+            r.setStatus("EXPIRED");
+            reservationRepository.save(r);
+
+            SeatEntity seat = r.getSeat();
+            seat.setSeatStatus(SeatStatus.AVAILABLE);
+            seatRepository.save(seat);
+        }
+
+        // 3. Hủy các reservation PROCESSING quá 2 phút (120s)
         LocalDateTime cutoff = now.minusSeconds(120);
         List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
                 "PROCESSING");
@@ -52,17 +63,18 @@ public class ReservationScheduler {
             seatRepository.save(seat);
         }
 
-        // 3. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
+        // 4. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
         activateBookedSeats(now);
     }
 
     /**
-     * Update seat_status thành BOOKED khi reservation BOOKED đến giờ bắt đầu
+     * Update seat_status thành BOOKED khi reservation BOOKED/CONFIRMED đến giờ bắt
+     * đầu
      */
     private void activateBookedSeats(LocalDateTime now) {
-        // Tìm tất cả reservations BOOKED đang trong khung giờ active
+        // Tìm tất cả reservations BOOKED hoặc CONFIRMED đang trong khung giờ active
         List<ReservationEntity> activeBookings = reservationRepository.findAll().stream()
-                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus()) || "CONFIRMED".equalsIgnoreCase(r.getStatus()))
                 .filter(r -> !now.isBefore(r.getStartTime()) && now.isBefore(r.getEndTime()))
                 .toList();
 

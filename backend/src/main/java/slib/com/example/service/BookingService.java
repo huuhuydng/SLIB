@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -182,13 +183,15 @@ public class BookingService {
          */
         public java.util.Optional<slib.com.example.dto.booking.UpcomingBookingResponse> getUpcomingBooking(
                         UUID userId) {
-                LocalDateTime now = LocalDateTime.now();
+                // Use Vietnam timezone explicitly to ensure consistent time comparison
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
 
                 return reservationRepository.findByUserId(userId).stream()
-                                // Only BOOKED or PROCESSING status
+                                // Only BOOKED, PROCESSING, or CONFIRMED status
                                 .filter(r -> r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                r.getStatus().equalsIgnoreCase("PROCESSING"))
-                                // End time hasn't passed yet
+                                                r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                r.getStatus().equalsIgnoreCase("CONFIRMED"))
+                                // End time hasn't passed yet (booking still valid)
                                 .filter(r -> r.getEndTime().isAfter(now))
                                 // Sort by start time (closest first)
                                 .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
@@ -240,22 +243,30 @@ public class BookingService {
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
 
                 // Check if reservation is already cancelled or completed
-                if ("CANCEL".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Đặt chỗ này đã được hủy");
+                if ("CANCEL".equalsIgnoreCase(reservation.getStatus()) ||
+                                "CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
+                        throw new RuntimeException("Dat cho nay da duoc huy");
                 }
                 if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Không thể hủy đặt chỗ đã hoàn thành");
+                        throw new RuntimeException("Khong the huy dat cho da hoan thanh");
                 }
 
-                // Check 12-hour rule
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
+                // PROCESSING reservations can be cancelled immediately (user is still
+                // confirming)
+                // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
+                if (!"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                        // Check 12-hour rule for confirmed bookings
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
-                if (now.isAfter(cancelDeadline)) {
-                        long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime()).toHours();
-                        throw new RuntimeException(
-                                        "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
-                                                        "Còn " + hoursUntilStart + " tiếng nữa là đến giờ đặt.");
+                        if (now.isAfter(cancelDeadline)) {
+                                long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime())
+                                                .toHours();
+                                throw new RuntimeException(
+                                                "Khong the huy dat cho. Ban chi co the huy truoc 12 tieng. " +
+                                                                "Con " + hoursUntilStart
+                                                                + " tieng nua la den gio dat.");
+                        }
                 }
 
                 reservation.setStatus("CANCEL");

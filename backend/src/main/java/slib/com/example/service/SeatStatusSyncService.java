@@ -36,67 +36,89 @@ public class SeatStatusSyncService {
     }
 
     /**
-     * Cập nhật seat status với reservation status cụ thể
-     * Dùng khi vừa tạo/update reservation và seat chưa refresh
+     * Cập nhật seat status dựa trên reservation status và thời gian thực
+     * 
+     * LOGIC CHÍNH:
+     * - PROCESSING → seat = HOLDING (ngay lập tức, luôn luôn)
+     * - BOOKED/CONFIRMED + đang trong khung giờ → seat = BOOKED
+     * - BOOKED/CONFIRMED + chưa đến giờ → seat = AVAILABLE
+     * - CANCEL/EXPIRED → seat = AVAILABLE
      */
     public void updateSeatStatus(SeatEntity seat, LocalDateTime startTime, LocalDateTime endTime,
             String reservationStatus) {
         LocalDateTime now = LocalDateTime.now();
+        boolean isInTimeSlot = !now.isBefore(startTime) && now.isBefore(endTime);
 
-        // Chỉ update seat_status nếu reservation đang trong khung giờ hiện tại
-        boolean isCurrentlyActive = !now.isBefore(startTime) && now.isBefore(endTime);
+        SeatStatus newStatus = calculateSeatStatus(reservationStatus, isInTimeSlot);
 
-        if (isCurrentlyActive) {
-            SeatStatus newStatus;
-
-            if (reservationStatus != null) {
-                // Dùng reservation status được truyền vào (khi seat chưa refresh)
-                if ("BOOKED".equalsIgnoreCase(reservationStatus)) {
-                    newStatus = SeatStatus.BOOKED;
-                } else if ("PROCESSING".equalsIgnoreCase(reservationStatus)) {
-                    newStatus = SeatStatus.HOLDING;
-                } else if ("CANCEL".equalsIgnoreCase(reservationStatus)
-                        || "EXPIRED".equalsIgnoreCase(reservationStatus)) {
-                    newStatus = SeatStatus.AVAILABLE;
-                } else {
-                    newStatus = calculateCurrentStatus(seat, now);
-                }
-            } else {
-                // Tính status mới dựa trên reservations từ DB
-                newStatus = calculateCurrentStatus(seat, now);
-            }
-
-            if (seat.getSeatStatus() != newStatus) {
-                seat.setSeatStatus(newStatus);
-                seatRepository.save(seat);
-
-                // Broadcast qua WebSocket
-                broadcastSeatUpdate(seat, newStatus.name());
-            }
+        if (newStatus != null && seat.getSeatStatus() != newStatus) {
+            seat.setSeatStatus(newStatus);
+            seatRepository.save(seat);
+            broadcastSeatUpdate(seat, newStatus.name());
         }
     }
 
     /**
-     * Tính status của ghế dựa trên reservations active tại thời điểm now
+     * Tính seat status dựa trên reservation status và thời gian
+     */
+    private SeatStatus calculateSeatStatus(String reservationStatus, boolean isInTimeSlot) {
+        if (reservationStatus == null) {
+            return null;
+        }
+
+        String status = reservationStatus.toUpperCase();
+
+        switch (status) {
+            case "PROCESSING":
+                // User đang chọn ghế → luôn HOLDING
+                return SeatStatus.HOLDING;
+
+            case "BOOKED":
+            case "CONFIRMED":
+                // Đã đặt → BOOKED nếu đang trong khung giờ, AVAILABLE nếu chưa đến
+                return isInTimeSlot ? SeatStatus.BOOKED : SeatStatus.AVAILABLE;
+
+            case "CANCEL":
+            case "CANCELLED":
+            case "EXPIRED":
+                // Hủy hoặc hết hạn → AVAILABLE
+                return SeatStatus.AVAILABLE;
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Tính status của ghế dựa trên tất cả reservations active tại thời điểm now
+     * Dùng cho recalculate khi không biết reservation cụ thể
      */
     private SeatStatus calculateCurrentStatus(SeatEntity seat, LocalDateTime now) {
+        // Tìm reservation đang active (PROCESSING, BOOKED, hoặc CONFIRMED)
         var activeReservation = seat.getReservation().stream()
                 .filter(r -> {
-                    String status = r.getStatus();
-                    boolean isActiveStatus = "BOOKED".equalsIgnoreCase(status) ||
-                            "PROCESSING".equalsIgnoreCase(status);
-                    boolean isInTimeRange = !now.isBefore(r.getStartTime()) &&
-                            now.isBefore(r.getEndTime());
-                    return isActiveStatus && isInTimeRange;
+                    String status = r.getStatus().toUpperCase();
+
+                    // PROCESSING: luôn active (không cần kiểm tra time)
+                    if ("PROCESSING".equals(status)) {
+                        return true;
+                    }
+
+                    // BOOKED/CONFIRMED: chỉ active nếu đang trong khung giờ
+                    if ("BOOKED".equals(status) || "CONFIRMED".equals(status)) {
+                        return !now.isBefore(r.getStartTime()) && now.isBefore(r.getEndTime());
+                    }
+
+                    return false;
                 })
                 .findFirst();
 
         if (activeReservation.isPresent()) {
-            String reservStatus = activeReservation.get().getStatus();
-            if ("BOOKED".equalsIgnoreCase(reservStatus)) {
-                return SeatStatus.BOOKED;
-            } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
+            String status = activeReservation.get().getStatus().toUpperCase();
+            if ("PROCESSING".equals(status)) {
                 return SeatStatus.HOLDING;
+            } else {
+                return SeatStatus.BOOKED;
             }
         }
 
@@ -150,9 +172,10 @@ public class SeatStatusSyncService {
     public void setBooked(SeatEntity seat) {
         LocalDateTime now = LocalDateTime.now();
 
-        // Check nếu có reservation BOOKED đang active
+        // Check nếu có reservation BOOKED hoặc CONFIRMED đang active
         var activeBooked = seat.getReservation().stream()
-                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus()) &&
+                .filter(r -> ("BOOKED".equalsIgnoreCase(r.getStatus()) || "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                        &&
                         !now.isBefore(r.getStartTime()) &&
                         now.isBefore(r.getEndTime()))
                 .findFirst();
