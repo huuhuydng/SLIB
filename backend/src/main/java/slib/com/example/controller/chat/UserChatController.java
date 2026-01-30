@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-// 👇 Import các DTO và Entity cần thiết
+// Import các DTO và Entity cần thiết
 import slib.com.example.dto.chat.ChatMessageDTO;
 import slib.com.example.dto.chat.ChatPartnerDTO;
 import slib.com.example.dto.chat.ConversationDTO;
@@ -117,18 +117,18 @@ public class UserChatController {
         return ResponseEntity.ok(pageIndex);
     }
 
-    // 👇 [SỬA] 5. API Lấy số lượng tin chưa đọc
+    // [FIX] 5. API Lấy số lượng tin chưa đọc
     @GetMapping("/unread-count")
     public ResponseEntity<Long> getUnreadCount(@AuthenticationPrincipal UserDetails userDetails) {
         UUID myId = getCurrentUserId(userDetails);
 
-        // ❌ LỖI CŨ: messageRepository.countUnreadMessages(myId);
+        // BUG FIX: messageRepository.countUnreadMessages(myId);
         long count = chatService.getUnreadCount(myId);
 
         return ResponseEntity.ok(count);
     }
 
-    // 👇 [SỬA] 6. API Đánh dấu đã đọc
+    // [FIX] 6. API Đánh dấu đã đọc
     @PostMapping("/mark-read")
     public ResponseEntity<Void> markAsRead(
             @RequestBody Map<String, String> payload,
@@ -140,7 +140,7 @@ public class UserChatController {
         // 1. Cập nhật Database (is_read = true)
         chatService.markMessagesAsRead(myId, partnerId);
 
-        // 2. 👇 GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
+        // 2. GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
         messagingTemplate.convertAndSend(
                 "/topic/chat/seen/" + partnerId,
                 Map.of("partnerId", myId));

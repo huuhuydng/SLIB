@@ -42,7 +42,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", user.getEmail());
         claims.put("role", user.getRole().name());
-        claims.put("studentCode", user.getStudentCode());
+        claims.put("userCode", user.getUserCode());
         claims.put("type", "access");
 
         return buildToken(claims, user.getEmail(), accessTokenExpiration);
@@ -85,8 +85,8 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("role", String.class));
     }
 
-    public String extractStudentCode(String token) {
-        return extractClaim(token, claims -> claims.get("studentCode", String.class));
+    public String extractUserCode(String token) {
+        return extractClaim(token, claims -> claims.get("userCode", String.class));
     }
 
     public String extractTokenType(String token) {

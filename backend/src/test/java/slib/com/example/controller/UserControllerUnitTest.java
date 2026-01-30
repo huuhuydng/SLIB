@@ -76,7 +76,7 @@ class UserControllerUnitTest {
                                 .id(UUID.randomUUID().toString())
                                 .email("john.doe@fpt.edu.vn")
                                 .fullName("John Doe")
-                                .studentCode("DE123456")
+                                .userCode("DE123456")
                                 .role("STUDENT")
                                 .expiresIn(3600L)
                                 .build();
@@ -184,7 +184,7 @@ class UserControllerUnitTest {
                                 .id(UUID.randomUUID())
                                 .email(email)
                                 .fullName("Test User")
-                                .studentCode("SV001")
+                                .userCode("SV001")
                                 .role("STUDENT")
                                 .isActive(true)
                                 .build();
@@ -197,7 +197,7 @@ class UserControllerUnitTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.email").value(email))
                                 .andExpect(jsonPath("$.fullName").value("Test User"))
-                                .andExpect(jsonPath("$.studentCode").value("SV001"))
+                                .andExpect(jsonPath("$.userCode").value("SV001"))
                                 .andExpect(jsonPath("$.role").value("STUDENT"))
                                 .andExpect(jsonPath("$.active").value(true));
 
@@ -250,20 +250,20 @@ class UserControllerUnitTest {
                                 .id(userId)
                                 .email(email)
                                 .fullName("Old Name")
-                                .studentCode("SV001")
+                                .userCode("SV001")
                                 .role("STUDENT")
                                 .isActive(true)
                                 .build();
 
                 User updateRequest = new User();
                 updateRequest.setFullName("Updated Name");
-                updateRequest.setStudentCode("SV002");
+                updateRequest.setUserCode("SV002");
 
                 User updatedUser = new User();
                 updatedUser.setId(userId);
                 updatedUser.setEmail(email);
                 updatedUser.setFullName("Updated Name");
-                updatedUser.setStudentCode("SV002");
+                updatedUser.setUserCode("SV002");
 
                 when(userService.getMyProfile(email)).thenReturn(currentProfile);
                 when(userService.updateUser(eq(userId), any(User.class))).thenReturn(updatedUser);
@@ -276,7 +276,7 @@ class UserControllerUnitTest {
                                 .andExpect(jsonPath("$.id").value(userId.toString()))
                                 .andExpect(jsonPath("$.email").value(email))
                                 .andExpect(jsonPath("$.fullName").value("Updated Name"))
-                                .andExpect(jsonPath("$.studentCode").value("SV002"));
+                                .andExpect(jsonPath("$.userCode").value("SV002"));
 
                 verify(userService, times(1)).getMyProfile(email);
                 verify(userService, times(1)).updateUser(eq(userId), any(User.class));
@@ -325,7 +325,7 @@ class UserControllerUnitTest {
                                 .id(userId)
                                 .email(email)
                                 .fullName("Current Name")
-                                .studentCode("SV001")
+                                .userCode("SV001")
                                 .role("STUDENT")
                                 .isActive(true)
                                 .build();

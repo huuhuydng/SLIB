@@ -6,6 +6,8 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.AuthResponse;
@@ -28,6 +30,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${google.client-id}")
     private String googleClientId;
@@ -63,9 +66,9 @@ public class AuthService {
             throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn hoặc email trong whitelist");
         }
 
-        // Extract student code from email (or use email prefix for non-FPT emails)
-        String studentCode = email.endsWith("@fpt.edu.vn")
-                ? extractStudentCode(email)
+        // Extract user code from email (or use email prefix for non-FPT emails)
+        String userCode = email.endsWith("@fpt.edu.vn")
+                ? extractUserCode(email)
                 : email.split("@")[0].toUpperCase();
 
         // Get or create user
@@ -78,10 +81,12 @@ public class AuthService {
 
             user = User.builder()
                     .email(email)
-                    .studentCode(studentCode)
-                    .fullName(fullName != null ? fullName : studentCode)
+                    .userCode(userCode)
+                    .username(userCode)
+                    .fullName(fullName != null ? fullName : userCode)
                     .role(Role.STUDENT)
                     .isActive(true)
+                    .passwordChanged(true) // Google users don't need password change
                     .notiDevice(fcmToken)
                     .build();
             user = userRepository.save(user);
@@ -109,9 +114,10 @@ public class AuthService {
                 .id(user.getId().toString())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .studentCode(user.getStudentCode())
+                .userCode(user.getUserCode())
                 .role(user.getRole().name())
                 .expiresIn(3600L) // 1 hour in seconds
+                .passwordChanged(user.getPasswordChanged() != null ? user.getPasswordChanged() : false)
                 .build();
     }
 
@@ -148,9 +154,10 @@ public class AuthService {
                 .id(user.getId().toString())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .studentCode(user.getStudentCode())
+                .userCode(user.getUserCode())
                 .role(user.getRole().name())
                 .expiresIn(3600L)
+                .passwordChanged(user.getPasswordChanged() != null ? user.getPasswordChanged() : false)
                 .build();
     }
 
@@ -171,6 +178,128 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại"));
         refreshTokenRepository.revokeAllByUserId(user.getId());
+    }
+
+    // ==========================================
+    // === PASSWORD AUTHENTICATION ===
+    // ==========================================
+
+    /**
+     * Default password for imported users
+     */
+    private static final String DEFAULT_PASSWORD = "Slib@2025";
+
+    /**
+     * Login with email/username/MSSV and password
+     */
+    @Transactional
+    public AuthResponse loginWithPassword(String identifier, String password, String deviceInfo) {
+        // Tìm user bằng email hoặc username hoặc userCode (MSSV)
+        User user = userRepository.findByEmailOrUsernameOrUserCode(identifier, identifier, identifier)
+                .orElseThrow(() -> new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("Tài khoản đã bị khóa");
+        }
+
+        if (user.getPassword() == null || user.getPassword().isEmpty()) {
+            throw new RuntimeException(
+                    "Tài khoản chưa được thiết lập mật khẩu. Vui lòng liên hệ admin hoặc sử dụng đăng nhập Google.");
+        }
+
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Tài khoản hoặc mật khẩu không đúng");
+        }
+
+        // Generate tokens
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        // Revoke all old refresh tokens before saving new one (single device policy)
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+
+        // Save refresh token hash to database
+        saveRefreshToken(user, refreshToken, deviceInfo);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .id(user.getId().toString())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .userCode(user.getUserCode())
+                .role(user.getRole().name())
+                .expiresIn(3600L)
+                .passwordChanged(user.getPasswordChanged() != null ? user.getPasswordChanged() : false)
+                .build();
+    }
+
+    /**
+     * Change password for authenticated user
+     */
+    @Transactional
+    public void changePassword(String email, String currentPassword, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        // If user has a password set, verify current password
+        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                throw new RuntimeException("Mật khẩu hiện tại không đúng");
+            }
+        }
+
+        // Validate new password
+        validatePassword(newPassword);
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChanged(true);
+        userRepository.save(user);
+    }
+
+    /**
+     * Admin reset password for user
+     */
+    @Transactional
+    public void adminResetPassword(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
+        user.setPasswordChanged(false);
+        userRepository.save(user);
+
+        // Revoke all refresh tokens to force re-login
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+    }
+
+    /**
+     * Validate password strength
+     */
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 8 ký tự");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 1 chữ hoa");
+        }
+        if (!password.matches(".*[a-z].*")) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 1 chữ thường");
+        }
+        if (!password.matches(".*[0-9].*")) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 1 số");
+        }
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
+            throw new RuntimeException("Mật khẩu phải có ít nhất 1 ký tự đặc biệt");
+        }
+    }
+
+    /**
+     * Encode password for new user import
+     */
+    public String encodeDefaultPassword() {
+        return passwordEncoder.encode(DEFAULT_PASSWORD);
     }
 
     // ==========================================
@@ -195,7 +324,7 @@ public class AuthService {
         }
     }
 
-    private String extractStudentCode(String email) {
+    private String extractUserCode(String email) {
         String emailPrefix = email.split("@")[0].toUpperCase();
         Pattern pattern = Pattern.compile("([A-Z]{2}\\d{4,})");
         Matcher matcher = pattern.matcher(emailPrefix);

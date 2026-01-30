@@ -203,6 +203,8 @@ class _SettingScreenState extends State<SettingScreen> {
     String firstLetter = (user?.fullName.isNotEmpty ?? false)
         ? user!.fullName[0].toUpperCase()
         : "S";
+    
+    final hasAvatar = user?.avtUrl != null && user!.avtUrl!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -234,14 +236,17 @@ class _SettingScreenState extends State<SettingScreen> {
             child: CircleAvatar(
               radius: 30,
               backgroundColor: AppColors.brandColor.withOpacity(0.1),
-              child: Text(
-                firstLetter,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.brandColor,
-                ),
-              ),
+              backgroundImage: hasAvatar ? NetworkImage(user!.avtUrl!) : null,
+              child: !hasAvatar
+                  ? Text(
+                      firstLetter,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.brandColor,
+                      ),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),

@@ -239,7 +239,44 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           )
                         else
-                          const SizedBox.shrink(),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SectionTitle("Tin tức thư viện"),
+                              const SizedBox(height: 12),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Colors.grey[200]!),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.article_outlined, size: 48, color: Colors.grey[400]),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Chưa có thông tin',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Tin tức mới sẽ xuất hiện tại đây',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[400],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         // --------------------
                       ],
                     ),

@@ -24,4 +24,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     // Delete all reservations by user ID (for cascade delete when user is deleted)
     void deleteByUser_Id(UUID userId);
+
+    // Count total bookings by user ID
+    long countByUserId(UUID userId);
 }

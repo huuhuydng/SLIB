@@ -64,12 +64,18 @@ class AuthService extends ChangeNotifier {
         }
         notifyListeners();
         return true;
-      } else {
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        // Only logout on auth errors, not on 404 or other errors
         await logout();
+        return false;
+      } else {
+        // Network/server error - don't logout, just return false
+        print("Check login failed with status: ${response.statusCode}");
         return false;
       }
     } catch (e) {
       print("Check login error: $e");
+      // Network error - don't logout, token might still be valid
       return false;
     }
   }
@@ -122,13 +128,14 @@ class AuthService extends ChangeNotifier {
           id: jsonMap['id'] ?? '',
           email: jsonMap['email'] ?? '',
           fullName: jsonMap['fullName'] ?? '',
-          studentCode: jsonMap['studentCode'] ?? '',
+          userCode: jsonMap['userCode'] ?? jsonMap['studentCode'] ?? '',
           role: jsonMap['role'] ?? 'STUDENT',
           reputationScore: jsonMap['reputationScore'] ?? 100,
           isActive: jsonMap['isActive'] ?? true,
+          passwordChanged: jsonMap['passwordChanged'] ?? true,
         );
         
-        await _saveStudentCode(_currentUser!.studentCode);
+        await _saveUserCode(_currentUser!.userCode);
         await HceBridge.setUserId(_currentUser!.id);
         await _fetchAndSyncSettings(_currentUser!.id);
 
@@ -141,6 +148,128 @@ class AuthService extends ChangeNotifier {
       if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
       print('Google Sign-In Error: $e');
       throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
+    }
+  }
+
+  /// Sign in with email/username/MSSV and password
+  Future<UserProfile?> signInWithPassword(String identifier, String password) async {
+    try {
+      String? fcmToken;
+      try {
+        fcmToken = await FirebaseMessaging.instance.getToken();
+      } catch (_) {}
+
+      final response = await http.post(
+        Uri.parse('${ApiConstants.authBaseUrl}/login'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Info': 'mobile-app',
+        },
+        body: jsonEncode({
+          'identifier': identifier,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final jsonMap = jsonDecode(decodedBody);
+
+        final String accessToken = jsonMap['accessToken'] ?? jsonMap['access_token'];
+        final String? refreshToken = jsonMap['refreshToken'];
+        
+        await _saveToken(accessToken);
+        if (refreshToken != null) {
+          await _saveRefreshToken(refreshToken);
+        }
+
+        _currentUser = UserProfile(
+          id: jsonMap['id'] ?? '',
+          email: jsonMap['email'] ?? '',
+          fullName: jsonMap['fullName'] ?? '',
+          userCode: jsonMap['userCode'] ?? '',
+          role: jsonMap['role'] ?? 'STUDENT',
+          reputationScore: jsonMap['reputationScore'] ?? 100,
+          isActive: jsonMap['isActive'] ?? true,
+          passwordChanged: jsonMap['passwordChanged'] ?? false,
+        );
+        
+        await _saveUserCode(_currentUser!.userCode);
+        await HceBridge.setUserId(_currentUser!.id);
+
+        // Sync FCM token after password login
+        if (fcmToken != null) {
+          syncFcmToken(_currentUser!.id);
+        }
+        
+        await _fetchAndSyncSettings(_currentUser!.id);
+
+        notifyListeners();
+        return _currentUser;
+      } else {
+        final errorBody = utf8.decode(response.bodyBytes);
+        String errorMessage;
+        try {
+          final jsonError = jsonDecode(errorBody);
+          errorMessage = jsonError['message'] ?? jsonError['error'] ?? errorBody;
+        } catch (_) {
+          errorMessage = errorBody;
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('Password Sign-In Error: $e');
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
+    }
+  }
+
+  /// Change password for authenticated user
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    try {
+      String? token = await getToken();
+      if (token == null) {
+        throw Exception('Bạn chưa đăng nhập');
+      }
+
+      final response = await http.post(
+        Uri.parse('${ApiConstants.authBaseUrl}/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Update local user state
+        if (_currentUser != null) {
+          _currentUser = _currentUser!.copyWith(passwordChanged: true);
+          notifyListeners();
+        }
+      } else {
+        final errorBody = utf8.decode(response.bodyBytes);
+        String errorMessage;
+        try {
+          final jsonError = jsonDecode(errorBody);
+          errorMessage = jsonError['message'] ?? jsonError['error'] ?? errorBody;
+        } catch (_) {
+          errorMessage = errorBody;
+        }
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
     }
   }
 
@@ -215,7 +344,7 @@ class AuthService extends ChangeNotifier {
   Future<String?> getToken() async => await _storage.read(key: 'jwt_token');
   Future<void> _saveRefreshToken(String token) async => await _storage.write(key: 'refresh_token', value: token);
   Future<String?> getRefreshToken() async => await _storage.read(key: 'refresh_token');
-  Future<void> _saveStudentCode(String code) async => await _storage.write(key: 'student_code', value: code);
+  Future<void> _saveUserCode(String code) async => await _storage.write(key: 'user_code', value: code);
   
   Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
     if (_currentUser != null && !forceRefresh) return _currentUser;
