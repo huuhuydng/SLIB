@@ -5,6 +5,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/main_screen.dart';
 import 'package:slib/views/authentication/change_password_screen.dart';
+import 'package:slib/views/authentication/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -330,7 +331,10 @@ class _LoginScreenState extends State<LoginScreen> {
               // Link quen mat khau
               GestureDetector(
                 onTap: () {
-                  _showErrorSnackBar("Vui lòng liên hệ thư viện để được hỗ trợ");
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                  );
                 },
                 child: const Text(
                   "Quên mật khẩu ?",

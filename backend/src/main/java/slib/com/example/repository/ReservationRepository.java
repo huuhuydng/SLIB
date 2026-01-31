@@ -1,6 +1,8 @@
 package slib.com.example.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import slib.com.example.entity.booking.ReservationEntity;
@@ -27,4 +29,17 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
     // Count total bookings by user ID
     long countByUserId(UUID userId);
+
+    /**
+     * Find overlapping active reservations for a seat in a time range.
+     * Overlap logic: (start_time < query_end) AND (end_time > query_start)
+     * Only includes PROCESSING, BOOKED, or CONFIRMED statuses.
+     */
+    @Query("SELECT r FROM ReservationEntity r WHERE r.seat.seatId = :seatId " +
+            "AND r.status IN ('PROCESSING', 'BOOKED', 'CONFIRMED') " +
+            "AND r.startTime < :endTime AND r.endTime > :startTime")
+    List<ReservationEntity> findOverlappingReservations(
+            @Param("seatId") Integer seatId,
+            @Param("startTime") LocalDateTime startTime,
+            @Param("endTime") LocalDateTime endTime);
 }

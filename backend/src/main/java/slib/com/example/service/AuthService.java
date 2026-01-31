@@ -275,6 +275,26 @@ public class AuthService {
     }
 
     /**
+     * Update password (after OTP verification - no current password required)
+     */
+    @Transactional
+    public void updatePassword(String email, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại"));
+
+        // Validate new password
+        validatePassword(newPassword);
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChanged(true);
+        userRepository.save(user);
+
+        // Revoke all refresh tokens to force re-login
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+    }
+
+    /**
      * Validate password strength
      */
     private void validatePassword(String password) {

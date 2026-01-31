@@ -20,6 +20,7 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
+    private final SeatAvailabilityService seatAvailabilityService;
 
     // ================= GET =================
 
@@ -44,7 +45,6 @@ public class SeatService {
     }
 
     // ================= CREATE =================
-    // FE gửi: zoneId, rowNumber, columnNumber, seatCode, seatStatus
     public SeatResponse createSeat(SeatResponse req) {
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
@@ -63,7 +63,7 @@ public class SeatService {
                 .rowNumber(rowNumber)
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
-                .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
+                .isActive(true) // New seats are active by default
                 .build();
 
         return toResponse(seatRepository.save(seat));
@@ -77,14 +77,14 @@ public class SeatService {
         if (req.getSeatCode() != null) {
             seat.setSeatCode(req.getSeatCode());
         }
-        if (req.getSeatStatus() != null) {
-            seat.setSeatStatus(req.getSeatStatus());
-        }
         if (req.getColumnNumber() != null) {
             seat.setColumnNumber(req.getColumnNumber());
         }
         if (req.getRowNumber() != null) {
             seat.setRowNumber(req.getRowNumber());
+        }
+        if (req.getIsActive() != null) {
+            seat.setIsActive(req.getIsActive());
         }
 
         return toResponse(seatRepository.save(seat));
@@ -110,12 +110,21 @@ public class SeatService {
         res.setSeatId(seat.getSeatId());
         res.setZoneId(seat.getZone().getZoneId());
         res.setSeatCode(seat.getSeatCode());
-        res.setSeatStatus(seat.getSeatStatus());
         res.setRowNumber(seat.getRowNumber());
         res.setColumnNumber(seat.getColumnNumber());
+        res.setIsActive(seat.getIsActive());
+
+        // Calculate status dynamically for current moment
+        SeatStatus status = seatAvailabilityService.calculateCurrentStatus(seat);
+        res.setSeatStatus(status);
+
         return res;
     }
 
+    /**
+     * Get seats with calculated status for a specific time range.
+     * This is the main method for booking UI to display seat availability.
+     */
     public List<SeatResponse> getSeatsByTimeRange(String startTimeStr, String endTimeStr, Integer zoneId) {
         // Parse ISO 8601 time strings (e.g., "2026-01-20T13:00:00")
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
@@ -130,35 +139,17 @@ public class SeatService {
 
         return seats.stream()
                 .map(seat -> {
-                    SeatResponse response = toResponse(seat);
+                    SeatResponse response = new SeatResponse();
+                    response.setSeatId(seat.getSeatId());
+                    response.setZoneId(seat.getZone().getZoneId());
+                    response.setSeatCode(seat.getSeatCode());
+                    response.setRowNumber(seat.getRowNumber());
+                    response.setColumnNumber(seat.getColumnNumber());
+                    response.setIsActive(seat.getIsActive());
 
-                    // Tính toán status động dựa trên reservations trong time range
-                    boolean isBookedInTimeRange = seat.getReservation().stream()
-                            .anyMatch(r -> {
-                                String status = r.getStatus();
-                                boolean isActiveStatus = "BOOKED".equalsIgnoreCase(status)
-                                        || "PROCESSING".equalsIgnoreCase(status)
-                                        || "CONFIRMED".equalsIgnoreCase(status);
-
-                                if (!isActiveStatus) {
-                                    return false;
-                                }
-
-                                // Kiểm tra overlap: reservation có giao với time range không
-                                LocalDateTime resStart = r.getStartTime();
-                                LocalDateTime resEnd = r.getEndTime();
-
-                                return resStart.isBefore(endTime) && resEnd.isAfter(startTime);
-                            });
-
-                    // Nếu seat có status UNAVAILABLE trong DB, ưu tiên status này
-                    if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
-                        response.setSeatStatus(SeatStatus.UNAVAILABLE);
-                    } else if (isBookedInTimeRange) {
-                        response.setSeatStatus(SeatStatus.BOOKED);
-                    } else {
-                        response.setSeatStatus(SeatStatus.AVAILABLE);
-                    }
+                    // Calculate status dynamically for the requested time range
+                    SeatStatus status = seatAvailabilityService.calculateStatus(seat, startTime, endTime);
+                    response.setSeatStatus(status);
 
                     return response;
                 })
@@ -166,24 +157,24 @@ public class SeatService {
     }
 
     /**
-     * Hạn chế ghế theo seatId (unique ID)
+     * Restrict (disable) a seat by seatId
      */
     public SeatResponse restrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
-        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
+        seat.setIsActive(false);
         return toResponse(seatRepository.save(seat));
     }
 
     /**
-     * Bỏ hạn chế ghế theo seatId
+     * Unrestrict (enable) a seat by seatId
      */
     public void unrestrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
-        seat.setSeatStatus(SeatStatus.AVAILABLE);
+        seat.setIsActive(true);
         seatRepository.save(seat);
     }
 
@@ -196,7 +187,7 @@ public class SeatService {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
 
-        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
+        seat.setIsActive(false);
         return toResponse(seatRepository.save(seat));
     }
 
@@ -209,7 +200,7 @@ public class SeatService {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
 
-        seat.setSeatStatus(SeatStatus.AVAILABLE);
+        seat.setIsActive(true);
         seatRepository.save(seat);
     }
 }

@@ -4,7 +4,7 @@ import {
   AlertTriangle, BookOpen, Send, User, RotateCcw, Database, Upload, FileText,
   FolderOpen, Package, Layers, Edit, ChevronDown, ChevronRight
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 import { testAPIConnection, sendTestMessage } from '../../../services/admin/ai/pythonAiApi';
 import {
   getMaterials, createMaterial, deleteMaterial, addTextItem, addFileItem, deleteItem,
@@ -419,7 +419,7 @@ const AIConfig = () => {
             </div>
             <input placeholder="Name" value={ksForm.name} onChange={e => setKsForm({ ...ksForm, name: e.target.value })} style={{ ...inputStyle, marginBottom: '12px' }} />
             <textarea placeholder="Description" value={ksForm.description} onChange={e => setKsForm({ ...ksForm, description: e.target.value })} style={{ ...inputStyle, minHeight: '60px', marginBottom: '16px' }} />
-            
+
             <h4 style={{ margin: '0 0 12px', fontSize: '14px' }}>Select Material</h4>
             <select value={selectedMaterialForKS || ''} onChange={e => setSelectedMaterialForKS(e.target.value ? Number(e.target.value) : null)} style={{ ...inputStyle, marginBottom: '16px' }}>
               <option value="">-- Chọn Material --</option>

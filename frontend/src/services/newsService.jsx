@@ -174,7 +174,8 @@ export const uploadImage = async (file) => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     console.log('✅ Image upload success:', response.data);
-    return response.data;
+    // Backend returns { url: "...", type: "IMAGE" }, extract just the URL
+    return response.data.url || response.data;
   } catch (error) {
     console.error('❌ Image upload error:', error);
     throw new Error(error.response?.data?.message || 'Upload failed');

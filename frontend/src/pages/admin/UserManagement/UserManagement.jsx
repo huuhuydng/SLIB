@@ -21,8 +21,10 @@ import {
   RefreshCw,
   Loader2
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 import userService from '../../../services/userService';
+import UserDetailsModal from '../../../components/admin/UserDetailsModal';
+import DeleteUserModal from '../../../components/admin/DeleteUserModal';
 
 const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'STUDENT'];
 const STATUSES = ['Tất cả', 'Hoạt động', 'Đã khóa'];
@@ -43,6 +45,8 @@ const UserManagement = () => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(null);
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Import state
   const [importStep, setImportStep] = useState('upload'); // upload, processing, preview, uploading, result
@@ -1000,6 +1004,22 @@ const UserManagement = () => {
                                 overflow: 'hidden'
                               }}>
                                 <div
+                                  onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}
+                                  style={{
+                                    padding: '12px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Eye size={16} color="#2563EB" />
+                                  <span style={{ fontSize: '14px', color: '#2563EB' }}>Xem chi tiết</span>
+                                </div>
+                                <div
                                   onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}
                                   style={{
                                     padding: '12px 16px',
@@ -1039,6 +1059,23 @@ const UserManagement = () => {
                                 >
                                   <Key size={16} color="#7C3AED" />
                                   <span style={{ fontSize: '14px', color: '#7C3AED' }}>Reset mật khẩu</span>
+                                </div>
+                                <div
+                                  onClick={() => { setSelectedUser(user); setShowDeleteModal(true); setShowActionMenu(null); }}
+                                  style={{
+                                    padding: '12px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s',
+                                    borderTop: '1px solid #E2E8F0'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#FEF2F2'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Trash2 size={16} color="#DC2626" />
+                                  <span style={{ fontSize: '14px', color: '#DC2626' }}>Xóa tài khoản</span>
                                 </div>
                               </div>
                             )}
@@ -1985,6 +2022,38 @@ const UserManagement = () => {
           </div>
         </div>
       )}
+
+      {/* User Details Modal */}
+      <UserDetailsModal
+        user={selectedUser}
+        isOpen={showUserDetailsModal}
+        onClose={() => { setShowUserDetailsModal(false); setSelectedUser(null); }}
+        onEdit={(user) => {
+          setShowUserDetailsModal(false);
+          // TODO: Open edit modal
+          alert('Tính năng chỉnh sửa đang phát triển');
+        }}
+        onLock={(user) => {
+          setShowUserDetailsModal(false);
+          setShowLockModal(true);
+        }}
+        onDelete={(user) => {
+          setShowUserDetailsModal(false);
+          setShowDeleteModal(true);
+        }}
+      />
+
+      {/* Delete User Modal */}
+      <DeleteUserModal
+        user={selectedUser}
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setSelectedUser(null); }}
+        onDeleted={() => {
+          fetchUsers();
+          setSelectedUser(null);
+        }}
+        currentUserId={JSON.parse(localStorage.getItem('librarian_user'))?.id}
+      />
 
       <style>{`
         @keyframes spin {

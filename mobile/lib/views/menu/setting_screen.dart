@@ -6,6 +6,7 @@ import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
+import 'package:slib/views/profile/violation_history_screen.dart';
 // import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
@@ -147,7 +148,10 @@ class _SettingScreenState extends State<SettingScreen> {
                 title: "Lịch sử vi phạm",
                 trailingText: "0 vi phạm",
                 onTap: () {
-                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ViolationHistoryScreen()),
+                  );
                 },
               ),
             ]),

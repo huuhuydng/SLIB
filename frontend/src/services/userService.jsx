@@ -333,6 +333,42 @@ class UserService {
     }
 
     /**
+     * Delete a user account (soft delete)
+     * @param {string} userId - User ID to delete
+     * @param {boolean} hardDelete - If true, permanently delete (default: false)
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    async deleteUser(userId, hardDelete = false) {
+        try {
+            console.log('📤 [UserService] Deleting user', userId, hardDelete ? '(HARD)' : '(soft)');
+            const response = await axiosInstance.delete(`/users/${userId}`, {
+                params: { hard: hardDelete }
+            });
+            console.log('✅ [UserService] Delete result:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ [UserService] deleteUser error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Check if user has active bookings
+     * @param {string} userId - User ID to check
+     * @returns {Promise<{hasActiveBookings: boolean, count: number}>}
+     */
+    async checkUserActiveBookings(userId) {
+        try {
+            const response = await axiosInstance.get(`/users/${userId}/active-bookings`);
+            return response.data;
+        } catch (error) {
+            // If endpoint doesn't exist, assume no active bookings
+            console.warn('[UserService] checkUserActiveBookings failed:', error);
+            return { hasActiveBookings: false, count: 0 };
+        }
+    }
+
+    /**
      * Parse Excel file (.xlsx) with Vietnamese column headers
      * @param {File} file - Excel file
      * @returns {Promise<Array>} Array of user objects

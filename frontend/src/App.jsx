@@ -8,15 +8,15 @@ import ChatWidget from "./components/ChatWidget";
 
 
 const ConditionalChatWidget = () => {
-    const location = useLocation(); 
+    const location = useLocation();
 
-    // Danh sách các đường dẫn muốn ẨN bong bóng chat
+    // Danh sach cac duong dan muon AN bong bong chat
     const hiddenRoutes = [
-        '/admin/chat',             
-        '/librarian/chat',          
-        '/admin/login',            // Trang login
-        '/librarian/login',        // Trang login
-        '/login'
+        '/admin/chat',
+        '/librarian/chat',
+        '/login',                   // Trang login chung
+        '/admin/login',             // Redirect cu
+        '/librarian/login'          // Redirect cu
     ];
 
     const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
@@ -60,50 +60,53 @@ function App() {
         if (isLoggedIn && userRole === 'ADMIN') {
             document.title = 'SLIB - Admin';
         } else if (isLoggedIn && userRole === 'LIBRARIAN') {
-            document.title = 'SLIB - Thủ Thư';
+            document.title = 'SLIB - Thu Thu';
         } else {
             document.title = 'SLIB';
         }
     }, [userRole, isLoggedIn]);
 
     if (loading) {
-        return <div>Đang tải...</div>;
+        return <div>Dang tai...</div>;
     }
+
+    // Redirect to appropriate dashboard based on role after login
+    const getDefaultRedirect = () => {
+        if (!isLoggedIn) return '/login';
+        return userRole === 'ADMIN' ? '/admin/dashboard' : '/librarian/dashboard';
+    };
 
     return (
         <ModalProvider>
             <BrowserRouter>
                 <Routes>
-                    {/* Admin Routes */}
-                    <Route path="/admin/login" element={
-                        isLoggedIn && userRole === 'ADMIN'
-                            ? <Navigate to="/admin/dashboard" replace />
+                    {/* Unified Login Route */}
+                    <Route path="/login" element={
+                        isLoggedIn
+                            ? <Navigate to={getDefaultRedirect()} replace />
                             : <AuthPage onLogin={handleLogin} />
                     } />
+
+                    {/* Legacy login routes - redirect to unified login */}
+                    <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+                    <Route path="/librarian/login" element={<Navigate to="/login" replace />} />
+
+                    {/* Admin Routes */}
                     <Route path="/admin/*" element={
                         isLoggedIn && userRole === 'ADMIN'
                             ? <AdminRoutes />
-                            : <Navigate to="/admin/login" replace />
+                            : <Navigate to="/login" replace />
                     } />
 
                     {/* Librarian Routes */}
-                    <Route path="/librarian/login" element={
-                        isLoggedIn && userRole === 'LIBRARIAN'
-                            ? <Navigate to="/librarian/dashboard" replace />
-                            : <AuthPage onLogin={handleLogin} />
-                    } />
                     <Route path="/librarian/*" element={
                         isLoggedIn && userRole === 'LIBRARIAN'
                             ? <LibrarianRoutes />
-                            : <Navigate to="/librarian/login" replace />
+                            : <Navigate to="/login" replace />
                     } />
 
                     {/* Root redirects based on role */}
-                    <Route path="/" element={
-                        isLoggedIn
-                            ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
-                            : <Navigate to="/admin/login" />
-                    } />
+                    <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<Navigate to="/" replace />} />

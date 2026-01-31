@@ -375,4 +375,117 @@ class AuthService extends ChangeNotifier {
       return false;
     }
   }
+
+  // ============ FORGOT PASSWORD METHODS ============
+
+  /// Step 1: Send OTP to email for password reset
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/api/librarian/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email.trim().toLowerCase()}),
+      );
+
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final jsonMap = jsonDecode(decodedBody);
+
+      if (response.statusCode == 200) {
+        return jsonMap;
+      } else {
+        throw Exception(jsonMap['message'] ?? 'Không thể gửi OTP');
+      }
+    } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
+    }
+  }
+
+  /// Step 2: Verify OTP and get reset token
+  Future<String> verifyOtp(String email, String otp) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/api/librarian/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'token': otp,
+          'type': 'recovery',
+        }),
+      );
+
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final jsonMap = jsonDecode(decodedBody);
+
+      if (response.statusCode == 200 && jsonMap['success'] == true) {
+        // Extract access token from result string
+        final resultStr = jsonMap['result'] as String;
+        final resultJson = jsonDecode(resultStr);
+        return resultJson['access_token'];
+      } else {
+        throw Exception(jsonMap['message'] ?? 'Mã OTP không đúng hoặc đã hết hạn');
+      }
+    } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
+    }
+  }
+
+  /// Resend OTP
+  Future<void> resendOtp(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/api/librarian/resend-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+          'type': 'recovery',
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final jsonMap = jsonDecode(decodedBody);
+        throw Exception(jsonMap['message'] ?? 'Không thể gửi lại OTP');
+      }
+    } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
+    }
+  }
+
+  /// Step 3: Reset password with token
+  Future<void> resetPassword(String token, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/api/librarian/update-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'password': newPassword}),
+      );
+
+      if (response.statusCode != 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final jsonMap = jsonDecode(decodedBody);
+        throw Exception(jsonMap['message'] ?? 'Không thể đặt lại mật khẩu');
+      }
+    } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      throw Exception(message);
+    }
+  }
 }
