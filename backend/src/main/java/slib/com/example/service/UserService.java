@@ -3,7 +3,9 @@ package slib.com.example.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.AccessLogRepository;
 import slib.com.example.repository.RefreshTokenRepository;
@@ -15,7 +17,10 @@ import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.ai.ChatSessionRepository;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -35,6 +40,7 @@ public class UserService {
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
     private final ChatSessionRepository chatSessionRepository;
+    private final AuthService authService;
 
     /**
      * Get current user profile by email
@@ -47,9 +53,14 @@ public class UserService {
                 .id(user.getId())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
-                .studentCode(user.getStudentCode())
+                .userCode(user.getUserCode())
+                .username(user.getUsername())
                 .role(user.getRole().name())
                 .isActive(user.getIsActive())
+                .dob(user.getDob())
+                .phone(user.getPhone())
+                .avtUrl(user.getAvtUrl())
+                .passwordChanged(user.getPasswordChanged())
                 .build();
     }
 
@@ -69,6 +80,37 @@ public class UserService {
 
         if (req.getNotiDevice() != null && !req.getNotiDevice().isEmpty()) {
             existingUser.setNotiDevice(req.getNotiDevice());
+        }
+        if (req.getPhone() != null) {
+            existingUser.setPhone(req.getPhone());
+        }
+        if (req.getDob() != null) {
+            existingUser.setDob(req.getDob());
+        }
+        if (req.getAvtUrl() != null) {
+            existingUser.setAvtUrl(req.getAvtUrl());
+        }
+        if (req.getFullName() != null && !req.getFullName().isEmpty()) {
+            existingUser.setFullName(req.getFullName());
+        }
+        return userRepository.save(existingUser);
+    }
+
+    /**
+     * Update user profile (for mobile/frontend)
+     */
+    public User updateUserProfile(UUID userId, String fullName, String phone, String avtUrl) {
+        User existingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+
+        if (fullName != null && !fullName.isEmpty()) {
+            existingUser.setFullName(fullName);
+        }
+        if (phone != null) {
+            existingUser.setPhone(phone);
+        }
+        if (avtUrl != null) {
+            existingUser.setAvtUrl(avtUrl);
         }
         return userRepository.save(existingUser);
     }
@@ -95,6 +137,81 @@ public class UserService {
      */
     public boolean existsByEmail(String email) {
         return userRepository.findByEmail(email).isPresent();
+    }
+
+    /**
+     * Import users in bulk (Admin only)
+     * Returns a map with:
+     * - "success": List of successfully imported users
+     * - "failed": List of failed imports with reasons
+     */
+    @Transactional
+    public Map<String, Object> importUsers(List<ImportUserRequest> requests) {
+        List<Map<String, Object>> successList = new ArrayList<>();
+        List<Map<String, Object>> failedList = new ArrayList<>();
+
+        String encodedPassword = authService.encodeDefaultPassword();
+
+        for (ImportUserRequest req : requests) {
+            try {
+                // Validate required fields
+                if (req.getUserCode() == null || req.getUserCode().isEmpty()) {
+                    throw new RuntimeException("User code is required");
+                }
+                if (req.getEmail() == null || req.getEmail().isEmpty()) {
+                    throw new RuntimeException("Email is required");
+                }
+                if (req.getFullName() == null || req.getFullName().isEmpty()) {
+                    throw new RuntimeException("Full name is required");
+                }
+
+                // Check for duplicates
+                if (userRepository.existsByEmail(req.getEmail())) {
+                    throw new RuntimeException("Email already exists: " + req.getEmail());
+                }
+                if (userRepository.existsByUserCode(req.getUserCode())) {
+                    throw new RuntimeException("User code already exists: " + req.getUserCode());
+                }
+
+                // Create user
+                User user = User.builder()
+                        .userCode(req.getUserCode())
+                        .username(req.getUserCode()) // Default username = userCode
+                        .email(req.getEmail())
+                        .fullName(req.getFullName())
+                        .phone(req.getPhone())
+                        .dob(req.getDob())
+                        .role(req.getRole() != null ? req.getRole() : Role.STUDENT)
+                        .password(encodedPassword)
+                        .passwordChanged(false) // New users need to change password
+                        .isActive(true)
+                        .avtUrl(req.getAvtUrl()) // Avatar URL from import
+                        .build();
+
+                User savedUser = userRepository.save(user);
+
+                Map<String, Object> successEntry = new HashMap<>();
+                successEntry.put("id", savedUser.getId());
+                successEntry.put("userCode", savedUser.getUserCode());
+                successEntry.put("email", savedUser.getEmail());
+                successEntry.put("fullName", savedUser.getFullName());
+                successList.add(successEntry);
+
+            } catch (Exception e) {
+                Map<String, Object> failedEntry = new HashMap<>();
+                failedEntry.put("userCode", req.getUserCode());
+                failedEntry.put("email", req.getEmail());
+                failedEntry.put("reason", e.getMessage());
+                failedList.add(failedEntry);
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", successList);
+        result.put("failed", failedList);
+        result.put("successCount", successList.size());
+        result.put("failedCount", failedList.size());
+        return result;
     }
 
     /**
@@ -134,5 +251,23 @@ public class UserService {
 
         // 9. Finally delete the user
         userRepository.delete(user);
+    }
+
+    /**
+     * Lock/unlock user account
+     */
+    @Transactional
+    public User toggleUserActive(UUID userId, boolean isActive) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+
+        user.setIsActive(isActive);
+
+        if (!isActive) {
+            // If locking, revoke all refresh tokens
+            refreshTokenRepository.revokeAllByUserId(userId);
+        }
+
+        return userRepository.save(user);
     }
 }
