@@ -52,7 +52,7 @@ public class InternalChatController {
 
         // Validate API Key
         if (!validateApiKey(apiKey)) {
-            log.warn("❌ Invalid API Key for /internal/chat/reply");
+            log.warn("[InternalChat] Invalid API Key for /internal/chat/reply");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid API Key"));
         }
@@ -98,7 +98,7 @@ public class InternalChatController {
 
             // Gửi WebSocket cho student
             messagingTemplate.convertAndSend("/topic/chat/" + student.getId(), dto);
-            log.info("🤖 AI replied to student {}: {}", student.getId(), request.getContent());
+            log.info("[InternalChat] AI replied to student {}: {}", student.getId(), request.getContent());
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -122,7 +122,7 @@ public class InternalChatController {
 
         // Validate API Key
         if (!validateApiKey(apiKey)) {
-            log.warn("❌ Invalid API Key for /internal/chat/escalate");
+            log.warn("[InternalChat] Invalid API Key for /internal/chat/escalate");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Invalid API Key"));
         }
@@ -144,7 +144,7 @@ public class InternalChatController {
             // Escalate conversation
             ConversationDTO dto = conversationService.escalateToHuman(conversationId, request.getReason());
 
-            log.info("🔔 AI escalated conversation {} to human. Reason: {}",
+            log.info("[InternalChat] AI escalated conversation {} to human. Reason: {}",
                     conversationId, request.getReason());
 
             return ResponseEntity.ok(Map.of(
@@ -181,7 +181,7 @@ public class InternalChatController {
                 .orElseGet(() -> {
                     // Tạo BOT user nếu chưa có
                     User bot = User.builder()
-                            .studentCode("BOT-001")
+                            .userCode("BOT-001")
                             .fullName("AI Assistant")
                             .email(botEmail)
                             .role(Role.STUDENT) // Dùng role STUDENT để đơn giản

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/services/booking_service.dart';
+import 'package:slib/views/home/widgets/nfc_seat_verification_screen.dart';
 
 class BookingActionDialog extends StatefulWidget {
   final UpcomingBooking booking;
@@ -188,60 +190,55 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     }
   }
 
-  void _handleNfcConfirm() {
-    Navigator.pop(context);
-    _showNfcDialog();
-  }
-
-  void _showNfcDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.nfc, size: 60, color: Colors.blue),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Xác nhận chỗ ngồi',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Vui lòng chạm điện thoại vào thẻ NFC trên bàn ${widget.booking.seatCode}',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 20),
-            const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            Text(
-              'Đang chờ đọc thẻ NFC...',
-              style: TextStyle(color: Colors.grey[500], fontSize: 12),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _handleNfcConfirm() async {
+    final bookingService = Provider.of<BookingService>(context, listen: false);
     
-    // TODO: Implement actual NFC reading
-    // For now, simulate NFC read after 2 seconds (for testing)
-    // In production, use nfc_manager package to read NFC tags
+    // Store the root navigator context before popping
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    
+    // Close this dialog first
+    Navigator.pop(context);
+    
+    // Wait a frame for the dialog to fully close
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // Use try-catch to handle any navigation errors
+    try {
+      final result = await NfcVerificationDialog.show(
+        rootContext,
+        seatCode: widget.booking.seatCode,
+        reservationId: widget.booking.reservationId,
+      );
+      
+      if (result == true) {
+        // NFC verification successful - update booking status to CONFIRMED
+        try {
+          await bookingService.updateStatus(widget.booking.reservationId, "CONFIRMED");
+          
+          widget.onActionComplete();
+          if (rootContext.mounted) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              const SnackBar(
+                content: Text('Xác nhận thành công!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (rootContext.mounted) {
+            ScaffoldMessenger.of(rootContext).showSnackBar(
+              SnackBar(
+                content: Text('Lỗi xác nhận: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Navigation error - dialog was already dismissed or context invalid
+      debugPrint('NFC verification navigation error: $e');
+    }
   }
 
   @override

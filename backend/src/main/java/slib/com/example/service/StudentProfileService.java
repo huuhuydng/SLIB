@@ -6,7 +6,10 @@ import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.StudentProfileResponse;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
+import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.StudentProfileRepository;
+import slib.com.example.repository.UserRepository;
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -16,13 +19,19 @@ import java.util.UUID;
 public class StudentProfileService {
 
     private final StudentProfileRepository studentProfileRepository;
+    private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
+    private final ReservationRepository reservationRepository;
 
     /**
      * Get student profile by user ID
      */
     public Optional<StudentProfileResponse> getProfileByUserId(UUID userId) {
         return studentProfileRepository.findByUserId(userId)
-                .map(StudentProfileResponse::fromEntity);
+                .map(profile -> {
+                    long bookingCount = reservationRepository.countByUserId(userId);
+                    return StudentProfileResponse.fromEntity(profile, bookingCount);
+                });
     }
 
     /**
@@ -33,7 +42,8 @@ public class StudentProfileService {
         Optional<StudentProfile> existing = studentProfileRepository.findByUserId(user.getId());
 
         if (existing.isPresent()) {
-            return StudentProfileResponse.fromEntity(existing.get());
+            long bookingCount = reservationRepository.countByUserId(user.getId());
+            return StudentProfileResponse.fromEntity(existing.get(), bookingCount);
         }
 
         // Create new profile with default values
@@ -46,7 +56,7 @@ public class StudentProfileService {
                 .build();
 
         StudentProfile saved = studentProfileRepository.save(newProfile);
-        return StudentProfileResponse.fromEntity(saved);
+        return StudentProfileResponse.fromEntity(saved, 0L);
     }
 
     /**
@@ -83,6 +93,58 @@ public class StudentProfileService {
                     profile.setViolationCount(profile.getViolationCount() + 1);
                     profile.setReputationScore(Math.max(0, profile.getReputationScore() - penaltyPoints));
                     return StudentProfileResponse.fromEntity(studentProfileRepository.save(profile));
+                });
+    }
+
+    /**
+     * Update basic user info (fullName, phone, dob)
+     */
+    @Transactional
+    public Optional<StudentProfileResponse> updateUserInfo(UUID userId,
+            slib.com.example.dto.users.UpdateProfileRequest request) {
+        return userRepository.findById(userId)
+                .map(user -> {
+                    if (request.getFullName() != null && !request.getFullName().isBlank()) {
+                        user.setFullName(request.getFullName());
+                    }
+                    if (request.getPhone() != null) {
+                        user.setPhone(request.getPhone());
+                    }
+                    if (request.getDob() != null) {
+                        try {
+                            user.setDob(java.time.LocalDate.parse(request.getDob()));
+                        } catch (Exception e) {
+                            // Ignore invalid date format
+                        }
+                    }
+                    userRepository.save(user);
+                    return getOrCreateProfile(user);
+                });
+    }
+
+    /**
+     * Update user avatar (xóa avatar cũ trước khi upload mới)
+     */
+    @Transactional
+    public Optional<StudentProfileResponse> updateAvatar(UUID userId,
+            org.springframework.web.multipart.MultipartFile file) throws Exception {
+        return userRepository.findById(userId)
+                .map(user -> {
+                    try {
+                        // Xóa avatar cũ nếu có
+                        String oldAvatarUrl = user.getAvtUrl();
+                        if (oldAvatarUrl != null && !oldAvatarUrl.isEmpty()) {
+                            cloudinaryService.deleteAvatars(java.util.List.of(oldAvatarUrl));
+                        }
+
+                        // Upload avatar mới lên Cloudinary
+                        String avatarUrl = cloudinaryService.uploadAvatar(file);
+                        user.setAvtUrl(avatarUrl);
+                        userRepository.save(user);
+                        return getOrCreateProfile(user);
+                    } catch (Exception e) {
+                        throw new RuntimeException("Lỗi upload avatar: " + e.getMessage());
+                    }
                 });
     }
 }

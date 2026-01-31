@@ -73,7 +73,7 @@ public class ConversationService {
                 // Broadcast cho tất cả Librarian
                 ConversationDTO dto = convertToDTO(saved);
                 messagingTemplate.convertAndSend("/topic/escalate", dto);
-                log.info("🔔 Escalated conversation {} to human. Reason: {}", conversationId, reason);
+                log.info("[Conversation] Escalated conversation {} to human. Reason: {}", conversationId, reason);
 
                 return dto;
         }
@@ -109,7 +109,7 @@ public class ConversationService {
                                                 "librarianName", librarian.getFullName(),
                                                 "conversationId", conversationId));
 
-                log.info("✅ Librarian {} took over conversation {}", librarianId, conversationId);
+                log.info("[Conversation] Librarian {} took over conversation {}", librarianId, conversationId);
                 return convertToDTO(saved);
         }
 

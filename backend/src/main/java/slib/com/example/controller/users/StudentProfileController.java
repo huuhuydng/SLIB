@@ -72,4 +72,32 @@ public class StudentProfileController {
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * Update current user's basic info (fullName, phone, dob)
+     */
+    @PutMapping("/me")
+    public ResponseEntity<StudentProfileResponse> updateMyProfile(
+            @AuthenticationPrincipal User user,
+            @RequestBody slib.com.example.dto.users.UpdateProfileRequest request) {
+        return studentProfileService.updateUserInfo(user.getId(), request)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Upload avatar for current user
+     */
+    @PostMapping("/me/avatar")
+    public ResponseEntity<StudentProfileResponse> uploadAvatar(
+            @AuthenticationPrincipal User user,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            return studentProfileService.updateAvatar(user.getId(), file)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
 }

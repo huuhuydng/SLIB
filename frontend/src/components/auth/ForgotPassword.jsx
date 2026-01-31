@@ -9,7 +9,7 @@ function ForgotPassword({ onSwitch }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   const otpInputs = useRef([]);
 
   // ============ XỬ LÝ OTP INPUT ============
@@ -34,13 +34,13 @@ function ForgotPassword({ onSwitch }) {
   // ============ BƯỚC 1: GỬI OTP ============
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !email.trim()) {
       alert("Vui lòng nhập email!");
       return;
     }
-    
+
     if (!emailRegex.test(email)) {
       alert("Email không đúng định dạng!");
       return;
@@ -48,37 +48,40 @@ function ForgotPassword({ onSwitch }) {
 
     try {
       setLoading(true);
-      
+
       const cleanEmail = email.trim().toLowerCase();
       console.log('🟡 [ForgotPassword] Sending OTP to:', cleanEmail);
-      
+
       const response = await librarianService.forgotPassword(cleanEmail);
-      
+
       console.log('✅ [ForgotPassword] Response:', response);
       alert(`${response.message || 'Mã OTP đã được gửi đến email của bạn!'}`);
       setStep(2);
-      
+
     } catch (err) {
       console.error('❌ [ForgotPassword] Full error:', err);
-      
+
       let errorMessage = "Không thể gửi OTP. Vui lòng thử lại.";
-      
+
       if (err.response) {
-        if (err.response.status === 403) {
-          errorMessage = "Lỗi xác thực (403). Vui lòng kiểm tra kết nối.";
+        if (err.response.status === 400) {
+          // Business errors from backend (email not found, no email, etc.)
+          errorMessage = err.response.data?.message || "Email không hợp lệ";
+        } else if (err.response.status === 403) {
+          errorMessage = "Lỗi xác thực. Vui lòng thử lại.";
         } else if (err.response.status === 404) {
           errorMessage = "API không tồn tại. Vui lòng kiểm tra backend.";
         } else if (err.response.status === 500) {
-          errorMessage = "Lỗi server. Vui lòng kiểm tra backend logs.";
+          errorMessage = "Lỗi server. Vui lòng thử lại sau.";
         } else {
-          errorMessage = err.response.data?.message || 
-                        err.response.data || 
-                        `Lỗi ${err.response.status}`;
+          errorMessage = err.response.data?.message ||
+            err.response.data ||
+            `Lỗi ${err.response.status}`;
         }
       } else if (err.request) {
-        errorMessage = "Không kết nối được server. Vui lòng kiểm tra backend có chạy không.";
+        errorMessage = "Không kết nối được server. Vui lòng kiểm tra kết nối.";
       }
-      
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -88,9 +91,9 @@ function ForgotPassword({ onSwitch }) {
   // ============ BƯỚC 2: XÁC THỰC OTP ============
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    
+
     const otpCode = otp.join("");
-    
+
     if (otpCode.length !== 6) {
       alert("Vui lòng nhập đủ 6 số OTP!");
       return;
@@ -99,24 +102,24 @@ function ForgotPassword({ onSwitch }) {
     try {
       setLoading(true);
       console.log('🟡 [ForgotPassword] Verifying OTP:', otpCode);
-      
+
       const response = await librarianService.verifyOtp(
-        email.trim().toLowerCase(), 
-        otpCode, 
+        email.trim().toLowerCase(),
+        otpCode,
         'recovery'
       );
-      
+
       console.log('✅ [ForgotPassword] Verify response:', response);
       alert("Xác thực thành công! Vui lòng đặt mật khẩu mới.");
       setStep(3);
-      
+
     } catch (err) {
       console.error('❌ [ForgotPassword] Verify error:', err);
-      
-      const errorMessage = err.response?.data?.message || 
-                          err.response?.data || 
-                          "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại.";
-      
+
+      const errorMessage = err.response?.data?.message ||
+        err.response?.data ||
+        "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại.";
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -128,24 +131,24 @@ function ForgotPassword({ onSwitch }) {
     try {
       setLoading(true);
       setOtp(["", "", "", "", "", ""]);
-      
+
       console.log('🟡 [ForgotPassword] Resending OTP');
-      
+
       const response = await librarianService.resendOtp(
-        email.trim().toLowerCase(), 
+        email.trim().toLowerCase(),
         'recovery'
       );
-      
+
       console.log('✅ [ForgotPassword] Resend response:', response);
       alert(response.message || "Mã OTP mới đã được gửi!");
-      
+
     } catch (err) {
       console.error('❌ [ForgotPassword] Resend error:', err);
-      
-      const errorMessage = err.response?.data?.message || 
-                          err.response?.data || 
-                          "Không thể gửi lại OTP. Vui lòng thử lại.";
-      
+
+      const errorMessage = err.response?.data?.message ||
+        err.response?.data ||
+        "Không thể gửi lại OTP. Vui lòng thử lại.";
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -155,7 +158,7 @@ function ForgotPassword({ onSwitch }) {
   // ============ BƯỚC 3: ĐẶT MẬT KHẨU MỚI ============
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       alert("Mật khẩu xác nhận không khớp!");
       return;
@@ -169,21 +172,21 @@ function ForgotPassword({ onSwitch }) {
     try {
       setLoading(true);
       console.log('🟡 [ForgotPassword] Resetting password');
-      
+
       const response = await librarianService.updatePassword(newPassword);
-      
+
       console.log('✅ [ForgotPassword] Reset response:', response);
       alert("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.");
       onSwitch();
-      
+
     } catch (err) {
       console.error('❌ [ForgotPassword] Reset error:', err);
-      
-      const errorMessage = err.response?.data?.message || 
-                          err.response?.data || 
-                          err.message ||
-                          "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
-      
+
+      const errorMessage = err.response?.data?.message ||
+        err.response?.data ||
+        err.message ||
+        "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
+
       alert(errorMessage);
     } finally {
       setLoading(false);
@@ -193,7 +196,7 @@ function ForgotPassword({ onSwitch }) {
   return (
     <div className="auth-form-container">
       <div className="auth-form-box">
-        
+
         {/* BƯỚC 1: NHẬP EMAIL */}
         {step === 1 && (
           <>
@@ -204,9 +207,9 @@ function ForgotPassword({ onSwitch }) {
 
             <form onSubmit={handleSendOtp}>
               <div className="input-group">
-                <input 
-                  className="input-field" 
-                  type="email" 
+                <input
+                  className="input-field"
+                  type="email"
                   placeholder="Email (username@fpt.edu.vn)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -215,9 +218,9 @@ function ForgotPassword({ onSwitch }) {
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary" 
+              <button
+                type="submit"
+                className="btn-primary"
                 disabled={loading}
               >
                 {loading ? "Đang gửi..." : "Gửi mã OTP"}
@@ -262,9 +265,9 @@ function ForgotPassword({ onSwitch }) {
                 ))}
               </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary" 
+              <button
+                type="submit"
+                className="btn-primary"
                 disabled={loading}
               >
                 {loading ? "Đang xác thực..." : "Xác nhận"}
@@ -272,8 +275,8 @@ function ForgotPassword({ onSwitch }) {
             </form>
 
             <p className="switch-text" style={{ marginTop: "10px" }}>
-              <span 
-                className="switch-link" 
+              <span
+                className="switch-link"
                 onClick={handleResendOtp}
                 style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
               >
@@ -297,9 +300,9 @@ function ForgotPassword({ onSwitch }) {
 
             <form onSubmit={handleResetPassword}>
               <div className="input-group">
-                <input 
-                  className="input-field" 
-                  type="password" 
+                <input
+                  className="input-field"
+                  type="password"
                   placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -310,9 +313,9 @@ function ForgotPassword({ onSwitch }) {
               </div>
 
               <div className="input-group">
-                <input 
-                  className="input-field" 
-                  type="password" 
+                <input
+                  className="input-field"
+                  type="password"
                   placeholder="Xác nhận mật khẩu"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -322,9 +325,9 @@ function ForgotPassword({ onSwitch }) {
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn-primary" 
+              <button
+                type="submit"
+                className="btn-primary"
                 disabled={loading}
               >
                 {loading ? "Đang cập nhật..." : "Đặt lại mật khẩu"}

@@ -30,12 +30,15 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        // Auth endpoints that require authentication
+                        .requestMatchers("/slib/auth/change-password").authenticated()
+                        .requestMatchers("/slib/auth/admin-reset-password").hasRole("ADMIN")
+                        // Public auth endpoints
                         .requestMatchers("/slib/auth/**").permitAll()
                         .requestMatchers("/slib/users/login-google").permitAll()
                         .requestMatchers("/slib/users/getall").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                          // 🔥 MỞ CỬA CHO WEBSOCKET (QUAN TRỌNG)
+                        // Open WebSocket endpoints (important for realtime)
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-mobile/**").permitAll()
 
@@ -44,10 +47,13 @@ public class SecurityConfig {
                         // AI Chat endpoints (cho sinh viên - cần authenticated)
                         .requestMatchers("/slib/ai/chat/**").authenticated()
                         .requestMatchers("/slib/files/**").permitAll()
+                        // User management endpoints (Admin only)
+                        .requestMatchers("/slib/users/import").hasRole("ADMIN")
+                        .requestMatchers("/slib/users/*/status").hasRole("ADMIN")
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()
-                        
+
                         // Các endpoint khác
                         .anyRequest().permitAll()) // Tạm để permitAll để test, sau này nên đổi thành authenticated()
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -58,11 +64,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
-            "http://localhost:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:5173",
-            "http://127.0.0.1:3000"
-        ));
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:5173",
+                "http://127.0.0.1:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

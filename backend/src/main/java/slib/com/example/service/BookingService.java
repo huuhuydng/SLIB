@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,16 +30,19 @@ public class BookingService {
         private final ZoneRepository zoneRepository;
         private final SeatStatusSyncService seatStatusSyncService;
         private final LibrarySettingService librarySettingService;
+        private final SeatAvailabilityService seatAvailabilityService;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
-                        SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService) {
+                        SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService,
+                        SeatAvailabilityService seatAvailabilityService) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
                 this.zoneRepository = zoneRepository;
                 this.seatStatusSyncService = seatStatusSyncService;
                 this.librarySettingService = librarySettingService;
+                this.seatAvailabilityService = seatAvailabilityService;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -113,8 +117,7 @@ public class BookingService {
                 // KHÔNG thay đổi seat_status trực tiếp - status được tính động từ reservations
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync seat status ngay lập tức (nếu trong khung giờ hiện tại)
-                seatStatusSyncService.updateSeatStatus(seat, startTime, endTime, "PROCESSING");
+                // Broadcast to WebSocket clients for real-time updates
 
                 // LUÔN broadcast WebSocket cho tất cả bookings (kể cả future) để clients sync
                 // được
@@ -182,13 +185,15 @@ public class BookingService {
          */
         public java.util.Optional<slib.com.example.dto.booking.UpcomingBookingResponse> getUpcomingBooking(
                         UUID userId) {
-                LocalDateTime now = LocalDateTime.now();
+                // Use Vietnam timezone explicitly to ensure consistent time comparison
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
 
                 return reservationRepository.findByUserId(userId).stream()
-                                // Only BOOKED or PROCESSING status
+                                // Only BOOKED, PROCESSING, or CONFIRMED status
                                 .filter(r -> r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                r.getStatus().equalsIgnoreCase("PROCESSING"))
-                                // End time hasn't passed yet
+                                                r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                r.getStatus().equalsIgnoreCase("CONFIRMED"))
+                                // End time hasn't passed yet (booking still valid)
                                 .filter(r -> r.getEndTime().isAfter(now))
                                 // Sort by start time (closest first)
                                 .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
@@ -240,30 +245,37 @@ public class BookingService {
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
 
                 // Check if reservation is already cancelled or completed
-                if ("CANCEL".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Đặt chỗ này đã được hủy");
+                if ("CANCEL".equalsIgnoreCase(reservation.getStatus()) ||
+                                "CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
+                        throw new RuntimeException("Dat cho nay da duoc huy");
                 }
                 if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Không thể hủy đặt chỗ đã hoàn thành");
+                        throw new RuntimeException("Khong the huy dat cho da hoan thanh");
                 }
 
-                // Check 12-hour rule
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
+                // PROCESSING reservations can be cancelled immediately (user is still
+                // confirming)
+                // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
+                if (!"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                        // Check 12-hour rule for confirmed bookings
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
-                if (now.isAfter(cancelDeadline)) {
-                        long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime()).toHours();
-                        throw new RuntimeException(
-                                        "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
-                                                        "Còn " + hoursUntilStart + " tiếng nữa là đến giờ đặt.");
+                        if (now.isAfter(cancelDeadline)) {
+                                long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime())
+                                                .toHours();
+                                throw new RuntimeException(
+                                                "Khong the huy dat cho. Ban chi co the huy truoc 12 tieng. " +
+                                                                "Con " + hoursUntilStart
+                                                                + " tieng nua la den gio dat.");
+                        }
                 }
 
                 reservation.setStatus("CANCEL");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync seat status ngay - trả về AVAILABLE nếu đang trong khung giờ
-                seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
-                                reservation.getStartTime(), reservation.getEndTime(), "CANCEL");
+                // Broadcast to WebSocket clients for real-time updates
+                // (status is calculated dynamically, no DB update needed)
 
                 // Broadcast cho tất cả clients kể cả đang xem future time slots
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "AVAILABLE",
@@ -317,9 +329,7 @@ public class BookingService {
                 reservation.setStatus("BOOKED");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync status
-                seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
-                                reservation.getStartTime(), reservation.getEndTime(), "BOOKED");
+                // Broadcast status to WebSocket clients
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
                                 reservation.getStartTime(), reservation.getEndTime());
 
@@ -332,9 +342,7 @@ public class BookingService {
                 reserv.setStatus(status);
                 ReservationEntity saved = reservationRepository.save(reserv);
 
-                // Sync seat status ngay lập tức
-                seatStatusSyncService.updateSeatStatus(reserv.getSeat(),
-                                reserv.getStartTime(), reserv.getEndTime(), status);
+                // Broadcast status to WebSocket clients
 
                 // Broadcast cho tất cả clients
                 String wsStatus = "BOOKED".equalsIgnoreCase(status) ? "BOOKED"
@@ -355,10 +363,12 @@ public class BookingService {
         }
 
         private SeatDTO mapToDTO(SeatEntity seat) {
+                // Calculate current status dynamically
+                SeatStatus status = seatAvailabilityService.calculateCurrentStatus(seat);
                 return new SeatDTO(
                                 seat.getSeatId(),
                                 seat.getSeatCode(),
-                                seat.getSeatStatus(),
+                                status,
                                 seat.getRowNumber(),
                                 seat.getColumnNumber(),
                                 seat.getZone().getZoneId());
