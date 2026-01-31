@@ -18,8 +18,11 @@ import slib.com.example.controller.users.UserController;
 import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.User;
+import slib.com.example.service.AsyncImportService;
 import slib.com.example.service.AuthService;
+import slib.com.example.service.StagingImportService;
 import slib.com.example.service.UserService;
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.util.*;
 
@@ -49,6 +52,15 @@ class UserControllerUnitTest {
 
         @MockBean
         private AuthService authService;
+
+        @MockBean
+        private CloudinaryService cloudinaryService;
+
+        @MockBean
+        private AsyncImportService asyncImportService;
+
+        @MockBean
+        private StagingImportService stagingImportService;
 
         @Autowired
         private ObjectMapper objectMapper;
