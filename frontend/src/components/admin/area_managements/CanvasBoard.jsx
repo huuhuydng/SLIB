@@ -92,7 +92,8 @@ function CanvasBoard() {
   ============================== */
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
-    if (!panMode && !spacePressed) return;
+    // In preview mode, allow panning by default without needing panMode or space
+    if (!isPreviewMode && !panMode && !spacePressed) return;
 
     setIsPanning(true);
     setStartPan({
@@ -354,12 +355,145 @@ function CanvasBoard() {
       const { pendingChanges } = state;
       const { createZone, createAreaFactoryInArea, updateZonePositionAndDimensions, updateAreaFactory, deleteSeat, updateSeat, createSeat } = await import('../../../services/admin/area_management/api');
 
-      // 0. Create new seats (pending with negative IDs)
+      // 1. Create new zones FIRST (pending with negative IDs)
+      // Zones must be created before seats that belong to them
+      const zoneIdMapping = new Map(); // tempId -> realId
+      const newZonePromises = (pendingChanges?.newZones || []).map(async (zone) => {
+        try {
+          // Get current zone data from UI state (user may have changed name/position after creating)
+          const currentZone = zones.find(z => z.zoneId === zone.zoneId);
+          const finalZoneName = currentZone?.zoneName ?? zone.zoneName;
+          const finalColor = currentZone?.color ?? zone.color;
+
+          // Create zone with initial values
+          const res = await createZone({
+            zoneName: finalZoneName,
+            areaId: zone.areaId,
+            positionX: 0,  // Default, will update with actual position below
+            positionY: 0,
+            width: 120,
+            height: 100,
+            color: finalColor,
+          });
+          const realId = res.data?.zone_id ?? res.data?.zoneId;
+
+          // Store mapping for seats that reference this zone
+          zoneIdMapping.set(zone.zoneId, realId);
+
+          // Get current position/size from UI state
+          const finalPositionX = currentZone?.positionX ?? zone.positionX ?? 0;
+          const finalPositionY = currentZone?.positionY ?? zone.positionY ?? 0;
+          const finalWidth = currentZone?.width ?? zone.width ?? 120;
+          const finalHeight = currentZone?.height ?? zone.height ?? 100;
+
+          // Update position/size in BE with user's actual values
+          await updateZonePositionAndDimensions(realId, {
+            positionX: Math.round(finalPositionX),
+            positionY: Math.round(finalPositionY),
+            width: Math.round(finalWidth),
+            height: Math.round(finalHeight),
+          });
+
+          // Replace temp zone with real zone (using temp ID to find it)
+          dispatch({
+            type: actions.REPLACE_ZONE_BY_TEMP_ID,
+            payload: {
+              tempId: zone.zoneId,
+              realZone: {
+                ...zone,
+                zoneId: realId,
+                positionX: finalPositionX,
+                positionY: finalPositionY,
+                width: finalWidth,
+                height: finalHeight,
+                isPending: false,
+              },
+            },
+          });
+          return { tempId: zone.zoneId, realId };
+        } catch (e) {
+          console.error(`Failed to create zone ${zone.zoneName}:`, e);
+          return null;
+        }
+      });
+
+      // 2. Create new factories (pending with negative IDs) - can run in parallel with zones
+      const newFactoryPromises = (pendingChanges?.newFactories || []).map(async (factory) => {
+        try {
+          // Get current factory data from UI state (user may have changed name/position after creating)
+          const currentFactory = factories.find(f => f.factoryId === factory.factoryId);
+          const finalFactoryName = currentFactory?.factoryName ?? factory.factoryName;
+          const finalColor = currentFactory?.color ?? factory.color;
+
+          // Create factory with initial values
+          const res = await createAreaFactoryInArea(factory.areaId, {
+            factoryName: finalFactoryName,
+            positionX: 0,  // Default, will update with actual position below
+            positionY: 0,
+            width: 120,
+            height: 80,
+            color: finalColor,
+          });
+          const realId = res.data?.factory_id ?? res.data?.factoryId;
+
+          // Get current position/size from UI state
+          const finalPositionX = currentFactory?.positionX ?? factory.positionX ?? 0;
+          const finalPositionY = currentFactory?.positionY ?? factory.positionY ?? 0;
+          const finalWidth = currentFactory?.width ?? factory.width ?? 120;
+          const finalHeight = currentFactory?.height ?? factory.height ?? 80;
+
+          // Update position/size in BE with user's actual values
+          await updateAreaFactory(realId, {
+            factoryId: realId,
+            factoryName: finalFactoryName,
+            positionX: Math.round(finalPositionX),
+            positionY: Math.round(finalPositionY),
+            width: Math.round(finalWidth),
+            height: Math.round(finalHeight),
+            color: finalColor,
+            areaId: factory.areaId,
+          });
+
+          // Replace temp factory with real factory (using temp ID to find it)
+          dispatch({
+            type: actions.REPLACE_FACTORY_BY_TEMP_ID,
+            payload: {
+              tempId: factory.factoryId,
+              realFactory: {
+                ...factory,
+                factoryId: realId,
+                positionX: finalPositionX,
+                positionY: finalPositionY,
+                width: finalWidth,
+                height: finalHeight,
+                isPending: false,
+              },
+            },
+          });
+          return { tempId: factory.factoryId, realId };
+        } catch (e) {
+          console.error(`Failed to create factory ${factory.factoryName}:`, e);
+          return null;
+        }
+      });
+
+      // Wait for zones and factories to be created first
+      await Promise.all([...newZonePromises, ...newFactoryPromises]);
+
+      // 3. Create new seats AFTER zones (so we can map pending zoneIds to real IDs)
       const newSeatPromises = (pendingChanges?.newSeats || []).map(async (seat) => {
         try {
+          // Map zoneId: if seat belongs to a pending zone, use the real ID
+          const realZoneId = seat.zoneId < 0 ? zoneIdMapping.get(seat.zoneId) : seat.zoneId;
+
+          if (!realZoneId) {
+            console.error(`Cannot create seat ${seat.seatCode}: zoneId ${seat.zoneId} not found in mapping`);
+            return null;
+          }
+
           const res = await createSeat({
             seatCode: seat.seatCode,
-            zoneId: seat.zoneId,
+            zoneId: realZoneId,  // Use mapped real zoneId
             rowNumber: seat.rowNumber,
             columnNumber: seat.columnNumber,
             seatStatus: seat.seatStatus || 'AVAILABLE',
@@ -368,7 +502,7 @@ function CanvasBoard() {
           const realSeat = {
             seatId: res.data?.seat_id ?? res.data?.seatId,
             seatCode: res.data?.seat_code ?? res.data?.seatCode ?? seat.seatCode,
-            zoneId: res.data?.zone_id ?? res.data?.zoneId ?? seat.zoneId,
+            zoneId: res.data?.zone_id ?? res.data?.zoneId ?? realZoneId,
             rowNumber: res.data?.row_number ?? res.data?.rowNumber ?? seat.rowNumber,
             columnNumber: res.data?.column_number ?? res.data?.columnNumber ?? seat.columnNumber,
             seatStatus: res.data?.seat_status ?? res.data?.seatStatus ?? seat.seatStatus ?? 'AVAILABLE',
@@ -385,66 +519,20 @@ function CanvasBoard() {
         }
       });
 
-      // 1. Create new zones (pending with negative IDs)
-      const newZonePromises = (pendingChanges?.newZones || []).map(async (zone) => {
-        try {
-          const res = await createZone({
-            zoneName: zone.zoneName,
-            areaId: zone.areaId,
-            positionX: zone.positionX,
-            positionY: zone.positionY,
-            width: zone.width,
-            height: zone.height,
-            color: zone.color,
-          });
-          // Replace temp ID with real ID in state
-          const realId = res.data?.zone_id ?? res.data?.zoneId;
-          dispatch({
-            type: actions.UPDATE_ZONE,
-            payload: { ...zone, zoneId: realId, isPending: false },
-          });
-          // Also update zones list to replace temp with real
-          return { tempId: zone.zoneId, realId };
-        } catch (e) {
-          console.error(`Failed to create zone ${zone.zoneName}:`, e);
-          return null;
-        }
-      });
-
-      // 2. Create new factories (pending with negative IDs) 
-      const newFactoryPromises = (pendingChanges?.newFactories || []).map(async (factory) => {
-        try {
-          const res = await createAreaFactoryInArea(factory.areaId, {
-            factoryName: factory.factoryName,
-            positionX: factory.positionX,
-            positionY: factory.positionY,
-            width: factory.width,
-            height: factory.height,
-            color: factory.color,
-          });
-          const realId = res.data?.factory_id ?? res.data?.factoryId;
-          dispatch({
-            type: actions.UPDATE_FACTORY,
-            payload: { ...factory, factoryId: realId, isPending: false },
-          });
-          return { tempId: factory.factoryId, realId };
-        } catch (e) {
-          console.error(`Failed to create factory ${factory.factoryName}:`, e);
-          return null;
-        }
-      });
-
-      // Wait for new items to be created
-      await Promise.all([...newSeatPromises, ...newZonePromises, ...newFactoryPromises]);
+      // Wait for seats to be created
+      await Promise.all(newSeatPromises);
 
       // 3. Update existing zones (those with positive IDs)
+      const { updateZone } = await import('../../../services/admin/area_management/api');
       const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
       const updateZonePromises = existingZones.map(zone =>
-        updateZonePositionAndDimensions(zone.zoneId, {
+        updateZone(zone.zoneId, {
+          zoneName: zone.zoneName,
           positionX: Math.round(zone.positionX || 0),
           positionY: Math.round(zone.positionY || 0),
           width: Math.round(zone.width || 250),
           height: Math.round(zone.height || 200),
+          color: zone.color,
         }).catch(e => console.error(`Failed to update zone ${zone.zoneId}:`, e))
       );
 
@@ -598,29 +686,31 @@ function CanvasBoard() {
 
         {/* Right: Tools */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Pan Mode */}
-          <button
-            onClick={() => setPanMode(!panMode)}
-            title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
-              background: panMode
-                ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
-                : 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: panMode ? '#1E40AF' : '#64748B'
-            }}
-          >
-            ☰
-          </button>
+          {/* Pan Mode - only show in edit mode */}
+          {!isPreviewMode && (
+            <button
+              onClick={() => setPanMode(!panMode)}
+              title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
+                background: panMode
+                  ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
+                  : 'white',
+                cursor: 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: panMode ? '#1E40AF' : '#64748B'
+              }}
+            >
+              ☰
+            </button>
+          )}
 
           {/* Zoom Controls */}
           <div style={{
@@ -890,38 +980,6 @@ function CanvasBoard() {
           </div>
         </div>
       </div>{/* End Canvas Content wrapper */}
-
-      {/* Keyboard Shortcuts Help */}
-      <div style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '16px',
-        display: 'flex',
-        gap: '12px',
-        fontSize: '11px',
-        color: '#94A3B8'
-      }}>
-        <span>
-          <kbd style={{
-            background: '#F1F5F9',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            border: '1px solid #E2E8F0',
-            marginRight: '4px'
-          }}>Space</kbd>
-          + Kéo để di chuyển
-        </span>
-        <span>
-          <kbd style={{
-            background: '#F1F5F9',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            border: '1px solid #E2E8F0',
-            marginRight: '4px'
-          }}>Scroll</kbd>
-          để zoom
-        </span>
-      </div>
     </main>
   );
 }

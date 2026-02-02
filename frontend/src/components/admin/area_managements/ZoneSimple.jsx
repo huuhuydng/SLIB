@@ -353,11 +353,13 @@ function ZoneSimple({ zone, area }) {
               ? '3px solid #1976d2'
               : zone.isLocked
                 ? '2px solid #fca5a5'
-                : '1px solid #9CA3AF',
-          borderRadius: '8px',
+                : isPreviewMode
+                  ? '2px solid #7CB899'
+                  : '1px solid #9CA3AF',
+          borderRadius: isPreviewMode ? '12px' : '8px',
           padding: '8px',
           boxSizing: 'border-box',
-          cursor: 'pointer',
+          cursor: isPreviewMode ? 'default' : 'pointer',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -365,11 +367,14 @@ function ZoneSimple({ zone, area }) {
             ? '0 0 15px rgba(220, 38, 38, 0.6), inset 0 0 10px rgba(220, 38, 38, 0.1)'
             : zone.isLocked
               ? '0 0 10px rgba(220, 38, 38, 0.2)'
-              : 'none',
+              : isPreviewMode
+                ? '0 4px 12px rgba(0,0,0,0.15)'
+                : 'none',
           transition: 'all 0.2s ease',
-          backgroundColor: collidingWith ? '#fee8e8' : '#E5E7EB',
+          backgroundColor: collidingWith ? '#fee8e8' : (isPreviewMode ? '#A8D5BA' : '#E5E7EB'),
+          pointerEvents: isPreviewMode ? 'none' : 'auto',
         }}
-        onClick={handleZoneClick}
+        onClick={isPreviewMode ? undefined : handleZoneClick}
       >
         {/* Collision Warning */}
         {collidingWith && (
@@ -390,17 +395,24 @@ function ZoneSimple({ zone, area }) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}>
-            ⚠️ Chồng lấp
+            Chong lap
           </div>
         )}
 
+        {/* Zone Header */}
         <div style={{
-          fontSize: '12px',
-          fontWeight: '600',
+          display: 'flex',
+          justifyContent: 'flex-start',
+          alignItems: 'center',
           marginBottom: '4px',
-          color: collidingWith ? '#991b1b' : '#06361a',
         }}>
-          {zone.zoneName || 'Unnamed Zone'}
+          <div style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            color: collidingWith ? '#991b1b' : (isPreviewMode ? '#2d5a3d' : '#06361a'),
+          }}>
+            {zone.zoneName || 'Unnamed Zone'}
+          </div>
         </div>
 
 
@@ -432,13 +444,15 @@ function ZoneSimple({ zone, area }) {
           })}
         </div>
 
-        <div style={{
-          fontSize: '10px',
-          color: collidingWith ? '#991b1b' : '#666',
-          marginTop: '4px',
-        }}>
-          {zoneSeats.length} seats
-        </div>
+        {!isPreviewMode && (
+          <div style={{
+            fontSize: '10px',
+            color: collidingWith ? '#991b1b' : '#666',
+            marginTop: '4px',
+          }}>
+            {zoneSeats.length} seats
+          </div>
+        )}
       </div>
     </Rnd>
   );

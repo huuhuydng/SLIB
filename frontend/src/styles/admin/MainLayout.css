@@ -8,13 +8,24 @@
   flex: 1;
   margin-left: 72px;
   padding: 24px;
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
-  max-height: 100vh;
+  height: 100vh;
 }
 
 @media (max-width: 768px) {
   .main {
     margin-left: 0;
   }
+}
+
+/* Special case: library-map page should fill the entire content area */
+.main:has(.library-map-page) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.library-map-page {
+  height: 100vh;
+  width: 100%;
 }
