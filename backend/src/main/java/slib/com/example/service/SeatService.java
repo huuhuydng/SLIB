@@ -21,6 +21,7 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
     private final SeatAvailabilityService seatAvailabilityService;
+    private final slib.com.example.util.NfcUidHasher nfcUidHasher;
 
     // ================= GET =================
 
@@ -113,6 +114,7 @@ public class SeatService {
         res.setRowNumber(seat.getRowNumber());
         res.setColumnNumber(seat.getColumnNumber());
         res.setIsActive(seat.getIsActive());
+        res.setNfcTagUid(seat.getNfcTagUid());
 
         // Calculate status dynamically for current moment
         SeatStatus status = seatAvailabilityService.calculateCurrentStatus(seat);
@@ -202,5 +204,68 @@ public class SeatService {
 
         seat.setIsActive(true);
         seatRepository.save(seat);
+    }
+
+    // ================= NFC UID MAPPING =================
+
+    /**
+     * Update the NFC tag UID for a seat (UID Mapping Strategy)
+     * 
+     * @param seatId    The seat to update
+     * @param nfcTagUid The NFC tag UID in uppercase HEX format (e.g., "04A23C91")
+     * @return Updated seat response
+     */
+    public SeatResponse updateNfcTagUid(Integer seatId, String nfcTagUid) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        // Hash the UID before storing for security
+        String hashedUid = nfcUidHasher.hashUid(nfcTagUid);
+
+        // Check if this UID is already assigned to another seat
+        if (hashedUid != null && !hashedUid.isEmpty()) {
+            seatRepository.findByNfcTagUid(hashedUid).ifPresent(existingSeat -> {
+                if (!existingSeat.getSeatId().equals(seatId)) {
+                    throw new RuntimeException(
+                            "NFC UID này đã được gán cho ghế " +
+                                    existingSeat.getSeatCode() + " (ID: " + existingSeat.getSeatId() + "). " +
+                                    "Vui lòng xóa NFC UID khỏi ghế đó trước khi gán cho ghế này.");
+                }
+            });
+        }
+
+        seat.setNfcTagUid(hashedUid);
+        return toResponse(seatRepository.save(seat));
+    }
+
+    /**
+     * Clear the NFC tag UID from a seat
+     */
+    public SeatResponse clearNfcTagUid(Integer seatId) {
+        return updateNfcTagUid(seatId, null);
+    }
+
+    /**
+     * Find seat by NFC tag UID (supports both raw and hashed UIDs)
+     * 
+     * - If input is 64 chars hex (SHA-256 hash) from Mobile: use directly
+     * - If input is raw UID (e.g., "04A5108A405980") from Admin: hash first
+     */
+    public SeatResponse getSeatByNfcTagUid(String nfcTagUid) {
+        String hashedUid;
+
+        // Check if input is already a SHA-256 hash (64 hex characters)
+        if (nfcTagUid != null && nfcTagUid.length() == 64 && nfcTagUid.matches("[A-Fa-f0-9]+")) {
+            // Already hashed (from Mobile app)
+            hashedUid = nfcTagUid.toUpperCase();
+        } else {
+            // Raw UID (from Admin NFC Bridge) - need to hash
+            hashedUid = nfcUidHasher.hashUid(nfcTagUid);
+        }
+
+        SeatEntity seat = seatRepository.findByNfcTagUid(hashedUid)
+                .orElseThrow(() -> new RuntimeException(
+                        "Không tìm thấy ghế với NFC UID này. Có thể thẻ chưa được gán cho ghế nào."));
+        return toResponse(seat);
     }
 }

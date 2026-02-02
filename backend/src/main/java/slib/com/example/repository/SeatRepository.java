@@ -24,6 +24,9 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     @Query("SELECT MAX(s.columnNumber) FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.rowNumber = :rowNumber")
     Integer findMaxColumnByZoneIdAndRow(@Param("zoneId") Integer zoneId, @Param("rowNumber") Integer rowNumber);
 
+    // Find seat by NFC tag UID (for UID Mapping Strategy)
+    Optional<SeatEntity> findByNfcTagUid(String nfcTagUid);
+
     // Delete all seats by zone ID
     void deleteByZone_ZoneId(Integer zoneId);
 }

@@ -297,8 +297,8 @@ class SeatControllerUnitTest {
         void getAllSeats_validZoneId_returns200WithSeatDTOList() throws Exception {
                 // Arrange
                 Integer zoneId = 20;
-                SeatDTO dto1 = new SeatDTO(1, "J01", SeatStatus.AVAILABLE, 1, 1, zoneId);
-                SeatDTO dto2 = new SeatDTO(2, "J02", SeatStatus.BOOKED, 1, 2, zoneId);
+                SeatDTO dto1 = new SeatDTO(1, "J01", SeatStatus.AVAILABLE, 1, 1, zoneId, null);
+                SeatDTO dto2 = new SeatDTO(2, "J02", SeatStatus.BOOKED, 1, 2, zoneId, null);
 
                 List<SeatDTO> seatDTOs = Arrays.asList(dto1, dto2);
 
@@ -329,8 +329,8 @@ class SeatControllerUnitTest {
                 LocalTime start = LocalTime.of(9, 0);
                 LocalTime end = LocalTime.of(11, 0);
 
-                SeatDTO dto1 = new SeatDTO(5, "K01", SeatStatus.AVAILABLE, 1, 1, zoneId);
-                SeatDTO dto2 = new SeatDTO(6, "K02", SeatStatus.HOLDING, 1, 2, zoneId);
+                SeatDTO dto1 = new SeatDTO(5, "K01", SeatStatus.AVAILABLE, 1, 1, zoneId, null);
+                SeatDTO dto2 = new SeatDTO(6, "K02", SeatStatus.HOLDING, 1, 2, zoneId, null);
 
                 List<SeatDTO> seatDTOs = Arrays.asList(dto1, dto2);
 
@@ -378,8 +378,8 @@ class SeatControllerUnitTest {
                 String dateString = "2026-01-25";
                 LocalDate date = LocalDate.parse(dateString);
 
-                SeatDTO dto1 = new SeatDTO(10, "L01", SeatStatus.AVAILABLE, 1, 1, zoneId);
-                SeatDTO dto2 = new SeatDTO(11, "L02", SeatStatus.BOOKED, 1, 2, zoneId);
+                SeatDTO dto1 = new SeatDTO(10, "L01", SeatStatus.AVAILABLE, 1, 1, zoneId, null);
+                SeatDTO dto2 = new SeatDTO(11, "L02", SeatStatus.BOOKED, 1, 2, zoneId, null);
 
                 List<SeatDTO> seatDTOs = Arrays.asList(dto1, dto2);
 
@@ -424,12 +424,12 @@ class SeatControllerUnitTest {
                 LocalTime end = LocalTime.of(15, 0);
 
                 // Zone 1 seats
-                SeatDTO seat1 = new SeatDTO(1, "A01", SeatStatus.AVAILABLE, 1, 1, 10);
-                SeatDTO seat2 = new SeatDTO(2, "A02", SeatStatus.HOLDING, 1, 2, 10);
+                SeatDTO seat1 = new SeatDTO(1, "A01", SeatStatus.AVAILABLE, 1, 1, 10, null);
+                SeatDTO seat2 = new SeatDTO(2, "A02", SeatStatus.HOLDING, 1, 2, 10, null);
 
                 // Zone 2 seats
-                SeatDTO seat3 = new SeatDTO(3, "B01", SeatStatus.BOOKED, 1, 1, 20);
-                SeatDTO seat4 = new SeatDTO(4, "B02", SeatStatus.AVAILABLE, 1, 2, 20);
+                SeatDTO seat3 = new SeatDTO(3, "B01", SeatStatus.BOOKED, 1, 1, 20, null);
+                SeatDTO seat4 = new SeatDTO(4, "B02", SeatStatus.AVAILABLE, 1, 2, 20, null);
 
                 Map<Integer, List<SeatDTO>> result = new HashMap<>();
                 result.put(10, Arrays.asList(seat1, seat2));
@@ -505,6 +505,6 @@ class SeatControllerUnitTest {
          */
         private SeatResponse createSeatResponse(Integer seatId, Integer zoneId, String seatCode,
                         SeatStatus seatStatus, Integer rowNumber, Integer columnNumber) {
-                return new SeatResponse(seatId, zoneId, seatCode, seatStatus, rowNumber, columnNumber, true);
+                return new SeatResponse(seatId, zoneId, seatCode, seatStatus, rowNumber, columnNumber, true, null);
         }
 }

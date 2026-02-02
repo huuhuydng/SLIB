@@ -17,4 +17,5 @@ public class SeatResponse {
     private Integer rowNumber;
     private Integer columnNumber;
     private Boolean isActive; // Admin restriction flag
+    private String nfcTagUid; // NFC tag UID for seat verification
 }
