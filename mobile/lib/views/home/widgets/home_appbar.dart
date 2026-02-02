@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
+import 'package:slib/services/notification_service.dart';
+import 'package:slib/views/notification/notification_screen.dart';
 
 class HomeAppBar extends StatelessWidget {
   final UserProfile? user;
@@ -10,7 +13,7 @@ class HomeAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start, // Căn lề trên để icon không bị lệch khi text xuống dòng nhiều
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // 1. Dùng Expanded để giới hạn chiều rộng, giúp text tự xuống dòng
         Expanded(
@@ -39,35 +42,65 @@ class HomeAppBar extends StatelessWidget {
         // Tạo khoảng cách nhỏ giữa Text và Icon để không bị dính sát
         const SizedBox(width: 12), 
 
-        // 2. Icon thông báo giữ nguyên
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
-          child: Stack(
-            children: [
-              const Icon(Icons.notifications_outlined, size: 28, color: Colors.white),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                      color: AppColors.error, // Đảm bảo AppColors đã được import đúng
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 1.5)),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                  child: const Text('1',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center),
+        // 2. Icon thông báo với unread count từ NotificationService
+        Consumer<NotificationService>(
+          builder: (context, notificationService, child) {
+            final unreadCount = notificationService.unreadCount;
+            
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2), 
+                  shape: BoxShape.circle,
                 ),
-              )
-            ],
-          ),
-        )
+                child: Stack(
+                  children: [
+                    const Icon(
+                      Icons.notifications_outlined, 
+                      size: 28, 
+                      color: Colors.white,
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16, 
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            unreadCount > 99 ? '99+' : '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
