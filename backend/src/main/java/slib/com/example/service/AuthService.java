@@ -194,17 +194,18 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse loginWithPassword(String identifier, String password, String deviceInfo) {
-        // Tìm user bằng email hoặc username hoặc userCode (MSSV)
-        User user = userRepository.findByEmailOrUsernameOrUserCode(identifier, identifier, identifier)
+        // Tìm user bằng email hoặc username (case-insensitive)
+        String identifierUpper = identifier.toUpperCase();
+        User user = userRepository.findByEmailOrUsername(identifier, identifierUpper)
                 .orElseThrow(() -> new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("Tài khoản đã bị khóa");
+            throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
         }
 
         if (user.getPassword() == null || user.getPassword().isEmpty()) {
             throw new RuntimeException(
-                    "Tài khoản chưa được thiết lập mật khẩu. Vui lòng liên hệ admin hoặc sử dụng đăng nhập Google.");
+                    "Tài khoản chưa được thiết lập mật khẩu. Vui lòng liên hệ quản trị viên hoặc sử dụng đăng nhập Google.");
         }
 
         if (!passwordEncoder.matches(password, user.getPassword())) {

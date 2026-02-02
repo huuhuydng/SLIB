@@ -47,14 +47,14 @@ axiosInstance.interceptors.response.use(
                     const now = Math.floor(Date.now() / 1000);
 
                     if (payload.exp && payload.exp < now) {
-                        console.warn('[UserService] Token het han! Dang xuat...');
+                        console.warn('[UserService] Token hết hạn! Đăng xuất...');
                         // Clear storage
                         localStorage.removeItem('librarian_token');
                         localStorage.removeItem('librarian_user');
                         localStorage.removeItem('refresh_token');
 
                         // Show alert and redirect
-                        alert('Phien dang nhap da het han. Vui long dang nhap lai.');
+                        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
                         window.location.href = '/admin/login';
                         return Promise.reject(new Error('Token expired'));
                     }
