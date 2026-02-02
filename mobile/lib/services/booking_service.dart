@@ -10,6 +10,7 @@ import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
+import 'package:slib/utils/nfc_uid_hasher.dart';
 
 class BookingService {
   // ================= AREAS =================
@@ -311,5 +312,65 @@ class BookingService {
       final errorMsg = utf8.decode(response.bodyBytes);
       throw Exception(errorMsg);
     }
+  }
+
+  // ================= NFC UID MAPPING =================
+
+  /// Get seat by NFC tag UID (UID Mapping Strategy)
+  /// 
+  /// This is used for check-in flow where the student scans an NFC tag
+  /// and the app looks up which seat it corresponds to.
+  /// 
+  /// [nfcUid] - NFC tag UID in uppercase HEX format (e.g., "04A23C91")
+  /// Returns the seat information if found, throws exception otherwise.
+  Future<Seat> getSeatByNfcUid(String nfcUid) async {
+    // Hash the UID before sending to backend (must match backend's hash)
+    final hashedUid = NfcUidHasher.hashUid(nfcUid);
+    debugPrint('BookingService: Raw UID: $nfcUid');
+    debugPrint('BookingService: Hashed UID: $hashedUid');
+    final url = Uri.parse("${ApiConstants.seatUrl}/by-nfc-uid/$hashedUid");
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return Seat.fromJson(data);
+    } else if (response.statusCode == 404) {
+      // Seat not found for this NFC UID
+      throw Exception("Không tìm thấy ghế với NFC UID này");
+    } else {
+      final errorBody = utf8.decode(response.bodyBytes);
+      throw Exception("Lỗi khi tìm ghế: $errorBody");
+    }
+  }
+
+  /// Confirm seat check-in using NFC UID
+  /// 
+  /// This method:
+  /// 1. Looks up the seat by NFC UID
+  /// 2. Validates that it matches the reservation's seat
+  /// 3. Confirms the booking
+  /// 
+  /// [reservationId] - The booking reservation ID
+  /// [nfcUid] - NFC tag UID in uppercase HEX format
+  /// [expectedSeatId] - The expected seat ID from the reservation
+  Future<Map<String, dynamic>> confirmSeatWithNfcUid(
+    String reservationId, 
+    String nfcUid,
+    int expectedSeatId,
+  ) async {
+    // Step 1: Look up seat by NFC UID
+    final seat = await getSeatByNfcUid(nfcUid);
+    
+    // Step 2: Validate seat matches reservation
+    if (seat.seatId != expectedSeatId) {
+      throw Exception(
+        "Ghế không khớp! Bạn đang đặt ghế ID: $expectedSeatId nhưng thẻ NFC là ghế ID: ${seat.seatId} (${seat.seatCode})"
+      );
+    }
+    
+    // Step 3: Confirm the booking (use existing confirm endpoint)
+    // Create NFC data in legacy format for backward compatibility
+    final nfcData = "SEAT_ID:${seat.seatCode}_ZONE:${seat.zoneId}";
+    return confirmSeatWithNfc(reservationId, nfcData);
   }
 }

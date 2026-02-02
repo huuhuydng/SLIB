@@ -11,6 +11,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import slib.com.example.entity.LibrarySetting;
+import slib.com.example.entity.activity.ActivityLogEntity;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -31,11 +33,15 @@ public class BookingService {
         private final SeatStatusSyncService seatStatusSyncService;
         private final LibrarySettingService librarySettingService;
         private final SeatAvailabilityService seatAvailabilityService;
+        private final PushNotificationService pushNotificationService;
+        private final ActivityService activityService;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
                         SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService,
-                        SeatAvailabilityService seatAvailabilityService) {
+                        SeatAvailabilityService seatAvailabilityService,
+                        PushNotificationService pushNotificationService,
+                        ActivityService activityService) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -43,6 +49,8 @@ public class BookingService {
                 this.seatStatusSyncService = seatStatusSyncService;
                 this.librarySettingService = librarySettingService;
                 this.seatAvailabilityService = seatAvailabilityService;
+                this.pushNotificationService = pushNotificationService;
+                this.activityService = activityService;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -122,6 +130,29 @@ public class BookingService {
                 // LUÔN broadcast WebSocket cho tất cả bookings (kể cả future) để clients sync
                 // được
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(seat, "HOLDING", startTime, endTime);
+
+                // Log activity for BOOKING_SUCCESS
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                startTime.getHour(), startTime.getMinute(),
+                                endTime.getHour(), endTime.getMinute());
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(userId)
+                                        .activityType(ActivityLogEntity.TYPE_BOOKING_SUCCESS)
+                                        .title("Đặt chỗ thành công")
+                                        .description("Đã đặt ghế " + seat.getSeatCode() + " tại " + zoneName + " ("
+                                                        + timeStr + ")")
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // NOTE: Push notification đã được chuyển sang confirmSeatWithNfc()
+                // Không gửi notification ngay khi tạo booking nữa
 
                 return saved;
         }
@@ -247,10 +278,10 @@ public class BookingService {
                 // Check if reservation is already cancelled or completed
                 if ("CANCEL".equalsIgnoreCase(reservation.getStatus()) ||
                                 "CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Dat cho nay da duoc huy");
+                        throw new RuntimeException("Đặt chỗ này đã được hủy");
                 }
                 if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())) {
-                        throw new RuntimeException("Khong the huy dat cho da hoan thanh");
+                        throw new RuntimeException("Không thể hủy đặt chỗ đã hoàn thành");
                 }
 
                 // PROCESSING reservations can be cancelled immediately (user is still
@@ -265,14 +296,31 @@ public class BookingService {
                                 long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime())
                                                 .toHours();
                                 throw new RuntimeException(
-                                                "Khong the huy dat cho. Ban chi co the huy truoc 12 tieng. " +
-                                                                "Con " + hoursUntilStart
-                                                                + " tieng nua la den gio dat.");
+                                                "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
+                                                                "Còn " + hoursUntilStart
+                                                                + " tiếng nữa là đến giờ đặt.");
                         }
                 }
 
                 reservation.setStatus("CANCEL");
                 ReservationEntity saved = reservationRepository.save(reservation);
+
+                // Log activity for BOOKING_CANCEL
+                SeatEntity seat = reservation.getSeat();
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(reservation.getUser().getId())
+                                        .activityType(ActivityLogEntity.TYPE_BOOKING_CANCEL)
+                                        .title("Hủy đặt chỗ thành công")
+                                        .description("Đã hủy ghế " + seat.getSeatCode() + " tại " + zoneName)
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
 
                 // Broadcast to WebSocket clients for real-time updates
                 // (status is calculated dynamically, no DB update needed)
@@ -329,6 +377,24 @@ public class BookingService {
                 reservation.setStatus("BOOKED");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
+                // Log activity for NFC_CONFIRM
+                SeatEntity seat = reservation.getSeat();
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(reservation.getUser().getId())
+                                        .activityType(ActivityLogEntity.TYPE_NFC_CONFIRM)
+                                        .title("Xác nhận ghế thành công")
+                                        .description("Đã xác nhận ghế " + seat.getSeatCode() + " tại " + zoneName
+                                                        + " bằng NFC")
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
                 // Broadcast status to WebSocket clients
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
                                 reservation.getStartTime(), reservation.getEndTime());
@@ -343,12 +409,29 @@ public class BookingService {
                 ReservationEntity saved = reservationRepository.save(reserv);
 
                 // Broadcast status to WebSocket clients
-
-                // Broadcast cho tất cả clients
                 String wsStatus = "BOOKED".equalsIgnoreCase(status) ? "BOOKED"
                                 : "CANCEL".equalsIgnoreCase(status) ? "AVAILABLE" : "HOLDING";
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reserv.getSeat(), wsStatus,
                                 reserv.getStartTime(), reserv.getEndTime());
+
+                // Send push notification khi xác nhận đặt chỗ thành công (BOOKED)
+                if ("BOOKED".equalsIgnoreCase(status)) {
+                        try {
+                                SeatEntity seat = reserv.getSeat();
+                                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                                String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                                reserv.getStartTime().getHour(), reserv.getStartTime().getMinute(),
+                                                reserv.getEndTime().getHour(), reserv.getEndTime().getMinute());
+                                String title = "Đặt chỗ thành công";
+                                String body = String.format(
+                                                "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến sớm để check-in!",
+                                                seat.getSeatCode(), zoneName, timeStr);
+                                pushNotificationService.sendToUser(reserv.getUser().getId(), title, body,
+                                                NotificationType.BOOKING, saved.getReservationId());
+                        } catch (Exception e) {
+                                System.err.println("Failed to send booking notification: " + e.getMessage());
+                        }
+                }
 
                 return saved;
         }
@@ -371,7 +454,8 @@ public class BookingService {
                                 status,
                                 seat.getRowNumber(),
                                 seat.getColumnNumber(),
-                                seat.getZone().getZoneId());
+                                seat.getZone().getZoneId(),
+                                seat.getNfcTagUid());
         }
 
         public List<SeatDTO> getSeatsByTime(Integer zoneId, LocalDate date, LocalTime start, LocalTime end) {
@@ -407,7 +491,8 @@ public class BookingService {
                                         status,
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
-                                        seat.getZone().getZoneId());
+                                        seat.getZone().getZoneId(),
+                                        seat.getNfcTagUid());
                 }).toList();
         }
 
@@ -439,7 +524,8 @@ public class BookingService {
                                         status,
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
-                                        seat.getZone().getZoneId());
+                                        seat.getZone().getZoneId(),
+                                        seat.getNfcTagUid());
                 }).toList();
         }
 

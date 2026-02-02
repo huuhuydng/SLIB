@@ -1859,6 +1859,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
   bool _isLoading = true;
+  LibrarySetting? _settings;
 
   final List<String> _timeSlots = [
     "07:00 - 09:00",
@@ -1870,7 +1871,32 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSeats();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load settings first
+      final settings = await _bookingService.getLibrarySettings();
+      
+      // Find first working day from today
+      DateTime firstWorkingDay = DateTime.now();
+      for (int i = 0; i < 14; i++) {
+        if (settings.isWorkingDay(firstWorkingDay)) break;
+        firstWorkingDay = firstWorkingDay.add(const Duration(days: 1));
+      }
+      
+      setState(() {
+        _settings = settings;
+        _selectedDate = firstWorkingDay;
+      });
+      
+      await _loadSeats();
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      await _loadSeats();
+    }
   }
 
   Future<void> _loadSeats() async {
@@ -1989,11 +2015,35 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
               ),
               onPressed: () async {
                 final now = DateTime.now();
+                // Calculate last bookable date based on working days
+                DateTime lastBookableDate = now;
+                int workingDaysCount = 0;
+                final maxDays = _settings?.maxBookingDays ?? 14;
+                while (workingDaysCount < maxDays) {
+                  lastBookableDate = lastBookableDate.add(const Duration(days: 1));
+                  if (_settings?.isWorkingDay(lastBookableDate) ?? true) {
+                    workingDaysCount++;
+                  }
+                }
+                
+                // Find first working day for initial date
+                DateTime initialDate = _selectedDate ?? now;
+                if (_settings != null && !_settings!.isWorkingDay(initialDate)) {
+                  for (int i = 0; i < 14; i++) {
+                    initialDate = initialDate.add(const Duration(days: 1));
+                    if (_settings!.isWorkingDay(initialDate)) break;
+                  }
+                }
+                
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: now,
+                  initialDate: initialDate,
                   firstDate: now,
-                  lastDate: now.add(const Duration(days: 30)),
+                  lastDate: lastBookableDate,
+                  selectableDayPredicate: (DateTime day) {
+                    // Only allow working days
+                    return _settings?.isWorkingDay(day) ?? true;
+                  },
                 );
                 if (picked != null) {
                   setState(() {
