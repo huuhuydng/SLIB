@@ -7,13 +7,16 @@
 
 /* Phần nội dung chính */
 .main {
-  margin-left: 72px; /* Width của sidebar collapsed */
+  margin-left: 72px;
+  /* Width của sidebar collapsed */
   flex: 1;
   width: calc(100% - 72px);
   transition: margin-left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 10px; 
-  overflow-y: hidden; /* Cho phép scroll dọc */
-  overflow-x: hidden; /* Ẩn scroll ngang */
+  padding: 10px;
+  overflow-y: auto;
+  /* Cho phép scroll dọc */
+  overflow-x: hidden;
+  /* Ẩn scroll ngang */
   max-height: 100vh;
   height: 100vh;
 }

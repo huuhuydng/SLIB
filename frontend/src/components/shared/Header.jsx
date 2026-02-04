@@ -1,42 +1,38 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronDown, Search, User, LogOut } from 'lucide-react';
-import avatarImage from "../../assets/avatar.svg";
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronDown, Search, User, LogOut, Settings } from 'lucide-react';
 
-const Header = ({ 
-  searchValue = '', 
-  onSearchChange = () => {},
-  searchPlaceholder = "Search for anything...",
+const Header = ({
+  searchValue = '',
+  onSearchChange = () => { },
+  searchPlaceholder = "Tìm kiếm...",
   showBackButton = false,
-  onBackClick = () => {},
-  onLogout = () => {}
+  onBackClick = () => { },
+  onLogout = null
 }) => {
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [userData, setUserData] = useState({ name: 'User', role: 'Admin' });
+  const [userData, setUserData] = useState({ name: 'Admin', role: 'ADMIN', email: '' });
   const dropdownRef = useRef(null);
-
-  // Debug: Check if onLogout is passed
-  useEffect(() => {
-    console.log('🔍 Header mounted with onLogout:', onLogout.toString().substring(0, 50));
-  }, []);
 
   // Load user data from localStorage
   useEffect(() => {
     try {
-      const userStr = localStorage.getItem('librarian_user');
+      const userStr = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
       if (userStr) {
         const user = JSON.parse(userStr);
         setUserData({
-          name: user.user_metadata?.name || user.user_metadata?.full_name || user.fullName || user.email?.split('@')[0] || 'User',
-          role: user.role || user.user_metadata?.role || 'Admin',
-          email: user.email
+          name: user.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
+          role: user.role || user.user_metadata?.role || 'ADMIN',
+          email: user.email || ''
         });
-        console.log('✅ User data loaded:', user);
       }
     } catch (error) {
-      console.error('❌ Error loading user data:', error);
+      console.error('Error loading user data:', error);
     }
   }, []);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -53,212 +49,246 @@ const Header = ({
     };
   }, [showDropdown]);
 
+  const handleLogout = () => {
+    setShowDropdown(false);
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('librarian_token');
+      localStorage.removeItem('librarian_user');
+      sessionStorage.removeItem('librarian_token');
+      sessionStorage.removeItem('librarian_user');
+      window.location.href = '/';
+    }
+  };
+
+  const handleSettings = () => {
+    setShowDropdown(false);
+    const basePath = userData.role?.toUpperCase() === 'ADMIN' ? '/admin' : '/librarian';
+    navigate(`${basePath}/settings`);
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'AD';
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  const getRoleDisplay = (role) => {
+    switch (role?.toUpperCase()) {
+      case 'ADMIN': return 'Quản trị viên';
+      case 'LIBRARIAN': return 'Thủ thư';
+      default: return role;
+    }
+  };
+
   return (
     <header style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '1.25rem 2rem',
+      padding: '1.25rem 1.5rem',
       backgroundColor: '#ffffff',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
       marginBottom: '1.5rem',
-      borderRadius: '24px',
-      position: 'relative'
+      borderRadius: '16px'
     }}>
+      {/* Left Section: Back Button or Spacer */}
       {showBackButton ? (
-        <button 
+        <button
           onClick={onBackClick}
           style={{
-            padding: '0.625rem',
+            padding: '10px',
             border: 'none',
             background: '#f3f4f6',
-            borderRadius: '16px',
+            borderRadius: '12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'all 0.2s',
-            color: '#374151'
+            color: '#374151',
+            marginRight: '16px'
           }}
           onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
           onMouseLeave={(e) => e.currentTarget.style.background = '#f3f4f6'}
         >
           <ChevronLeft size={20} />
         </button>
-      ) : (
-        <div style={{ width: '42px' }}></div>
-      )}
-      
+      ) : null}
+
+      {/* Search Bar */}
       <div style={{
         flex: 1,
-        maxWidth: '650px',
-        margin: '0 2rem',
+        maxWidth: '500px',
         position: 'relative'
       }}>
-        <Search 
-          size={18} 
+        <Search
+          size={18}
           style={{
             position: 'absolute',
-            left: '1.125rem',
+            left: '14px',
             top: '50%',
             transform: 'translateY(-50%)',
-            color: '#9ca3af',
-            pointerEvents: 'none'
+            color: '#9CA3AF'
           }}
         />
-        <input 
-          type="text" 
+        <input
+          type="text"
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={onSearchChange}
           style={{
             width: '100%',
-            padding: '0.75rem 1.25rem 0.75rem 3rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '20px',
-            fontSize: '0.875rem',
+            padding: '10px 14px 10px 42px',
+            border: '2px solid #E5E7EB',
+            borderRadius: '12px',
+            fontSize: '14px',
             outline: 'none',
-            transition: 'all 0.2s',
-            backgroundColor: '#f9fafb'
+            transition: 'border-color 0.2s'
           }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#8b5cf6';
-            e.target.style.backgroundColor = '#ffffff';
-            e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '#e5e7eb';
-            e.target.style.backgroundColor = '#f9fafb';
-            e.target.style.boxShadow = 'none';
-          }}
+          onFocus={(e) => e.target.style.borderColor = '#FF751F'}
+          onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
         />
       </div>
-      
-      <div style={{ position: 'relative' }} ref={dropdownRef}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.875rem',
-          padding: '0.5rem 1rem 0.5rem 0.75rem',
-          backgroundColor: '#f9fafb',
-          borderRadius: '30px',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          border: '1px solid transparent'
-        }}
-        onClick={() => setShowDropdown(!showDropdown)}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f3f4f6';
-          e.currentTarget.style.borderColor = '#e5e7eb';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f9fafb';
-          e.currentTarget.style.borderColor = 'transparent';
-        }}
-        >
-          <img 
-            src={avatarImage} 
-            alt="Avatar" 
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              border: '2px solid #ffffff',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-            }} 
-          />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start'
-          }}>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}>{userData.name}</span>
-            <span style={{
-              fontSize: '0.75rem',
-              color: '#6b7280'
-            }}>{userData.role}</span>
-          </div>
-          <ChevronDown size={16} style={{
-            transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s'
-          }} />
-        </div>
 
+      {/* User Profile */}
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'relative',
+          marginLeft: '20px'
+        }}
+      >
+        <button
+          onClick={() => setShowDropdown(!showDropdown)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '8px 16px',
+            border: '2px solid #E5E7EB',
+            borderRadius: '12px',
+            backgroundColor: '#fff',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#FF751F'}
+          onMouseLeave={(e) => !showDropdown && (e.currentTarget.style.borderColor = '#E5E7EB')}
+        >
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #FF751F, #FF9B5A)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: '12px',
+            fontWeight: '600'
+          }}>
+            {getInitials(userData.name)}
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1F2937' }}>
+              {userData.name}
+            </div>
+            <div style={{ fontSize: '12px', color: '#6B7280' }}>
+              {getRoleDisplay(userData.role)}
+            </div>
+          </div>
+          <ChevronDown
+            size={16}
+            style={{
+              color: '#9CA3AF',
+              transform: showDropdown ? 'rotate(180deg)' : 'rotate(0)',
+              transition: 'transform 0.2s'
+            }}
+          />
+        </button>
+
+        {/* Dropdown Menu */}
         {showDropdown && (
           <div style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
             right: 0,
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            border: '1px solid #e5e7eb',
-            minWidth: '180px',
-            overflow: 'hidden',
-            zIndex: 1000
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            border: '1px solid #E5E7EB',
+            minWidth: '220px',
+            zIndex: 1000,
+            overflow: 'hidden'
           }}>
-            <div 
-              onClick={() => {
-                setShowDropdown(false);
-                // TODO: Navigate to profile page
-              }}
+            {/* User Info */}
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: '1px solid #E5E7EB'
+            }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1F2937' }}>
+                {userData.name}
+              </div>
+              <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                {userData.email}
+              </div>
+            </div>
+
+            {/* Settings */}
+            <button
+              onClick={handleSettings}
               style={{
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
+                gap: '10px',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
                 cursor: 'pointer',
+                fontSize: '14px',
+                color: '#1F2937',
+                fontWeight: '500',
+                textAlign: 'left',
                 transition: 'background-color 0.2s',
-                borderBottom: '1px solid #f3f4f6'
+                borderBottom: '1px solid #E5E7EB'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
-              <User size={18} style={{ color: '#6b7280' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>Profile</span>
-            </div>
-            <div 
-              onClick={() => {
-                console.log('🔴 Logout button clicked!');
-                console.log('🔴 onLogout function:', typeof onLogout, onLogout);
-                setShowDropdown(false);
-                
-                // Call onLogout if provided, otherwise do direct logout
-                if (onLogout && onLogout.toString() !== '() => {}') {
-                  onLogout();
-                } else {
-                  // Direct logout fallback
-                  console.log('⚠️ No valid onLogout prop, doing direct logout');
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  window.location.href = '/';
-                }
-              }}
+              <Settings size={16} />
+              Cài đặt tài khoản
+            </button>
+
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
               style={{
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
+                gap: '10px',
+                padding: '12px 16px',
+                border: 'none',
+                background: 'transparent',
                 cursor: 'pointer',
+                fontSize: '14px',
+                color: '#DC2626',
+                fontWeight: '500',
+                textAlign: 'left',
                 transition: 'background-color 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fef2f2';
-                e.currentTarget.querySelector('svg').style.color = '#dc2626';
-                e.currentTarget.querySelector('span').style.color = '#dc2626';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.querySelector('svg').style.color = '#6b7280';
-                e.currentTarget.querySelector('span').style.color = '#000000';
-              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
-              <LogOut size={18} style={{ color: '#6b7280', transition: 'color 0.2s' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500', transition: 'color 0.2s' }}>Logout</span>
-            </div>
+              <LogOut size={16} />
+              Đăng xuất
+            </button>
           </div>
         )}
       </div>

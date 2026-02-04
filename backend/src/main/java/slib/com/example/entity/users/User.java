@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "authorities", "accountNonExpired", "accountNonLocked",
-        "credentialsNonExpired", "enabled", "username", "password" })
+        "credentialsNonExpired", "enabled" })
 public class User implements UserDetails {
 
     @Id
@@ -30,8 +31,15 @@ public class User implements UserDetails {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "student_code", length = 20, unique = true, nullable = false)
-    private String studentCode;
+    @Column(name = "user_code", length = 20, unique = true, nullable = false)
+    private String userCode;
+
+    @Column(name = "username", length = 50, unique = true)
+    private String username;
+
+    @Column(name = "password", length = 255)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String password;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -39,12 +47,25 @@ public class User implements UserDetails {
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
+    @Column(name = "dob")
+    private LocalDate dob;
+
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Column(name = "avt_url")
+    private String avtUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     private Role role;
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @Column(name = "password_changed")
+    @Builder.Default
+    private Boolean passwordChanged = false;
 
     @Column(name = "noti_device")
     private String notiDevice;
@@ -69,12 +90,13 @@ public class User implements UserDetails {
 
     @Override
     public String getPassword() {
-        return "";
+        return this.password;
     }
 
     @Override
     public String getUsername() {
-        return email;
+        // Always return email for JWT consistency (JWT subject uses email)
+        return this.email;
     }
 
     @Override

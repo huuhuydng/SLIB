@@ -1,12 +1,30 @@
 """
 Pydantic models for AI Service
-Equivalent to Java DTOs/Entities
+Request/Response schemas for all endpoints
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from enum import Enum
+from datetime import datetime
 
+
+# ============== ENUMS ==============
+
+class ActionType(str, Enum):
+    """Response action types"""
+    NONE = "NONE"
+    ESCALATE_TO_LIBRARIAN = "ESCALATE_TO_LIBRARIAN"
+
+
+class DocumentType(str, Enum):
+    """Supported document types for ingestion"""
+    PDF = "pdf"
+    DOCX = "docx"
+    TEXT = "text"
+
+
+# ============== CONFIG ==============
 
 class AIConfig(BaseModel):
     """AI Configuration - equivalent to AIConfigEntity"""
@@ -23,11 +41,79 @@ class AIConfig(BaseModel):
     response_language: str = Field(default="vi")
 
 
+# ============== CHAT ==============
+
 class ChatMessage(BaseModel):
     """Single chat message"""
     role: str = Field(..., description="'user' or 'assistant'")
     content: str = Field(..., description="Message content")
 
+
+class ChatRequest(BaseModel):
+    """Simple chat request"""
+    message: str
+    session_id: Optional[str] = None
+    conversation_id: Optional[str] = None  # For tracking AI-to-Human escalation
+    student_id: Optional[str] = None  # Student UUID for backend integration
+
+
+class ChatResponse(BaseModel):
+    """Chat response with RAG information"""
+    success: bool
+    reply: str
+    session_id: str
+    confidence_score: float
+    needs_review: bool
+    escalated: bool = False
+    escalation_message: Optional[str] = None
+    action: ActionType = ActionType.NONE
+    sources: Optional[List[str]] = None  # Sources used for the answer
+
+
+class RAGQueryRequest(BaseModel):
+    """Request for RAG chat query endpoint"""
+    message: str = Field(..., description="User's question")
+    session_id: Optional[str] = None
+    include_sources: bool = Field(default=True, description="Include source documents in response")
+
+
+class RAGQueryResponse(BaseModel):
+    """Response from RAG chat query"""
+    success: bool
+    reply: str
+    action: ActionType = ActionType.NONE
+    similarity_score: float = Field(..., description="Best similarity score from retrieval")
+    sources: List[Dict[str, Any]] = Field(default=[], description="Retrieved source chunks")
+    session_id: Optional[str] = None
+
+
+# ============== INGESTION ==============
+
+class IngestTextRequest(BaseModel):
+    """Request to ingest raw text"""
+    content: str = Field(..., description="Text content to ingest")
+    source: str = Field(..., description="Source name/identifier")
+    category: str = Field(default="general", description="Category for the document")
+    metadata: Optional[Dict[str, Any]] = Field(default=None)
+
+
+class IngestResponse(BaseModel):
+    """Response from ingestion endpoint"""
+    success: bool
+    message: str
+    chunks_created: int = 0
+    source: Optional[str] = None
+
+
+class KnowledgeStatsResponse(BaseModel):
+    """Statistics about the knowledge base"""
+    total_chunks: int
+    total_sources: int
+    categories: List[str]
+    last_updated: Optional[datetime] = None
+
+
+# ============== LEGACY (for backward compatibility) ==============
 
 class GenerateRequest(BaseModel):
     """Request for generate_response endpoint"""
@@ -48,18 +134,5 @@ class TestConnectionResponse(BaseModel):
     success: bool
     message: str
     model: Optional[str] = None
+  # Message shown when escalated
 
-
-class ChatRequest(BaseModel):
-    """Simple chat request"""
-    message: str
-    session_id: Optional[str] = None
-
-
-class ChatResponse(BaseModel):
-    """Chat response"""
-    success: bool
-    reply: str
-    session_id: str
-    confidence_score: float
-    needs_review: bool
