@@ -105,3 +105,57 @@ export const togglePinNews = async (id) => {
     throw error;
   }
 };
+
+// ============== CATEGORY APIs ==============
+
+const CATEGORY_URL = 'http://localhost:8080/slib/news-category';
+
+// Lay danh sach tat ca categories
+export const getAllCategories = async () => {
+  try {
+    const response = await axios.get(`${CATEGORY_URL}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    throw error;
+  }
+};
+
+// Tao category moi
+export const createCategory = async (name, color = '#3b82f6') => {
+  try {
+    const response = await axios.post(`${CATEGORY_URL}`, { name, color });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating category:', error);
+    throw error;
+  }
+};
+
+// Xoa category
+export const deleteCategory = async (id) => {
+  try {
+    const response = await axios.delete(`${CATEGORY_URL}/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    throw error;
+  }
+};
+
+// ============== UPLOAD IMAGE API ==============
+
+// Upload image va tra ve URL
+export const uploadImage = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post('http://localhost:8080/slib/news/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
+};
