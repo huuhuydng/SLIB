@@ -13,7 +13,9 @@ public class SeatResponse {
     private Integer seatId;
     private Integer zoneId;
     private String seatCode;
-    private SeatStatus seatStatus;
+    private SeatStatus seatStatus; // Computed dynamically from reservations
     private Integer rowNumber;
     private Integer columnNumber;
+    private Boolean isActive; // Admin restriction flag
+    private String nfcTagUid; // NFC tag UID for seat verification
 }

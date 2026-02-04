@@ -38,7 +38,7 @@ public class ChatSessionEntity {
     private SessionStatus status = SessionStatus.ACTIVE;
 
     @Column(name = "title", length = 200)
-    private String title; // Auto-generated from first message
+    private String title; 
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -1,8 +1,28 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
+import { ModalProvider } from "./components/shared/ModalContext";
+import ChatWidget from "./components/ChatWidget";
+
+
+const ConditionalChatWidget = () => {
+    const location = useLocation();
+
+    // Danh sach cac duong dan muon AN bong bong chat
+    const hiddenRoutes = [
+        '/admin/chat',
+        '/librarian/chat',
+        '/login',                   // Trang login chung
+        '/admin/login',             // Redirect cu
+        '/librarian/login'          // Redirect cu
+    ];
+
+    const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
+
+    return shouldHide ? null : <ChatWidget />;
+};
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = React.useState(false);
@@ -13,12 +33,12 @@ function App() {
         // Check for existing auth
         const token = localStorage.getItem('librarian_token');
         const userStr = localStorage.getItem('librarian_user');
-        
+
         if (token && userStr) {
             try {
                 const user = JSON.parse(userStr);
                 const role = user.role;
-                
+
                 if (role === 'LIBRARIAN' || role === 'ADMIN') {
                     setIsLoggedIn(true);
                     setUserRole(role);
@@ -35,47 +55,64 @@ function App() {
         setUserRole(role);
     };
 
+    // Update document title based on role (only when logged in)
+    React.useEffect(() => {
+        if (isLoggedIn && userRole === 'ADMIN') {
+            document.title = 'SLIB - Admin';
+        } else if (isLoggedIn && userRole === 'LIBRARIAN') {
+            document.title = 'SLIB - Thu Thu';
+        } else {
+            document.title = 'SLIB';
+        }
+    }, [userRole, isLoggedIn]);
+
     if (loading) {
-        return <div>Đang tải...</div>;
+        return <div>Dang tai...</div>;
     }
 
+    // Redirect to appropriate dashboard based on role after login
+    const getDefaultRedirect = () => {
+        if (!isLoggedIn) return '/login';
+        return userRole === 'ADMIN' ? '/admin/dashboard' : '/librarian/dashboard';
+    };
+
     return (
-        <BrowserRouter>
-            <Routes>
-                {/* Unified Login Route */}
-                <Route path="/login" element={
-                    isLoggedIn
-                        ? (userRole === 'ADMIN' 
-                            ? <Navigate to="/admin/dashboard" replace />
-                            : <Navigate to="/librarian/dashboard" replace />)
-                        : <AuthPage onLogin={handleLogin} />
-                } />
+        <ModalProvider>
+            <BrowserRouter>
+                <Routes>
+                    {/* Unified Login Route */}
+                    <Route path="/login" element={
+                        isLoggedIn
+                            ? <Navigate to={getDefaultRedirect()} replace />
+                            : <AuthPage onLogin={handleLogin} />
+                    } />
 
-                {/* Admin Routes */}
-                <Route path="/admin/*" element={
-                    isLoggedIn && userRole === 'ADMIN'
-                        ? <AdminRoutes />
-                        : <Navigate to="/login" replace />
-                } />
+                    {/* Legacy login routes - redirect to unified login */}
+                    <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+                    <Route path="/librarian/login" element={<Navigate to="/login" replace />} />
 
-                {/* Librarian Routes */}
-                <Route path="/librarian/*" element={
-                    isLoggedIn && userRole === 'LIBRARIAN'
-                        ? <LibrarianRoutes />
-                        : <Navigate to="/login" replace />
-                } />
+                    {/* Admin Routes */}
+                    <Route path="/admin/*" element={
+                        isLoggedIn && userRole === 'ADMIN'
+                            ? <AdminRoutes />
+                            : <Navigate to="/login" replace />
+                    } />
 
-                {/* Root redirects based on role */}
-                <Route path="/" element={
-                    isLoggedIn 
-                        ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
-                        : <Navigate to="/login" />
-                } />
-                
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-        </BrowserRouter>
+                    {/* Librarian Routes */}
+                    <Route path="/librarian/*" element={
+                        isLoggedIn && userRole === 'LIBRARIAN'
+                            ? <LibrarianRoutes />
+                            : <Navigate to="/login" replace />
+                    } />
+
+                    {/* Root redirects based on role */}
+                    <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
+
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </BrowserRouter>
+        </ModalProvider>
     );
 }
 

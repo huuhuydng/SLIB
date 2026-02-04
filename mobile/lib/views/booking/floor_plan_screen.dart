@@ -1151,33 +1151,33 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-              : Column(
-                  children: [
-                    // Area tabs
-                    if (_areas.length > 1) _buildAreaTabs(),
-                    // Date and Time Slot Filter
-                    _buildDateTimeFilter(),
-                    // Non-working day message OR Floor plan
-                    Expanded(
-                      child: _isNonWorkingDay 
-                          ? _buildClosedDayMessage()
+          : Column(
+              children: [
+                // Area tabs
+                if (_areas.length > 1) _buildAreaTabs(),
+                // Date and Time Slot Filter - LUÔN HIỂN THỊ để cho phép chọn ngày khác
+                _buildDateTimeFilter(),
+                // Non-working day message OR Error message OR Floor plan
+                Expanded(
+                  child: _isNonWorkingDay 
+                      ? _buildClosedDayMessage()
+                      : _errorMessage != null
+                          ? _buildClosedTodayMessage()
                           : _buildFloorPlan(),
-                    ),
-                    // Tip (only show when working day)
-                    if (!_isNonWorkingDay)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        color: const Color(0xFFFFF5EE),
-                        child: const Text(
-                          'Chạm vào ghế màu xanh để đặt chỗ',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ),
-                  ],
                 ),
+                // Tip (only show when working day and no error)
+                if (!_isNonWorkingDay && _errorMessage == null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    color: const Color(0xFFFFF5EE),
+                    child: const Text(
+                      'Chạm vào ghế màu xanh để đặt chỗ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 
@@ -1259,6 +1259,86 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
               },
               icon: const Icon(Icons.calendar_today),
               label: Text('Chọn $nextDayName ($nextDateStr)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Widget hiển thị khi thư viện đã đóng cửa hôm nay (quá giờ)
+  Widget _buildClosedTodayMessage() {
+    // Find next working day
+    DateTime nextWorkingDay = DateTime.now().add(const Duration(days: 1));
+    while (_librarySettings != null && !_librarySettings!.isWorkingDay(nextWorkingDay)) {
+      nextWorkingDay = nextWorkingDay.add(const Duration(days: 1));
+      if (nextWorkingDay.difference(DateTime.now()).inDays > 7) break;
+    }
+    final nextDayName = _getVietnameseDayName(nextWorkingDay);
+    final nextDateStr = DateFormat('dd/MM').format(nextWorkingDay);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.schedule,
+                size: 64,
+                color: Colors.orange[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Đã hết giờ đặt chỗ hôm nay',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Thư viện đã đóng cửa hôm nay.\nHãy chọn ngày khác để đặt chỗ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Filter slots cho ngày mới
+                final validSlots = _filterTimeSlotsForDate(nextWorkingDay, _timeSlots);
+                final newTimeSlot = _findCurrentSlot(validSlots, forDate: nextWorkingDay);
+                
+                setState(() {
+                  _selectedDate = nextWorkingDay;
+                  _selectedTimeSlot = newTimeSlot;
+                  _errorMessage = null;
+                });
+                _clearSeatsCache();
+                _loadZonesAndFactories();
+              },
+              icon: const Icon(Icons.calendar_today),
+              label: Text('Đặt chỗ $nextDayName ($nextDateStr)'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandColor,
                 foregroundColor: Colors.white,
@@ -1779,6 +1859,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
   bool _isLoading = true;
+  LibrarySetting? _settings;
 
   final List<String> _timeSlots = [
     "07:00 - 09:00",
@@ -1790,7 +1871,32 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSeats();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load settings first
+      final settings = await _bookingService.getLibrarySettings();
+      
+      // Find first working day from today
+      DateTime firstWorkingDay = DateTime.now();
+      for (int i = 0; i < 14; i++) {
+        if (settings.isWorkingDay(firstWorkingDay)) break;
+        firstWorkingDay = firstWorkingDay.add(const Duration(days: 1));
+      }
+      
+      setState(() {
+        _settings = settings;
+        _selectedDate = firstWorkingDay;
+      });
+      
+      await _loadSeats();
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      await _loadSeats();
+    }
   }
 
   Future<void> _loadSeats() async {
@@ -1909,11 +2015,35 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
               ),
               onPressed: () async {
                 final now = DateTime.now();
+                // Calculate last bookable date based on working days
+                DateTime lastBookableDate = now;
+                int workingDaysCount = 0;
+                final maxDays = _settings?.maxBookingDays ?? 14;
+                while (workingDaysCount < maxDays) {
+                  lastBookableDate = lastBookableDate.add(const Duration(days: 1));
+                  if (_settings?.isWorkingDay(lastBookableDate) ?? true) {
+                    workingDaysCount++;
+                  }
+                }
+                
+                // Find first working day for initial date
+                DateTime initialDate = _selectedDate ?? now;
+                if (_settings != null && !_settings!.isWorkingDay(initialDate)) {
+                  for (int i = 0; i < 14; i++) {
+                    initialDate = initialDate.add(const Duration(days: 1));
+                    if (_settings!.isWorkingDay(initialDate)) break;
+                  }
+                }
+                
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: now,
+                  initialDate: initialDate,
                   firstDate: now,
-                  lastDate: now.add(const Duration(days: 30)),
+                  lastDate: lastBookableDate,
+                  selectableDayPredicate: (DateTime day) {
+                    // Only allow working days
+                    return _settings?.isWorkingDay(day) ?? true;
+                  },
                 );
                 if (picked != null) {
                   setState(() {

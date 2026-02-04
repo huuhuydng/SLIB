@@ -58,6 +58,53 @@ class LibrarianService {
     return response.data;
   }
 
+  async loginWithPassword(identifier, password) {
+    try {
+      console.log('[Service] Calling loginWithPassword with identifier:', identifier);
+
+      const response = await axios.post('http://localhost:8080/slib/auth/login', {
+        identifier: identifier,
+        password: password
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Info': navigator.userAgent
+        }
+      });
+
+      console.log('[Service] loginWithPassword success:', response.data);
+
+      const { accessToken, refreshToken } = response.data;
+
+      if (accessToken) {
+        localStorage.setItem('librarian_token', accessToken);
+        console.log('[Service] Access token saved');
+      }
+
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+        console.log('[Service] Refresh token saved');
+      }
+
+      const user = {
+        id: response.data.id,
+        email: response.data.email,
+        fullName: response.data.fullName,
+        studentCode: response.data.studentCode || response.data.userCode,
+        role: response.data.role
+      };
+
+      localStorage.setItem('librarian_user', JSON.stringify(user));
+      console.log('[Service] User saved:', user);
+
+      return response.data;
+
+    } catch (error) {
+      console.error('[Service] loginWithPassword error:', error);
+      throw error;
+    }
+  }
+
   async googleLogin(idToken) {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
@@ -75,12 +122,12 @@ class LibrarianService {
       const { accessToken, refreshToken } = response.data;
 
       if (accessToken) {
-        sessionStorage.setItem('librarian_token', accessToken);
+        localStorage.setItem('librarian_token', accessToken);
         console.log('✅ [Service] Access token saved:', accessToken.substring(0, 20) + '...');
       }
 
       if (refreshToken) {
-        sessionStorage.setItem('refresh_token', refreshToken);
+        localStorage.setItem('refresh_token', refreshToken);
         console.log('✅ [Service] Refresh token saved');
       }
 
@@ -92,8 +139,8 @@ class LibrarianService {
         studentCode: response.data.studentCode,
         role: response.data.role
       };
-      
-      sessionStorage.setItem('librarian_user', JSON.stringify(user));
+
+      localStorage.setItem('librarian_user', JSON.stringify(user));
       console.log('✅ [Service] Google user saved:', user);
 
       return response.data;

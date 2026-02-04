@@ -1,38 +1,30 @@
 import { useState } from "react";
 import Login from "./Login";
 import ForgotPassword from "./ForgotPassword";
-import logo from "../../assets/logo.png";
 import "../../styles/Auth.css";
 
 function AuthPage({ onLogin }) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  return (
-    <div className={`auth-page ${showForgotPassword ? "forgot-password-mode" : ""}`}>
-      <div className="auth-card">
-
-        {/* ============ LOGIN PANEL ============ */}
-        <div className="panel panel-login">
-          <Login 
-            onLogin={onLogin}
-            onForgotPassword={() => setShowForgotPassword(true)}
-          />
+  if (showForgotPassword) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="panel panel-forgot" style={{ opacity: 1, width: '100%', position: 'relative' }}>
+            <ForgotPassword
+              onSwitch={() => setShowForgotPassword(false)}
+            />
+          </div>
         </div>
-
-        {/* ============ FORGOT PASSWORD PANEL ============ */}
-        <div className="panel panel-forgot">
-          <ForgotPassword 
-            onSwitch={() => setShowForgotPassword(false)}
-          />
-        </div>
-
-        {/* ============ OVERLAY LOGO ============ */}
-        <div className="overlay">
-          <img src={logo} alt="Logo" className="slib-logo-img" />
-        </div>
-
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Login
+      onLogin={onLogin}
+      onForgotPassword={() => setShowForgotPassword(true)}
+    />
   );
 }
 

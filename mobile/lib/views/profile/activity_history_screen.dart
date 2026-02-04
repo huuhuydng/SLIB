@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -14,7 +15,7 @@ class ActivityHistoryScreen extends StatefulWidget {
   State<ActivityHistoryScreen> createState() => _ActivityHistoryScreenState();
 }
 
-class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
+class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _activities = [];
   List<Map<String, dynamic>> _pointTransactions = [];
   
@@ -25,23 +26,53 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   
   bool _isLoading = true;
   String? _errorMessage;
+  
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    // Auto-refresh mỗi 10 giây
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadData(silent: true);
+    });
   }
 
-  Future<void> _loadData() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh khi app trở lại foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadData(silent: true);
+    }
+  }
+
+  Future<void> _loadData({bool silent = false}) async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
     if (user == null) {
-      setState(() {
-        _errorMessage = "Vui lòng đăng nhập";
-        _isLoading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _errorMessage = "Vui lòng đăng nhập";
+          _isLoading = false;
+        });
+      }
       return;
+    }
+
+    if (!silent && mounted) {
+      setState(() {
+        _isLoading = true;
+      });
     }
 
     try {
@@ -51,23 +82,28 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         
-        setState(() {
-          _activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
-          _pointTransactions = List<Map<String, dynamic>>.from(data['pointTransactions'] ?? []);
-          _totalStudyHours = (data['totalStudyHours'] ?? 0).toDouble();
-          _totalVisits = (data['totalVisits'] ?? 0).toInt();
-          _totalPointsEarned = (data['totalPointsEarned'] ?? 0).toInt();
-          _totalPointsLost = (data['totalPointsLost'] ?? 0).toInt();
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
+            _pointTransactions = List<Map<String, dynamic>>.from(data['pointTransactions'] ?? []);
+            _totalStudyHours = (data['totalStudyHours'] ?? 0).toDouble();
+            _totalVisits = (data['totalVisits'] ?? 0).toInt();
+            _totalPointsEarned = (data['totalPointsEarned'] ?? 0).toInt();
+            _totalPointsLost = (data['totalPointsLost'] ?? 0).toInt();
+            _isLoading = false;
+            _errorMessage = null;
+          });
+        }
       } else {
         throw Exception("Failed to load activity history");
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (!silent && mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -210,7 +246,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final type = activity['activityType'] ?? '';
     final title = activity['title'] ?? '';
     final description = activity['description'] ?? '';
-    final createdAt = DateTime.tryParse(activity['createdAt'] ?? '') ?? DateTime.now();
+    // Parse datetime từ backend (UTC) và convert sang local time
+    final createdAtRaw = DateTime.tryParse(activity['createdAt'] ?? '');
+    final createdAt = createdAtRaw?.toLocal() ?? DateTime.now();
     final durationMinutes = activity['durationMinutes'];
     
     IconData icon;

@@ -19,7 +19,7 @@ import {
   PlusCircle,
   Loader2
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 
 const API_BASE_URL = 'http://localhost:8080/slib/settings';
 
