@@ -51,12 +51,18 @@ public class SeatEntity {
     @Builder.Default
     private Boolean isActive = true;
 
+    // Dynamic seat status (AVAILABLE, BOOKED, HOLDING)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "seat_status")
+    @Builder.Default
+    private SeatStatus seatStatus = SeatStatus.AVAILABLE;
+
     // NFC Tag UID for seat verification (UID Mapping Strategy)
     // Format: Uppercase HEX string without separators (e.g., "04A23C91")
     @Column(name = "nfc_tag_uid", unique = true)
     private String nfcTagUid;
 
-    @OneToMany(mappedBy = "seat")
+    @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.EAGER)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ReservationEntity> reservation;
 }

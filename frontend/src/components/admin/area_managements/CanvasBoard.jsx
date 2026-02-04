@@ -92,7 +92,8 @@ function CanvasBoard() {
   ============================== */
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
-    if (!panMode && !spacePressed) return;
+    // In preview mode, allow panning by default without needing panMode or space
+    if (!isPreviewMode && !panMode && !spacePressed) return;
 
     setIsPanning(true);
     setStartPan({
@@ -359,23 +360,27 @@ function CanvasBoard() {
       const zoneIdMapping = new Map(); // tempId -> realId
       const newZonePromises = (pendingChanges?.newZones || []).map(async (zone) => {
         try {
+          // Get current zone data from UI state (user may have changed name/position after creating)
+          const currentZone = zones.find(z => z.zoneId === zone.zoneId);
+          const finalZoneName = currentZone?.zoneName ?? zone.zoneName;
+          const finalColor = currentZone?.color ?? zone.color;
+
           // Create zone with initial values
           const res = await createZone({
-            zoneName: zone.zoneName,
+            zoneName: finalZoneName,
             areaId: zone.areaId,
             positionX: 0,  // Default, will update with actual position below
             positionY: 0,
             width: 120,
             height: 100,
-            color: zone.color,
+            color: finalColor,
           });
           const realId = res.data?.zone_id ?? res.data?.zoneId;
 
           // Store mapping for seats that reference this zone
           zoneIdMapping.set(zone.zoneId, realId);
 
-          // Get current position/size from UI state (user may have moved it after creating)
-          const currentZone = zones.find(z => z.zoneId === zone.zoneId);
+          // Get current position/size from UI state
           const finalPositionX = currentZone?.positionX ?? zone.positionX ?? 0;
           const finalPositionY = currentZone?.positionY ?? zone.positionY ?? 0;
           const finalWidth = currentZone?.width ?? zone.width ?? 120;
@@ -415,19 +420,23 @@ function CanvasBoard() {
       // 2. Create new factories (pending with negative IDs) - can run in parallel with zones
       const newFactoryPromises = (pendingChanges?.newFactories || []).map(async (factory) => {
         try {
+          // Get current factory data from UI state (user may have changed name/position after creating)
+          const currentFactory = factories.find(f => f.factoryId === factory.factoryId);
+          const finalFactoryName = currentFactory?.factoryName ?? factory.factoryName;
+          const finalColor = currentFactory?.color ?? factory.color;
+
           // Create factory with initial values
           const res = await createAreaFactoryInArea(factory.areaId, {
-            factoryName: factory.factoryName,
+            factoryName: finalFactoryName,
             positionX: 0,  // Default, will update with actual position below
             positionY: 0,
             width: 120,
             height: 80,
-            color: factory.color,
+            color: finalColor,
           });
           const realId = res.data?.factory_id ?? res.data?.factoryId;
 
-          // Get current position/size from UI state (user may have moved it after creating)
-          const currentFactory = factories.find(f => f.factoryId === factory.factoryId);
+          // Get current position/size from UI state
           const finalPositionX = currentFactory?.positionX ?? factory.positionX ?? 0;
           const finalPositionY = currentFactory?.positionY ?? factory.positionY ?? 0;
           const finalWidth = currentFactory?.width ?? factory.width ?? 120;
@@ -436,12 +445,12 @@ function CanvasBoard() {
           // Update position/size in BE with user's actual values
           await updateAreaFactory(realId, {
             factoryId: realId,
-            factoryName: factory.factoryName,
+            factoryName: finalFactoryName,
             positionX: Math.round(finalPositionX),
             positionY: Math.round(finalPositionY),
             width: Math.round(finalWidth),
             height: Math.round(finalHeight),
-            color: factory.color,
+            color: finalColor,
             areaId: factory.areaId,
           });
 
@@ -514,13 +523,16 @@ function CanvasBoard() {
       await Promise.all(newSeatPromises);
 
       // 3. Update existing zones (those with positive IDs)
+      const { updateZone } = await import('../../../services/admin/area_management/api');
       const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
       const updateZonePromises = existingZones.map(zone =>
-        updateZonePositionAndDimensions(zone.zoneId, {
+        updateZone(zone.zoneId, {
+          zoneName: zone.zoneName,
           positionX: Math.round(zone.positionX || 0),
           positionY: Math.round(zone.positionY || 0),
           width: Math.round(zone.width || 250),
           height: Math.round(zone.height || 200),
+          color: zone.color,
         }).catch(e => console.error(`Failed to update zone ${zone.zoneId}:`, e))
       );
 
@@ -674,29 +686,31 @@ function CanvasBoard() {
 
         {/* Right: Tools */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Pan Mode */}
-          <button
-            onClick={() => setPanMode(!panMode)}
-            title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
-              background: panMode
-                ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
-                : 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: panMode ? '#1E40AF' : '#64748B'
-            }}
-          >
-            ☰
-          </button>
+          {/* Pan Mode - only show in edit mode */}
+          {!isPreviewMode && (
+            <button
+              onClick={() => setPanMode(!panMode)}
+              title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
+                background: panMode
+                  ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
+                  : 'white',
+                cursor: 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: panMode ? '#1E40AF' : '#64748B'
+              }}
+            >
+              ☰
+            </button>
+          )}
 
           {/* Zoom Controls */}
           <div style={{
@@ -966,38 +980,6 @@ function CanvasBoard() {
           </div>
         </div>
       </div>{/* End Canvas Content wrapper */}
-
-      {/* Keyboard Shortcuts Help */}
-      <div style={{
-        position: 'absolute',
-        bottom: '16px',
-        left: '16px',
-        display: 'flex',
-        gap: '12px',
-        fontSize: '11px',
-        color: '#94A3B8'
-      }}>
-        <span>
-          <kbd style={{
-            background: '#F1F5F9',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            border: '1px solid #E2E8F0',
-            marginRight: '4px'
-          }}>Space</kbd>
-          + Kéo để di chuyển
-        </span>
-        <span>
-          <kbd style={{
-            background: '#F1F5F9',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            border: '1px solid #E2E8F0',
-            marginRight: '4px'
-          }}>Scroll</kbd>
-          để zoom
-        </span>
-      </div>
     </main>
   );
 }

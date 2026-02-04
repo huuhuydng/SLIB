@@ -5,54 +5,81 @@ import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.entity.zone_config.SeatEntity;
+import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.repository.ReservationRepository;
+import slib.com.example.repository.SeatRepository;
 
-/**
- * Scheduler for handling reservation expirations.
- * 
- * With the new dynamic status calculation, this scheduler only updates
- * reservation statuses. Seat availability is calculated dynamically from
- * the reservations table.
- */
 @Service
 public class ReservationScheduler {
     private final ReservationRepository reservationRepository;
+    private final SeatRepository seatRepository;
 
-    public ReservationScheduler(ReservationRepository reservationRepository) {
+    public ReservationScheduler(ReservationRepository reservationRepository,
+            SeatRepository seatRepository) {
         this.reservationRepository = reservationRepository;
+        this.seatRepository = seatRepository;
     }
 
-    @Scheduled(fixedRate = 60000) // check every 60s
-    public void releaseExpiredReservations() {
-        LocalDateTime now = LocalDateTime.now();
+    @Scheduled(fixedRate = 60000) // check mỗi 60s
+    @Transactional
+    public void releaseExpiredSeats() {
+        try {
+            LocalDateTime now = LocalDateTime.now();
 
-        // 1. Expire BOOKED reservations that have ended
-        List<ReservationEntity> expiredBooked = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
-        for (ReservationEntity r : expiredBooked) {
-            r.setStatus("EXPIRED");
-            reservationRepository.save(r);
+            // 1. Hủy các reservation BOOKED đã hết hạn
+            List<ReservationEntity> expired = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
+            for (ReservationEntity r : expired) {
+                r.setStatus("EXPIRED");
+                reservationRepository.save(r);
+
+                SeatEntity seat = r.getSeat();
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+                seatRepository.save(seat);
+            }
+
+            // 2. Hủy các reservation PROCESSING quá 2 phút (120s)
+            LocalDateTime cutoff = now.minusSeconds(120);
+            List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
+                    "PROCESSING");
+
+            for (ReservationEntity r : processingExpired) {
+                r.setStatus("CANCEL");
+                reservationRepository.save(r);
+
+                SeatEntity seat = r.getSeat();
+                seat.setSeatStatus(SeatStatus.AVAILABLE);
+                seatRepository.save(seat);
+            }
+
+            // 3. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
+            activateBookedSeats(now);
+        } catch (Exception e) {
+            // Log error nhưng không để crash application
+            System.err.println("Error in releaseExpiredSeats: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
 
-        // 2. Expire CONFIRMED reservations that have ended
-        List<ReservationEntity> expiredConfirmed = reservationRepository.findByEndTimeBeforeAndStatus(now, "CONFIRMED");
-        for (ReservationEntity r : expiredConfirmed) {
-            r.setStatus("EXPIRED");
-            reservationRepository.save(r);
+    /**
+     * Update seat_status thành BOOKED khi reservation BOOKED đến giờ bắt đầu
+     */
+    private void activateBookedSeats(LocalDateTime now) {
+        // Tìm tất cả reservations BOOKED đang trong khung giờ active
+        List<ReservationEntity> activeBookings = reservationRepository.findAll().stream()
+                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> !now.isBefore(r.getStartTime()) && now.isBefore(r.getEndTime()))
+                .toList();
+
+        for (ReservationEntity r : activeBookings) {
+            SeatEntity seat = r.getSeat();
+            if (seat.getSeatStatus() != SeatStatus.BOOKED) {
+                seat.setSeatStatus(SeatStatus.BOOKED);
+                seatRepository.save(seat);
+            }
         }
-
-        // 3. Cancel PROCESSING reservations older than 2 minutes (120s)
-        LocalDateTime cutoff = now.minusSeconds(120);
-        List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
-                "PROCESSING");
-
-        for (ReservationEntity r : processingExpired) {
-            r.setStatus("CANCELLED");
-            reservationRepository.save(r);
-        }
-
-        // Note: No need to update seat_status anymore - availability is calculated
-        // dynamically from reservations when queried.
     }
 }

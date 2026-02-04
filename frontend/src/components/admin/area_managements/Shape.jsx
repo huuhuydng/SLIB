@@ -328,7 +328,7 @@ function Shape({ factory, area }) {
                     : isLockedState
                         ? '2px solid #fca5a5'
                         : '2px solid #9CA3AF',
-            cursor: isLockedState ? 'default' : 'move',
+            cursor: isPreviewMode ? 'default' : (isLockedState ? 'default' : 'move'),
             position: 'relative',
             overflow: 'visible',
             fontSize: '13px',
@@ -343,6 +343,7 @@ function Shape({ factory, area }) {
                     ? '0 0 10px rgba(220, 38, 38, 0.2)'
                     : 'none',
             transition: 'all 0.2s ease',
+            pointerEvents: isPreviewMode ? 'none' : 'auto',
         };
 
         // Warning badge component - only show for collision, not for locked state
@@ -372,8 +373,8 @@ function Shape({ factory, area }) {
                             ...baseStyle,
                             borderRadius: '50%',
                         }}
-                        onClick={handleSelectFactory}
-                        onDoubleClick={handleDoubleClick}
+                        onClick={isPreviewMode ? undefined : handleSelectFactory}
+                        onDoubleClick={isPreviewMode ? undefined : handleDoubleClick}
                     >
                         {WarningBadge}
                         {isEditing ? (
@@ -410,8 +411,8 @@ function Shape({ factory, area }) {
                             minHeight: '4px',
                             position: 'relative',
                         }}
-                        onClick={handleSelectFactory}
-                        onDoubleClick={handleDoubleClick}
+                        onClick={isPreviewMode ? undefined : handleSelectFactory}
+                        onDoubleClick={isPreviewMode ? undefined : handleDoubleClick}
                     >
                         {WarningBadge}
                         {isEditing ? (
@@ -464,8 +465,8 @@ function Shape({ factory, area }) {
                             ...baseStyle,
                             borderRadius: '6px',
                         }}
-                        onClick={handleSelectFactory}
-                        onDoubleClick={handleDoubleClick}
+                        onClick={isPreviewMode ? undefined : handleSelectFactory}
+                        onDoubleClick={isPreviewMode ? undefined : handleDoubleClick}
                     >
                         {WarningBadge}
                         {isEditing ? (

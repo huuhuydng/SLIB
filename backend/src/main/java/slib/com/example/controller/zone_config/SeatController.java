@@ -40,14 +40,17 @@ public class SeatController {
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
         try {
+            // Nếu truyền startTime + endTime → tính trạng thái động theo khoảng thời gian
             if (startTime != null && endTime != null) {
                 return ResponseEntity.ok(seatService.getSeatsByTimeRange(startTime, endTime, zoneId));
             }
 
+            // Nếu chỉ filter theo zone
             if (zoneId != null) {
                 return ResponseEntity.ok(seatService.getSeatsByZoneId(zoneId));
             }
 
+            // Mặc định: tất cả seats
             return ResponseEntity.ok(seatService.getAllSeats());
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body(java.util.Map.of(
@@ -119,7 +122,7 @@ public class SeatController {
     public ResponseEntity<?> unrestrictSeat(@PathVariable Integer seatId) {
         try {
             seatService.unrestrictSeatById(seatId);
-            return ResponseEntity.ok(java.util.Map.of("message", "Đã bỏ hạn chế ghế với id: " + seatId));
+            return ResponseEntity.ok(java.util.Map.of("message", "Da bo han che ghe voi id: " + seatId));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
@@ -132,8 +135,7 @@ public class SeatController {
             @RequestParam("start") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime start,
             @RequestParam("end") @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime end) {
 
-        java.util.Map<Integer, List<SeatDTO>> result =
-                bookingService.getAllSeatsByArea(areaId, date, start, end);
+        java.util.Map<Integer, List<SeatDTO>> result = bookingService.getAllSeatsByArea(areaId, date, start, end);
         return ResponseEntity.ok(result);
     }
 

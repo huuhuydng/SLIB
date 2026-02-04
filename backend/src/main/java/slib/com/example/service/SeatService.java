@@ -46,6 +46,7 @@ public class SeatService {
     }
 
     // ================= CREATE =================
+    // FE gui: zoneId, rowNumber, columnNumber, seatCode, seatStatus
     public SeatResponse createSeat(SeatResponse req) {
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
@@ -64,7 +65,7 @@ public class SeatService {
                 .rowNumber(rowNumber)
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
-                .isActive(true) // New seats are active by default
+                .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
                 .build();
 
         return toResponse(seatRepository.save(seat));
@@ -78,14 +79,14 @@ public class SeatService {
         if (req.getSeatCode() != null) {
             seat.setSeatCode(req.getSeatCode());
         }
+        if (req.getSeatStatus() != null) {
+            seat.setSeatStatus(req.getSeatStatus());
+        }
         if (req.getColumnNumber() != null) {
             seat.setColumnNumber(req.getColumnNumber());
         }
         if (req.getRowNumber() != null) {
             seat.setRowNumber(req.getRowNumber());
-        }
-        if (req.getIsActive() != null) {
-            seat.setIsActive(req.getIsActive());
         }
 
         return toResponse(seatRepository.save(seat));
@@ -123,14 +124,13 @@ public class SeatService {
         return res;
     }
 
-    /**
-     * Get seats with calculated status for a specific time range.
-     * This is the main method for booking UI to display seat availability.
-     */
     public List<SeatResponse> getSeatsByTimeRange(String startTimeStr, String endTimeStr, Integer zoneId) {
         // Parse ISO 8601 time strings (e.g., "2026-01-20T13:00:00")
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
         LocalDateTime endTime = LocalDateTime.parse(endTimeStr);
+
+        System.out.println(
+                "[getSeatsByTimeRange] startTime: " + startTime + ", endTime: " + endTime + ", zoneId: " + zoneId);
 
         List<SeatEntity> seats;
         if (zoneId != null) {
@@ -141,17 +141,58 @@ public class SeatService {
 
         return seats.stream()
                 .map(seat -> {
-                    SeatResponse response = new SeatResponse();
-                    response.setSeatId(seat.getSeatId());
-                    response.setZoneId(seat.getZone().getZoneId());
-                    response.setSeatCode(seat.getSeatCode());
-                    response.setRowNumber(seat.getRowNumber());
-                    response.setColumnNumber(seat.getColumnNumber());
-                    response.setIsActive(seat.getIsActive());
+                    SeatResponse response = toResponse(seat);
 
-                    // Calculate status dynamically for the requested time range
-                    SeatStatus status = seatAvailabilityService.calculateStatus(seat, startTime, endTime);
-                    response.setSeatStatus(status);
+                    // Log seat details
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println(
+                                "[A7 Debug] seatId: " + seat.getSeatId() + ", seatCode: " + seat.getSeatCode());
+                        System.out.println("[A7 Debug] DB seatStatus: " + seat.getSeatStatus());
+                        System.out.println("[A7 Debug] Reservations count: "
+                                + (seat.getReservation() != null ? seat.getReservation().size() : 0));
+                        if (seat.getReservation() != null) {
+                            seat.getReservation().forEach(r -> {
+                                System.out.println("  - Reservation: status=" + r.getStatus() + ", start="
+                                        + r.getStartTime() + ", end=" + r.getEndTime());
+                            });
+                        }
+                    }
+
+                    // Tinh toan status dong dua tren reservations trong time range
+                    boolean isBookedInTimeRange = seat.getReservation().stream()
+                            .anyMatch(r -> {
+                                String status = r.getStatus();
+                                boolean isActiveStatus = "BOOKED".equalsIgnoreCase(status)
+                                        || "PROCESSING".equalsIgnoreCase(status)
+                                        || "CONFIRMED".equalsIgnoreCase(status);
+
+                                if (!isActiveStatus) {
+                                    return false;
+                                }
+
+                                // Kiem tra overlap: reservation co giao voi time range khong
+                                LocalDateTime resStart = r.getStartTime();
+                                LocalDateTime resEnd = r.getEndTime();
+
+                                return resStart.isBefore(endTime) && resEnd.isAfter(startTime);
+                            });
+
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println("[A7 Debug] isBookedInTimeRange: " + isBookedInTimeRange);
+                    }
+
+                    // Neu seat co status UNAVAILABLE trong DB, uu tien status nay
+                    if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
+                        response.setSeatStatus(SeatStatus.UNAVAILABLE);
+                    } else if (isBookedInTimeRange) {
+                        response.setSeatStatus(SeatStatus.BOOKED);
+                    } else {
+                        response.setSeatStatus(SeatStatus.AVAILABLE);
+                    }
+
+                    if ("A7".equals(seat.getSeatCode())) {
+                        System.out.println("[A7 Debug] Final response status: " + response.getSeatStatus());
+                    }
 
                     return response;
                 })
@@ -159,24 +200,24 @@ public class SeatService {
     }
 
     /**
-     * Restrict (disable) a seat by seatId
+     * Han che ghe theo seatId (unique ID)
      */
     public SeatResponse restrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
-        seat.setIsActive(false);
+        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
         return toResponse(seatRepository.save(seat));
     }
 
     /**
-     * Unrestrict (enable) a seat by seatId
+     * Bo han che ghe theo seatId
      */
     public void unrestrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
-        seat.setIsActive(true);
+        seat.setSeatStatus(SeatStatus.AVAILABLE);
         seatRepository.save(seat);
     }
 
@@ -189,7 +230,7 @@ public class SeatService {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
 
-        seat.setIsActive(false);
+        seat.setSeatStatus(SeatStatus.UNAVAILABLE);
         return toResponse(seatRepository.save(seat));
     }
 
@@ -202,7 +243,7 @@ public class SeatService {
         SeatEntity seat = seatRepository.findBySeatCode(seatCode)
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + seatCode));
 
-        seat.setIsActive(true);
+        seat.setSeatStatus(SeatStatus.AVAILABLE);
         seatRepository.save(seat);
     }
 
@@ -227,9 +268,9 @@ public class SeatService {
             seatRepository.findByNfcTagUid(hashedUid).ifPresent(existingSeat -> {
                 if (!existingSeat.getSeatId().equals(seatId)) {
                     throw new RuntimeException(
-                            "NFC UID này đã được gán cho ghế " +
+                            "NFC UID nay da duoc gan cho ghe " +
                                     existingSeat.getSeatCode() + " (ID: " + existingSeat.getSeatId() + "). " +
-                                    "Vui lòng xóa NFC UID khỏi ghế đó trước khi gán cho ghế này.");
+                                    "Vui long xoa NFC UID khoi ghe do truoc khi gan cho ghe nay.");
                 }
             });
         }
@@ -265,7 +306,7 @@ public class SeatService {
 
         SeatEntity seat = seatRepository.findByNfcTagUid(hashedUid)
                 .orElseThrow(() -> new RuntimeException(
-                        "Không tìm thấy ghế với NFC UID này. Có thể thẻ chưa được gán cho ghế nào."));
+                        "Khong tim thay ghe voi NFC UID nay. Co the the chua duoc gan cho ghe nao."));
         return toResponse(seat);
     }
 }

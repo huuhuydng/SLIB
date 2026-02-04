@@ -219,9 +219,15 @@ function layoutReducer(state, action) {
       // Merge zones for a specific area
       const { areaId, zones: newZones } = action.payload;
       const otherZones = state.zones.filter(z => z.areaId !== areaId);
+      // Preserve pending new zones for this area (not yet saved to DB)
+      const pendingNewZonesForArea = state.pendingChanges.newZones.filter(z => z.areaId === areaId);
+      // Filter out zones that are marked for deletion
+      const filteredNewZones = newZones.filter(z =>
+        !state.pendingChanges.deletedZones.includes(z.zoneId)
+      );
       return {
         ...state,
-        zones: [...otherZones, ...newZones],
+        zones: [...otherZones, ...filteredNewZones, ...pendingNewZonesForArea],
       };
 
     case ACTIONS.ADD_ZONE:
@@ -245,6 +251,13 @@ function layoutReducer(state, action) {
         zones: state.zones.filter((z) => z.zoneId !== action.payload),
         seats: state.seats.filter((s) => s.zoneId !== action.payload),
         selectedItem: null,
+        // Also remove from pendingChanges.newZones if it was a pending zone (not yet saved)
+        pendingChanges: {
+          ...state.pendingChanges,
+          newZones: state.pendingChanges.newZones.filter(z => z.zoneId !== action.payload),
+          // Remove any pending seats that belong to this zone
+          newSeats: state.pendingChanges.newSeats.filter(s => s.zoneId !== action.payload),
+        },
       };
 
     // ===== SEAT =====
@@ -259,7 +272,13 @@ function layoutReducer(state, action) {
       // Merge seats for a specific zone without overwriting other zones' seats
       const { zoneId, seats: newSeats } = action.payload || {};
       const otherSeats = state.seats.filter((s) => s.zoneId !== zoneId);
-      const mergedSeats = [...otherSeats, ...(newSeats || [])];
+      // Preserve pending new seats for this zone (not yet saved to DB)
+      const pendingNewSeatsForZone = state.pendingChanges.newSeats.filter(s => s.zoneId === zoneId);
+      // Filter out seats that are marked for deletion
+      const filteredNewSeats = (newSeats || []).filter(s =>
+        !state.pendingChanges.deletedSeats.includes(s.seatId)
+      );
+      const mergedSeats = [...otherSeats, ...filteredNewSeats, ...pendingNewSeatsForZone];
 
       // Sort by seatId to maintain consistent order
       return {
@@ -309,6 +328,11 @@ function layoutReducer(state, action) {
       return {
         ...state,
         seats: state.seats.filter((s) => s.seatId !== action.payload),
+        // Also remove from pendingChanges.newSeats if it was a pending seat (not yet saved)
+        pendingChanges: {
+          ...state.pendingChanges,
+          newSeats: state.pendingChanges.newSeats.filter(s => s.seatId !== action.payload),
+        },
       };
 
     // Update only seatStatus for a specific seat (WebSocket real-time update)
@@ -332,10 +356,16 @@ function layoutReducer(state, action) {
     case ACTIONS.MERGE_FACTORIES:
       // Merge factories for a specific area
       const { areaId: factoryAreaId, factories: newFactories } = action.payload;
-      console.log(`📦 MERGE_FACTORIES - Area: ${factoryAreaId}, New factories:`, newFactories);
+      console.log(`MERGE_FACTORIES - Area: ${factoryAreaId}, New factories:`, newFactories);
       const otherFactories = state.factories.filter(f => f.areaId !== factoryAreaId);
-      const merged = [...otherFactories, ...newFactories];
-      console.log(`📦 After merge:`, merged);
+      // Preserve pending new factories for this area (not yet saved to DB)
+      const pendingNewFactoriesForArea = state.pendingChanges.newFactories.filter(f => f.areaId === factoryAreaId);
+      // Filter out factories that are marked for deletion
+      const filteredNewFactories = newFactories.filter(f =>
+        !state.pendingChanges.deletedFactories.includes(f.factoryId)
+      );
+      const merged = [...otherFactories, ...filteredNewFactories, ...pendingNewFactoriesForArea];
+      console.log(`After merge:`, merged);
       return {
         ...state,
         factories: merged,
@@ -360,6 +390,11 @@ function layoutReducer(state, action) {
       return {
         ...state,
         factories: state.factories.filter((f) => f.factoryId !== action.payload),
+        // Also remove from pendingChanges.newFactories if it was a pending factory (not yet saved)
+        pendingChanges: {
+          ...state.pendingChanges,
+          newFactories: state.pendingChanges.newFactories.filter(f => f.factoryId !== action.payload),
+        },
       };
 
     // Replace temp zone with real zone after API creation (matches by tempId)
@@ -421,6 +456,16 @@ function layoutReducer(state, action) {
       };
 
     case ACTIONS.SET_PREVIEW_MODE:
+      // When entering preview mode, deselect all items
+      if (action.payload === true) {
+        return {
+          ...state,
+          isPreviewMode: true,
+          selectedItem: null,
+          selectedItems: [],
+          selectedZoneId: null,
+        };
+      }
       return {
         ...state,
         isPreviewMode: action.payload,
@@ -535,6 +580,7 @@ function layoutReducer(state, action) {
         pendingChanges: {
           newZones: [],
           newFactories: [],
+          newSeats: [],
           deletedZones: [],
           deletedFactories: [],
           deletedSeats: [],
