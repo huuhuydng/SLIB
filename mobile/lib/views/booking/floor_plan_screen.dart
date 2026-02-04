@@ -1784,10 +1784,14 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       width: fixedSeatSize,
                       height: fixedSeatSize,
                       decoration: BoxDecoration(
-                        color: isAvailable ? Colors.green : Colors.red[400],
+                        color: seat.isUnavailable 
+                            ? Colors.grey[400] 
+                            : (isAvailable ? Colors.green : Colors.red[400]),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: isAvailable ? Colors.green[700]! : Colors.red[700]!,
+                          color: seat.isUnavailable
+                              ? Colors.grey[600]!
+                              : (isAvailable ? Colors.green[700]! : Colors.red[700]!),
                           width: 1.5,
                         ),
                       ),
@@ -1859,6 +1863,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
   bool _isLoading = true;
+  LibrarySetting? _settings;
 
   final List<String> _timeSlots = [
     "07:00 - 09:00",
@@ -1870,7 +1875,32 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSeats();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load settings first
+      final settings = await _bookingService.getLibrarySettings();
+      
+      // Find first working day from today
+      DateTime firstWorkingDay = DateTime.now();
+      for (int i = 0; i < 14; i++) {
+        if (settings.isWorkingDay(firstWorkingDay)) break;
+        firstWorkingDay = firstWorkingDay.add(const Duration(days: 1));
+      }
+      
+      setState(() {
+        _settings = settings;
+        _selectedDate = firstWorkingDay;
+      });
+      
+      await _loadSeats();
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      await _loadSeats();
+    }
   }
 
   Future<void> _loadSeats() async {
@@ -1989,11 +2019,35 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
               ),
               onPressed: () async {
                 final now = DateTime.now();
+                // Calculate last bookable date based on working days
+                DateTime lastBookableDate = now;
+                int workingDaysCount = 0;
+                final maxDays = _settings?.maxBookingDays ?? 14;
+                while (workingDaysCount < maxDays) {
+                  lastBookableDate = lastBookableDate.add(const Duration(days: 1));
+                  if (_settings?.isWorkingDay(lastBookableDate) ?? true) {
+                    workingDaysCount++;
+                  }
+                }
+                
+                // Find first working day for initial date
+                DateTime initialDate = _selectedDate ?? now;
+                if (_settings != null && !_settings!.isWorkingDay(initialDate)) {
+                  for (int i = 0; i < 14; i++) {
+                    initialDate = initialDate.add(const Duration(days: 1));
+                    if (_settings!.isWorkingDay(initialDate)) break;
+                  }
+                }
+                
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: now,
+                  initialDate: initialDate,
                   firstDate: now,
-                  lastDate: now.add(const Duration(days: 30)),
+                  lastDate: lastBookableDate,
+                  selectableDayPredicate: (DateTime day) {
+                    // Only allow working days
+                    return _settings?.isWorkingDay(day) ?? true;
+                  },
                 );
                 if (picked != null) {
                   setState(() {
@@ -2045,6 +2099,8 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                 _legend(AppColors.seatAvailable, 'Trống'),
                 const SizedBox(width: 16),
                 _legend(AppColors.seatOccupied, 'Đã đặt'),
+                const SizedBox(width: 16),
+                _legend(Colors.grey[400]!, 'Bảo trì'),
                 const SizedBox(width: 16),
                 _legend(AppColors.brandColor, 'Đang chọn'),
               ],
@@ -2124,13 +2180,19 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                     children: rowSeats.map((seat) {
                       final globalIndex = _seats.indexOf(seat);
                       final isSelected = _selectedIndex == globalIndex;
-                      final isAvailable = seat.seatStatus == 'AVAILABLE';
+                      final isUnavailable = seat.isUnavailable;
+                      final isAvailable = seat.seatStatus == 'AVAILABLE' && !isUnavailable;
                       
-                      final color = isSelected
-                          ? AppColors.brandColor
-                          : isAvailable
-                              ? AppColors.seatAvailable
-                              : AppColors.seatOccupied;
+                      Color color;
+                      if (isSelected) {
+                        color = AppColors.brandColor;
+                      } else if (isUnavailable) {
+                        color = Colors.grey[400]!;
+                      } else if (isAvailable) {
+                        color = AppColors.seatAvailable;
+                      } else {
+                        color = AppColors.seatOccupied;
+                      }
 
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),

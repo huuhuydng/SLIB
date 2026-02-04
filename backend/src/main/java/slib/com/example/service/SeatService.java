@@ -20,6 +20,8 @@ public class SeatService {
 
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
+    private final SeatAvailabilityService seatAvailabilityService;
+    private final slib.com.example.util.NfcUidHasher nfcUidHasher;
 
     // ================= GET =================
 
@@ -44,7 +46,7 @@ public class SeatService {
     }
 
     // ================= CREATE =================
-    // FE gửi: zoneId, rowNumber, columnNumber, seatCode, seatStatus
+    // FE gui: zoneId, rowNumber, columnNumber, seatCode, seatStatus
     public SeatResponse createSeat(SeatResponse req) {
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
@@ -110,9 +112,15 @@ public class SeatService {
         res.setSeatId(seat.getSeatId());
         res.setZoneId(seat.getZone().getZoneId());
         res.setSeatCode(seat.getSeatCode());
-        res.setSeatStatus(seat.getSeatStatus());
         res.setRowNumber(seat.getRowNumber());
         res.setColumnNumber(seat.getColumnNumber());
+        res.setIsActive(seat.getIsActive());
+        res.setNfcTagUid(seat.getNfcTagUid());
+
+        // Calculate status dynamically for current moment
+        SeatStatus status = seatAvailabilityService.calculateCurrentStatus(seat);
+        res.setSeatStatus(status);
+
         return res;
     }
 
@@ -121,7 +129,8 @@ public class SeatService {
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
         LocalDateTime endTime = LocalDateTime.parse(endTimeStr);
 
-        System.out.println("🔍 [getSeatsByTimeRange] startTime: " + startTime + ", endTime: " + endTime + ", zoneId: " + zoneId);
+        System.out.println(
+                "[getSeatsByTimeRange] startTime: " + startTime + ", endTime: " + endTime + ", zoneId: " + zoneId);
 
         List<SeatEntity> seats;
         if (zoneId != null) {
@@ -136,17 +145,20 @@ public class SeatService {
 
                     // Log seat details
                     if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println("📍 [A7 Debug] seatId: " + seat.getSeatId() + ", seatCode: " + seat.getSeatCode());
-                        System.out.println("📍 [A7 Debug] DB seatStatus: " + seat.getSeatStatus());
-                        System.out.println("📍 [A7 Debug] Reservations count: " + (seat.getReservation() != null ? seat.getReservation().size() : 0));
+                        System.out.println(
+                                "[A7 Debug] seatId: " + seat.getSeatId() + ", seatCode: " + seat.getSeatCode());
+                        System.out.println("[A7 Debug] DB seatStatus: " + seat.getSeatStatus());
+                        System.out.println("[A7 Debug] Reservations count: "
+                                + (seat.getReservation() != null ? seat.getReservation().size() : 0));
                         if (seat.getReservation() != null) {
                             seat.getReservation().forEach(r -> {
-                                System.out.println("  - Reservation: status=" + r.getStatus() + ", start=" + r.getStartTime() + ", end=" + r.getEndTime());
+                                System.out.println("  - Reservation: status=" + r.getStatus() + ", start="
+                                        + r.getStartTime() + ", end=" + r.getEndTime());
                             });
                         }
                     }
 
-                    // Tính toán status động dựa trên reservations trong time range
+                    // Tinh toan status dong dua tren reservations trong time range
                     boolean isBookedInTimeRange = seat.getReservation().stream()
                             .anyMatch(r -> {
                                 String status = r.getStatus();
@@ -158,7 +170,7 @@ public class SeatService {
                                     return false;
                                 }
 
-                                // Kiểm tra overlap: reservation có giao với time range không
+                                // Kiem tra overlap: reservation co giao voi time range khong
                                 LocalDateTime resStart = r.getStartTime();
                                 LocalDateTime resEnd = r.getEndTime();
 
@@ -166,10 +178,10 @@ public class SeatService {
                             });
 
                     if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println("📍 [A7 Debug] isBookedInTimeRange: " + isBookedInTimeRange);
+                        System.out.println("[A7 Debug] isBookedInTimeRange: " + isBookedInTimeRange);
                     }
 
-                    // Nếu seat có status UNAVAILABLE trong DB, ưu tiên status này
+                    // Neu seat co status UNAVAILABLE trong DB, uu tien status nay
                     if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
                         response.setSeatStatus(SeatStatus.UNAVAILABLE);
                     } else if (isBookedInTimeRange) {
@@ -179,7 +191,7 @@ public class SeatService {
                     }
 
                     if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println("📍 [A7 Debug] Final response status: " + response.getSeatStatus());
+                        System.out.println("[A7 Debug] Final response status: " + response.getSeatStatus());
                     }
 
                     return response;
@@ -188,7 +200,7 @@ public class SeatService {
     }
 
     /**
-     * Hạn chế ghế theo seatId (unique ID)
+     * Han che ghe theo seatId (unique ID)
      */
     public SeatResponse restrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
@@ -199,7 +211,7 @@ public class SeatService {
     }
 
     /**
-     * Bỏ hạn chế ghế theo seatId
+     * Bo han che ghe theo seatId
      */
     public void unrestrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
@@ -233,5 +245,68 @@ public class SeatService {
 
         seat.setSeatStatus(SeatStatus.AVAILABLE);
         seatRepository.save(seat);
+    }
+
+    // ================= NFC UID MAPPING =================
+
+    /**
+     * Update the NFC tag UID for a seat (UID Mapping Strategy)
+     * 
+     * @param seatId    The seat to update
+     * @param nfcTagUid The NFC tag UID in uppercase HEX format (e.g., "04A23C91")
+     * @return Updated seat response
+     */
+    public SeatResponse updateNfcTagUid(Integer seatId, String nfcTagUid) {
+        SeatEntity seat = seatRepository.findById(seatId)
+                .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
+
+        // Hash the UID before storing for security
+        String hashedUid = nfcUidHasher.hashUid(nfcTagUid);
+
+        // Check if this UID is already assigned to another seat
+        if (hashedUid != null && !hashedUid.isEmpty()) {
+            seatRepository.findByNfcTagUid(hashedUid).ifPresent(existingSeat -> {
+                if (!existingSeat.getSeatId().equals(seatId)) {
+                    throw new RuntimeException(
+                            "NFC UID nay da duoc gan cho ghe " +
+                                    existingSeat.getSeatCode() + " (ID: " + existingSeat.getSeatId() + "). " +
+                                    "Vui long xoa NFC UID khoi ghe do truoc khi gan cho ghe nay.");
+                }
+            });
+        }
+
+        seat.setNfcTagUid(hashedUid);
+        return toResponse(seatRepository.save(seat));
+    }
+
+    /**
+     * Clear the NFC tag UID from a seat
+     */
+    public SeatResponse clearNfcTagUid(Integer seatId) {
+        return updateNfcTagUid(seatId, null);
+    }
+
+    /**
+     * Find seat by NFC tag UID (supports both raw and hashed UIDs)
+     * 
+     * - If input is 64 chars hex (SHA-256 hash) from Mobile: use directly
+     * - If input is raw UID (e.g., "04A5108A405980") from Admin: hash first
+     */
+    public SeatResponse getSeatByNfcTagUid(String nfcTagUid) {
+        String hashedUid;
+
+        // Check if input is already a SHA-256 hash (64 hex characters)
+        if (nfcTagUid != null && nfcTagUid.length() == 64 && nfcTagUid.matches("[A-Fa-f0-9]+")) {
+            // Already hashed (from Mobile app)
+            hashedUid = nfcTagUid.toUpperCase();
+        } else {
+            // Raw UID (from Admin NFC Bridge) - need to hash
+            hashedUid = nfcUidHasher.hashUid(nfcTagUid);
+        }
+
+        SeatEntity seat = seatRepository.findByNfcTagUid(hashedUid)
+                .orElseThrow(() -> new RuntimeException(
+                        "Khong tim thay ghe voi NFC UID nay. Co the the chua duoc gan cho ghe nao."));
+        return toResponse(seat);
     }
 }

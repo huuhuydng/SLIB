@@ -3,10 +3,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
-// Import các file của bạn
+// Import cac file cua ban
 import 'services/auth_service.dart';
 import 'main_screen.dart'; 
 import 'views/authentication/on_boarding_screen.dart';
@@ -29,11 +30,17 @@ void main() async {
     print("Firebase init warning: $e");
   }
 
+  // Create AuthService first so NotificationService can use it
+  final authService = AuthService();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider.value(value: authService),
         Provider<BookingService>(create: (_) => BookingService()),
+        ChangeNotifierProvider(
+          create: (_) => NotificationService(authService),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -85,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _handleNavigation() async {
     try {
       final AuthService authService = context.read<AuthService>();
+      final NotificationService notificationService = context.read<NotificationService>();
       
       final results = await Future.wait([
         Future.delayed(const Duration(seconds: 2)),
@@ -92,6 +100,11 @@ class _MyHomePageState extends State<MyHomePage> {
       ]);
 
       final bool isLoggedIn = results[1] as bool;
+
+      // Initialize notifications if logged in
+      if (isLoggedIn) {
+        await notificationService.initialize();
+      }
 
       if (!mounted) return;
 
@@ -107,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     } catch (e) {
-      print("Lỗi Navigation: $e");
+      print("Loi Navigation: $e");
       if (mounted) {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (_) => const OnBoardingScreen()));

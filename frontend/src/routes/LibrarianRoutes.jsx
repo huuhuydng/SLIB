@@ -6,7 +6,7 @@ import MainLayout from "../layouts/librarian/MainLayout";
 // Librarian Pages
 import Dashboard from "../pages/librarian/Dashboard/Dashboard";
 import CheckInOut from "../pages/librarian/CheckInOut/CheckInOut";
-// ...existing code...
+import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import LibrarianAreas from "../pages/librarian/LibrarianAreas/LibrarianAreas";
 import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
@@ -24,26 +24,28 @@ function LibrarianRoutes() {
         {/* Dashboard */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        
+
         {/* Check In/Out */}
         <Route path="/checkinout" element={<CheckInOut />} />
-        
-        {/* Sơ đồ thư viện + quản lý ghế */}
-        <Route path="/areas" element={<LibrarianAreas />} />
-        {/* Đã xóa route /seatmanage */}
-        
+
+        {/* Sơ đồ nhiệt */}
+        <Route path="/areas" element={<HeatMap />} />
+
+        {/* Quản lý chỗ ngồi */}
+        <Route path="/seatmanage" element={<LibrarianAreas />} />
+
         {/* Quản lý sinh viên */}
         <Route path="/students" element={<StudentsManage />} />
-        
+
         {/* Vi phạm */}
         <Route path="/violation" element={<ViolationManage />} />
-        
+
         {/* Trò chuyện */}
         <Route path="/chat" element={<ChatManage />} />
-        
+
         {/* Thống kê */}
         <Route path="/statistic" element={<Statistic />} />
-        
+
         {/* Thông báo */}
         <Route path="/notification" element={<NotificationManage />} />
         <Route path="/notification/create" element={<NewCreate />} />

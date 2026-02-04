@@ -57,8 +57,9 @@ public class SeatEntity {
     @Builder.Default
     private SeatStatus seatStatus = SeatStatus.AVAILABLE;
 
-    // NFC tag UID (hashed) for seat verification
-    @Column(name = "nfc_tag_uid")
+    // NFC Tag UID for seat verification (UID Mapping Strategy)
+    // Format: Uppercase HEX string without separators (e.g., "04A23C91")
+    @Column(name = "nfc_tag_uid", unique = true)
     private String nfcTagUid;
 
     @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.EAGER)

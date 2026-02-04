@@ -43,11 +43,18 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     return now.isBefore(cancelDeadline);
   }
 
-  /// Check if booking can be confirmed (within 15 mins before start to end)
+  /// Check if booking can be confirmed (within 15 mins before start to end AND not already confirmed)
   bool get _canConfirm {
     final now = DateTime.now();
     final checkInStart = widget.booking.startTime.subtract(const Duration(minutes: 15));
-    return now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
+    final isWithinTimeWindow = now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
+    final isNotConfirmed = widget.booking.status.toUpperCase() != 'CONFIRMED';
+    return isWithinTimeWindow && isNotConfirmed;
+  }
+  
+  /// Check if booking is already confirmed
+  bool get _isAlreadyConfirmed {
+    return widget.booking.status.toUpperCase() == 'CONFIRMED';
   }
 
   Future<void> _handleCancel() async {
@@ -207,6 +214,7 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
       final result = await NfcVerificationDialog.show(
         rootContext,
         seatCode: widget.booking.seatCode,
+        seatId: widget.booking.seatId,
         reservationId: widget.booking.reservationId,
       );
       
@@ -342,14 +350,16 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               
               const SizedBox(height: 12),
               
-              // 2. NFC confirm button
+              // 2. NFC confirm button - ẩn hoặc hiển thị "Đã xác nhận"
               _buildActionButton(
-                icon: Icons.nfc,
-                label: 'Xác nhận chỗ ngồi',
-                subtitle: _canConfirm 
-                    ? 'Chạm thẻ NFC trên bàn để check-in'
-                    : 'Có thể check-in từ 15 phút trước giờ đặt',
-                color: Colors.green,
+                icon: _isAlreadyConfirmed ? Icons.check_circle : Icons.nfc,
+                label: _isAlreadyConfirmed ? 'Đã xác nhận chỗ ngồi' : 'Xác nhận chỗ ngồi',
+                subtitle: _isAlreadyConfirmed 
+                    ? 'Bạn đã check-in thành công'
+                    : (_canConfirm 
+                        ? 'Chạm thẻ NFC trên bàn để check-in'
+                        : 'Có thể check-in từ 15 phút trước giờ đặt'),
+                color: _isAlreadyConfirmed ? Colors.blue : Colors.green,
                 enabled: _canConfirm && !_isLoading,
                 onTap: _handleNfcConfirm,
               ),

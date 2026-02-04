@@ -33,6 +33,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailOrUsernameOrUserCode(String email, String username, String userCode);
 
     /**
+     * Tìm user bằng email hoặc username
+     */
+    Optional<User> findByEmailOrUsername(String email, String username);
+
+    /**
      * Update avatar URL by userCode
      */
     @Modifying

@@ -1,7 +1,7 @@
 const API_BASE_URL = 'http://localhost:8080/api';
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('librarian_token');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
