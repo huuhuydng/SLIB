@@ -6,7 +6,7 @@ import avatarImage from "../../../../assets/avatar.svg";
 const Header = ({
   searchValue = '',
   onSearchChange = () => { },
-  searchPlaceholder = "Tìm kiếm...",
+  searchPlaceholder = "Tim kiem...",
   onLogout = () => { }
 }) => {
   const navigate = useNavigate();
@@ -280,7 +280,7 @@ const Header = ({
               >
                 <User size={18} color="var(--slib-text-secondary, #4A5568)" />
                 <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slib-text-secondary, #4A5568)' }}>
-                  Hồ sơ cá nhân
+                  Ho so ca nhan
                 </span>
               </div>
 
@@ -302,12 +302,24 @@ const Header = ({
               >
                 <Settings size={18} color="var(--slib-text-secondary, #4A5568)" />
                 <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slib-text-secondary, #4A5568)' }}>
-                  Cài đặt tài khoản
+                  Cai dat tai khoan
                 </span>
               </div>
 
               <div
-                onClick={() => { setShowDropdown(false); onLogout(); }}
+                onClick={() => {
+                  console.log('FORCE LOGOUT!');
+                  setShowDropdown(false);
+
+                  // Clear all storage
+                  localStorage.clear();
+                  sessionStorage.clear();
+                  console.log('Storage cleared');
+
+                  // FORCE COMPLETE PAGE RELOAD from server
+                  console.log('Reloading from server...');
+                  window.location.reload(true);
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -330,7 +342,7 @@ const Header = ({
               >
                 <LogOut size={18} style={{ color: 'var(--slib-text-secondary, #4A5568)', transition: 'color 0.2s ease' }} />
                 <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--slib-text-secondary, #4A5568)', transition: 'color 0.2s ease' }}>
-                  Đăng xuất
+                  Dang xuat
                 </span>
               </div>
             </div>
