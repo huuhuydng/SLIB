@@ -5,12 +5,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.ai.AIConfigEntity;
 import slib.com.example.service.ai.AIConfigService;
-import slib.com.example.service.ai.GeminiService;
 
 import java.util.Map;
 
 /**
  * Admin endpoints for AI configuration
+ * Supports both Ollama (local) and Gemini (cloud) AI providers
  */
 @RestController
 @RequestMapping("/slib/ai/admin")
@@ -20,9 +20,6 @@ public class AIConfigController {
     @Autowired
     private AIConfigService aiConfigService;
 
-    @Autowired
-    private GeminiService geminiService;
-
     /**
      * Get current AI config (API key masked)
      */
@@ -30,9 +27,21 @@ public class AIConfigController {
     public ResponseEntity<?> getConfig() {
         AIConfigEntity config = aiConfigService.getConfigForDisplay();
         if (config == null) {
+            // Return default config if none exists
             return ResponseEntity.ok(Map.of(
                     "configured", false,
-                    "message", "AI chưa được cấu hình"));
+                    "message", "AI chưa được cấu hình",
+                    "defaults", Map.of(
+                            "provider", "ollama",
+                            "ollamaModel", "llama3.2",
+                            "ollamaUrl", "http://localhost:11434",
+                            "geminiModel", "gemini-2.0-flash",
+                            "temperature", 0.7,
+                            "maxTokens", 1024,
+                            "enableContext", true,
+                            "enableHistory", true,
+                            "autoSuggest", true,
+                            "responseLanguage", "vi")));
         }
         return ResponseEntity.ok(Map.of(
                 "configured", true,
@@ -46,11 +55,9 @@ public class AIConfigController {
     public ResponseEntity<?> saveConfig(@RequestBody AIConfigEntity config) {
         try {
             System.out.println("[AIConfigController] Saving config...");
-            System.out.println("[AIConfigController] Received API Key: " +
-                    (config.getApiKey() != null
-                            ? config.getApiKey().substring(0, Math.min(10, config.getApiKey().length())) + "..."
-                            : "NULL"));
-            System.out.println("[AIConfigController] Model: " + config.getModel());
+            System.out.println("[AIConfigController] Provider: " + config.getProvider());
+            System.out.println("[AIConfigController] Ollama Model: " + config.getOllamaModel());
+            System.out.println("[AIConfigController] Ollama URL: " + config.getOllamaUrl());
 
             aiConfigService.saveConfig(config);
 
@@ -70,21 +77,27 @@ public class AIConfigController {
     }
 
     /**
-     * Test Gemini API connection
+     * Reset AI config to default values
      */
-    @PostMapping("/test-api")
-    public ResponseEntity<?> testApi() {
+    @PostMapping("/config/reset")
+    public ResponseEntity<?> resetConfig() {
         try {
-            boolean connected = geminiService.testConnection();
+            System.out.println("[AIConfigController] Resetting config to defaults...");
+
+            aiConfigService.resetToDefault();
+
+            System.out.println("[AIConfigController] Config reset successfully!");
+
             return ResponseEntity.ok(Map.of(
-                    "success", connected,
-                    "status", connected ? "connected" : "error",
-                    "message", connected ? "Kết nối thành công với Gemini API" : "Không thể kết nối với Gemini API"));
+                    "success", true,
+                    "message", "Đã reset cấu hình AI về mặc định",
+                    "config", aiConfigService.getConfigForDisplay()));
         } catch (Exception e) {
-            return ResponseEntity.ok(Map.of(
+            System.err.println("[AIConfigController] ERROR resetting config: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "status", "error",
-                    "message", "Lỗi test kết nối: " + e.getMessage()));
+                    "message", "Lỗi reset cấu hình: " + e.getMessage()));
         }
     }
 }

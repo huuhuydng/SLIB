@@ -107,15 +107,20 @@ class HceCardScreen extends StatelessWidget {
                               ),
                               color: Colors.white.withOpacity(0.2),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: CircleAvatar(
                                 radius: 68,
                                 backgroundColor: Colors.white,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 100,
-                                  color: Colors.grey,
-                                ),
+                                backgroundImage: user?.avtUrl != null && user!.avtUrl!.isNotEmpty
+                                    ? NetworkImage(user.avtUrl!)
+                                    : null,
+                                child: (user?.avtUrl == null || user!.avtUrl!.isEmpty)
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 100,
+                                        color: Colors.grey,
+                                      )
+                                    : null,
                               ),
                             ),
                           ),

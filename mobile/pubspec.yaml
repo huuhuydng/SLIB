@@ -57,6 +57,11 @@ dependencies:
   # WebSocket for real-time seat updates
   web_socket_channel: ^2.4.0
   stomp_dart_client: ^2.0.0
+  image_picker: ^1.2.1
+  nfc_manager: ^4.1.1           # NFC for seat confirmation
+  nfc_manager_ndef: ^1.0.8       # NDEF support for NFC
+  flutter_local_notifications: ^18.0.1  # Show notifications in foreground
+  crypto: ^3.0.3                 # SHA-256 hashing for NFC UID
 
 
 

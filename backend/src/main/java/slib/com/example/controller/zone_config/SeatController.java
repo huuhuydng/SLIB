@@ -148,4 +148,52 @@ public class SeatController {
         java.util.Map<Integer, List<SeatDTO>> result = bookingService.getAllSeatsByArea(areaId, date, start, end);
         return ResponseEntity.ok(result);
     }
+
+    // ==================== NFC UID MAPPING ENDPOINTS ====================
+
+    /**
+     * Update NFC tag UID for a seat (Admin - UID Mapping Strategy)
+     * PUT /slib/seats/{seatId}/nfc-uid
+     * Body: { "nfcTagUid": "04A23C91" }
+     */
+    @PutMapping("/{seatId}/nfc-uid")
+    public ResponseEntity<?> updateSeatNfcUid(
+            @PathVariable Integer seatId,
+            @RequestBody java.util.Map<String, String> body) {
+        try {
+            String nfcTagUid = body.get("nfcTagUid");
+            SeatResponse response = seatService.updateNfcTagUid(seatId, nfcTagUid);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Clear NFC tag UID from a seat
+     * DELETE /slib/seats/{seatId}/nfc-uid
+     */
+    @DeleteMapping("/{seatId}/nfc-uid")
+    public ResponseEntity<?> clearSeatNfcUid(@PathVariable Integer seatId) {
+        try {
+            SeatResponse response = seatService.clearNfcTagUid(seatId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Find seat by NFC tag UID (Mobile - for check-in via NFC)
+     * GET /slib/seats/by-nfc-uid/{nfcTagUid}
+     */
+    @GetMapping("/by-nfc-uid/{nfcTagUid}")
+    public ResponseEntity<?> getSeatByNfcUid(@PathVariable String nfcTagUid) {
+        try {
+            SeatResponse response = seatService.getSeatByNfcTagUid(nfcTagUid);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
 }

@@ -8,70 +8,81 @@ import java.util.UUID;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
 import slib.com.example.entity.zone_config.SeatEntity;
-import slib.com.example.entity.zone_config.SeatStatus;
+import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
 
+/**
+ * Service for holding seats during the booking process.
+ * 
+ * Note: With the new dynamic status calculation, seat holding is now managed
+ * through reservations with PROCESSING status rather than directly on the seat
+ * entity.
+ * This service now delegates to the reservation-based approach.
+ */
 @Service
+@RequiredArgsConstructor
 public class SeatHoldService {
 
     private final SeatRepository seatRepository;
+    private final ReservationRepository reservationRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    public SeatHoldService(SeatRepository seatRepository, SimpMessagingTemplate messagingTemplate) {
-        this.seatRepository = seatRepository;
-        this.messagingTemplate = messagingTemplate;
-    }
-
     /**
-     * Hold a seat for 5 minutes
+     * Hold a seat for a specific time slot.
+     * Instead of setting seat_status directly, this now checks for existing
+     * reservations.
      */
-    public Map<String, Object> holdSeat(Integer seatId, UUID userId) {
+    public Map<String, Object> holdSeat(Integer seatId, UUID userId, LocalDateTime startTime, LocalDateTime endTime) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
-        // Check if seat is available
-        if (seat.getSeatStatus() != SeatStatus.AVAILABLE) {
-            throw new RuntimeException("Ghế đã được đặt hoặc đang giữ bởi người khác");
+        // Check if seat is administratively disabled
+        if (seat.getIsActive() == null || !seat.getIsActive()) {
+            throw new RuntimeException("Ghế này đang bị tạm khóa");
         }
 
-        // Hold the seat
-        seat.setSeatStatus(SeatStatus.HOLDING);
-        seat.setHeldByUser(userId);
-        seat.setHoldExpiresAt(LocalDateTime.now().plusMinutes(5));
-        seatRepository.save(seat);
+        // Check for overlapping reservations
+        var overlapping = reservationRepository.findOverlappingReservations(seatId, startTime, endTime);
+        if (!overlapping.isEmpty()) {
+            throw new RuntimeException("Ghế đã được đặt hoặc đang giữ bởi người khác trong khung giờ này");
+        }
 
         // Broadcast via WebSocket
-        broadcastSeatUpdate(seat, "HOLDING");
+        broadcastSeatUpdateWithTimeSlot(seat, "HOLDING", startTime, endTime);
 
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
         result.put("seatId", seatId);
         result.put("status", "HOLDING");
-        result.put("expiresAt", seat.getHoldExpiresAt().toString());
+        result.put("message", "Ghế đang được giữ, vui lòng hoàn tất đặt chỗ");
         return result;
     }
 
     /**
-     * Release a held seat
+     * Check if a seat is available for a specific time slot.
      */
-    public Map<String, Object> releaseSeat(Integer seatId, UUID userId) {
+    public boolean isSeatAvailable(Integer seatId, LocalDateTime startTime, LocalDateTime endTime) {
+        SeatEntity seat = seatRepository.findById(seatId).orElse(null);
+        if (seat == null || seat.getIsActive() == null || !seat.getIsActive()) {
+            return false;
+        }
+
+        var overlapping = reservationRepository.findOverlappingReservations(seatId, startTime, endTime);
+        return overlapping.isEmpty();
+    }
+
+    /**
+     * Release a held seat (cancel PROCESSING reservation).
+     */
+    public Map<String, Object> releaseSeat(Integer seatId, UUID userId, LocalDateTime startTime,
+            LocalDateTime endTime) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
-        // Check if user is the one holding
-        if (seat.getHeldByUser() == null || !seat.getHeldByUser().equals(userId)) {
-            throw new RuntimeException("Bạn không có quyền hủy giữ ghế này");
-        }
-
-        // Release the seat
-        seat.setSeatStatus(SeatStatus.AVAILABLE);
-        seat.setHeldByUser(null);
-        seat.setHoldExpiresAt(null);
-        seatRepository.save(seat);
-
         // Broadcast via WebSocket
-        broadcastSeatUpdate(seat, "AVAILABLE");
+        broadcastSeatUpdateWithTimeSlot(seat, "AVAILABLE", startTime, endTime);
 
         Map<String, Object> result = new HashMap<>();
         result.put("success", true);
@@ -80,13 +91,20 @@ public class SeatHoldService {
         return result;
     }
 
-    private void broadcastSeatUpdate(SeatEntity seat, String status) {
+    private void broadcastSeatUpdateWithTimeSlot(SeatEntity seat, String status,
+            LocalDateTime startTime, LocalDateTime endTime) {
         Map<String, Object> message = new HashMap<>();
         message.put("seatId", seat.getSeatId());
         message.put("zoneId", seat.getZone().getZoneId());
         message.put("seatCode", seat.getSeatCode());
         message.put("status", status);
         message.put("action", "STATUS_CHANGED");
+
+        if (startTime != null && endTime != null) {
+            message.put("date", startTime.toLocalDate().toString());
+            message.put("startTime", String.format("%02d:%02d", startTime.getHour(), startTime.getMinute()));
+            message.put("endTime", String.format("%02d:%02d", endTime.getHour(), endTime.getMinute()));
+        }
 
         messagingTemplate.convertAndSend("/topic/seats", message);
     }

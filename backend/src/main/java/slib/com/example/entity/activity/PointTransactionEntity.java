@@ -2,6 +2,7 @@ package slib.com.example.entity.activity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import slib.com.example.entity.reputation.ReputationRuleEntity;
 
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -39,6 +40,11 @@ public class PointTransactionEntity {
 
     @Column(name = "activity_log_id")
     private UUID activityLogId;
+
+    // Liên kết đến quy tắc đã áp dụng
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_id")
+    private ReputationRuleEntity rule;
 
     @Column(name = "created_at")
     private ZonedDateTime createdAt;

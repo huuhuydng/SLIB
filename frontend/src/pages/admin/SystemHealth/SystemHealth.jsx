@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Activity, 
-  Database, 
-  Server, 
+import {
+  Activity,
+  Database,
+  Server,
   HardDrive,
   Cpu,
   MemoryStick,
@@ -30,7 +30,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 
 // Mock Data
 const SYSTEM_METRICS = {
@@ -79,14 +79,14 @@ const SystemHealth = () => {
   const filteredLogs = useMemo(() => {
     return SYSTEM_LOGS.filter(log => {
       const matchSearch = log.message.toLowerCase().includes(searchLog.toLowerCase()) ||
-                         log.service.toLowerCase().includes(searchLog.toLowerCase());
+        log.service.toLowerCase().includes(searchLog.toLowerCase());
       const matchFilter = logFilter === 'all' || log.level === logFilter;
       return matchSearch && matchFilter;
     });
   }, [searchLog, logFilter]);
 
   const getLogLevelStyle = (level) => {
-    switch(level) {
+    switch (level) {
       case 'error': return { bg: '#FEE2E2', color: '#DC2626', icon: XCircle };
       case 'warning': return { bg: '#FEF3C7', color: '#F59E0B', icon: AlertTriangle };
       case 'info': return { bg: '#DBEAFE', color: '#2563EB', icon: Info };
@@ -96,7 +96,7 @@ const SystemHealth = () => {
   };
 
   const getStatusStyle = (status) => {
-    switch(status) {
+    switch (status) {
       case 'healthy': return { bg: '#D1FAE5', color: '#059669' };
       case 'warning': return { bg: '#FEF3C7', color: '#F59E0B' };
       case 'error': return { bg: '#FEE2E2', color: '#DC2626' };
@@ -554,7 +554,7 @@ const SystemHealth = () => {
                   <p style={{ fontSize: '14px', color: '#4A5568', margin: '0 0 16px' }}>
                     Tạo bản sao lưu database ngay lập tức
                   </p>
-                  <button 
+                  <button
                     onClick={handleManualBackup}
                     disabled={isBackingUp}
                     style={{

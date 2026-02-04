@@ -99,6 +99,8 @@ export const ACTIONS = {
   UPDATE_SEAT: "UPDATE_SEAT",
   DELETE_SEAT: "DELETE_SEAT",
   REPLACE_SEAT_BY_TEMP_ID: "REPLACE_SEAT_BY_TEMP_ID",
+  REPLACE_ZONE_BY_TEMP_ID: "REPLACE_ZONE_BY_TEMP_ID",
+  REPLACE_FACTORY_BY_TEMP_ID: "REPLACE_FACTORY_BY_TEMP_ID",
 
   // ===== FACTORY =====
   SET_FACTORIES: "SET_FACTORIES",
@@ -348,6 +350,26 @@ function layoutReducer(state, action) {
         factories: state.factories.filter((f) => f.factoryId !== action.payload),
       };
 
+    // Replace temp zone with real zone after API creation (matches by tempId)
+    case ACTIONS.REPLACE_ZONE_BY_TEMP_ID:
+      const { tempId: zoneTempId, realZone } = action.payload;
+      return {
+        ...state,
+        zones: state.zones.map((z) =>
+          z.zoneId === zoneTempId ? { ...realZone, isPending: false } : z
+        ),
+      };
+
+    // Replace temp factory with real factory after API creation (matches by tempId)
+    case ACTIONS.REPLACE_FACTORY_BY_TEMP_ID:
+      const { tempId: factoryTempId, realFactory } = action.payload;
+      return {
+        ...state,
+        factories: state.factories.map((f) =>
+          f.factoryId === factoryTempId ? { ...realFactory, isPending: false } : f
+        ),
+      };
+
     // ===== SELECTION =====
     case ACTIONS.SELECT_ITEM:
       return {
@@ -413,6 +435,7 @@ function layoutReducer(state, action) {
         pendingChanges: {
           newZones: [],
           newFactories: [],
+          newSeats: [],        // FIX: Was missing - must reset newSeats too!
           deletedZones: [],
           deletedFactories: [],
           deletedSeats: [],
