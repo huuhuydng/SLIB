@@ -1784,10 +1784,14 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       width: fixedSeatSize,
                       height: fixedSeatSize,
                       decoration: BoxDecoration(
-                        color: isAvailable ? Colors.green : Colors.red[400],
+                        color: seat.isUnavailable 
+                            ? Colors.grey[400] 
+                            : (isAvailable ? Colors.green : Colors.red[400]),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: isAvailable ? Colors.green[700]! : Colors.red[700]!,
+                          color: seat.isUnavailable
+                              ? Colors.grey[600]!
+                              : (isAvailable ? Colors.green[700]! : Colors.red[700]!),
                           width: 1.5,
                         ),
                       ),
@@ -2096,6 +2100,8 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                 const SizedBox(width: 16),
                 _legend(AppColors.seatOccupied, 'Đã đặt'),
                 const SizedBox(width: 16),
+                _legend(Colors.grey[400]!, 'Bảo trì'),
+                const SizedBox(width: 16),
                 _legend(AppColors.brandColor, 'Đang chọn'),
               ],
             ),
@@ -2174,13 +2180,19 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                     children: rowSeats.map((seat) {
                       final globalIndex = _seats.indexOf(seat);
                       final isSelected = _selectedIndex == globalIndex;
-                      final isAvailable = seat.seatStatus == 'AVAILABLE';
+                      final isUnavailable = seat.isUnavailable;
+                      final isAvailable = seat.seatStatus == 'AVAILABLE' && !isUnavailable;
                       
-                      final color = isSelected
-                          ? AppColors.brandColor
-                          : isAvailable
-                              ? AppColors.seatAvailable
-                              : AppColors.seatOccupied;
+                      Color color;
+                      if (isSelected) {
+                        color = AppColors.brandColor;
+                      } else if (isUnavailable) {
+                        color = Colors.grey[400]!;
+                      } else if (isAvailable) {
+                        color = AppColors.seatAvailable;
+                      } else {
+                        color = AppColors.seatOccupied;
+                      }
 
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),

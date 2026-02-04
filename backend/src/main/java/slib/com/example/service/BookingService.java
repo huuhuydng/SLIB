@@ -465,6 +465,18 @@ public class BookingService {
                 LocalDateTime endDateTime = LocalDateTime.of(date, end);
 
                 return seats.stream().map(seat -> {
+                        // Check if seat is restricted (isActive = false)
+                        if (seat.getIsActive() == null || !seat.getIsActive()) {
+                                return new SeatDTO(
+                                                seat.getSeatId(),
+                                                seat.getSeatCode(),
+                                                SeatStatus.UNAVAILABLE,
+                                                seat.getRowNumber(),
+                                                seat.getColumnNumber(),
+                                                seat.getZone().getZoneId(),
+                                                seat.getNfcTagUid());
+                        }
+
                         // Tìm reservation trùng time slot
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
@@ -500,6 +512,18 @@ public class BookingService {
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
                 return seats.stream().map(seat -> {
+                        // Check if seat is restricted (isActive = false)
+                        if (seat.getIsActive() == null || !seat.getIsActive()) {
+                                return new SeatDTO(
+                                                seat.getSeatId(),
+                                                seat.getSeatCode(),
+                                                SeatStatus.UNAVAILABLE,
+                                                seat.getRowNumber(),
+                                                seat.getColumnNumber(),
+                                                seat.getZone().getZoneId(),
+                                                seat.getNfcTagUid());
+                        }
+
                         // Tìm reservation trong ngày
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||

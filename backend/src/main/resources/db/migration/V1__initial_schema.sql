@@ -293,7 +293,9 @@ CREATE TABLE IF NOT EXISTS library_settings (
     close_time VARCHAR(255) NOT NULL DEFAULT '21:00',
     working_days VARCHAR(255) NOT NULL DEFAULT '1,2,3,4,5,6',
     slot_duration INTEGER NOT NULL DEFAULT 60,
-    max_booking_days INTEGER NOT NULL DEFAULT 7
+    max_booking_days INTEGER NOT NULL DEFAULT 7,
+    max_bookings_per_day INTEGER NOT NULL DEFAULT 3,
+    max_hours_per_day INTEGER NOT NULL DEFAULT 4
 );
 
 -- Insert default library settings
@@ -304,7 +306,9 @@ INSERT INTO
         close_time,
         working_days,
         slot_duration,
-        max_booking_days
+        max_booking_days,
+        max_bookings_per_day,
+        max_hours_per_day
     )
 VALUES (
         1,
@@ -312,6 +316,8 @@ VALUES (
         '21:00',
         '1,2,3,4,5,6',
         60,
-        7
+        7,
+        3,
+        4
     )
 ON CONFLICT (id) DO NOTHING;
