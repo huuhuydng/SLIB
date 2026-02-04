@@ -1,7 +1,7 @@
 package slib.com.example.entity.chat;
 
 public enum MessageType {
-    TEXT,   
+    TEXT,
     IMAGE,
-    FILE   
+    FILE
 }

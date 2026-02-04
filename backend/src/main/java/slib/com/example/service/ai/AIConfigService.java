@@ -18,8 +18,7 @@ public class AIConfigService {
     @Autowired
     private AIConfigRepository aiConfigRepository;
 
-    // Simple encryption key - in production, use environment variable
-    private static final String ENCRYPTION_KEY = "SLIB2025SecretKy"; // 16 chars for AES-128
+    private static final String ENCRYPTION_KEY = "SLIB2025SecretKy"; 
 
     public Optional<AIConfigEntity> getConfig() {
         return aiConfigRepository.getConfig();
@@ -27,13 +26,12 @@ public class AIConfigService {
 
     @Transactional
     public AIConfigEntity saveConfig(AIConfigEntity config) {
-        // Encrypt API key before saving (only for Gemini)
+        // Mã hoá API (Gemeni only)
         if (config.getApiKey() != null && !config.getApiKey().isEmpty()
                 && !config.getApiKey().startsWith("ENC:") && !config.getApiKey().contains("•")) {
             config.setApiKey("ENC:" + encrypt(config.getApiKey()));
         }
 
-        // If config exists, update it; otherwise create new
         Optional<AIConfigEntity> existing = aiConfigRepository.getConfig();
         if (existing.isPresent()) {
             AIConfigEntity existingConfig = existing.get();

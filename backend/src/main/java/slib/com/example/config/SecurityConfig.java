@@ -41,9 +41,8 @@ public class SecurityConfig {
                         // Open WebSocket endpoints (important for realtime)
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-mobile/**").permitAll()
-
                         // AI Admin endpoints (cho thủ thư)
-                        .requestMatchers("/slib/ai/admin/**").permitAll() // TODO: restrict to LIBRARIAN role
+                        .requestMatchers("/slib/ai/admin/**").permitAll()
                         // AI Chat endpoints (cho sinh viên - cần authenticated)
                         .requestMatchers("/slib/ai/chat/**").authenticated()
                         .requestMatchers("/slib/files/**").permitAll()
