@@ -206,6 +206,8 @@ public class SeatService {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
+        // Set isActive = false so calculateStatus returns UNAVAILABLE
+        seat.setIsActive(false);
         seat.setSeatStatus(SeatStatus.UNAVAILABLE);
         return toResponse(seatRepository.save(seat));
     }
@@ -217,6 +219,8 @@ public class SeatService {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
+        // Set isActive = true so calculateStatus returns AVAILABLE
+        seat.setIsActive(true);
         seat.setSeatStatus(SeatStatus.AVAILABLE);
         seatRepository.save(seat);
     }
