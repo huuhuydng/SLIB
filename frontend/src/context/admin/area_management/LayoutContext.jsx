@@ -97,6 +97,7 @@ export const ACTIONS = {
   MERGE_SEATS: "MERGE_SEATS",
   ADD_SEAT: "ADD_SEAT",
   UPDATE_SEAT: "UPDATE_SEAT",
+  UPDATE_SEAT_STATUS: "UPDATE_SEAT_STATUS",
   DELETE_SEAT: "DELETE_SEAT",
   REPLACE_SEAT_BY_TEMP_ID: "REPLACE_SEAT_BY_TEMP_ID",
   REPLACE_ZONE_BY_TEMP_ID: "REPLACE_ZONE_BY_TEMP_ID",
@@ -308,6 +309,17 @@ function layoutReducer(state, action) {
       return {
         ...state,
         seats: state.seats.filter((s) => s.seatId !== action.payload),
+      };
+
+    // Update only seatStatus for a specific seat (WebSocket real-time update)
+    case ACTIONS.UPDATE_SEAT_STATUS:
+      const { seatId: statusSeatId, seatStatus: newStatus } = action.payload;
+      console.log(`[WebSocket] Updating seat ${statusSeatId} to status ${newStatus}`);
+      return {
+        ...state,
+        seats: state.seats.map((s) =>
+          s.seatId === statusSeatId ? { ...s, seatStatus: newStatus } : s
+        ),
       };
 
     // ===== FACTORY =====

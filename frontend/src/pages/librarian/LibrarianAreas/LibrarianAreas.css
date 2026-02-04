@@ -151,7 +151,8 @@
   display: flex;
   gap: 20px;
   overflow: hidden;
-  min-height: 0; /* Allow flexbox to shrink properly */
+  min-height: 0;
+  /* Allow flexbox to shrink properly */
 }
 
 /* Canvas - with zoom/pan support */
@@ -162,7 +163,8 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   position: relative;
-  min-height: 0; /* Allow flexbox to shrink properly */
+  min-height: 0;
+  /* Allow flexbox to shrink properly */
 }
 
 .librarian-canvas-board {
@@ -172,7 +174,6 @@
   width: 100%;
   height: 100%;
   transition: transform 0.05s ease-out;
-  pointer-events: none;
 }
 
 /* Zoom controls */
@@ -239,7 +240,8 @@
   color: #6b7280;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
-  pointer-events: none; /* Don't block mouse events */
+  pointer-events: none;
+  /* Don't block mouse events */
 }
 
 /* Sidebar */
@@ -294,7 +296,8 @@
 }
 
 .librarian-btn {
-  width: 100%;;
+  width: 100%;
+  ;
   padding: 12px;
   border: none;
   border-radius: 8px;
