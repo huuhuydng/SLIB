@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/slib/news")
-@CrossOrigin(origins = "*", allowedHeaders = "*") 
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class NewsController {
 
     @Autowired
@@ -50,7 +50,6 @@ public class NewsController {
         return ResponseEntity.ok(newsService.getNewsImage(id));
     }
 
-
     @PostMapping("/admin")
     public ResponseEntity<News> createNews(@RequestBody News news) {
         News createdNews = newsService.createNews(news);
@@ -68,10 +67,21 @@ public class NewsController {
         newsService.deleteNews(id);
         return ResponseEntity.ok("Đã xóa tin tức thành công!");
     }
-    
-    @PatchMapping("/admin/{id}/toggle-pin")
-    public ResponseEntity<News> togglePinNews(@PathVariable Long id) {
-        News toggledNews = newsService.togglePinNews(id);
-        return ResponseEntity.ok(toggledNews);
+
+    /**
+     * Toggle pin status của tin tức
+     */
+    @PatchMapping("/admin/{id}/pin")
+    public ResponseEntity<?> togglePin(@PathVariable Long id) {
+        try {
+            News news = newsService.togglePin(id);
+            return ResponseEntity.ok(java.util.Map.of(
+                    "id", news.getId(),
+                    "isPinned", news.getIsPinned(),
+                    "message", news.getIsPinned() ? "Đã ghim tin tức" : "Đã bỏ ghim tin tức"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 }

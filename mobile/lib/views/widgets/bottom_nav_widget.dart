@@ -51,27 +51,27 @@ class BottomNavWidget extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Trang chủ',
           ),
           NavigationDestination(
             icon: Icon(Icons.chair_alt_outlined),
             selectedIcon: Icon(Icons.chair_alt),
-            label: 'Booking',
+            label: 'Đặt chỗ',
           ),
           NavigationDestination(
             icon: Icon(Icons.nfc_outlined),
             selectedIcon: Icon(Icons.nfc),
-            label: 'Card',
+            label: 'Thẻ TV',
           ),
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
             selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Chat',
+            label: 'Trợ lý AI',
           ),
           NavigationDestination(
             icon: Icon(Icons.menu),
             selectedIcon: Icon(Icons.menu_open),
-            label: 'Menu',
+            label: 'Thêm',
           ),
         ],
       ),

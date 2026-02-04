@@ -26,6 +26,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
 
+  // --- GLOBAL KEYS FOR REFRESH ---
+  final GlobalKey<UpcomingBookingCardState> _bookingCardKey = GlobalKey();
+  final GlobalKey<LiveStatusDashboardState> _liveStatusKey = GlobalKey();
+
   // --- STATE QUẢN LÝ TIN TỨC ---
   List<News> _newsList = [];
   bool _isLoading = true;
@@ -74,13 +78,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Refresh tất cả widgets cùng lúc
+    await Future.wait([
+      _refreshBookingCard(),
+      _refreshLiveStatus(),
+      _refreshNews(),
+    ]);
+  }
+
+  Future<void> _refreshBookingCard() async {
+    await _bookingCardKey.currentState?.refresh();
+  }
+
+  Future<void> _refreshLiveStatus() async {
+    await _liveStatusKey.currentState?.refresh();
+  }
+
+  Future<void> _refreshNews() async {
     try {
       final freshNews = await _newsService.fetchPublicNews();
       if (mounted) setState(() => _newsList = freshNews);
       await _localService.saveNewsList(freshNews);
     } catch (e) {
-      print("Refresh error: $e");
+      debugPrint("Refresh news error: $e");
     }
   }
 
@@ -159,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             HomeAppBar(user: widget.user),
                             const SizedBox(height: 20),
-                            LiveStatusDashboard(user: widget.user),
+                            LiveStatusDashboard(key: _liveStatusKey),
                           ],
                         ),
                       ),
@@ -174,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const SectionTitle("Lịch trình của bạn"),
                         const SizedBox(height: 12),
-                        const UpcomingBookingCard(),
+                        UpcomingBookingCard(key: _bookingCardKey),
 
                         const SizedBox(height: 25),
                         const SectionTitle("Tiện ích nhanh"),

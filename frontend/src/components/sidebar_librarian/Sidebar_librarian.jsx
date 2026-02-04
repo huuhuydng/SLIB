@@ -11,6 +11,7 @@ import {
   BarChart2,
   Bell,
   HelpCircle,
+  Newspaper,
 } from "lucide-react";
 
 import logo from "../../assets/logonencam.png";
@@ -26,6 +27,7 @@ const Sidebar = () => {
     { icon: AlertTriangle, label: "Vi phạm", path: "/librarian/violation" },
     { icon: MessageSquare, label: "Trò chuyện", path: "/librarian/chat" },
     { icon: BarChart2, label: "Thống kê", path: "/librarian/statistic" },
+    { icon: Newspaper, label: "Tin tức", path: "/librarian/news" },
     { icon: Bell, label: "Thông báo", path: "/librarian/notification" },
   ];
 

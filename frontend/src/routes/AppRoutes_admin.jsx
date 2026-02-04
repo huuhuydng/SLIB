@@ -21,13 +21,16 @@ import SystemConfig from "../components/SystemConfig";
 import SystemHealth from "../components/SystemHealth";
 import AIConfig from "../components/AIConfig";
 
+//chat
+import ChatManagement from "../components/ChatManagement";
+
 function AppRoutes() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
           {/* Public Route - Login */}
-          <Route path="/login" element={<LoginPage />} />
+          {/* <Route path="/login" element={<LoginPage />} /> */}
 
           {/* Protected Routes - Admin Layout with Sidebar */}
           <Route element={

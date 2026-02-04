@@ -1,10 +1,46 @@
 import 'package:flutter/material.dart';
-import 'package:slib/models/user_profile.dart';
+import 'package:provider/provider.dart';
+import 'package:slib/models/student_profile.dart';
+import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/student_profile_service.dart';
 
-class LiveStatusDashboard extends StatelessWidget {
-  final UserProfile? user;
-  
-  const LiveStatusDashboard({super.key, this.user});
+class LiveStatusDashboard extends StatefulWidget {
+  const LiveStatusDashboard({super.key});
+
+  @override
+  State<LiveStatusDashboard> createState() => LiveStatusDashboardState();
+}
+
+class LiveStatusDashboardState extends State<LiveStatusDashboard> {
+  StudentProfile? _studentProfile;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudentProfile();
+  }
+
+  /// Public method to refresh data - can be called from parent widget
+  Future<void> refresh() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    await _loadStudentProfile();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final profileService = StudentProfileService(authService);
+    
+    final profile = await profileService.getMyProfile();
+    
+    if (mounted) {
+      setState(() {
+        _studentProfile = profile;
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,34 +118,53 @@ class LiveStatusDashboard extends StatelessWidget {
             child: Divider(height: 1),
           ),
           // Dòng 2: Điểm uy tín & Vi phạm (Personal Stats)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                label: "Điểm uy tín",
-                value: "${user?.reputationScore ?? 100}",
-                valueColor: Colors.green,
-                icon: Icons.shield_outlined,
-              ),
-              Container(width: 1, height: 40, color: Colors.grey[200]),
-              _buildStatItem(
-                label: "Giờ đã học",
-                value: "42.5h",
-                valueColor: Colors.blue,
-                icon: Icons.timer_outlined,
-              ),
-              Container(width: 1, height: 40, color: Colors.grey[200]),
-              _buildStatItem(
-                label: "Vi phạm",
-                value: "0",
-                valueColor: Colors.black87,
-                icon: Icons.warning_amber_rounded,
-              ),
-            ],
-          )
+          _isLoading
+              ? const Center(
+                  child: SizedBox(
+                    height: 40,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatItem(
+                      label: "Điểm uy tín",
+                      value: "${_studentProfile?.reputationScore ?? 100}",
+                      valueColor: _getReputationColor(_studentProfile?.reputationScore ?? 100),
+                      icon: Icons.shield_outlined,
+                    ),
+                    Container(width: 1, height: 40, color: Colors.grey[200]),
+                    _buildStatItem(
+                      label: "Giờ đã học",
+                      value: _studentProfile?.formattedStudyHours ?? "0.0h",
+                      valueColor: Colors.blue,
+                      icon: Icons.timer_outlined,
+                    ),
+                    Container(width: 1, height: 40, color: Colors.grey[200]),
+                    _buildStatItem(
+                      label: "Vi phạm",
+                      value: "${_studentProfile?.violationCount ?? 0}",
+                      valueColor: _getViolationColor(_studentProfile?.violationCount ?? 0),
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                  ],
+                )
         ],
       ),
     );
+  }
+
+  Color _getReputationColor(int score) {
+    if (score >= 80) return Colors.green;
+    if (score >= 50) return Colors.orange;
+    return Colors.red;
+  }
+
+  Color _getViolationColor(int count) {
+    if (count == 0) return Colors.green;
+    if (count <= 2) return Colors.orange;
+    return Colors.red;
   }
 
   Widget _buildStatItem({

@@ -12,6 +12,5 @@ public class UserProfileResponse {
     private String fullName;
     private String studentCode;
     private String role;
-    private int reputationScore;
     private boolean isActive;
 }

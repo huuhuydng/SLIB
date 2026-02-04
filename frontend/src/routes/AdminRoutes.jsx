@@ -10,7 +10,7 @@ import AreaManagement from "../pages/admin/AreaManagement/AreaManagement";
 // Admin-specific Components
 import UserManagement from "../pages/admin/UserManagement/UserManagement";
 import DeviceManagement from "../pages/admin/DeviceManagement/DeviceManagement";
-import SystemConfig from "../components/SystemConfig";
+import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
 
