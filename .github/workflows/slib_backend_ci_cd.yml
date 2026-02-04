@@ -2,14 +2,14 @@ name: Backend CI/CD (Docker Microservices)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'backend/**'
       - 'docker-compose.yml'
       - '.github/workflows/slib_backend_ci_cd.yml'
   
   pull_request:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'backend/**'
 
