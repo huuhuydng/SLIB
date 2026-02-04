@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AuthPage from "./components/AuthPage";
+import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
 
@@ -13,12 +13,12 @@ function App() {
         // Check for existing auth
         const token = localStorage.getItem('librarian_token');
         const userStr = localStorage.getItem('librarian_user');
-        
+
         if (token && userStr) {
             try {
                 const user = JSON.parse(userStr);
                 const role = user.role;
-                
+
                 if (role === 'LIBRARIAN' || role === 'ADMIN') {
                     setIsLoggedIn(true);
                     setUserRole(role);
@@ -45,7 +45,7 @@ function App() {
                 {/* Unified Login Route */}
                 <Route path="/login" element={
                     isLoggedIn
-                        ? (userRole === 'ADMIN' 
+                        ? (userRole === 'ADMIN'
                             ? <Navigate to="/admin/dashboard" replace />
                             : <Navigate to="/librarian/dashboard" replace />)
                         : <AuthPage onLogin={handleLogin} />
@@ -67,11 +67,11 @@ function App() {
 
                 {/* Root redirects based on role */}
                 <Route path="/" element={
-                    isLoggedIn 
+                    isLoggedIn
                         ? (userRole === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/librarian/dashboard" />)
                         : <Navigate to="/login" />
                 } />
-                
+
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
