@@ -3,14 +3,9 @@ class ApiConstants {
   // Chỉ sửa 1 chỗ này duy nhất cho cả app
   // ⚠️ REAL DEVICE: Dùng ngrok URL
   static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
-  // 📱 EMULATOR: Dùng 10.0.2.2 (uncomment nếu chạy emulator)
   // static const String domain = "http://10.0.2.2:8080";
   
-  // AI Service URL (port 8001)
-  // ⚠️ REAL DEVICE: Cần expose AI Service qua ngrok hoặc dùng IP local
-  // 📱 EMULATOR: http://10.0.2.2:8001
-  // 🖥️  LOCAL NETWORK: http://<YOUR_MAC_IP>:8001 (e.g., http://192.168.1.100:8001)
-  static const String aiDomain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+  // Note: aiDomain không còn cần vì AI Chat đi qua backend proxy
 
 
   
@@ -39,5 +34,6 @@ class ApiConstants {
 
   // Chat URLs
   static const String chatUrl = "$domain/slib/chat";
-  static const String aiChatUrl = "$aiDomain/api/ai/chat";
+  // AI Chat đi qua backend proxy (vì ngrok chỉ expose backend)
+  static const String aiChatUrl = "$domain/slib/ai/proxy-chat";
 }

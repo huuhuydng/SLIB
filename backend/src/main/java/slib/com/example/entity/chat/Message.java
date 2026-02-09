@@ -54,4 +54,8 @@ public class Message {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id")
     private Conversation conversation;
+
+    // Loại người gửi: STUDENT, AI, LIBRARIAN
+    @Column(name = "sender_type")
+    private String senderType;
 }

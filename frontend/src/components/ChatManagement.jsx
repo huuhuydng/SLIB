@@ -12,7 +12,10 @@ import {
     markMessagesAsRead,
     getWaitingConversations,
     getActiveConversations,
-    takeOverConversation as takeOverConversationAPI
+    takeOverConversation as takeOverConversationAPI,
+    resolveConversation as resolveConversationAPI,
+    sendConversationMessage,
+    getConversationMessages
 } from '../services/admin/apiChat';
 import { formatTime, getDateLabel, isDifferentDay, highlightText } from '../utils/dateUtils';
 import { useLocation } from 'react-router-dom';
@@ -57,6 +60,7 @@ const ChatManagement = () => {
 
     // ================= REFS =================
     const stompClientRef = useRef(null);
+    const conversationSubscriptionRef = useRef(null); // For /topic/conversation/{id}
     const fileInputRef = useRef(null);
     const imageInputRef = useRef(null);
     const selectedUserRef = useRef(null);
@@ -102,16 +106,19 @@ const ChatManagement = () => {
     }, [MY_ID]);
 
     // 3. useEffect Load tin nhắn khi selectedUser thay đổi (Cái bạn đã có)
+    // CHÚ Ý: Nếu có selectedConversation thì KHÔNG load từ user-to-user history
+    // vì conversation messages sẽ được load bởi useEffect riêng
     useEffect(() => {
         selectedUserRef.current = selectedUser;
-        if (selectedUser) {
+        if (selectedUser && !selectedConversation) {
+            // Chỉ load user-to-user chat khi KHÔNG có conversation
             setPage(0);
             setHasMore(true);
             setMessages([]);
             loadHistory(selectedUser, 0);
             handleMarkAsRead(selectedUser);
         }
-    }, [selectedUser]);
+    }, [selectedUser, selectedConversation]);
 
     // ================= LOGIC CUỘN THÔNG MINH =================
     useLayoutEffect(() => {
@@ -240,6 +247,77 @@ const ChatManagement = () => {
         }
     }, [MY_ID]);
 
+    // Subscribe to conversation topic for real-time messages
+    useEffect(() => {
+        // Find conversation ID based on selectedUser from activeConversations
+        const activeConv = activeConversations.find(c => c.studentId === selectedUser);
+        const conversationId = selectedConversation?.id || activeConv?.id;
+
+        if (!conversationId || !stompClientRef.current?.connected) return;
+
+        // Unsubscribe from previous conversation
+        if (conversationSubscriptionRef.current) {
+            conversationSubscriptionRef.current.unsubscribe();
+            conversationSubscriptionRef.current = null;
+        }
+
+        // Subscribe to new conversation topic
+        console.log('[WS] Subscribing to conversation:', conversationId);
+        conversationSubscriptionRef.current = stompClientRef.current.subscribe(
+            `/topic/conversation/${conversationId}`,
+            (message) => {
+                const newMsg = JSON.parse(message.body);
+                console.log('[WS] Received message from conversation:', newMsg);
+
+                // Add message to list if not duplicate
+                setMessages(prev => {
+                    if (prev.some(m => m.id === newMsg.id)) return prev;
+                    return [...prev, newMsg];
+                });
+
+                // Scroll to bottom
+                requestAnimationFrame(() => {
+                    if (messagesContainerRef.current) {
+                        messagesContainerRef.current.scrollTo({
+                            top: messagesContainerRef.current.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            }
+        );
+
+        return () => {
+            if (conversationSubscriptionRef.current) {
+                conversationSubscriptionRef.current.unsubscribe();
+                conversationSubscriptionRef.current = null;
+            }
+        };
+    }, [selectedConversation?.id, selectedUser, activeConversations]);
+
+    // Load messages từ conversation khi selectedConversation thay đổi
+    // Quan trọng: Đây là nơi load tin nhắn của sinh viên từ conversation API
+    useEffect(() => {
+        const loadConversationMessages = async () => {
+            if (!selectedConversation?.id) return;
+
+            console.log('[Chat] Loading messages for conversation:', selectedConversation.id);
+            try {
+                const res = await getConversationMessages(selectedConversation.id);
+                console.log('[Chat] Loaded', res.data?.length || 0, 'messages from conversation');
+                if (res.data) {
+                    setMessages(res.data);
+                    setPage(0);
+                    setHasMore(false); // Conversation messages không phân trang
+                }
+            } catch (e) {
+                console.error('Error loading conversation messages:', e);
+            }
+        };
+
+        loadConversationMessages();
+    }, [selectedConversation?.id]);
+
     // Librarian tiếp nhận conversation
     const handleTakeOver = async (conversationId) => {
         try {
@@ -256,6 +334,50 @@ const ChatManagement = () => {
         } catch (e) {
             console.error('Error taking over conversation:', e);
             alert('Không thể tiếp nhận cuộc hội thoại này!');
+        }
+    };
+
+    // Kết thúc cuộc hội thoại
+    const handleEndConversation = async () => {
+        if (!selectedConversation?.id) {
+            // Tìm conversation từ activeConversations theo selectedUser
+            const activeConv = activeConversations.find(c => c.studentId === selectedUser);
+            if (!activeConv?.id) {
+                alert('Không tìm thấy cuộc hội thoại để kết thúc!');
+                return;
+            }
+            try {
+                if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
+                await resolveConversationAPI(activeConv.id);
+                console.log('✅ Ended conversation:', activeConv.id);
+                // Clear selection and refresh
+                setSelectedUser(null);
+                setSelectedConversation(null);
+                setMessages([]);
+                loadWaitingConversations();
+                loadActiveConversations();
+                alert('Đã kết thúc cuộc hội thoại!');
+            } catch (e) {
+                console.error('Error ending conversation:', e);
+                alert('Không thể kết thúc cuộc hội thoại!');
+            }
+            return;
+        }
+
+        try {
+            if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
+            await resolveConversationAPI(selectedConversation.id);
+            console.log('✅ Ended conversation:', selectedConversation.id);
+            // Clear selection and refresh
+            setSelectedUser(null);
+            setSelectedConversation(null);
+            setMessages([]);
+            loadWaitingConversations();
+            loadActiveConversations();
+            alert('Đã kết thúc cuộc hội thoại!');
+        } catch (e) {
+            console.error('Error ending conversation:', e);
+            alert('Không thể kết thúc cuộc hội thoại!');
         }
     };
 
@@ -375,10 +497,37 @@ const ChatManagement = () => {
         }
     };
 
-    const sendToWebSocket = (content, attachmentUrl, type) => {
+    const sendToWebSocket = async (content, attachmentUrl, type) => {
+        // Nếu đang chat trong conversation (escalation), gửi qua API để lưu vào conversation
+        if (selectedConversation?.id) {
+            try {
+                console.log('📤 Sending to conversation:', selectedConversation.id);
+                const res = await sendConversationMessage(selectedConversation.id, content, 'LIBRARIAN');
+                if (res.data) {
+                    // Thêm tin nhắn vào UI ngay lập tức (check duplicate vì WebSocket cũng có thể nhận)
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === res.data.id)) return prev;
+                        return [...prev, res.data];
+                    });
+                }
+            } catch (err) {
+                console.error('Lỗi gửi tin nhắn:', err);
+            }
+            return;
+        }
+
+        // Fallback: user-to-user chat qua STOMP
         if (stompClientRef.current?.connected) {
-            const chatMessage = { senderId: MY_ID, receiverId: selectedUser, content, attachmentUrl, type };
+            const chatMessage = {
+                senderId: MY_ID,
+                receiverId: selectedUser,
+                content,
+                attachmentUrl,
+                type,
+                senderType: 'LIBRARIAN'
+            };
             stompClientRef.current.publish({ destination: '/app/chat', body: JSON.stringify(chatMessage) });
+            console.log('📤 Sent via STOMP:', chatMessage);
         }
     };
 
@@ -407,7 +556,7 @@ const ChatManagement = () => {
                         className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
                         onClick={() => setActiveTab('all')}
                     >
-                        Tất cả
+                        Lịch sử
                     </button>
                     <button
                         className={`tab-btn ${activeTab === 'waiting' ? 'active' : ''}`}
@@ -452,7 +601,11 @@ const ChatManagement = () => {
                         <div
                             key={conv.id}
                             className={`conversation-item ${selectedUser === conv.studentId ? 'active' : ''}`}
-                            onClick={() => setSelectedUser(conv.studentId)}
+                            onClick={() => {
+                                // Quan trọng: set conversation TRƯỚC user để tránh race condition
+                                setSelectedConversation(conv);
+                                setSelectedUser(conv.studentId);
+                            }}
                         >
                             <div className="user-avatar-placeholder">
                                 {conv.studentName?.charAt(0).toUpperCase() || '?'}
@@ -492,9 +645,30 @@ const ChatManagement = () => {
                     <div style={{ fontWeight: 'bold' }}>
                         {selectedUser && currentPartnerInfo ? `${currentPartnerInfo.fullName}` : "Tin nhắn"}
                     </div>
-                    {selectedUser && (
-                        <button className="btn-header-icon" onClick={() => setShowRightSidebar(!showRightSidebar)}>ⓘ</button>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {selectedUser && activeConversations.some(c => c.studentId === selectedUser) && (
+                            <button
+                                className="btn-end-chat"
+                                onClick={handleEndConversation}
+                                title="Kết thúc cuộc hội thoại"
+                                style={{
+                                    padding: '6px 12px',
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                Kết thúc
+                            </button>
+                        )}
+                        {selectedUser && (
+                            <button className="btn-header-icon" onClick={() => setShowRightSidebar(!showRightSidebar)}>ⓘ</button>
+                        )}
+                    </div>
                 </div>
 
                 <div
@@ -511,18 +685,47 @@ const ChatManagement = () => {
                         <div className="empty-state"><h3>Chọn một cuộc trò chuyện 👋</h3></div>
                     ) : (
                         messages.map((msg, idx) => {
-                            const isMyMsg = msg.senderId === MY_ID;
+                            // Xác định vị trí tin nhắn dựa trên senderType
+                            // STUDENT: bên trái (received), AI/LIBRARIAN: bên phải (sent)
+                            const senderType = msg.senderType || 'STUDENT';
+                            const isFromStudent = senderType === 'STUDENT';
+                            const isFromAI = senderType === 'AI';
+                            const isFromLibrarian = senderType === 'LIBRARIAN';
+
+                            // Sinh viên bên trái, AI/Thủ thư bên phải
+                            const messagePosition = isFromStudent ? 'received' : 'sent';
                             const isLastMsg = idx === messages.length - 1;
+
+                            // Xác định avatar
+                            const getAvatar = () => {
+                                if (isFromStudent) {
+                                    // Avatar sinh viên: chữ cái đầu tên hoặc emoji
+                                    const studentName = msg.senderName || currentPartnerInfo?.fullName || '';
+                                    return studentName.charAt(0).toUpperCase() || '👤';
+                                } else if (isFromAI) {
+                                    return '🤖';
+                                } else {
+                                    return '👨‍💼'; // Thủ thư
+                                }
+                            };
+
                             return (
                                 <React.Fragment key={msg.id || idx}>
                                     {isDifferentDay(msg, idx > 0 ? messages[idx - 1] : null) && (
                                         <div className="date-separator"><span>{getDateLabel(msg.createdAt)}</span></div>
                                     )}
 
-                                    <div id={`msg-${msg.id}`} className={`message-row ${isMyMsg ? 'sent' : 'received'}`}>
+                                    <div id={`msg-${msg.id}`} className={`message-row ${messagePosition}`}>
+                                        {/* Avatar - chỉ hiện cho tin nhắn bên trái (sinh viên) */}
+                                        {isFromStudent && (
+                                            <div className="message-avatar student-avatar">
+                                                {getAvatar()}
+                                            </div>
+                                        )}
+
                                         {/* Container bọc ngang: Cho phép bubble và giờ nằm cạnh nhau */}
                                         <div className="message-wrapper-horizontal">
-                                            <div className="message-bubble">
+                                            <div className={`message-bubble ${isFromAI ? 'ai-bubble' : ''}`}>
                                                 {/* Hiển thị đính kèm (Ảnh/File) */}
                                                 {msg.attachmentUrl && (
                                                     msg.type === 'IMAGE' || msg.attachmentUrl.match(/\.(jpeg|jpg|gif|png)$/) != null ? (
@@ -550,9 +753,16 @@ const ChatManagement = () => {
                                                 {formatTime(msg.createdAt)}
                                             </div>
                                         </div>
+
+                                        {/* Avatar - chỉ hiện cho tin nhắn bên phải (AI/Thủ thư) */}
+                                        {!isFromStudent && (
+                                            <div className={`message-avatar ${isFromAI ? 'ai-avatar' : 'librarian-avatar'}`}>
+                                                {getAvatar()}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {isMyMsg && isLastMsg && (
+                                    {isFromLibrarian && isLastMsg && (
                                         <div className="seen-status-container">
                                             <span className={msg.isRead ? "seen-text" : "sent-text"}>
                                                 {msg.isRead ? `${currentPartnerInfo?.fullName} đã xem` : "Đã gửi"}
@@ -565,7 +775,8 @@ const ChatManagement = () => {
                     )}
                 </div>
 
-                {selectedUser && (
+                {/* Ẩn input khi ở tab Lịch sử (all) - chỉ cho xem, không cho nhắn */}
+                {selectedUser && activeTab !== 'all' && (
                     <div className="chat-input-area">
                         {/* INPUT FILE ĐA NĂNG */}
                         <input

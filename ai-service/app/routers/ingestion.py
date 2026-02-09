@@ -153,3 +153,42 @@ async def delete_source(source: str):
     except Exception as e:
         logger.error(f"[IngestionRouter] Error deleting source: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vectors")
+async def get_all_vectors(limit: int = 100):
+    """
+    Get all vectors from Qdrant for admin display
+    
+    Returns:
+        List of vectors grouped by source with metadata
+    """
+    try:
+        from app.services.qdrant_service import get_qdrant_service
+        qdrant_service = get_qdrant_service()
+        result = qdrant_service.get_all_vectors(limit=limit)
+        return result
+        
+    except Exception as e:
+        logger.error(f"[IngestionRouter] Error getting vectors: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/knowledge-store/{ks_name}")
+async def delete_knowledge_store_vectors(ks_name: str):
+    """
+    Delete all vectors for a Knowledge Store
+    Deletes all vectors where source starts with {ks_name}_
+    
+    Args:
+        ks_name: Knowledge Store name prefix
+    """
+    try:
+        from app.services.qdrant_service import get_qdrant_service
+        qdrant_service = get_qdrant_service()
+        result = qdrant_service.delete_by_source_prefix(f"{ks_name}_")
+        return result
+        
+    except Exception as e:
+        logger.error(f"[IngestionRouter] Error deleting knowledge store vectors: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

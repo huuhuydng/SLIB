@@ -10,12 +10,15 @@ import slib.com.example.dto.chat.ConversationDTO;
 import slib.com.example.entity.chat.Conversation;
 import slib.com.example.entity.chat.ConversationStatus;
 import slib.com.example.entity.chat.Message;
+import slib.com.example.entity.chat.MessageType;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.chat.ConversationRepository;
+import slib.com.example.repository.chat.MessageRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,24 +30,16 @@ public class ConversationService {
 
         private final ConversationRepository conversationRepository;
         private final UserRepository userRepository;
+        private final MessageRepository messageRepository;
         private final SimpMessagingTemplate messagingTemplate;
 
         /**
-         * Lấy hoặc tạo conversation cho student
-         * Nếu có conversation đang active (không phải RESOLVED), trả về nó
-         * Nếu không, tạo mới với trạng thái AI_HANDLING
+         * Tạo conversation MỚI cho student mỗi lần escalate
+         * QUAN TRỌNG: Không reuse conversation cũ để tránh lẫn tin nhắn
          */
         @Transactional
         public Conversation getOrCreateConversation(UUID studentId) {
-                // Tìm conversation đang active
-                Optional<Conversation> existingConv = conversationRepository
-                                .findByStudentIdAndStatusNot(studentId, ConversationStatus.RESOLVED);
-
-                if (existingConv.isPresent()) {
-                        return existingConv.get();
-                }
-
-                // Tạo mới conversation
+                // LUÔN tạo mới conversation - mỗi lần escalate là 1 conversation riêng
                 User student = userRepository.findById(studentId)
                                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentId));
 
@@ -53,6 +48,7 @@ public class ConversationService {
                                 .status(ConversationStatus.AI_HANDLING)
                                 .build();
 
+                log.info("[Conversation] Created NEW conversation for student: {}", studentId);
                 return conversationRepository.save(newConv);
         }
 
@@ -182,9 +178,96 @@ public class ConversationService {
         }
 
         /**
+         * Lấy vị trí trong hàng đợi cho một conversation
+         * 
+         * @param conversationId ID của conversation
+         * @return Vị trí trong queue (1-indexed), hoặc 0 nếu không trong queue
+         */
+        public int getQueuePosition(UUID conversationId) {
+                List<Conversation> waitingList = conversationRepository
+                                .findByStatusOrderByCreatedAtAsc(ConversationStatus.QUEUE_WAITING);
+
+                for (int i = 0; i < waitingList.size(); i++) {
+                        if (waitingList.get(i).getId().equals(conversationId)) {
+                                return i + 1; // 1-indexed
+                        }
+                }
+                return 0; // Không trong queue
+        }
+
+        /**
+         * Tạo conversation mới và escalate trong 1 bước (cho mobile app)
+         */
+        @Transactional
+        public ConversationDTO createAndEscalate(UUID studentId, String reason) {
+                // Tạo hoặc lấy conversation
+                Conversation conv = getOrCreateConversation(studentId);
+
+                // Escalate và trả về DTO
+                return escalateToHuman(conv.getId(), reason);
+        }
+
+        /**
+         * Tạo conversation mới, lưu message history và escalate
+         */
+        @Transactional
+        public ConversationDTO createAndEscalateWithHistory(UUID studentId, String reason,
+                        List<Map<String, Object>> messageHistory) {
+                // Tạo hoặc lấy conversation
+                Conversation conv = getOrCreateConversation(studentId);
+                User student = conv.getStudent();
+
+                // Lưu message history vào DB nếu có
+                if (messageHistory != null && !messageHistory.isEmpty()) {
+                        for (Map<String, Object> msg : messageHistory) {
+                                String content = (String) msg.get("content");
+                                String senderType = (String) msg.get("senderType");
+
+                                if (content == null || content.trim().isEmpty())
+                                        continue;
+
+                                Message message = Message.builder()
+                                                .sender(student)
+                                                .receiver(student) // Self for AI messages
+                                                .content(content)
+                                                .type(MessageType.TEXT)
+                                                .conversation(conv)
+                                                .senderType(senderType != null ? senderType : "STUDENT")
+                                                .build();
+
+                                messageRepository.save(message);
+
+                                log.info("[Conversation] Saved message history: {} - type: {}",
+                                                content.substring(0, Math.min(50, content.length())), senderType);
+                        }
+                }
+
+                // Escalate và trả về DTO
+                return escalateToHuman(conv.getId(), reason);
+        }
+
+        @Transactional
+        public ConversationDTO cancelEscalation(UUID conversationId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                if (conv.getStatus() == ConversationStatus.QUEUE_WAITING) {
+                        conv.setStatus(ConversationStatus.AI_HANDLING);
+                        conv.setEscalationReason(null);
+                        conv.setEscalatedAt(null);
+
+                        Conversation saved = conversationRepository.save(conv);
+                        log.info("[Conversation] Cancelled escalation for conversation {}", conversationId);
+                        return convertToDTO(saved);
+                }
+
+                return convertToDTO(conv);
+        }
+
+        /**
          * Convert entity to DTO
          */
-        private ConversationDTO convertToDTO(Conversation conv) {
+        public ConversationDTO convertToDTO(Conversation conv) {
                 // Lấy tin nhắn cuối cùng
                 ChatMessageDTO lastMessage = null;
                 if (conv.getMessages() != null && !conv.getMessages().isEmpty()) {
@@ -212,6 +295,63 @@ public class ConversationService {
                                 .updatedAt(conv.getUpdatedAt())
                                 .escalatedAt(conv.getEscalatedAt())
                                 .lastMessage(lastMessage)
+                                .build();
+        }
+
+        /**
+         * Lấy tất cả messages của conversation
+         */
+        public List<ChatMessageDTO> getConversationMessages(UUID conversationId) {
+                List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+                return messages.stream()
+                                .map(this::convertMessageToDTO)
+                                .collect(Collectors.toList());
+        }
+
+        /**
+         * Thêm message vào conversation
+         */
+        @Transactional
+        public ChatMessageDTO addMessageToConversation(UUID conversationId, UUID senderId, String content,
+                        String senderType) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                User sender = userRepository.findById(senderId)
+                                .orElseThrow(() -> new RuntimeException("User not found: " + senderId));
+
+                Message message = Message.builder()
+                                .sender(sender)
+                                .receiver(conv.getStudent().getId().equals(senderId)
+                                                ? (conv.getLibrarian() != null ? conv.getLibrarian() : sender)
+                                                : conv.getStudent())
+                                .content(content)
+                                .type(MessageType.TEXT)
+                                .conversation(conv)
+                                .senderType(senderType)
+                                .build();
+
+                Message savedMessage = messageRepository.save(message);
+                log.info("[Conversation] Added message to conversation {}: {} - type: {}", conversationId, content,
+                                senderType);
+
+                ChatMessageDTO dto = convertMessageToDTO(savedMessage);
+
+                // Broadcast qua WebSocket
+                messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, dto);
+
+                return dto;
+        }
+
+        private ChatMessageDTO convertMessageToDTO(Message msg) {
+                return ChatMessageDTO.builder()
+                                .id(msg.getId())
+                                .senderId(msg.getSender().getId())
+                                .receiverId(msg.getReceiver().getId())
+                                .content(msg.getContent())
+                                .createdAt(msg.getCreatedAt())
+                                .senderName(msg.getSender().getFullName())
+                                .senderType(msg.getSenderType())
                                 .build();
         }
 }
