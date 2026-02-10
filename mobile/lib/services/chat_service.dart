@@ -151,7 +151,8 @@ class ChatService {
       return ConversationStatus(status: 'AI_HANDLING', librarianName: '');
     } catch (e) {
       print('Get Status Error: $e');
-      return ConversationStatus(status: 'AI_HANDLING', librarianName: '');
+      // Return với hasError=true để polling biết là lỗi mạng, không phải thủ thư kết thúc
+      return ConversationStatus(status: 'ERROR', librarianName: '', hasError: true);
     }
   }
 
@@ -313,13 +314,16 @@ class ChatResponse {
 class ConversationStatus {
   final String status; // AI_HANDLING, QUEUE_WAITING, HUMAN_CHATTING, RESOLVED
   final String librarianName;
+  final bool hasError; // True nếu có lỗi khi lấy status (VD: lỗi mạng)
 
   ConversationStatus({
     required this.status,
     required this.librarianName,
+    this.hasError = false,
   });
 
   bool get isHumanChatting => status == 'HUMAN_CHATTING';
-  bool get isResolved => status == 'RESOLVED';
+  bool get isResolved => status == 'RESOLVED' || status == 'AI_HANDLING'; // Backend resolve -> AI_HANDLING
   bool get isWaiting => status == 'QUEUE_WAITING';
+  bool get isAIHandling => !hasError && status == 'AI_HANDLING';
 }

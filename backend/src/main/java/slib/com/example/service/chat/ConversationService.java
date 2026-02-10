@@ -34,31 +34,49 @@ public class ConversationService {
         private final SimpMessagingTemplate messagingTemplate;
 
         /**
-         * Tạo conversation MỚI cho student mỗi lần escalate
-         * QUAN TRỌNG: Không reuse conversation cũ để tránh lẫn tin nhắn
+         * Lấy hoặc tạo session duy nhất cho student
+         * QUAN TRỌNG: Mỗi user chỉ có 1 session (long-lived)
+         * Các lần escalate được track bằng currentHumanSession
          */
         @Transactional
         public Conversation getOrCreateConversation(UUID studentId) {
-                // LUÔN tạo mới conversation - mỗi lần escalate là 1 conversation riêng
+                // Tìm session hiện có (bất kể status)
+                Optional<Conversation> existingConv = conversationRepository
+                                .findByStudentId(studentId)
+                                .stream()
+                                .findFirst();
+
+                if (existingConv.isPresent()) {
+                        log.info("[Conversation] Returning existing session for student: {}", studentId);
+                        return existingConv.get();
+                }
+
+                // Tạo mới session nếu chưa có
                 User student = userRepository.findById(studentId)
                                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentId));
 
                 Conversation newConv = Conversation.builder()
                                 .student(student)
                                 .status(ConversationStatus.AI_HANDLING)
+                                .currentHumanSession(0)
                                 .build();
 
-                log.info("[Conversation] Created NEW conversation for student: {}", studentId);
+                log.info("[Conversation] Created NEW session for student: {}", studentId);
                 return conversationRepository.save(newConv);
         }
 
         /**
          * Chuyển trạng thái sang QUEUE_WAITING và thông báo cho Librarian
+         * QUAN TRỌNG: Increment currentHumanSession để track lần escalate mới
          */
         @Transactional
         public ConversationDTO escalateToHuman(UUID conversationId, String reason) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                // Increment human session counter (1, 2, 3, ...)
+                int newHumanSession = (conv.getCurrentHumanSession() != null ? conv.getCurrentHumanSession() : 0) + 1;
+                conv.setCurrentHumanSession(newHumanSession);
 
                 conv.setStatus(ConversationStatus.QUEUE_WAITING);
                 conv.setEscalationReason(reason);
@@ -66,10 +84,17 @@ public class ConversationService {
 
                 Conversation saved = conversationRepository.save(conv);
 
+                // Gán bot messages (humanSessionId = NULL) vào session mới
+                // Để thủ thư thấy context AI trước khi escalate
+                int updated = messageRepository.assignBotMessagesToHumanSession(conversationId, newHumanSession);
+                log.info("[Conversation] Assigned {} bot context messages to human session {}",
+                                updated, newHumanSession);
+
                 // Broadcast cho tất cả Librarian
                 ConversationDTO dto = convertToDTO(saved);
                 messagingTemplate.convertAndSend("/topic/escalate", dto);
-                log.info("[Conversation] Escalated conversation {} to human. Reason: {}", conversationId, reason);
+                log.info("[Conversation] Escalated conversation {} to human. Human session: {}, Reason: {}",
+                                conversationId, newHumanSession, reason);
 
                 return dto;
         }
@@ -110,17 +135,40 @@ public class ConversationService {
         }
 
         /**
-         * Đánh dấu conversation đã hoàn thành
+         * Kết thúc phiên chat với thủ thư
+         * QUAN TRỌNG: Set status về AI_HANDLING (không phải RESOLVED)
+         * để user có thể tiếp tục chat với bot sau khi kết thúc
          */
         @Transactional
         public ConversationDTO resolveConversation(UUID conversationId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
 
-                conv.setStatus(ConversationStatus.RESOLVED);
+                // Set status về AI_HANDLING để user có thể tiếp tục chat với bot
+                conv.setStatus(ConversationStatus.AI_HANDLING);
                 conv.setResolvedAt(LocalDateTime.now());
+                // Giữ librarian để biết ai đã xử lý lần cuối
+                // Giữ currentHumanSession để lần escalate tiếp theo sẽ increment
 
-                return convertToDTO(conversationRepository.save(conv));
+                Conversation saved = conversationRepository.save(conv);
+
+                log.info("[Conversation] Librarian ended chat for session {}. Human session: {}",
+                                conversationId, conv.getCurrentHumanSession());
+
+                // Broadcast CHAT_ENDED event cho student qua WebSocket
+                // Student sẽ nhận được và chuyển về AI mode
+                ChatMessageDTO endMessage = ChatMessageDTO.builder()
+                                .id(UUID.randomUUID())
+                                .content("Thủ thư đã kết thúc cuộc trò chuyện")
+                                .senderType("SYSTEM")
+                                .type(MessageType.SYSTEM)
+                                .createdAt(LocalDateTime.now())
+                                .build();
+
+                messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, endMessage);
+                log.info("[WebSocket] Sent CHAT_ENDED notification to student for conversation: {}", conversationId);
+
+                return convertToDTO(saved);
         }
 
         /**
@@ -208,7 +256,9 @@ public class ConversationService {
         }
 
         /**
-         * Tạo conversation mới, lưu message history và escalate
+         * Tạo conversation, escalate, và lưu message history
+         * Messages được gán humanSessionId = currentSession (KHÔNG PHẢI NULL)
+         * để tránh duplicate khi escalate nhiều lần
          */
         @Transactional
         public ConversationDTO createAndEscalateWithHistory(UUID studentId, String reason,
@@ -217,7 +267,16 @@ public class ConversationService {
                 Conversation conv = getOrCreateConversation(studentId);
                 User student = conv.getStudent();
 
-                // Lưu message history vào DB nếu có
+                // Escalate trước (increment session, assign existing NULL messages)
+                ConversationDTO result = escalateToHuman(conv.getId(), reason);
+
+                // Lấy session mới sau escalate
+                conv = conversationRepository.findById(conv.getId()).orElse(conv);
+                Integer currentSession = conv.getCurrentHumanSession();
+
+                // Lưu message history với humanSessionId = currentSession
+                // QUAN TRỌNG: Gán session ngay, không dùng NULL
+                // Vậy lần escalate tiếp (session 2) sẽ KHÔNG thấy messages session 1
                 if (messageHistory != null && !messageHistory.isEmpty()) {
                         for (Map<String, Object> msg : messageHistory) {
                                 String content = (String) msg.get("content");
@@ -225,25 +284,26 @@ public class ConversationService {
 
                                 if (content == null || content.trim().isEmpty())
                                         continue;
+                                if ("LIBRARIAN".equals(senderType))
+                                        continue;
 
                                 Message message = Message.builder()
                                                 .sender(student)
-                                                .receiver(student) // Self for AI messages
+                                                .receiver(student)
                                                 .content(content)
                                                 .type(MessageType.TEXT)
                                                 .conversation(conv)
                                                 .senderType(senderType != null ? senderType : "STUDENT")
+                                                .humanSessionId(currentSession) // Gán session hiện tại, KHÔNG NULL
                                                 .build();
 
                                 messageRepository.save(message);
-
-                                log.info("[Conversation] Saved message history: {} - type: {}",
-                                                content.substring(0, Math.min(50, content.length())), senderType);
                         }
+                        log.info("[Conversation] Saved {} bot context messages with humanSession={}",
+                                        messageHistory.size(), currentSession);
                 }
 
-                // Escalate và trả về DTO
-                return escalateToHuman(conv.getId(), reason);
+                return result;
         }
 
         @Transactional
@@ -295,14 +355,33 @@ public class ConversationService {
                                 .updatedAt(conv.getUpdatedAt())
                                 .escalatedAt(conv.getEscalatedAt())
                                 .lastMessage(lastMessage)
+                                .currentHumanSession(conv.getCurrentHumanSession())
                                 .build();
         }
 
         /**
-         * Lấy tất cả messages của conversation
+         * Lấy messages của conversation với filter theo currentHumanSession
+         * Chi load: bot messages (humanSessionId IS NULL) + messages của current human
+         * session
          */
         public List<ChatMessageDTO> getConversationMessages(UUID conversationId) {
-                List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                Integer currentHumanSession = conv.getCurrentHumanSession();
+                List<Message> messages;
+
+                if (currentHumanSession != null && currentHumanSession > 0) {
+                        // Filter by humanSessionId
+                        messages = messageRepository.findBySessionWithHumanSessionFilter(conversationId,
+                                        currentHumanSession);
+                        log.info("[Conversation] Loading messages for session {} with humanSessionId={}",
+                                        conversationId, currentHumanSession);
+                } else {
+                        // No human session yet, load all
+                        messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+                }
+
                 return messages.stream()
                                 .map(this::convertMessageToDTO)
                                 .collect(Collectors.toList());
@@ -320,6 +399,25 @@ public class ConversationService {
                 User sender = userRepository.findById(senderId)
                                 .orElseThrow(() -> new RuntimeException("User not found: " + senderId));
 
+                // Set humanSessionId based on senderType and conversation status
+                // - LIBRARIAN messages: always get current human session ID
+                // - STUDENT messages trong HUMAN_CHATTING: get current human session ID (để
+                // filter đúng lần escalate)
+                // - STUDENT/AI messages khi đang chat với bot: get null (bot conversation
+                // context)
+                Integer humanSessionId;
+                if ("LIBRARIAN".equals(senderType)) {
+                        humanSessionId = conv.getCurrentHumanSession();
+                } else if ("STUDENT".equals(senderType) &&
+                                (conv.getStatus() == ConversationStatus.HUMAN_CHATTING ||
+                                                conv.getStatus() == ConversationStatus.QUEUE_WAITING)) {
+                        // Student đang chat với thủ thư hoặc đang chờ -> gán humanSessionId
+                        humanSessionId = conv.getCurrentHumanSession();
+                } else {
+                        // AI messages hoặc student chat với bot -> null
+                        humanSessionId = null;
+                }
+
                 Message message = Message.builder()
                                 .sender(sender)
                                 .receiver(conv.getStudent().getId().equals(senderId)
@@ -329,6 +427,7 @@ public class ConversationService {
                                 .type(MessageType.TEXT)
                                 .conversation(conv)
                                 .senderType(senderType)
+                                .humanSessionId(humanSessionId)
                                 .build();
 
                 Message savedMessage = messageRepository.save(message);

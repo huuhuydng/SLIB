@@ -49,4 +49,9 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * Tìm conversation gần nhất của student
      */
     Optional<Conversation> findTopByStudentIdOrderByCreatedAtDesc(UUID studentId);
+
+    /**
+     * Tìm tất cả conversations của student
+     */
+    List<Conversation> findByStudentId(UUID studentId);
 }

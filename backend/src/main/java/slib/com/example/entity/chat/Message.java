@@ -58,4 +58,8 @@ public class Message {
     // Loại người gửi: STUDENT, AI, LIBRARIAN
     @Column(name = "sender_type")
     private String senderType;
+
+    // Human session ID: NULL = bot conversation, INTEGER = librarian round number
+    @Column(name = "human_session_id")
+    private Integer humanSessionId;
 }

@@ -110,4 +110,32 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
        // 12. Lấy tất cả messages của một conversation theo thứ tự thời gian
        List<Message> findByConversationIdOrderByCreatedAtAsc(UUID conversationId);
+
+       // 13. Lấy messages của conversation với filter theo humanSessionId
+       // Quy tắc:
+       // - Load TẤT CẢ messages có humanSessionId IS NULL (AI + USER context)
+       // - Load LIBRARIAN messages CHỈ nếu humanSessionId = current session
+       // - KHÔNG load LIBRARIAN messages từ session cũ
+       @Query("SELECT m FROM Message m WHERE m.conversation.id = :sessionId " +
+                     "AND (m.humanSessionId IS NULL OR m.humanSessionId = :currentHumanSession) " +
+                     "ORDER BY m.createdAt ASC")
+       List<Message> findBySessionWithHumanSessionFilter(
+                     @Param("sessionId") UUID sessionId,
+                     @Param("currentHumanSession") Integer currentHumanSession);
+
+       // 14. Lấy chỉ bot messages (cho AI context loading)
+       @Query("SELECT m FROM Message m WHERE m.conversation.id = :sessionId " +
+                     "AND m.humanSessionId IS NULL " +
+                     "ORDER BY m.createdAt ASC")
+       List<Message> findBotMessagesOnly(@Param("sessionId") UUID sessionId);
+
+       // 15. Gán bot messages (humanSessionId = NULL) vào humanSession khi escalate
+       // Điều này cho phép thủ thư thấy context AI trước khi escalate
+       // và không bị duplicate vì chỉ UPDATE, không INSERT mới
+       @Modifying
+       @Query("UPDATE Message m SET m.humanSessionId = :humanSessionId " +
+                     "WHERE m.conversation.id = :conversationId AND m.humanSessionId IS NULL")
+       int assignBotMessagesToHumanSession(
+                     @Param("conversationId") UUID conversationId,
+                     @Param("humanSessionId") Integer humanSessionId);
 }

@@ -63,43 +63,53 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedConversationId = prefs.getString(_keyConversationId);
-      final savedIsEscalated = prefs.getBool(_keyIsEscalated) ?? false;
       final savedLibrarianName = prefs.getString(_keyLibrarianName);
       final savedIsWaiting = prefs.getBool(_keyIsWaitingInQueue) ?? false;
 
-      print('[PERSIST] Loading state: convId=$savedConversationId, escalated=$savedIsEscalated, waiting=$savedIsWaiting');
+      print('[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting');
 
-      if (savedConversationId != null && savedIsEscalated) {
-        // Có conversation đã lưu, load messages từ backend
+      if (savedConversationId != null) {
+        // LUÔN check backend status nếu có conversationId
+        // Không phụ thuộc savedIsEscalated vì local state có thể sai
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
 
         if (token != null) {
-          // Check conversation status
           final status = await _chatService.getConversationStatus(savedConversationId, token);
-          
-          if (!status.isResolved) {
-            // Conversation còn active, restore state
+          print('[PERSIST] Backend status: ${status.status}, isHumanChatting: ${status.isHumanChatting}');
+
+          if (status.isHumanChatting) {
+            // Database = HUMAN_CHATTING -> user PHẢI chat với thủ thư, KHÔNG với AI
             setState(() {
               _conversationId = savedConversationId;
               _isEscalated = true;
-              _librarianName = savedLibrarianName;
-              _isWaitingInQueue = savedIsWaiting && !status.isHumanChatting;
+              _isWaitingInQueue = false;
+              _librarianName = savedLibrarianName ?? status.librarianName;
             });
 
-            // Load messages từ backend
             await _loadMessagesFromBackend(savedConversationId, token);
+            _startMessagePolling(token);
+          } else if (status.isWaiting) {
+            // Đang chờ trong hàng đợi
+            setState(() {
+              _conversationId = savedConversationId;
+              _isEscalated = true;
+              _isWaitingInQueue = true;
+            });
 
-            // Start polling if librarian đã tiếp nhận
-            if (status.isHumanChatting && !savedIsWaiting) {
-              _startMessagePolling(token);
-            } else if (savedIsWaiting) {
-              // Tiếp tục polling status
-              _startStatusPolling(token);
-            }
+            await _loadMessagesFromBackend(savedConversationId, token);
+            _startStatusPolling(token);
           } else {
-            // Conversation đã kết thúc, clear state
-            await _clearSavedState();
+            // AI_HANDLING hoặc RESOLVED -> user chat với bot bình thường
+            if (mounted) {
+              setState(() {
+                _conversationId = savedConversationId;
+                _isEscalated = false;
+                _isWaitingInQueue = false;
+                _librarianName = null;
+              });
+            }
+            print('[PERSIST] Session is in AI mode, keeping session ID: $savedConversationId');
           }
         }
       }
@@ -751,9 +761,25 @@ class _ChatScreenState extends State<ChatScreen> {
       final token = await authService.getToken();
       
       if (token != null) {
-        // Build message history để gửi kèm
-        final messageHistory = _messages
-          .where((m) => m.type == ChatMessageType.text || m.type == ChatMessageType.withActions)
+        // Build message history - CHỈ gửi messages từ session AI hiện tại
+        // Tìm vị trí message "kết thúc" cuối cùng để chỉ lấy messages sau đó
+        int lastEndedIndex = -1;
+        for (int i = _messages.length - 1; i >= 0; i--) {
+          if (_messages[i].text.contains('kết thúc cuộc trò chuyện')) {
+            lastEndedIndex = i;
+            break;
+          }
+        }
+        
+        final recentMessages = lastEndedIndex >= 0 
+            ? _messages.sublist(lastEndedIndex + 1)
+            : _messages;
+        
+        final messageHistory = recentMessages
+          .where((m) => 
+            (m.type == ChatMessageType.text) &&
+            !m.text.contains('đang kết nối') &&
+            !m.text.contains('đã tiếp nhận'))
           .map((m) => {
             'content': m.text,
             'isUser': m.isUser,
@@ -800,8 +826,14 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _isWaitingInQueue = false;
           _librarianName = status.librarianName;
-          
-          // Cập nhật message thể hiện đã có người tiếp nhận
+        });
+        
+        // QUAN TRỌNG: Load messages từ backend để có filter theo humanSessionId
+        // Điều này đảm bảo chỉ hiện messages của session hiện tại, không hiện tin thủ thư cũ
+        await _loadMessagesFromBackend(_conversationId!, token);
+        
+        // Thêm message thông báo sau khi load
+        setState(() {
           _messages.add(ChatMessage(
             text: "Thủ thư ${status.librarianName.isNotEmpty ? status.librarianName : ''} đã tiếp nhận yêu cầu của bạn. Bạn có thể chat trực tiếp ngay bây giờ!",
             isUser: false,
@@ -834,7 +866,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     while (_isEscalated && mounted && _conversationId != null && !_isWaitingInQueue) {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 1)); // Giảm từ 2s xuống 1s
       
       if (!mounted || _conversationId == null || !_isEscalated) {
         print('[POLLING] Stopping - conditions not met');
@@ -842,10 +874,16 @@ class _ChatScreenState extends State<ChatScreen> {
       }
       
       try {
-        // Check nếu conversation đã resolved
+        // Check nếu conversation đã resolved hoặc quay về AI mode
         final status = await _chatService.getConversationStatus(_conversationId!, token);
         if (status.isResolved) {
           print('[POLLING] Conversation resolved, ending chat');
+          _handleChatEnded();
+          break;
+        }
+        // NEW: Check nếu thủ thư đã kết thúc (status quay về AI_HANDLING)
+        if (status.isAIHandling && _isEscalated) {
+          print('[POLLING] Librarian ended chat (status is AI_HANDLING), back to AI mode');
           _handleChatEnded();
           break;
         }
@@ -864,6 +902,13 @@ class _ChatScreenState extends State<ChatScreen> {
             
             // DEBUG: In ra tất cả messages để kiểm tra
             print('[POLLING] MSG: id=$msgId, senderType=$senderType, content=${content.length > 30 ? content.substring(0, 30) : content}...');
+            
+            // NEW: Check SYSTEM message (thủ thư kết thúc)
+            if (senderType == 'SYSTEM' && content.contains('kết thúc')) {
+              print('[POLLING] >>> SYSTEM message: librarian ended chat');
+              _handleChatEnded();
+              return; // Exit polling
+            }
             
             // Only add if not already tracked
             if (msgId.isNotEmpty && !_messageIds.contains(msgId)) {
@@ -942,16 +987,21 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // Xử lý khi librarian kết thúc cuộc chat
+  // QUAN TRỌNG: Giữ conversationId (single session), chỉ reset escalation state
   void _handleChatEnded() async {
-    // Clear saved state
-    await _clearSavedState();
+    // Chỉ clear escalation state, KHÔNG clear conversationId
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIsEscalated, false);
+    await prefs.setBool(_keyIsWaitingInQueue, false);
+    await prefs.remove(_keyLibrarianName);
+    // KHÔNG remove _keyConversationId - giữ session cho lần escalate tiếp theo
     
     setState(() {
       _isEscalated = false;
       _isWaitingInQueue = false;
-      _conversationId = null;
+      // KHÔNG set _conversationId = null - giữ session ID
       _librarianName = null;
-      _messageIds.clear();
+      // KHÔNG clear _messageIds - giữ track messages đã có
       
       _messages.add(ChatMessage(
         text: "Thủ thư đã kết thúc cuộc trò chuyện. Cảm ơn bạn đã liên hệ!\n\nMình là trợ lý ảo SLIB, sẵn sàng tiếp tục hỗ trợ bạn. Bạn cần mình giúp gì thêm không ạ? 📚",
@@ -959,7 +1009,7 @@ class _ChatScreenState extends State<ChatScreen> {
         time: DateTime.now(),
       ));
     });
-    print('[CHAT] Librarian ended conversation, reset to AI mode');
+    print('[CHAT] Librarian ended conversation (human session ended), back to AI mode. Session ID kept: $_conversationId');
     _scrollToBottom();
   }
 
