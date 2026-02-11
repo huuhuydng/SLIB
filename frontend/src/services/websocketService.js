@@ -1,0 +1,160 @@
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
+
+class WebSocketService {
+  constructor() {
+    this.client = null;
+    this.connected = false;
+    this.subscriptions = new Map(); // Map<topic, subscription>
+    this.callbacks = new Map(); // Map<topic, Set<callback>>
+  }
+
+  connect(onConnected, onError) {
+    if (this.connected) {
+      console.log('WebSocket already connected');
+      if (onConnected) onConnected();
+      return;
+    }
+
+    try {
+      // Create SockJS connection
+      const socket = new SockJS('http://localhost:8080/ws');
+      
+      // Create STOMP client
+      this.client = new Client({
+        webSocketFactory: () => socket,
+        debug: (str) => {
+          console.log('STOMP Debug:', str);
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+      });
+
+      // Set up connection handlers
+      this.client.onConnect = (frame) => {
+        console.log('✅ WebSocket Connected:', frame);
+        this.connected = true;
+        if (onConnected) onConnected();
+      };
+
+      this.client.onStompError = (frame) => {
+        console.error('❌ STOMP Error:', frame);
+        this.connected = false;
+        if (onError) onError(frame);
+      };
+
+      this.client.onWebSocketClose = () => {
+        console.log('🔌 WebSocket connection closed');
+        this.connected = false;
+      };
+
+      // Activate the client
+      this.client.activate();
+    } catch (error) {
+      console.error('❌ WebSocket connection error:', error);
+      this.connected = false;
+      if (onError) onError(error);
+    }
+  }
+
+  disconnect() {
+    if (this.client && this.connected) {
+      this.client.deactivate();
+      this.connected = false;
+      this.subscriptions.clear();
+      this.callbacks.clear();
+      console.log('🔌 WebSocket disconnected');
+    }
+  }
+
+  subscribe(topic, callback) {
+    if (!this.client || !this.connected) {
+      console.warn('⚠️ Cannot subscribe - WebSocket not connected');
+      return null;
+    }
+
+    // Initialize callbacks set for this topic if not exists
+    if (!this.callbacks.has(topic)) {
+      this.callbacks.set(topic, new Set());
+    }
+
+    // Add callback to the set
+    this.callbacks.get(topic).add(callback);
+    console.log(`📡 Added callback for ${topic} (${this.callbacks.get(topic).size} total)`);
+
+    // Only subscribe to STOMP topic once
+    if (!this.subscriptions.has(topic)) {
+      try {
+        const subscription = this.client.subscribe(topic, (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('📨 Received message on', topic, ':', data);
+            
+            // Notify all registered callbacks for this topic
+            const topicCallbacks = this.callbacks.get(topic);
+            if (topicCallbacks) {
+              topicCallbacks.forEach(cb => {
+                try {
+                  cb(data);
+                } catch (error) {
+                  console.error('❌ Error in callback:', error);
+                }
+              });
+            }
+          } catch (error) {
+            console.error('❌ Error parsing message:', error);
+          }
+        });
+
+        this.subscriptions.set(topic, subscription);
+        console.log('📡 Subscribed to STOMP topic:', topic);
+      } catch (error) {
+        console.error('❌ Subscribe error:', error);
+        return null;
+      }
+    }
+
+    // Return unsubscribe function for this specific callback
+    return () => {
+      this.unsubscribeCallback(topic, callback);
+    };
+  }
+
+  unsubscribeCallback(topic, callback) {
+    const topicCallbacks = this.callbacks.get(topic);
+    if (topicCallbacks) {
+      topicCallbacks.delete(callback);
+      console.log(`🔕 Removed callback for ${topic} (${topicCallbacks.size} remaining)`);
+
+      // If no more callbacks for this topic, unsubscribe from STOMP
+      if (topicCallbacks.size === 0) {
+        this.callbacks.delete(topic);
+        const subscription = this.subscriptions.get(topic);
+        if (subscription) {
+          subscription.unsubscribe();
+          this.subscriptions.delete(topic);
+          console.log('🔕 Unsubscribed from STOMP topic:', topic);
+        }
+      }
+    }
+  }
+
+  unsubscribe(topic) {
+    // Unsubscribe all callbacks for this topic
+    this.callbacks.delete(topic);
+    const subscription = this.subscriptions.get(topic);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.subscriptions.delete(topic);
+      console.log('🔕 Unsubscribed from', topic);
+    }
+  }
+
+  isConnected() {
+    return this.connected;
+  }
+}
+
+// Export a singleton instance
+export default new WebSocketService();
