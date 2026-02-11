@@ -8,10 +8,10 @@ function LibrarianSeat({ seat, onSeatClick }) {
   };
 
   // Màu sắc theo trạng thái (phù hợp với legend):
-  // AVAILABLE (trống) = xanh lá #22c55e
+  // AVAILABLE (trống) = xanh dương nhạt #93c5fd
   // BOOKED (đã đặt) = cam #f97316
   // UNAVAILABLE (bị hạn chế) = xám #9ca3af
-  let statusColor = '#22c55e'; // AVAILABLE = xanh lá
+  let statusColor = '#93c5fd'; // AVAILABLE = xanh dương nhạt
   let statusText = 'Trống';
 
   const status = (seat.seatStatus || 'AVAILABLE').toUpperCase();

@@ -3,7 +3,6 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  Flame,
   Armchair,
   Users,
   AlertTriangle,
@@ -21,7 +20,6 @@ const Sidebar = () => {
   const menuItems = [
     { icon: LayoutDashboard, label: "Tổng quan", path: "/librarian/dashboard" },
     { icon: ArrowLeftRight, label: "Kiểm tra ra/vào", path: "/librarian/checkinout" },
-    { icon: Flame, label: "Sơ đồ thư viện", path: "/librarian/areas" },
     { icon: Armchair, label: "Quản lý chỗ ngồi", path: "/librarian/seatmanage" },
     { icon: Users, label: "Sinh viên", path: "/librarian/students" },
     { icon: AlertTriangle, label: "Vi phạm", path: "/librarian/violation" },

@@ -6,7 +6,6 @@ import MainLayout from "../layouts/librarian/MainLayout";
 // Librarian Pages
 import Dashboard from "../pages/librarian/Dashboard/Dashboard";
 import CheckInOut from "../pages/librarian/CheckInOut/CheckInOut";
-import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import LibrarianAreas from "../pages/librarian/LibrarianAreas/LibrarianAreas";
 import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
@@ -30,9 +29,6 @@ function LibrarianRoutes() {
 
         {/* Check In/Out */}
         <Route path="checkinout" element={<CheckInOut />} />
-
-        {/* Sơ đồ nhiệt */}
-        <Route path="areas" element={<HeatMap />} />
 
         {/* Quản lý chỗ ngồi */}
         <Route path="seatmanage" element={<LibrarianAreas />} />
