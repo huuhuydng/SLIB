@@ -258,6 +258,54 @@ class LibrarianService {
     localStorage.removeItem('librarian_user');
     localStorage.removeItem('temp_reset_token');
   }
+
+  // Access Logs APIs
+  async getAllAccessLogs() {
+    try {
+      console.log('🟡 [Service] Calling getAllAccessLogs');
+      const response = await axios.get('http://localhost:8080/slib/hce/access-logs');
+      console.log('✅ [Service] getAllAccessLogs success:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [Service] getAllAccessLogs error:', error);
+      throw error;
+    }
+  }
+
+  async getAccessLogsByDateRange(startDate, endDate) {
+    try {
+      console.log('🟡 [Service] Calling getAccessLogsByDateRange:', { startDate, endDate });
+      
+      let url = 'http://localhost:8080/slib/hce/access-logs/filter';
+      const params = new URLSearchParams();
+      
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      
+      const response = await axios.get(url);
+      console.log('✅ [Service] getAccessLogsByDateRange success:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [Service] getAccessLogsByDateRange error:', error);
+      throw error;
+    }
+  }
+
+  async getAccessLogStats() {
+    try {
+      console.log('🟡 [Service] Calling getAccessLogStats');
+      const response = await axios.get('http://localhost:8080/slib/hce/access-logs/stats');
+      console.log('✅ [Service] getAccessLogStats success:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [Service] getAccessLogStats error:', error);
+      throw error;
+    }
+  }
 }
 
 export default new LibrarianService();
