@@ -1,8 +1,8 @@
 // File: lib/core/constants/api_constants.dart
 class ApiConstants {
   // Chỉ sửa 1 chỗ này duy nhất cho cả app
-  // ⚠️ REAL DEVICE: Dùng ngrok URL
-  static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+  // REAL DEVICE: Dung Cloudflare Tunnel URL
+  static const String domain = "https://fruits-reached-giant-directories.trycloudflare.com";
   // static const String domain = "http://10.0.2.2:8080";
   
   // Note: aiDomain không còn cần vì AI Chat đi qua backend proxy

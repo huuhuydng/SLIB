@@ -146,6 +146,7 @@ class ChatService {
         return ConversationStatus(
           status: data['status'] ?? 'AI_HANDLING',
           librarianName: data['librarianName'] ?? '',
+          queuePosition: data['queuePosition'] ?? 0,
         );
       }
       return ConversationStatus(status: 'AI_HANDLING', librarianName: '');
@@ -247,6 +248,29 @@ class ChatService {
     }
   }
 
+  /// Check xem student có conversation đang active không (HUMAN_CHATTING / QUEUE_WAITING)
+  Future<Map<String, dynamic>?> getMyActiveConversation(String authToken) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/my-active'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['hasActive'] == true) {
+          return data;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Get My Active Conversation Error: $e');
+      return null;
+    }
+  }
+
   /// Cancel escalation and return to AI handling
   Future<bool> cancelEscalation(String conversationId, String authToken) async {
     try {
@@ -260,6 +284,23 @@ class ChatService {
       return response.statusCode == 200;
     } catch (e) {
       print('Cancel Escalation Error: $e');
+      return false;
+    }
+  }
+
+  /// Cancel queue - student hủy chờ
+  Future<bool> cancelQueue(String conversationId, String authToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/cancel-queue'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Cancel Queue Error: $e');
       return false;
     }
   }
@@ -314,16 +355,18 @@ class ChatResponse {
 class ConversationStatus {
   final String status; // AI_HANDLING, QUEUE_WAITING, HUMAN_CHATTING, RESOLVED
   final String librarianName;
-  final bool hasError; // True nếu có lỗi khi lấy status (VD: lỗi mạng)
+  final bool hasError;
+  final int queuePosition;
 
   ConversationStatus({
     required this.status,
     required this.librarianName,
     this.hasError = false,
+    this.queuePosition = 0,
   });
 
   bool get isHumanChatting => status == 'HUMAN_CHATTING';
-  bool get isResolved => status == 'RESOLVED' || status == 'AI_HANDLING'; // Backend resolve -> AI_HANDLING
+  bool get isResolved => status == 'RESOLVED' || status == 'AI_HANDLING';
   bool get isWaiting => status == 'QUEUE_WAITING';
   bool get isAIHandling => !hasError && status == 'AI_HANDLING';
 }

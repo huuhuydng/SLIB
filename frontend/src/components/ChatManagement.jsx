@@ -57,10 +57,11 @@ const ChatManagement = () => {
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [showEscalateToast, setShowEscalateToast] = useState(false);
     const [escalateToastData, setEscalateToastData] = useState(null);
+    const [conversationUnread, setConversationUnread] = useState({}); // {convId: count}
 
     // ================= REFS =================
     const stompClientRef = useRef(null);
-    const conversationSubscriptionRef = useRef(null); // For /topic/conversation/{id}
+    // conversationSubscriptionRef replaced by activeConvSubscriptionsRef
     const fileInputRef = useRef(null);
     const imageInputRef = useRef(null);
     const selectedUserRef = useRef(null);
@@ -174,7 +175,9 @@ const ChatManagement = () => {
         const client = new Client({
             webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
             connectHeaders: { Authorization: `Bearer ${TOKEN}` },
+            debug: () => { }, // Suppress STOMP debug logs
             onConnect: () => {
+                console.log('[WS] Connected to WebSocket');
                 client.subscribe(`/topic/chat/${MY_ID}`, (message) => {
                     const receivedMsg = JSON.parse(message.body);
                     const isMyMsg = receivedMsg.senderId === MY_ID;
@@ -206,16 +209,39 @@ const ChatManagement = () => {
                     ));
                 });
 
-                // 🔔 Subscribe để nhận thông báo escalation từ AI
+                // Subscribe de nhan thong bao escalation tu AI
                 client.subscribe('/topic/escalate', (message) => {
                     const escalateData = JSON.parse(message.body);
-                    console.log('🔔 Escalation received:', escalateData);
-                    setEscalateToastData(escalateData);
-                    setShowEscalateToast(true);
-                    // Refresh danh sách waiting
-                    loadWaitingConversations();
-                    // Auto-hide toast after 5 seconds
-                    setTimeout(() => setShowEscalateToast(false), 5000);
+                    console.log('[WS] Escalation received:', escalateData);
+
+                    if (escalateData.type === 'QUEUE_CANCELLED') {
+                        // Student huy queue -> xoa ngay khoi danh sach
+                        setWaitingConversations(prev =>
+                            prev.filter(c => c.id !== escalateData.conversationId)
+                        );
+                    } else if (escalateData.type === 'CONVERSATION_ACCEPTED') {
+                        // Thu thu accept -> chuyen tu waiting sang active
+                        setWaitingConversations(prev =>
+                            prev.filter(c => c.id !== escalateData.conversationId)
+                        );
+                        loadActiveConversations();
+                    } else if (escalateData.type === 'CONVERSATION_RESOLVED') {
+                        // Thu thu ket thuc -> xoa khoi active
+                        setActiveConversations(prev =>
+                            prev.filter(c => c.id !== escalateData.conversationId)
+                        );
+                    } else {
+                        // Escalation moi -> them truc tiep vao waiting list (khong can reload API)
+                        console.log('[WS] New escalation, adding to waiting list:', escalateData);
+                        setWaitingConversations(prev => {
+                            // Avoid duplicate
+                            if (prev.some(c => c.id === escalateData.id)) return prev;
+                            return [...prev, escalateData];
+                        });
+                        setEscalateToastData(escalateData);
+                        setShowEscalateToast(true);
+                        setTimeout(() => setShowEscalateToast(false), 5000);
+                    }
                 });
             }
         });
@@ -247,53 +273,93 @@ const ChatManagement = () => {
         }
     }, [MY_ID]);
 
-    // Subscribe to conversation topic for real-time messages
+    // Subscribe to ALL active conversations for real-time messages + unread tracking
+    const activeConvSubscriptionsRef = useRef({});
+    const selectedConversationRef = useRef(null);
+
+    // Keep ref in sync with state
     useEffect(() => {
-        // Find conversation ID based on selectedUser from activeConversations
-        const activeConv = activeConversations.find(c => c.studentId === selectedUser);
-        const conversationId = selectedConversation?.id || activeConv?.id;
+        selectedConversationRef.current = selectedConversation;
+    }, [selectedConversation]);
 
-        if (!conversationId || !stompClientRef.current?.connected) return;
+    useEffect(() => {
+        if (!stompClientRef.current?.connected) return;
 
-        // Unsubscribe from previous conversation
-        if (conversationSubscriptionRef.current) {
-            conversationSubscriptionRef.current.unsubscribe();
-            conversationSubscriptionRef.current = null;
+        const currentIds = new Set(activeConversations.map(c => c.id));
+
+        // Unsubscribe from conversations no longer active
+        Object.keys(activeConvSubscriptionsRef.current).forEach(id => {
+            if (!currentIds.has(id)) {
+                activeConvSubscriptionsRef.current[id].unsubscribe();
+                delete activeConvSubscriptionsRef.current[id];
+            }
+        });
+
+        // Subscribe to new active conversations
+        activeConversations.forEach(conv => {
+            if (activeConvSubscriptionsRef.current[conv.id]) return; // Already subscribed
+
+            console.log('[WS] Subscribing to active conversation:', conv.id);
+            activeConvSubscriptionsRef.current[conv.id] = stompClientRef.current.subscribe(
+                `/topic/conversation/${conv.id}`,
+                (message) => {
+                    const newMsg = JSON.parse(message.body);
+                    console.log('[WS] Message from conversation:', conv.id, newMsg);
+
+                    const isCurrentConv = selectedConversationRef.current?.id === conv.id;
+
+                    if (isCurrentConv) {
+                        // Dang xem conversation nay -> them tin nhan vao list
+                        setMessages(prev => {
+                            if (prev.some(m => m.id === newMsg.id)) return prev;
+                            return [...prev, newMsg];
+                        });
+                        requestAnimationFrame(() => {
+                            if (messagesContainerRef.current) {
+                                messagesContainerRef.current.scrollTo({
+                                    top: messagesContainerRef.current.scrollHeight,
+                                    behavior: 'smooth'
+                                });
+                            }
+                        });
+                    } else {
+                        // Khong dang xem -> tang unread count
+                        if (newMsg.senderType === 'STUDENT') {
+                            setConversationUnread(prev => ({
+                                ...prev,
+                                [conv.id]: (prev[conv.id] || 0) + 1
+                            }));
+                        }
+                    }
+                }
+            );
+        });
+
+        // Also subscribe to selected waiting conversation (for preview)
+        if (selectedConversation?.id && !activeConvSubscriptionsRef.current[selectedConversation.id]) {
+            const waitingConv = waitingConversations.find(c => c.id === selectedConversation.id);
+            if (waitingConv) {
+                console.log('[WS] Subscribing to waiting conversation for preview:', selectedConversation.id);
+                activeConvSubscriptionsRef.current[selectedConversation.id] = stompClientRef.current.subscribe(
+                    `/topic/conversation/${selectedConversation.id}`,
+                    (message) => {
+                        const newMsg = JSON.parse(message.body);
+                        if (selectedConversationRef.current?.id === selectedConversation.id) {
+                            setMessages(prev => {
+                                if (prev.some(m => m.id === newMsg.id)) return prev;
+                                return [...prev, newMsg];
+                            });
+                        }
+                    }
+                );
+            }
         }
 
-        // Subscribe to new conversation topic
-        console.log('[WS] Subscribing to conversation:', conversationId);
-        conversationSubscriptionRef.current = stompClientRef.current.subscribe(
-            `/topic/conversation/${conversationId}`,
-            (message) => {
-                const newMsg = JSON.parse(message.body);
-                console.log('[WS] Received message from conversation:', newMsg);
-
-                // Add message to list if not duplicate
-                setMessages(prev => {
-                    if (prev.some(m => m.id === newMsg.id)) return prev;
-                    return [...prev, newMsg];
-                });
-
-                // Scroll to bottom
-                requestAnimationFrame(() => {
-                    if (messagesContainerRef.current) {
-                        messagesContainerRef.current.scrollTo({
-                            top: messagesContainerRef.current.scrollHeight,
-                            behavior: 'smooth'
-                        });
-                    }
-                });
-            }
-        );
-
         return () => {
-            if (conversationSubscriptionRef.current) {
-                conversationSubscriptionRef.current.unsubscribe();
-                conversationSubscriptionRef.current = null;
-            }
+            Object.values(activeConvSubscriptionsRef.current).forEach(sub => sub.unsubscribe());
+            activeConvSubscriptionsRef.current = {};
         };
-    }, [selectedConversation?.id, selectedUser, activeConversations]);
+    }, [activeConversations, waitingConversations, selectedConversation?.id]);
 
     // Load messages từ conversation khi selectedConversation thay đổi
     // Quan trọng: Đây là nơi load tin nhắn của sinh viên từ conversation API
@@ -580,8 +646,11 @@ const ChatManagement = () => {
                     {activeTab === 'waiting' && waitingConversations.map((conv) => (
                         <div
                             key={conv.id}
-                            className="conversation-item waiting-item"
-                            onClick={() => handleTakeOver(conv.id)}
+                            className={`conversation-item waiting-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
+                            onClick={() => {
+                                setSelectedConversation(conv);
+                                setSelectedUser(conv.studentId);
+                            }}
                         >
                             <div className="user-avatar-placeholder waiting-avatar">
                                 {conv.studentName?.charAt(0).toUpperCase() || '?'}
@@ -589,33 +658,70 @@ const ChatManagement = () => {
                             <div style={{ flex: 1, overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ fontWeight: 600 }}>{conv.studentName || 'Sinh viên'}</div>
-                                    <span className="waiting-badge-mini">⏳ Chờ</span>
+                                    <span className="waiting-badge-mini">Chờ</span>
                                 </div>
                                 <div className="conv-subtext">{conv.escalationReason || 'Cần hỗ trợ'}</div>
                             </div>
+                            <button
+                                className="btn-accept-conv"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTakeOver(conv.id);
+                                }}
+                                title="Chấp nhận cuộc hội thoại"
+                                style={{
+                                    marginLeft: 8,
+                                    padding: '4px 10px',
+                                    fontSize: 12,
+                                    background: '#22c55e',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                Chấp nhận
+                            </button>
                         </div>
                     ))}
 
                     {/* Hiển thị active conversations nếu tab = active */}
-                    {activeTab === 'active' && activeConversations.map((conv) => (
-                        <div
-                            key={conv.id}
-                            className={`conversation-item ${selectedUser === conv.studentId ? 'active' : ''}`}
-                            onClick={() => {
-                                // Quan trọng: set conversation TRƯỚC user để tránh race condition
-                                setSelectedConversation(conv);
-                                setSelectedUser(conv.studentId);
-                            }}
-                        >
-                            <div className="user-avatar-placeholder">
-                                {conv.studentName?.charAt(0).toUpperCase() || '?'}
+                    {activeTab === 'active' && [...activeConversations]
+                        .sort((a, b) => {
+                            // Sort: co tin nhan moi (unread > 0) len dau
+                            const aUnread = conversationUnread[a.id] || 0;
+                            const bUnread = conversationUnread[b.id] || 0;
+                            if (aUnread > 0 && bUnread === 0) return -1;
+                            if (bUnread > 0 && aUnread === 0) return 1;
+                            return 0;
+                        })
+                        .map((conv) => (
+                            <div
+                                key={conv.id}
+                                className={`conversation-item ${selectedUser === conv.studentId ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedConversation(conv);
+                                    setSelectedUser(conv.studentId);
+                                    // Clear unread khi click vao conversation
+                                    setConversationUnread(prev => ({ ...prev, [conv.id]: 0 }));
+                                }}
+                            >
+                                <div className="user-avatar-placeholder">
+                                    {conv.studentName?.charAt(0).toUpperCase() || '?'}
+                                </div>
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ fontWeight: 600 }}>{conv.studentName || 'Sinh viên'}</div>
+                                        {(conversationUnread[conv.id] || 0) > 0 && selectedConversation?.id !== conv.id && (
+                                            <span className="unread-badge-mini">{conversationUnread[conv.id]}</span>
+                                        )}
+                                    </div>
+                                    <div className="conv-subtext">{conv.studentEmail}</div>
+                                </div>
                             </div>
-                            <div style={{ flex: 1, overflow: 'hidden' }}>
-                                <div style={{ fontWeight: 600 }}>{conv.studentName || 'Sinh viên'}</div>
-                                <div className="conv-subtext">{conv.studentEmail}</div>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
 
                     {/* Hiển thị tất cả conversations nếu tab = all */}
                     {activeTab === 'all' && conversations.map((partner) => (

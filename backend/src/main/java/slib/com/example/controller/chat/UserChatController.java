@@ -295,7 +295,7 @@ public class UserChatController {
         return ResponseEntity.ok(message);
     }
 
-    // 19. Lấy conversation status (cho mobile polling)
+    // 19. Lay conversation status (cho mobile polling)
     @GetMapping("/conversations/{conversationId}/status")
     public ResponseEntity<Map<String, Object>> getConversationStatus(
             @PathVariable UUID conversationId,
@@ -305,10 +305,40 @@ public class UserChatController {
                 .map(c -> conversationService.convertToDTO(c))
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
 
-        return ResponseEntity.ok(Map.of(
-                "id", conv.getId(),
-                "status", conv.getStatus(),
-                "librarianName", conv.getLibrarianName() != null ? conv.getLibrarianName() : ""));
+        int queuePosition = conversationService.getQueuePosition(conversationId);
+
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", conv.getId());
+        response.put("status", conv.getStatus());
+        response.put("librarianName", conv.getLibrarianName() != null ? conv.getLibrarianName() : "");
+        response.put("queuePosition", queuePosition);
+        return ResponseEntity.ok(response);
+    }
+
+    // 20. Student check active conversation (HUMAN_CHATTING hoặc QUEUE_WAITING)
+    @GetMapping("/conversations/my-active")
+    public ResponseEntity<Map<String, Object>> getMyActiveConversation(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID studentId = getCurrentUserId(userDetails);
+        var activeConv = conversationService.getActiveConversationForStudent(studentId);
+        if (activeConv != null) {
+            return ResponseEntity.ok(Map.of(
+                    "hasActive", true,
+                    "conversationId", activeConv.getId().toString(),
+                    "status", activeConv.getStatus().toString(),
+                    "librarianName", activeConv.getLibrarianName() != null ? activeConv.getLibrarianName() : ""));
+        }
+        return ResponseEntity.ok(Map.of("hasActive", false));
+    }
+
+    // 21. Student hủy chờ queue (cancel queue)
+    @PostMapping("/conversations/{conversationId}/cancel-queue")
+    public ResponseEntity<Map<String, Object>> cancelQueue(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID studentId = getCurrentUserId(userDetails);
+        conversationService.cancelQueue(conversationId, studentId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Đã hủy chờ"));
     }
 
     // ==========================================

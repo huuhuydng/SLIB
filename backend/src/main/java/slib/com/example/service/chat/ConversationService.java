@@ -96,6 +96,9 @@ public class ConversationService {
                 log.info("[Conversation] Escalated conversation {} to human. Human session: {}, Reason: {}",
                                 conversationId, newHumanSession, reason);
 
+                // Broadcast queue position updates to all waiting students
+                broadcastQueuePositionUpdates();
+
                 return dto;
         }
 
@@ -130,7 +133,16 @@ public class ConversationService {
                                                 "librarianName", librarian.getFullName(),
                                                 "conversationId", conversationId));
 
+                // Broadcast CONVERSATION_ACCEPTED để frontend cập nhật UI ngay
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "CONVERSATION_ACCEPTED",
+                                "conversationId", conversationId.toString()));
+
                 log.info("[Conversation] Librarian {} took over conversation {}", librarianId, conversationId);
+
+                // Broadcast queue position updates to remaining waiting students
+                broadcastQueuePositionUpdates();
+
                 return convertToDTO(saved);
         }
 
@@ -166,8 +178,13 @@ public class ConversationService {
                                 .build();
 
                 messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, endMessage);
-                log.info("[WebSocket] Sent CHAT_ENDED notification to student for conversation: {}", conversationId);
 
+                // Broadcast CONVERSATION_RESOLVED để frontend xóa khỏi active list ngay
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "CONVERSATION_RESOLVED",
+                                "conversationId", conversationId.toString()));
+
+                log.info("[WebSocket] Sent CHAT_ENDED notification to student for conversation: {}", conversationId);
                 return convertToDTO(saved);
         }
 
@@ -176,7 +193,7 @@ public class ConversationService {
          */
         public List<ConversationDTO> getWaitingConversations() {
                 return conversationRepository
-                                .findByStatusOrderByCreatedAtAsc(ConversationStatus.QUEUE_WAITING)
+                                .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING)
                                 .stream()
                                 .map(this::convertToDTO)
                                 .collect(Collectors.toList());
@@ -195,11 +212,62 @@ public class ConversationService {
         }
 
         /**
+         * Lấy conversation active của student (HUMAN_CHATTING hoặc QUEUE_WAITING)
+         */
+        public ConversationDTO getActiveConversationForStudent(UUID studentId) {
+                // Check HUMAN_CHATTING trước
+                var humanChatting = conversationRepository
+                                .findByStudentIdAndStatus(studentId, ConversationStatus.HUMAN_CHATTING);
+                if (humanChatting.isPresent()) {
+                        return convertToDTO(humanChatting.get());
+                }
+                // Check QUEUE_WAITING
+                var queueWaiting = conversationRepository
+                                .findByStudentIdAndStatus(studentId, ConversationStatus.QUEUE_WAITING);
+                if (queueWaiting.isPresent()) {
+                        return convertToDTO(queueWaiting.get());
+                }
+                return null;
+        }
+
+        /**
+         * Student hủy chờ queue - chuyển trạng thái sang RESOLVED
+         */
+        @Transactional
+        public void cancelQueue(UUID conversationId, UUID studentId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                // Verify student owns this conversation
+                if (!conv.getStudent().getId().equals(studentId)) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
+
+                // Only cancel if currently QUEUE_WAITING
+                if (conv.getStatus() != ConversationStatus.QUEUE_WAITING) {
+                        throw new RuntimeException("Conversation is not in QUEUE_WAITING status");
+                }
+
+                conv.setStatus(ConversationStatus.RESOLVED);
+                conversationRepository.save(conv);
+
+                // Broadcast cho librarian biết queue đã bị hủy
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "QUEUE_CANCELLED",
+                                "conversationId", conversationId.toString()));
+
+                log.info("[Conversation] Student {} cancelled queue for conversation {}", studentId, conversationId);
+
+                // Broadcast queue position updates to remaining waiting students
+                broadcastQueuePositionUpdates();
+        }
+
+        /**
          * Lấy tất cả conversations (waiting + active của librarian)
          */
         public List<ConversationDTO> getAllConversationsForLibrarian(UUID librarianId) {
                 List<Conversation> waiting = conversationRepository
-                                .findByStatusOrderByCreatedAtAsc(ConversationStatus.QUEUE_WAITING);
+                                .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
                 List<Conversation> active = conversationRepository
                                 .findByLibrarianIdAndStatusOrderByUpdatedAtDesc(librarianId,
                                                 ConversationStatus.HUMAN_CHATTING);
@@ -233,7 +301,7 @@ public class ConversationService {
          */
         public int getQueuePosition(UUID conversationId) {
                 List<Conversation> waitingList = conversationRepository
-                                .findByStatusOrderByCreatedAtAsc(ConversationStatus.QUEUE_WAITING);
+                                .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
 
                 for (int i = 0; i < waitingList.size(); i++) {
                         if (waitingList.get(i).getId().equals(conversationId)) {
@@ -267,16 +335,19 @@ public class ConversationService {
                 Conversation conv = getOrCreateConversation(studentId);
                 User student = conv.getStudent();
 
-                // Escalate trước (increment session, assign existing NULL messages)
-                ConversationDTO result = escalateToHuman(conv.getId(), reason);
+                // Increment human session counter (1, 2, 3, ...)
+                int newHumanSession = (conv.getCurrentHumanSession() != null ? conv.getCurrentHumanSession() : 0) + 1;
+                conv.setCurrentHumanSession(newHumanSession);
+                conv.setStatus(ConversationStatus.QUEUE_WAITING);
+                conv.setEscalationReason(reason);
+                conv.setEscalatedAt(LocalDateTime.now());
+                Conversation saved = conversationRepository.save(conv);
 
-                // Lấy session mới sau escalate
-                conv = conversationRepository.findById(conv.getId()).orElse(conv);
-                Integer currentSession = conv.getCurrentHumanSession();
+                // KHÔNG gọi assignBotMessagesToHumanSession ở đây
+                // Vì messages AI chỉ tồn tại local trên mobile, sẽ được lưu từ messageHistory
+                // bên dưới
 
-                // Lưu message history với humanSessionId = currentSession
-                // QUAN TRỌNG: Gán session ngay, không dùng NULL
-                // Vậy lần escalate tiếp (session 2) sẽ KHÔNG thấy messages session 1
+                // Lưu message history với humanSessionId = newHumanSession
                 if (messageHistory != null && !messageHistory.isEmpty()) {
                         for (Map<String, Object> msg : messageHistory) {
                                 String content = (String) msg.get("content");
@@ -294,16 +365,22 @@ public class ConversationService {
                                                 .type(MessageType.TEXT)
                                                 .conversation(conv)
                                                 .senderType(senderType != null ? senderType : "STUDENT")
-                                                .humanSessionId(currentSession) // Gán session hiện tại, KHÔNG NULL
+                                                .humanSessionId(newHumanSession)
                                                 .build();
 
                                 messageRepository.save(message);
                         }
-                        log.info("[Conversation] Saved {} bot context messages with humanSession={}",
-                                        messageHistory.size(), currentSession);
+                        log.info("[Conversation] Saved {} message history with humanSession={}",
+                                        messageHistory.size(), newHumanSession);
                 }
 
-                return result;
+                // Broadcast cho tất cả Librarian
+                ConversationDTO dto = convertToDTO(saved);
+                messagingTemplate.convertAndSend("/topic/escalate", dto);
+                log.info("[Conversation] Escalated conversation {} to human. Human session: {}, Reason: {}",
+                                conv.getId(), newHumanSession, reason);
+
+                return dto;
         }
 
         @Transactional
@@ -322,6 +399,49 @@ public class ConversationService {
                 }
 
                 return convertToDTO(conv);
+        }
+
+        /**
+         * Broadcast queue position updates to all waiting students via WebSocket
+         * Called after queue changes (accept, cancel, new escalation)
+         */
+        private void broadcastQueuePositionUpdates() {
+                List<Conversation> waitingList = conversationRepository
+                                .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
+
+                for (int i = 0; i < waitingList.size(); i++) {
+                        Conversation conv = waitingList.get(i);
+                        int position = i + 1;
+                        messagingTemplate.convertAndSend(
+                                        "/topic/chat/" + conv.getStudent().getId(),
+                                        Map.of(
+                                                        "type", "QUEUE_POSITION_UPDATE",
+                                                        "conversationId", conv.getId().toString(),
+                                                        "queuePosition", position,
+                                                        "totalWaiting", waitingList.size()));
+                }
+                log.info("[WebSocket] Broadcast queue position updates to {} waiting students", waitingList.size());
+        }
+
+        /**
+         * Gửi thông báo LIBRARIAN_JOINED cho sinh viên qua WebSocket
+         * Dùng khi thủ thư bắt đầu chat từ yêu cầu hỗ trợ (không qua queue)
+         */
+        public void notifyStudentLibrarianJoined(UUID conversationId, UUID studentId, String librarianName) {
+                messagingTemplate.convertAndSend(
+                                "/topic/chat/" + studentId,
+                                Map.of(
+                                                "type", "LIBRARIAN_JOINED",
+                                                "librarianName", librarianName,
+                                                "conversationId", conversationId));
+
+                // Broadcast CONVERSATION_ACCEPTED để frontend cập nhật UI ngay
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "CONVERSATION_ACCEPTED",
+                                "conversationId", conversationId.toString()));
+
+                log.info("[WebSocket] Notified student {} that librarian {} joined conversation {}",
+                                studentId, librarianName, conversationId);
         }
 
         /**
@@ -406,7 +526,7 @@ public class ConversationService {
                 // - STUDENT/AI messages khi đang chat với bot: get null (bot conversation
                 // context)
                 Integer humanSessionId;
-                if ("LIBRARIAN".equals(senderType)) {
+                if ("LIBRARIAN".equals(senderType) || "SYSTEM".equals(senderType)) {
                         humanSessionId = conv.getCurrentHumanSession();
                 } else if ("STUDENT".equals(senderType) &&
                                 (conv.getStatus() == ConversationStatus.HUMAN_CHATTING ||

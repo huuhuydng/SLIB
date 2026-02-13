@@ -12,11 +12,12 @@ import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
-import ChatManagement from "../components/ChatManagement";
+
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 import AccountSettings from "../components/AccountSettings";
+import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
 
 
 function LibrarianRoutes() {
@@ -43,8 +44,11 @@ function LibrarianRoutes() {
         {/* Vi phạm */}
         <Route path="violation" element={<ViolationManage />} />
 
-        {/* Trò chuyện */}
-        <Route path="chat" element={<ChatManagement />} />
+        {/* Tro chuyen */}
+        <Route path="chat" element={<ChatManage />} />
+
+        {/* Yeu cau ho tro */}
+        <Route path="support-requests" element={<SupportRequestManage />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
