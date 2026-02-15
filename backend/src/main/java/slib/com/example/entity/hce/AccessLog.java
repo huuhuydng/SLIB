@@ -2,7 +2,6 @@ package slib.com.example.entity.hce;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
 import slib.com.example.entity.users.User;
 
 import java.time.LocalDateTime;
@@ -37,7 +36,6 @@ public class AccessLog {
 
 
     @Column(name = "check_in_time", nullable = false, updatable = false)
-    @CreationTimestamp
     private LocalDateTime checkInTime;
 
     @Column(name = "check_out_time")

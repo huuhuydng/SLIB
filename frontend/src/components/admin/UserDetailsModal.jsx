@@ -167,10 +167,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
         },
         modal: {
             background: '#fff',
-            borderRadius: '16px',
+            borderRadius: '20px',
             width: '100%',
-            maxWidth: '700px',
-            maxHeight: '92vh',
+            maxWidth: '800px',
+            maxHeight: '90vh',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -178,18 +178,18 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
         },
         header: {
             background: 'linear-gradient(135deg, #FF751F 0%, #FF9B5A 100%)',
-            padding: '16px 20px',
+            padding: '24px',
             color: '#fff',
             position: 'relative'
         },
         closeBtn: {
             position: 'absolute',
-            top: '12px',
-            right: '12px',
+            top: '16px',
+            right: '16px',
             background: 'rgba(255,255,255,0.2)',
             border: 'none',
-            borderRadius: '8px',
-            padding: '6px',
+            borderRadius: '10px',
+            padding: '8px',
             cursor: 'pointer',
             color: '#fff',
             display: 'flex',
@@ -200,12 +200,12 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
         tabs: {
             display: 'flex',
             borderBottom: '2px solid #E2E8F0',
-            padding: '0 20px',
+            padding: '0 24px',
             background: '#F7FAFC'
         },
         tab: (isActive) => ({
-            padding: '12px 20px',
-            fontSize: '13px',
+            padding: '16px 24px',
+            fontSize: '14px',
             fontWeight: '600',
             color: isActive ? '#FF751F' : '#6B7280',
             background: 'transparent',
@@ -217,17 +217,15 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
         }),
         content: {
             flex: 1,
-            overflowY: 'auto',
-            overflowX: 'hidden',
-            padding: '16px 20px',
-            minHeight: 0
+            overflow: 'auto',
+            padding: '24px'
         },
         footer: {
-            padding: '12px 20px',
+            padding: '16px 24px',
             borderTop: '1px solid #E2E8F0',
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: '10px',
+            gap: '12px',
             background: '#F7FAFC'
         }
     };
@@ -246,12 +244,12 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                         <X size={20} />
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                         {/* Avatar */}
                         <div style={{
-                            width: '64px',
-                            height: '64px',
-                            borderRadius: '16px',
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '20px',
                             background: user.avtUrl
                                 ? `url(${user.avtUrl}) center/cover no-repeat`
                                 : 'rgba(255,255,255,0.2)',
@@ -269,21 +267,21 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                         {/* Info */}
                         <div style={{ flex: 1 }}>
                             <h2 style={{
-                                margin: '0 0 6px 0',
-                                fontSize: '20px',
+                                margin: '0 0 8px 0',
+                                fontSize: '24px',
                                 fontWeight: '700'
                             }}>
                                 {user.fullName || 'Chưa có tên'}
                             </h2>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                                 <span style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '4px 10px',
+                                    gap: '6px',
+                                    padding: '6px 12px',
                                     background: 'rgba(255,255,255,0.2)',
-                                    borderRadius: '16px',
-                                    fontSize: '12px',
+                                    borderRadius: '20px',
+                                    fontSize: '13px',
                                     fontWeight: '600'
                                 }}>
                                     <RoleIcon size={14} />
@@ -292,16 +290,16 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                 <span style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '4px',
-                                    fontSize: '12px',
+                                    gap: '6px',
+                                    fontSize: '14px',
                                     opacity: 0.9
                                 }}>
-                                    <Mail size={12} />
+                                    <Mail size={14} />
                                     {user.email}
                                 </span>
                             </div>
                             {/* Status */}
-                            <div style={{ marginTop: '6px' }}>
+                            <div style={{ marginTop: '8px' }}>
                                 {user.isActive === false ? (
                                     <span style={{
                                         display: 'inline-flex',
@@ -367,23 +365,23 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                         <>
                             {/* Info Tab */}
                             {activeTab === 'info' && (
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     {/* Left Column */}
                                     <div style={{
                                         background: '#F7FAFC',
-                                        borderRadius: '12px',
-                                        padding: '16px'
+                                        borderRadius: '16px',
+                                        padding: '20px'
                                     }}>
                                         <h3 style={{
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             fontWeight: '600',
                                             color: '#6B7280',
-                                            marginBottom: '12px',
+                                            marginBottom: '16px',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.5px'
                                         }}>Thông tin cơ bản</h3>
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                             <InfoRow icon={User} label="Họ tên" value={user.fullName || 'N/A'} />
                                             <InfoRow icon={Mail} label="Email" value={user.email || 'N/A'} />
                                             <InfoRow icon={Building} label="Mã người dùng" value={user.userCode || 'N/A'} />
@@ -395,19 +393,19 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                     {/* Right Column */}
                                     <div style={{
                                         background: '#F7FAFC',
-                                        borderRadius: '12px',
-                                        padding: '16px'
+                                        borderRadius: '16px',
+                                        padding: '20px'
                                     }}>
                                         <h3 style={{
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             fontWeight: '600',
                                             color: '#6B7280',
-                                            marginBottom: '12px',
+                                            marginBottom: '16px',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.5px'
                                         }}>Thông tin tài khoản</h3>
 
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                             <InfoRow
                                                 icon={Shield}
                                                 label="Vai trò"
@@ -446,14 +444,14 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                                 <div style={{
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: '6px',
-                                                    padding: '8px',
+                                                    gap: '8px',
+                                                    padding: '12px',
                                                     background: '#FEF3C7',
-                                                    borderRadius: '8px',
+                                                    borderRadius: '10px',
                                                     color: '#B45309',
-                                                    fontSize: '11px'
+                                                    fontSize: '13px'
                                                 }}>
-                                                    <AlertTriangle size={14} />
+                                                    <AlertTriangle size={16} />
                                                     Chưa đổi mật khẩu mặc định
                                                 </div>
                                             )}
@@ -468,8 +466,8 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                     <div style={{
                                         display: 'grid',
                                         gridTemplateColumns: 'repeat(4, 1fr)',
-                                        gap: '12px',
-                                        marginBottom: '16px'
+                                        gap: '16px',
+                                        marginBottom: '24px'
                                     }}>
                                         <StatCard
                                             icon={Calendar}
@@ -503,22 +501,22 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
 
                                     <div style={{
                                         background: '#F7FAFC',
-                                        borderRadius: '12px',
-                                        padding: '16px'
+                                        borderRadius: '16px',
+                                        padding: '20px'
                                     }}>
                                         <h3 style={{
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             fontWeight: '600',
                                             color: '#6B7280',
-                                            marginBottom: '12px'
+                                            marginBottom: '16px'
                                         }}>Biểu đồ hoạt động</h3>
                                         <div style={{
-                                            height: '150px',
+                                            height: '200px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             color: '#A0AEC0',
-                                            fontSize: '12px'
+                                            fontSize: '14px'
                                         }}>
                                             [Chart placeholder - Tích hợp biểu đồ ở đây]
                                         </div>
@@ -533,10 +531,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        marginBottom: '12px'
+                                        marginBottom: '16px'
                                     }}>
                                         <h3 style={{
-                                            fontSize: '12px',
+                                            fontSize: '14px',
                                             fontWeight: '600',
                                             color: '#6B7280',
                                             margin: 0
@@ -544,22 +542,22 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                         <button style={{
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '6px 10px',
+                                            gap: '6px',
+                                            padding: '8px 12px',
                                             background: '#FF751F',
                                             color: '#fff',
                                             border: 'none',
-                                            borderRadius: '6px',
-                                            fontSize: '11px',
+                                            borderRadius: '8px',
+                                            fontSize: '13px',
                                             fontWeight: '600',
                                             cursor: 'pointer'
                                         }}>
-                                            <ExternalLink size={12} />
+                                            <ExternalLink size={14} />
                                             Xem tất cả
                                         </button>
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         {activityHistory.map((activity) => {
                                             const activityInfo = getActivityIcon(activity.type);
                                             const ActivityIcon = activityInfo.icon;
@@ -569,35 +567,35 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                                     style={{
                                                         display: 'flex',
                                                         alignItems: 'flex-start',
-                                                        gap: '12px',
-                                                        padding: '12px',
+                                                        gap: '16px',
+                                                        padding: '16px',
                                                         background: '#F7FAFC',
-                                                        borderRadius: '10px',
+                                                        borderRadius: '12px',
                                                         transition: 'background 0.2s'
                                                     }}
                                                 >
                                                     <div style={{
-                                                        width: '32px',
-                                                        height: '32px',
-                                                        borderRadius: '8px',
+                                                        width: '40px',
+                                                        height: '40px',
+                                                        borderRadius: '10px',
                                                         background: `${activityInfo.color}15`,
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center'
                                                     }}>
-                                                        <ActivityIcon size={16} color={activityInfo.color} />
+                                                        <ActivityIcon size={18} color={activityInfo.color} />
                                                     </div>
                                                     <div style={{ flex: 1 }}>
                                                         <div style={{
-                                                            fontSize: '13px',
+                                                            fontSize: '14px',
                                                             fontWeight: '600',
                                                             color: '#1A1A1A',
-                                                            marginBottom: '2px'
+                                                            marginBottom: '4px'
                                                         }}>
                                                             {activity.title}
                                                         </div>
                                                         <div style={{
-                                                            fontSize: '11px',
+                                                            fontSize: '13px',
                                                             color: '#6B7280',
                                                             marginBottom: '6px'
                                                         }}>
@@ -620,26 +618,25 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                     )}
                 </div>
 
-                {/* Footer Actions - Only show for admin */}
-                {(onEdit || onLock || onDelete) && (
+                {/* Footer Actions */}
                 <div style={modalStyles.footer}>
                     <button
                         onClick={() => onDelete?.(user)}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '8px 16px',
+                            gap: '8px',
+                            padding: '10px 20px',
                             background: '#fff',
                             color: '#DC2626',
                             border: '2px solid #FCA5A5',
-                            borderRadius: '8px',
-                            fontSize: '13px',
+                            borderRadius: '10px',
+                            fontSize: '14px',
                             fontWeight: '600',
                             cursor: 'pointer'
                         }}
                     >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                         Xóa
                     </button>
                     {user.isActive === false ? (
@@ -648,18 +645,18 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 16px',
+                                gap: '8px',
+                                padding: '10px 20px',
                                 background: '#D1FAE5',
                                 color: '#059669',
                                 border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '13px',
+                                borderRadius: '10px',
+                                fontSize: '14px',
                                 fontWeight: '600',
                                 cursor: 'pointer'
                             }}
                         >
-                            <Unlock size={14} />
+                            <Unlock size={16} />
                             Mở khóa
                         </button>
                     ) : (
@@ -668,18 +665,18 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 16px',
+                                gap: '8px',
+                                padding: '10px 20px',
                                 background: '#FEE2E2',
                                 color: '#DC2626',
                                 border: 'none',
-                                borderRadius: '8px',
-                                fontSize: '13px',
+                                borderRadius: '10px',
+                                fontSize: '14px',
                                 fontWeight: '600',
                                 cursor: 'pointer'
                             }}
                         >
-                            <Lock size={14} />
+                            <Lock size={16} />
                             Khóa tài khoản
                         </button>
                     )}
@@ -688,23 +685,22 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                         style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '8px 16px',
+                            gap: '8px',
+                            padding: '10px 20px',
                             background: '#FF751F',
                             color: '#fff',
                             border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '13px',
+                            borderRadius: '10px',
+                            fontSize: '14px',
                             fontWeight: '600',
                             cursor: 'pointer',
                             boxShadow: '0 4px 12px rgba(255, 117, 31, 0.25)'
                         }}
                     >
-                        <Edit2 size={14} />
+                        <Edit2 size={16} />
                         Chỉnh sửa
                     </button>
                 </div>
-                )}
             </div>
         </div>
     );
@@ -712,22 +708,22 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
 
 // Helper Components
 const InfoRow = ({ icon: Icon, label, value }) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
         <div style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '6px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
             background: '#E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0
         }}>
-            <Icon size={14} color="#6B7280" />
+            <Icon size={16} color="#6B7280" />
         </div>
         <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '11px', color: '#A0AEC0', marginBottom: '2px' }}>{label}</div>
-            <div style={{ fontSize: '13px', color: '#1A1A1A', fontWeight: '500' }}>
+            <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{label}</div>
+            <div style={{ fontSize: '14px', color: '#1A1A1A', fontWeight: '500' }}>
                 {typeof value === 'string' ? value : value}
             </div>
         </div>
@@ -737,25 +733,25 @@ const InfoRow = ({ icon: Icon, label, value }) => (
 const StatCard = ({ icon: Icon, value, label, color, bg }) => (
     <div style={{
         background: bg,
-        borderRadius: '12px',
-        padding: '14px',
+        borderRadius: '16px',
+        padding: '20px',
         textAlign: 'center'
     }}>
         <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
             background: '#fff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 8px',
+            margin: '0 auto 12px',
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
         }}>
-            <Icon size={20} color={color} />
+            <Icon size={24} color={color} />
         </div>
         <div style={{
-            fontSize: '24px',
+            fontSize: '28px',
             fontWeight: '700',
             color: color,
             marginBottom: '4px'
@@ -763,7 +759,7 @@ const StatCard = ({ icon: Icon, value, label, color, bg }) => (
             {value}
         </div>
         <div style={{
-            fontSize: '11px',
+            fontSize: '13px',
             color: '#6B7280',
             fontWeight: '500'
         }}>

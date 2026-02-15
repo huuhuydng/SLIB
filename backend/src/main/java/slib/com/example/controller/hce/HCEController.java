@@ -20,12 +20,13 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/hce")
+@CrossOrigin(origins = "*")
 public class HCEController {
 @Autowired
-    private CheckInService checkInService;
+    CheckInService checkInService;
 
     @Value("${gate.secret}")
-    private String gateSecretKey;
+    String gateSecretKey;
 
     
     @PostMapping("/checkin")
@@ -51,6 +52,18 @@ public class HCEController {
                 "status", "ERROR",
                 "message", e.getMessage()
             ));
+        }
+    }
+
+
+    // Lấy 10 bản ghi mới nhất để hiển thị
+    @GetMapping("/latest-logs")
+    public ResponseEntity<?> getLatestLogs() {
+        try {
+            return ResponseEntity.ok(checkInService.getLatest10Logs());
+        } catch (Exception e) {
+            // Trả về empty array thay vì error nếu có exception
+            return ResponseEntity.ok(new java.util.ArrayList<>());
         }
     }
 

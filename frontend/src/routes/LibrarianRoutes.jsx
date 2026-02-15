@@ -16,6 +16,8 @@ import NotificationManage from "../pages/librarian/NewsManage/NotificationManage
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 import AccountSettings from "../components/AccountSettings";
+import HeatMap from "../pages/librarian/HeatMap/HeatMap";
+import Attendance from "../pages/AttendanceWaitingScreen";
 
 
 function LibrarianRoutes() {
@@ -29,6 +31,12 @@ function LibrarianRoutes() {
 
         {/* Check In/Out */}
         <Route path="checkinout" element={<CheckInOut />} />
+
+
+
+
+        {/* Sơ đồ nhiệt */}
+        <Route path="areas" element={<HeatMap />} />
 
         {/* Quản lý chỗ ngồi */}
         <Route path="seatmanage" element={<LibrarianAreas />} />
@@ -61,6 +69,9 @@ function LibrarianRoutes() {
         <Route path="settings" element={<AccountSettings />} />
         <Route path="setting" element={<Navigate to="/librarian/settings" replace />} />
       </Route>
+
+      {/* Check In/Out */}
+      <Route path="attendance" element={<Attendance />} />
 
       {/* Redirect any unmatched routes */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />

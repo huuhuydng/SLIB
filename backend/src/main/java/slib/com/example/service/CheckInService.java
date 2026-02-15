@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -38,6 +39,8 @@ public class CheckInService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     public Map<String, String> processCheckIn(CheckInRequest request) {
         Map<String, String> response = new HashMap<>();
 
@@ -51,20 +54,26 @@ public class CheckInService {
                 throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
             }
 
-            Optional<AccessLog> currentSession = accessLogRepository
-                    .checkInUser(user.getId());
+            LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+
+            Optional<AccessLog> currentSession = accessLogRepository.checkInUser(user.getId());
+
+            // Chuẩn bị dữ liệu chung cho Real-time WebSocket
+            response.put("fullName", user.getFullName());
+            response.put("userCode", user.getUserCode());
+            response.put("deviceId", request.getGateId());
+            response.put("time", now.toString()); // Thời gian thực để Frontend format
 
             if (currentSession.isPresent()) {
-                // CHECK-OUT flow
+                // --- LUỒNG CHECK-OUT ---
                 AccessLog log = currentSession.get();
-                LocalDateTime checkOutTime = LocalDateTime.now();
-                log.setCheckOutTime(checkOutTime);
+                log.setCheckOutTime(now);
                 accessLogRepository.save(log);
 
-                // Calculate duration in minutes
-                int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), checkOutTime);
+                // Tính toán thời gian sử dụng
+                int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), now);
 
-                // Log activity for CHECK_OUT
+                // Ghi log hoạt động
                 activityService.logActivity(ActivityLogEntity.builder()
                         .userId(userId)
                         .activityType(ActivityLogEntity.TYPE_CHECK_OUT)
@@ -79,29 +88,30 @@ public class CheckInService {
                 wsMessage.put("userId", userId.toString());
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
-                wsMessage.put("timestamp", checkOutTime.toString());
+                wsMessage.put("timestamp", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
 
                 response.put("status", "SUCCESS");
                 response.put("type", "CHECK_OUT");
                 response.put("message", "Tạm biệt, " + user.getFullName());
+                response.put("checkInTime", log.getCheckInTime().toString());
+                response.put("checkOutTime", now.toString());
 
             } else {
-                // CHECK-IN flow
+                // --- LUỒNG CHECK-IN ---
                 AccessLog newLog = new AccessLog();
                 newLog.setUser(user);
                 newLog.setDeviceId(request.getGateId());
-                LocalDateTime checkInTime = LocalDateTime.now();
-                newLog.setCheckInTime(checkInTime);
+                newLog.setCheckInTime(now);
 
                 accessLogRepository.save(newLog);
 
-                // Log activity for CHECK_IN
+                // Ghi log hoạt động
                 activityService.logActivity(ActivityLogEntity.builder()
                         .userId(userId)
                         .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                         .title("Check-in thành công")
-                        .description("Bạn đã vào thư viện")
+                        .description("Bạn đã vào thư viện tại " + request.getGateId())
                         .build());
 
                 // Broadcast WebSocket notification for real-time update
@@ -110,16 +120,22 @@ public class CheckInService {
                 wsMessage.put("userId", userId.toString());
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
-                wsMessage.put("timestamp", checkInTime.toString());
+                wsMessage.put("timestamp", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
 
                 response.put("status", "SUCCESS");
                 response.put("type", "CHECK_IN");
                 response.put("message", "Xin chào, " + user.getFullName());
+                response.put("checkInTime", now.toString());
             }
+
+            // Gửi dữ liệu qua WebSocket
+            messagingTemplate.convertAndSend("/topic/access-logs", response);
 
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Token không đúng định dạng UUID");
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi hệ thống: " + e.getMessage());
         }
 
         return response;
@@ -134,31 +150,75 @@ public class CheckInService {
         return mins + " phút";
     }
 
+    public List<Map<String, Object>> getLatest10Logs() {
+        List<Map<String, Object>> allActions = new ArrayList<>();
+
+        // 1. Xác định mốc 00:00:00 của ngày hiện tại theo múi giờ Việt Nam
+        LocalDateTime startOfDay = LocalDateTime.now(VIETNAM_ZONE)
+                .toLocalDate()
+                .atStartOfDay();
+
+        // 2. Lấy danh sách logs phát sinh từ đầu ngày (Tối ưu hơn dùng findAll)
+        List<AccessLog> logsInDay = accessLogRepository.findLogsFromStartOfDay(startOfDay);
+
+        // 3. Duyệt qua từng bản ghi để tách thành các hành động riêng biệt
+        for (AccessLog log : logsInDay) {
+            // Luôn có hành động CHECK-IN
+            Map<String, Object> inAction = new HashMap<>();
+            inAction.put("fullName", log.getUser().getFullName());
+            inAction.put("userCode", log.getUser().getUserCode());
+            inAction.put("deviceId", log.getDeviceId());
+            inAction.put("type", "CHECK_IN");
+            inAction.put("time", log.getCheckInTime().toString());
+            inAction.put("sortTime", log.getCheckInTime()); // Dùng để sắp xếp
+            allActions.add(inAction);
+
+            // Chỉ thêm hành động CHECK-OUT nếu bản ghi đã có giờ ra
+            if (log.getCheckOutTime() != null) {
+                Map<String, Object> outAction = new HashMap<>();
+                outAction.put("fullName", log.getUser().getFullName());
+                outAction.put("userCode", log.getUser().getUserCode());
+                outAction.put("deviceId", log.getDeviceId());
+                outAction.put("type", "CHECK_OUT");
+                outAction.put("time", log.getCheckOutTime().toString());
+                outAction.put("sortTime", log.getCheckOutTime()); // Dùng để sắp xếp
+                allActions.add(outAction);
+            }
+        }
+
+        // 4. Sắp xếp tất cả hành động theo thời gian mới nhất và lấy tối đa 10 mục
+        return allActions.stream()
+                .sorted((a, b) -> ((LocalDateTime) b.get("sortTime")).compareTo((LocalDateTime) a.get("sortTime")))
+                .limit(10)
+                .peek(action -> action.remove("sortTime")) // Xóa dữ liệu trung gian trước khi trả về
+                .collect(Collectors.toList());
+    }
+
     /**
      * Tự động check-out lúc 21:00 cho những người chưa check-out
      */
     private void autoCheckOutAfter5PM() {
         LocalDateTime now = LocalDateTime.now();
-        
+
         // Tìm tất cả logs chưa checkout
         List<AccessLog> uncheckedOutLogs = accessLogRepository.findAllOrderByCheckInTimeDesc()
                 .stream()
                 .filter(log -> log.getCheckOutTime() == null)
                 .collect(Collectors.toList());
-        
+
         for (AccessLog log : uncheckedOutLogs) {
             LocalDateTime checkInTime = log.getCheckInTime();
             // Tạo thời gian 21:00 của ngày check-in
             LocalDateTime autoCheckOutTime = checkInTime.toLocalDate().atTime(21, 0);
-            
+
             // Nếu hiện tại đã qua 21:00 của ngày check-in đó
             if (now.isAfter(autoCheckOutTime)) {
                 log.setCheckOutTime(autoCheckOutTime);
                 accessLogRepository.save(log);
-                
+
                 // Calculate duration in minutes
                 int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), autoCheckOutTime);
-                
+
                 // Log activity for auto CHECK_OUT
                 activityService.logActivity(ActivityLogEntity.builder()
                         .userId(log.getUserId())
@@ -177,7 +237,7 @@ public class CheckInService {
     public List<AccessLogDTO> getAllAccessLogs() {
         // Auto check-out trước khi lấy danh sách
         autoCheckOutAfter5PM();
-        
+
         List<AccessLog> logs = accessLogRepository.findAllOrderByCheckInTimeDesc();
         return logs.stream()
                 .flatMap(this::convertToSeparateDTOs)
@@ -196,7 +256,7 @@ public class CheckInService {
     public List<AccessLogDTO> getTodayAccessLogs() {
         // Auto check-out trước khi lấy danh sách
         autoCheckOutAfter5PM();
-        
+
         List<AccessLog> logs = accessLogRepository.findTodayLogs();
         return logs.stream()
                 .flatMap(this::convertToSeparateDTOs)
@@ -214,7 +274,7 @@ public class CheckInService {
      */
     public AccessLogStatsDTO getTodayStats() {
         List<AccessLog> todayLogs = accessLogRepository.findTodayLogs();
-        
+
         long checkIns = todayLogs.size();
         long checkOuts = todayLogs.stream()
                 .filter(log -> log.getCheckOutTime() != null)
@@ -234,7 +294,7 @@ public class CheckInService {
     public List<AccessLogDTO> getAccessLogsByDateRange(java.time.LocalDate startDate, java.time.LocalDate endDate) {
         // Auto check-out trước khi lấy danh sách
         autoCheckOutAfter5PM();
-        
+
         List<AccessLog> logs = accessLogRepository.findLogsByDateRange(startDate, endDate);
         return logs.stream()
                 .flatMap(this::convertToSeparateDTOs)
@@ -256,9 +316,9 @@ public class CheckInService {
         User user = log.getUser();
         String userName = user != null ? user.getFullName() : "Unknown";
         String userCode = user != null ? user.getUserCode() : "N/A";
-        
+
         List<AccessLogDTO> dtos = new ArrayList<>();
-        
+
         // Tạo DTO cho CHECK_IN
         dtos.add(AccessLogDTO.builder()
                 .logId(log.getLogId())
@@ -270,7 +330,7 @@ public class CheckInService {
                 .checkOutTime(null)
                 .action("CHECK_IN")
                 .build());
-        
+
         // Nếu đã checkout, tạo thêm DTO cho CHECK_OUT
         if (log.getCheckOutTime() != null) {
             dtos.add(AccessLogDTO.builder()
@@ -284,7 +344,7 @@ public class CheckInService {
                     .action("CHECK_OUT")
                     .build());
         }
-        
+
         return dtos.stream();
     }
 
@@ -308,10 +368,11 @@ public class CheckInService {
     /**
      * Xuất báo cáo Excel
      */
-    public byte[] exportAccessLogsToExcel(java.time.LocalDate startDate, java.time.LocalDate endDate) throws IOException {
+    public byte[] exportAccessLogsToExcel(java.time.LocalDate startDate, java.time.LocalDate endDate)
+            throws IOException {
         // Auto check-out trước khi xuất
         autoCheckOutAfter5PM();
-        
+
         // Lấy danh sách logs theo khoảng thời gian
         List<AccessLog> logs;
         if (startDate != null && endDate != null) {
@@ -322,11 +383,11 @@ public class CheckInService {
             java.time.LocalDate start = end.minusMonths(3);
             logs = accessLogRepository.findLogsByDateRange(start, end);
         }
-        
+
         // Tạo workbook Excel
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Bao cao Check-in Check-out");
-            
+
             // Tạo style cho header
             CellStyle headerStyle = workbook.createCellStyle();
             Font headerFont = workbook.createFont();
@@ -339,66 +400,67 @@ public class CheckInService {
             headerStyle.setBorderTop(BorderStyle.THIN);
             headerStyle.setBorderLeft(BorderStyle.THIN);
             headerStyle.setBorderRight(BorderStyle.THIN);
-            
+
             // Tạo style cho data cells
             CellStyle dataStyle = workbook.createCellStyle();
             dataStyle.setBorderBottom(BorderStyle.THIN);
             dataStyle.setBorderTop(BorderStyle.THIN);
             dataStyle.setBorderLeft(BorderStyle.THIN);
             dataStyle.setBorderRight(BorderStyle.THIN);
-            
+
             // Tạo header row
             Row headerRow = sheet.createRow(0);
-            String[] columns = {"STT", "Tên sinh viên", "Mã số sinh viên", "Gate ID", "Thời gian Check-in", "Thời gian Check-out"};
-            
+            String[] columns = { "STT", "Tên sinh viên", "Mã số sinh viên", "Gate ID", "Thời gian Check-in",
+                    "Thời gian Check-out" };
+
             for (int i = 0; i < columns.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(columns[i]);
                 cell.setCellStyle(headerStyle);
             }
-            
+
             // Format datetime
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-            
+
             // Điền data
             int rowNum = 1;
             for (AccessLog log : logs) {
                 Row row = sheet.createRow(rowNum++);
                 User user = log.getUser();
-                
+
                 Cell cell0 = row.createCell(0);
                 cell0.setCellValue(rowNum - 1);
                 cell0.setCellStyle(dataStyle);
-                
+
                 Cell cell1 = row.createCell(1);
                 cell1.setCellValue(user != null ? user.getFullName() : "Unknown");
                 cell1.setCellStyle(dataStyle);
-                
+
                 Cell cell2 = row.createCell(2);
                 cell2.setCellValue(user != null ? user.getUserCode() : "N/A");
                 cell2.setCellStyle(dataStyle);
-                
+
                 Cell cell3 = row.createCell(3);
                 cell3.setCellValue(log.getDeviceId() != null ? log.getDeviceId() : "-");
                 cell3.setCellStyle(dataStyle);
-                
+
                 Cell cell4 = row.createCell(4);
                 cell4.setCellValue(log.getCheckInTime() != null ? log.getCheckInTime().format(formatter) : "-");
                 cell4.setCellStyle(dataStyle);
-                
+
                 Cell cell5 = row.createCell(5);
                 cell5.setCellValue(log.getCheckOutTime() != null ? log.getCheckOutTime().format(formatter) : "-");
                 cell5.setCellStyle(dataStyle);
             }
-            
+
             // Set column widths manually (avoid autoSizeColumn font issues in Docker)
-            sheet.setColumnWidth(0, 2000);   // STT
-            sheet.setColumnWidth(1, 8000);   // Tên sinh viên
-            sheet.setColumnWidth(2, 5000);   // Mã số sinh viên
-            sheet.setColumnWidth(3, 4000);   // Gate ID
-            sheet.setColumnWidth(4, 6000);   // Thời gian Check-in
-            sheet.setColumnWidth(5, 6000);   // Thời gian Check-out
-            
+            sheet.setColumnWidth(0, 2000); // STT
+            sheet.setColumnWidth(1, 8000); // Tên sinh viên
+            sheet.setColumnWidth(2, 5000); // Mã số sinh viên
+            sheet.setColumnWidth(3, 4000); // Gate ID
+            sheet.setColumnWidth(4, 6000); // Thời gian Check-in
+            sheet.setColumnWidth(5, 6000); // Thời gian Check-out
+
             workbook.write(out);
             return out.toByteArray();
         }
