@@ -175,7 +175,8 @@ public class PushNotificationService {
             case BOOKING -> user.getNotifyBooking() == null || user.getNotifyBooking();
             case REMINDER -> user.getNotifyReminder() == null || user.getNotifyReminder();
             case NEWS -> user.getNotifyNews() == null || user.getNotifyNews();
-            case VIOLATION, SYSTEM -> true; // Always send violations and system notifications
+            case VIOLATION, SYSTEM, SUPPORT_REQUEST -> true; // Always send violations, system, and support request
+                                                             // notifications
         };
     }
 

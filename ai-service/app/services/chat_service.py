@@ -1,78 +1,130 @@
 """
-RAG Chat Service
+RAG Chat Service - SLIB AI (MoMo Style Edition 🌸)
 Handles RAG (Retrieval-Augmented Generation) chat with strict guardrails
+and "Cute & Polite" persona logic.
 """
 
 import logging
+import re
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
 
+# Import các module từ project của bạn
 from app.config.settings import get_settings
 from app.services.embedding_service import get_embedding_service
 from app.models.schemas import ActionType
+from app.services.qdrant_service import get_qdrant_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# System prompt template with strict guardrails
-RAG_SYSTEM_PROMPT = """Bạn là **SLIB AI Assistant** - trợ lý thông minh của hệ thống Thư viện thông minh SLIB.
-Nhiệm vụ của bạn là hỗ trợ sinh viên và giảng viên tìm kiếm thông tin trong thư viện.
-Hãy trả lời câu hỏi dựa trên context được cung cấp dưới đây.
-Phong cách trả lời: Ngắn gọn, thân thiện và chính xác bằng tiếng Việt.
+# --- 1. CẤU HÌNH NGƯỠNG (THRESHOLDS) ---
+# Điểm < 0.35: Coi là spam/gõ bậy -> Giới thiệu lại bản thân (Giống MoMo case "hdjdhdiirhfh")
+SPAM_THRESHOLD = 0.35 
 
-**Quy tắc tối thượng:** TUYỆT ĐỐI KHÔNG sử dụng kiến thức bên ngoài (pre-trained knowledge). KHÔNG được suy đoán.
-Nếu context không chứa câu trả lời, hãy trả lời chính xác cụm từ: 'I_DO_NOT_KNOW'.
+# Điểm >= 0.75 (Lấy từ settings): Mới được coi là tìm thấy thông tin
+# Khoảng giữa (0.35 - 0.75): Coi là câu hỏi khó/không có data -> Xin lỗi nhẹ nhàng
+
+
+# --- 2. SYSTEM PROMPT (STYLE MOMO) ---
+RAG_SYSTEM_PROMPT = """Bạn là **SLIB AI** - trợ thủ đắc lực và siêu dễ thương của Thư viện SLIB 🌸
+
+--- NHIỆM VỤ ---
+Trả lời câu hỏi của sinh viên dựa trên thông tin được cung cấp trong phần CONTEXT.
+
+--- QUY TẮC AN TOÀN (BẮT BUỘC) ---
+1. Đọc kỹ phần CONTEXT bên dưới.
+2. Nếu thông tin KHÔNG có trong CONTEXT, bạn phải trả lời duy nhất cụm từ: I_DO_NOT_KNOW
+3. Tuyệt đối KHÔNG tự bịa ra thông tin hoặc sử dụng kiến thức bên ngoài context.
+
+--- PHONG CÁCH TRẢ LỜI (MOMO STYLE) ---
+- Bắt buộc bắt đầu câu trả lời bằng: **"Dạ,"**
+- Xưng hô: "mình" (SLIB AI) và "bạn".
+- Giọng điệu: Lễ phép, nhẹ nhàng, nhiệt tình.
+- Ví dụ: "Dạ, theo quy định thì...", "Dạ, hiện tại thư viện có..."
 
 --- CONTEXT TỪ THƯ VIỆN ---
 {context}
 --- HẾT CONTEXT ---
 
-Câu hỏi của người dùng: {question}
+Câu hỏi: {question}
 
-Trả lời (bằng tiếng Việt, ngắn gọn và thân thiện):"""
+Câu trả lời của bạn:"""
 
 
-# Greeting patterns and responses - answered WITHOUT RAG search
+# --- 3. CÁC MẪU CÂU TRẢ LỜI CỐ ĐỊNH ---
+
+# A. Greeting Patterns (Xã giao)
 GREETING_PATTERNS = {
-    # Identity questions
-    "bạn là ai": "Xin chào! 👋 Tôi là **SLIB AI Assistant** - trợ lý thông minh của hệ thống Thư viện SLIB. Tôi có thể giúp bạn:\n• Tìm kiếm thông tin về quy định thư viện\n• Hướng dẫn đặt chỗ ngồi\n• Trả lời các câu hỏi về dịch vụ thư viện\n\nHãy hỏi tôi bất cứ điều gì về thư viện nhé!",
-    "bạn là gì": "Tôi là **SLIB AI Assistant** - chatbot hỗ trợ của thư viện thông minh SLIB. Tôi được thiết kế để giúp sinh viên và giảng viên tra cứu thông tin về thư viện một cách nhanh chóng.",
-    "ai đang nói": "Tôi là **SLIB AI Assistant** - trợ lý ảo của hệ thống thư viện SLIB!",
-    "giới thiệu": "Xin chào! Tôi là **SLIB AI Assistant** 🤖\n\nTôi là trợ lý thông minh của Thư viện SLIB, được tạo ra để hỗ trợ sinh viên và giảng viên tìm kiếm thông tin nhanh chóng. Hãy đặt câu hỏi cho tôi về:\n• Quy định thư viện\n• Cách đặt chỗ ngồi\n• Điểm uy tín\n• Và nhiều thông tin khác!",
+    # Identity & Intro
+    "bạn là ai": "Dạ, mình là **SLIB AI** - Trợ lý ảo hỗ trợ sinh viên tại Thư viện SLIB ạ! Mình có thể giúp bạn tra cứu sách, xem quy định hoặc hướng dẫn đặt phòng... Bạn cần mình hỗ trợ gì hông nè?",
+    "bạn là gì": "Dạ, mình là **SLIB AI** - chatbot của thư viện SLIB đó ạ! Mình được tạo ra để giúp bạn tìm thông tin thư viện nhanh gọn lẹ nè!",
+    "ai đang nói": "Dạ, là mình nè - **SLIB AI**, trợ lý ảo của thư viện SLIB!",
+    "giới thiệu": "Dạ, chào bạn! Mình là **SLIB AI**.\n\nMình ở đây để giải đáp mọi thắc mắc về Thư viện SLIB một cách nhanh nhất. Đừng ngại hỏi mình nha!",
     
     # Greetings
-    "xin chào": "Xin chào! 👋 Tôi là SLIB AI Assistant. Tôi có thể giúp gì cho bạn hôm nay?",
-    "chào bạn": "Chào bạn! 😊 Tôi sẵn sàng hỗ trợ bạn. Bạn cần tìm hiểu thông tin gì về thư viện?",
-    "hello": "Hello! 👋 Tôi là SLIB AI Assistant. Bạn cần hỗ trợ gì về thư viện?",
-    "hi": "Hi! Tôi là SLIB AI. Bạn muốn hỏi gì về thư viện?",
+    "xin chào": "Dạ, chào bạn ạ! SLIB AI đã sẵn sàng. Hôm nay bạn cần tìm thông tin gì nè?",
+    "chào bạn": "Dạ, chào bạn nha! Mình sẵn sàng hỗ trợ bạn rồi đây. Cần mình giúp gì không?",
+    "hello": "Dạ, hello bạn! SLIB AI nghe nè!",
+    "hi": "Dạ, hi bạn! Rất vui được gặp bạn. Cần mình giúp gì cứ nói nha!",
     
     # Thanks
-    "cảm ơn": "Không có gì! 😊 Rất vui được hỗ trợ bạn. Nếu cần thêm thông tin, đừng ngần ngại hỏi nhé!",
-    "cám ơn": "Rất vui được giúp đỡ! 🙂 Chúc bạn có trải nghiệm tốt tại thư viện!",
-    "thanks": "You're welcome! 😊 Rất vui được hỗ trợ bạn!",
+    "cảm ơn": "Dạ, không có chi đâu ạ! Giúp được bạn là niềm vui của mình mà. Cần gì thêm cứ ới mình nha!",
+    "cám ơn": "Dạ, hông có gì nè! Chúc bạn học tập thật tốt tại thư viện nhé!",
+    "thanks": "Dạ, you're welcome! Chúc bạn một ngày học tập thật hiệu quả!",
     
     # Help
-    "giúp tôi": "Tôi có thể giúp bạn:\n• Tra cứu quy định thư viện\n• Hướng dẫn đặt chỗ ngồi\n• Giải đáp thắc mắc về điểm uy tín\n• Trả lời câu hỏi về dịch vụ thư viện\n\nBạn muốn hỏi về vấn đề gì?",
-    "hỗ trợ": "Tôi sẵn sàng hỗ trợ! Bạn có thể hỏi tôi về quy định thư viện, cách đặt chỗ, điểm uy tín, v.v. Hãy đặt câu hỏi nhé!",
+    "giúp tôi": "Dạ, mình sẵn sàng nè! Bạn muốn hỏi về quy định, đặt chỗ hay điểm uy tín? Nói cho mình biết đi!",
+    "hỗ trợ": "Dạ, mình ở đây để hỗ trợ bạn mà! Cứ hỏi thoải mái nhé, mình sẽ cố gắng trả lời nhanh nhất có thể!",
 }
+
+# B. Fallback Messages (Xử lý lỗi)
+
+# Case 1: Spam/Gõ bậy (Score < SPAM_THRESHOLD)
+# Giống MoMo đoạn "hdjdhdiirhfh" -> Giới thiệu lại bản thân để định hướng user
+MSG_SPAM_DETECTED = "Dạ, mình là **SLIB AI** - Trợ lý thư viện đây ạ!\n\nMình có thể giúp bạn giải quyết các vấn đề liên quan đến Thư viện SLIB (như quy định, giờ mở cửa, tài liệu...). Bạn cần hỗ trợ gì hông ạ?"
+
+# Case 2: Không tìm thấy tin (SPAM_THRESHOLD <= Score < Similarity_Threshold)
+# Giống MoMo đoạn "Slib là gì" -> Xin lỗi vì chưa có data
+MSG_NO_INFO = "Dạ, mình chưa có thông tin về vấn đề này trong hệ thống thư viện ạ.\n\nBạn có thể mô tả rõ hơn hoặc hỏi về vấn đề khác được không ạ? Nếu cần gấp, mình sẽ nhờ thủ thư hỗ trợ bạn nha!"
+
+# C. Escalation Patterns (User muốn gặp thủ thư)
+ESCALATION_PATTERNS = [
+    # Gặp thủ thư
+    "gặp thủ thư", "gap thu thu",
+    "nói chuyện với thủ thư", "noi chuyen voi thu thu",
+    "liên hệ thủ thư", "lien he thu thu",
+    "chat với thủ thư", "chat voi thu thu",
+    "hỏi thủ thư", "hoi thu thu",
+    # Gặp người/nhân viên
+    "gặp người", "gap nguoi",
+    "gặp nhân viên", "gap nhan vien",
+    "nói chuyện với người", "noi chuyen voi nguoi",
+    # Muốn được hỗ trợ trực tiếp
+    "cần hỗ trợ trực tiếp", "can ho tro truc tiep",
+    "muốn được hỗ trợ", "muon duoc ho tro",
+    "cho tôi gặp", "cho em gặp",
+    "chuyển cho người", "chuyen cho nguoi",
+]
+
+MSG_ESCALATION_OFFER = "Dạ, để được gặp thủ thư, bạn vui lòng bấm vào nút bên dưới ạ!"
+
 
 
 class RAGChatService:
     """
-    RAG Chat Service with similarity threshold checking and guardrails
-    
+    RAG Chat Service
     Workflow:
-    1. Generate embedding for user query
-    2. Search PostgreSQL for similar chunks (cosine distance)
-    3. Check similarity threshold (>= 0.75)
-    4. If threshold met: Generate response with LLM
-    5. If not met: Return ESCALATE_TO_LIBRARIAN
-    6. Check LLM response for "I_DO_NOT_KNOW"
+    1. Check Greeting (Xã giao)
+    2. Retrieve Context (Tìm kiếm)
+    3. Check Spam (Score quá thấp -> Re-intro)
+    4. Check Low Confidence (Score trung bình -> Xin lỗi)
+    5. Generate Answer (Score cao -> Trả lời cute)
     """
     
     I_DO_NOT_KNOW_MARKER = "I_DO_NOT_KNOW"
@@ -102,41 +154,41 @@ class RAGChatService:
         )
         
         logger.info(
-            f"[RAGChatService] Initialized with model={self.model}, "
-            f"threshold={self.similarity_threshold}"
+            f"[RAGChatService] Initialized. Model={self.model}, "
+            f"Threshold={self.similarity_threshold}, SpamThreshold={SPAM_THRESHOLD}"
         )
     
     def _check_greeting(self, message: str) -> Optional[str]:
-        """
-        Check if message matches a greeting pattern
-        Returns response if matched, None otherwise
-        """
+        """Check if message matches a greeting pattern"""
         normalized = message.lower().strip()
-        # Remove punctuation for matching
+        # Remove punctuation
         normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
         
-        for pattern, response in GREETING_PATTERNS.items():
-            if pattern in normalized or normalized in pattern:
-                return response
+        words = set(normalized.split())
         
+        for pattern, response in GREETING_PATTERNS.items():
+            if ' ' not in pattern:
+                if pattern in words:
+                    return response
+            else:
+                if pattern in normalized:
+                    return response
         return None
     
-    
-    def retrieve_context(
-        self, 
-        query: str, 
-        top_k: int = None
-    ) -> Tuple[List[Dict[str, Any]], float]:
-        """
-        Retrieve relevant context from Qdrant vector database
+    def _check_escalation(self, message: str) -> bool:
+        """Check if user wants to talk to librarian directly"""
+        normalized = message.lower().strip()
+        # Remove punctuation
+        normalized = ''.join(c for c in normalized if c.isalnum() or c.isspace())
         
-        Args:
-            query: User's question
-            top_k: Number of chunks to retrieve
-            
-        Returns:
-            Tuple of (chunks list, best similarity score)
-        """
+        for pattern in ESCALATION_PATTERNS:
+            if pattern in normalized:
+                logger.info(f"[Escalation] Detected pattern: '{pattern}'")
+                return True
+        return False
+    
+    def retrieve_context(self, query: str, top_k: int = None) -> Tuple[List[Dict[str, Any]], float]:
+        """Retrieve relevant context from Qdrant vector database"""
         if top_k is None:
             top_k = self.max_chunks
         
@@ -145,13 +197,13 @@ class RAGChatService:
             query_embedding = self.embedding_service.embed_text(query)
             
             # Search in Qdrant
-            from app.services.qdrant_service import get_qdrant_service
             qdrant_service = get_qdrant_service()
             
+            # Lấy kết quả thô, chưa lọc score_threshold vội để xử lý logic spam
             results = qdrant_service.search(
                 query_vector=query_embedding,
                 limit=top_k,
-                score_threshold=0.0  # Get all results, filter later
+                score_threshold=0.0
             )
             
             chunks = []
@@ -169,58 +221,35 @@ class RAGChatService:
                 if score > best_score:
                     best_score = score
             
-            logger.info(
-                f"[RAGChatService] Retrieved {len(chunks)} chunks from Qdrant, "
-                f"best score: {best_score:.4f}"
-            )
-            
+            logger.info(f"[Retrieve] Found {len(chunks)} chunks. Best score: {best_score:.4f}")
             return chunks, best_score
                 
         except Exception as e:
             logger.error(f"[RAGChatService] Error retrieving context: {e}")
             return [], 0.0
     
-    def generate_response(
-        self, 
-        query: str, 
-        context_chunks: List[Dict[str, Any]]
-    ) -> str:
-        """
-        Generate response using LLM with context
-        
-        Args:
-            query: User's question
-            context_chunks: Retrieved context chunks
-            
-        Returns:
-            LLM generated response
-        """
+    def generate_response(self, query: str, context_chunks: List[Dict[str, Any]]) -> str:
+        """Generate response using LLM with context"""
         try:
-            # Build context string from chunks
             context_parts = []
             for chunk in context_chunks:
-                source = chunk.get("source", "Unknown")
+                source = chunk.get("source", "Tài liệu thư viện")
                 content = chunk.get("content", "")
-                context_parts.append(f"[Nguồn: {source}]\n{content}")
+                # Format rõ ràng với dấu gạch ngang
+                context_parts.append(f"--- Nguồn: {source} ---\n{content}")
             
             context = "\n\n".join(context_parts)
             
             if not context:
-                context = "Không có thông tin nào được tìm thấy trong cơ sở dữ liệu."
+                context = "Empty context."
             
-            # Format prompt
             prompt = self.prompt_template.format(
                 context=context,
                 question=query
             )
             
-            logger.info(f"[RAGChatService] Generating response with LLM...")
-            
-            # Call LLM
+            logger.info(f"[Gen] Invoking LLM...")
             response = self.llm.invoke(prompt)
-            
-            logger.info(f"[RAGChatService] LLM response: {response[:100]}...")
-            
             return response.strip()
             
         except Exception as e:
@@ -229,75 +258,79 @@ class RAGChatService:
     
     def query(self, message: str) -> Dict[str, Any]:
         """
-        Main RAG query method with full workflow
-        
-        Args:
-            message: User's question
-            
-        Returns:
-            Dict with reply, action, similarity_score, sources
+        Main RAG query method with MoMo-style logic
         """
-        logger.info(f"[RAGChatService] Processing query: {message}")
+        logger.info(f"[Query] User: {message}")
         
-        # Step 0: Check for greeting/common questions (no RAG needed)
+        # 0. Escalation Check - User muốn gặp thủ thư
+        if self._check_escalation(message):
+            return {
+                "success": True,
+                "reply": MSG_ESCALATION_OFFER,
+                "action": ActionType.SHOW_ESCALATION_BUTTON,
+                "similarity_score": 1.0,
+                "sources": [],
+                "needs_review": True,
+                "escalated": True
+            }
+        
+        # 1. Greeting Check
         greeting_response = self._check_greeting(message)
         if greeting_response:
-            logger.info(f"[RAGChatService] Matched greeting pattern, returning direct response")
             return {
                 "success": True,
                 "reply": greeting_response,
                 "action": ActionType.NONE,
-                "similarity_score": 1.0,  # Perfect match for greetings
+                "similarity_score": 1.0,
                 "sources": []
             }
         
-        # Step 1: Retrieve context
+        # 2. Retrieve Context
         chunks, best_score = self.retrieve_context(message)
         
-        logger.info(
-            f"[RAGChatService] Retrieval complete - "
-            f"chunks: {len(chunks)}, best_score: {best_score:.4f}, "
-            f"threshold: {self.similarity_threshold}"
-        )
-        
-        # Step 2: Check similarity threshold
-        if best_score < self.similarity_threshold:
-            logger.info(
-                f"[RAGChatService] Score {best_score:.4f} < threshold {self.similarity_threshold}. "
-                f"Escalating to librarian."
-            )
+        # 3. Check Spam/Gibberish (Score cực thấp)
+        # Ví dụ: "hdjdhdiirhfh" -> Score ~ 0.2 -> Trả lời giới thiệu bản thân
+        if best_score < SPAM_THRESHOLD:
+            logger.info(f"[Query] Spam detected (Score {best_score:.4f} < {SPAM_THRESHOLD})")
             return {
                 "success": True,
-                "reply": "Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này trong cơ sở dữ liệu. Bạn có thể liên hệ thủ thư để được hỗ trợ thêm.",
+                "reply": MSG_SPAM_DETECTED,
+                "action": ActionType.NONE, # Không cần escalate spam
+                "similarity_score": best_score,
+                "sources": []
+            }
+
+        # 4. Check Low Confidence (Score lửng lơ)
+        # Ví dụ: "Slib là gì" -> Score ~ 0.5 -> Xin lỗi
+        if best_score < self.similarity_threshold:
+            logger.info(f"[Query] Low confidence ({best_score:.4f} < {self.similarity_threshold}). Escalating.")
+            return {
+                "success": True,
+                "reply": MSG_NO_INFO,
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
             }
         
-        # Step 3: Generate response with LLM
-        # Filter chunks above threshold
+        # 5. Generate Response (Score cao)
         relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
-        
         response = self.generate_response(message, relevant_chunks)
         
-        # Step 4: Check for I_DO_NOT_KNOW
+        # 6. Check I_DO_NOT_KNOW (LLM fallback)
         if self.I_DO_NOT_KNOW_MARKER in response:
-            logger.info("[RAGChatService] LLM returned I_DO_NOT_KNOW. Escalating to librarian.")
+            logger.info("[Query] LLM returned I_DO_NOT_KNOW.")
             return {
                 "success": True,
-                "reply": "Xin lỗi, hiện tại tôi chưa có thông tin về vấn đề này trong cơ sở dữ liệu.",
+                "reply": MSG_NO_INFO, # Dùng chung câu xin lỗi dễ thương
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
             }
         
-        # Step 5: Return successful response
+        # 7. Success
         sources = [
-            {
-                "source": c["source"],
-                "score": round(c["similarity_score"], 4)
-            }
-            for c in relevant_chunks[:3]  # Top 3 sources
+            {"source": c["source"], "score": round(c["similarity_score"], 4)}
+            for c in relevant_chunks[:3]
         ]
         
         return {
@@ -306,6 +339,127 @@ class RAGChatService:
             "action": ActionType.NONE,
             "similarity_score": best_score,
             "sources": sources
+        }
+    
+    # --- DEBUG HELPERS (FULL VERSION) ---
+    def _normalize_query(self, message: str) -> str:
+        normalized = message.lower().strip()
+        return ''.join(c for c in normalized if c.isalnum() or c.isspace())
+    
+    def query_with_debug(self, message: str) -> Dict[str, Any]:
+        """
+        RAG query with detailed debug information for Admin Dashboard.
+        Logic MUST mirror query() exactly but populating the debug dict.
+        """
+        logger.info(f"[Debug] Processing: {message}")
+        
+        debug = {
+            "query_analysis": {
+                "original": message,
+                "normalized": self._normalize_query(message),
+                "is_greeting": False,
+                "greeting_pattern": None
+            },
+            "retrieval": {
+                "spam_threshold": SPAM_THRESHOLD,
+                "similarity_threshold": self.similarity_threshold,
+                "best_score": 0.0,
+                "passed_threshold": False,
+                "is_spam": False,
+                "chunks_found": 0,
+                "chunks": []
+            },
+            "generation": {
+                "used_llm": False,
+                "llm_returned_idk": False,
+                "action_reason": ""
+            }
+        }
+        
+        # 1. Check Greeting
+        greeting_response = self._check_greeting(message)
+        if greeting_response:
+            debug["query_analysis"]["is_greeting"] = True
+            debug["generation"]["action_reason"] = "Matched greeting pattern"
+            return {
+                "success": True, 
+                "reply": greeting_response, 
+                "action": ActionType.NONE, 
+                "debug": debug
+            }
+        
+        # 2. Retrieve
+        chunks, best_score = self.retrieve_context(message)
+        debug["retrieval"]["best_score"] = round(best_score, 4)
+        debug["retrieval"]["chunks_found"] = len(chunks)
+        debug["retrieval"]["passed_threshold"] = best_score >= self.similarity_threshold
+        
+        # Add detailed chunks info for debug view
+        for i, chunk in enumerate(chunks[:5]):
+            full_content = chunk.get("content", "")
+            debug["retrieval"]["chunks"].append({
+                "rank": i + 1,
+                "score": round(chunk.get("similarity_score", 0), 4),
+                "content": full_content[:200] + "..." if len(full_content) > 200 else full_content,
+                "full_content": full_content,  # Full content for expandable view
+                "source": chunk.get("source", "Unknown"),
+            })
+            
+        # 3. Check Spam
+        if best_score < SPAM_THRESHOLD:
+            debug["retrieval"]["is_spam"] = True
+            debug["generation"]["action_reason"] = f"Spam detected (Score {best_score:.4f} < {SPAM_THRESHOLD})"
+            return {
+                "success": True,
+                "reply": MSG_SPAM_DETECTED,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
+            
+        # 4. Check Low Confidence
+        if best_score < self.similarity_threshold:
+            debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {self.similarity_threshold}"
+            return {
+                "success": True,
+                "reply": MSG_NO_INFO,
+                "action": ActionType.ESCALATE_TO_LIBRARIAN,
+                "debug": debug
+            }
+        
+        # 5. Generate with LLM
+        relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        debug["generation"]["used_llm"] = True
+        debug["generation"]["used_chunks_count"] = len(relevant_chunks)
+        # Track which chunks are actually used (by rank, 1-indexed)
+        debug["generation"]["used_chunks"] = [
+            {
+                "rank": chunks.index(c) + 1,
+                "score": round(c.get("similarity_score", 0), 4),
+                "source": c.get("source", "Unknown")
+            }
+            for c in relevant_chunks
+        ]
+        
+        response = self.generate_response(message, relevant_chunks)
+        
+        # 6. Check IDK
+        if self.I_DO_NOT_KNOW_MARKER in response:
+            debug["generation"]["llm_returned_idk"] = True
+            debug["generation"]["action_reason"] = "LLM returned I_DO_NOT_KNOW marker"
+            return {
+                "success": True,
+                "reply": MSG_NO_INFO,
+                "action": ActionType.ESCALATE_TO_LIBRARIAN,
+                "debug": debug
+            }
+        
+        # 7. Success
+        debug["generation"]["action_reason"] = "Successfully generated response"
+        return {
+            "success": True,
+            "reply": response,
+            "action": ActionType.NONE,
+            "debug": debug
         }
     
     def test_connection(self) -> Dict[str, Any]:
@@ -317,11 +471,11 @@ class RAGChatService:
                 return embed_result
             
             # Test LLM
-            test_response = self.llm.invoke("Say 'OK' if you can hear me.")
+            test_response = self.llm.invoke("Say 'OK'")
             
             return {
                 "success": True,
-                "message": f"RAG service ready. Model: {self.model}",
+                "message": f"RAG ready. Model: {self.model}",
                 "embedding_dims": embed_result.get("dimensions", 768)
             }
             
@@ -334,7 +488,6 @@ class RAGChatService:
 
 # Singleton instance
 _rag_chat_service = None
-
 
 def get_rag_chat_service() -> RAGChatService:
     """Get singleton RAGChatService instance"""

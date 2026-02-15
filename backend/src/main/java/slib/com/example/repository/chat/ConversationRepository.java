@@ -30,6 +30,12 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
     List<Conversation> findByStatusOrderByCreatedAtAsc(ConversationStatus status);
 
     /**
+     * Lấy danh sách conversation theo status, sắp xếp theo thời gian escalate
+     * Dùng cho queue waiting - đảm bảo ai ấn gặp thủ thư trước thì ở vị trí trước
+     */
+    List<Conversation> findByStatusOrderByEscalatedAtAsc(ConversationStatus status);
+
+    /**
      * Lấy danh sách conversation đang được một Librarian xử lý
      */
     List<Conversation> findByLibrarianIdAndStatusOrderByUpdatedAtDesc(UUID librarianId, ConversationStatus status);
@@ -49,4 +55,9 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * Tìm conversation gần nhất của student
      */
     Optional<Conversation> findTopByStudentIdOrderByCreatedAtDesc(UUID studentId);
+
+    /**
+     * Tìm tất cả conversations của student
+     */
+    List<Conversation> findByStudentId(UUID studentId);
 }

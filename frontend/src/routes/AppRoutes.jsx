@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { isTokenExpired } from "../utils/auth";
 
 // Auth Page
 import AuthPage from "../components/auth/AuthPage";
@@ -15,6 +16,19 @@ function AppRoutes() {
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Hàm xóa toàn bộ token và logout
+  const performLogout = useCallback(() => {
+    localStorage.removeItem('librarian_token');
+    localStorage.removeItem('librarian_user');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('temp_reset_token');
+    sessionStorage.removeItem('librarian_token');
+    sessionStorage.removeItem('librarian_user');
+    sessionStorage.removeItem('refresh_token');
+    setIsLoggedIn(false);
+    setUserRole(null);
+  }, []);
+
   useEffect(() => {
     // Dọn dẹp token cũ nếu còn lưu ở localStorage (tránh tự động đăng nhập từ session trước)
     localStorage.removeItem('librarian_token');
@@ -23,8 +37,16 @@ function AppRoutes() {
     // Chỉ đọc token từ sessionStorage để buộc đăng nhập lại mỗi phiên mới
     const token = sessionStorage.getItem('librarian_token');
     const userStr = sessionStorage.getItem('librarian_user');
-    
+
     if (token && userStr) {
+      // Kiểm tra token hết hạn
+      if (isTokenExpired(token)) {
+        console.warn('[Auth] Token đã hết hạn, yêu cầu đăng nhập lại');
+        performLogout();
+        setLoading(false);
+        return;
+      }
+
       try {
         const user = JSON.parse(userStr);
         const rawRole = user.role
@@ -35,27 +57,42 @@ function AppRoutes() {
           || user.roles?.[0]?.role
           || user.roles?.[0]?.name;
         const role = rawRole ? rawRole.toString().toUpperCase() : null;
-        
-        console.log('✅ User loaded:', user);
-        console.log('✅ Role detected:', role);
-        
+
+        console.log('[Auth] User loaded:', user);
+        console.log('[Auth] Role detected:', role);
+
         // Chỉ cho phép LIBRARIAN và ADMIN đăng nhập
         if (role === 'LIBRARIAN' || role === 'ADMIN') {
           setIsLoggedIn(true);
           setUserRole(role);
         } else if (role === 'STUDENT') {
           // Không cho phép STUDENT đăng nhập vào web
-          console.warn('⚠️ STUDENT không được phép đăng nhập vào hệ thống web');
-          sessionStorage.removeItem('librarian_token');
-          sessionStorage.removeItem('librarian_user');
+          console.warn('[Auth] STUDENT không được phép đăng nhập vào hệ thống web');
+          performLogout();
           alert('Sinh viên không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
         }
       } catch (error) {
-        console.error('❌ Error parsing user data:', error);
+        console.error('[Auth] Error parsing user data:', error);
       }
     }
     setLoading(false);
-  }, []);
+  }, [performLogout]);
+
+  // Kiểm tra token hết hạn định kỳ mỗi 60 giây
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const intervalId = setInterval(() => {
+      const token = sessionStorage.getItem('librarian_token');
+      if (isTokenExpired(token)) {
+        console.warn('[Auth] Token hết hạn, tự động đăng xuất');
+        performLogout();
+        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      }
+    }, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [isLoggedIn, performLogout]);
 
   const handleLogin = (role) => {
     const normalizedRole = role ? role.toString().toUpperCase() : null;
@@ -65,10 +102,10 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         fontSize: '18px',
         color: '#666',

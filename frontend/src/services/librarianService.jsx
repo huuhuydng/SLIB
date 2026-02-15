@@ -257,6 +257,10 @@ class LibrarianService {
     localStorage.removeItem('librarian_token');
     localStorage.removeItem('librarian_user');
     localStorage.removeItem('temp_reset_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('librarian_token');
+    sessionStorage.removeItem('librarian_user');
+    sessionStorage.removeItem('refresh_token');
   }
 }
 

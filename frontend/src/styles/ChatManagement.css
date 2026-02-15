@@ -1188,3 +1188,53 @@
     font-size: 14px;
     margin: 0;
 }
+
+/* ==================== AVATAR CHO TIN NHẮN ==================== */
+/* Avatar chung */
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin: 0 8px;
+}
+
+/* Avatar sinh viên (bên trái) */
+.message-avatar.student-avatar {
+    background-color: #e4e6eb;
+    color: #050505;
+    font-weight: bold;
+}
+
+/* Avatar AI robot (bên phải) */
+.message-avatar.ai-avatar {
+    background-color: #e7f3ff;
+    color: #0084ff;
+    font-size: 18px;
+}
+
+/* Avatar thủ thư (bên phải) */
+.message-avatar.librarian-avatar {
+    background-color: #fff3e0;
+    color: #f57c00;
+    font-size: 16px;
+}
+
+/* Bubble tin nhắn AI - màu sắc riêng */
+.message-bubble.ai-bubble {
+    background-color: #e7f3ff !important;
+    border: 1px solid #b3d4fc;
+}
+
+/* Message row với avatar */
+.message-row.received {
+    align-items: flex-end;
+}
+
+.message-row.sent {
+    align-items: flex-end;
+}
