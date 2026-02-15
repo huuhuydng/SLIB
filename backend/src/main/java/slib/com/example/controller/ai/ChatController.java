@@ -1,9 +1,11 @@
 package slib.com.example.controller.ai;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import slib.com.example.entity.ai.ChatMessageEntity;
 import slib.com.example.entity.ai.ChatSessionEntity;
 import slib.com.example.entity.users.User;
@@ -22,6 +24,43 @@ public class ChatController {
 
     @Autowired
     private ChatService chatService;
+
+    @Value("${ai.service.url:http://slib-ai-service:8001}")
+    private String aiServiceUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    // ========================================
+    // PUBLIC PROXY ENDPOINT (No Auth Required)
+    // ========================================
+
+    /**
+     * Proxy request to AI Service - for mobile app without auth
+     */
+    @PostMapping("/proxy-chat")
+    public ResponseEntity<?> proxyChat(@RequestBody Map<String, Object> request) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    aiServiceUrl + "/api/ai/chat",
+                    HttpMethod.POST,
+                    entity,
+                    String.class);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(response.getBody());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of(
+                            "success", false,
+                            "reply", "Không thể kết nối đến AI Service: " + e.getMessage()));
+        }
+    }
 
     // ========================================
     // STUDENT (Mobile App) ENDPOINTS

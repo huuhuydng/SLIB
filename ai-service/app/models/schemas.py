@@ -14,7 +14,8 @@ from datetime import datetime
 class ActionType(str, Enum):
     """Response action types"""
     NONE = "NONE"
-    ESCALATE_TO_LIBRARIAN = "ESCALATE_TO_LIBRARIAN"
+    SHOW_ESCALATION_BUTTON = "SHOW_ESCALATION_BUTTON"  # User wants to talk to librarian - show button
+    ESCALATE_TO_LIBRARIAN = "ESCALATE_TO_LIBRARIAN"    # Low confidence - suggest escalation
 
 
 class DocumentType(str, Enum):
@@ -85,6 +86,48 @@ class RAGQueryResponse(BaseModel):
     similarity_score: float = Field(..., description="Best similarity score from retrieval")
     sources: List[Dict[str, Any]] = Field(default=[], description="Retrieved source chunks")
     session_id: Optional[str] = None
+
+
+class DebugChunk(BaseModel):
+    """Debug info for a retrieved chunk"""
+    rank: int = Field(..., description="Rank position (1-based)")
+    score: float = Field(..., description="Similarity score")
+    content: str = Field(..., description="Chunk content (truncated)")
+    source: str = Field(..., description="Source name")
+    category: str = Field(default="", description="Category")
+
+
+class DebugRAGResponse(BaseModel):
+    """Debug response with detailed RAG processing info"""
+    success: bool
+    reply: str
+    action: ActionType = ActionType.NONE
+    session_id: Optional[str] = None
+    
+    # Debug info
+    debug: Dict[str, Any] = Field(default_factory=dict, description="Debug information")
+    # Structure:
+    # {
+    #   "query_analysis": {
+    #     "original": str,
+    #     "normalized": str,
+    #     "is_greeting": bool,
+    #     "greeting_pattern": str | null
+    #   },
+    #   "retrieval": {
+    #     "threshold": float,
+    #     "best_score": float,
+    #     "passed_threshold": bool,
+    #     "chunks_found": int,
+    #     "chunks_used": int,
+    #     "chunks": [DebugChunk]
+    #   },
+    #   "generation": {
+    #     "used_llm": bool,
+    #     "llm_returned_idk": bool,
+    #     "action_reason": str
+    #   }
+    # }
 
 
 # ============== INGESTION ==============

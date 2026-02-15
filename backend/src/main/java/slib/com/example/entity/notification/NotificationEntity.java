@@ -63,6 +63,7 @@ public class NotificationEntity {
         REMINDER,
         VIOLATION,
         SYSTEM,
-        NEWS
+        NEWS,
+        SUPPORT_REQUEST
     }
 }

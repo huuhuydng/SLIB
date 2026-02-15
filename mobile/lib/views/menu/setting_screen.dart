@@ -7,6 +7,7 @@ import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/support/support_request_history_screen.dart';
 // import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
@@ -151,6 +152,18 @@ class _SettingScreenState extends State<SettingScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const ViolationHistoryScreen()),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.support_agent_rounded,
+                iconColor: AppColors.brandColor,
+                title: "Yêu cầu hỗ trợ",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SupportRequestHistoryScreen()),
                   );
                 },
               ),

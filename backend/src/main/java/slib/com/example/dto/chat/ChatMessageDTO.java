@@ -14,18 +14,18 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class ChatMessageDTO {
-    
-    private UUID id;            
-    private UUID senderId;     
-    private UUID receiverId;    
-    private String content;    
-    private String attachmentUrl; 
-    private MessageType type;   
-    private LocalDateTime createdAt; 
-    private Boolean isRead;     // Trạng thái đã đọc hay chưa
-    
-    
-    private String senderName; 
+
+    private UUID id;
+    private UUID senderId;
+    private UUID receiverId;
+    private String content;
+    private String attachmentUrl;
+    private MessageType type;
+    private LocalDateTime createdAt;
+    private Boolean isRead; // Trạng thái đã đọc hay chưa
+
+    private String senderName;
+    private String senderType; // STUDENT, AI, LIBRARIAN
 
     public String getThumbnailUrl() {
         if (this.attachmentUrl == null || this.attachmentUrl.isEmpty()) {

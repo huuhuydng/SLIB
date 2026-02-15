@@ -79,6 +79,14 @@ public class MaterialController {
         return ResponseEntity.ok(materialService.addFileItem(id, name, file));
     }
 
+    @PutMapping("/{materialId}/items/{itemId}")
+    public ResponseEntity<MaterialDTO.ItemResponse> updateItem(
+            @PathVariable Long materialId,
+            @PathVariable Long itemId,
+            @RequestBody MaterialDTO.ItemRequest request) {
+        return ResponseEntity.ok(materialService.updateItem(materialId, itemId, request));
+    }
+
     @DeleteMapping("/{materialId}/items/{itemId}")
     public ResponseEntity<Map<String, Object>> deleteItem(
             @PathVariable Long materialId,

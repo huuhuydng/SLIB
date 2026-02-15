@@ -94,8 +94,32 @@ public class KnowledgeStoreService {
 
     @Transactional
     public void deleteKnowledgeStore(Long id) {
+        // Get KS name first to delete vectors
+        KnowledgeStoreEntity ks = knowledgeStoreRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("KnowledgeStore not found: " + id));
+
+        // Delete vectors from Qdrant FIRST
+        deleteVectorsFromQdrant(ks.getName());
+
+        // Then delete from DB
         knowledgeStoreRepository.deleteById(id);
-        log.info("Deleted knowledge store: {}", id);
+        log.info("Deleted knowledge store and vectors: {} ({})", ks.getName(), id);
+    }
+
+    /**
+     * Delete all vectors for a Knowledge Store from Qdrant
+     */
+    private void deleteVectorsFromQdrant(String ksName) {
+        try {
+            String url = aiServiceUrl + "/api/v1/ingest/knowledge-store/" + ksName;
+            log.info("Deleting vectors from Qdrant for: {}", ksName);
+
+            restTemplate.delete(url);
+            log.info("Successfully deleted vectors for: {}", ksName);
+        } catch (Exception e) {
+            log.warn("Failed to delete vectors from Qdrant for {}: {}", ksName, e.getMessage());
+            // Don't throw - allow DB delete to proceed even if vector delete fails
+        }
     }
 
     // ==================== SYNC TO VECTOR DB ====================
@@ -108,6 +132,9 @@ public class KnowledgeStoreService {
         log.info("Starting sync for knowledge store: {} ({})", ks.getName(), id);
         ks.setStatus(KnowledgeStoreEntity.SyncStatus.SYNCING);
         knowledgeStoreRepository.save(ks);
+
+        // DELETE OLD VECTORS FIRST before syncing new ones
+        deleteVectorsFromQdrant(ks.getName());
 
         int totalChunks = 0;
         try {

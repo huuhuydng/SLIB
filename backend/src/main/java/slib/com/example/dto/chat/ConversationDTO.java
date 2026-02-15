@@ -27,4 +27,5 @@ public class ConversationDTO {
     private LocalDateTime escalatedAt;
     private ChatMessageDTO lastMessage;
     private long unreadCount;
+    private Integer currentHumanSession;
 }

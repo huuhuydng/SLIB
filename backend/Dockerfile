@@ -39,4 +39,7 @@ ENV SPRING_PROFILES_ACTIVE=docker
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
+# Set timezone to match PostgreSQL
+ENV TZ=Asia/Ho_Chi_Minh
+
 ENTRYPOINT ["java", "-Duser.timezone=Asia/Ho_Chi_Minh", "-jar", "app.jar"]
