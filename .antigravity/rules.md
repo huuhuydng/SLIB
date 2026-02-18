@@ -1,0 +1,1 @@
+Luôn sử dụng tiếng Việt có dấu đầy đủ trong tất cả giao tiếp, artifact, walkthrough, và text hiển thị trong UI code (placeholder, label, button text, title, error message, empty state). Không bao giờ viết tiếng Việt không dấu.

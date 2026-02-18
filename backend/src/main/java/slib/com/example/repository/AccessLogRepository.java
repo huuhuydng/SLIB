@@ -17,7 +17,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
     // Lấy 10 bản ghi mới nhất (dùng để fallback hoặc debug)
     List<AccessLog> findTop10ByOrderByCheckInTimeDesc();
 
-    // LẤY DỮ LIỆU TRONG NGÀY: 
+    // LẤY DỮ LIỆU TRONG NGÀY:
     @Query("SELECT a FROM AccessLog a WHERE a.checkInTime >= :startOfDay")
     List<AccessLog> findLogsFromStartOfDay(@Param("startOfDay") LocalDateTime startOfDay);
 
@@ -32,6 +32,19 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
     // Tính tổng số phút học (native query PostgreSQL)
     @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) / 60), 0) FROM access_logs WHERE user_id = :userId AND check_out_time IS NOT NULL", nativeQuery = true)
     long getTotalStudyMinutes(@Param("userId") UUID userId);
+
+    // Lấy danh sách access logs mới nhất, sắp xếp theo thời gian check-in giảm dần
+    @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user ORDER BY a.checkInTime DESC")
+    java.util.List<AccessLog> findAllOrderByCheckInTimeDesc();
+
+    // Lấy danh sách access logs theo ngày
+    @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user WHERE CAST(a.checkInTime AS date) = CURRENT_DATE ORDER BY a.checkInTime DESC")
+    java.util.List<AccessLog> findTodayLogs();
+
+    // Lấy danh sách access logs theo khoảng thời gian (date range)
+    @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user WHERE CAST(a.checkInTime AS date) BETWEEN :startDate AND :endDate ORDER BY a.checkInTime DESC")
+    java.util.List<AccessLog> findLogsByDateRange(@Param("startDate") java.time.LocalDate startDate,
+            @Param("endDate") java.time.LocalDate endDate);
 
     // Xóa log khi xóa user
     void deleteByUser_Id(UUID userId);

@@ -220,8 +220,8 @@ body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
   position: relative;
 
-  /* giống ảnh: panel cao vừa và scroll trong table */
-  height: 540px;
+  /* Removed fixed height to allow table to show full content with pagination */
+  /* height: 540px; - removed to prevent scrolling */
   display: flex;
   flex-direction: column;
 }
@@ -287,17 +287,17 @@ body {
   background-color: #f9fafb;
 }
 
-/* vùng scroll cho table */
+/* vùng scroll cho table - Removed flex and overflow-y to prevent scrolling */
 .table-wrapper {
-  flex: 1;
-  overflow-y: auto;
+  /* overflow-y removed to show full table content without scrolling */
+  /* flex removed to allow natural height based on content */
+  overflow-x: auto; /* Keep horizontal scroll for wide tables */
   padding-right: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
 }
 
 .table-wrapper::-webkit-scrollbar {
   width: 6px;
+  height: 6px; /* For horizontal scrollbar */
 }
 .table-wrapper::-webkit-scrollbar-track {
   background: transparent;

@@ -129,7 +129,7 @@
   flex-direction: column;
   gap: 4px;
   flex: 1;
-  overflow-y: hidden;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 

@@ -6,7 +6,6 @@ import MainLayout from "../layouts/librarian/MainLayout";
 // Librarian Pages
 import Dashboard from "../pages/librarian/Dashboard/Dashboard";
 import CheckInOut from "../pages/librarian/CheckInOut/CheckInOut";
-import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import LibrarianAreas from "../pages/librarian/LibrarianAreas/LibrarianAreas";
 import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
@@ -17,6 +16,7 @@ import NotificationManage from "../pages/librarian/NewsManage/NotificationManage
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 import AccountSettings from "../components/AccountSettings";
+import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
 import Attendance from "../pages/AttendanceWaitingScreen";
 
@@ -33,7 +33,7 @@ function LibrarianRoutes() {
         {/* Check In/Out */}
         <Route path="checkinout" element={<CheckInOut />} />
 
-       
+
 
 
         {/* Sơ đồ nhiệt */}
@@ -74,8 +74,8 @@ function LibrarianRoutes() {
         <Route path="setting" element={<Navigate to="/librarian/settings" replace />} />
       </Route>
 
-       {/* Check In/Out */}
-        <Route path="attendance" element={<Attendance />} />
+      {/* Check In/Out */}
+      <Route path="attendance" element={<Attendance />} />
 
       {/* Redirect any unmatched routes */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
