@@ -18,6 +18,9 @@ import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 import AccountSettings from "../components/AccountSettings";
 import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
+import BookingManage from "../pages/librarian/BookingManage/BookingManage";
+import FeedbackManage from "../pages/librarian/FeedbackManage/FeedbackManage";
+import ComplaintManage from "../pages/librarian/ComplaintManage/ComplaintManage";
 import Attendance from "../pages/AttendanceWaitingScreen";
 
 
@@ -30,34 +33,28 @@ function LibrarianRoutes() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
-        {/* Check In/Out */}
+        {/* Giám sát */}
         <Route path="checkinout" element={<CheckInOut />} />
-
-
-
-
-        {/* Sơ đồ nhiệt */}
         <Route path="areas" element={<HeatMap />} />
-
-        {/* Quản lý chỗ ngồi */}
         <Route path="seatmanage" element={<LibrarianAreas />} />
 
-        {/* Quản lý sinh viên */}
+        {/* Quản lý */}
+        <Route path="bookings" element={<BookingManage />} />
         <Route path="students" element={<StudentsManage />} />
 
-        {/* Vi phạm */}
+        {/* Xử lý */}
         <Route path="violation" element={<ViolationManage />} />
-
-        {/* Tro chuyen */}
-        <Route path="chat" element={<ChatManage />} />
-
-        {/* Yeu cau ho tro */}
         <Route path="support-requests" element={<SupportRequestManage />} />
+        <Route path="complaints" element={<ComplaintManage />} />
+        <Route path="feedback" element={<FeedbackManage />} />
+
+        {/* Trò chuyện */}
+        <Route path="chat" element={<ChatManage />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
 
-        {/* Tin tức */}
+        {/* Nội dung */}
         <Route path="news" element={<NotificationManage />} />
         <Route path="news/create" element={<NewCreate />} />
         <Route path="news/edit/:id" element={<NewCreate />} />
@@ -84,4 +81,3 @@ function LibrarianRoutes() {
 }
 
 export default LibrarianRoutes;
-

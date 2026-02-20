@@ -1,0 +1,30 @@
+/* =================== FEEDBACK MANAGE =================== */
+.fm-feedback-content {
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+
+.fm-stars {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.fm-rating-text {
+    font-size: 11px;
+    color: var(--lib-muted, #64748b);
+    margin-left: 6px;
+    font-weight: 600;
+}
+
+.fm-seat-tag {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lib-primary, #FF751F);
+    background: var(--lib-primary-light, #fff3eb);
+    padding: 4px 10px;
+    border-radius: 6px;
+}

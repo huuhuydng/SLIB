@@ -287,7 +287,7 @@ public class SeatViolationReportService {
             case FOOD_DRINK -> "FOOD_DRINK";
             case SLEEPING -> "SLEEPING";
             case LEFT_BELONGINGS -> "LEFT_BELONGINGS";
-            case OTHER -> "NOISE_VIOLATION"; // default
+            case OTHER -> "OTHER_VIOLATION"; // vi phạm khác
         };
     }
 

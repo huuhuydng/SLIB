@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import slib.com.example.entity.feedback.SeatViolationReportEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity.ReportStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,4 +19,10 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
     List<SeatViolationReportEntity> findAllByOrderByCreatedAtDesc();
 
     long countByStatus(ReportStatus status);
+
+    // Dashboard: count violations in a date range
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+    // Dashboard: lấy 5 vi phạm gần đây nhất
+    List<SeatViolationReportEntity> findTop5ByOrderByCreatedAtDesc();
 }

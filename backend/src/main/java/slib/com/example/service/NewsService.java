@@ -60,6 +60,7 @@ public class NewsService {
                         .viewCount(news.getViewCount())
                         .createdAt(news.getCreatedAt())
                         .publishedAt(news.getPublishedAt())
+                        .imageUrl(news.getImageUrl())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -79,6 +80,7 @@ public class NewsService {
                 .viewCount(news.getViewCount())
                 .createdAt(news.getCreatedAt())
                 .publishedAt(news.getPublishedAt())
+                .imageUrl(news.getImageUrl())
                 .build();
     }
 

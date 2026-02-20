@@ -13,33 +13,46 @@ import java.util.UUID;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<ReservationEntity, UUID> {
-    List<ReservationEntity> findByUserId(UUID userId);
+        List<ReservationEntity> findByUserId(UUID userId);
 
-    List<ReservationEntity> findBySeat_SeatId(Integer seatId);
+        List<ReservationEntity> findBySeat_SeatId(Integer seatId);
 
-    List<ReservationEntity> findByEndTimeBeforeAndStatus(LocalDateTime time, String status);
+        List<ReservationEntity> findByEndTimeBeforeAndStatus(LocalDateTime time, String status);
 
-    List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
+        List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
 
-    // Delete all reservations by seat ID (for cascade delete when seat is deleted)
-    void deleteBySeat_SeatId(Integer seatId);
+        // Delete all reservations by seat ID (for cascade delete when seat is deleted)
+        void deleteBySeat_SeatId(Integer seatId);
 
-    // Delete all reservations by user ID (for cascade delete when user is deleted)
-    void deleteByUser_Id(UUID userId);
+        // Delete all reservations by user ID (for cascade delete when user is deleted)
+        void deleteByUser_Id(UUID userId);
 
-    // Count total bookings by user ID
-    long countByUserId(UUID userId);
+        // Count total bookings by user ID
+        long countByUserId(UUID userId);
 
-    /**
-     * Find overlapping active reservations for a seat in a time range.
-     * Overlap logic: (start_time < query_end) AND (end_time > query_start)
-     * Only includes PROCESSING, BOOKED, or CONFIRMED statuses.
-     */
-    @Query("SELECT r FROM ReservationEntity r WHERE r.seat.seatId = :seatId " +
-            "AND r.status IN ('PROCESSING', 'BOOKED', 'CONFIRMED') " +
-            "AND r.startTime < :endTime AND r.endTime > :startTime")
-    List<ReservationEntity> findOverlappingReservations(
-            @Param("seatId") Integer seatId,
-            @Param("startTime") LocalDateTime startTime,
-            @Param("endTime") LocalDateTime endTime);
+        /**
+         * Find overlapping active reservations for a seat in a time range.
+         * Overlap logic: (start_time < query_end) AND (end_time > query_start)
+         * Only includes PROCESSING, BOOKED, or CONFIRMED statuses.
+         */
+        @Query("SELECT r FROM ReservationEntity r WHERE r.seat.seatId = :seatId " +
+                        "AND r.status IN ('PROCESSING', 'BOOKED', 'CONFIRMED') " +
+                        "AND r.startTime < :endTime AND r.endTime > :startTime")
+        List<ReservationEntity> findOverlappingReservations(
+                        @Param("seatId") Integer seatId,
+                        @Param("startTime") LocalDateTime startTime,
+                        @Param("endTime") LocalDateTime endTime);
+
+        // Dashboard queries
+        long countByStatus(String status);
+
+        long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
+        List<ReservationEntity> findTop7ByOrderByCreatedAtDesc();
+
+        // Dashboard: đếm đặt chỗ theo từng ngày
+        @Query(value = "SELECT CAST(created_at AS date) as booking_date, COUNT(*) as cnt " +
+                        "FROM reservations WHERE created_at >= :startDate " +
+                        "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
+        List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
 }

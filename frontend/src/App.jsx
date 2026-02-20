@@ -98,9 +98,9 @@ function App() {
     // Update document title based on role (only when logged in)
     React.useEffect(() => {
         if (isLoggedIn && userRole === 'ADMIN') {
-            document.title = 'SLIB - Admin';
+            document.title = 'SLIB - Quản trị viên';
         } else if (isLoggedIn && userRole === 'LIBRARIAN') {
-            document.title = 'SLIB - Thu Thu';
+            document.title = 'SLIB - Thủ thư';
         } else {
             document.title = 'SLIB';
         }
