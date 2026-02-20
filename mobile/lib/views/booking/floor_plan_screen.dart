@@ -79,54 +79,35 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final seatId = data['seatId'] as int?;
     final zoneId = data['zoneId'] as int?;
     final status = data['status'] as String?;
-    final msgDate = data['date'] as String?;         // "2026-01-22"
-    final msgStartTime = data['startTime'] as String?; // "09:00"
-    final msgEndTime = data['endTime'] as String?;     // "10:00"
     
     if (seatId == null || zoneId == null || status == null) return;
     
-    debugPrint('🔔 Seat update: seatId=$seatId, status=$status, date=$msgDate, time=$msgStartTime-$msgEndTime');
-    
-    // Kiểm tra xem update này có thuộc về time slot đang xem không
-    bool isRelevant = true;
-    if (msgDate != null && msgStartTime != null && msgEndTime != null && _selectedTimeSlot != null) {
-      final selectedDateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final selectedSlot = '$msgStartTime - $msgEndTime';
-      
-      // Chỉ apply update nếu đúng date VÀ đúng time slot
-      isRelevant = (msgDate == selectedDateStr) && (_selectedTimeSlot == selectedSlot);
-      
-      if (!isRelevant) {
-        debugPrint('⏭️ Skipping update (different time slot: viewing $_selectedTimeSlot on $selectedDateStr, got $selectedSlot on $msgDate)');
-      }
-    }
-    
-    // Clear cache để lần sau fetch sẽ lấy data mới
-    _clearSeatsCache();
-    
-    // Chỉ update UI nếu update thuộc time slot đang xem
-    if (isRelevant) {
-      setState(() {
-        final seats = _zoneSeats[zoneId];
-        if (seats != null) {
-          final index = seats.indexWhere((s) => s.seatId == seatId);
-          if (index != -1) {
-            final newStatus = status == 'AVAILABLE' ? 'AVAILABLE' 
-                            : status == 'HOLDING' ? 'HOLDING'
-                            : 'BOOKED';
-            seats[index] = Seat(
-              seatId: seats[index].seatId,
-              zoneId: seats[index].zoneId,
-              seatCode: seats[index].seatCode,
-              seatStatus: newStatus,
-              rowNumber: seats[index].rowNumber,
-              columnNumber: seats[index].columnNumber,
-            );
-            debugPrint('✅ Updated seat $seatId to $newStatus');
-          }
+    // Optimistic update: cập nhật local state NGAY LẬP TỨC (0ms delay)
+    setState(() {
+      for (final entry in _zoneSeats.entries) {
+        final seats = entry.value;
+        final idx = seats.indexWhere((s) => s.seatId == seatId);
+        if (idx != -1) {
+          final old = seats[idx];
+          seats[idx] = Seat(
+            seatId: old.seatId,
+            zoneId: old.zoneId,
+            seatCode: old.seatCode,
+            seatStatus: status == 'AVAILABLE' ? 'AVAILABLE' 
+                       : status == 'HOLDING' ? 'HOLDING' : 'BOOKED',
+            rowNumber: old.rowNumber,
+            columnNumber: old.columnNumber,
+            isActive: old.isActive,
+            reservationEndTime: data['endTime'] as String?,
+          );
+          break;
         }
-      });
-    }
+      }
+    });
+    
+    // Fetch API background để đồng bộ data chính xác + schedule timer mới
+    _clearSeatsCache();
+    _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
   }
 
   String _getVietnameseDayName(DateTime date) {
@@ -283,19 +264,91 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     return slots.first.label;
   }
 
-  /// Timer for real-time refresh
+  /// Timer for smart seat expiration
   Timer? _refreshTimer;
+  Timer? _expirationTimer;
   
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) _loadZonesAndFactories();
+    // Smart timer cho expiration chính xác
+    _scheduleExpirationRefresh();
+    // Fallback polling 10s — safety net khi WebSocket mất kết nối hoặc DB thay đổi trực tiếp
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
+      }
     });
+  }
+
+  /// Smart timer: tìm endTime gần nhất trong _zoneSeats → set Timer re-fetch đúng lúc
+  void _scheduleExpirationRefresh() {
+    _expirationTimer?.cancel();
+    
+    DateTime? nearestEnd;
+    final now = DateTime.now();
+    
+    for (final seats in _zoneSeats.values) {
+      for (final seat in seats) {
+        if (seat.reservationEndTime != null && 
+            (seat.seatStatus == 'BOOKED' || seat.seatStatus == 'HOLDING')) {
+          try {
+            final endTime = DateTime.parse(seat.reservationEndTime!);
+            if (endTime.isAfter(now)) {
+              if (nearestEnd == null || endTime.isBefore(nearestEnd)) {
+                nearestEnd = endTime;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    
+    if (nearestEnd != null) {
+      final delay = nearestEnd.difference(now) + const Duration(milliseconds: 100);
+      debugPrint('Smart timer: re-fetch trong ${delay.inSeconds}s lúc $nearestEnd');
+      _expirationTimer = Timer(delay, () {
+        if (mounted) {
+          _forceRefreshSeats().then((_) {
+            // Sau khi refresh, schedule timer tiếp cho endTime kế tiếp
+            _scheduleExpirationRefresh();
+          });
+        }
+      });
+    }
+  }
+
+  /// Force refresh seats từ API, bypass cache/debounce hoàn toàn
+  Future<void> _forceRefreshSeats() async {
+    if (_selectedArea == null || _selectedTimeSlot == null) return;
+    
+    try {
+      final parts = _selectedTimeSlot!.split(' - ');
+      final zoneSeats = await _bookingService.getAllSeatsByArea(
+        _selectedArea!.areaId,
+        _selectedDate,
+        parts[0],
+        parts[1],
+      );
+      
+      if (mounted) {
+        // Cập nhật cache và state
+        final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        final cacheKey = '$dateStr|${parts[0]}-${parts[1]}';
+        _seatsCache[cacheKey] = zoneSeats;
+        
+        setState(() {
+          _zoneSeats = zoneSeats;
+        });
+      }
+    } catch (e) {
+      debugPrint('Auto-refresh error: $e');
+    }
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _expirationTimer?.cancel();
     _debounceTimer?.cancel();
     seatWebSocketService.removeListener(_onSeatUpdate);
     super.dispose();
@@ -305,21 +358,25 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     if (_selectedArea == null) return;
     
     try {
-      // Load zones with occupancy and factories in parallel using new API
+      // Load zones and factories first (critical)
       final results = await Future.wait([
-        _bookingService.getZoneOccupancy(_selectedArea!.areaId),
         _bookingService.getFactoriesByArea(_selectedArea!.areaId),
         _bookingService.getZonesByArea(_selectedArea!.areaId),
       ]);
       
-      final zoneOccupancies = results[0] as List<ZoneOccupancy>;
-      final factories = results[1] as List<AreaFactory>;
-      final zones = results[2] as List<Zone>;
+      final factories = results[0] as List<AreaFactory>;
+      final zones = results[1] as List<Zone>;
       
-      // Build occupancy map from new API response
+      // Load occupancy separately (non-critical, don't block seats)
       Map<int, double> occupancy = {};
-      for (final zo in zoneOccupancies) {
-        occupancy[zo.zoneId] = zo.occupancyRate * 100;
+      try {
+        final zoneOccupancies = await _bookingService.getZoneOccupancy(_selectedArea!.areaId);
+        for (final zo in zoneOccupancies) {
+          occupancy[zo.zoneId] = zo.occupancyRate * 100;
+        }
+      } catch (e) {
+        debugPrint('Warning: Could not load zone occupancy: $e');
+        // Continue without occupancy data
       }
       
       // Load seats for each zone - use getSeatsByTime if date+slot selected

@@ -18,4 +18,5 @@ public class SeatResponse {
     private Integer columnNumber;
     private Boolean isActive; // Admin restriction flag
     private String nfcTagUid; // NFC tag UID for seat verification
+    private String reservationEndTime; // ISO datetime string, null if AVAILABLE
 }

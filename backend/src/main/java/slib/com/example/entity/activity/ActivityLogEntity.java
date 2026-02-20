@@ -64,4 +64,5 @@ public class ActivityLogEntity {
     public static final String TYPE_NFC_CONFIRM = "NFC_CONFIRM";
     public static final String TYPE_GATE_ENTRY = "GATE_ENTRY";
     public static final String TYPE_NO_SHOW = "NO_SHOW";
+    public static final String TYPE_VIOLATION = "VIOLATION";
 }

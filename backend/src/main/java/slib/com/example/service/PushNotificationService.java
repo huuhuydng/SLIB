@@ -3,6 +3,7 @@ package slib.com.example.service;
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.notification.NotificationEntity;
@@ -27,6 +28,7 @@ public class PushNotificationService {
     private final FirebaseMessaging firebaseMessaging;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Send push notification to a specific device
@@ -92,7 +94,7 @@ public class PushNotificationService {
      * Send push notification to a user by userId
      * Also saves notification to database
      */
-    @Transactional
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
@@ -131,6 +133,17 @@ public class PushNotificationService {
         }
 
         sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+
+        // Broadcast qua WebSocket → mobile nhận real-time (0ms delay)
+        Map<String, Object> wsPayload = new HashMap<>();
+        wsPayload.put("id", notification.getId().toString());
+        wsPayload.put("title", title);
+        wsPayload.put("content", body);
+        wsPayload.put("notificationType", type.name());
+        wsPayload.put("referenceId", referenceId != null ? referenceId.toString() : null);
+        wsPayload.put("isRead", false);
+        wsPayload.put("unreadCount", badgeCount);
+        messagingTemplate.convertAndSend("/topic/notifications/" + userId, wsPayload);
     }
 
     /**

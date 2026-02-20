@@ -112,7 +112,7 @@ public class NewsService {
 
     public News updateNews(Long id, News newsDetails) {
         News existingNews = newsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Khong tim thay tin tuc de sua!"));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức để sửa!"));
 
         boolean wasPublished = Boolean.TRUE.equals(existingNews.getIsPublished());
 
@@ -161,7 +161,7 @@ public class NewsService {
      */
     public News togglePin(Long id) {
         News news = newsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Khong tim thay tin tuc: " + id));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức: " + id));
         news.setIsPinned(!Boolean.TRUE.equals(news.getIsPinned()));
         return newsRepository.save(news);
     }
@@ -175,7 +175,7 @@ public class NewsService {
         }
 
         try {
-            String title = "Tin tuc moi";
+            String title = "Tin tức mới";
             String body = news.getTitle();
             if (news.getSummary() != null && !news.getSummary().isEmpty()) {
                 body = news.getSummary();

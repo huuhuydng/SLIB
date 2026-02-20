@@ -129,9 +129,6 @@ public class SeatService {
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);
         LocalDateTime endTime = LocalDateTime.parse(endTimeStr);
 
-        System.out.println(
-                "[getSeatsByTimeRange] startTime: " + startTime + ", endTime: " + endTime + ", zoneId: " + zoneId);
-
         List<SeatEntity> seats;
         if (zoneId != null) {
             seats = seatRepository.findByZone_ZoneId(zoneId);
@@ -143,24 +140,15 @@ public class SeatService {
                 .map(seat -> {
                     SeatResponse response = toResponse(seat);
 
-                    // Log seat details
-                    if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println(
-                                "[A7 Debug] seatId: " + seat.getSeatId() + ", seatCode: " + seat.getSeatCode());
-                        System.out.println("[A7 Debug] DB seatStatus: " + seat.getSeatStatus());
-                        System.out.println("[A7 Debug] Reservations count: "
-                                + (seat.getReservation() != null ? seat.getReservation().size() : 0));
-                        if (seat.getReservation() != null) {
-                            seat.getReservation().forEach(r -> {
-                                System.out.println("  - Reservation: status=" + r.getStatus() + ", start="
-                                        + r.getStartTime() + ", end=" + r.getEndTime());
-                            });
-                        }
+                    // Ưu tiên 1: Ghế bị hạn chế (is_active=false) → UNAVAILABLE
+                    if (seat.getIsActive() == null || !seat.getIsActive()) {
+                        response.setSeatStatus(SeatStatus.UNAVAILABLE);
+                        return response;
                     }
 
-                    // Tinh toan status dong dua tren reservations trong time range
-                    boolean isBookedInTimeRange = seat.getReservation().stream()
-                            .anyMatch(r -> {
+                    // Ưu tiên 2: Tính status động dựa trên reservations overlap
+                    var matchingReservation = seat.getReservation().stream()
+                            .filter(r -> {
                                 String status = r.getStatus();
                                 boolean isActiveStatus = "BOOKED".equalsIgnoreCase(status)
                                         || "PROCESSING".equalsIgnoreCase(status)
@@ -170,30 +158,20 @@ public class SeatService {
                                     return false;
                                 }
 
-                                // Kiem tra overlap: reservation co giao voi time range khong
+                                // Kiểm tra overlap: reservation có giao với time range không
                                 LocalDateTime resStart = r.getStartTime();
                                 LocalDateTime resEnd = r.getEndTime();
 
                                 return resStart.isBefore(endTime) && resEnd.isAfter(startTime);
-                            });
+                            })
+                            .findFirst();
 
-                    if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println("[A7 Debug] isBookedInTimeRange: " + isBookedInTimeRange);
-                    }
-
-                    // Neu seat co status UNAVAILABLE trong DB, uu tien status nay
-                    if (seat.getSeatStatus() == SeatStatus.UNAVAILABLE) {
-                        response.setSeatStatus(SeatStatus.UNAVAILABLE);
-                    } else if (isBookedInTimeRange) {
+                    if (matchingReservation.isPresent()) {
                         response.setSeatStatus(SeatStatus.BOOKED);
+                        response.setReservationEndTime(matchingReservation.get().getEndTime().toString());
                     } else {
                         response.setSeatStatus(SeatStatus.AVAILABLE);
                     }
-
-                    if ("A7".equals(seat.getSeatCode())) {
-                        System.out.println("[A7 Debug] Final response status: " + response.getSeatStatus());
-                    }
-
                     return response;
                 })
                 .collect(Collectors.toList());
@@ -272,9 +250,9 @@ public class SeatService {
             seatRepository.findByNfcTagUid(hashedUid).ifPresent(existingSeat -> {
                 if (!existingSeat.getSeatId().equals(seatId)) {
                     throw new RuntimeException(
-                            "NFC UID nay da duoc gan cho ghe " +
+                            "NFC UID này đã được gán cho ghế " +
                                     existingSeat.getSeatCode() + " (ID: " + existingSeat.getSeatId() + "). " +
-                                    "Vui long xoa NFC UID khoi ghe do truoc khi gan cho ghe nay.");
+                                    "Vui lòng xóa NFC UID khỏi ghế đó trước khi gán cho ghế này.");
                 }
             });
         }
@@ -310,7 +288,7 @@ public class SeatService {
 
         SeatEntity seat = seatRepository.findByNfcTagUid(hashedUid)
                 .orElseThrow(() -> new RuntimeException(
-                        "Khong tim thay ghe voi NFC UID nay. Co the the chua duoc gan cho ghe nao."));
+                        "Không tìm thấy ghế với NFC UID này. Có thể thẻ chưa được gán cho ghế nào."));
         return toResponse(seat);
     }
 }

@@ -455,7 +455,8 @@ public class BookingService {
                                 seat.getRowNumber(),
                                 seat.getColumnNumber(),
                                 seat.getZone().getZoneId(),
-                                seat.getNfcTagUid());
+                                seat.getNfcTagUid(),
+                                null);
         }
 
         public List<SeatDTO> getSeatsByTime(Integer zoneId, LocalDate date, LocalTime start, LocalTime end) {
@@ -474,13 +475,15 @@ public class BookingService {
                                                 seat.getRowNumber(),
                                                 seat.getColumnNumber(),
                                                 seat.getZone().getZoneId(),
-                                                seat.getNfcTagUid());
+                                                seat.getNfcTagUid(),
+                                                null);
                         }
 
                         // Tìm reservation trùng time slot
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                        r.getStatus().equalsIgnoreCase("PROCESSING")) &&
+                                                        r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                        r.getStatus().equalsIgnoreCase("CONFIRMED")) &&
                                                         r.getStartTime().toLocalDate().equals(date) &&
                                                         r.getStartTime().isBefore(endDateTime) &&
                                                         r.getEndTime().isAfter(startDateTime))
@@ -488,12 +491,16 @@ public class BookingService {
 
                         // Xác định seat status dựa trên reservation status
                         SeatStatus status = SeatStatus.AVAILABLE;
+                        String endTimeStr = null;
                         if (matchingReservation.isPresent()) {
                                 String reservStatus = matchingReservation.get().getStatus();
-                                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                                if ("BOOKED".equalsIgnoreCase(reservStatus) ||
+                                                "CONFIRMED".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.BOOKED;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.HOLDING;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 }
                         }
 
@@ -504,7 +511,8 @@ public class BookingService {
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
                                         seat.getZone().getZoneId(),
-                                        seat.getNfcTagUid());
+                                        seat.getNfcTagUid(),
+                                        endTimeStr);
                 }).toList();
         }
 
@@ -521,24 +529,30 @@ public class BookingService {
                                                 seat.getRowNumber(),
                                                 seat.getColumnNumber(),
                                                 seat.getZone().getZoneId(),
-                                                seat.getNfcTagUid());
+                                                seat.getNfcTagUid(),
+                                                null);
                         }
 
                         // Tìm reservation trong ngày
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                        r.getStatus().equalsIgnoreCase("PROCESSING")) &&
+                                                        r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                        r.getStatus().equalsIgnoreCase("CONFIRMED")) &&
                                                         r.getStartTime().toLocalDate().equals(date))
                                         .findFirst();
 
                         // Xác định seat status dựa trên reservation status
                         SeatStatus status = SeatStatus.AVAILABLE;
+                        String endTimeStr = null;
                         if (matchingReservation.isPresent()) {
                                 String reservStatus = matchingReservation.get().getStatus();
-                                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                                if ("BOOKED".equalsIgnoreCase(reservStatus) ||
+                                                "CONFIRMED".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.BOOKED;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.HOLDING;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 }
                         }
 
@@ -549,7 +563,8 @@ public class BookingService {
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
                                         seat.getZone().getZoneId(),
-                                        seat.getNfcTagUid());
+                                        seat.getNfcTagUid(),
+                                        endTimeStr);
                 }).toList();
         }
 

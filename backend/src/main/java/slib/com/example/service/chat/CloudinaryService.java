@@ -112,7 +112,7 @@ public class CloudinaryService {
      */
     private String uploadFileToCloudinary(MultipartFile file, String folderName, String resourceType) {
         if (file.isEmpty()) {
-            throw new RuntimeException("File khong duoc de trong!");
+            throw new RuntimeException("File không được để trống!");
         }
 
         try (InputStream inputStream = file.getInputStream()) {

@@ -8,6 +8,7 @@ import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:slib/views/support/support_request_history_screen.dart';
+import 'package:slib/views/violation_report/violation_report_screen.dart';
 // import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
@@ -152,6 +153,18 @@ class _SettingScreenState extends State<SettingScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const ViolationHistoryScreen()),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.report_outlined,
+                iconColor: const Color(0xFFD32F2F),
+                title: "Báo cáo vi phạm ghế ngồi",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ViolationReportScreen()),
                   );
                 },
               ),

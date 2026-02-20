@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/services/auth_service.dart';
 
@@ -101,9 +102,13 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   // Local notifications plugin for foreground notifications
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
-  // Periodic refresh timer - refresh every 5 seconds for near real-time updates
+  // WebSocket (STOMP) cho real-time notifications
+  StompClient? _stompClient;
+  bool _wsConnected = false;
+
+  // Fallback polling 30s — safety net khi WebSocket mất kết nối
   Timer? _refreshTimer;
-  static const _refreshInterval = Duration(seconds: 5);
+  static const _fallbackInterval = Duration(seconds: 30);
 
   List<NotificationItem> _notifications = [];
   int _unreadCount = 0;
@@ -150,26 +155,155 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       await refreshData();
     }
     
-    // Start periodic refresh
-    _startPeriodicRefresh();
+    // Connect WebSocket (cơ chế chính) + fallback polling
+    _connectWebSocket();
+    _startFallbackPolling();
     
     _isInitialized = true;
   }
 
-  /// Start periodic refresh of unread count
-  void _startPeriodicRefresh() {
+  /// Connect STOMP WebSocket cho real-time notifications
+  void _connectWebSocket() {
+    if (_wsConnected || _userId == null) return;
+    
+    try {
+      String wsUrl = ApiConstants.domain;
+      if (wsUrl.startsWith('https://')) {
+        wsUrl = wsUrl.replaceFirst('https://', 'wss://');
+      } else if (wsUrl.startsWith('http://')) {
+        wsUrl = wsUrl.replaceFirst('http://', 'ws://');
+      }
+      final stompUrl = '$wsUrl/ws/websocket';
+      
+      debugPrint('[NotificationWS] Connecting to $stompUrl');
+      
+      _stompClient = StompClient(
+        config: StompConfig(
+          url: stompUrl,
+          webSocketConnectHeaders: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+          onConnect: _onStompConnected,
+          onWebSocketError: (error) {
+            debugPrint('[NotificationWS] WebSocket error: $error');
+            _wsConnected = false;
+          },
+          onDisconnect: (_) {
+            debugPrint('[NotificationWS] Disconnected');
+            _wsConnected = false;
+            // Auto-reconnect sau 3s
+            Future.delayed(const Duration(seconds: 3), () {
+              if (_userId != null) _connectWebSocket();
+            });
+          },
+          onStompError: (frame) {
+            debugPrint('[NotificationWS] STOMP error: ${frame.body}');
+          },
+          reconnectDelay: const Duration(seconds: 3),
+        ),
+      );
+      _stompClient!.activate();
+    } catch (e) {
+      debugPrint('[NotificationWS] Connection error: $e');
+    }
+  }
+
+  /// STOMP connected — subscribe /topic/notifications/{userId}
+  void _onStompConnected(StompFrame frame) {
+    debugPrint('[NotificationWS] Connected, subscribing...');
+    _wsConnected = true;
+    
+    _stompClient?.subscribe(
+      destination: '/topic/notifications/$_userId',
+      callback: (StompFrame frame) {
+        if (frame.body != null) {
+          try {
+            final data = jsonDecode(frame.body!);
+            debugPrint('[NotificationWS] Received: ${data['title']}');
+            _handleWebSocketNotification(data);
+          } catch (e) {
+            debugPrint('[NotificationWS] Parse error: $e');
+          }
+        }
+      },
+    );
+  }
+
+  /// Xử lý notification từ WebSocket — update UI tức thì (0ms)
+  void _handleWebSocketNotification(Map<String, dynamic> data) {
+    final notification = NotificationItem(
+      id: data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      title: data['title'] ?? 'Thông báo',
+      content: data['content'] ?? '',
+      type: data['notificationType'] ?? 'SYSTEM',
+      referenceType: data['notificationType'],
+      referenceId: data['referenceId'],
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+
+    // Insert vào đầu danh sách
+    _notifications.insert(0, notification);
+    
+    // Update unread count từ server payload
+    if (data['unreadCount'] != null) {
+      _unreadCount = (data['unreadCount'] as num).toInt();
+    } else {
+      _unreadCount++;
+    }
+    
+    notifyListeners();
+    
+    // Show local notification (banner trên đầu)
+    _showLocalNotificationFromData(data);
+  }
+
+  /// Show local notification từ WebSocket data
+  Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
+    const androidDetails = AndroidNotificationDetails(
+      'slib_notifications', 'SLIB',
+      channelDescription: 'Thông báo từ thư viện SLIB',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+    );
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true, presentBadge: true, presentSound: true,
+    );
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      data['title'] ?? 'Thông báo',
+      data['content'] ?? '',
+      details,
+      payload: data['id'],
+    );
+  }
+
+  /// Fallback polling 30s — safety net
+  void _startFallbackPolling() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) {
+    _refreshTimer = Timer.periodic(_fallbackInterval, (_) {
       if (_userId != null) {
+        fetchNotifications();
         refreshUnreadCount();
       }
     });
   }
 
-  /// Stop periodic refresh
-  void _stopPeriodicRefresh() {
+  /// Stop fallback polling
+  void _stopFallbackPolling() {
     _refreshTimer?.cancel();
     _refreshTimer = null;
+  }
+
+  /// Disconnect WebSocket
+  void _disconnectWebSocket() {
+    _stompClient?.deactivate();
+    _stompClient = null;
+    _wsConnected = false;
   }
 
   /// Handle app lifecycle changes
@@ -177,18 +311,20 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came to foreground - refresh data
+        // App came to foreground - reconnect WebSocket + refresh
         if (_userId != null) {
           refreshUnreadCount();
+          fetchNotifications();
+          if (!_wsConnected) _connectWebSocket();
         }
-        _startPeriodicRefresh();
+        _startFallbackPolling();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        // App went to background - stop timer
-        _stopPeriodicRefresh();
+        // App went to background — giữ WebSocket, stop polling
+        _stopFallbackPolling();
         break;
     }
   }
@@ -196,7 +332,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _stopPeriodicRefresh();
+    _stopFallbackPolling();
+    _disconnectWebSocket();
     super.dispose();
   }
 
@@ -544,7 +681,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Clear all data on logout
   void clearData() {
-    _stopPeriodicRefresh();
+    _stopFallbackPolling();
+    _disconnectWebSocket();
     _notifications = [];
     _unreadCount = 0;
     _settings = NotificationSettings();

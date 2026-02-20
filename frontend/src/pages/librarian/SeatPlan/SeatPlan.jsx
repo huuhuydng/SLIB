@@ -1,9 +1,11 @@
-﻿// Đã xóa file này vì không còn sử dụng
-import React, { useEffect, useMemo, useState } from "react";
+﻿// Librarian SeatPlan - Quản lý ghế thư viện
+import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import axios from "axios";
 import Header from "../../../components/shared/Header";
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import { seatPlanService } from "../../../services/seatPlanService";
 import { seatService } from "../../../services/seatService";
+import websocketService from "../../../services/websocketService";
 import { handleLogout } from "../../../utils/auth";
 import "../../../styles/librarian/SeatPlan.css";
 import "../../../styles/admin/layout.css";
@@ -11,35 +13,63 @@ import "../../../styles/admin/canvas.css";
 import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate } from "lucide-react";
 import LibrarianArea from "../../../components/librarian/LibrarianArea";
 
-const TIME_SLOTS = [
-  { label: "Hiện tại", value: "now" },
-  { label: "07:00 - 09:00", value: "07:00-09:00" },
-  { label: "09:00 - 11:00", value: "09:00-11:00" },
-  { label: "11:00 - 13:00", value: "11:00-13:00" },
-  { label: "13:00 - 15:00", value: "13:00-15:00" },
-  { label: "15:00 - 17:00", value: "15:00-17:00" },
-];
+// Tìm slot hiện tại dựa trên danh sách time slots từ API
+const findCurrentSlotValue = (timeSlots) => {
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTotal = currentHour * 60 + currentMinute;
 
-const buildTimeParams = (slotValue) => {
+  // Lọc bỏ "now" option
+  const realSlots = (timeSlots || []).filter(s => s.value !== "now");
+
+  // Nếu có danh sách slots → tìm slot chứa giờ hiện tại
+  if (realSlots.length > 0) {
+    for (const slot of realSlots) {
+      const [start, end] = slot.value.split("-");
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      const startTotal = sh * 60 + sm;
+      const endTotal = eh * 60 + em;
+      if (currentTotal >= startTotal && currentTotal < endTotal) {
+        return slot.value;
+      }
+    }
+    // Ngoài tất cả slot → trả về slot cuối cùng
+    return realSlots[realSlots.length - 1].value;
+  }
+
+  // Fallback: tự tính slot 1 giờ dựa trên giờ hiện tại
+  // VD: 19:21 → "19:00-20:00", 07:30 → "07:00-08:00"
+  const startH = String(currentHour).padStart(2, "0");
+  const endH = String(currentHour + 1).padStart(2, "0");
+  return `${startH}:00-${endH}:00`;
+};
+
+const buildTimeParams = (slotValue, allTimeSlots = []) => {
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, "0");
   const dd = String(today.getDate()).padStart(2, "0");
   const datePrefix = `${yyyy}-${mm}-${dd}`;
-  
-  let start, end;
+
   if (slotValue === "now") {
-    const hour = today.getHours();
-    if (hour >= 7 && hour < 9) { start = "07:00"; end = "09:00"; }
-    else if (hour >= 9 && hour < 11) { start = "09:00"; end = "11:00"; }
-    else if (hour >= 11 && hour < 13) { start = "11:00"; end = "13:00"; }
-    else if (hour >= 13 && hour < 15) { start = "13:00"; end = "15:00"; }
-    else if (hour >= 15 && hour < 17) { start = "15:00"; end = "17:00"; }
-    else { start = "07:00"; end = "09:00"; }
-  } else {
-    [start, end] = slotValue.split("-");
+    // Real-time: dùng thời gian thực tại, check reservation overlap tại đúng thời điểm này
+    const hh = String(today.getHours()).padStart(2, "0");
+    const mi = String(today.getMinutes()).padStart(2, "0");
+    const ss = String(today.getSeconds()).padStart(2, "0");
+    const nowStr = `${datePrefix}T${hh}:${mi}:${ss}`;
+    // endTime = now + 1 phút để check overlap
+    const endDate = new Date(today.getTime() + 60000);
+    const ehh = String(endDate.getHours()).padStart(2, "0");
+    const emi = String(endDate.getMinutes()).padStart(2, "0");
+    const ess = String(endDate.getSeconds()).padStart(2, "0");
+    const endStr = `${datePrefix}T${ehh}:${emi}:${ess}`;
+    return { startTime: nowStr, endTime: endStr };
   }
-  
+
+  // Slot cố định: dùng khoảng thời gian slot đó
+  const [start, end] = slotValue.split("-");
   return {
     startTime: `${datePrefix}T${start}:00`,
     endTime: `${datePrefix}T${end}:00`,
@@ -131,8 +161,8 @@ function LibrarianCanvas({ onSeatClick }) {
         }}
       >
         {areas.map((area) => (
-          <LibrarianArea 
-            key={area.areaId} 
+          <LibrarianArea
+            key={area.areaId}
             area={area}
             onSeatClick={onSeatClick}
           />
@@ -146,11 +176,35 @@ function LibrarianCanvas({ onSeatClick }) {
 function SeatPlanContent() {
   const { state, dispatch } = useLayout();
   const { selectedAreaId, seats } = state;
-  
+
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [slotValue, setSlotValue] = useState("now");
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [timeSlots, setTimeSlots] = useState([{ label: "Hiện tại", value: "now" }]);
+
+  // Fetch time slots từ backend
+  useEffect(() => {
+    const fetchTimeSlots = async () => {
+      try {
+        const res = await axios.get("http://localhost:8080/slib/settings/time-slots");
+        const apiSlots = (res.data || []).map((s) => ({
+          label: s.label || `${s.startTime} - ${s.endTime}`,
+          value: `${s.startTime}-${s.endTime}`,
+        }));
+        setTimeSlots([{ label: "Hiện tại", value: "now" }, ...apiSlots]);
+      } catch (err) {
+        console.error("Không tải được khung giờ:", err);
+        // Fallback nếu API fail
+        setTimeSlots([
+          { label: "Hiện tại", value: "now" },
+          { label: "07:00 - 08:00", value: "07:00-08:00" },
+          { label: "08:00 - 09:00", value: "08:00-09:00" },
+        ]);
+      }
+    };
+    fetchTimeSlots();
+  }, []);
 
   // Handler cho khi click vào seat
   const handleSeatClick = (seat) => {
@@ -170,30 +224,96 @@ function SeatPlanContent() {
     return { total, booked, restricted, available, occupancy };
   }, [seats]);
 
-  // Load seats theo khung giờ
-  const loadSeatsForTimeSlot = async (slot) => {
-    if (!selectedAreaId) return;
-    setLoading(true);
+  // Refs để tránh stale closure trong WebSocket callback
+  const slotValueRef = useRef(slotValue);
+  const timeSlotsRef = useRef(timeSlots);
+  const selectedAreaIdRef = useRef(selectedAreaId);
+  const requestIdRef = useRef(0); // Request counter để tránh race condition
+
+  useEffect(() => { slotValueRef.current = slotValue; }, [slotValue]);
+  useEffect(() => { timeSlotsRef.current = timeSlots; }, [timeSlots]);
+  useEffect(() => { selectedAreaIdRef.current = selectedAreaId; }, [selectedAreaId]);
+
+  // Load seats theo khung giờ — với request counter chống race condition
+  const loadSeatsForTimeSlot = useCallback(async (slot, slots) => {
+    const areaId = selectedAreaIdRef.current;
+    if (!areaId) return;
+
+    // Tạo request ID mới — chỉ apply response nếu đây là request mới nhất
+    const myRequestId = ++requestIdRef.current;
+
     try {
-      const timeParams = buildTimeParams(slot);
+      const timeParams = buildTimeParams(slot, slots || timeSlotsRef.current);
+      console.log(`[DEBUG] loadSeats #${myRequestId}: slot="${slot}" → API params:`, timeParams);
       const seatRes = await seatPlanService.getSeats(timeParams);
+
+      // Nếu đã có request mới hơn → bỏ qua response cũ
+      if (myRequestId !== requestIdRef.current) {
+        console.log(`[DEBUG] Skipping stale response #${myRequestId} (current: ${requestIdRef.current})`);
+        return;
+      }
+
       const normalizedSeats = (seatRes.data || []).map(normalizeSeat);
-      
+      const bookedCount = normalizedSeats.filter(s => s.seatStatus === "BOOKED").length;
+      console.log(`[DEBUG] Applied response #${myRequestId}: ${bookedCount} booked seats`);
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
       setMessage(null);
     } catch (err) {
+      if (myRequestId !== requestIdRef.current) return;
       console.error("Load seats error", err);
       setMessage("Không tải được danh sách ghế");
     } finally {
-      setLoading(false);
+      if (myRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [dispatch]);
 
+  // Load seats khi area hoặc slot thay đổi (KHÔNG depend vào timeSlots để tránh ghost request)
   useEffect(() => {
-    if (selectedAreaId) {
-      loadSeatsForTimeSlot(slotValue);
+    if (selectedAreaId && slotValue) {
+      setLoading(true);
+      loadSeatsForTimeSlot(slotValue, timeSlotsRef.current);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAreaId, slotValue]);
+
+  // Auto-refresh mỗi 1s khi ở mode "Hiện tại" → real-time chính xác
+  useEffect(() => {
+    if (slotValue !== "now") return;
+
+    const interval = setInterval(() => {
+      loadSeatsForTimeSlot("now", timeSlotsRef.current);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [slotValue, loadSeatsForTimeSlot]);
+
+  // WebSocket real-time seat updates (booking mới, cancel, etc.)
+  useEffect(() => {
+    let unsubscribe = null;
+
+    websocketService.connect(
+      () => {
+        console.log("[SeatPlan] WebSocket connected");
+        unsubscribe = websocketService.subscribe("/topic/seats", (msg) => {
+          // Chỉ re-fetch nếu KHÔNG ở mode "now" (mode now đã có polling 1s)
+          if (slotValueRef.current !== "now") {
+            loadSeatsForTimeSlot(slotValueRef.current, timeSlotsRef.current);
+          }
+        });
+      },
+      (error) => {
+        console.error("[SeatPlan] WebSocket error:", error);
+      }
+    );
+
+    return () => {
+      if (unsubscribe) {
+        websocketService.unsubscribe("/topic/seats", unsubscribe);
+      }
+    };
+  }, [loadSeatsForTimeSlot]);
 
   const toggleRestriction = async (seat) => {
     if (!seat) return;
@@ -206,7 +326,7 @@ function SeatPlanContent() {
         await seatService.addRestriction(seat.seatId);
         setMessage(`Đã hạn chế ghế ${seat.seatCode}`);
       }
-      await loadSeatsForTimeSlot(slotValue);
+      await loadSeatsForTimeSlot(slotValue, timeSlots);
       setSelectedSeat((prev) =>
         prev && prev.seatId === seat.seatId
           ? { ...prev, seatStatus: isRestricted ? "AVAILABLE" : "UNAVAILABLE" }
@@ -232,7 +352,7 @@ function SeatPlanContent() {
               value={slotValue}
               onChange={(e) => setSlotValue(e.target.value)}
             >
-              {TIME_SLOTS.map((s) => (
+              {timeSlots.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
                 </option>
@@ -257,7 +377,7 @@ function SeatPlanContent() {
             </div>
             <div>
               <div className="sp-card__title">Khung giờ</div>
-              <div className="sp-card__number">{TIME_SLOTS.find((t) => t.value === slotValue)?.label}</div>
+              <div className="sp-card__number">{timeSlots.find((t) => t.value === slotValue)?.label}</div>
             </div>
           </div>
           <div className="sp-card">
@@ -288,13 +408,13 @@ function SeatPlanContent() {
         )}
 
         {loading && <div className="sp-loading">Đang tải dữ liệu...</div>}
-        
+
         {/* Sử dụng canvas giống admin để hiển thị sơ đồ 100% giống nhau */}
         <div style={{ display: 'flex', gap: '20px', padding: '20px' }}>
           <div style={{ flex: 1 }}>
             <LibrarianCanvas onSeatClick={handleSeatClick} />
           </div>
-          
+
           <aside className="sp-sidebar" style={{
             width: '300px',
             backgroundColor: '#fff',

@@ -2,7 +2,7 @@
 class ApiConstants {
   // Chỉ sửa 1 chỗ này duy nhất cho cả app
   // REAL DEVICE: Dung Cloudflare Tunnel URL
-  static const String domain = "https://flags-betting-oem-poultry.trycloudflare.com";
+  static const String domain = "https://between-smith-added-granny.trycloudflare.com";
   // static const String domain = "http://10.0.2.2:8080";
   
   // Note: aiDomain không còn cần vì AI Chat đi qua backend proxy
@@ -36,4 +36,7 @@ class ApiConstants {
   static const String chatUrl = "$domain/slib/chat";
   // AI Chat đi qua backend proxy (vì ngrok chỉ expose backend)
   static const String aiChatUrl = "$domain/slib/ai/proxy-chat";
+
+  // Violation Reports
+  static const String violationReportUrl = "$domain/slib/violation-reports";
 }

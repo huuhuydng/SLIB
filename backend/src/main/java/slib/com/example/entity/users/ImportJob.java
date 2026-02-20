@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 /**
@@ -20,6 +21,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImportJob {
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -67,8 +70,8 @@ public class ImportJob {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(VIETNAM_ZONE);
+        updatedAt = LocalDateTime.now(VIETNAM_ZONE);
         if (status == null)
             status = ImportJobStatus.PENDING;
         if (totalRows == null)
@@ -87,7 +90,7 @@ public class ImportJob {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(VIETNAM_ZONE);
     }
 
     public enum ImportJobStatus {

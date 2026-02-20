@@ -7,6 +7,7 @@ class Seat {
   final int rowNumber;
   final int columnNumber;
   final bool isActive;
+  final String? reservationEndTime; // ISO datetime, null nếu AVAILABLE
 
   Seat({
     required this.seatId,
@@ -16,6 +17,7 @@ class Seat {
     required this.rowNumber,
     required this.columnNumber,
     this.isActive = true,
+    this.reservationEndTime,
   });
 
   factory Seat.fromJson(Map<String, dynamic> json) {
@@ -27,6 +29,7 @@ class Seat {
       rowNumber: json['rowNumber'] ?? 1,
       columnNumber: json['columnNumber'] ?? 1,
       isActive: json['isActive'] ?? true,
+      reservationEndTime: json['reservationEndTime'] as String?,
     );
   }
 
@@ -39,6 +42,7 @@ class Seat {
       'rowNumber': rowNumber,
       'columnNumber': columnNumber,
       'isActive': isActive,
+      'reservationEndTime': reservationEndTime,
     };
   }
 
