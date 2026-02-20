@@ -5,6 +5,7 @@ import lombok.*;
 import slib.com.example.entity.users.User;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -15,6 +16,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class SupportRequest {
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -53,12 +56,12 @@ public class SupportRequest {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(VIETNAM_ZONE);
+        updatedAt = LocalDateTime.now(VIETNAM_ZONE);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(VIETNAM_ZONE);
     }
 }

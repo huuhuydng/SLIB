@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import axios from "axios";
 import { Users, Armchair, AlertCircle, Sparkles, Clock, Bell, Calendar, ChevronRight, Wrench, BookOpen } from "lucide-react";
 import StatCard from "./StatCard";
 import Header from "../../../components/shared/Header";
@@ -10,19 +11,19 @@ import websocketService from "../../../services/websocketService";
 import "../../../styles/librarian/Dashboard.css";
 
 const MOCK_NOTIFICATIONS = [
-  { 
+  {
     title: "FPT Techday 2025: Công nghệ tương lai",
     date: "12/12/2025",
     type: "event",
     tag: "SỰ KIỆN"
   },
-  { 
+  {
     title: "Thông báo bảo trì khu vực thư viện",
     date: "10/12/2025",
     type: "maintenance",
     tag: "QUAN TRỌNG"
   },
-  { 
+  {
     title: "Top 100 đầu sách AI mới về thư viện",
     date: "08/12/2025",
     type: "info",
@@ -36,17 +37,18 @@ const AREA = [
   { name: "Khu tự học", percentage: 70 },
 ];
 
-// TODO: Get actual total seats from backend
-const TOTAL_SEATS = 100;
+
 
 const Dashboard = () => {
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
-  const [stats, setStats] = useState({ 
-    totalCheckInsToday: 0, 
-    totalCheckOutsToday: 0, 
-    currentlyInLibrary: 0 
+  const [violationsToday, setViolationsToday] = useState(0);
+  const [totalSeats, setTotalSeats] = useState(0);
+  const [stats, setStats] = useState({
+    totalCheckInsToday: 0,
+    totalCheckOutsToday: 0,
+    currentlyInLibrary: 0
   });
 
   // Format datetime like CheckInOut page
@@ -58,27 +60,63 @@ const Dashboard = () => {
     return `${time} ${dateStr}`;
   };
 
+  // Hàm fetch stats từ backend (tái sử dụng khi WebSocket fire)
+  const fetchStatsFromAPI = async () => {
+    try {
+      const statsData = await librarianService.getAccessLogStats();
+      console.log('Stats data from API:', statsData);
+      // Clamp currentlyInLibrary >= 0
+      const safeStats = {
+        ...statsData,
+        currentlyInLibrary: Math.max(0, statsData.currentlyInLibrary || 0)
+      };
+      setStats(safeStats);
+      const data = await getLibraryInsights(safeStats);
+      setInsights(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('Error fetching stats:', e);
+      setInsights([]);
+    }
+  };
+
   useEffect(() => {
-    const fetchStats = async () => {
+    fetchStatsFromAPI();
+
+    // Fetch tổng số ghế
+    const fetchTotalSeats = async () => {
       try {
-        const statsData = await librarianService.getAccessLogStats();
-        console.log('Stats data from API:', statsData);
-        setStats(statsData);
-        const data = await getLibraryInsights(statsData);
-        setInsights(Array.isArray(data) ? data : []);
+        const res = await axios.get('http://localhost:8080/slib/seats');
+        const seats = res.data || [];
+        setTotalSeats(seats.length);
       } catch (e) {
-        console.error('Error fetching stats:', e);
-        setInsights([]);
+        console.error('Error fetching total seats:', e);
       }
     };
-    fetchStats();
+    fetchTotalSeats();
+
+    // Fetch vi phạm hôm nay
+    const fetchViolationsToday = async () => {
+      try {
+        const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+        const res = await axios.get('http://localhost:8080/slib/violation-reports', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        const reports = res.data || [];
+        const today = new Date().toISOString().split('T')[0];
+        const todayCount = reports.filter(r => r.createdAt && r.createdAt.startsWith(today)).length;
+        setViolationsToday(todayCount);
+      } catch (e) {
+        console.error('Error fetching violations:', e);
+      }
+    };
+    fetchViolationsToday();
   }, []);
 
   useEffect(() => {
     const fetchAccessLogs = async () => {
       try {
         const logs = await librarianService.getAllAccessLogs();
-        // Get only 5 most recent logs
+        // Get only 10 most recent logs
         setAccessLogs(logs.slice(0, 5));
       } catch (error) {
         console.error('Failed to fetch access logs:', error);
@@ -96,53 +134,46 @@ const Dashboard = () => {
   useEffect(() => {
     console.log('🔌 [Dashboard] Connecting to WebSocket...');
     let unsubscribe = null;
-    
+
     // Connect to WebSocket
     websocketService.connect(
       () => {
         console.log('✅ [Dashboard] WebSocket connected');
-        
+
         // Subscribe to access-logs topic
         unsubscribe = websocketService.subscribe('/topic/access-logs', (message) => {
           console.log('📨 [Dashboard] Received update:', message);
-          
+
           // Add new record without full refresh
           if (message.type === 'CHECK_IN' || message.type === 'CHECK_OUT') {
             const newLog = {
               logId: `${message.userId}-${message.type}-${Date.now()}`,
               userId: message.userId,
-              userName: message.userName,
+              userName: message.fullName || message.userName,
               userCode: message.userCode,
               action: message.type,
-              checkInTime: message.type === 'CHECK_IN' ? message.timestamp : null,
-              checkOutTime: message.type === 'CHECK_OUT' ? message.timestamp : null
+              checkInTime: message.checkInTime || message.time || message.timestamp,
+              checkOutTime: message.checkOutTime || (message.type === 'CHECK_OUT' ? (message.time || message.timestamp) : null)
             };
-            
+
             // Check for duplicates and keep only 5 most recent
             setAccessLogs(prevLogs => {
-              const isDuplicate = prevLogs.some(log => 
-                log.userId === newLog.userId && 
+              const isDuplicate = prevLogs.some(log =>
+                log.userId === newLog.userId &&
                 log.action === newLog.action &&
                 Math.abs(new Date(log.checkInTime || log.checkOutTime) - new Date(newLog.checkInTime || newLog.checkOutTime)) < 2000
               );
-              
+
               if (isDuplicate) {
                 console.log('⚠️ [Dashboard] Duplicate detected, skipping...');
                 return prevLogs;
               }
-              
-              return [newLog, ...prevLogs].slice(0, 5);
+
+              return [newLog, ...prevLogs].slice(0, 10);
             });
-            
-            // Update stats
-            setStats(prevStats => ({
-              ...prevStats,
-              totalCheckInsToday: message.type === 'CHECK_IN' ? prevStats.totalCheckInsToday + 1 : prevStats.totalCheckInsToday,
-              totalCheckOutsToday: message.type === 'CHECK_OUT' ? prevStats.totalCheckOutsToday + 1 : prevStats.totalCheckOutsToday,
-              currentlyInLibrary: message.type === 'CHECK_IN' 
-                ? prevStats.currentlyInLibrary + 1 
-                : prevStats.currentlyInLibrary - 1
-            }));
+
+            // Re-fetch stats từ backend để đảm bảo chính xác
+            fetchStatsFromAPI();
           }
         });
       },
@@ -175,7 +206,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchValue={searchText}
         onSearchChange={(e) => setSearchText(e.target.value)}
         searchPlaceholder="Search for anything..."
@@ -189,277 +220,278 @@ const Dashboard = () => {
         backgroundColor: '#f9fafb',
         minHeight: 'calc(100vh - 80px)'
       }}>
-      <div className="h1">Dashboard</div>
+        <div className="h1">Dashboard</div>
 
-      {/* stats */}
-      <div className="statsRow" style={{ marginBottom: '24px' }}>
-        <StatCard
-          icon={<Users size={20} />}
-          value={stats.currentlyInLibrary}
-          label="Đang trong thư viện"
-          bg="#EDE9FE"
-          color="#7C3AED"
-        />
-        <StatCard
-          icon={<Armchair size={20} />}
-          value={`${TOTAL_SEATS > 0 ? Math.round((stats.currentlyInLibrary / TOTAL_SEATS) * 100) : 0}%`}
-          label="Chỗ ngồi đã có người"
-          bg="#DCFCE7"
-          color="#16A34A"
-        />
-        <StatCard
-          icon={<AlertCircle size={20} />}
-          value="00"
-          label="Vi phạm xảy ra hôm nay"
-          bg="#FEE2E2"
-          color="#EF4444"
-        />
-      </div>
+        {/* stats */}
+        <div className="statsRow" style={{ marginBottom: '24px' }}>
+          <StatCard
+            icon={<Users size={20} />}
+            value={stats.currentlyInLibrary}
+            label="Đang trong thư viện"
+            bg="#EDE9FE"
+            color="#7C3AED"
+          />
+          <StatCard
+            icon={<Armchair size={20} />}
+            value={`${totalSeats > 0 ? Math.round((Math.max(0, stats.currentlyInLibrary) / totalSeats) * 100) : 0}%`}
+            label="Chỗ ngồi đã có người"
+            bg="#DCFCE7"
+            color="#16A34A"
+          />
+          <StatCard
+            icon={<AlertCircle size={20} />}
+            value={violationsToday}
+            label="Vi phạm xảy ra hôm nay"
+            bg="#FEE2E2"
+            color="#EF4444"
+          />
+        </div>
 
-      {/* middle */}
-      <div style={{ marginBottom: '24px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '18px', alignItems: 'start' }}>
-        <section style={{ background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 6px 16px rgba(17,24,39,.06)', overflow: 'visible' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: '0 0 20px 0', lineHeight: '1.4' }}>Danh sách sinh viên ra vào</h3>
-          
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '25%' }}>Tên sinh viên</th>
-                <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '20%' }}>Mã số sinh viên</th>
-                <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '20%' }}>Hành động</th>
-                <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '35%' }}>Thời gian</th>
-              </tr>
-            </thead>
+        {/* middle */}
+        <div style={{ marginBottom: '24px', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '18px', alignItems: 'start' }}>
+          <section style={{ background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 6px 16px rgba(17,24,39,.06)', overflow: 'visible' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: '0 0 20px 0', lineHeight: '1.4' }}>Danh sách sinh viên ra vào</h3>
 
-            <tbody>
-              {filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
-                    Không có dữ liệu
-                  </td>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                  <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '25%' }}>Tên sinh viên</th>
+                  <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '20%' }}>Mã số sinh viên</th>
+                  <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '20%' }}>Hành động</th>
+                  <th style={{ textAlign: 'left', padding: '12px 12px', fontSize: '13px', fontWeight: '700', color: '#6b7280', width: '35%' }}>Thời gian</th>
                 </tr>
-              ) : (
-                filteredStudents.map((log, index) => (
-                  <tr key={`${log.logId}-${log.action}`} style={{ borderBottom: index === filteredStudents.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#111827', fontWeight: '500' }}>{log.userName}</td>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>{log.userCode}</td>
-                    <td style={{ padding: '14px 12px' }}>
-                      <span className={`badge ${log.action === "CHECK_IN" ? "badgeIn" : "badgeOut"}`} style={{ 
-                        padding: '6px 14px', 
-                        borderRadius: '6px', 
-                        fontSize: '12px', 
-                        fontWeight: '700',
-                        display: 'inline-block'
-                      }}>
-                        {log.action === 'CHECK_IN' ? 'Check in' : 'Check out'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>
-                      {log.action === 'CHECK_IN' 
-                        ? formatDateTime(log.checkInTime)
-                        : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
-                      }
+              </thead>
+
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
+                      Không có dữ liệu
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
+                ) : (
+                  filteredStudents.map((log, index) => (
+                    <tr key={`${log.logId}-${log.action}`} style={{ borderBottom: index === filteredStudents.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 12px', fontSize: '13px', color: '#111827', fontWeight: '500' }}>{log.userName}</td>
+                      <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>{log.userCode}</td>
+                      <td style={{ padding: '14px 12px' }}>
+                        <span className={`badge ${log.action === "CHECK_IN" ? "badgeIn" : "badgeOut"}`} style={{
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          display: 'inline-block'
+                        }}>
+                          {log.action === 'CHECK_IN' ? 'Check in' : 'Check out'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>
+                        {log.action === 'CHECK_IN'
+                          ? formatDateTime(log.checkInTime)
+                          : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
+                        }
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </section>
 
-        <section style={{ background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 6px 16px rgba(17,24,39,.06)', height: '100%', overflow: 'auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Sparkles size={18} color="#f59e0b" />
-            <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: 0 }}>AI phân tích</h3>
-          </div>
-          
-          {(insights || []).map((it, idx) => (
-            <div
-              key={idx}
-              style={{
-                background: it.type === "warning" ? "#fff7ed" : "#eff6ff",
-                border: `1px solid ${it.type === "warning" ? "#fed7aa" : "#bfdbfe"}`,
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: idx === insights.length - 1 ? '0' : '12px',
-                display: 'flex',
-                gap: '12px'
-              }}
-            >
-              <div style={{ paddingTop: '2px', flexShrink: 0 }}>
-                {it.type === "warning" ? 
-                  <AlertCircle size={18} color="#f59e0b" /> : 
-                  <Clock size={18} color="#3b82f6" />
+          <section style={{ background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 6px 16px rgba(17,24,39,.06)', height: '100%', overflow: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <Sparkles size={18} color="#f59e0b" />
+              <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: 0 }}>AI phân tích</h3>
+            </div>
+
+            {(insights || []).map((it, idx) => (
+              <div
+                key={idx}
+                style={{
+                  background: it.type === "warning" ? "#fff7ed" : "#eff6ff",
+                  border: `1px solid ${it.type === "warning" ? "#fed7aa" : "#bfdbfe"}`,
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: idx === insights.length - 1 ? '0' : '12px',
+                  display: 'flex',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ paddingTop: '2px', flexShrink: 0 }}>
+                  {it.type === "warning" ?
+                    <AlertCircle size={18} color="#f59e0b" /> :
+                    <Clock size={18} color="#3b82f6" />
+                  }
+                </div>
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: '900', color: '#111827', margin: '0 0 6px 0' }}>
+                    {it.title}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#374151', margin: 0, lineHeight: '1.5' }}>
+                    {it.message}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </section>
+        </div>
+
+        {/* bottom */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '18px', marginTop: '24px' }}>
+          <section style={{ background: '#fff', borderRadius: '18px', padding: '20px', boxShadow: '0 6px 16px rgba(17,24,39,.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: 0 }}>Thông báo gần đây</h3>
+              <Bell size={16} color="#6b7280" />
+            </div>
+
+            {MOCK_NOTIFICATIONS.map((notification, idx) => {
+              // Determine icon based on notification type
+              const getNotificationIcon = (type) => {
+                switch (type) {
+                  case 'event':
+                    return <Calendar size={16} />;
+                  case 'maintenance':
+                  case 'warning':
+                    return <Wrench size={16} />;
+                  case 'info':
+                  case 'reminder':
+                    return <BookOpen size={16} />;
+                  default:
+                    return <Bell size={16} />;
                 }
-              </div>
-              <div>
-                <p style={{ fontSize: '13px', fontWeight: '900', color: '#111827', margin: '0 0 6px 0' }}>
-                  {it.title}
-                </p>
-                <p style={{ fontSize: '12px', color: '#374151', margin: 0, lineHeight: '1.5' }}>
-                  {it.message}
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      </div>
+              };
 
-      {/* bottom */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '18px', marginTop: '24px' }}>
-        <section style={{ background: '#fff', borderRadius: '18px', padding: '20px', boxShadow: '0 6px 16px rgba(17,24,39,.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: 0 }}>Thông báo gần đây</h3>
-            <Bell size={16} color="#6b7280" />
-          </div>
-          
-          {MOCK_NOTIFICATIONS.map((notification, idx) => {
-            // Determine icon based on notification type
-            const getNotificationIcon = (type) => {
-              switch(type) {
-                case 'event':
-                  return <Calendar size={16} />;
-                case 'maintenance':
-                case 'warning':
-                  return <Wrench size={16} />;
-                case 'info':
-                case 'reminder':
-                  return <BookOpen size={16} />;
-                default:
-                  return <Bell size={16} />;
-              }
-            };
-
-            return (
-            <div 
-              key={idx} 
-              style={{ 
-                padding: '14px 0',
-                borderBottom: idx === MOCK_NOTIFICATIONS.length - 1 ? 'none' : '1px solid #f1f5f9',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f9fafb';
-                e.currentTarget.style.marginLeft = '-20px';
-                e.currentTarget.style.marginRight = '-20px';
-                e.currentTarget.style.paddingLeft = '20px';
-                e.currentTarget.style.paddingRight = '20px';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.marginLeft = '0';
-                e.currentTarget.style.marginRight = '0';
-                e.currentTarget.style.paddingLeft = '0';
-                e.currentTarget.style.paddingRight = '0';
-              }}
-            >
-              <div style={{ 
-                padding: '10px', 
-                borderRadius: '12px', 
-                background: notification.type === 'warning' ? '#fef3c7' : 
-                           notification.type === 'event' ? '#dbeafe' : 
-                           notification.type === 'maintenance' ? '#fee2e2' :
-                           notification.type === 'info' ? '#dcfce7' : '#e0e7ff',
-                flexShrink: 0,
-                marginTop: '2px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <div style={{ color: 
-                  notification.type === 'warning' ? '#f59e0b' : 
-                  notification.type === 'event' ? '#3b82f6' : 
-                  notification.type === 'maintenance' ? '#ef4444' :
-                  notification.type === 'info' ? '#22c55e' : '#6366f1'
-                }}>
-                  {getNotificationIcon(notification.type)}
-                </div>
-              </div>
-              
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <span style={{ 
-                    fontSize: '10px', 
-                    fontWeight: '700',
-                    color: notification.type === 'event' ? '#3b82f6' : 
-                           notification.type === 'maintenance' ? '#ef4444' : '#22c55e',
-                    background: notification.type === 'event' ? '#dbeafe' : 
-                                notification.type === 'maintenance' ? '#fee2e2' : '#dcfce7',
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    letterSpacing: '0.5px'
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '14px 0',
+                    borderBottom: idx === MOCK_NOTIFICATIONS.length - 1 ? 'none' : '1px solid #f1f5f9',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f9fafb';
+                    e.currentTarget.style.marginLeft = '-20px';
+                    e.currentTarget.style.marginRight = '-20px';
+                    e.currentTarget.style.paddingLeft = '20px';
+                    e.currentTarget.style.paddingRight = '20px';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.marginLeft = '0';
+                    e.currentTarget.style.marginRight = '0';
+                    e.currentTarget.style.paddingLeft = '0';
+                    e.currentTarget.style.paddingRight = '0';
+                  }}
+                >
+                  <div style={{
+                    padding: '10px',
+                    borderRadius: '12px',
+                    background: notification.type === 'warning' ? '#fef3c7' :
+                      notification.type === 'event' ? '#dbeafe' :
+                        notification.type === 'maintenance' ? '#fee2e2' :
+                          notification.type === 'info' ? '#dcfce7' : '#e0e7ff',
+                    flexShrink: 0,
+                    marginTop: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
-                    {notification.tag}
-                  </span>
+                    <div style={{
+                      color:
+                        notification.type === 'warning' ? '#f59e0b' :
+                          notification.type === 'event' ? '#3b82f6' :
+                            notification.type === 'maintenance' ? '#ef4444' :
+                              notification.type === 'info' ? '#22c55e' : '#6366f1'
+                    }}>
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        color: notification.type === 'event' ? '#3b82f6' :
+                          notification.type === 'maintenance' ? '#ef4444' : '#22c55e',
+                        background: notification.type === 'event' ? '#dbeafe' :
+                          notification.type === 'maintenance' ? '#fee2e2' : '#dcfce7',
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {notification.tag}
+                      </span>
+                    </div>
+                    <p style={{
+                      fontSize: '13px',
+                      color: '#111827',
+                      margin: '0 0 4px 0',
+                      fontWeight: '600',
+                      lineHeight: '1.5',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical'
+                    }}>
+                      {notification.title}
+                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Calendar size={11} color="#9ca3af" />
+                      <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '500' }}>
+                        {notification.date}
+                      </span>
+                    </div>
+                  </div>
+
+                  <ChevronRight size={16} color="#d1d5db" style={{ flexShrink: 0, marginTop: '8px' }} />
                 </div>
-                <p style={{ 
-                  fontSize: '13px', 
-                  color: '#111827', 
-                  margin: '0 0 4px 0', 
-                  fontWeight: '600',
-                  lineHeight: '1.5',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}>
-                  {notification.title}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Calendar size={11} color="#9ca3af" />
-                  <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '500' }}>
-                    {notification.date}
-                  </span>
+              );
+            })}
+          </section>
+
+          <section style={{ background: '#fff', borderRadius: '18px', padding: '20px', boxShadow: '0 6px 16px rgba(17,24,39,.06)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: '0 0 16px 0' }}>Trạng thái khu vực</h3>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '11px', color: '#6b7280', fontWeight: '700', marginBottom: '16px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#22c55e', display: 'inline-block' }} />
+                Trống
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#fbbf24', display: 'inline-block' }} />
+                Khá đông
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#ef4444', display: 'inline-block' }} />
+                Full
+              </span>
+            </div>
+
+            {AREA.map((a, idx) => (
+              <div key={idx} style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', marginBottom: '8px' }}>
+                  <span style={{ color: '#111827' }}>{a.name}</span>
+                  <span style={{ color: '#6b7280' }}>{a.percentage}%</span>
+                </div>
+                <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${a.percentage}%`,
+                    background: a.percentage >= 90 ? '#ef4444' : a.percentage >= 60 ? '#fbbf24' : '#22c55e',
+                    borderRadius: '999px'
+                  }} />
                 </div>
               </div>
-              
-              <ChevronRight size={16} color="#d1d5db" style={{ flexShrink: 0, marginTop: '8px' }} />
-            </div>
-            );
-          })}
-        </section>
-
-        <section style={{ background: '#fff', borderRadius: '18px', padding: '20px', boxShadow: '0 6px 16px rgba(17,24,39,.06)' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '900', color: '#111827', margin: '0 0 16px 0' }}>Trạng thái khu vực</h3>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '11px', color: '#6b7280', fontWeight: '700', marginBottom: '16px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#22c55e', display: 'inline-block' }} />
-              Trống
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#fbbf24', display: 'inline-block' }} />
-              Khá đông
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <i style={{ width: '8px', height: '8px', borderRadius: '999px', background: '#ef4444', display: 'inline-block' }} />
-              Full
-            </span>
-          </div>
-
-          {AREA.map((a, idx) => (
-            <div key={idx} style={{ marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: '800', marginBottom: '8px' }}>
-                <span style={{ color: '#111827' }}>{a.name}</span>
-                <span style={{ color: '#6b7280' }}>{a.percentage}%</span>
-              </div>
-              <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
-                <div style={{ 
-                  height: '100%', 
-                  width: `${a.percentage}%`, 
-                  background: a.percentage >= 90 ? '#ef4444' : a.percentage >= 60 ? '#fbbf24' : '#22c55e',
-                  borderRadius: '999px'
-                }} />
-              </div>
-            </div>
-          ))}
-        </section>
-      </div>
+            ))}
+          </section>
+        </div>
       </div>
     </>
   );

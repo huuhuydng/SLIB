@@ -16,4 +16,5 @@ public class SeatDTO {
     private Integer columnNumber;
     private Integer zoneId;
     private String nfcTagUid;
+    private String reservationEndTime; // ISO datetime string, null if AVAILABLE
 }

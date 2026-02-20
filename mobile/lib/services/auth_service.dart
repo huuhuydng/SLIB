@@ -331,7 +331,7 @@ class AuthService extends ChangeNotifier {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwt',
         },
-        body: jsonEncode({'noti_device': fcmToken}),
+        body: jsonEncode({'notiDevice': fcmToken}),
       );
       if(response.statusCode == 200) print("✅ FCM Synced");
     } catch (e) {

@@ -52,8 +52,9 @@ public class SeatEntity {
     private Boolean isActive = true;
 
     // Dynamic seat status (AVAILABLE, BOOKED, HOLDING)
-    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
-    @Column(name = "seat_status")
+    // Column đã bị xóa khỏi DB (V10, V15) - giờ tính dynamic từ reservations
+    // Giữ field để dùng in-memory trong SeatService
+    @jakarta.persistence.Transient
     @Builder.Default
     private SeatStatus seatStatus = SeatStatus.AVAILABLE;
 

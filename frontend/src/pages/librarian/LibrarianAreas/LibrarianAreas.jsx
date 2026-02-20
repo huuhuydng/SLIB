@@ -22,42 +22,23 @@ const buildTimeParams = (slotValue, dateOverride, timeSlots) => {
     datePrefix = `${yyyy}-${mm}-${dd}`;
   }
 
-  let start, end;
-  if (slotValue === "now" && timeSlots.length > 0) {
-    const hour = today.getHours();
-    const minute = today.getMinutes();
-    const currentMinutes = hour * 60 + minute;
-
-    // Find the slot that contains current time
-    const currentSlot = timeSlots.find(slot => {
-      const [startH, startM] = slot.startTime.split(':').map(Number);
-      const [endH, endM] = slot.endTime.split(':').map(Number);
-      const slotStart = startH * 60 + startM;
-      const slotEnd = endH * 60 + endM;
-      return currentMinutes >= slotStart && currentMinutes < slotEnd;
-    });
-
-    if (currentSlot) {
-      start = currentSlot.startTime;
-      end = currentSlot.endTime;
-    } else if (currentMinutes < timeSlots[0].startTime.split(':').map(Number)[0] * 60) {
-      // Before opening - show first slot
-      start = timeSlots[0].startTime;
-      end = timeSlots[0].endTime;
-    } else {
-      // After closing - show last slot
-      const lastSlot = timeSlots[timeSlots.length - 1];
-      start = lastSlot.startTime;
-      end = lastSlot.endTime;
-    }
-  } else if (slotValue !== "now") {
-    [start, end] = slotValue.split("-");
-  } else {
-    // Fallback if no slots loaded yet
-    start = "07:00";
-    end = "08:00";
+  // Mode "Hiện tại" → dùng DateTime.now() chính xác, KHÔNG resolve slot
+  if (slotValue === "now") {
+    const hh = String(today.getHours()).padStart(2, "0");
+    const mi = String(today.getMinutes()).padStart(2, "0");
+    const ss = String(today.getSeconds()).padStart(2, "0");
+    const nowStr = `${datePrefix}T${hh}:${mi}:${ss}`;
+    // endTime = now + 1 phút để check overlap
+    const endDate = new Date(today.getTime() + 60000);
+    const ehh = String(endDate.getHours()).padStart(2, "0");
+    const emi = String(endDate.getMinutes()).padStart(2, "0");
+    const ess = String(endDate.getSeconds()).padStart(2, "0");
+    const endStr = `${datePrefix}T${ehh}:${emi}:${ess}`;
+    return { startTime: nowStr, endTime: endStr };
   }
 
+  // Slot cố định → dùng khoảng thời gian slot đó
+  const [start, end] = slotValue.split("-");
   return {
     startTime: `${datePrefix}T${start}:00`,
     endTime: `${datePrefix}T${end}:00`,
@@ -79,7 +60,17 @@ function LibrarianAreasContent() {
   const [loading, setLoading] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
   const canvasRef = React.useRef(null);
-  const [isOverSeat, setIsOverSeat] = useState(false); // Track if mouse is over a seat
+  const [isOverSeat, setIsOverSeat] = useState(false);
+
+  // Refs
+  const slotValueRef = useRef(slotValue);
+  const selectedDateRef = useRef(selectedDate);
+  const timeSlotsRef = useRef(timeSlots);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => { slotValueRef.current = slotValue; }, [slotValue]);
+  useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
+  useEffect(() => { timeSlotsRef.current = timeSlots; }, [timeSlots]);
 
   // Fetch time slots from library settings
   useEffect(() => {
@@ -89,7 +80,6 @@ function LibrarianAreasContent() {
         if (response.ok) {
           const slots = await response.json();
           setTimeSlots(slots);
-          console.log('📅 Loaded time slots from settings:', slots.length, 'slots');
         }
       } catch (err) {
         console.error('Failed to load time slots:', err);
@@ -143,14 +133,16 @@ function LibrarianAreasContent() {
     return { total, booked, restricted, available, occupancy };
   }, [seats]);
 
-  // Load seats for time slot
+  // Load seats — với request counter chống race condition
   const loadSeatsForTimeSlot = async (slot, dateOverride) => {
-    setLoading(true);
+    const myRequestId = ++requestIdRef.current;
+
     try {
-      const timeParams = buildTimeParams(slot, dateOverride || selectedDate, timeSlots);
-      console.log('🕐 Loading seats for time slot:', slot, timeParams);
+      const timeParams = buildTimeParams(slot, dateOverride || selectedDateRef.current, timeSlotsRef.current);
       const seatRes = await seatService.getAllSeats(timeParams);
-      console.log('📦 Raw API response:', seatRes);
+
+      // Nếu đã có request mới hơn → bỏ qua response cũ
+      if (myRequestId !== requestIdRef.current) return;
 
       const normalizedSeats = (seatRes || []).map(s => ({
         seatId: s.seatId ?? s.seat_id,
@@ -159,52 +151,76 @@ function LibrarianAreasContent() {
         seatStatus: (s.seatStatus ?? s.seat_status ?? s.status ?? "AVAILABLE").toUpperCase(),
         rowNumber: s.rowNumber ?? s.row_number ?? 1,
         columnNumber: s.columnNumber ?? s.column_number ?? 1,
+        reservationEndTime: s.reservationEndTime ?? null,
       }));
-
-      console.log('✅ Normalized seats:', normalizedSeats);
-      const a7Seat = normalizedSeats.find(s => s.seatCode === 'A7');
-      console.log('🔍 A7 seat status:', a7Seat);
-      if (a7Seat) {
-        console.log('  - seatCode:', a7Seat.seatCode);
-        console.log('  - seatStatus:', a7Seat.seatStatus);
-        console.log('  - seatId:', a7Seat.seatId);
-        console.log('  - zoneId:', a7Seat.zoneId);
-      } else {
-        console.log('❌ A7 seat NOT FOUND in normalized seats!');
-      }
-
-      // Check raw response too
-      const a7Raw = (seatRes || []).find(s =>
-        (s.seatCode === 'A7' || s.seat_code === 'A7' || s.code === 'A7')
-      );
-      console.log('📦 A7 in raw response:', a7Raw);
 
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
       setMessage(null);
     } catch (err) {
+      if (myRequestId !== requestIdRef.current) return;
       console.error("Failed to load seats", err);
       setMessage("Không tải được danh sách ghế");
     } finally {
-      setLoading(false);
+      if (myRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
+  // Load seats khi slot hoặc date thay đổi
   useEffect(() => {
-    if (timeSlots.length === 0) return; // Wait for time slots to load
+    if (!slotValue) return;
+    setLoading(true);
     loadSeatsForTimeSlot(slotValue, selectedDate);
-  }, [slotValue, selectedDate, timeSlots]);
+  }, [slotValue, selectedDate]);
 
-  // Real-time auto-refresh when viewing current time slot
+  // Smart expiration timer — tìm endTime gần nhất → re-fetch đúng lúc hết hạn
+  const expirationTimerRef = useRef(null);
+  useEffect(() => {
+    // Clear timer cũ
+    if (expirationTimerRef.current) {
+      clearTimeout(expirationTimerRef.current);
+      expirationTimerRef.current = null;
+    }
+
+    if (slotValue !== "now" || seats.length === 0) return;
+
+    // Tìm reservationEndTime gần nhất trong tương lai
+    const now = Date.now();
+    let nearestMs = Infinity;
+
+    seats.forEach(s => {
+      if (s.reservationEndTime && (s.seatStatus === "BOOKED" || s.seatStatus === "HOLDING")) {
+        const endMs = new Date(s.reservationEndTime).getTime();
+        const diff = endMs - now;
+        if (diff > 0 && diff < nearestMs) {
+          nearestMs = diff;
+        }
+      }
+    });
+
+    if (nearestMs < Infinity) {
+      // Set timer re-fetch ngay khi ghế hết hạn (+ 100ms buffer)
+      expirationTimerRef.current = setTimeout(() => {
+        loadSeatsForTimeSlot("now", selectedDateRef.current);
+      }, nearestMs + 100);
+    }
+
+    return () => {
+      if (expirationTimerRef.current) {
+        clearTimeout(expirationTimerRef.current);
+      }
+    };
+  }, [seats, slotValue]);
+
+  // Fallback polling 10s — safety net khi WebSocket mất kết nối hoặc DB thay đổi trực tiếp
   useEffect(() => {
     if (slotValue !== "now") return;
-
-    const intervalId = setInterval(() => {
-      console.log('🔄 Auto-refreshing seats (every 30s)...');
-      loadSeatsForTimeSlot(slotValue, selectedDate);
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(intervalId);
-  }, [slotValue, selectedDate]);
+    const fallbackId = setInterval(() => {
+      loadSeatsForTimeSlot("now", selectedDateRef.current);
+    }, 10000);
+    return () => clearInterval(fallbackId);
+  }, [slotValue]);
 
   // WebSocket real-time updates
   const stompClientRef = useRef(null);
@@ -214,15 +230,9 @@ function LibrarianAreasContent() {
       brokerURL: wsUrl,
       reconnectDelay: 5000,
       onConnect: () => {
-        console.log('🔌 WebSocket connected for seat updates');
         client.subscribe('/topic/seats', (message) => {
-          const data = JSON.parse(message.body);
-          console.log('📡 Seat status update:', data);
-          // Update seat in local state
-          dispatch({
-            type: ACTIONS.UPDATE_SEAT_STATUS,
-            payload: { seatId: data.seatId, seatStatus: data.status }
-          });
+          // Re-fetch seats ngay khi nhận WebSocket event (booking/cancel/expire)
+          loadSeatsForTimeSlot(slotValueRef.current, selectedDateRef.current);
         });
       },
       onStompError: (frame) => {

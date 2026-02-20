@@ -53,9 +53,8 @@ axiosInstance.interceptors.response.use(
                         localStorage.removeItem('librarian_user');
                         localStorage.removeItem('refresh_token');
 
-                        // Show alert and redirect
-                        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-                        window.location.href = '/admin/login';
+                        // Redirect tới trang token-expired
+                        window.location.href = '/token-expired';
                         return Promise.reject(new Error('Token expired'));
                     }
                 } catch (e) {

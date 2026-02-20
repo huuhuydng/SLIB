@@ -86,9 +86,12 @@ public class CheckInService {
                 Map<String, Object> wsMessage = new HashMap<>();
                 wsMessage.put("type", "CHECK_OUT");
                 wsMessage.put("userId", userId.toString());
+                wsMessage.put("fullName", user.getFullName());
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
-                wsMessage.put("timestamp", now.toString());
+                wsMessage.put("deviceId", request.getGateId());
+                wsMessage.put("time", now.toString());
+                wsMessage.put("checkOutTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
 
                 response.put("status", "SUCCESS");
@@ -118,9 +121,12 @@ public class CheckInService {
                 Map<String, Object> wsMessage = new HashMap<>();
                 wsMessage.put("type", "CHECK_IN");
                 wsMessage.put("userId", userId.toString());
+                wsMessage.put("fullName", user.getFullName());
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
-                wsMessage.put("timestamp", now.toString());
+                wsMessage.put("deviceId", request.getGateId());
+                wsMessage.put("time", now.toString());
+                wsMessage.put("checkInTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
 
                 response.put("status", "SUCCESS");
@@ -129,8 +135,7 @@ public class CheckInService {
                 response.put("checkInTime", now.toString());
             }
 
-            // Gửi dữ liệu qua WebSocket
-            messagingTemplate.convertAndSend("/topic/access-logs", response);
+            // WebSocket đã được gửi trong block check-in/check-out ở trên
 
         } catch (IllegalArgumentException e) {
             throw new RuntimeException("Token không đúng định dạng UUID");

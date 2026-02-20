@@ -77,9 +77,9 @@ public class NotificationScheduler {
                 ? reservation.getStartTime().toLocalTime().toString().substring(0, 5)
                 : "N/A";
 
-        String title = "Nhac nho dat cho";
+        String title = "Nhắc nhở đặt chỗ";
         String body = String.format(
-                "Ban co lich dat ghe %s luc %s. Hay den dung gio de check-in!",
+                "Bạn có lịch đặt ghế %s lúc %s. Hãy đến đúng giờ để check-in!",
                 seatCode, startTimeStr);
 
         pushNotificationService.sendToUser(

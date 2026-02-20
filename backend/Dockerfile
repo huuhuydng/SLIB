@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.4
 # --- Giai đoạn 1: Build ---
 # Dùng Maven bản mới nhất chạy trên Amazon Corretto 21 (Hỗ trợ Java 21)
 FROM maven:3.9.9-amazoncorretto-21 AS build
