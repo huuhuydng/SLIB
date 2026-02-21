@@ -376,12 +376,12 @@ const Dashboard = () => {
           <section className="dashboard-panel panel-elevated chart-panel">
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BarChart3 size={16} color="#7c3aed" />
+                <BarChart3 size={16} color="#FF751F" />
                 <h3 className="panel-title">Thống kê 7 ngày gần nhất</h3>
               </div>
               <div className="chart-legend">
                 <span className="chart-legend-item">
-                  <i className="chart-legend-dot" style={{ background: 'linear-gradient(135deg, #7c3aed, #a78bfa)' }}></i>
+                  <i className="chart-legend-dot" style={{ background: 'linear-gradient(135deg, #FF751F, #feb47b)' }}></i>
                   Check-in
                 </span>
                 <span className="chart-legend-item">

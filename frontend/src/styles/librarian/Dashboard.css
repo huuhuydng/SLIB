@@ -182,15 +182,15 @@ body {
 /* Card variants */
 .stat-card--purple .stat-card-icon {
   background: #ede9fe;
-  color: #7c3aed;
+  color: #FF751F;
 }
 
 .stat-card--purple .stat-card-value {
-  color: #7c3aed;
+  color: #FF751F;
 }
 
 .stat-card--purple .stat-card-accent {
-  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  background: linear-gradient(90deg, #FF751F, #feb47b);
 }
 
 .stat-card--green .stat-card-icon {
@@ -306,13 +306,13 @@ body {
   gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  color: #7c3aed;
+  color: #FF751F;
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .panel-link:hover {
-  color: #6d28d9;
+  color: #e86515;
 }
 
 /* =================== CHART SECTION =================== */
@@ -456,7 +456,7 @@ body {
 }
 
 .bar-checkin {
-  background: linear-gradient(180deg, #7c3aed, #a78bfa);
+  background: linear-gradient(180deg, #FF751F, #feb47b);
 }
 
 .bar-booking {
@@ -714,7 +714,7 @@ body {
 }
 
 .highlight-value {
-  color: #7c3aed;
+  color: #FF751F;
   font-size: 13px;
 }
 
@@ -821,7 +821,7 @@ body {
 .top-student-visits {
   font-size: 14px;
   font-weight: 800;
-  color: #7c3aed;
+  color: #FF751F;
 }
 
 .top-student-minutes {
@@ -911,7 +911,7 @@ body {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  background: linear-gradient(135deg, #FF751F, #feb47b);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -954,7 +954,7 @@ body {
 .student-modal-stat-value {
   font-size: 20px;
   font-weight: 800;
-  color: #7c3aed;
+  color: #FF751F;
   display: block;
 }
 
@@ -1779,7 +1779,7 @@ body {
   width: 100%;
   margin-top: 20px;
   padding: 12px 20px;
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  background: linear-gradient(135deg, #FF751F, #e86515);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -1791,7 +1791,7 @@ body {
 }
 
 .detail-view-btn:hover {
-  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  background: linear-gradient(135deg, #e86515, #d45a10);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
 }
