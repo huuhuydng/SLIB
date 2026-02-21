@@ -48,11 +48,15 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
+        long countByStatusAndCreatedAtBetween(String status, LocalDateTime start, LocalDateTime end);
+
         List<ReservationEntity> findTop7ByOrderByCreatedAtDesc();
+
+        List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
         // Dashboard: đếm đặt chỗ theo từng ngày
         @Query(value = "SELECT CAST(created_at AS date) as booking_date, COUNT(*) as cnt " +
-                        "FROM reservations WHERE created_at >= :startDate " +
+                        "FROM reservations WHERE created_at >= :startDate AND status = 'BOOKED' " +
                         "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
         List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
 }

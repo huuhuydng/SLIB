@@ -56,7 +56,8 @@ public class DashboardService {
             // 3. Booking stats
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
-            long totalBookingsToday = reservationRepository.countByCreatedAtBetween(startOfDay, endOfDay);
+            long totalBookingsToday = reservationRepository.countByStatusAndCreatedAtBetween("BOOKED", startOfDay,
+                    endOfDay);
             long activeBookings = reservationRepository.countByStatus("CONFIRMED");
             long pendingBookings = reservationRepository.countByStatus("BOOKED");
 
@@ -73,7 +74,8 @@ public class DashboardService {
             long totalUsers = userRepository.count();
 
             // 7. Recent bookings (top 7)
-            List<ReservationEntity> recentReservations = reservationRepository.findTop7ByOrderByCreatedAtDesc();
+            List<ReservationEntity> recentReservations = reservationRepository
+                    .findTop7ByStatusOrderByCreatedAtDesc("BOOKED");
             List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentReservations.stream()
                     .map(r -> DashboardStatsDTO.RecentBookingDTO.builder()
                             .reservationId(r.getReservationId())
