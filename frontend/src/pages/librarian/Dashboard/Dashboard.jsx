@@ -1190,10 +1190,18 @@ const Dashboard = () => {
                       {d.summary && <p>{d.summary}</p>}
                       {d.content && <p style={{ marginTop: '8px' }}>{d.content}</p>}
                     </div>
+                    <a
+                      href={`/librarian/news/view/${d.id}`}
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <Eye size={15} />
+                      Xem chi tiết bài viết
+                    </a>
                   </>
                 );
               })()}
-            </div>
+            </div >
           </div>
         </div>
       )}
