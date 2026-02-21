@@ -2,6 +2,7 @@ package slib.com.example.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -46,6 +47,7 @@ public class SeatViolationReportService {
     private final StudentProfileRepository studentProfileRepository;
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Sinh vien tao bao cao vi pham
@@ -101,6 +103,7 @@ public class SeatViolationReportService {
             sendNewReportNotification(violator.getId(), saved);
         }
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "CREATED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -210,6 +213,7 @@ public class SeatViolationReportService {
         log.info("[ViolationReport] Verified report {} by librarian {}, deducted {} points",
                 reportId, librarianId, pointsToDeduct);
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "VERIFIED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -239,6 +243,7 @@ public class SeatViolationReportService {
 
         log.info("[ViolationReport] Rejected report {} by librarian {}", reportId, librarianId);
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "REJECTED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -456,6 +461,15 @@ public class SeatViolationReportService {
                     });
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare new report notification: {}", e.getMessage());
+        }
+    }
+
+    private void broadcastDashboardUpdate(String type, String action) {
+        try {
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
         }
     }
 }

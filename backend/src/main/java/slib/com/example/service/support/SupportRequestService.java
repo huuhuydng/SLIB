@@ -2,6 +2,7 @@ package slib.com.example.service.support;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -37,6 +38,7 @@ public class SupportRequestService {
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
     private final ConversationService conversationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Tạo yêu cầu hỗ trợ mới
@@ -72,6 +74,7 @@ public class SupportRequestService {
         SupportRequest saved = supportRequestRepository.save(request);
         log.info("[SupportRequest] Created support request {} by student {}", saved.getId(), studentId);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "CREATED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -128,6 +131,7 @@ public class SupportRequestService {
         // Gửi thông báo cho sinh viên
         sendStatusNotification(saved, status);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "STATUS_CHANGED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -153,6 +157,7 @@ public class SupportRequestService {
         // Gửi thông báo cho sinh viên khi thủ thư phản hồi
         sendStatusNotification(saved, SupportRequestStatus.RESOLVED);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "RESPONDED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -266,6 +271,15 @@ public class SupportRequestService {
                     });
         } catch (Exception e) {
             log.error("[SupportRequest] Failed to prepare notification: {}", e.getMessage());
+        }
+    }
+
+    private void broadcastDashboardUpdate(String type, String action) {
+        try {
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
         }
     }
 }

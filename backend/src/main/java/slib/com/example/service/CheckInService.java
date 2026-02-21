@@ -93,6 +93,9 @@ public class CheckInService {
                 wsMessage.put("time", now.toString());
                 wsMessage.put("checkOutTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
+                messagingTemplate.convertAndSend("/topic/dashboard",
+                        java.util.Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_OUT", "timestamp",
+                                java.time.Instant.now().toString()));
 
                 response.put("status", "SUCCESS");
                 response.put("type", "CHECK_OUT");
@@ -128,6 +131,9 @@ public class CheckInService {
                 wsMessage.put("time", now.toString());
                 wsMessage.put("checkInTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
+                messagingTemplate.convertAndSend("/topic/dashboard",
+                        java.util.Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_IN", "timestamp",
+                                java.time.Instant.now().toString()));
 
                 response.put("status", "SUCCESS");
                 response.put("type", "CHECK_IN");

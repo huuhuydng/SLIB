@@ -3,6 +3,7 @@ package slib.com.example.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +19,16 @@ public class ReservationScheduler {
     private final ReservationRepository reservationRepository;
     private final SeatRepository seatRepository;
     private final SeatStatusSyncService seatStatusSyncService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public ReservationScheduler(ReservationRepository reservationRepository,
             SeatRepository seatRepository,
-            SeatStatusSyncService seatStatusSyncService) {
+            SeatStatusSyncService seatStatusSyncService,
+            SimpMessagingTemplate messagingTemplate) {
         this.reservationRepository = reservationRepository;
         this.seatRepository = seatRepository;
         this.seatStatusSyncService = seatStatusSyncService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Scheduled(fixedRate = 10000) // check mỗi 10s cho real-time
@@ -64,6 +68,17 @@ public class ReservationScheduler {
                 reservationRepository.save(r);
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
                         r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
+            }
+            // Broadcast dashboard update nếu có bất kỳ thay đổi nào
+            int totalChanged = expiredBooked.size() + expiredConfirmed.size() + processingExpired.size();
+            if (totalChanged > 0) {
+                try {
+                    messagingTemplate.convertAndSend("/topic/dashboard",
+                            java.util.Map.of("type", "BOOKING_UPDATE", "action", "AUTO_EXPIRED",
+                                    "count", totalChanged, "timestamp", java.time.Instant.now().toString()));
+                } catch (Exception wsErr) {
+                    System.err.println("Failed to broadcast dashboard update: " + wsErr.getMessage());
+                }
             }
         } catch (Exception e) {
             // Log error nhưng không để crash application

@@ -2,6 +2,7 @@ package slib.com.example.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.feedback.FeedbackDTO;
@@ -23,6 +24,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Lấy tất cả phản hồi (cho thủ thư)
@@ -74,6 +76,7 @@ public class FeedbackService {
 
         FeedbackEntity saved = feedbackRepository.save(feedback);
         log.info("[Feedback] Sinh viên {} đã gửi phản hồi - rating: {}", student.getFullName(), rating);
+        broadcastDashboardUpdate("FEEDBACK_UPDATE", "CREATED");
         return FeedbackDTO.fromEntity(saved);
     }
 
@@ -94,6 +97,7 @@ public class FeedbackService {
 
         FeedbackEntity saved = feedbackRepository.save(feedback);
         log.info("[Feedback] Phản hồi {} đã được xem bởi {}", feedbackId, librarian.getFullName());
+        broadcastDashboardUpdate("FEEDBACK_UPDATE", "REVIEWED");
         return FeedbackDTO.fromEntity(saved);
     }
 
@@ -109,5 +113,14 @@ public class FeedbackService {
      */
     public long countAll() {
         return feedbackRepository.count();
+    }
+
+    private void broadcastDashboardUpdate(String type, String action) {
+        try {
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
+        }
     }
 }

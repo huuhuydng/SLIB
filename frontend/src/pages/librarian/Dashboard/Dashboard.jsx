@@ -158,20 +158,15 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchAccessLogs();
-    const statsInterval = setInterval(fetchDashboardData, 60000);
-    const logsInterval = setInterval(fetchAccessLogs, 30000);
-    return () => {
-      clearInterval(statsInterval);
-      clearInterval(logsInterval);
-    };
   }, []);
 
-  // WebSocket real-time updates
+  // WebSocket real-time updates cho toàn bộ dashboard
   useEffect(() => {
-    let unsubscribe = null;
+    const unsubscribers = [];
     websocketService.connect(
       () => {
-        unsubscribe = websocketService.subscribe('/topic/access-logs', (message) => {
+        // Subscribe access-logs (check-in/out real-time)
+        unsubscribers.push(websocketService.subscribe('/topic/access-logs', (message) => {
           if (message.type === 'CHECK_IN' || message.type === 'CHECK_OUT') {
             const newLog = {
               logId: `${message.userId}-${message.type}-${Date.now()}`,
@@ -191,15 +186,26 @@ const Dashboard = () => {
               if (isDuplicate) return prevLogs;
               return [newLog, ...prevLogs].slice(0, 10);
             });
-            fetchDashboardData();
           }
-        });
+        }));
+
+        // Subscribe dashboard updates (bookings, violations, complaints, feedbacks, support)
+        unsubscribers.push(websocketService.subscribe('/topic/dashboard', (message) => {
+          console.log('[Dashboard] WebSocket dashboard update:', message.type, message.action);
+          fetchDashboardData();
+        }));
+
+        // Subscribe news updates
+        unsubscribers.push(websocketService.subscribe('/topic/news', () => {
+          console.log('[Dashboard] WebSocket news update');
+          fetchDashboardData();
+        }));
       },
       (error) => {
         console.error('[Dashboard] WebSocket error:', error);
       }
     );
-    return () => { if (unsubscribe) unsubscribe(); };
+    return () => { unsubscribers.forEach(unsub => { if (unsub) unsub(); }); };
   }, []);
 
   const filteredStudents = useMemo(() => {
@@ -611,7 +617,7 @@ const Dashboard = () => {
                 <UserX size={16} color="#ef4444" />
                 <h3 className="panel-title">Vi phạm gần đây</h3>
               </div>
-              <a href="/librarian/violation-reports" className="panel-link">
+              <a href="/librarian/violation" className="panel-link">
                 Xem tất cả <ChevronRight size={14} />
               </a>
             </div>
