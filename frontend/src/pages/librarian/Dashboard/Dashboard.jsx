@@ -233,6 +233,14 @@ const Dashboard = () => {
     return () => { unsubscribers.forEach(unsub => { if (unsub) unsub(); }); };
   }, []);
 
+  // Fallback polling 30s - đảm bảo dashboard cập nhật khi WebSocket message không đến
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshStatsOnly();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const filteredStudents = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     if (!q) return accessLogs;
