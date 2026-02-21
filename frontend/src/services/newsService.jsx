@@ -108,7 +108,7 @@ export const togglePinNews = async (id) => {
 
 // ============== CATEGORY APIs ==============
 
-const CATEGORY_URL = 'http://localhost:8080/slib/news-category';
+const CATEGORY_URL = 'http://localhost:8080/slib/news-categories';
 
 // Lay danh sach tat ca categories
 export const getAllCategories = async () => {
@@ -122,9 +122,9 @@ export const getAllCategories = async () => {
 };
 
 // Tao category moi
-export const createCategory = async (name, color = '#3b82f6') => {
+export const createCategory = async (name, colorCode = '#3b82f6') => {
   try {
-    const response = await axios.post(`${CATEGORY_URL}`, { name, color });
+    const response = await axios.post(`${CATEGORY_URL}`, { name, colorCode });
     return response.data;
   } catch (error) {
     console.error('Error creating category:', error);
@@ -143,17 +143,15 @@ export const deleteCategory = async (id) => {
   }
 };
 
-// ============== UPLOAD IMAGE API ==============
-
 // Upload image va tra ve URL
 export const uploadImage = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post('http://localhost:8080/slib/news/upload', formData, {
+    const response = await axios.post('http://localhost:8080/slib/files/upload_news_image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-    return response.data;
+    return response.data.url;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;

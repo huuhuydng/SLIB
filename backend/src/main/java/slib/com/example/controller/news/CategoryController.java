@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/slib/categories")
+@RequestMapping("/slib/news-categories")
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class CategoryController {
 
