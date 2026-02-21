@@ -6,7 +6,7 @@ import {
   MessageSquare, TrendingUp, RefreshCw,
   Star, ShieldAlert, LifeBuoy, Award, UserX,
   ThumbsUp, FileText, Eye, BarChart3,
-  MapPin, Layers, X
+  MapPin, Layers, X, ExternalLink
 } from "lucide-react";
 import Header from "../../../components/shared/Header";
 import { getLibraryInsights } from "../../../services/geminiService.jsx";
@@ -526,7 +526,6 @@ const Dashboard = () => {
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
               <h3 className="panel-title">Sinh viên ra vào gần đây</h3>
-              <span className="panel-badge">{filteredStudents.length} bản ghi</span>
             </div>
             <div className="table-wrapper">
               <table className="dashboard-table">
@@ -994,6 +993,14 @@ const Dashboard = () => {
                         </div>
                       )}
                     </div>
+                    <a
+                      href="/librarian/bookings"
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <ExternalLink size={15} />
+                      Đi tới trang quản lý đặt chỗ
+                    </a>
                   </>
                 );
               })()}
@@ -1046,6 +1053,14 @@ const Dashboard = () => {
                         <img src={d.evidenceUrl} alt="Bằng chứng" className="detail-evidence-img" />
                       </div>
                     )}
+                    <a
+                      href="/librarian/violation"
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <ExternalLink size={15} />
+                      Đi tới trang xử lý vi phạm
+                    </a>
                   </>
                 );
               })()}
@@ -1096,6 +1111,14 @@ const Dashboard = () => {
                         </div>
                       </div>
                     )}
+                    <a
+                      href="/librarian/support-requests"
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <ExternalLink size={15} />
+                      Đi tới trang xử lý yêu cầu hỗ trợ
+                    </a>
                   </>
                 );
               })()}
@@ -1142,6 +1165,14 @@ const Dashboard = () => {
                         <p>{d.response}</p>
                       </div>
                     )}
+                    <a
+                      href="/librarian/complaints"
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <ExternalLink size={15} />
+                      Đi tới trang xử lý khiếu nại
+                    </a>
                   </>
                 );
               })()}
@@ -1187,6 +1218,14 @@ const Dashboard = () => {
                         <p>{d.content}</p>
                       </div>
                     )}
+                    <a
+                      href="/librarian/feedback"
+                      className="detail-view-btn"
+                      onClick={() => setDetailModal(null)}
+                    >
+                      <ExternalLink size={15} />
+                      Đi tới trang quản lý phản hồi
+                    </a>
                   </>
                 );
               })()}
