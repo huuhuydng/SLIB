@@ -1537,3 +1537,235 @@ body {
 .pending-action--blue svg {
   color: #2563eb;
 }
+
+/* =================== CLICKABLE ITEMS HOVER =================== */
+.booking-item-clickable,
+.violation-item-clickable,
+.request-item-clickable,
+.news-card-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.booking-item-clickable:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.violation-item-clickable:hover {
+  background: #fef2f2;
+  transform: translateY(-1px);
+}
+
+.request-item-clickable:hover {
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.news-card-clickable:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* =================== DETAIL MODAL =================== */
+.detail-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+  padding: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.detail-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  animation: slideUp 0.25s ease;
+}
+
+.detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  z-index: 1;
+}
+
+.detail-modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.detail-modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f5f9;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.detail-modal-close:hover {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.detail-modal-body {
+  padding: 20px 24px 24px;
+}
+
+/* Info Grid */
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.detail-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+/* Description blocks */
+.detail-description {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.detail-description p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.detail-response {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+/* Evidence / images */
+.detail-evidence {
+  margin-top: 16px;
+}
+
+.detail-evidence-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 10px;
+  margin-top: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.detail-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.detail-images-grid .detail-evidence-img {
+  max-height: 160px;
+  margin-top: 0;
+}
+
+/* Rating stars */
+.detail-rating {
+  margin-top: 16px;
+}
+
+.detail-stars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.detail-rating-text {
+  margin-left: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+/* News detail image */
+.detail-news-image {
+  margin: -20px -24px 16px -24px;
+  overflow: hidden;
+}
+
+.detail-news-image img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}

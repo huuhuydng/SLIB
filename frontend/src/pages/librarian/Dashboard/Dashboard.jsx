@@ -24,6 +24,7 @@ const Dashboard = () => {
   const [dashStats, setDashStats] = useState(null);
   const [recentNews, setRecentNews] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [detailModal, setDetailModal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [activeRequestTab, setActiveRequestTab] = useState("support");
@@ -547,7 +548,7 @@ const Dashboard = () => {
               stats.recentBookings.map((booking, idx) => {
                 const statusCfg = getStatusConfig(booking.status);
                 return (
-                  <div key={idx} className="booking-item">
+                  <div key={idx} className="booking-item booking-item-clickable" onClick={() => setDetailModal({ type: 'booking', data: booking })}>
                     <div className="booking-item-top">
                       <div className="booking-user">
                         <span className="booking-name">{booking.userName}</span>
@@ -629,7 +630,7 @@ const Dashboard = () => {
                 {stats.recentViolations.map((v, idx) => {
                   const statusCfg = getStatusConfig(v.status);
                   return (
-                    <div key={idx} className="violation-item">
+                    <div key={idx} className="violation-item violation-item-clickable" onClick={() => setDetailModal({ type: 'violation', data: v })}>
                       <div className="violation-item-left">
                         <div className="violation-avatar">
                           <UserX size={14} />
@@ -696,7 +697,7 @@ const Dashboard = () => {
               getActiveRequestData().map((item, idx) => {
                 const statusCfg = getStatusConfig(item.status);
                 return (
-                  <div key={idx} className="request-item">
+                  <div key={idx} className="request-item request-item-clickable" onClick={() => setDetailModal({ type: activeRequestTab, data: item })}>
                     <div className="request-item-main">
                       <div className="request-item-user">
                         <span className="request-item-name">
@@ -756,7 +757,7 @@ const Dashboard = () => {
             ) : (
               <div className="news-cards-grid">
                 {recentNews.map((news, idx) => (
-                  <div key={idx} className="news-card">
+                  <div key={idx} className="news-card news-card-clickable" onClick={() => setDetailModal({ type: 'news', data: news })}>
                     <div className="news-card-image">
                       {news.imageUrl ? (
                         <img src={news.imageUrl} alt={news.title} />
@@ -895,6 +896,303 @@ const Dashboard = () => {
                 </span>
                 <span className="student-modal-stat-label">Đánh giá</span>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailModal && (
+        <div className="detail-modal-overlay" onClick={() => setDetailModal(null)}>
+          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="detail-modal-header">
+              <h3>
+                {detailModal.type === 'booking' && 'Chi tiết đặt chỗ'}
+                {detailModal.type === 'violation' && 'Chi tiết vi phạm'}
+                {detailModal.type === 'support' && 'Chi tiết yêu cầu hỗ trợ'}
+                {detailModal.type === 'complaint' && 'Chi tiết khiếu nại'}
+                {detailModal.type === 'feedback' && 'Chi tiết phản hồi'}
+                {detailModal.type === 'news' && 'Chi tiết tin tức'}
+              </h3>
+              <button className="detail-modal-close" onClick={() => setDetailModal(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="detail-modal-body">
+              {/* BOOKING */}
+              {detailModal.type === 'booking' && (() => {
+                const d = detailModal.data;
+                const sc = getStatusConfig(d.status);
+                return (
+                  <>
+                    <div className="detail-info-grid">
+                      <div className="detail-info-item">
+                        <span className="detail-label">Sinh viên</span>
+                        <span className="detail-value">{d.userName}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Mã số</span>
+                        <span className="detail-value">{d.userCode}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Khu vực</span>
+                        <span className="detail-value">{d.zoneName}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Ghế</span>
+                        <span className="detail-value">{d.seatCode}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Bắt đầu</span>
+                        <span className="detail-value">{formatDateTime(d.startTime)}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Kết thúc</span>
+                        <span className="detail-value">{formatDateTime(d.endTime)}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Trạng thái</span>
+                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      </div>
+                      {d.createdAt && (
+                        <div className="detail-info-item">
+                          <span className="detail-label">Ngày tạo</span>
+                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* VIOLATION */}
+              {detailModal.type === 'violation' && (() => {
+                const d = detailModal.data;
+                const sc = getStatusConfig(d.status);
+                return (
+                  <>
+                    <div className="detail-info-grid">
+                      <div className="detail-info-item">
+                        <span className="detail-label">Người vi phạm</span>
+                        <span className="detail-value">{d.violatorName || 'Không xác định'}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Loại vi phạm</span>
+                        <span className="detail-value">{getViolationLabel(d.violationType)}</span>
+                      </div>
+                      {d.seatCode && (
+                        <div className="detail-info-item">
+                          <span className="detail-label">Ghế</span>
+                          <span className="detail-value">{d.seatCode}</span>
+                        </div>
+                      )}
+                      <div className="detail-info-item">
+                        <span className="detail-label">Trạng thái</span>
+                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      </div>
+                      {d.pointDeducted != null && (
+                        <div className="detail-info-item">
+                          <span className="detail-label">Điểm trừ</span>
+                          <span className="detail-value" style={{ color: '#ef4444', fontWeight: 600 }}>-{d.pointDeducted}</span>
+                        </div>
+                      )}
+                      <div className="detail-info-item">
+                        <span className="detail-label">Thời gian</span>
+                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                      </div>
+                    </div>
+                    {d.description && (
+                      <div className="detail-description">
+                        <span className="detail-label">Mô tả</span>
+                        <p>{d.description}</p>
+                      </div>
+                    )}
+                    {d.evidenceUrl && (
+                      <div className="detail-evidence">
+                        <span className="detail-label">Bằng chứng</span>
+                        <img src={d.evidenceUrl} alt="Bằng chứng" className="detail-evidence-img" />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* SUPPORT REQUEST */}
+              {detailModal.type === 'support' && (() => {
+                const d = detailModal.data;
+                const sc = getStatusConfig(d.status);
+                return (
+                  <>
+                    <div className="detail-info-grid">
+                      <div className="detail-info-item">
+                        <span className="detail-label">Sinh viên</span>
+                        <span className="detail-value">{d.studentName || 'N/A'}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Mã số</span>
+                        <span className="detail-value">{d.studentCode || ''}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Trạng thái</span>
+                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Thời gian</span>
+                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                      </div>
+                    </div>
+                    {d.description && (
+                      <div className="detail-description">
+                        <span className="detail-label">Nội dung yêu cầu</span>
+                        <p>{d.description}</p>
+                      </div>
+                    )}
+                    {d.adminResponse && (
+                      <div className="detail-description detail-response">
+                        <span className="detail-label">Phản hồi từ thủ thư</span>
+                        <p>{d.adminResponse}</p>
+                      </div>
+                    )}
+                    {d.imageUrls && d.imageUrls.length > 0 && (
+                      <div className="detail-evidence">
+                        <span className="detail-label">Hình ảnh đính kèm</span>
+                        <div className="detail-images-grid">
+                          {d.imageUrls.map((url, i) => (
+                            <img key={i} src={url} alt={`Ảnh ${i + 1}`} className="detail-evidence-img" />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* COMPLAINT */}
+              {detailModal.type === 'complaint' && (() => {
+                const d = detailModal.data;
+                const sc = getStatusConfig(d.status);
+                return (
+                  <>
+                    <div className="detail-info-grid">
+                      <div className="detail-info-item">
+                        <span className="detail-label">Sinh viên</span>
+                        <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Mã số</span>
+                        <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Trạng thái</span>
+                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Thời gian</span>
+                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                      </div>
+                    </div>
+                    {d.subject && (
+                      <div className="detail-description">
+                        <span className="detail-label">Tiêu đề</span>
+                        <p style={{ fontWeight: 600 }}>{d.subject}</p>
+                      </div>
+                    )}
+                    {d.content && (
+                      <div className="detail-description">
+                        <span className="detail-label">Nội dung</span>
+                        <p>{d.content}</p>
+                      </div>
+                    )}
+                    {d.response && (
+                      <div className="detail-description detail-response">
+                        <span className="detail-label">Phản hồi từ thủ thư</span>
+                        <p>{d.response}</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* FEEDBACK */}
+              {detailModal.type === 'feedback' && (() => {
+                const d = detailModal.data;
+                const sc = getStatusConfig(d.status);
+                return (
+                  <>
+                    <div className="detail-info-grid">
+                      <div className="detail-info-item">
+                        <span className="detail-label">Sinh viên</span>
+                        <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Mã số</span>
+                        <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Trạng thái</span>
+                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Thời gian</span>
+                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                      </div>
+                    </div>
+                    {d.rating && (
+                      <div className="detail-rating">
+                        <span className="detail-label">Đánh giá</span>
+                        <div className="detail-stars">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} size={20} fill={i < d.rating ? '#f59e0b' : 'none'} color={i < d.rating ? '#f59e0b' : '#d1d5db'} />
+                          ))}
+                          <span className="detail-rating-text">{d.rating}/5</span>
+                        </div>
+                      </div>
+                    )}
+                    {d.content && (
+                      <div className="detail-description">
+                        <span className="detail-label">Nội dung phản hồi</span>
+                        <p>{d.content}</p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* NEWS */}
+              {detailModal.type === 'news' && (() => {
+                const d = detailModal.data;
+                return (
+                  <>
+                    {d.imageUrl && (
+                      <div className="detail-news-image">
+                        <img src={d.imageUrl} alt={d.title} />
+                      </div>
+                    )}
+                    <div className="detail-info-grid">
+                      {d.categoryName && (
+                        <div className="detail-info-item">
+                          <span className="detail-label">Danh mục</span>
+                          <span className="detail-value">{d.categoryName}</span>
+                        </div>
+                      )}
+                      <div className="detail-info-item">
+                        <span className="detail-label">Ngày đăng</span>
+                        <span className="detail-value">{formatDateTime(d.publishedAt || d.createdAt)}</span>
+                      </div>
+                      <div className="detail-info-item">
+                        <span className="detail-label">Lượt xem</span>
+                        <span className="detail-value">{d.viewCount || 0}</span>
+                      </div>
+                    </div>
+                    <div className="detail-description">
+                      <h4 style={{ margin: '0 0 8px', fontSize: '15px' }}>{d.title}</h4>
+                      {d.summary && <p>{d.summary}</p>}
+                      {d.content && <p style={{ marginTop: '8px' }}>{d.content}</p>}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
