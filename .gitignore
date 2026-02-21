@@ -216,3 +216,8 @@ docker-compose.yml
 *.bak
 *.backup__pycache__/
 *.pyc
+
+# Agent/AI config files
+.agent/
+.antigravity/
+.gemini/
