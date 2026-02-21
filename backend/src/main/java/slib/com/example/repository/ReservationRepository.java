@@ -54,9 +54,17 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
-        // Dashboard: đếm đặt chỗ theo từng ngày
+        // Đếm booking đã xác nhận trong ngày (BOOKED + CONFIRMED + COMPLETED, không
+        // giảm khi đổi status)
+        @Query("SELECT COUNT(r) FROM ReservationEntity r WHERE r.status IN ('BOOKED', 'CONFIRMED', 'COMPLETED') " +
+                        "AND r.createdAt BETWEEN :start AND :end")
+        long countConfirmedBookingsToday(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+        // Dashboard: đếm đặt chỗ đã xác nhận theo từng ngày (BOOKED + CONFIRMED +
+        // COMPLETED)
         @Query(value = "SELECT CAST(created_at AS date) as booking_date, COUNT(*) as cnt " +
-                        "FROM reservations WHERE created_at >= :startDate AND status = 'BOOKED' " +
+                        "FROM reservations WHERE created_at >= :startDate AND status IN ('BOOKED', 'CONFIRMED', 'COMPLETED') "
+                        +
                         "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
         List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
 }
