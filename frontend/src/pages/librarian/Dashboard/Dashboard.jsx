@@ -209,19 +209,21 @@ const Dashboard = () => {
         // Subscribe dashboard updates (bookings, violations, complaints, feedbacks, support)
         unsubscribers.push(websocketService.subscribe('/topic/dashboard', (message) => {
           console.log('[Dashboard] WebSocket dashboard update:', message.type, message.action);
-          // Check-in events: chỉ refresh stats nhẹ
-          if (message.type === 'CHECKIN_UPDATE') {
-            setTimeout(() => refreshStatsOnly(), 500);
-          } else {
-            // Các event khác (booking, violation, etc.): fetch đầy đủ
-            setTimeout(() => fetchDashboardData(), 500);
-          }
+          // Dùng refreshStatsOnly cho mọi event - nhanh, không loading flash
+          setTimeout(() => refreshStatsOnly(), 500);
         }));
 
         // Subscribe news updates
         unsubscribers.push(websocketService.subscribe('/topic/news', () => {
           console.log('[Dashboard] WebSocket news update');
-          fetchDashboardData();
+          // Refresh stats + fetch news mới
+          setTimeout(async () => {
+            refreshStatsOnly();
+            try {
+              const news = await dashboardService.getRecentNews();
+              setRecentNews(news || []);
+            } catch (e) { /* ignore */ }
+          }, 500);
         }));
       },
       (error) => {
