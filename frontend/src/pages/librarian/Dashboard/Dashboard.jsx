@@ -187,13 +187,16 @@ const Dashboard = () => {
               if (isDuplicate) return prevLogs;
               return [newLog, ...prevLogs].slice(0, 10);
             });
+            // Delay để đợi transaction commit xong rồi mới fetch stats mới
+            setTimeout(() => fetchDashboardData(), 800);
           }
         }));
 
         // Subscribe dashboard updates (bookings, violations, complaints, feedbacks, support)
         unsubscribers.push(websocketService.subscribe('/topic/dashboard', (message) => {
           console.log('[Dashboard] WebSocket dashboard update:', message.type, message.action);
-          fetchDashboardData();
+          // Delay để đợi transaction commit
+          setTimeout(() => fetchDashboardData(), 500);
         }));
 
         // Subscribe news updates
