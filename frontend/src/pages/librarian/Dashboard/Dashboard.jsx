@@ -104,6 +104,19 @@ const Dashboard = () => {
     }
   };
 
+  // Hàm nhẹ chỉ refresh stats (không gọi AI insights hay news) - dùng cho real-time updates
+  const refreshStatsOnly = async () => {
+    try {
+      const stats = await dashboardService.getDashboardStats();
+      if (stats) {
+        setDashStats(stats);
+        setLastUpdated(new Date());
+      }
+    } catch (e) {
+      console.warn('Error refreshing stats:', e);
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -156,6 +169,7 @@ const Dashboard = () => {
     }
   };
 
+  // Load ban đầu
   useEffect(() => {
     fetchDashboardData();
     fetchAccessLogs();
@@ -187,16 +201,21 @@ const Dashboard = () => {
               if (isDuplicate) return prevLogs;
               return [newLog, ...prevLogs].slice(0, 10);
             });
-            // Delay để đợi transaction commit xong rồi mới fetch stats mới
-            setTimeout(() => fetchDashboardData(), 800);
+            // Refresh stats nhanh khi check-in/out (delay để đợi DB commit)
+            setTimeout(() => refreshStatsOnly(), 800);
           }
         }));
 
         // Subscribe dashboard updates (bookings, violations, complaints, feedbacks, support)
         unsubscribers.push(websocketService.subscribe('/topic/dashboard', (message) => {
           console.log('[Dashboard] WebSocket dashboard update:', message.type, message.action);
-          // Delay để đợi transaction commit
-          setTimeout(() => fetchDashboardData(), 500);
+          // Check-in events: chỉ refresh stats nhẹ
+          if (message.type === 'CHECKIN_UPDATE') {
+            setTimeout(() => refreshStatsOnly(), 500);
+          } else {
+            // Các event khác (booking, violation, etc.): fetch đầy đủ
+            setTimeout(() => fetchDashboardData(), 500);
+          }
         }));
 
         // Subscribe news updates
