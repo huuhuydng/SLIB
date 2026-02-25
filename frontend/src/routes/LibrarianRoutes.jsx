@@ -35,7 +35,6 @@ function LibrarianRoutes() {
 
         {/* Giám sát */}
         <Route path="checkinout" element={<CheckInOut />} />
-        <Route path="areas" element={<HeatMap />} />
         <Route path="seatmanage" element={<LibrarianAreas />} />
 
         {/* Quản lý */}
@@ -60,11 +59,6 @@ function LibrarianRoutes() {
         <Route path="news/edit/:id" element={<NewCreate />} />
         <Route path="news/view/:id" element={<NewsDetailView />} />
 
-        {/* Thông báo (legacy routes - giữ để tương thích) */}
-        <Route path="notification" element={<NotificationManage />} />
-        <Route path="notification/create" element={<NewCreate />} />
-        <Route path="notification/edit/:id" element={<NewCreate />} />
-        <Route path="notification/view/:id" element={<NewsDetailView />} />
 
         {/* Cài đặt tài khoản */}
         <Route path="settings" element={<AccountSettings />} />

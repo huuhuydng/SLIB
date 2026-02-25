@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import Header from '../../../components/shared/Header';
 
-const API_BASE_URL = 'http://localhost:8080/slib/settings';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
 
 // Mock Data
 const VIOLATION_RULES = [

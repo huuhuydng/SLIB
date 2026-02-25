@@ -3,11 +3,16 @@ package slib.com.example.service;
 import slib.com.example.dto.hce.AccessLogDTO;
 import slib.com.example.dto.hce.AccessLogStatsDTO;
 import slib.com.example.dto.hce.CheckInRequest;
+import slib.com.example.dto.hce.StudentDetailDTO;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
+import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.AccessLogRepository;
+import slib.com.example.repository.ReservationRepository;
+import slib.com.example.repository.StudentProfileRepository;
 import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.activity.ActivityLogRepository;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -39,7 +44,72 @@ public class CheckInService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    private ReservationRepository reservationRepository;
+
+    @Autowired
+    private StudentProfileRepository studentProfileRepository;
+
+    @Autowired
+    private ActivityLogRepository activityLogRepository;
+
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
+    /**
+     * Lấy chi tiết sinh viên cho thủ thư (chỉ đọc)
+     */
+    public StudentDetailDTO getStudentDetail(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với ID: " + userId));
+
+        // Thống kê
+        long totalCheckIns = accessLogRepository.countByUserId(userId);
+        long totalStudyMinutes = accessLogRepository.getTotalStudyMinutes(userId);
+        long totalBookings = reservationRepository.countByUserId(userId);
+
+        // Student profile (reputation + violations)
+        int reputationScore = 100;
+        int violationCount = 0;
+        Optional<StudentProfile> profile = studentProfileRepository.findByUserId(userId);
+        if (profile.isPresent()) {
+            reputationScore = profile.get().getReputationScore();
+            violationCount = profile.get().getViolationCount();
+        }
+
+        // 10 hoạt động gần đây
+        List<ActivityLogEntity> activities = activityLogRepository.findByUserIdWithLimit(userId, 10);
+        List<StudentDetailDTO.ActivityItem> activityItems = activities.stream()
+                .map(a -> StudentDetailDTO.ActivityItem.builder()
+                        .id(a.getId())
+                        .activityType(a.getActivityType())
+                        .title(a.getTitle())
+                        .description(a.getDescription())
+                        .seatCode(a.getSeatCode())
+                        .zoneName(a.getZoneName())
+                        .durationMinutes(a.getDurationMinutes())
+                        .createdAt(a.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        return StudentDetailDTO.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .userCode(user.getUserCode())
+                .phone(user.getPhone())
+                .dob(user.getDob())
+                .avtUrl(user.getAvtUrl())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .isActive(user.getIsActive())
+                .createdAt(user.getCreatedAt())
+                .totalCheckIns(totalCheckIns)
+                .totalStudyMinutes(totalStudyMinutes)
+                .totalBookings(totalBookings)
+                .reputationScore(reputationScore)
+                .violationCount(violationCount)
+                .recentActivities(activityItems)
+                .build();
+    }
 
     public Map<String, String> processCheckIn(CheckInRequest request) {
         Map<String, String> response = new HashMap<>();

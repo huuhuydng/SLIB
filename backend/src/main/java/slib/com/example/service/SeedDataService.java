@@ -9,6 +9,7 @@ import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.complaint.ComplaintEntity;
 import slib.com.example.entity.feedback.FeedbackEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity;
+import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.entity.news.News;
 import slib.com.example.entity.support.SupportRequest;
@@ -16,7 +17,10 @@ import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.repository.*;
+import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
+
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -39,6 +43,8 @@ public class SeedDataService {
     private final AccessLogRepository accessLogRepository;
     private final ComplaintRepository complaintRepository;
     private final FeedbackRepository feedbackRepository;
+    private final ActivityLogRepository activityLogRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     // Marker để nhận diện dữ liệu seed (dùng để xoá)
     private static final String SEED_MARKER = "[SEED]";
@@ -490,5 +496,255 @@ public class SeedDataService {
                 "status", "SUCCESS",
                 "message", "Đã xoá tất cả " + count + " bookings",
                 "count", count);
+    }
+
+    /**
+     * Tạo dữ liệu test cho tính năng báo cáo vi phạm.
+     * - Tạo booking CONFIRMED cho user chính (đang ngồi)
+     * - Tạo booking CONFIRMED cho nhiều user khác ở cùng zone (ghế xung quanh đỏ)
+     * 
+     * @param userCode      MSSV của user chính (ví dụ: SL000001)
+     * @param neighborCount số user ngồi xung quanh (mặc định 4)
+     */
+    @Transactional
+    public Map<String, Object> seedViolationTestData(String userCode, int neighborCount, boolean sameZone) {
+        // 1. Tìm user chính
+        Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
+        if (mainUserOpt.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Không tìm thấy user với mã: " + userCode);
+        }
+        User mainUser = mainUserOpt.get();
+
+        // 2. Lấy tất cả seats, lọc ra các ghế active
+        List<SeatEntity> allSeats = seatRepository.findAll();
+        if (allSeats.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Không có ghế nào trong hệ thống");
+        }
+
+        List<SeatEntity> activeSeats = new ArrayList<>();
+        for (SeatEntity seat : allSeats) {
+            if (seat.getIsActive()) {
+                activeSeats.add(seat);
+            }
+        }
+
+        List<SeatEntity> zoneSeats;
+        String zoneName;
+
+        if (sameZone) {
+            // Nhóm seats theo zoneId
+            Map<Integer, List<SeatEntity>> seatsByZone = new LinkedHashMap<>();
+            for (SeatEntity seat : activeSeats) {
+                seatsByZone.computeIfAbsent(seat.getZone().getZoneId(), k -> new ArrayList<>()).add(seat);
+            }
+
+            // Tìm zone có đủ ghế (ít nhất neighborCount + 1)
+            Map.Entry<Integer, List<SeatEntity>> selectedZone = null;
+            for (Map.Entry<Integer, List<SeatEntity>> entry : seatsByZone.entrySet()) {
+                if (entry.getValue().size() >= neighborCount + 1) {
+                    selectedZone = entry;
+                    break;
+                }
+            }
+
+            if (selectedZone == null) {
+                return Map.of("status", "ERROR", "message",
+                        "Không tìm thấy zone nào có đủ " + (neighborCount + 1) + " ghế active");
+            }
+
+            zoneSeats = selectedZone.getValue();
+            zoneName = zoneSeats.get(0).getZone().getZoneName();
+        } else {
+            if (activeSeats.size() < neighborCount + 1) {
+                return Map.of("status", "ERROR", "message",
+                        "Hệ thống không có đủ " + (neighborCount + 1) + " ghế active");
+            }
+            Collections.shuffle(activeSeats);
+            zoneSeats = activeSeats;
+            zoneName = "Nhiều khu vực khác nhau";
+        }
+
+        // 3. Xoá booking cũ của user chính (nếu có) để tránh conflict
+        // Không xoá tất cả, chỉ xoá BOOKED/CONFIRMED/PROCESSING chưa kết thúc
+        LocalDateTime now = LocalDateTime.now();
+
+        // 4. Tạo booking CONFIRMED cho user chính tại ghế đầu tiên
+        SeatEntity mainSeat = zoneSeats.get(0);
+        LocalDateTime startTime = now.minusMinutes(30); // Đã bắt đầu 30 phút trước
+        LocalDateTime endTime = now.plusHours(2); // Kết thúc sau 2 giờ nữa
+
+        ReservationEntity mainBooking = ReservationEntity.builder()
+                .user(mainUser)
+                .seat(mainSeat)
+                .startTime(startTime)
+                .endTime(endTime)
+                .status("CONFIRMED")
+                .build();
+        reservationRepository.save(mainBooking);
+
+        // 4b. Tạo AccessLog check-in cho user chính (đã vào thư viện)
+        AccessLog mainAccessLog = AccessLog.builder()
+                .user(mainUser)
+                .checkInTime(startTime)
+                .checkOutTime(null) // Đang trong thư viện
+                .deviceId(SEED_MARKER + "-violation-test")
+                .reservationId(mainBooking.getReservationId())
+                .build();
+        accessLogRepository.save(mainAccessLog);
+
+        // Ghi activity log
+        activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(mainUser.getId())
+                .activityType(ActivityLogEntity.TYPE_CHECK_IN)
+                .title("Check-in thành công")
+                .description("Bạn đã vào thư viện tại " + SEED_MARKER + "-violation-test")
+                .build());
+
+        // Broadcast websocket
+        Map<String, Object> wsMsg = new HashMap<>();
+        wsMsg.put("type", "CHECK_IN");
+        wsMsg.put("userId", mainUser.getId().toString());
+        wsMsg.put("fullName", mainUser.getFullName());
+        wsMsg.put("userCode", mainUser.getUserCode());
+        wsMsg.put("deviceId", SEED_MARKER + "-violation-test");
+        wsMsg.put("time", startTime.toString());
+        wsMsg.put("checkInTime", startTime.toString());
+        messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
+        messagingTemplate.convertAndSend("/topic/dashboard",
+                Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_IN", "timestamp",
+                        java.time.Instant.now().toString()));
+
+        // 5. Tạo bookings CONFIRMED cho các user khác ở ghế xung quanh
+        List<User> allUsers = userRepository.findAll();
+        // Loại bỏ user chính
+        allUsers.removeIf(u -> u.getId().equals(mainUser.getId()));
+
+        if (allUsers.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Cần thêm users khác ngoài user chính");
+        }
+
+        Random rng = new Random();
+        int actualNeighbors = Math.min(neighborCount, Math.min(zoneSeats.size() - 1, allUsers.size()));
+        List<Map<String, String>> neighborInfo = new ArrayList<>();
+        int accessLogCount = 1; // Đã tạo 1 cho user chính
+
+        for (int i = 0; i < actualNeighbors; i++) {
+            User neighbor = allUsers.get(i % allUsers.size());
+            SeatEntity neighborSeat = zoneSeats.get(i + 1); // Bỏ qua ghế 0 (của user chính)
+
+            // Thời gian hơi khác nhau cho mỗi neighbor
+            LocalDateTime nStart = now.minusMinutes(10 + rng.nextInt(60));
+            LocalDateTime nEnd = now.plusHours(1 + rng.nextInt(3));
+
+            ReservationEntity neighborBooking = ReservationEntity.builder()
+                    .user(neighbor)
+                    .seat(neighborSeat)
+                    .startTime(nStart)
+                    .endTime(nEnd)
+                    .status("CONFIRMED")
+                    .build();
+            reservationRepository.save(neighborBooking);
+
+            // 5b. Tạo AccessLog check-in cho neighbor (đã vào thư viện)
+            AccessLog neighborAccessLog = AccessLog.builder()
+                    .user(neighbor)
+                    .checkInTime(nStart)
+                    .checkOutTime(null) // Đang trong thư viện
+                    .deviceId(SEED_MARKER + "-violation-test")
+                    .reservationId(neighborBooking.getReservationId())
+                    .build();
+            accessLogRepository.save(neighborAccessLog);
+
+            // Ghi activity log
+            activityLogRepository.save(ActivityLogEntity.builder()
+                    .userId(neighbor.getId())
+                    .activityType(ActivityLogEntity.TYPE_CHECK_IN)
+                    .title("Check-in thành công")
+                    .description("Bạn đã vào thư viện tại " + SEED_MARKER + "-violation-test")
+                    .build());
+
+            // Broadcast websocket
+            Map<String, Object> neighWsMsg = new HashMap<>();
+            neighWsMsg.put("type", "CHECK_IN");
+            neighWsMsg.put("userId", neighbor.getId().toString());
+            neighWsMsg.put("fullName", neighbor.getFullName());
+            neighWsMsg.put("userCode", neighbor.getUserCode());
+            neighWsMsg.put("deviceId", SEED_MARKER + "-violation-test");
+            neighWsMsg.put("time", nStart.toString());
+            neighWsMsg.put("checkInTime", nStart.toString());
+            messagingTemplate.convertAndSend("/topic/access-logs", neighWsMsg);
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_IN", "timestamp",
+                            java.time.Instant.now().toString()));
+
+            accessLogCount++;
+
+            neighborInfo.add(Map.of(
+                    "user", neighbor.getFullName() + " (" + neighbor.getUserCode() + ")",
+                    "seat",
+                    neighborSeat.getSeatCode() + (sameZone ? "" : " - " + neighborSeat.getZone().getZoneName())));
+        }
+
+        log.info("[SeedData] Tạo violation test data: user {} tại ghế {}, {} neighbors tại zone {}, {} access logs",
+                userCode, mainSeat.getSeatCode(), actualNeighbors, zoneName, accessLogCount);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "SUCCESS");
+        result.put("message", String.format(
+                "User %s ngồi ghế %s, %d người khác ngồi xung quanh tại zone '%s'. Đã tạo %d access logs (check-in).",
+                userCode, mainSeat.getSeatCode(), actualNeighbors, zoneName, accessLogCount));
+        result.put("mainUser", Map.of(
+                "userCode", userCode,
+                "seatCode", mainSeat.getSeatCode(),
+                "zone", zoneName,
+                "status", "CONFIRMED",
+                "startTime", startTime.toString(),
+                "endTime", endTime.toString()));
+        result.put("neighbors", neighborInfo);
+        result.put("accessLogCount", accessLogCount);
+
+        return result;
+    }
+
+    /**
+     * Tạo dữ liệu test cho tính năng reminder (sau 15 phút)
+     */
+    @Transactional
+    public Map<String, Object> seedReminderTestData(String userCode) {
+        Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
+        if (mainUserOpt.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Không tìm thấy user với mã: " + userCode);
+        }
+        User mainUser = mainUserOpt.get();
+
+        List<SeatEntity> allSeats = seatRepository.findAll();
+        if (allSeats.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Không có ghế nào trong hệ thống");
+        }
+        SeatEntity seat = allSeats.get(0);
+
+        LocalDateTime now = LocalDateTime.now();
+        // Set startTime to 15.5 minutes from now to ensure the scheduler picks it up in
+        // the next run
+        LocalDateTime startTime = now.plusMinutes(15).plusSeconds(30);
+        LocalDateTime endTime = startTime.plusHours(2);
+
+        ReservationEntity booking = ReservationEntity.builder()
+                .user(mainUser)
+                .seat(seat)
+                .startTime(startTime)
+                .endTime(endTime)
+                .status("CONFIRMED")
+                .build();
+        reservationRepository.save(booking);
+
+        log.info("[SeedData] Tạo reminder test data: user {} tại ghế {}, startTime={}",
+                userCode, seat.getSeatCode(), startTime);
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", String.format("Đã tạo booking lúc %s cho user %s", startTime.toString(), userCode),
+                "startTime", startTime.toString(),
+                "seatCode", seat.getSeatCode());
     }
 }

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/librarian';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/librarian`;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -62,7 +62,7 @@ class LibrarianService {
     try {
       console.log('[Service] Calling loginWithPassword with identifier:', identifier);
 
-      const response = await axios.post('http://localhost:8080/slib/auth/login', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/login`, {
         identifier: identifier,
         password: password
       }, {
@@ -109,7 +109,7 @@ class LibrarianService {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
 
-      const response = await axios.post('http://localhost:8080/slib/auth/google', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/google`, {
         idToken: idToken,
         fullName: "",
         fcmToken: "",
@@ -267,7 +267,7 @@ class LibrarianService {
 
   async getAllAccessLogs() {
     try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/access-logs`);
       return response.data || [];
     } catch (error) {
       console.error('❌ [Service] getAllAccessLogs error:', error);
@@ -277,7 +277,7 @@ class LibrarianService {
 
   async getTodayAccessLogs() {
     try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs/today');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/access-logs/today`);
       return response.data || [];
     } catch (error) {
       console.error('❌ [Service] getTodayAccessLogs error:', error);
@@ -287,7 +287,7 @@ class LibrarianService {
 
   async getAccessLogStats() {
     try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs/stats');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/access-logs/stats`);
       return response.data || { totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 };
     } catch (error) {
       console.error('❌ [Service] getAccessLogStats error:', error);
@@ -301,12 +301,22 @@ class LibrarianService {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const url = `http://localhost:8080/slib/hce/access-logs/filter${params.toString() ? '?' + params.toString() : ''}`;
+      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/access-logs/filter${params.toString() ? '?' + params.toString() : ''}`;
       const response = await axios.get(url);
       return response.data || [];
     } catch (error) {
       console.error('❌ [Service] getAccessLogsByDateRange error:', error);
       return [];
+    }
+  }
+
+  async getStudentDetail(userId) {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/student-detail/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [Service] getStudentDetail error:', error);
+      return null;
     }
   }
 }

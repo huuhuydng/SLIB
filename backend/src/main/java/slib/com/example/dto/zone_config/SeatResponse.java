@@ -19,4 +19,10 @@ public class SeatResponse {
     private Boolean isActive; // Admin restriction flag
     private String nfcTagUid; // NFC tag UID for seat verification
     private String reservationEndTime; // ISO datetime string, null if AVAILABLE
+
+    // Booker info - populated when seat is BOOKED
+    private String bookedByUserName;
+    private String bookedByUserCode;
+    private String bookedByAvatarUrl;
+    private String reservationStartTime;
 }

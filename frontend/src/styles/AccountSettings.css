@@ -786,3 +786,36 @@
         justify-content: center;
     }
 }
+
+/* ===== NOTIFICATION TOGGLE ===== */
+.notif-toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    border: none;
+    border-radius: 12px;
+    background: #cbd5e1;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.25s ease;
+}
+
+.notif-toggle--on {
+    background: var(--slib-primary, #FF751F);
+}
+
+.notif-toggle__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.25s ease;
+}
+
+.notif-toggle--on .notif-toggle__thumb {
+    transform: translateX(20px);
+}

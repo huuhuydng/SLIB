@@ -17,6 +17,7 @@ import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
+import slib.com.example.service.LibrarianNotificationService;
 import slib.com.example.service.PushNotificationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.chat.ConversationService;
@@ -38,6 +39,7 @@ public class SupportRequestService {
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
     private final ConversationService conversationService;
+    private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -75,6 +77,7 @@ public class SupportRequestService {
         log.info("[SupportRequest] Created support request {} by student {}", saved.getId(), studentId);
 
         broadcastDashboardUpdate("SUPPORT_UPDATE", "CREATED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "CREATED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -132,6 +135,7 @@ public class SupportRequestService {
         sendStatusNotification(saved, status);
 
         broadcastDashboardUpdate("SUPPORT_UPDATE", "STATUS_CHANGED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "STATUS_CHANGED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -158,6 +162,7 @@ public class SupportRequestService {
         sendStatusNotification(saved, SupportRequestStatus.RESOLVED);
 
         broadcastDashboardUpdate("SUPPORT_UPDATE", "RESPONDED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "RESPONDED");
         return SupportRequestDTO.fromEntity(saved);
     }
 

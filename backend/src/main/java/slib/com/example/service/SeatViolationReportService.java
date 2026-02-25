@@ -47,6 +47,7 @@ public class SeatViolationReportService {
     private final StudentProfileRepository studentProfileRepository;
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
+    private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -104,6 +105,7 @@ public class SeatViolationReportService {
         }
 
         broadcastDashboardUpdate("VIOLATION_UPDATE", "CREATED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "CREATED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -214,6 +216,7 @@ public class SeatViolationReportService {
                 reportId, librarianId, pointsToDeduct);
 
         broadcastDashboardUpdate("VIOLATION_UPDATE", "VERIFIED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "VERIFIED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -244,6 +247,7 @@ public class SeatViolationReportService {
         log.info("[ViolationReport] Rejected report {} by librarian {}", reportId, librarianId);
 
         broadcastDashboardUpdate("VIOLATION_UPDATE", "REJECTED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "REJECTED");
         return ViolationReportResponse.fromEntity(saved);
     }
 

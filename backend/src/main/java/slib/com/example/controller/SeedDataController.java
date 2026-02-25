@@ -127,4 +127,29 @@ public class SeedDataController {
     public ResponseEntity<Map<String, Object>> clearAllBookings() {
         return ResponseEntity.ok(seedDataService.clearAllBookings());
     }
+
+    /**
+     * Tạo dữ liệu test tính năng báo cáo vi phạm
+     * POST /slib/seed/violation-test?userCode=SL000001&neighbors=4&sameZone=true
+     * 
+     * Tạo booking CONFIRMED cho user chính + nhiều user khác (cùng zone hoặc khác
+     * zone tuỳ sameZone)
+     */
+    @PostMapping("/violation-test")
+    public ResponseEntity<Map<String, Object>> seedViolationTestData(
+            @RequestParam String userCode,
+            @RequestParam(defaultValue = "4") int neighbors,
+            @RequestParam(defaultValue = "true") boolean sameZone) {
+        return ResponseEntity.ok(seedDataService.seedViolationTestData(userCode, neighbors, sameZone));
+    }
+
+    /**
+     * Tạo dữ liệu test tính năng nhắc nhở lịch đặt chỗ (sau 15 phút)
+     * POST /slib/seed/reminder-test?userCode=SL000001
+     */
+    @PostMapping("/reminder-test")
+    public ResponseEntity<Map<String, Object>> seedReminderTestData(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedReminderTestData(userCode));
+    }
 }

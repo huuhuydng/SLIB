@@ -252,14 +252,12 @@ public class UserChatController {
         UUID userId = getCurrentUserId(userDetails);
         String reason = request != null ? (String) request.get("reason") : "User yêu cầu gặp thủ thư";
 
-        // Lấy message history từ request
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> messageHistory = request != null
-                ? (List<Map<String, Object>>) request.get("messageHistory")
-                : null;
+        // Lấy AI session ID để backend có thể đọc chat history từ MongoDB
+        String aiSessionId = request != null ? (String) request.get("aiSessionId") : null;
 
-        // Tạo conversation mới và escalate với message history
-        ConversationDTO conversation = conversationService.createAndEscalateWithHistory(userId, reason, messageHistory);
+        // Tạo conversation mới và escalate với aiSessionId
+        ConversationDTO conversation = conversationService.createAndEscalateWithHistory(
+                userId, reason, null, aiSessionId);
         int queuePosition = conversationService.getQueuePosition(conversation.getId());
         long totalWaiting = conversationService.countWaitingConversations();
 

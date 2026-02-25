@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:slib/services/booking_service.dart';
 import 'package:slib/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -11,6 +12,19 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'main_screen.dart'; 
 import 'views/authentication/on_boarding_screen.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  }
+  print("Handling a background message: ${message.messageId}");
+  
+  // Show local notification using our helper
+  await showBackgroundNotification(message);
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +43,9 @@ void main() async {
   } catch (e) {
     print("Firebase init warning: $e");
   }
+
+  // Set the background messaging handler early on, as a top-level function
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // Create AuthService first so NotificationService can use it
   final authService = AuthService();

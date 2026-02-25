@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search } from "lucide-react";
+import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/SupportRequestManage.css";
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/support-requests`;
 
-// Status Labels tiếng Việt
 const STATUS_LABELS = {
     PENDING: "Chờ xử lý",
     IN_PROGRESS: "Đang xử lý",
@@ -21,15 +22,21 @@ const TAB_LIST = [
 
 function SupportRequestManage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [requests, setRequests] = useState([]);
     const [counts, setCounts] = useState({ pending: 0, inProgress: 0, resolved: 0 });
-    const [activeTab, setActiveTab] = useState("ALL");
+    const [activeTab, setActiveTab] = useState(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && TAB_LIST.some(t => t.key === tabParam)) return tabParam;
+        return "ALL";
+    });
     const [loading, setLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [responseText, setResponseText] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [chatLoading, setChatLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const getToken = () => sessionStorage.getItem("librarian_token") || localStorage.getItem("librarian_token");
 
@@ -42,8 +49,7 @@ function SupportRequestManage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
-                const data = await res.json();
-                setRequests(data);
+                setRequests(await res.json());
             }
         } catch (err) {
             console.error("Error fetching support requests:", err);
@@ -151,101 +157,123 @@ function SupportRequestManage() {
         });
     };
 
-    const getInitial = (name) => {
-        return name ? name.charAt(0).toUpperCase() : "?";
+    const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : "?");
+
+    const getStatusClass = (status) => {
+        const map = { PENDING: "pending", IN_PROGRESS: "in-progress", RESOLVED: "confirmed", REJECTED: "rejected" };
+        return map[status] || "pending";
     };
 
+    const filteredRequests = requests.filter((r) => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            (r.studentName || "").toLowerCase().includes(term) ||
+            (r.studentCode || "").toLowerCase().includes(term) ||
+            (r.description || "").toLowerCase().includes(term)
+        );
+    });
+
     return (
-        <div className="sr-container">
-            {/* Header */}
-            <div className="sr-header">
+        <div className="lib-container">
+            {/* Page Title + Inline Stats */}
+            <div className="lib-page-title">
                 <h1>Yêu cầu hỗ trợ</h1>
-                <div className="sr-stats">
-                    <span className="sr-stat-badge pending">
-                        Chờ xử lý: {counts.pending}
+                <div className="lib-inline-stats">
+                    <span className="lib-inline-stat">
+                        <span className="dot amber"></span>
+                        Chờ xử lý <strong>{counts.pending}</strong>
                     </span>
-                    <span className="sr-stat-badge in-progress">
-                        Đang xử lý: {counts.inProgress}
+                    <span className="lib-inline-stat">
+                        <span className="dot blue"></span>
+                        Đang xử lý <strong>{counts.inProgress}</strong>
                     </span>
-                    <span className="sr-stat-badge resolved">
-                        Đã giải quyết: {counts.resolved}
+                    <span className="lib-inline-stat">
+                        <span className="dot green"></span>
+                        Đã giải quyết <strong>{counts.resolved}</strong>
                     </span>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="sr-tabs">
+            <div className="lib-tabs">
                 {TAB_LIST.map((tab) => (
                     <button
                         key={tab.key}
-                        className={`sr-tab ${activeTab === tab.key ? "active" : ""}`}
+                        className={`lib-tab ${activeTab === tab.key ? "active" : ""}`}
                         onClick={() => setActiveTab(tab.key)}
                     >
                         {tab.label}
                         {tab.key === "PENDING" && counts.pending > 0 && (
-                            <span className="sr-tab-count">{counts.pending}</span>
+                            <span className="lib-tab-count">{counts.pending}</span>
                         )}
                     </button>
                 ))}
             </div>
 
+            {/* Search */}
+            <div className="lib-controls">
+                <div className="lib-search">
+                    <Search size={16} className="lib-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm yêu cầu..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
             {/* Request List */}
             {loading ? (
-                <div className="sr-loading">
-                    <div className="sr-spinner" />
+                <div className="lib-loading">
+                    <div className="lib-spinner" />
                 </div>
-            ) : requests.length === 0 ? (
-                <div className="sr-empty">
-                    <div className="sr-empty-icon">&#128233;</div>
+            ) : filteredRequests.length === 0 ? (
+                <div className="lib-empty">
                     <h3>Chưa có yêu cầu nào</h3>
                     <p>Các yêu cầu hỗ trợ từ sinh viên sẽ xuất hiện ở đây</p>
                 </div>
             ) : (
-                <div className="sr-list">
-                    {requests.map((req) => (
+                <div className="lib-card-list">
+                    {filteredRequests.map((req) => (
                         <div
                             key={req.id}
-                            className="sr-card"
+                            className="lib-card"
                             onClick={() => {
                                 setSelectedRequest(req);
                                 setResponseText(req.adminResponse || "");
                             }}
                         >
-                            <div className="sr-card-header">
-                                <div className="sr-student-info">
+                            <div className="lib-card-header">
+                                <div className="lib-user-info">
                                     {req.studentAvatar ? (
-                                        <img
-                                            src={req.studentAvatar}
-                                            alt=""
-                                            className="sr-avatar"
-                                        />
+                                        <img src={req.studentAvatar} alt="" className="lib-avatar" />
                                     ) : (
-                                        <div className="sr-avatar-placeholder">
+                                        <div className="lib-avatar-placeholder">
                                             {getInitial(req.studentName)}
                                         </div>
                                     )}
-                                    <div className="sr-student-details">
+                                    <div>
                                         <h3>{req.studentName}</h3>
-                                        <div className="sr-student-code">{req.studentCode}</div>
+                                        <div className="lib-user-code">{req.studentCode}</div>
                                     </div>
                                 </div>
-                                <span
-                                    className={`sr-status-badge ${req.status.toLowerCase()}`}
-                                >
+                                <span className={`lib-status-badge ${getStatusClass(req.status)}`}>
                                     {STATUS_LABELS[req.status]}
                                 </span>
                             </div>
 
-                            <div className="sr-description">{req.description}</div>
+                            <div className="lib-description">{req.description}</div>
 
                             {req.imageUrls && req.imageUrls.length > 0 && (
-                                <div className="sr-images">
+                                <div className="lib-images">
                                     {req.imageUrls.slice(0, 4).map((url, idx) => (
                                         <img
                                             key={idx}
                                             src={url}
                                             alt=""
-                                            className="sr-image-thumbnail"
+                                            className="lib-image-thumbnail"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setLightboxImage(url);
@@ -253,36 +281,26 @@ function SupportRequestManage() {
                                         />
                                     ))}
                                     {req.imageUrls.length > 4 && (
-                                        <div
-                                            className="sr-image-thumbnail"
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                background: "#f5f5f5",
-                                                color: "#666",
-                                                fontWeight: 600,
-                                            }}
-                                        >
+                                        <div className="lib-image-more">
                                             +{req.imageUrls.length - 4}
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            <div className="sr-card-footer">
-                                <span className="sr-time">{formatTime(req.createdAt)}</span>
+                            <div className="lib-card-footer">
+                                <span className="lib-time">{formatTime(req.createdAt)}</span>
                                 <div className="sr-actions" onClick={(e) => e.stopPropagation()}>
                                     {req.status === "PENDING" && (
                                         <>
                                             <button
-                                                className="sr-btn primary"
+                                                className="lib-btn primary"
                                                 onClick={() => handleUpdateStatus(req.id, "IN_PROGRESS")}
                                             >
                                                 Tiếp nhận
                                             </button>
                                             <button
-                                                className="sr-btn danger"
+                                                className="lib-btn ghost danger"
                                                 onClick={() => handleUpdateStatus(req.id, "REJECTED")}
                                             >
                                                 Từ chối
@@ -292,14 +310,14 @@ function SupportRequestManage() {
                                     {req.status === "IN_PROGRESS" && (
                                         <>
                                             <button
-                                                className="sr-btn chat"
+                                                className="lib-btn ghost"
                                                 onClick={() => handleStartChat(req.id)}
                                                 disabled={chatLoading}
                                             >
                                                 {chatLoading ? "Đang mở..." : "Chat"}
                                             </button>
                                             <button
-                                                className="sr-btn success"
+                                                className="lib-btn primary"
                                                 onClick={() => {
                                                     setSelectedRequest(req);
                                                     setResponseText("");
@@ -316,71 +334,66 @@ function SupportRequestManage() {
                 </div>
             )}
 
-            {/* Detail Modal */}
+            {/* Slide Panel - Detail */}
             {selectedRequest && (
-                <div className="sr-modal-overlay" onClick={() => setSelectedRequest(null)}>
-                    <div className="sr-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="sr-modal-header">
+                <>
+                    <div className="lib-slide-overlay" onClick={() => setSelectedRequest(null)} />
+                    <div className="lib-slide-panel">
+                        <div className="lib-slide-header">
                             <h2>Chi tiết yêu cầu</h2>
                             <button
-                                className="sr-modal-close"
+                                className="lib-slide-close"
                                 onClick={() => setSelectedRequest(null)}
                             >
                                 &times;
                             </button>
                         </div>
-                        <div className="sr-modal-body">
+                        <div className="lib-slide-body">
                             {/* Student Info */}
-                            <div className="sr-modal-section">
-                                <div className="sr-modal-label">Sinh viên</div>
-                                <div className="sr-student-info">
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Sinh viên</div>
+                                <div className="lib-user-info">
                                     {selectedRequest.studentAvatar ? (
-                                        <img
-                                            src={selectedRequest.studentAvatar}
-                                            alt=""
-                                            className="sr-avatar"
-                                        />
+                                        <img src={selectedRequest.studentAvatar} alt="" className="lib-avatar" />
                                     ) : (
-                                        <div className="sr-avatar-placeholder">
+                                        <div className="lib-avatar-placeholder">
                                             {getInitial(selectedRequest.studentName)}
                                         </div>
                                     )}
-                                    <div className="sr-student-details">
+                                    <div>
                                         <h3>{selectedRequest.studentName}</h3>
-                                        <div className="sr-student-code">
-                                            {selectedRequest.studentCode}
-                                        </div>
+                                        <div className="lib-user-code">{selectedRequest.studentCode}</div>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Status */}
-                            <div className="sr-modal-section">
-                                <div className="sr-modal-label">Trạng thái</div>
-                                <span className={`sr-status-badge ${selectedRequest.status.toLowerCase()}`}>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Trạng thái</div>
+                                <span className={`lib-status-badge ${getStatusClass(selectedRequest.status)}`}>
                                     {STATUS_LABELS[selectedRequest.status]}
                                 </span>
                             </div>
 
                             {/* Description */}
-                            <div className="sr-modal-section">
-                                <div className="sr-modal-label">Mô tả vấn đề</div>
-                                <div className="sr-modal-text">{selectedRequest.description}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Mô tả vấn đề</div>
+                                <div className="lib-slide-value">{selectedRequest.description}</div>
                             </div>
 
                             {/* Images */}
                             {selectedRequest.imageUrls && selectedRequest.imageUrls.length > 0 && (
-                                <div className="sr-modal-section">
-                                    <div className="sr-modal-label">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">
                                         Hình ảnh ({selectedRequest.imageUrls.length})
                                     </div>
-                                    <div className="sr-modal-images">
+                                    <div className="lib-images">
                                         {selectedRequest.imageUrls.map((url, idx) => (
                                             <img
                                                 key={idx}
                                                 src={url}
                                                 alt=""
-                                                className="sr-modal-image"
+                                                className="lib-image-thumbnail"
                                                 onClick={() => setLightboxImage(url)}
                                             />
                                         ))}
@@ -389,29 +402,30 @@ function SupportRequestManage() {
                             )}
 
                             {/* Time */}
-                            <div className="sr-modal-section">
-                                <div className="sr-modal-label">Thời gian gửi</div>
-                                <div className="sr-modal-text">{formatTime(selectedRequest.createdAt)}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Thời gian gửi</div>
+                                <div className="lib-slide-value">{formatTime(selectedRequest.createdAt)}</div>
                             </div>
 
                             {/* Existing Response */}
                             {selectedRequest.adminResponse && (
-                                <div className="sr-modal-section">
-                                    <div className="sr-modal-label">Phản hồi từ thủ thư</div>
-                                    <div className="sr-modal-text">{selectedRequest.adminResponse}</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Phản hồi từ thủ thư</div>
+                                    <div className="lib-slide-value">{selectedRequest.adminResponse}</div>
                                     {selectedRequest.resolvedByName && (
-                                        <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>
+                                        <div className="sr-resolver-info">
                                             Phản hồi bởi: {selectedRequest.resolvedByName} - {formatTime(selectedRequest.resolvedAt)}
                                         </div>
                                     )}
                                 </div>
                             )}
 
-                            {/* Response Form (for PENDING/IN_PROGRESS) */}
+                            {/* Response Form */}
                             {(selectedRequest.status === "PENDING" || selectedRequest.status === "IN_PROGRESS") && (
-                                <div className="sr-modal-section sr-modal-response">
-                                    <div className="sr-modal-label">Phản hồi yêu cầu</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Phản hồi yêu cầu</div>
                                     <textarea
+                                        className="lib-textarea"
                                         value={responseText}
                                         onChange={(e) => setResponseText(e.target.value)}
                                         placeholder="Nhập phản hồi cho sinh viên..."
@@ -420,22 +434,18 @@ function SupportRequestManage() {
                             )}
                         </div>
 
-                        <div className="sr-modal-footer">
+                        <div className="lib-slide-footer">
                             {selectedRequest.status === "PENDING" && (
                                 <>
                                     <button
-                                        className="sr-btn primary"
-                                        onClick={() =>
-                                            handleUpdateStatus(selectedRequest.id, "IN_PROGRESS")
-                                        }
+                                        className="lib-btn primary"
+                                        onClick={() => handleUpdateStatus(selectedRequest.id, "IN_PROGRESS")}
                                     >
                                         Tiếp nhận
                                     </button>
                                     <button
-                                        className="sr-btn danger"
-                                        onClick={() =>
-                                            handleUpdateStatus(selectedRequest.id, "REJECTED")
-                                        }
+                                        className="lib-btn ghost danger"
+                                        onClick={() => handleUpdateStatus(selectedRequest.id, "REJECTED")}
                                     >
                                         Từ chối
                                     </button>
@@ -444,35 +454,35 @@ function SupportRequestManage() {
                             {(selectedRequest.status === "PENDING" || selectedRequest.status === "IN_PROGRESS") && (
                                 <>
                                     <button
-                                        className="sr-btn chat"
+                                        className="lib-btn ghost"
                                         onClick={() => handleStartChat(selectedRequest.id)}
                                         disabled={chatLoading}
                                     >
                                         {chatLoading ? "Đang mở..." : "Chat với sinh viên"}
                                     </button>
                                     <button
-                                        className="sr-btn success"
+                                        className="lib-btn primary"
                                         onClick={handleRespond}
                                         disabled={submitting || !responseText.trim()}
                                     >
-                                        {submitting ? "Đang gửi..." : "Gửi phản hồi và giải quyết"}
+                                        {submitting ? "Đang gửi..." : "Gửi phản hồi"}
                                     </button>
                                 </>
                             )}
                             <button
-                                className="sr-btn secondary"
+                                className="lib-btn ghost"
                                 onClick={() => setSelectedRequest(null)}
                             >
                                 Đóng
                             </button>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Lightbox */}
             {lightboxImage && (
-                <div className="sr-lightbox" onClick={() => setLightboxImage(null)}>
+                <div className="lib-lightbox" onClick={() => setLightboxImage(null)}>
                     <img src={lightboxImage} alt="" />
                 </div>
             )}

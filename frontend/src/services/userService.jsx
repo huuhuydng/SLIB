@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 
-const API_BASE_URL = 'http://localhost:8080/slib';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib`;
 
 const axiosInstance = axios.create({
     baseURL: API_BASE_URL,

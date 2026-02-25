@@ -8,9 +8,7 @@ import {
   ThumbsUp, FileText, Eye, BarChart3,
   MapPin, Layers, X, ExternalLink
 } from "lucide-react";
-import Header from "../../../components/shared/Header";
 import { getLibraryInsights } from "../../../services/geminiService.jsx";
-import { handleLogout } from "../../../utils/auth";
 import librarianService from "../../../services/librarianService";
 import dashboardService from "../../../services/dashboardService";
 import websocketService from "../../../services/websocketService";
@@ -138,9 +136,9 @@ const Dashboard = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       try {
         const [fbRes, cmpRes, supRes] = await Promise.all([
-          fetch(`http://localhost:8080/slib/feedbacks/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`http://localhost:8080/slib/complaints/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`http://localhost:8080/slib/support-requests/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/feedbacks/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/complaints/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/support-requests/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
         setPendingCounts({
           feedbackNew: fbRes?.new || 0,
@@ -318,13 +316,6 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header
-        searchValue={searchText}
-        onSearchChange={(e) => setSearchText(e.target.value)}
-        searchPlaceholder="Tìm kiếm sinh viên, mã số..."
-        onLogout={handleLogout}
-      />
-
       <div className="dashboard-container">
         {/* Title row */}
         <div className="dashboard-title-row">

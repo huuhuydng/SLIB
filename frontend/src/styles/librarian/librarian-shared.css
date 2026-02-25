@@ -141,6 +141,11 @@
     color: #991b1b;
 }
 
+.lib-stat-badge.confirmed {
+    background: var(--lib-green-bg);
+    color: #065f46;
+}
+
 /* =================== TABS =================== */
 .lib-tabs {
     display: flex;
@@ -722,6 +727,53 @@
     letter-spacing: -0.2px;
 }
 
+/* =================== TEXTAREA =================== */
+.lib-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px 16px;
+    border: 1.5px solid var(--lib-border);
+    border-radius: var(--lib-r-md);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--lib-text);
+    background: var(--lib-panel);
+    resize: vertical;
+    transition: var(--lib-transition);
+    outline: none;
+}
+
+.lib-textarea:focus {
+    border-color: var(--lib-primary);
+    box-shadow: 0 0 0 3px rgba(255, 117, 31, 0.1);
+}
+
+.lib-textarea::placeholder {
+    color: var(--lib-muted);
+}
+
+/* =================== IMAGE GRID =================== */
+.lib-images {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+.lib-image-more {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--lib-r-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--lib-bg-secondary);
+    color: var(--lib-muted);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+
 /* =================== ANIMATIONS =================== */
 @keyframes lib-fadeIn {
     from {
@@ -745,10 +797,221 @@
     }
 }
 
+@keyframes lib-slideInRight {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
 @keyframes lib-spin {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* =================== GHOST BUTTON =================== */
+.lib-btn.ghost {
+    background: transparent;
+    color: var(--lib-text-secondary);
+    border: 1.5px solid var(--lib-border);
+}
+
+.lib-btn.ghost:hover:not(:disabled) {
+    border-color: var(--lib-text-secondary);
+    background: var(--lib-hover-bg);
+}
+
+.lib-btn.ghost.danger {
+    color: var(--lib-red);
+    border-color: var(--lib-border);
+    background: transparent;
+}
+
+.lib-btn.ghost.danger:hover:not(:disabled) {
+    border-color: var(--lib-red);
+    background: #fef2f2;
+    box-shadow: none;
+}
+
+/* =================== INLINE STATS =================== */
+.lib-inline-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.lib-inline-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--lib-muted);
+    font-weight: 500;
+}
+
+.lib-inline-stat strong {
+    font-weight: 700;
+    color: var(--lib-text);
+    font-size: 14px;
+}
+
+.lib-inline-stat .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.lib-inline-stat .dot.green {
+    background: var(--lib-green);
+}
+
+.lib-inline-stat .dot.amber {
+    background: var(--lib-amber);
+}
+
+.lib-inline-stat .dot.red {
+    background: var(--lib-red);
+}
+
+.lib-inline-stat .dot.blue {
+    background: var(--lib-blue);
+}
+
+.lib-inline-stat .dot.purple {
+    background: var(--lib-purple);
+}
+
+/* =================== SLIDE PANEL =================== */
+.lib-slide-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 9998;
+    animation: lib-fadeIn 0.15s ease;
+}
+
+.lib-slide-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 480px;
+    max-width: 90vw;
+    background: white;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    animation: lib-slideInRight 0.25s var(--lib-ease);
+    box-shadow: -20px 0 60px rgba(0, 0, 0, 0.1);
+}
+
+.lib-slide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--lib-border-light);
+    flex-shrink: 0;
+}
+
+.lib-slide-header h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--lib-text);
+}
+
+.lib-slide-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--lib-hover-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--lib-muted);
+    transition: var(--lib-transition);
+    font-family: inherit;
+}
+
+.lib-slide-close:hover {
+    background: #e2e8f0;
+    color: var(--lib-text);
+}
+
+.lib-slide-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.lib-slide-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--lib-border-light);
+    flex-shrink: 0;
+}
+
+.lib-slide-section {
+    margin-bottom: 20px;
+}
+
+.lib-slide-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--lib-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.lib-slide-value {
+    font-size: 14px;
+    color: var(--lib-text);
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+/* =================== PAGE TITLE (no subtitle) =================== */
+.lib-page-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.lib-page-title h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0;
+    color: var(--lib-text);
+    letter-spacing: -0.3px;
+}
+
+/* =================== CONTROLS ROW =================== */
+.lib-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
 }
 
 /* =================== RESPONSIVE =================== */
@@ -769,5 +1032,15 @@
     .lib-modal {
         max-width: 100%;
         border-radius: var(--lib-r-lg);
+    }
+
+    .lib-slide-panel {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .lib-page-title {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }

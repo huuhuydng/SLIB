@@ -197,7 +197,7 @@ const ChatManage = () => {
 
   // WebSocket connection
   useEffect(() => {
-    const backendUrl = API_BASE || 'http://localhost:8080';
+    const backendUrl = API_BASE || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
     const wsEndpoint = backendUrl + '/ws';
 
     const client = new Client({
@@ -207,6 +207,27 @@ const ChatManage = () => {
       onConnect: () => {
         stompClientRef.current = client;
         setWsConnected(true);
+
+        // Subscribe /topic/escalate để nhận realtime conversation updates
+        client.subscribe('/topic/escalate', (message) => {
+          const data = JSON.parse(message.body);
+          if (data.type === 'QUEUE_CANCELLED') {
+            // Sinh viên hủy chờ → xóa khỏi danh sách ngay
+            setConversations(prev => prev.filter(c => c.id !== data.conversationId));
+            // Nếu đang xem conversation này → deselect
+            setSelectedConversationId(prev => prev === data.conversationId ? null : prev);
+          } else if (data.type === 'CONVERSATION_ACCEPTED' || data.type === 'CONVERSATION_RESOLVED') {
+            // Conversation đã được xử lý → refresh list
+            fetchConversations();
+          } else if (data.id) {
+            // Conversation mới escalate → thêm vào danh sách ngay
+            setConversations(prev => {
+              // Tránh duplicate
+              if (prev.some(c => c.id === data.id)) return prev;
+              return [data, ...prev];
+            });
+          }
+        });
       },
       onStompError: (frame) => {
         console.error('[WS] STOMP error:', frame);
@@ -360,7 +381,7 @@ const ChatManage = () => {
                 <div
                   key={conv.id}
                   onClick={() => {
-                    handleTakeOver(conv.id);
+                    setSelectedConversationId(conv.id);
                   }}
                   className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
                 >

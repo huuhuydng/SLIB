@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, Star, Eye } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/FeedbackManage.css";
@@ -13,8 +14,13 @@ const TAB_LIST = [
 ];
 
 function FeedbackManage() {
+    const [searchParams] = useSearchParams();
     const [feedbacks, setFeedbacks] = useState([]);
-    const [activeTab, setActiveTab] = useState("ALL");
+    const [activeTab, setActiveTab] = useState(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && TAB_LIST.some(t => t.key === tabParam)) return tabParam;
+        return "ALL";
+    });
     const [loading, setLoading] = useState(true);
     const [selectedFeedback, setSelectedFeedback] = useState(null);
     const [searchText, setSearchText] = useState("");
@@ -142,31 +148,21 @@ function FeedbackManage() {
 
     return (
         <div className="lib-container">
-            <div className="lib-header">
-                <div className="lib-header-left">
-                    <h1>Phản hồi sinh viên</h1>
-                    <p className="lib-header-subtitle">
-                        Phản hồi sau khi sinh viên check-out khỏi thư viện
-                    </p>
-                </div>
-                <div className="lib-header-right">
-                    <div className="lib-stats">
-                        <span className="lib-stat-badge pending">Mới: {counts.NEW}</span>
-                        <span className="lib-stat-badge in-progress">Đã xem: {counts.REVIEWED}</span>
-                        <span className="lib-stat-badge verified">Tổng: {feedbacks.length}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-                <div className="lib-search">
-                    <Search size={16} className="lib-search-icon" />
-                    <input
-                        type="text"
-                        placeholder="Tìm theo tên sinh viên, nội dung..."
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
+            <div className="lib-page-title">
+                <h1>Phản hồi sinh viên</h1>
+                <div className="lib-inline-stats">
+                    <span className="lib-inline-stat">
+                        <span className="dot amber"></span>
+                        Mới <strong>{counts.NEW}</strong>
+                    </span>
+                    <span className="lib-inline-stat">
+                        <span className="dot blue"></span>
+                        Đã xem <strong>{counts.REVIEWED}</strong>
+                    </span>
+                    <span className="lib-inline-stat">
+                        <span className="dot green"></span>
+                        Tổng <strong>{feedbacks.length}</strong>
+                    </span>
                 </div>
             </div>
 
@@ -183,6 +179,18 @@ function FeedbackManage() {
                         )}
                     </button>
                 ))}
+            </div>
+
+            <div className="lib-controls">
+                <div className="lib-search">
+                    <Search size={16} className="lib-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Tìm theo tên sinh viên, nội dung..."
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                    />
+                </div>
             </div>
 
             {loading ? (
@@ -245,15 +253,16 @@ function FeedbackManage() {
             )}
 
             {selectedFeedback && (
-                <div className="lib-modal-overlay" onClick={() => setSelectedFeedback(null)}>
-                    <div className="lib-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="lib-modal-header">
+                <>
+                    <div className="lib-slide-overlay" onClick={() => setSelectedFeedback(null)} />
+                    <div className="lib-slide-panel">
+                        <div className="lib-slide-header">
                             <h2>Chi tiết phản hồi</h2>
-                            <button className="lib-modal-close" onClick={() => setSelectedFeedback(null)}>&times;</button>
+                            <button className="lib-slide-close" onClick={() => setSelectedFeedback(null)}>&times;</button>
                         </div>
-                        <div className="lib-modal-body">
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Sinh viên</div>
+                        <div className="lib-slide-body">
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Sinh viên</div>
                                 <div className="lib-user-info">
                                     {selectedFeedback.studentAvatar ? (
                                         <img src={selectedFeedback.studentAvatar} alt="" className="lib-avatar" />
@@ -267,56 +276,56 @@ function FeedbackManage() {
                                 </div>
                             </div>
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Đánh giá</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Đánh giá</div>
                                 <div>{renderStars(selectedFeedback.rating)}</div>
                             </div>
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Trạng thái</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Trạng thái</div>
                                 <span className={`lib-status-badge ${getStatusClass(selectedFeedback.status)}`}>
                                     {getStatusLabel(selectedFeedback.status)}
                                 </span>
                             </div>
 
                             {selectedFeedback.content && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Nội dung</div>
-                                    <div className="lib-modal-text">{selectedFeedback.content}</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Nội dung</div>
+                                    <div className="lib-slide-value">{selectedFeedback.content}</div>
                                 </div>
                             )}
 
                             {selectedFeedback.category && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Danh mục</div>
-                                    <div className="lib-modal-text">{selectedFeedback.category}</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Danh mục</div>
+                                    <div className="lib-slide-value">{selectedFeedback.category}</div>
                                 </div>
                             )}
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Thời gian</div>
-                                <div className="lib-modal-text">{formatDateTime(selectedFeedback.createdAt)}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Thời gian</div>
+                                <div className="lib-slide-value">{formatDateTime(selectedFeedback.createdAt)}</div>
                             </div>
 
                             {selectedFeedback.reviewedByName && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Xem bởi</div>
-                                    <div className="lib-modal-text">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Xem bởi</div>
+                                    <div className="lib-slide-value">
                                         {selectedFeedback.reviewedByName} - {formatDateTime(selectedFeedback.reviewedAt)}
                                     </div>
                                 </div>
                             )}
                         </div>
-                        <div className="lib-modal-footer">
+                        <div className="lib-slide-footer">
                             {selectedFeedback.status === "NEW" && (
                                 <button className="lib-btn primary" onClick={() => handleMarkReviewed(selectedFeedback.id)} disabled={submitting}>
                                     {submitting ? "Đang xử lý..." : "Đánh dấu đã xem"}
                                 </button>
                             )}
-                            <button className="lib-btn secondary" onClick={() => setSelectedFeedback(null)}>Đóng</button>
+                            <button className="lib-btn ghost" onClick={() => setSelectedFeedback(null)}>Đóng</button>
                         </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

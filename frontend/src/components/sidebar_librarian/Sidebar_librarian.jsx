@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  Flame,
   Armchair,
   Users,
   AlertTriangle,
@@ -21,14 +20,30 @@ import {
   CalendarCheck,
   MessageCircle,
   Star,
+  Settings,
+  LogOut,
 } from "lucide-react";
+import { useLibrarianNotification } from "../../contexts/LibrarianNotificationContext";
 
 import logo from "../../assets/logonencam.png";
 import "../../styles/librarian/sidebar_default.css";
+import "../../styles/librarian/LibrarianNotification.css";
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [expandedGroups, setExpandedGroups] = useState({});
+  const { pendingCounts } = useLibrarianNotification();
+
+  const handleLogout = () => {
+    localStorage.removeItem('librarian_token');
+    localStorage.removeItem('librarian_user');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('librarian_token');
+    sessionStorage.removeItem('librarian_user');
+    sessionStorage.removeItem('refresh_token');
+    navigate('/login');
+  };
 
   const toggleGroup = (groupId) => {
     setExpandedGroups((prev) => ({
@@ -37,9 +52,24 @@ const Sidebar = () => {
     }));
   };
 
-  // Kiểm tra có child nào active không
+  // Kiem tra co child nao active khong
   const isGroupActive = (children) => {
     return children?.some((child) => location.pathname === child.path);
+  };
+
+  // Mapping path -> badge count
+  const badgeMap = {
+    "/librarian/support-requests": pendingCounts.supportRequests,
+    "/librarian/complaints": pendingCounts.complaints,
+    "/librarian/feedback": pendingCounts.feedbacks,
+    "/librarian/chat": pendingCounts.chats,
+    "/librarian/violation": pendingCounts.violations,
+  };
+
+  // Tinh tong badge cho group
+  const getGroupBadge = (children) => {
+    if (!children) return 0;
+    return children.reduce((sum, child) => sum + (badgeMap[child.path] || 0), 0);
   };
 
   const menuStructure = [
@@ -58,11 +88,6 @@ const Sidebar = () => {
           icon: ArrowLeftRight,
           label: "Kiểm tra ra/vào",
           path: "/librarian/checkinout",
-        },
-        {
-          icon: Flame,
-          label: "Sơ đồ thư viện",
-          path: "/librarian/areas",
         },
         {
           icon: Armchair,
@@ -125,11 +150,6 @@ const Sidebar = () => {
           label: "Tin tức",
           path: "/librarian/news",
         },
-        {
-          icon: Bell,
-          label: "Thông báo",
-          path: "/librarian/notification",
-        },
       ],
     },
     {
@@ -146,7 +166,7 @@ const Sidebar = () => {
     },
   ];
 
-  // Auto-expand group nếu child active
+  // Auto-expand group neu child active
   React.useEffect(() => {
     const initialExpanded = {};
     menuStructure.forEach((item) => {
@@ -171,8 +191,9 @@ const Sidebar = () => {
         {menuStructure.map((item) => {
           const Icon = item.icon;
 
-          // Mục đơn (không có con)
+          // Muc don (khong co con)
           if (!item.children) {
+            const badge = badgeMap[item.path] || 0;
             return (
               <NavLink
                 key={item.id}
@@ -183,13 +204,15 @@ const Sidebar = () => {
               >
                 <Icon size={20} strokeWidth={2} />
                 <span className="sidebar__label">{item.label}</span>
+                {badge > 0 && <span className="sidebar__badge">{badge > 99 ? "99+" : badge}</span>}
               </NavLink>
             );
           }
 
-          // Mục nhóm (có con)
+          // Muc nhom (co con)
           const isExpanded = expandedGroups[item.id];
           const groupActive = isGroupActive(item.children);
+          const groupBadge = getGroupBadge(item.children);
 
           return (
             <div key={item.id} className="sidebar__group">
@@ -205,6 +228,9 @@ const Sidebar = () => {
                   className={`sidebar__chevron ${isExpanded ? "sidebar__chevron--open" : ""
                     }`}
                 />
+                {groupBadge > 0 && (
+                  <span className={`sidebar__badge sidebar__badge--group ${isExpanded ? 'sidebar__badge--groupExpanded' : ''}`}>{groupBadge > 99 ? "99+" : groupBadge}</span>
+                )}
               </button>
 
               <div
@@ -213,6 +239,7 @@ const Sidebar = () => {
               >
                 {item.children.map((child, idx) => {
                   const ChildIcon = child.icon;
+                  const childBadge = badgeMap[child.path] || 0;
                   return (
                     <NavLink
                       key={idx}
@@ -224,6 +251,7 @@ const Sidebar = () => {
                     >
                       <ChildIcon size={16} strokeWidth={2} />
                       <span className="sidebar__label">{child.label}</span>
+                      {childBadge > 0 && <span className="sidebar__badge">{childBadge > 99 ? "99+" : childBadge}</span>}
                     </NavLink>
                   );
                 })}
@@ -233,12 +261,21 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer / Help */}
+      {/* Footer - Cài đặt + Đăng xuất */}
       <div className="sidebar__helpWrap">
-        <div className="sidebar__helpItem">
-          <HelpCircle size={20} strokeWidth={2} />
-          <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
-        </div>
+        <NavLink
+          to="/librarian/settings"
+          className={({ isActive }) =>
+            `sidebar__helpItem ${isActive ? "sidebar__helpItem--active" : ""}`
+          }
+        >
+          <Settings size={20} strokeWidth={2} />
+          <span className="sidebar__label">Cài đặt</span>
+        </NavLink>
+        <button className="sidebar__helpItem sidebar__logoutBtn" onClick={handleLogout}>
+          <LogOut size={20} strokeWidth={2} />
+          <span className="sidebar__label">Đăng xuất</span>
+        </button>
       </div>
     </aside>
   );

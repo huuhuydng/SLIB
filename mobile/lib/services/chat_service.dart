@@ -162,11 +162,11 @@ class ChatService {
   // ==========================================
 
   /// Request librarian - tạo conversation mới và escalate trong 1 bước
-  /// messageHistory: list của {content, isUser, senderType}
+  /// aiSessionId: session ID của AI service (MongoDB) để backend đọc chat history
   Future<EscalationResult> requestLibrarian(
     String? reason, 
     String authToken, 
-    {List<Map<String, dynamic>>? messageHistory}
+    {String? aiSessionId}
   ) async {
     try {
       final response = await http.post(
@@ -177,7 +177,7 @@ class ChatService {
         },
         body: jsonEncode({
           'reason': reason ?? 'User yêu cầu gặp thủ thư',
-          'messageHistory': messageHistory ?? [],
+          'aiSessionId': aiSessionId,
         }),
       );
 

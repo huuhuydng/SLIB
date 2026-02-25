@@ -56,6 +56,46 @@ class NotificationItem {
   }
 }
 
+/// Global helper to show local notification from background message
+Future<void> showBackgroundNotification(RemoteMessage message) async {
+  final notification = message.notification;
+  if (notification == null && message.data.isEmpty) return;
+
+  final title = notification?.title ?? message.data['title'] ?? 'Thông báo';
+  final body = notification?.body ?? message.data['body'] ?? message.data['content'] ?? '';
+
+  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+  
+  const androidDetails = AndroidNotificationDetails(
+    'slib_notifications',
+    'SLIB',
+    channelDescription: 'Thông báo từ thư viện SLIB',
+    importance: Importance.high,
+    priority: Priority.high,
+    showWhen: true,
+    icon: '@mipmap/ic_launcher',
+  );
+  
+  const iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+  
+  const details = NotificationDetails(
+    android: androidDetails,
+    iOS: iosDetails,
+  );
+  
+  await localNotifications.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title,
+    body,
+    details,
+    payload: message.data['notificationId'],
+  );
+}
+
 /// Notification settings model
 class NotificationSettings {
   final bool notifyBooking;

@@ -28,7 +28,7 @@ const Attendance = () => {
 
     const fetchInitialLogs = async () => {
       try {
-        const response = await fetch('http://localhost:8080/slib/hce/latest-logs');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/latest-logs`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
@@ -50,7 +50,7 @@ const Attendance = () => {
 
     const connect = () => {
       if (stompClient?.connected) stompClient.disconnect();
-      const Sock = new SockJS('http://localhost:8080/ws');
+      const Sock = new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`);
       stompClient = Stomp.over(Sock);
       stompClient.debug = null;
 

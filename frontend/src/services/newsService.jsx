@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/slib/news';
+const API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news`;
 
 // Lấy danh sách tất cả news cho admin/librarian
 export const getAllNewsForAdmin = async () => {
@@ -108,7 +108,7 @@ export const togglePinNews = async (id) => {
 
 // ============== CATEGORY APIs ==============
 
-const CATEGORY_URL = 'http://localhost:8080/slib/news-categories';
+const CATEGORY_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news-categories`;
 
 // Lay danh sach tat ca categories
 export const getAllCategories = async () => {
@@ -148,7 +148,7 @@ export const uploadImage = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post('http://localhost:8080/slib/files/upload_news_image', formData, {
+    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/files/upload_news_image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data.url;

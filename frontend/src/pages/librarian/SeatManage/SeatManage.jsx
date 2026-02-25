@@ -1,8 +1,3 @@
-// ============================================
-// FILE: SeatManage.jsx (Frontend)
-// Thay thế toàn bộ file bằng code dưới đây
-// ============================================
-
 import React, { useState, useMemo, useEffect } from "react";
 import {
   Armchair,
@@ -11,11 +6,31 @@ import {
   Filter,
   CircleAlert,
   ChevronDown,
+  Search,
+  User,
+  Clock,
+  Shield,
+  ExternalLink,
+  X,
+  Users,
 } from "lucide-react";
-import Header from "../../../components/shared/Header";
 import { seatService } from '../../../services/seatService';
+import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/SeatManage.css";
-import { handleLogout } from "../../../utils/auth";
+
+// Tính occupancy cho mỗi zone từ seatStatusMap
+const getZoneOccupancy = (zoneSeats, seatStatusMap) => {
+  const total = zoneSeats.length;
+  if (total === 0) return { percent: 0, booked: 0, total: 0 };
+  const booked = zoneSeats.filter(s => seatStatusMap[s.id]?.status === 'BOOKED').length;
+  return { percent: Math.round((booked / total) * 100), booked, total };
+};
+
+const getOccupancyLevel = (percent) => {
+  if (percent >= 90) return { level: 'high', text: 'Hết chỗ', color: '#E74C3C' };
+  if (percent >= 50) return { level: 'medium', text: 'Khá đông', color: '#F39C12' };
+  return { level: 'low', text: 'Trống', color: '#27AE60' };
+};
 
 const generateSeats = (prefix, start, count, zoneName) => {
   return Array.from({ length: count }, (_, i) => ({
@@ -146,14 +161,22 @@ const SeatManage = () => {
         }
       }
 
-      // ✅ TẠO MAP: seat_code -> { status, seatId }
+      // ✅ TẠO MAP: seat_code -> { status, seatId, booker info }
       const statusMap = {};
       seatsData.forEach(seat => {
         const seatCode = seat.seatCode || seat.seat_code || seat.code;
-        const status = seat.seatStatus || seat.status; // Backend trả về "seatStatus"
-        const seatId = seat.seatId || seat.seat_id || seat.id; // Lấy seatId từ database
+        const status = seat.seatStatus || seat.status;
+        const seatId = seat.seatId || seat.seat_id || seat.id;
         if (seatCode && status) {
-          statusMap[seatCode] = { status, seatId };
+          statusMap[seatCode] = {
+            status,
+            seatId,
+            bookedByUserName: seat.bookedByUserName || null,
+            bookedByUserCode: seat.bookedByUserCode || null,
+            bookedByAvatarUrl: seat.bookedByAvatarUrl || null,
+            reservationStartTime: seat.reservationStartTime || null,
+            reservationEndTime: seat.reservationEndTime || null,
+          };
         }
       });
 
@@ -202,18 +225,6 @@ const SeatManage = () => {
   };
 
   const handleSeatClick = (seat) => {
-    const seatData = seatStatusMap[seat.id];
-    const status = seatData?.status || 'AVAILABLE';
-
-    if (status === 'BOOKED') {
-      showToast(`Ghế ${seat.id} đã có người đặt!`);
-      return;
-    }
-
-    if (status === 'UNAVAILABLE') {
-      showToast(`Ghế ${seat.id} đang bị hạn chế!`);
-    }
-
     setSelectedSeatId(seat.id);
   };
 
@@ -303,230 +314,254 @@ const SeatManage = () => {
 
   if (loading) {
     return (
-      <main style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#f9fafb',
-        minHeight: '100vh',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <div>Đang tải dữ liệu...</div>
-      </main>
+      <div className="lib-container">
+        <div className="lib-loading">
+          <div className="lib-spinner" />
+        </div>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header
-        searchValue={searchTerm}
-        onSearchChange={handleSearch}
-        searchPlaceholder="Search for anything..."
-        onLogout={handleLogout}
-      />
+    <div className="lib-container">
+      {/* Page Title + Inline Stats */}
+      <div className="lib-page-title">
+        <h1>Quản lý chỗ ngồi</h1>
+        <div className="lib-inline-stats">
+          <span className="lib-inline-stat">
+            <span className="dot orange"></span>
+            Đang dùng <strong>{stats.bookedSeats}/{stats.totalSeats}</strong>
+          </span>
+          <span className="lib-inline-stat">
+            <span className="dot green"></span>
+            Trống <strong>{stats.availableSeats}</strong>
+          </span>
+          <span className="lib-inline-stat">
+            <span className="dot gray"></span>
+            Hạn chế <strong>{stats.unavailableSeats}</strong>
+          </span>
+        </div>
+      </div>
 
-      <div style={{
-        padding: '2rem',
-        maxWidth: '1400px',
-        margin: '0 auto',
-        backgroundColor: '#f9fafb',
-        minHeight: 'calc(100vh - 80px)'
-      }}>
-        <h2 className="seatManage__title" style={{
-          fontSize: '2rem',
-          fontWeight: '700',
-          color: '#1a1a1a',
-          marginBottom: '1.5rem',
-        }}>Quản lý chỗ ngồi</h2>
+      {/* Controls Row */}
+      <div className="lib-controls">
+        <div className="lib-search">
+          <Search size={16} className="lib-search-icon" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={handleSearch}
+            placeholder="Tìm ghế (A1, B2...)"
+          />
+        </div>
 
-        <section className="seatManage__topCards" style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '1.5rem',
-          marginBottom: '1.5rem',
-        }}>
-          <div className="seatManage__leftStack">
-            <div className="seatManage__statCard">
-              <div className="seatManage__statIconCircle">
-                <Armchair size={28} color="#8dc63f" fill="#8dc63f" />
-              </div>
-              <div className="seatManage__statInfo">
-                <div className="seatManage__statNumber">
-                  {stats.bookedSeats}/{stats.totalSeats}
-                </div>
-                <div className="seatManage__statLabel">
-                  Chỗ ngồi đang được sử dụng
-                </div>
-              </div>
-            </div>
-
-            <div className="seatManage__restrictedCard">
-              <div className="seatManage__restrictedHeader">
-                <span className="seatManage__restrictedTitle">
-                  Ghế bị hạn chế
-                </span>
-                <span className="seatManage__restrictedCount">
-                  {stats.unavailableSeats} ghế
-                </span>
-              </div>
-              <div className="seatManage__chipList">
-                {(() => {
-                  const restrictedSeats = Object.keys(seatStatusMap)
-                    .filter(code => seatStatusMap[code]?.status === 'UNAVAILABLE');
-                  console.log('🔴 Restricted seats:', restrictedSeats, 'Total:', restrictedSeats.length);
-                  return restrictedSeats
-                    .slice(0, 6)
-                    .map((id) => (
-                      <span key={id} className="seatManage__chip">
-                        {id}
-                      </span>
-                    ));
-                })()}
-                {stats.unavailableSeats > 6 && (
-                  <span className="seatManage__chipMore">
-                    +{stats.unavailableSeats - 6}
-                  </span>
-                )}
-              </div>
-            </div>
+        <div className="seatManage__filterWrapper">
+          <div className="seatManage__dropdownTrigger">
+            <Filter size={16} />
+            <select
+              value={activeFilter}
+              onChange={handleFilterChange}
+              className="seatManage__filterSelect"
+            >
+              {FILTER_OPTIONS.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="seatManage__dropdownArrow" />
           </div>
+        </div>
+      </div>
 
-          <div className="seatManage__aiCard">
-            <div className="seatManage__aiHeader">
-              <Sparkles size={18} className="seatManage__sparkle" />
-              <span>AI phân tích</span>
+      {/* Time Slot Tabs */}
+      <div className="lib-tabs">
+        {TIME_SLOTS.map((slot, index) => (
+          <button
+            key={slot}
+            className={`lib-tab ${index === currentSlotIndex ? "active" : ""}`}
+            onClick={() => setCurrentSlotIndex(index)}
+          >
+            {index === currentSlotIndex && <Check size={14} style={{ marginRight: 4 }} />}
+            {slot}
+          </button>
+        ))}
+      </div>
+
+      {/* Restricted Seats + AI Card */}
+      {(stats.unavailableSeats > 0) && (
+        <div className="seatManage__infoRow">
+          <div className="seatManage__restrictedCard">
+            <div className="seatManage__restrictedHeader">
+              <span className="seatManage__restrictedTitle">Ghế bị hạn chế</span>
+              <span className="seatManage__restrictedCount">{stats.unavailableSeats} ghế</span>
             </div>
-            <div className="seatManage__aiContent">
-              <div className="seatManage__aiAlertIcon">
-                <CircleAlert size={24} color="#ff7b00" />
-              </div>
-              <div>
-                <div className="seatManage__aiAlertTitle">Cảnh báo đông đúc</div>
-                <div className="seatManage__aiAlertDesc">
-                  Khu yên tĩnh đã được lấp 95% khu vực. <br />
-                  Hãy điều hướng sinh viên sang khu thảo luận.
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="seatManage__controls" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-          gap: '1rem',
-          flexWrap: 'wrap',
-        }}>
-          <div className="seatManage__slots">
-            {TIME_SLOTS.map((slot, index) => (
-              <button
-                key={slot}
-                className={`seatManage__slotBtn ${index === currentSlotIndex ? "seatManage__slotBtn--active" : ""
-                  }`}
-                onClick={() => setCurrentSlotIndex(index)}
-              >
-                {index === currentSlotIndex && <Check size={16} />}
-                {slot}
-              </button>
-            ))}
-          </div>
-
-          <div className="seatManage__filterWrapper">
-            <div className="seatManage__dropdownTrigger">
-              <Filter size={16} />
-              <select
-                value={activeFilter}
-                onChange={handleFilterChange}
-                className="seatManage__filterSelect"
-              >
-                {FILTER_OPTIONS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
+            <div className="seatManage__chipList">
+              {Object.keys(seatStatusMap)
+                .filter(code => seatStatusMap[code]?.status === 'UNAVAILABLE')
+                .slice(0, 8)
+                .map((id) => (
+                  <span key={id} className="seatManage__chip">{id}</span>
                 ))}
-              </select>
-              <ChevronDown size={14} className="seatManage__dropdownArrow" />
+              {stats.unavailableSeats > 8 && (
+                <span className="seatManage__chipMore">+{stats.unavailableSeats - 8}</span>
+              )}
             </div>
           </div>
-        </section>
+        </div>
+      )}
 
-        <section className="seatManage__mapPanel" style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '2rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          position: 'relative',
-        }}>
-          <div className="seatManage__mapGrid">
-            <div className="seatManage__staticElement seatManage__bookshelf">
-              Kệ<br />sách
-            </div>
-            <div className="seatManage__staticElement seatManage__entrance">
-              Cửa ra vào
-            </div>
-            <div className="seatManage__staticElement seatManage__hall">
-              Sảnh chính
-            </div>
-            <div className="seatManage__staticElement seatManage__librarian">
-              Thủ thư
-            </div>
-            <div className="seatManage__staticElement seatManage__pillar"></div>
+      {/* Map Panel */}
+      <div className="lib-panel seatManage__mapPanel">
+        <div className="seatManage__mapGrid">
+          <div className="seatManage__staticElement seatManage__bookshelf">Kệ<br />sách</div>
+          <div className="seatManage__staticElement seatManage__entrance">Cửa ra vào</div>
+          <div className="seatManage__staticElement seatManage__hall">Sảnh chính</div>
+          <div className="seatManage__staticElement seatManage__librarian">Thủ thư</div>
+          <div className="seatManage__staticElement seatManage__pillar"></div>
 
-            <div className="seatManage__zone seatManage__zoneB">
-              {SEATS_B.map(renderSeat)}
-            </div>
+          {(() => {
+            const occB = getZoneOccupancy(SEATS_B, seatStatusMap);
+            const levelB = getOccupancyLevel(occB.percent);
+            return (
+              <div className={`seatManage__zone seatManage__zoneB seatManage__zone--${levelB.level}`}>
+                <div className="seatManage__zoneHeader">
+                  <span className="seatManage__zoneName">Khu yên tĩnh</span>
+                  <span className="seatManage__zoneBadge" style={{ background: levelB.color }}>
+                    {occB.percent}% - {levelB.text}
+                  </span>
+                </div>
+                <div className="seatManage__zoneSeats">
+                  {SEATS_B.map(renderSeat)}
+                </div>
+              </div>
+            );
+          })()}
 
-            <div className="seatManage__zone seatManage__zoneA">
-              {SEATS_A.map(renderSeat)}
-            </div>
+          {(() => {
+            const occA = getZoneOccupancy(SEATS_A, seatStatusMap);
+            const levelA = getOccupancyLevel(occA.percent);
+            return (
+              <div className={`seatManage__zone seatManage__zoneA seatManage__zone--${levelA.level}`}>
+                <div className="seatManage__zoneHeader">
+                  <span className="seatManage__zoneName">Khu tự học</span>
+                  <span className="seatManage__zoneBadge" style={{ background: levelA.color }}>
+                    {occA.percent}% - {levelA.text}
+                  </span>
+                </div>
+                <div className="seatManage__zoneSeats">
+                  {SEATS_A.map(renderSeat)}
+                </div>
+              </div>
+            );
+          })()}
 
-            <div className="seatManage__divider-wall"></div>
+          <div className="seatManage__divider-wall"></div>
 
-            <div className="seatManage__zone seatManage__zoneC">
-              {SEATS_C.map(renderSeat)}
-            </div>
-          </div>
+          {(() => {
+            const occC = getZoneOccupancy(SEATS_C, seatStatusMap);
+            const levelC = getOccupancyLevel(occC.percent);
+            return (
+              <div className={`seatManage__zone seatManage__zoneC seatManage__zone--${levelC.level}`}>
+                <div className="seatManage__zoneHeader">
+                  <span className="seatManage__zoneName">Khu thảo luận</span>
+                  <span className="seatManage__zoneBadge" style={{ background: levelC.color }}>
+                    {occC.percent}% - {levelC.text}
+                  </span>
+                </div>
+                <div className="seatManage__zoneSeats">
+                  {SEATS_C.map(renderSeat)}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
 
-          {selectedSeatId && seatStatusMap[selectedSeatId]?.status !== 'BOOKED' && (
+        {selectedSeatId && (() => {
+          const seatData = seatStatusMap[selectedSeatId];
+          const status = seatData?.status || 'AVAILABLE';
+          const zone = ALL_SEATS.find(s => s.id === selectedSeatId)?.zone;
+
+          if (status === 'BOOKED' && seatData?.bookedByUserName) {
+            // Card thông tin sinh viên đang đặt
+            const startTime = seatData.reservationStartTime
+              ? new Date(seatData.reservationStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+              : '--:--';
+            const endTime = seatData.reservationEndTime
+              ? new Date(seatData.reservationEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+              : '--:--';
+
+            return (
+              <div className="seatManage__seatActionCard seatManage__bookerCard">
+                <div className="seatManage__actionHeader">
+                  <Armchair size={18} />
+                  <span>{selectedSeatId}</span>
+                  <span className="seatManage__actionZone">- {zone}</span>
+                  <button className="seatManage__closeBtn" onClick={() => setSelectedSeatId(null)}>
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="seatManage__bookerInfo">
+                  <div className="seatManage__bookerAvatar">
+                    {seatData.bookedByAvatarUrl ? (
+                      <img src={seatData.bookedByAvatarUrl} alt="avatar" />
+                    ) : (
+                      <div className="seatManage__avatarFallback">
+                        <User size={22} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="seatManage__bookerDetails">
+                    <span className="seatManage__bookerName">{seatData.bookedByUserName}</span>
+                    <span className="seatManage__bookerCode">{seatData.bookedByUserCode}</span>
+                  </div>
+                </div>
+
+                <div className="seatManage__bookerTime">
+                  <Clock size={14} />
+                  <span>{startTime} - {endTime}</span>
+                </div>
+
+                <div className="seatManage__actionBody">
+                  <button
+                    className="lib-btn ghost danger"
+                    onClick={() => toggleRestriction(selectedSeatId)}
+                  >
+                    <Shield size={14} />
+                    Hạn chế ghế này
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // Card cho ghế AVAILABLE hoặc UNAVAILABLE
+          return (
             <div className="seatManage__seatActionCard">
               <div className="seatManage__actionHeader">
-                <Armchair size={20} />
+                <Armchair size={18} />
                 <span>{selectedSeatId}</span>
-                <span className="seatManage__actionZone">
-                  - {ALL_SEATS.find(s => s.id === selectedSeatId)?.zone}
-                </span>
+                <span className="seatManage__actionZone">- {zone}</span>
+                <button className="seatManage__closeBtn" onClick={() => setSelectedSeatId(null)}>
+                  <X size={16} />
+                </button>
               </div>
               <div className="seatManage__actionBody">
                 <button
-                  className={`seatManage__actionBtn ${seatStatusMap[selectedSeatId]?.status === 'UNAVAILABLE'
-                    ? "seatManage__actionBtn--unrestrict"
-                    : "seatManage__actionBtn--restrict"
-                    }`}
+                  className={`lib-btn ${status === 'UNAVAILABLE' ? "primary" : "ghost danger"}`}
                   onClick={() => toggleRestriction(selectedSeatId)}
                 >
-                  {seatStatusMap[selectedSeatId]?.status === 'UNAVAILABLE'
-                    ? "Bỏ hạn chế"
-                    : "Hạn chế"}
+                  {status === 'UNAVAILABLE' ? "Bỏ hạn chế" : "Hạn chế"}
                 </button>
               </div>
             </div>
-          )}
-        </section>
+          );
+        })()}
       </div>
 
-      {toastMsg && <div className="seatManage__toast" style={{
-        position: 'fixed',
-        bottom: '2rem',
-        right: '2rem',
-        backgroundColor: '#333',
-        color: '#fff',
-        padding: '0.75rem 1.25rem',
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 1000,
-      }}>{toastMsg}</div>}
-    </>
+      {toastMsg && (
+        <div className="seatManage__toast">{toastMsg}</div>
+      )}
+    </div>
   );
 };
 

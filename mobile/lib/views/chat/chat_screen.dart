@@ -925,9 +925,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
               final senderType = msgData['senderType'] as String? ?? '';
               if (senderType == 'LIBRARIAN') {
+                final msgContent = msgData['content'] ?? '';
                 setState(() {
                   _messages.add(ChatMessage(
-                    text: msgData['content'] ?? '',
+                    text: msgContent,
                     isUser: false,
                     time: DateTime.now(),
                     isFromLibrarian: true,
@@ -1150,38 +1151,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final token = await authService.getToken();
       
       if (token != null) {
-        // Gửi chat history từ SESSION HIỆN TẠI (không lấy hội thoại cũ)
-        // Tìm vị trí message "kết thúc" cuối cùng để chỉ lấy messages sau đó
-        int lastEndedIndex = -1;
-        for (int i = _messages.length - 1; i >= 0; i--) {
-          if (_messages[i].text.contains('kết thúc cuộc trò chuyện') ||
-              _messages[i].text.contains('sẵn sàng tiếp tục hỗ trợ')) {
-            lastEndedIndex = i;
-            break;
-          }
-        }
-        
-        final recentMessages = lastEndedIndex >= 0 
-            ? _messages.sublist(lastEndedIndex + 1)
-            : _messages;
-        
-        final messageHistory = recentMessages
-          .where((m) => 
-            (m.type == ChatMessageType.text || m.type == ChatMessageType.withActions) &&
-            !m.text.contains('đang kết nối') &&
-            !m.text.contains('đã tiếp nhận') &&
-            !m.text.contains('Chào bạn! Mình là trợ lý ảo'))
-          .map((m) => {
-            'content': m.text,
-            'isUser': m.isUser,
-            'senderType': m.isUser ? 'STUDENT' : 'AI',
-          })
-          .toList();
-        
+        // Gửi AI session ID để backend đọc chat history từ MongoDB
         final result = await _chatService.requestLibrarian(
           'User yêu cầu gặp thủ thư',
           token,
-          messageHistory: messageHistory,
+          aiSessionId: _chatService.sessionId,
         );
         
         if (result.success && mounted) {
@@ -1256,8 +1230,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _queuePosition = 0;
     });
 
-    // Load messages from backend
-    await _loadMessagesFromBackend(_conversationId!, token);
+    // Load messages from backend - GIỮ messages local (AI chat context)
+    await _loadMessagesFromBackend(_conversationId!, token, keepExisting: true);
 
     // Show notification message
     setState(() {
@@ -1281,9 +1255,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         final senderType = msgData['senderType'] as String? ?? '';
         if (senderType == 'LIBRARIAN') {
+          final msgContent = msgData['content'] ?? '';
           setState(() {
             _messages.add(ChatMessage(
-              text: msgData['content'] ?? '',
+              text: msgContent,
               isUser: false,
               time: DateTime.now(),
               isFromLibrarian: true,

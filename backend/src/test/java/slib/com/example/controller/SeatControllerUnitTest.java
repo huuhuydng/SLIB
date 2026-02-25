@@ -506,6 +506,6 @@ class SeatControllerUnitTest {
         private SeatResponse createSeatResponse(Integer seatId, Integer zoneId, String seatCode,
                         SeatStatus seatStatus, Integer rowNumber, Integer columnNumber) {
                 return new SeatResponse(seatId, zoneId, seatCode, seatStatus, rowNumber, columnNumber, true, null,
-                                null);
+                                null, null, null, null, null);
         }
 }

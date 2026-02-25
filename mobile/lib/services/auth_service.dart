@@ -299,7 +299,11 @@ class AuthService extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
-      await _storage.deleteAll();
+      // Xóa từng key riêng lẻ thay vì deleteAll()
+      // để giữ lại credentials đã lưu cho "Ghi nhớ đăng nhập"
+      await _storage.delete(key: 'jwt_token');
+      await _storage.delete(key: 'refresh_token');
+      await _storage.delete(key: 'user_code');
       await _googleSignIn.signOut();
       await HceBridge.clearUserId();
       

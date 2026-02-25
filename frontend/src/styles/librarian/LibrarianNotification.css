@@ -1,0 +1,419 @@
+/* ===== NOTIFICATION BADGE (Sidebar) ===== */
+
+/* Override overflow:hidden de badge khong bi cat */
+.sidebar__item,
+.sidebar__groupBtn,
+.sidebar__subitem {
+    overflow: visible !important;
+}
+
+/* Dam bao group co position: relative */
+.sidebar__group {
+    position: relative;
+}
+
+/* === BADGE === */
+.sidebar__badge {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    animation: badgePulse 0.3s ease-out;
+    z-index: 10;
+    pointer-events: none;
+    /* Collapsed: goc tren-phai cua icon 48x48 */
+    top: 2px;
+    right: 4px;
+}
+
+/* ---- EXPANDED (sidebar:hover) ---- */
+.sidebar:hover .sidebar__badge {
+    /* Khi mo rong: can giua va dat ben phai */
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+}
+
+/* ---- SUBITEM badge ---- */
+.sidebar__subitem .sidebar__badge {
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+}
+
+.sidebar:hover .sidebar__subitem .sidebar__badge {
+    right: 12px;
+}
+
+/* An group badge khi sidebar hover + submenu dang mo (hien badge con thay the) */
+.sidebar:hover .sidebar__badge--groupExpanded {
+    display: none;
+}
+
+@keyframes badgePulse {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ===== HEADER BAR ===== */
+.librarian-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 12px 24px;
+    background: white;
+    border-radius: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    gap: 16px;
+}
+
+/* ===== NOTIFICATION BELL ===== */
+.notif-bell {
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: transparent;
+    border: none;
+    transition: all 0.2s ease;
+    color: #6b7280;
+}
+
+.notif-bell:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.notif-bell__icon {
+    width: 22px;
+    height: 22px;
+}
+
+.notif-bell__badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    animation: badgePulse 0.3s ease-out;
+}
+
+/* ===== DROPDOWN PANEL ===== */
+.notif-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 380px;
+    max-height: 520px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    z-index: 9999;
+    animation: dropdownSlideIn 0.2s ease-out;
+}
+
+@keyframes dropdownSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.notif-dropdown__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.notif-dropdown__title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.notif-dropdown__count {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.notif-dropdown__list {
+    overflow-y: auto;
+    max-height: 440px;
+    padding: 8px;
+}
+
+.notif-dropdown__list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.notif-dropdown__list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
+/* ===== NOTIFICATION ITEM ===== */
+.notif-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: default;
+    transition: background 0.15s ease;
+}
+
+.notif-item:hover {
+    background: #f9fafb;
+}
+
+.notif-item--expandable {
+    cursor: pointer;
+}
+
+.notif-item--clickable {
+    cursor: pointer;
+}
+
+.notif-item--expanded {
+    background: #f3f4f6;
+}
+
+.notif-item__icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.notif-item__icon--support {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+.notif-item__icon--complaint {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.notif-item__icon--feedback {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.notif-item__icon--chat {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.notif-item__icon--violation {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.notif-item__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-item__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 2px;
+}
+
+.notif-item__desc {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.notif-item__badge {
+    flex-shrink: 0;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: #fef2f2;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 24px;
+    text-align: center;
+    align-self: center;
+}
+
+/* Empty state */
+.notif-dropdown__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+}
+
+.notif-dropdown__empty svg {
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.notif-dropdown__empty p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* Overlay de dong dropdown */
+.notif-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+}
+
+/* ===== EXPANDABLE CATEGORY ===== */
+.notif-category {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.notif-item__chevron {
+    flex-shrink: 0;
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+    margin-left: 4px;
+}
+
+.notif-item__chevron--open {
+    transform: rotate(180deg);
+}
+
+/* ===== DETAIL LIST ===== */
+.notif-detail-list {
+    padding: 0 8px 8px 48px;
+    animation: detailSlideIn 0.2s ease-out;
+}
+
+@keyframes detailSlideIn {
+    from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        max-height: 500px;
+        transform: translateY(0);
+    }
+}
+
+.notif-detail-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-left: 2px solid transparent;
+}
+
+.notif-detail-item:hover {
+    background: #eef2ff;
+    border-left-color: #6366f1;
+}
+
+.notif-detail-item__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-detail-item__name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-detail-item__desc {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-detail-item__time {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+.notif-detail-loading {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.notif-detail-viewall {
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6366f1;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+}
+
+.notif-detail-viewall:hover {
+    background: #eef2ff;
+}

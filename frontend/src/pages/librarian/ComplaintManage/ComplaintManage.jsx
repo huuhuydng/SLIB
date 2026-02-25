@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/ComplaintManage.css";
@@ -19,8 +20,13 @@ const TAB_LIST = [
 ];
 
 function ComplaintManage() {
+    const [searchParams] = useSearchParams();
     const [complaints, setComplaints] = useState([]);
-    const [activeTab, setActiveTab] = useState("ALL");
+    const [activeTab, setActiveTab] = useState(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && TAB_LIST.some(t => t.key === tabParam)) return tabParam;
+        return "ALL";
+    });
     const [loading, setLoading] = useState(true);
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [searchText, setSearchText] = useState("");
@@ -143,31 +149,21 @@ function ComplaintManage() {
 
     return (
         <div className="lib-container">
-            <div className="lib-header">
-                <div className="lib-header-left">
-                    <h1>Khiếu nại</h1>
-                    <p className="lib-header-subtitle">
-                        Khiếu nại từ sinh viên khi bị trừ điểm uy tín
-                    </p>
-                </div>
-                <div className="lib-header-right">
-                    <div className="lib-stats">
-                        <span className="lib-stat-badge pending">Chờ xử lý: {counts.PENDING}</span>
-                        <span className="lib-stat-badge verified">Chấp nhận: {counts.ACCEPTED}</span>
-                        <span className="lib-stat-badge rejected">Từ chối: {counts.DENIED}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-                <div className="lib-search">
-                    <Search size={16} className="lib-search-icon" />
-                    <input
-                        type="text"
-                        placeholder="Tìm theo tên sinh viên, tiêu đề..."
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                    />
+            <div className="lib-page-title">
+                <h1>Khiếu nại</h1>
+                <div className="lib-inline-stats">
+                    <span className="lib-inline-stat">
+                        <span className="dot amber"></span>
+                        Chờ xử lý <strong>{counts.PENDING}</strong>
+                    </span>
+                    <span className="lib-inline-stat">
+                        <span className="dot green"></span>
+                        Chấp nhận <strong>{counts.ACCEPTED}</strong>
+                    </span>
+                    <span className="lib-inline-stat">
+                        <span className="dot red"></span>
+                        Từ chối <strong>{counts.DENIED}</strong>
+                    </span>
                 </div>
             </div>
 
@@ -184,6 +180,18 @@ function ComplaintManage() {
                         )}
                     </button>
                 ))}
+            </div>
+
+            <div className="lib-controls">
+                <div className="lib-search">
+                    <Search size={16} className="lib-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Tìm theo tên sinh viên, tiêu đề..."
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                    />
+                </div>
             </div>
 
             {loading ? (
@@ -225,10 +233,10 @@ function ComplaintManage() {
                                 <div onClick={(e) => e.stopPropagation()}>
                                     {complaint.status === "PENDING" && (
                                         <div style={{ display: "flex", gap: 8 }}>
-                                            <button className="lib-btn success" onClick={() => handleAccept(complaint.id)} disabled={submitting}>
+                                            <button className="lib-btn primary" onClick={() => handleAccept(complaint.id)} disabled={submitting}>
                                                 Chấp nhận
                                             </button>
-                                            <button className="lib-btn danger" onClick={() => handleDeny(complaint.id)} disabled={submitting}>
+                                            <button className="lib-btn ghost danger" onClick={() => handleDeny(complaint.id)} disabled={submitting}>
                                                 Từ chối
                                             </button>
                                         </div>
@@ -241,15 +249,16 @@ function ComplaintManage() {
             )}
 
             {selectedComplaint && (
-                <div className="lib-modal-overlay" onClick={() => setSelectedComplaint(null)}>
-                    <div className="lib-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="lib-modal-header">
+                <>
+                    <div className="lib-slide-overlay" onClick={() => setSelectedComplaint(null)} />
+                    <div className="lib-slide-panel">
+                        <div className="lib-slide-header">
                             <h2>Chi tiết khiếu nại</h2>
-                            <button className="lib-modal-close" onClick={() => setSelectedComplaint(null)}>&times;</button>
+                            <button className="lib-slide-close" onClick={() => setSelectedComplaint(null)}>&times;</button>
                         </div>
-                        <div className="lib-modal-body">
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Sinh viên</div>
+                        <div className="lib-slide-body">
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Sinh viên</div>
                                 <div className="lib-user-info">
                                     {selectedComplaint.studentAvatar ? (
                                         <img src={selectedComplaint.studentAvatar} alt="" className="lib-avatar" />
@@ -263,68 +272,68 @@ function ComplaintManage() {
                                 </div>
                             </div>
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Trạng thái</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Trạng thái</div>
                                 <span className={`lib-status-badge ${getStatusClass(selectedComplaint.status)}`}>
                                     {STATUS_LABELS[selectedComplaint.status] || selectedComplaint.status}
                                 </span>
                             </div>
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Tiêu đề</div>
-                                <div className="lib-modal-text">{selectedComplaint.subject}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Tiêu đề</div>
+                                <div className="lib-slide-value">{selectedComplaint.subject}</div>
                             </div>
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Nội dung</div>
-                                <div className="lib-modal-text">{selectedComplaint.content}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Nội dung</div>
+                                <div className="lib-slide-value">{selectedComplaint.content}</div>
                             </div>
 
                             {selectedComplaint.evidenceUrl && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Bằng chứng</div>
-                                    <a href={selectedComplaint.evidenceUrl} target="_blank" rel="noopener noreferrer" className="lib-btn secondary">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Bằng chứng</div>
+                                    <a href={selectedComplaint.evidenceUrl} target="_blank" rel="noopener noreferrer" className="lib-btn ghost">
                                         Xem bằng chứng
                                     </a>
                                 </div>
                             )}
 
-                            <div className="lib-modal-section">
-                                <div className="lib-modal-label">Thời gian gửi</div>
-                                <div className="lib-modal-text">{formatDateTime(selectedComplaint.createdAt)}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Thời gian gửi</div>
+                                <div className="lib-slide-value">{formatDateTime(selectedComplaint.createdAt)}</div>
                             </div>
 
                             {selectedComplaint.resolvedByName && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Xử lý bởi</div>
-                                    <div className="lib-modal-text">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Xử lý bởi</div>
+                                    <div className="lib-slide-value">
                                         {selectedComplaint.resolvedByName} - {formatDateTime(selectedComplaint.resolvedAt)}
                                     </div>
                                 </div>
                             )}
 
                             {selectedComplaint.resolutionNote && (
-                                <div className="lib-modal-section">
-                                    <div className="lib-modal-label">Ghi chú xử lý</div>
-                                    <div className="lib-modal-text">{selectedComplaint.resolutionNote}</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Ghi chú xử lý</div>
+                                    <div className="lib-slide-value">{selectedComplaint.resolutionNote}</div>
                                 </div>
                             )}
                         </div>
-                        <div className="lib-modal-footer">
+                        <div className="lib-slide-footer">
                             {selectedComplaint.status === "PENDING" && (
                                 <>
-                                    <button className="lib-btn success" onClick={() => handleAccept(selectedComplaint.id)} disabled={submitting}>
-                                        {submitting ? "Đang xử lý..." : "Chấp nhận & Hoàn điểm"}
+                                    <button className="lib-btn primary" onClick={() => handleAccept(selectedComplaint.id)} disabled={submitting}>
+                                        {submitting ? "Đang xử lý..." : "Chấp nhận"}
                                     </button>
-                                    <button className="lib-btn danger" onClick={() => handleDeny(selectedComplaint.id)} disabled={submitting}>
+                                    <button className="lib-btn ghost danger" onClick={() => handleDeny(selectedComplaint.id)} disabled={submitting}>
                                         {submitting ? "Đang xử lý..." : "Từ chối"}
                                     </button>
                                 </>
                             )}
-                            <button className="lib-btn secondary" onClick={() => setSelectedComplaint(null)}>Đóng</button>
+                            <button className="lib-btn ghost" onClick={() => setSelectedComplaint(null)}>Đóng</button>
                         </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

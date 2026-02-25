@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Search } from "lucide-react";
+import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/ViolationManage.css";
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/violation-reports`;
@@ -8,13 +11,6 @@ const STATUS_LABELS = {
     VERIFIED: "Đã xác minh",
     RESOLVED: "Đã xử lý",
     REJECTED: "Từ chối",
-};
-
-const STATUS_COLORS = {
-    PENDING: "#f59e0b",
-    VERIFIED: "#16a34a",
-    RESOLVED: "#3b82f6",
-    REJECTED: "#dc2626",
 };
 
 const VIOLATION_TYPE_LABELS = {
@@ -35,13 +31,19 @@ const TAB_LIST = [
 ];
 
 function ViolationManage() {
+    const [searchParams] = useSearchParams();
     const [reports, setReports] = useState([]);
     const [counts, setCounts] = useState({ pending: 0, verified: 0, resolved: 0, rejected: 0 });
-    const [activeTab, setActiveTab] = useState("ALL");
+    const [activeTab, setActiveTab] = useState(() => {
+        const tabParam = searchParams.get("tab");
+        if (tabParam && TAB_LIST.some(t => t.key === tabParam)) return tabParam;
+        return "ALL";
+    });
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const getToken = () =>
         sessionStorage.getItem("librarian_token") || localStorage.getItem("librarian_token");
@@ -137,80 +139,108 @@ function ViolationManage() {
 
     const getInitial = (name) => (name ? name.charAt(0).toUpperCase() : "?");
 
+    const getStatusClass = (status) => {
+        const map = { PENDING: "pending", VERIFIED: "confirmed", RESOLVED: "confirmed", REJECTED: "rejected" };
+        return map[status] || "pending";
+    };
+
+    const filteredReports = reports.filter((r) => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            (r.reporterName || "").toLowerCase().includes(term) ||
+            (r.reporterCode || "").toLowerCase().includes(term) ||
+            (r.description || "").toLowerCase().includes(term)
+        );
+    });
+
     return (
-        <div className="vr-container">
-            {/* Header */}
-            <div className="vr-header">
-                <h1>Quản lý báo cáo vi phạm</h1>
-                <div className="vr-stats">
-                    <span className="vr-stat-badge pending">
-                        Chờ xử lý: {counts.pending}
+        <div className="lib-container">
+            {/* Page Title + Inline Stats */}
+            <div className="lib-page-title">
+                <h1>Quản lý vi phạm</h1>
+                <div className="lib-inline-stats">
+                    <span className="lib-inline-stat">
+                        <span className="dot amber"></span>
+                        Chờ xử lý <strong>{counts.pending}</strong>
                     </span>
-                    <span className="vr-stat-badge verified">
-                        Đã xác minh: {counts.verified}
+                    <span className="lib-inline-stat">
+                        <span className="dot green"></span>
+                        Đã xác minh <strong>{counts.verified}</strong>
                     </span>
-                    <span className="vr-stat-badge rejected">
-                        Từ chối: {counts.rejected}
+                    <span className="lib-inline-stat">
+                        <span className="dot red"></span>
+                        Từ chối <strong>{counts.rejected}</strong>
                     </span>
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="vr-tabs">
+            <div className="lib-tabs">
                 {TAB_LIST.map((tab) => (
                     <button
                         key={tab.key}
-                        className={`vr-tab ${activeTab === tab.key ? "active" : ""}`}
+                        className={`lib-tab ${activeTab === tab.key ? "active" : ""}`}
                         onClick={() => setActiveTab(tab.key)}
                     >
                         {tab.label}
                         {tab.key === "PENDING" && counts.pending > 0 && (
-                            <span className="vr-tab-count">{counts.pending}</span>
+                            <span className="lib-tab-count">{counts.pending}</span>
                         )}
                     </button>
                 ))}
             </div>
 
+            {/* Search */}
+            <div className="lib-controls">
+                <div className="lib-search">
+                    <Search size={16} className="lib-search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Tìm kiếm báo cáo..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
             {/* Report List */}
             {loading ? (
-                <div className="vr-loading">
-                    <div className="vr-spinner" />
+                <div className="lib-loading">
+                    <div className="lib-spinner" />
                 </div>
-            ) : reports.length === 0 ? (
-                <div className="vr-empty">
-                    <div className="vr-empty-icon">&#128466;</div>
+            ) : filteredReports.length === 0 ? (
+                <div className="lib-empty">
                     <h3>Chưa có báo cáo nào</h3>
                     <p>Các báo cáo vi phạm từ sinh viên sẽ xuất hiện ở đây</p>
                 </div>
             ) : (
-                <div className="vr-list">
-                    {reports.map((report) => (
+                <div className="lib-card-list">
+                    {filteredReports.map((report) => (
                         <div
                             key={report.id}
-                            className="vr-card"
+                            className="lib-card"
                             onClick={() => setSelectedReport(report)}
                         >
-                            <div className="vr-card-header">
-                                <div className="vr-reporter-info">
+                            <div className="lib-card-header">
+                                <div className="lib-user-info">
                                     {report.reporterAvatar ? (
                                         <img
                                             src={report.reporterAvatar}
                                             alt=""
-                                            className="vr-avatar"
+                                            className="lib-avatar"
                                         />
                                     ) : (
-                                        <div className="vr-avatar-placeholder">
+                                        <div className="lib-avatar-placeholder">
                                             {getInitial(report.reporterName)}
                                         </div>
                                     )}
-                                    <div className="vr-reporter-details">
+                                    <div>
                                         <h3>{report.reporterName}</h3>
-                                        <div className="vr-reporter-code">{report.reporterCode}</div>
+                                        <div className="lib-user-code">{report.reporterCode}</div>
                                     </div>
                                 </div>
-                                <span
-                                    className={`vr-status-badge ${report.status.toLowerCase()}`}
-                                >
+                                <span className={`lib-status-badge ${getStatusClass(report.status)}`}>
                                     {STATUS_LABELS[report.status]}
                                 </span>
                             </div>
@@ -227,15 +257,15 @@ function ViolationManage() {
                             </div>
 
                             {report.description && (
-                                <div className="vr-description">{report.description}</div>
+                                <div className="lib-description">{report.description}</div>
                             )}
 
                             {report.evidenceUrl && (
-                                <div className="vr-images">
+                                <div className="lib-images">
                                     <img
                                         src={report.evidenceUrl}
                                         alt="Bằng chứng"
-                                        className="vr-image-thumbnail"
+                                        className="lib-image-thumbnail"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setLightboxImage(report.evidenceUrl);
@@ -244,20 +274,20 @@ function ViolationManage() {
                                 </div>
                             )}
 
-                            <div className="vr-card-footer">
-                                <span className="vr-time">{formatTime(report.createdAt)}</span>
+                            <div className="lib-card-footer">
+                                <span className="lib-time">{formatTime(report.createdAt)}</span>
                                 <div className="vr-actions" onClick={(e) => e.stopPropagation()}>
                                     {report.status === "PENDING" && (
                                         <>
                                             <button
-                                                className="vr-btn success"
+                                                className="lib-btn primary"
                                                 onClick={() => handleVerify(report.id)}
                                                 disabled={submitting}
                                             >
                                                 Xác minh
                                             </button>
                                             <button
-                                                className="vr-btn danger"
+                                                className="lib-btn ghost danger"
                                                 onClick={() => handleReject(report.id)}
                                                 disabled={submitting}
                                             >
@@ -266,7 +296,7 @@ function ViolationManage() {
                                         </>
                                     )}
                                     {report.pointDeducted > 0 && (
-                                        <span className="vr-points-badge">
+                                        <span className="lib-points-badge">
                                             -{report.pointDeducted} điểm
                                         </span>
                                     )}
@@ -277,81 +307,71 @@ function ViolationManage() {
                 </div>
             )}
 
-            {/* Detail Modal */}
+            {/* Slide Panel - Detail */}
             {selectedReport && (
-                <div className="vr-modal-overlay" onClick={() => setSelectedReport(null)}>
-                    <div className="vr-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="vr-modal-header">
+                <>
+                    <div className="lib-slide-overlay" onClick={() => setSelectedReport(null)} />
+                    <div className="lib-slide-panel">
+                        <div className="lib-slide-header">
                             <h2>Chi tiết báo cáo vi phạm</h2>
                             <button
-                                className="vr-modal-close"
+                                className="lib-slide-close"
                                 onClick={() => setSelectedReport(null)}
                             >
                                 &times;
                             </button>
                         </div>
-                        <div className="vr-modal-body">
-                            {/* Reporter Info */}
-                            <div className="vr-modal-section">
-                                <div className="vr-modal-label">Người báo cáo</div>
-                                <div className="vr-modal-student-info">
+                        <div className="lib-slide-body">
+                            {/* Reporter */}
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Người báo cáo</div>
+                                <div className="lib-user-info">
                                     {selectedReport.reporterAvatar ? (
-                                        <img
-                                            src={selectedReport.reporterAvatar}
-                                            alt=""
-                                            className="vr-avatar"
-                                        />
+                                        <img src={selectedReport.reporterAvatar} alt="" className="lib-avatar" />
                                     ) : (
-                                        <div className="vr-avatar-placeholder">
+                                        <div className="lib-avatar-placeholder">
                                             {getInitial(selectedReport.reporterName)}
                                         </div>
                                     )}
                                     <div>
-                                        <strong>{selectedReport.reporterName}</strong>
-                                        <div style={{ fontSize: 13, color: "#666" }}>
-                                            {selectedReport.reporterCode}
-                                        </div>
+                                        <h3>{selectedReport.reporterName}</h3>
+                                        <div className="lib-user-code">{selectedReport.reporterCode}</div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Violator Info */}
+                            {/* Violator */}
                             {selectedReport.violatorName && (
-                                <div className="vr-modal-section">
-                                    <div className="vr-modal-label">Người vi phạm (tự động nhận diện)</div>
-                                    <div className="vr-modal-student-info">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Người vi phạm</div>
+                                    <div className="lib-user-info">
                                         {selectedReport.violatorAvatar ? (
-                                            <img
-                                                src={selectedReport.violatorAvatar}
-                                                alt=""
-                                                className="vr-avatar"
-                                            />
+                                            <img src={selectedReport.violatorAvatar} alt="" className="lib-avatar" />
                                         ) : (
-                                            <div className="vr-avatar-placeholder">
+                                            <div className="lib-avatar-placeholder">
                                                 {getInitial(selectedReport.violatorName)}
                                             </div>
                                         )}
                                         <div>
-                                            <strong>{selectedReport.violatorName}</strong>
-                                            <div style={{ fontSize: 13, color: "#666" }}>
-                                                {selectedReport.violatorCode}
-                                            </div>
+                                            <h3>{selectedReport.violatorName}</h3>
+                                            <div className="lib-user-code">{selectedReport.violatorCode}</div>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Violation Details */}
-                            <div className="vr-modal-section">
-                                <div className="vr-modal-label">Loại vi phạm</div>
-                                <div className="vr-modal-text">
+                            {/* Violation Type */}
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Loại vi phạm</div>
+                                <div className="lib-slide-value">
                                     {VIOLATION_TYPE_LABELS[selectedReport.violationType] || selectedReport.violationType}
                                 </div>
                             </div>
 
-                            <div className="vr-modal-section">
-                                <div className="vr-modal-label">Vị trí</div>
-                                <div className="vr-modal-text">
+                            {/* Location */}
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Vị trí</div>
+                                <div className="lib-slide-value">
                                     Ghế {selectedReport.seatCode}
                                     {selectedReport.zoneName && ` - ${selectedReport.zoneName}`}
                                     {selectedReport.areaName && ` (${selectedReport.areaName})`}
@@ -359,27 +379,25 @@ function ViolationManage() {
                             </div>
 
                             {/* Status */}
-                            <div className="vr-modal-section">
-                                <div className="vr-modal-label">Trạng thái</div>
-                                <span
-                                    className={`vr-status-badge ${selectedReport.status.toLowerCase()}`}
-                                >
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Trạng thái</div>
+                                <span className={`lib-status-badge ${getStatusClass(selectedReport.status)}`}>
                                     {STATUS_LABELS[selectedReport.status]}
                                 </span>
                             </div>
 
                             {/* Description */}
                             {selectedReport.description && (
-                                <div className="vr-modal-section">
-                                    <div className="vr-modal-label">Mô tả</div>
-                                    <div className="vr-modal-text">{selectedReport.description}</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Mô tả</div>
+                                    <div className="lib-slide-value">{selectedReport.description}</div>
                                 </div>
                             )}
 
                             {/* Evidence */}
                             {selectedReport.evidenceUrl && (
-                                <div className="vr-modal-section">
-                                    <div className="vr-modal-label">Bằng chứng</div>
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Bằng chứng</div>
                                     <img
                                         src={selectedReport.evidenceUrl}
                                         alt="Bằng chứng"
@@ -390,16 +408,16 @@ function ViolationManage() {
                             )}
 
                             {/* Time */}
-                            <div className="vr-modal-section">
-                                <div className="vr-modal-label">Thời gian báo cáo</div>
-                                <div className="vr-modal-text">{formatTime(selectedReport.createdAt)}</div>
+                            <div className="lib-slide-section">
+                                <div className="lib-slide-label">Thời gian báo cáo</div>
+                                <div className="lib-slide-value">{formatTime(selectedReport.createdAt)}</div>
                             </div>
 
-                            {/* Verification Info */}
+                            {/* Verified By */}
                             {selectedReport.verifiedByName && (
-                                <div className="vr-modal-section">
-                                    <div className="vr-modal-label">Xử lý bởi</div>
-                                    <div className="vr-modal-text">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Xử lý bởi</div>
+                                    <div className="lib-slide-value">
                                         {selectedReport.verifiedByName} - {formatTime(selectedReport.verifiedAt)}
                                     </div>
                                 </div>
@@ -407,27 +425,27 @@ function ViolationManage() {
 
                             {/* Points Deducted */}
                             {selectedReport.pointDeducted > 0 && (
-                                <div className="vr-modal-section">
-                                    <div className="vr-modal-label">Điểm trừ</div>
-                                    <span className="vr-points-badge-large">
+                                <div className="lib-slide-section">
+                                    <div className="lib-slide-label">Điểm trừ</div>
+                                    <span className="lib-points-badge" style={{ fontSize: 14, padding: '6px 14px' }}>
                                         -{selectedReport.pointDeducted} điểm
                                     </span>
                                 </div>
                             )}
                         </div>
 
-                        <div className="vr-modal-footer">
+                        <div className="lib-slide-footer">
                             {selectedReport.status === "PENDING" && (
                                 <>
                                     <button
-                                        className="vr-btn success"
+                                        className="lib-btn primary"
                                         onClick={() => handleVerify(selectedReport.id)}
                                         disabled={submitting}
                                     >
-                                        {submitting ? "Đang xử lý..." : "Xác minh & Trừ điểm"}
+                                        {submitting ? "Đang xử lý..." : "Xác minh"}
                                     </button>
                                     <button
-                                        className="vr-btn danger"
+                                        className="lib-btn ghost danger"
                                         onClick={() => handleReject(selectedReport.id)}
                                         disabled={submitting}
                                     >
@@ -436,19 +454,19 @@ function ViolationManage() {
                                 </>
                             )}
                             <button
-                                className="vr-btn secondary"
+                                className="lib-btn ghost"
                                 onClick={() => setSelectedReport(null)}
                             >
                                 Đóng
                             </button>
                         </div>
                     </div>
-                </div>
+                </>
             )}
 
             {/* Lightbox */}
             {lightboxImage && (
-                <div className="vr-lightbox" onClick={() => setLightboxImage(null)}>
+                <div className="lib-lightbox" onClick={() => setLightboxImage(null)}>
                     <img src={lightboxImage} alt="" />
                 </div>
             )}

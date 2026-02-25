@@ -1,34 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap');
 
-:root {
-  --orange: #f58220;
-  --orange-dark: #ef6f12;
-
-  --bg: #f0f2f5;
-  --panel: #ffffff;
-  --text: #0f172a;
-  --muted: #64748b;
-  --border: #e2e8f0;
-
-  --shadow: 0 10px 40px rgba(15, 23, 42, .08);
-  --shadow-soft: 0 4px 20px rgba(15, 23, 42, .05);
-  --shadow-hover: 0 12px 48px rgba(15, 23, 42, .12);
-
-  --r-lg: 16px;
-  --r-md: 12px;
-  --r-sm: 10px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
 
 /* =================== DASHBOARD CONTAINER =================== */
 .dashboard-container {
@@ -128,7 +99,7 @@ body {
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: var(--shadow-soft);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .stat-card-wrapper:hover {
@@ -263,7 +234,7 @@ body {
   background: var(--panel);
   border-radius: var(--r-lg);
   padding: 20px;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .panel-elevated {

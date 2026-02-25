@@ -5,7 +5,7 @@ import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_
 import { getAreas } from "../../../services/admin/area_management/api";
 import { seatService } from "../../../services/seatService";
 import { handleLogout } from "../../../utils/auth";
-import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate } from "lucide-react";
+import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate, User, Clock, X } from "lucide-react";
 import LibrarianArea from "../../../components/librarian/LibrarianArea";
 import "./LibrarianAreas.css";
 
@@ -76,7 +76,7 @@ function LibrarianAreasContent() {
   useEffect(() => {
     (async () => {
       try {
-        const response = await fetch('http://localhost:8080/slib/settings/time-slots');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings/time-slots`);
         if (response.ok) {
           const slots = await response.json();
           setTimeSlots(slots);
@@ -152,6 +152,10 @@ function LibrarianAreasContent() {
         rowNumber: s.rowNumber ?? s.row_number ?? 1,
         columnNumber: s.columnNumber ?? s.column_number ?? 1,
         reservationEndTime: s.reservationEndTime ?? null,
+        reservationStartTime: s.reservationStartTime ?? null,
+        bookedByUserName: s.bookedByUserName ?? null,
+        bookedByUserCode: s.bookedByUserCode ?? null,
+        bookedByAvatarUrl: s.bookedByAvatarUrl ?? null,
       }));
 
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
@@ -497,8 +501,6 @@ function LibrarianAreasContent() {
                 <div className="librarian-seat-detail">
                   <div className="librarian-seat-code">{selectedSeat.seatCode}</div>
                   <div className="librarian-seat-info">Khu vực: {(() => {
-                    // Tìm khu vực chứa ghế này
-                    if (!state.zones || !areas) return 'Không xác định';
                     const seatZone = state.zones.find(zone => String(zone.zoneId) === String(selectedSeat.zoneId));
                     if (!seatZone) return 'Không xác định';
                     const area = areas.find(a => String(a.areaId) === String(seatZone.areaId));
@@ -512,18 +514,49 @@ function LibrarianAreasContent() {
                             selectedSeat.seatStatus
                     }</strong>
                   </div>
+
+                  {/* Thông tin sinh viên khi ghế BOOKED */}
+                  {selectedSeat.seatStatus === 'BOOKED' && selectedSeat.bookedByUserName && (
+                    <div className="librarian-booker-section">
+                      <div className="librarian-booker-info">
+                        <div className="librarian-booker-avatar">
+                          {selectedSeat.bookedByAvatarUrl ? (
+                            <img src={selectedSeat.bookedByAvatarUrl} alt="avatar" />
+                          ) : (
+                            <div className="librarian-avatar-fallback">
+                              <User size={20} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="librarian-booker-details">
+                          <span className="librarian-booker-name">{selectedSeat.bookedByUserName}</span>
+                          <span className="librarian-booker-code">{selectedSeat.bookedByUserCode}</span>
+                        </div>
+                      </div>
+                      {selectedSeat.reservationStartTime && (
+                        <div className="librarian-booker-time">
+                          <Clock size={14} />
+                          <span>
+                            {new Date(selectedSeat.reservationStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            {' - '}
+                            {selectedSeat.reservationEndTime
+                              ? new Date(selectedSeat.reservationEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                              : '--:--'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     className="librarian-btn"
                     onClick={() => toggleRestriction(selectedSeat)}
-                    disabled={selectedSeat.seatStatus === 'BOOKED'}
                     style={{
-                      backgroundColor: selectedSeat.seatStatus === 'BOOKED' ? '#ccc' :
-                        selectedSeat.seatStatus === 'UNAVAILABLE' ? '#10b981' : '#ef4444',
-                      cursor: selectedSeat.seatStatus === 'BOOKED' ? 'not-allowed' : 'pointer',
+                      backgroundColor: selectedSeat.seatStatus === 'UNAVAILABLE' ? '#10b981' : '#ef4444',
+                      cursor: 'pointer',
                     }}
                   >
-                    {selectedSeat.seatStatus === 'BOOKED' ? 'Đang được đặt' :
-                      selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bỏ hạn chế' : 'Hạn chế ghế'}
+                    {selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bỏ hạn chế' : 'Hạn chế ghế'}
                   </button>
                 </div>
               ) : (
@@ -545,6 +578,20 @@ function LibrarianAreasContent() {
               <div className="librarian-legend-item">
                 <span className="librarian-legend-dot librarian-legend-dot--gray" />
                 <span>Bị hạn chế (Unavailable)</span>
+              </div>
+
+              <div className="librarian-legend-title" style={{ marginTop: 12 }}>Mật độ khu vực</div>
+              <div className="librarian-legend-item">
+                <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(39, 174, 96, 0.3)', border: '1px solid #27AE60', display: 'inline-block', flexShrink: 0 }} />
+                <span>Vắng ({'<'} 50%)</span>
+              </div>
+              <div className="librarian-legend-item">
+                <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(243, 156, 18, 0.3)', border: '1px solid #F39C12', display: 'inline-block', flexShrink: 0 }} />
+                <span>Khá đông (50 - 90%)</span>
+              </div>
+              <div className="librarian-legend-item">
+                <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(231, 76, 60, 0.3)', border: '1px solid #E74C3C', display: 'inline-block', flexShrink: 0 }} />
+                <span>Đông ({'≥'} 90%)</span>
               </div>
             </div>
           </aside>

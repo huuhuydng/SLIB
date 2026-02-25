@@ -1098,6 +1098,55 @@
     }
 }
 
+/* Toast thông báo tin nhắn mới từ sinh viên */
+.chat-message-toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #2d5f2e 0%, #388e3c 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(45, 95, 46, 0.35);
+    z-index: 10000;
+    animation: slideInFromRight 0.4s ease-out;
+    max-width: 350px;
+}
+
+.chat-message-toast span:first-child {
+    font-size: 24px;
+}
+
+.chat-message-toast strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.chat-message-toast p {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.chat-message-toast button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.chat-message-toast button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 /* Tabs cho escalation */
 .escalation-tabs {
     display: flex;

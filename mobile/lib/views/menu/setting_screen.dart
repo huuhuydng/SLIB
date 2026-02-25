@@ -464,7 +464,7 @@ class _SettingScreenState extends State<SettingScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Đăng xuất?",
@@ -476,24 +476,26 @@ class _SettingScreenState extends State<SettingScreen> {
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // Đóng Dialog
-              try {
-                // SỬA LẠI: Dùng context.read để gọi hàm logout của Provider
-                await context.read<AuthService>().logout();
+              // Lưu reference trước khi pop dialog
+              final navigator = Navigator.of(context);
+              final authService = context.read<AuthService>();
 
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const OnBoardingScreen(),
-                    ),
-                    (route) => false,
-                  );
-                }
+              Navigator.pop(dialogContext); // Đóng Dialog
+
+              try {
+                await authService.logout();
+
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const OnBoardingScreen(),
+                  ),
+                  (route) => false,
+                );
               } catch (e) {
                 print("Lỗi logout: $e");
               }

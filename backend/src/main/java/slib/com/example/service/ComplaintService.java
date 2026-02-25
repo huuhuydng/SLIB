@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.service.LibrarianNotificationService;
 import slib.com.example.dto.complaint.ComplaintDTO;
 import slib.com.example.entity.complaint.ComplaintEntity;
 import slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus;
@@ -24,6 +25,7 @@ public class ComplaintService {
 
         private final ComplaintRepository complaintRepository;
         private final UserRepository userRepository;
+        private final LibrarianNotificationService librarianNotificationService;
         private final SimpMessagingTemplate messagingTemplate;
 
         /**
@@ -80,6 +82,7 @@ public class ComplaintService {
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Sinh viên {} đã gửi khiếu nại: {}", student.getFullName(), subject);
                 broadcastDashboardUpdate("COMPLAINT_UPDATE", "CREATED");
+                librarianNotificationService.broadcastPendingCounts("COMPLAINT", "CREATED");
                 return ComplaintDTO.fromEntity(saved);
         }
 
@@ -103,6 +106,7 @@ public class ComplaintService {
                 log.info("[Complaint] Khiếu nại {} được CHẤP NHẬN bởi {}", complaintId, librarian.getFullName());
 
                 broadcastDashboardUpdate("COMPLAINT_UPDATE", "ACCEPTED");
+                librarianNotificationService.broadcastPendingCounts("COMPLAINT", "ACCEPTED");
                 // TODO: Tích hợp hoàn điểm uy tín thông qua PointTransactionService khi cần
                 return ComplaintDTO.fromEntity(saved);
         }
@@ -126,6 +130,7 @@ public class ComplaintService {
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Khiếu nại {} bị TỪ CHỐI bởi {}", complaintId, librarian.getFullName());
                 broadcastDashboardUpdate("COMPLAINT_UPDATE", "DENIED");
+                librarianNotificationService.broadcastPendingCounts("COMPLAINT", "DENIED");
                 return ComplaintDTO.fromEntity(saved);
         }
 
