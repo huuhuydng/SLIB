@@ -135,9 +135,24 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Xin chào ${result.fullName ?? 'Sinh viên'}!"),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  "Xin chào ${result.fullName ?? 'Sinh viên'}!",
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
           backgroundColor: AppColors.brandColor,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
         ),
       );
 

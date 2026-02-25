@@ -155,9 +155,6 @@ public class BookingService {
                         System.err.println("Failed to log activity: " + e.getMessage());
                 }
 
-                // NOTE: Push notification đã được chuyển sang confirmSeatWithNfc()
-                // Không gửi notification ngay khi tạo booking nữa
-
                 // Broadcast dashboard update
                 broadcastDashboardUpdate("BOOKING_UPDATE", "CREATED");
 
@@ -408,6 +405,21 @@ public class BookingService {
                 // Broadcast status to WebSocket clients
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
                                 reservation.getStartTime(), reservation.getEndTime());
+
+                // Send push notification khi check-in NFC thành công
+                try {
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                        reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                        reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String notiTitle = "Check-in thành công";
+                        String notiBody = String.format(
+                                        "Ghế %s tại %s (%s) đã check-in bằng NFC. Chúc bạn học tập hiệu quả!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(reservation.getUser().getId(), notiTitle, notiBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send NFC confirmation notification: " + e.getMessage());
+                }
 
                 // Broadcast dashboard update
                 broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");

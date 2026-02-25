@@ -73,7 +73,8 @@ Future<void> showBackgroundNotification(RemoteMessage message) async {
     importance: Importance.high,
     priority: Priority.high,
     showWhen: true,
-    icon: '@mipmap/ic_launcher',
+    icon: '@drawable/ic_stat_notification',
+    color: Color(0xFFFF751F),
   );
   
   const iosDetails = DarwinNotificationDetails(
@@ -306,7 +307,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_stat_notification',
+      color: Color(0xFFFF751F),
     );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true, presentBadge: true, presentSound: true,
@@ -379,7 +381,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _initializeLocalNotifications() async {
     // Android initialization
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
     
     // iOS initialization
     const iosSettings = DarwinInitializationSettings(
@@ -433,10 +435,11 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _configureFirebaseMessaging() async {
-    // Handle foreground messages - show local notification and update count
+    // Handle foreground messages - update UI only (WebSocket handles showing local notification)
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _handleIncomingNotification(message);
-      _showLocalNotification(message);
+      // Không gọi _showLocalNotification ở đây vì WebSocket đã show rồi
+      // Tránh duplicate notification
     });
 
     // Handle background/terminated message opens
@@ -464,7 +467,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_stat_notification',
+      color: Color(0xFFFF751F),
     );
     
     const iosDetails = DarwinNotificationDetails(

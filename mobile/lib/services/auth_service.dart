@@ -139,6 +139,10 @@ class AuthService extends ChangeNotifier {
         await HceBridge.setUserId(_currentUser!.id);
         await _fetchAndSyncSettings(_currentUser!.id);
 
+        // Fetch full profile from /me to get avtUrl and other fields
+        // not included in login response
+        await checkLoginStatus();
+
         notifyListeners();
         return _currentUser;
       } else {
@@ -203,6 +207,10 @@ class AuthService extends ChangeNotifier {
         }
         
         await _fetchAndSyncSettings(_currentUser!.id);
+
+        // Fetch full profile from /me to get avtUrl and other fields
+        // not included in login response
+        await checkLoginStatus();
 
         notifyListeners();
         return _currentUser;
