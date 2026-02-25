@@ -60,6 +60,12 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
+.sidebar__brandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Khi mở sidebar, logo phóng to nhẹ hoặc dịch chuyển nếu cần */
 .sidebar:hover .sidebar__brand {
   justify-content: flex-start;
@@ -284,6 +290,47 @@
 
 .sidebar__subitem .sidebar__label {
   font-size: 13px;
+}
+
+/* --- BADGE --- */
+.sidebar__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+/* Badge khi sidebar mở rộng */
+.sidebar:hover .sidebar__badge {
+  position: static;
+  margin-left: auto;
+}
+
+/* Badge cho group */
+.sidebar__badge--group {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.sidebar:hover .sidebar__badge--group {
+  position: static;
+  margin-left: 8px;
+}
+
+.sidebar__badge--groupExpanded {
+  display: none;
 }
 
 /* --- HELP SECTION (FOOTER) --- */

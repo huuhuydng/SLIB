@@ -7,6 +7,7 @@ import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.AccessLogRepository;
 import slib.com.example.repository.RefreshTokenRepository;
 import slib.com.example.repository.ReservationRepository;
@@ -189,6 +190,22 @@ public class UserService {
                         .build();
 
                 User savedUser = userRepository.save(user);
+
+                // Tạo UserSetting mặc định cho user mới
+                try {
+                    UserSetting setting = UserSetting.builder()
+                            .userId(savedUser.getId())
+                            .user(savedUser)
+                            .isHceEnabled(true)
+                            .isAiRecommendEnabled(true)
+                            .isBookingRemindEnabled(true)
+                            .themeMode("light")
+                            .languageCode("vi")
+                            .build();
+                    userSettingRepository.save(setting);
+                } catch (Exception settingEx) {
+                    // Bỏ qua nếu DB trigger đã tạo sẵn
+                }
 
                 Map<String, Object> successEntry = new HashMap<>();
                 successEntry.put("id", savedUser.getId());
