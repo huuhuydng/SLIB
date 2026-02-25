@@ -112,12 +112,17 @@ public class AsyncImportService {
      * PHASE 3: Enrich avatars asynchronously (background upload)
      * This runs AFTER import is complete, so users see "success" immediately.
      * Progress is tracked as "uploaded/total" format.
+     * If the entire phase fails, uploaded avatars are rolled back (deleted from
+     * Cloudinary).
      */
     @Async("avatarExecutor")
     public CompletableFuture<Void> enrichAvatarsAsync(UUID batchId, Map<String, MultipartFile> avatarFiles) {
         if (avatarFiles == null || avatarFiles.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
+
+        // Track uploaded URLs for rollback
+        List<String> uploadedUrls = Collections.synchronizedList(new ArrayList<>());
 
         try {
             int total = avatarFiles.size();
@@ -137,6 +142,9 @@ public class AsyncImportService {
 
                 try {
                     String avatarUrl = cloudinaryService.uploadAvatar(file);
+
+                    // Track URL for potential rollback
+                    uploadedUrls.add(avatarUrl);
 
                     // Update user's avatar URL in database
                     userRepository.updateAvatarUrl(userCode, avatarUrl);
@@ -163,14 +171,42 @@ public class AsyncImportService {
             int failCount = failed.get();
             jobRepository.updateAvatarUploaded(batchId, successCount);
 
+            // Nếu TOÀN BỘ upload đều thất bại → rollback
+            if (successCount == 0 && failCount > 0) {
+                log.error("[AsyncImport] ALL avatar uploads failed! Rolling back {} uploaded images...",
+                        uploadedUrls.size());
+                rollbackCloudinaryUploads(uploadedUrls);
+                jobRepository.updateStatus(batchId, ImportJob.ImportJobStatus.FAILED);
+                return CompletableFuture.failedFuture(
+                        new RuntimeException("Toàn bộ upload avatar thất bại. Đã rollback ảnh trên Cloudinary."));
+            }
+
             log.info("[AsyncImport] Avatar enrichment complete: {}/{} (failed: {})",
                     successCount, total, failCount);
 
             return CompletableFuture.completedFuture(null);
 
         } catch (Exception e) {
-            log.error("[AsyncImport] Avatar enrichment failed: {}", e.getMessage());
+            log.error("[AsyncImport] Avatar enrichment crashed: {}. Rolling back {} uploads...",
+                    e.getMessage(), uploadedUrls.size());
+            rollbackCloudinaryUploads(uploadedUrls);
+            jobRepository.updateStatus(batchId, ImportJob.ImportJobStatus.FAILED);
             return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Rollback: Xóa tất cả ảnh đã upload lên Cloudinary khi import thất bại.
+     */
+    private void rollbackCloudinaryUploads(List<String> uploadedUrls) {
+        if (uploadedUrls == null || uploadedUrls.isEmpty()) {
+            return;
+        }
+        try {
+            int deleted = cloudinaryService.deleteAvatars(uploadedUrls);
+            log.info("[Rollback] Đã xóa {}/{} ảnh trên Cloudinary", deleted, uploadedUrls.size());
+        } catch (Exception e) {
+            log.error("[Rollback] Lỗi khi xóa ảnh Cloudinary: {}", e.getMessage());
         }
     }
 
