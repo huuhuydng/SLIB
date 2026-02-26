@@ -203,16 +203,42 @@ class UserService {
             const formData = new FormData();
             formData.append('file', excelFile);
 
-            console.log('📤 [UserService] Starting async Excel import:', excelFile.name);
+            console.log('[UserService] Starting async Excel import:', excelFile.name);
 
             const response = await axiosInstance.post('/users/import/excel', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            console.log('✅ [UserService] Import started:', response.data);
+            console.log('[UserService] Import started:', response.data);
             return response.data;
         } catch (error) {
-            console.error('❌ [UserService] importExcelAsync error:', error);
+            console.error('[UserService] importExcelAsync error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Server-side ZIP import: gửi file ZIP thẳng lên server
+     * Server tự giải nén, parse Excel, import users, upload avatars
+     * @param {File} zipFile - .zip file containing Excel + avatar images
+     * @returns {Promise<{batchId: string, avatarCount: number, status: string}>}
+     */
+    async importZipAsync(zipFile) {
+        try {
+            const formData = new FormData();
+            formData.append('file', zipFile);
+
+            console.log('[UserService] Starting server-side ZIP import:', zipFile.name, `(${Math.round(zipFile.size / 1024 / 1024)}MB)`);
+
+            const response = await axiosInstance.post('/users/import/zip', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 120000 // 2 minutes timeout for large ZIP upload
+            });
+
+            console.log('[UserService] ZIP import started:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('[UserService] importZipAsync error:', error);
             throw error;
         }
     }

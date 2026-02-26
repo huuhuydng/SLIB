@@ -214,10 +214,13 @@ docker-compose.yml
 *.tmp
 *.temp
 *.bak
-*.backup__pycache__/
+*.backup
+*.py
+__pycache__/
 *.pyc
 
 # Agent/AI config files
 .agent/
 .antigravity/
 .gemini/
+slib_user_import_with_avatars.zip

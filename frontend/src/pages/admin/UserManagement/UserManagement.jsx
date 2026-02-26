@@ -25,6 +25,9 @@ import Header from '../../../components/shared/Header';
 import userService from '../../../services/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
+import '../../../styles/librarian/librarian-shared.css';
+import '../../../styles/librarian/StudentsManage.css';
+import '../../../styles/librarian/CheckInOut.css';
 
 const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'STUDENT'];
 const STATUSES = ['Tất cả', 'Hoạt động', 'Đã khóa'];
@@ -180,44 +183,9 @@ const UserManagement = () => {
       return;
     }
 
-    // ZIP files - extract and show preview (for avatar support)
+    // ZIP files - server-side processing (server extracts, imports, uploads avatars)
     if (fileName.endsWith('.zip')) {
-      try {
-        setImportStep('processing');
-        setProcessingStatus('Đang giải nén file ZIP...');
-
-        const result = await userService.parseZipFile(file);
-
-        if (!result.users || result.users.length === 0) {
-          throw new Error('Không tìm thấy dữ liệu người dùng trong file ZIP');
-        }
-
-        const avatars = result.avatars || {};
-        setAvatarFiles(avatars);
-        setProcessingStatus(`Tìm thấy ${result.users.length} người dùng và ${Object.keys(avatars).length} ảnh đại diện`);
-
-        // Validate locally
-        setProcessingStatus('Đang kiểm tra dữ liệu...');
-        const errors = userService.validateUsersLocally(result.users);
-        setValidationErrors(errors);
-
-        // Mark users with avatars and create preview URLs
-        const usersWithAvatars = result.users.map(user => {
-          const avatarFile = avatars[user.userCode?.toUpperCase()];
-          return {
-            ...user,
-            hasAvatar: !!avatarFile,
-            avatarPreviewUrl: avatarFile ? URL.createObjectURL(avatarFile) : null
-          };
-        });
-
-        setImportData(usersWithAvatars);
-        setImportStep('preview');
-      } catch (err) {
-        console.error('ZIP processing error:', err);
-        alert('Lỗi xử lý file ZIP: ' + err.message);
-        setImportStep('upload');
-      }
+      handleServerZipImport(file);
       return;
     }
 
@@ -422,6 +390,94 @@ const UserManagement = () => {
   };
 
   // Server-side Excel import with progress tracking
+  // Handle server-side ZIP import (server extracts, imports, uploads avatars)
+  const handleServerZipImport = async (zipFile) => {
+    try {
+      setImporting(true);
+      setImportStep('uploading');
+      setProcessingStatus(`Đang tải file ZIP lên server (${Math.round(zipFile.size / 1024 / 1024)}MB)...`);
+      setUploadProgress(0);
+      setServerImportProgress(null);
+
+      // Upload ZIP to server-side import endpoint
+      const startResult = await userService.importZipAsync(zipFile);
+      const batchId = startResult.batchId;
+      const avatarCount = startResult.avatarCount || 0;
+
+      setProcessingStatus(`Đang xử lý ZIP trên server (${avatarCount} ảnh đại diện)...`);
+      setUploadProgress(20);
+
+      // Poll for progress
+      const finalStatus = await userService.pollImportStatus(batchId, (status) => {
+        setServerImportProgress(status);
+
+        let progress = 20;
+        switch (status.status) {
+          case 'PARSING': progress = 30; break;
+          case 'VALIDATING': progress = 45; break;
+          case 'IMPORTING': progress = 55; break;
+          case 'ENRICHING': {
+            // Avatar upload progress
+            const avatarUploaded = status.avatarUploaded || 0;
+            const avatarTotal = status.avatarCount || avatarCount;
+            progress = avatarTotal > 0
+              ? 60 + Math.round((avatarUploaded / avatarTotal) * 35)
+              : 90;
+            break;
+          }
+          case 'COMPLETED': progress = 100; break;
+          default: progress = 30;
+        }
+        setUploadProgress(progress);
+
+        const statusMessages = {
+          'PARSING': 'Đang giải nén và đọc file Excel...',
+          'VALIDATING': `Đang kiểm tra dữ liệu... (${status.validCount || 0} hợp lệ)`,
+          'IMPORTING': `Đang import người dùng... (${status.importedCount || 0}/${status.totalRows || 0})`,
+          'ENRICHING': `Đang upload ảnh đại diện... (${status.avatarUploaded || 0}/${status.avatarCount || avatarCount})`,
+          'COMPLETED': 'Hoàn thành!',
+          'FAILED': `Lỗi: ${status.errorMessage || 'Lỗi không xác định'}`
+        };
+        setProcessingStatus(statusMessages[status.status] || status.status);
+      });
+
+      // Get errors if any
+      let errors = [];
+      if (finalStatus.invalidCount > 0) {
+        try {
+          const errorResult = await userService.getImportErrors(batchId);
+          errors = errorResult.errors || [];
+        } catch (e) {
+          console.error('Failed to get import errors:', e);
+        }
+      }
+
+      setImportResult({
+        successCount: finalStatus.importedCount,
+        failedCount: finalStatus.invalidCount,
+        avatarCount: finalStatus.avatarUploaded || 0,
+        success: Array.from({ length: finalStatus.importedCount }, (_, i) => ({
+          userCode: `Imported ${i + 1}`,
+          email: '-'
+        })),
+        failed: errors.map(e => ({
+          userCode: e.userCode,
+          email: e.email,
+          reason: e.errorMessage
+        }))
+      });
+      setImportStep('result');
+      await fetchUsers();
+
+    } catch (err) {
+      console.error('ZIP import error:', err);
+      alert('Lỗi import ZIP: ' + (err.response?.data?.error || err.message));
+      setImportStep('upload');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleServerImport = async (excelFile) => {
     try {
       setImporting(true);
@@ -594,288 +650,137 @@ const UserManagement = () => {
         searchPlaceholder="Tìm kiếm người dùng..."
       />
 
-      <div style={{
-        padding: '0 24px 32px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        minHeight: 'calc(100vh - 120px)'
-      }}>
-        {/* Page Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <div>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: '700',
-              color: '#1A1A1A',
-              margin: '0 0 4px 0'
-            }}>Quản lý người dùng</h1>
-            <p style={{
-              fontSize: '14px',
-              color: '#A0AEC0',
-              margin: 0
-            }}>Quản lý tài khoản Admin, Thủ thư và Sinh viên</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={fetchUsers}
-              disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-                opacity: loading ? 0.6 : 1
-              }}
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              Làm mới
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Upload size={18} />
-              Import CSV
-            </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#FF751F',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#fff',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <UserPlus size={18} />
-              Thêm Thủ thư
-            </button>
+      <div className="lib-container">
+        {/* Page Title */}
+        <div className="lib-page-title">
+          <h1>Quản lý người dùng</h1>
+          <div className="lib-inline-stats">
+            <span className="lib-inline-stat">
+              <span className="dot purple"></span>
+              Tổng <strong>{stats.total}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot red"></span>
+              Admin <strong>{stats.admins}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot blue"></span>
+              Thủ thư <strong>{stats.librarians}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot green"></span>
+              Sinh viên <strong>{stats.students}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot amber"></span>
+              Đã khóa <strong>{stats.locked}</strong>
+            </span>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          {[
-            { label: 'Tổng người dùng', value: stats.total, icon: Users, color: '#7C3AED', bg: '#F3E8FF' },
-            { label: 'Admin', value: stats.admins, icon: Shield, color: '#DC2626', bg: '#FEE2E2' },
-            { label: 'Thủ thư', value: stats.librarians, icon: Key, color: '#2563EB', bg: '#DBEAFE' },
-            { label: 'Sinh viên', value: stats.students, icon: Users, color: '#059669', bg: '#D1FAE5' },
-            { label: 'Đã khóa', value: stats.locked, icon: Lock, color: '#DC2626', bg: '#FEE2E2' },
-          ].map((stat, idx) => (
-            <div key={idx} style={{
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '20px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px'
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: stat.bg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <stat.icon size={22} color={stat.color} />
-              </div>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A1A' }}>{stat.value}</div>
-                <div style={{ fontSize: '13px', color: '#A0AEC0', fontWeight: '500' }}>{stat.label}</div>
-              </div>
-            </div>
-          ))}
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <button className="lib-btn secondary" onClick={fetchUsers} disabled={loading}>
+            <RefreshCw size={16} className={loading ? 'sm-spinner' : ''} />
+            Làm mới
+          </button>
+          <button className="lib-btn secondary" onClick={() => setShowImportModal(true)}>
+            <Upload size={16} />
+            Import
+          </button>
+          <button className="lib-btn primary" onClick={() => setShowAddModal(true)}>
+            <UserPlus size={16} />
+            Thêm Thủ thư
+          </button>
         </div>
 
         {/* Error Message */}
         {error && (
           <div style={{
-            padding: '16px 20px',
-            background: '#FEE2E2',
-            borderRadius: '12px',
-            marginBottom: '20px',
+            padding: '12px 16px',
+            background: 'var(--lib-red-bg)',
+            borderRadius: 'var(--lib-r-md)',
+            marginBottom: '16px',
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            color: '#DC2626'
+            gap: '10px',
+            color: '#DC2626',
+            fontSize: '13px',
+            fontWeight: 500
           }}>
-            <AlertTriangle size={20} />
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Filters & Table */}
-        <div style={{
-          background: '#fff',
-          borderRadius: '16px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-          overflow: 'hidden'
-        }}>
-          {/* Filter Bar */}
-          <div style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid #E2E8F0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <div style={{ position: 'relative' }}>
-                <Search size={16} style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#A0AEC0'
-                }} />
+        {/* Main Panel */}
+        <div className="lib-panel">
+          <div className="lib-panel-header">
+            <h3 className="lib-panel-title">Danh sách người dùng</h3>
+            <div className="sm-controls">
+              <div className="lib-search">
+                <Search size={16} className="lib-search-icon" />
                 <input
                   type="text"
                   placeholder="Tìm theo tên, email, mã..."
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  style={{
-                    padding: '10px 12px 10px 40px',
-                    border: '2px solid #E2E8F0',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    width: '280px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
                 />
               </div>
-
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                style={{
-                  padding: '10px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  color: '#4A5568',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
+              <div className="lib-tabs" style={{ margin: 0 }}>
                 {ROLES.map(role => (
-                  <option key={role} value={role}>
-                    {role === 'Tất cả' ? 'Tất cả vai trò' : getRoleLabel(role)}
-                  </option>
+                  <button
+                    key={role}
+                    className={`lib-tab ${roleFilter === role ? 'active' : ''}`}
+                    onClick={() => setRoleFilter(role)}
+                  >
+                    {role === 'Tất cả' ? 'Tất cả' : getRoleLabel(role)}
+                  </button>
                 ))}
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  padding: '10px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  color: '#4A5568',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
+              </div>
+              <div className="lib-tabs" style={{ margin: 0 }}>
                 {STATUSES.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'Tất cả' ? 'Tất cả trạng thái' : status}
-                  </option>
+                  <button
+                    key={status}
+                    className={`lib-tab ${statusFilter === status ? 'active' : ''}`}
+                    onClick={() => setStatusFilter(status)}
+                  >
+                    {status}
+                  </button>
                 ))}
-              </select>
-            </div>
-
-            <div style={{ fontSize: '14px', color: '#A0AEC0' }}>
-              Hiển thị {filteredUsers.length} / {users.length} người dùng
+              </div>
             </div>
           </div>
 
           {/* Table */}
-          <div style={{ overflowX: 'auto' }}>
-            {loading ? (
-              <div style={{
-                padding: '60px',
-                textAlign: 'center',
-                color: '#A0AEC0'
-              }}>
-                <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-                <p>Đang tải danh sách người dùng...</p>
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {loading ? (
+            <div className="sm-loading">
+              <Loader2 size={28} className="sm-spinner" />
+              <span>Đang tải danh sách người dùng...</span>
+            </div>
+          ) : (
+            <div className="sm-table-wrapper">
+              <table className="sm-table">
                 <thead>
-                  <tr style={{ background: '#F7FAFC' }}>
-                    {['Người dùng', 'Email', 'Mã', 'Vai trò', 'Trạng thái', 'Thao tác'].map((header, idx) => (
-                      <th key={idx} style={{
-                        textAlign: idx === 5 ? 'center' : 'left',
-                        padding: '16px 24px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#A0AEC0',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>{header}</th>
-                    ))}
+                  <tr>
+                    <th>Người dùng</th>
+                    <th>Email</th>
+                    <th>Mã</th>
+                    <th className="center">Vai trò</th>
+                    <th className="center">Trạng thái</th>
+                    <th className="center">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{
-                        padding: '60px',
-                        textAlign: 'center',
-                        color: '#A0AEC0'
-                      }}>
-                        Không tìm thấy người dùng phù hợp
+                      <td colSpan="6">
+                        <div className="sm-table-empty">
+                          Không tìm thấy người dùng phù hợp
+                        </div>
                       </td>
                     </tr>
-                  ) : paginatedUsers.map((user, index) => {
+                  ) : paginatedUsers.map((user) => {
                     const roleColors = getRoleColor(user.role);
                     const initials = (user.fullName || user.email || 'U')
                       .split(' ')
@@ -885,44 +790,29 @@ const UserManagement = () => {
                       .toUpperCase();
 
                     return (
-                      <tr
-                        key={user.id}
-                        style={{
-                          borderBottom: index === paginatedUsers.length - 1 ? 'none' : '1px solid #E2E8F0',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFF7F2'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <td style={{ padding: '16px 24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '10px',
-                              background: user.avtUrl
-                                ? `url(${user.avtUrl}) center/cover no-repeat`
-                                : 'linear-gradient(135deg, #FF751F, #FF9B5A)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#fff',
-                              fontSize: '13px',
-                              fontWeight: '600'
-                            }}>
+                      <tr key={user.id} className="sm-table-row">
+                        <td>
+                          <div className="sm-student-cell">
+                            <div
+                              className="sm-avatar"
+                              style={user.avtUrl ? {
+                                backgroundImage: `url(${user.avtUrl})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center'
+                              } : {}}
+                            >
                               {!user.avtUrl && initials}
                             </div>
                             <div>
-                              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>
-                                {user.fullName || 'Chưa có tên'}
-                              </div>
+                              <span className="sm-student-name">{user.fullName || 'Chưa có tên'}</span>
                               {user.passwordChanged === false && (
                                 <div style={{
                                   fontSize: '11px',
                                   color: '#F59E0B',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '4px'
+                                  gap: '4px',
+                                  marginTop: '2px'
                                 }}>
                                   <AlertTriangle size={10} />
                                   Chưa đổi mật khẩu
@@ -931,62 +821,31 @@ const UserManagement = () => {
                             </div>
                           </div>
                         </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{ fontSize: '14px', color: '#4A5568' }}>{user.email}</span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
+                        <td className="sm-email-cell">{user.email}</td>
+                        <td className="sm-code-cell">{user.userCode || '-'}</td>
+                        <td className="center">
                           <span style={{
-                            fontSize: '13px',
-                            color: '#6B7280',
-                            fontFamily: 'monospace',
-                            background: '#F3F4F6',
-                            padding: '4px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            {user.userCode || '-'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{
-                            padding: '6px 12px',
-                            borderRadius: '20px',
+                            padding: '4px 12px',
+                            borderRadius: 'var(--lib-r-pill, 9999px)',
                             fontSize: '12px',
                             fontWeight: '600',
                             background: roleColors.bg,
                             color: roleColors.color
                           }}>{getRoleLabel(user.role)}</span>
                         </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {user.isActive !== false ? (
-                              <>
-                                <CheckCircle size={16} color="#059669" />
-                                <span style={{ fontSize: '13px', color: '#059669', fontWeight: '500' }}>Hoạt động</span>
-                              </>
-                            ) : (
-                              <>
-                                <Lock size={16} color="#DC2626" />
-                                <span style={{ fontSize: '13px', color: '#DC2626', fontWeight: '500' }}>Đã khóa</span>
-                              </>
-                            )}
-                          </div>
+                        <td className="center">
+                          <span className={`sm-status-badge ${user.isActive !== false ? 'active' : 'locked'}`}>
+                            {user.isActive !== false ? 'Hoạt động' : 'Đã khóa'}
+                          </span>
                         </td>
-                        <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <td className="center">
                           <div style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               onClick={() => setShowActionMenu(showActionMenu === user.id ? null : user.id)}
-                              style={{
-                                padding: '8px',
-                                background: '#F7FAFC',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
+                              className="lib-btn secondary"
+                              style={{ padding: '6px 8px' }}
                             >
-                              <MoreVertical size={18} color="#4A5568" />
+                              <MoreVertical size={16} />
                             </button>
 
                             {showActionMenu === user.id && (
@@ -996,86 +855,53 @@ const UserManagement = () => {
                                 right: 0,
                                 marginTop: '4px',
                                 background: '#fff',
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                                border: '1px solid #E2E8F0',
+                                borderRadius: 'var(--lib-r-md)',
+                                boxShadow: 'var(--lib-shadow)',
+                                border: '1px solid var(--lib-border)',
                                 minWidth: '200px',
                                 zIndex: 100,
                                 overflow: 'hidden'
                               }}>
                                 <div
                                   onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                  className="sm-table-row"
+                                  style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                                 >
                                   <Eye size={16} color="#2563EB" />
-                                  <span style={{ fontSize: '14px', color: '#2563EB' }}>Xem chi tiết</span>
+                                  <span style={{ fontSize: '13px', color: '#2563EB' }}>Xem chi tiết</span>
                                 </div>
                                 <div
                                   onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                  className="sm-table-row"
+                                  style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                                 >
                                   {user.isActive !== false ? (
                                     <>
                                       <Lock size={16} color="#F59E0B" />
-                                      <span style={{ fontSize: '14px', color: '#F59E0B' }}>Khóa tài khoản</span>
+                                      <span style={{ fontSize: '13px', color: '#F59E0B' }}>Khóa tài khoản</span>
                                     </>
                                   ) : (
                                     <>
                                       <Unlock size={16} color="#059669" />
-                                      <span style={{ fontSize: '14px', color: '#059669' }}>Mở khóa</span>
+                                      <span style={{ fontSize: '13px', color: '#059669' }}>Mở khóa</span>
                                     </>
                                   )}
                                 </div>
                                 <div
                                   onClick={() => { setSelectedUser(user); setShowResetPasswordModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                  className="sm-table-row"
+                                  style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
                                 >
                                   <Key size={16} color="#7C3AED" />
-                                  <span style={{ fontSize: '14px', color: '#7C3AED' }}>Reset mật khẩu</span>
+                                  <span style={{ fontSize: '13px', color: '#7C3AED' }}>Reset mật khẩu</span>
                                 </div>
                                 <div
                                   onClick={() => { setSelectedUser(user); setShowDeleteModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s',
-                                    borderTop: '1px solid #E2E8F0'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#FEF2F2'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                  className="sm-table-row"
+                                  style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', borderTop: '1px solid var(--lib-border)' }}
                                 >
                                   <Trash2 size={16} color="#DC2626" />
-                                  <span style={{ fontSize: '14px', color: '#DC2626' }}>Xóa tài khoản</span>
+                                  <span style={{ fontSize: '13px', color: '#DC2626' }}>Xóa tài khoản</span>
                                 </div>
                               </div>
                             )}
@@ -1086,82 +912,49 @@ const UserManagement = () => {
                   })}
                 </tbody>
               </table>
-            )}
-          </div>
+              {filteredUsers.length === 0 && !loading && (
+                <div className="sm-table-empty">
+                  {searchText ? 'Không tìm thấy người dùng nào.' : 'Chưa có người dùng trong hệ thống.'}
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Pagination Controls */}
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 24px',
-              borderTop: '1px solid #E2E8F0',
-              background: '#F8FAFC'
-            }}>
-              <span style={{ fontSize: '14px', color: '#6B7280' }}>
-                Hiển thị {((currentPage - 1) * USERS_PER_PAGE) + 1} - {Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} / {filteredUsers.length} người dùng
+            <div className="cio-pagination">
+              <button
+                className="cio-page-btn"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                &lt;
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                .map((page, idx, arr) => (
+                  <React.Fragment key={page}>
+                    {idx > 0 && arr[idx - 1] !== page - 1 && (
+                      <span className="cio-page-ellipsis">...</span>
+                    )}
+                    <button
+                      className={`cio-page-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  </React.Fragment>
+                ))}
+              <button
+                className="cio-page-btn"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                &gt;
+              </button>
+              <span className="cio-page-info">
+                {((currentPage - 1) * USERS_PER_PAGE) + 1}-{Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} / {filteredUsers.length}
               </span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: '8px 16px',
-                    background: currentPage === 1 ? '#E2E8F0' : '#fff',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: currentPage === 1 ? '#A0AEC0' : '#4A5568',
-                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  Trước
-                </button>
-
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
-                  .map((page, idx, arr) => (
-                    <React.Fragment key={page}>
-                      {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span style={{ color: '#A0AEC0' }}>...</span>
-                      )}
-                      <button
-                        onClick={() => setCurrentPage(page)}
-                        style={{
-                          padding: '8px 12px',
-                          background: currentPage === page ? '#FF751F' : '#fff',
-                          border: currentPage === page ? 'none' : '1px solid #E2E8F0',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: currentPage === page ? '600' : '400',
-                          color: currentPage === page ? '#fff' : '#4A5568',
-                          cursor: 'pointer',
-                          minWidth: '36px'
-                        }}
-                      >
-                        {page}
-                      </button>
-                    </React.Fragment>
-                  ))}
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  style={{
-                    padding: '8px 16px',
-                    background: currentPage === totalPages ? '#E2E8F0' : '#fff',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: currentPage === totalPages ? '#A0AEC0' : '#4A5568',
-                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  Sau
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -1537,10 +1330,10 @@ const UserManagement = () => {
                         marginTop: '16px',
                         fontStyle: 'italic'
                       }}>
-                        {serverImportProgress.status === 'PARSING' && '📄 Đang đọc file Excel (streaming)...'}
-                        {serverImportProgress.status === 'VALIDATING' && '🔍 Đang kiểm tra trùng lặp email, mã số...'}
-                        {serverImportProgress.status === 'IMPORTING' && '💾 Đang lưu vào database...'}
-                        {serverImportProgress.status === 'ENRICHING' && '🖼️ Đang xử lý ảnh đại diện...'}
+                        {serverImportProgress.status === 'PARSING' && 'Đang đọc file Excel (streaming)...'}
+                        {serverImportProgress.status === 'VALIDATING' && 'Đang kiểm tra trùng lặp email, mã số...'}
+                        {serverImportProgress.status === 'IMPORTING' && 'Đang lưu vào database...'}
+                        {serverImportProgress.status === 'ENRICHING' && 'Đang xử lý ảnh đại diện...'}
                       </p>
                     )}
                   </div>

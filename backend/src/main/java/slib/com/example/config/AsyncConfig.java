@@ -27,8 +27,8 @@ public class AsyncConfig {
     @Bean(name = "avatarExecutor")
     public Executor avatarExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(20);
         executor.setQueueCapacity(1000);
         executor.setThreadNamePrefix("AvatarAsync-");
         executor.setWaitForTasksToCompleteOnShutdown(true);

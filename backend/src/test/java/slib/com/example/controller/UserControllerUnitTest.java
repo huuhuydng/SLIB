@@ -23,6 +23,7 @@ import slib.com.example.service.AuthService;
 import slib.com.example.service.StagingImportService;
 import slib.com.example.service.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.repository.UserRepository;
 
 import java.util.*;
 
@@ -61,6 +62,9 @@ class UserControllerUnitTest {
 
         @MockBean
         private StagingImportService stagingImportService;
+
+        @MockBean
+        private UserRepository userRepository;
 
         @Autowired
         private ObjectMapper objectMapper;

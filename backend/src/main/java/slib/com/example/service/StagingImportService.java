@@ -3,6 +3,7 @@ package slib.com.example.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.users.ImportJob;
 import slib.com.example.entity.users.Role;
@@ -69,7 +70,7 @@ public class StagingImportService {
     /**
      * Step 2: Import valid users with PARALLEL BCrypt hashing
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int importValidUsers(UUID batchId) {
         log.info("[Staging] Importing valid users for batch: {}", batchId);
 
@@ -117,26 +118,7 @@ public class StagingImportService {
             List<User> batch = allUsers.subList(i, end);
 
             // Batch insert - Hibernate will batch these into fewer SQL statements
-            List<User> savedUsers = userRepository.saveAll(batch);
-
-            // Create UserSettings for each saved user (backup for DB trigger)
-            try {
-                List<UserSetting> userSettings = savedUsers.stream()
-                        .map(user -> UserSetting.builder()
-                                .userId(user.getId())
-                                .user(user)
-                                .isHceEnabled(true)
-                                .isAiRecommendEnabled(true)
-                                .isBookingRemindEnabled(true)
-                                .themeMode("light")
-                                .languageCode("vi")
-                                .build())
-                        .collect(Collectors.toList());
-                userSettingRepository.saveAll(userSettings);
-            } catch (Exception e) {
-                // Ignore if DB trigger already created settings
-                log.debug("[Staging] UserSettings may already exist (from DB trigger): {}", e.getMessage());
-            }
+            userRepository.saveAll(batch);
 
             processedCount += batch.size();
 

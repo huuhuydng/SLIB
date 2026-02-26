@@ -19,10 +19,12 @@ import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.ai.ChatSessionRepository;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * UserService - handles user profile and management operations.
@@ -142,9 +144,7 @@ public class UserService {
 
     /**
      * Import users in bulk (Admin only)
-     * Returns a map with:
-     * - "success": List of successfully imported users
-     * - "failed": List of failed imports with reasons
+     * Optimized: batch duplicate check + batch save (no N+1 queries)
      */
     @Transactional
     public Map<String, Object> importUsers(List<ImportUserRequest> requests) {
@@ -153,9 +153,34 @@ public class UserService {
 
         String encodedPassword = authService.encodeDefaultPassword();
 
+        // Batch check duplicates (2 queries total thay vì 2*N queries)
+        Set<String> emailsToCheck = requests.stream()
+                .map(r -> r.getEmail() != null ? r.getEmail().toLowerCase() : "")
+                .filter(e -> !e.isEmpty())
+                .collect(Collectors.toSet());
+        Set<String> codesToCheck = requests.stream()
+                .map(r -> r.getUserCode() != null ? r.getUserCode().toUpperCase() : "")
+                .filter(c -> !c.isEmpty())
+                .collect(Collectors.toSet());
+
+        Set<String> existingEmails = new HashSet<>();
+        Set<String> existingCodes = new HashSet<>();
+        if (!emailsToCheck.isEmpty()) {
+            existingEmails = new HashSet<>(userRepository.findExistingEmails(emailsToCheck));
+            existingEmails = existingEmails.stream().map(String::toLowerCase).collect(Collectors.toSet());
+        }
+        if (!codesToCheck.isEmpty()) {
+            existingCodes = new HashSet<>(userRepository.findExistingUserCodes(codesToCheck));
+            existingCodes = existingCodes.stream().map(String::toUpperCase).collect(Collectors.toSet());
+        }
+
+        // Track emails/codes in this batch to detect intra-batch duplicates
+        Set<String> batchEmails = new HashSet<>();
+        Set<String> batchCodes = new HashSet<>();
+        List<User> usersToSave = new ArrayList<>();
+
         for (ImportUserRequest req : requests) {
             try {
-                // Validate required fields
                 if (req.getUserCode() == null || req.getUserCode().isEmpty()) {
                     throw new RuntimeException("User code is required");
                 }
@@ -166,69 +191,80 @@ public class UserService {
                     throw new RuntimeException("Full name is required");
                 }
 
-                // Check for duplicates
-                if (userRepository.existsByEmail(req.getEmail())) {
-                    throw new RuntimeException("Email already exists: " + req.getEmail());
+                String email = req.getEmail().toLowerCase();
+                String code = req.getUserCode().toUpperCase();
+
+                // Check DB duplicates
+                if (existingEmails.contains(email)) {
+                    throw new RuntimeException("Email đã tồn tại: " + req.getEmail());
                 }
-                if (userRepository.existsByUserCode(req.getUserCode())) {
-                    throw new RuntimeException("User code already exists: " + req.getUserCode());
+                if (existingCodes.contains(code)) {
+                    throw new RuntimeException("Mã người dùng đã tồn tại: " + req.getUserCode());
+                }
+                // Check intra-batch duplicates
+                if (!batchEmails.add(email)) {
+                    throw new RuntimeException("Email trùng trong batch: " + req.getEmail());
+                }
+                if (!batchCodes.add(code)) {
+                    throw new RuntimeException("Mã người dùng trùng trong batch: " + req.getUserCode());
                 }
 
-                // Create user
                 User user = User.builder()
-                        .userCode(req.getUserCode())
-                        .username(req.getUserCode()) // Default username = userCode
-                        .email(req.getEmail())
+                        .userCode(code)
+                        .username(code)
+                        .email(email)
                         .fullName(req.getFullName())
                         .phone(req.getPhone())
                         .dob(req.getDob())
                         .role(req.getRole() != null ? req.getRole() : Role.STUDENT)
                         .password(encodedPassword)
-                        .passwordChanged(false) // New users need to change password
+                        .passwordChanged(false)
                         .isActive(true)
-                        .avtUrl(req.getAvtUrl()) // Avatar URL from import
+                        .avtUrl(req.getAvtUrl())
                         .build();
 
-                User savedUser = userRepository.save(user);
-
-                // Tạo UserSetting mặc định cho user mới
-                try {
-                    UserSetting setting = UserSetting.builder()
-                            .userId(savedUser.getId())
-                            .user(savedUser)
-                            .isHceEnabled(true)
-                            .isAiRecommendEnabled(true)
-                            .isBookingRemindEnabled(true)
-                            .themeMode("light")
-                            .languageCode("vi")
-                            .build();
-                    userSettingRepository.save(setting);
-                } catch (Exception settingEx) {
-                    // Bỏ qua nếu DB trigger đã tạo sẵn
-                }
-
-                Map<String, Object> successEntry = new HashMap<>();
-                successEntry.put("id", savedUser.getId());
-                successEntry.put("userCode", savedUser.getUserCode());
-                successEntry.put("email", savedUser.getEmail());
-                successEntry.put("fullName", savedUser.getFullName());
-                successList.add(successEntry);
+                usersToSave.add(user);
+                successList.add(Map.of(
+                        "userCode", code,
+                        "email", email,
+                        "fullName", req.getFullName()));
 
             } catch (Exception e) {
-                Map<String, Object> failedEntry = new HashMap<>();
-                failedEntry.put("userCode", req.getUserCode());
-                failedEntry.put("email", req.getEmail());
-                failedEntry.put("reason", e.getMessage());
-                failedList.add(failedEntry);
+                failedList.add(Map.of(
+                        "userCode", req.getUserCode() != null ? req.getUserCode() : "",
+                        "email", req.getEmail() != null ? req.getEmail() : "",
+                        "reason", e.getMessage()));
             }
         }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", successList);
-        result.put("failed", failedList);
-        result.put("successCount", successList.size());
-        result.put("failedCount", failedList.size());
-        return result;
+        // Batch save all valid users
+        if (!usersToSave.isEmpty()) {
+            List<User> savedUsers = userRepository.saveAll(usersToSave);
+
+            // Batch create UserSettings
+            try {
+                List<UserSetting> settings = savedUsers.stream()
+                        .map(user -> UserSetting.builder()
+                                .userId(user.getId())
+                                .user(user)
+                                .isHceEnabled(true)
+                                .isAiRecommendEnabled(true)
+                                .isBookingRemindEnabled(true)
+                                .themeMode("light")
+                                .languageCode("vi")
+                                .build())
+                        .toList();
+                userSettingRepository.saveAll(settings);
+            } catch (Exception e) {
+                // Ignore if DB trigger already created settings
+            }
+        }
+
+        return Map.of(
+                "success", successList,
+                "failed", failedList,
+                "successCount", successList.size(),
+                "failedCount", failedList.size());
     }
 
     /**

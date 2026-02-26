@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 
 import slib.com.example.entity.users.User;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,4 +45,24 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Modifying
     @Query("UPDATE User u SET u.avtUrl = :avatarUrl WHERE UPPER(u.userCode) = UPPER(:userCode)")
     void updateAvatarUrl(@Param("userCode") String userCode, @Param("avatarUrl") String avatarUrl);
+
+    /**
+     * Reset avatar URL cho tat ca users (dung khi xoa toan bo avatar tren
+     * Cloudinary)
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.avtUrl = null WHERE u.avtUrl IS NOT NULL")
+    int clearAllAvatarUrls();
+
+    /**
+     * Batch check: tìm emails đã tồn tại trong DB (tránh N+1 queries)
+     */
+    @Query("SELECT u.email FROM User u WHERE LOWER(u.email) IN :emails")
+    List<String> findExistingEmails(@Param("emails") Collection<String> emails);
+
+    /**
+     * Batch check: tìm userCodes đã tồn tại trong DB (tránh N+1 queries)
+     */
+    @Query("SELECT u.userCode FROM User u WHERE UPPER(u.userCode) IN :codes")
+    List<String> findExistingUserCodes(@Param("codes") Collection<String> codes);
 }

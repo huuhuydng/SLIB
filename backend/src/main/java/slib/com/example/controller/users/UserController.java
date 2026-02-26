@@ -1,5 +1,6 @@
 package slib.com.example.controller.users;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +15,7 @@ import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.ImportJob;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserImportStaging;
+import slib.com.example.repository.UserRepository;
 import slib.com.example.service.AsyncImportService;
 import slib.com.example.service.AuthService;
 import slib.com.example.service.StagingImportService;
@@ -39,6 +41,7 @@ public class UserController {
     private final CloudinaryService cloudinaryService;
     private final AsyncImportService asyncImportService;
     private final StagingImportService stagingImportService;
+    private final UserRepository userRepository;
 
     /**
      * Login with Google ID Token
@@ -290,6 +293,31 @@ public class UserController {
     }
 
     /**
+     * Xoa toan bo avatar tren Cloudinary va reset DB (Admin only)
+     * Dung khi can reset sach du lieu avatar
+     */
+    @DeleteMapping("/avatars/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public ResponseEntity<?> deleteAllAvatars() {
+        try {
+            // Xoa toan bo resources trong folder slib_avatars tren Cloudinary
+            int deletedFromCloud = cloudinaryService.deleteAllInFolder("slib_avatars");
+
+            // Reset avatarUrl trong DB cho tat ca users
+            int clearedInDb = userRepository.clearAllAvatarUrls();
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Da xoa toan bo avatar thanh cong",
+                    "deletedFromCloudinary", deletedFromCloud,
+                    "clearedInDatabase", clearedInDb));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Loi xoa tat ca avatars: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Validate users before import (check duplicates)
      */
     @PostMapping("/validate")
@@ -357,6 +385,42 @@ public class UserController {
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Lỗi import: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Server-side ZIP import: extract Excel + avatars, process everything async.
+     * Frontend chỉ cần gửi file ZIP 1 lần, server tự xử lý tất cả.
+     */
+    @PostMapping("/import/zip")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> importFromZip(@RequestParam("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File không được rỗng"));
+            }
+
+            String fileName = file.getOriginalFilename();
+            if (fileName == null || !fileName.toLowerCase().endsWith(".zip")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ file ZIP (.zip)"));
+            }
+
+            // Parse ZIP once: extract Excel to staging + collect avatar bytes
+            var result = asyncImportService.startZipImport(file);
+            UUID batchId = result.getKey();
+            Map<String, byte[]> avatarMap = result.getValue();
+
+            // Trigger async processing (validate + import + upload avatars)
+            asyncImportService.processZipImportAsync(batchId, avatarMap);
+
+            return ResponseEntity.ok(Map.of(
+                    "batchId", batchId.toString(),
+                    "message", "ZIP import đã bắt đầu. Server đang xử lý Excel + avatars.",
+                    "avatarCount", avatarMap.size(),
+                    "status", "PROCESSING"));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi import ZIP: " + e.getMessage()));
         }
     }
 
