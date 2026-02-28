@@ -27,6 +27,11 @@ const Dashboard = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [activeRequestTab, setActiveRequestTab] = useState("support");
   const [hoveredBar, setHoveredBar] = useState(null);
+  const [chartRange, setChartRange] = useState('week');
+  const [chartData, setChartData] = useState([]);
+  const [accessFilter, setAccessFilter] = useState('all');
+  const [topStudentsRange, setTopStudentsRange] = useState('month');
+  const [topStudentsData, setTopStudentsData] = useState([]);
   const [pendingCounts, setPendingCounts] = useState({
     feedbackNew: 0, complaintPending: 0, supportPending: 0, supportInProgress: 0
   });
@@ -239,15 +244,27 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch top students when range changes
+  useEffect(() => {
+    const fetchTopStudents = async () => {
+      const data = await dashboardService.getTopStudents(topStudentsRange);
+      setTopStudentsData(data);
+    };
+    fetchTopStudents();
+  }, [topStudentsRange]);
+
   const filteredStudents = useMemo(() => {
+    let logs = accessLogs;
+    if (accessFilter === 'in') logs = logs.filter(l => l.action === 'CHECK_IN');
+    else if (accessFilter === 'out') logs = logs.filter(l => l.action === 'CHECK_OUT');
     const q = searchText.trim().toLowerCase();
-    if (!q) return accessLogs;
-    return accessLogs.filter((log) =>
+    if (!q) return logs;
+    return logs.filter((log) =>
       (log.userName && log.userName.toLowerCase().includes(q)) ||
       (log.userCode && log.userCode.toLowerCase().includes(q)) ||
       (log.action && log.action.toLowerCase().includes(q))
     );
-  }, [searchText, accessLogs]);
+  }, [searchText, accessLogs, accessFilter]);
 
   const stats = {
     currentlyInLibrary: dashStats?.currentlyInLibrary || 0,
@@ -282,15 +299,24 @@ const Dashboard = () => {
     return 'Chào buổi tối';
   };
 
+  // Fetch chart data when range changes
+  useEffect(() => {
+    const fetchChart = async () => {
+      const data = await dashboardService.getChartStats(chartRange);
+      setChartData(data);
+    };
+    fetchChart();
+  }, [chartRange]);
+
   // Chart max value for scaling
   const chartMax = useMemo(() => {
-    if (!stats.weeklyStats.length) return 10;
+    if (!chartData.length) return 10;
     const maxVal = Math.max(
-      ...stats.weeklyStats.map(d => Math.max(d.checkInCount || 0, d.bookingCount || 0)),
+      ...chartData.map(d => Math.max(d.checkInCount || 0, d.bookingCount || 0)),
       1
     );
     return Math.ceil(maxVal * 1.05);
-  }, [stats.weeklyStats]);
+  }, [chartData]);
 
   // Group zones by area for zone occupancy
   const zonesByArea = useMemo(() => {
@@ -336,61 +362,97 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="stats-grid">
-          <div className="stat-card-wrapper stat-card--purple">
-            <div className="stat-card-icon"><Users size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.currentlyInLibrary}</span>
-              <span className="stat-card-label">Đang trong thư viện</span>
+        {/* Top section: Stats Cards (2x2) + Zone Status */}
+        <div className="dashboard-top-row">
+          {/* Left: 4 stat cards in 2x2 grid */}
+          <div className="stats-grid-compact">
+            <div className="compact-card">
+              <div className="compact-card-icon compact-icon--orange"><Users size={20} /></div>
+              <div className="compact-card-value">{stats.currentlyInLibrary}</div>
+              <div className="compact-card-label">Đang trong thư viện</div>
             </div>
-            <div className="stat-card-accent"></div>
+
+            <div className="compact-card">
+              <div className="compact-card-icon compact-icon--blue"><CalendarCheck size={20} /></div>
+              <div className="compact-card-value">{stats.totalBookingsToday}</div>
+              <div className="compact-card-label">Đặt chỗ hôm nay</div>
+            </div>
+
+            <div className="compact-card">
+              <div className="compact-card-icon compact-icon--red"><AlertCircle size={20} /></div>
+              <div className="compact-card-value">{
+                (pendingCounts.complaintPending || 0) +
+                (pendingCounts.supportPending || 0) +
+                (pendingCounts.supportInProgress || 0) +
+                (pendingCounts.feedbackNew || 0) +
+                (stats.pendingViolations || 0)
+              }</div>
+              <div className="compact-card-label">Cần xử lý</div>
+            </div>
+
+            <div className="compact-card">
+              <div className="compact-card-icon compact-icon--green"><ThumbsUp size={20} /></div>
+              <div className="compact-card-value">{stats.recentFeedbacks.length}</div>
+              <div className="compact-card-label">Phản hồi hôm nay</div>
+            </div>
           </div>
 
-          <div className="stat-card-wrapper stat-card--green">
-            <div className="stat-card-icon"><ArrowDownLeft size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.totalCheckInsToday}</span>
-              <span className="stat-card-label">Check-in hôm nay</span>
+          {/* Right: Zone status */}
+          <section className="dashboard-panel panel-elevated zone-status-side">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 className="panel-title">Trạng thái khu vực</h3>
+              </div>
             </div>
-            <div className="stat-card-accent"></div>
-          </div>
 
-          <div className="stat-card-wrapper stat-card--amber">
-            <div className="stat-card-icon"><ArrowUpRight size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.totalCheckOutsToday}</span>
-              <span className="stat-card-label">Check-out hôm nay</span>
+            <div className="legend">
+              <span className="legend-item">
+                <i className="dot dotGreen" />
+                Trống
+              </span>
+              <span className="legend-item">
+                <i className="dot dotYellow" />
+                Khá đông
+              </span>
+              <span className="legend-item">
+                <i className="dot dotRed" />
+                Đầy
+              </span>
             </div>
-            <div className="stat-card-accent"></div>
-          </div>
 
-          <div className="stat-card-wrapper stat-card--blue">
-            <div className="stat-card-icon"><CalendarCheck size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.totalBookingsToday}</span>
-              <span className="stat-card-label">Đặt chỗ hôm nay</span>
-            </div>
-            <div className="stat-card-accent"></div>
-          </div>
-
-          <div className="stat-card-wrapper stat-card--red">
-            <div className="stat-card-icon"><AlertCircle size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.violationsToday}</span>
-              <span className="stat-card-label">Vi phạm hôm nay</span>
-            </div>
-            <div className="stat-card-accent"></div>
-          </div>
-
-          <div className="stat-card-wrapper stat-card--orange">
-            <div className="stat-card-icon"><MessageSquare size={22} /></div>
-            <div className="stat-card-body">
-              <span className="stat-card-value">{stats.pendingSupportRequests}</span>
-              <span className="stat-card-label">Yêu cầu hỗ trợ chờ</span>
-            </div>
-            <div className="stat-card-accent"></div>
-          </div>
+            {Object.keys(zonesByArea).length === 0 ? (
+              <div className="empty-section">Chưa có dữ liệu khu vực</div>
+            ) : (
+              Object.entries(zonesByArea).map(([areaName, zones]) => (
+                <div key={areaName} className="zone-area-group">
+                  <div className="zone-area-header">
+                    <MapPin size={13} />
+                    <span>{areaName}</span>
+                  </div>
+                  {zones.map((zone, idx) => (
+                    <div key={idx} className="area-row zone-row">
+                      <div className="area-top">
+                        <span className="area-name">{zone.zoneName}</span>
+                        <span className="area-stats">
+                          {zone.occupiedSeats}/{zone.totalSeats} ({zone.occupancyPercentage}%)
+                        </span>
+                      </div>
+                      <div className="area-bar">
+                        <div
+                          className="area-bar-fill"
+                          style={{
+                            width: `${zone.occupancyPercentage}%`,
+                            background: zone.occupancyPercentage >= 90 ? '#ef4444'
+                              : zone.occupancyPercentage >= 60 ? '#fbbf24' : '#22c55e'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </section>
         </div>
 
         {/* Analytics Chart + AI Panel */}
@@ -398,24 +460,32 @@ const Dashboard = () => {
           {/* Bar Chart - Weekly Analytics */}
           <section className="dashboard-panel panel-elevated chart-panel">
             <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BarChart3 size={16} color="#FF751F" />
-                <h3 className="panel-title">Thống kê 7 ngày gần nhất</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Thống kê</h3>
+                <select
+                  className="chart-range-select"
+                  value={chartRange}
+                  onChange={(e) => setChartRange(e.target.value)}
+                >
+                  <option value="week">Tuần này</option>
+                  <option value="month">Tháng này</option>
+                  <option value="year">Năm này</option>
+                </select>
               </div>
               <div className="chart-legend">
                 <span className="chart-legend-item">
-                  <i className="chart-legend-dot" style={{ background: 'linear-gradient(135deg, #FF751F, #feb47b)' }}></i>
-                  Check-in
+                  <i className="chart-legend-dot" style={{ background: '#FF751F' }}></i>
+                  Vào thư viện
                 </span>
                 <span className="chart-legend-item">
-                  <i className="chart-legend-dot" style={{ background: 'linear-gradient(135deg, #f59e0b, #fbbf24)' }}></i>
+                  <i className="chart-legend-dot" style={{ background: '#fbbf24' }}></i>
                   Đặt chỗ
                 </span>
               </div>
             </div>
 
             <div className="bar-chart-container">
-              {stats.weeklyStats.length === 0 ? (
+              {chartData.length === 0 ? (
                 <div className="empty-section">Chưa có dữ liệu thống kê</div>
               ) : (
                 <div className="bar-chart">
@@ -432,7 +502,7 @@ const Dashboard = () => {
                         <div key={i} className="grid-line" style={{ bottom: `${((i + 1) / 4) * 100}%` }} />
                       ))}
                     </div>
-                    {stats.weeklyStats.map((day, idx) => (
+                    {chartData.map((day, idx) => (
                       <div key={idx} className="bar-group">
                         <div className="bar-pair">
                           <div
@@ -456,7 +526,7 @@ const Dashboard = () => {
                             )}
                           </div>
                         </div>
-                        <span className="bar-label">{day.dayOfWeek}</span>
+                        <span className="bar-label">{day.label || day.dayOfWeek}</span>
                       </div>
                     ))}
                   </div>
@@ -516,25 +586,38 @@ const Dashboard = () => {
         <div className="dashboard-grid-mid">
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
-              <h3 className="panel-title">Sinh viên ra vào gần đây</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Sinh viên ra vào gần đây</h3>
+                <select
+                  className="chart-range-select"
+                  value={accessFilter}
+                  onChange={(e) => setAccessFilter(e.target.value)}
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="in">Vào</option>
+                  <option value="out">Ra</option>
+                </select>
+              </div>
+              <a href="/librarian/students" className="view-all-link">Xem tất cả</a>
             </div>
-            <div className="table-wrapper">
-              <table className="dashboard-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '25%' }}>Tên sinh viên</th>
-                    <th style={{ width: '18%' }}>Mã số</th>
-                    <th style={{ width: '17%' }}>Hành động</th>
-                    <th style={{ width: '40%' }}>Thời gian</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.length === 0 ? (
+            {filteredStudents.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
+                Không có dữ liệu
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="dashboard-table">
+                  <thead>
                     <tr>
-                      <td colSpan="4" className="empty-state">Không có dữ liệu</td>
+                      <th style={{ width: '22%' }}>Tên sinh viên</th>
+                      <th style={{ width: '15%' }}>Mã số</th>
+                      <th style={{ width: '13%' }}>Hành động</th>
+                      <th style={{ width: '12%' }}>Cổng</th>
+                      <th style={{ width: '15%' }}>Thời gian</th>
                     </tr>
-                  ) : (
-                    filteredStudents.map((log) => (
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((log) => (
                       <tr key={`${log.logId}-${log.action}`}>
                         <td className="cell-name">{log.userName}</td>
                         <td className="cell-code">{log.userCode}</td>
@@ -543,52 +626,55 @@ const Dashboard = () => {
                             {log.action === 'CHECK_IN' ? 'Vào' : 'Ra'}
                           </span>
                         </td>
+                        <td>Cổng A</td>
                         <td className="cell-time">
-                          {log.action === 'CHECK_IN'
-                            ? formatDateTime(log.checkInTime)
-                            : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
-                          }
+                          {(() => {
+                            const timeStr = log.action === 'CHECK_IN' ? log.checkInTime : log.checkOutTime;
+                            if (!timeStr) return '-';
+                            const d = new Date(timeStr);
+                            return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                          })()}
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           {/* Recent bookings */}
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
-              <h3 className="panel-title">Đặt chỗ gần đây</h3>
-              <CalendarCheck size={16} color="#6b7280" />
+              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Đặt chỗ gần đây</h3>
+              <a href="/librarian/bookings" className="view-all-link">Xem tất cả</a>
             </div>
 
             {stats.recentBookings.length === 0 ? (
-              <div className="empty-section">Chưa có đặt chỗ nào</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
+                Chưa có đặt chỗ nào
+              </div>
             ) : (
-              stats.recentBookings.map((booking, idx) => {
-                const statusCfg = getStatusConfig(booking.status);
-                return (
-                  <div key={idx} className="booking-item booking-item-clickable" onClick={() => setDetailModal({ type: 'booking', data: booking })}>
-                    <div className="booking-item-top">
-                      <div className="booking-user">
-                        <span className="booking-name">{booking.userName}</span>
-                        <span className="booking-code">{booking.userCode}</span>
+              <div className="booking-list">
+                {stats.recentBookings.map((booking, idx) => {
+                  const statusCfg = getStatusConfig(booking.status);
+                  return (
+                    <div key={idx} className="booking-row" onClick={() => setDetailModal({ type: 'booking', data: booking })}>
+                      <div className="booking-row-left">
+                        <span className="booking-row-name">{booking.userName}</span>
+                        <span className="booking-row-meta">{booking.userCode}</span>
                       </div>
-                      <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color }}>
+                      <div className="booking-row-center">
+                        <span className="booking-row-seat">{booking.zoneName} - {booking.seatCode}</span>
+                        <span className="booking-row-time">{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span>
+                      </div>
+                      <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color, flexShrink: 0 }}>
                         {statusCfg.label}
                       </span>
                     </div>
-                    <div className="booking-detail">
-                      <span className="booking-seat">{booking.zoneName} - {booking.seatCode}</span>
-                      <span className="booking-time">
-                        {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </section>
         </div>
@@ -598,23 +684,40 @@ const Dashboard = () => {
           {/* Top 5 students */}
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Award size={16} color="#f59e0b" />
-                <h3 className="panel-title">Top 5 sinh viên xuất sắc</h3>
-              </div>
-              <span className="panel-badge">30 ngày</span>
+              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Top 5 sinh viên xuất sắc</h3>
+              <select
+                className="chart-range-select"
+                style={{ width: 'auto', flexShrink: 0 }}
+                value={topStudentsRange}
+                onChange={(e) => setTopStudentsRange(e.target.value)}
+              >
+                <option value="week">Tuần này</option>
+                <option value="month">Tháng này</option>
+                <option value="year">Năm này</option>
+              </select>
             </div>
 
-            {stats.topStudents.length === 0 ? (
-              <div className="empty-section">Chưa có dữ liệu</div>
+            {topStudentsData.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '200px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
+                Chưa có dữ liệu
+              </div>
             ) : (
               <div className="top-students-list">
-                {stats.topStudents.map((student, idx) => (
-                  <div key={idx} className="top-student-item" onClick={() => setSelectedStudent(student)}>
+                {topStudentsData.map((student, idx) => (
+                  <div key={idx} className="top-student-item">
                     <div className={`top-student-rank rank-${idx + 1}`}>
                       {idx + 1}
                     </div>
-                    <div className="top-student-info">
+                    <div className="top-student-avatar-wrapper" onClick={() => setSelectedStudent(student)}>
+                      {student.avatarUrl ? (
+                        <img src={student.avatarUrl} alt={student.fullName} className="top-student-avatar" />
+                      ) : (
+                        <div className="top-student-avatar-fallback">
+                          {student.fullName?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="top-student-info" onClick={() => setSelectedStudent(student)}>
                       <span className="top-student-name">{student.fullName}</span>
                       <span className="top-student-code">{student.userCode}</span>
                     </div>
@@ -627,6 +730,14 @@ const Dashboard = () => {
                       </span>
                       <span className="top-student-minutes">{student.totalVisits} lần</span>
                     </div>
+                    <a
+                      href={`/librarian/students?userId=${student.userId}`}
+                      className="top-student-detail-link"
+                      title="Xem chi tiết"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ChevronRight size={16} />
+                    </a>
                   </div>
                 ))}
               </div>
@@ -645,39 +756,41 @@ const Dashboard = () => {
               </a>
             </div>
 
-            {stats.recentViolations.length === 0 ? (
-              <div className="empty-section">Không có vi phạm nào</div>
-            ) : (
-              <div className="violations-list">
-                {stats.recentViolations.map((v, idx) => {
-                  const statusCfg = getStatusConfig(v.status);
-                  return (
-                    <div key={idx} className="violation-item violation-item-clickable" onClick={() => setDetailModal({ type: 'violation', data: v })}>
-                      <div className="violation-item-left">
-                        <div className="violation-avatar">
-                          <UserX size={14} />
+            {
+              stats.recentViolations.length === 0 ? (
+                <div className="empty-section">Không có vi phạm nào</div>
+              ) : (
+                <div className="violations-list">
+                  {stats.recentViolations.map((v, idx) => {
+                    const statusCfg = getStatusConfig(v.status);
+                    return (
+                      <div key={idx} className="violation-item violation-item-clickable" onClick={() => setDetailModal({ type: 'violation', data: v })}>
+                        <div className="violation-item-left">
+                          <div className="violation-avatar">
+                            <UserX size={14} />
+                          </div>
+                          <div className="violation-info">
+                            <span className="violation-name">{v.violatorName}</span>
+                            <span className="violation-type">{getViolationLabel(v.violationType)}</span>
+                          </div>
                         </div>
-                        <div className="violation-info">
-                          <span className="violation-name">{v.violatorName}</span>
-                          <span className="violation-type">{getViolationLabel(v.violationType)}</span>
+                        <div className="violation-item-right">
+                          <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color }}>
+                            {statusCfg.label}
+                          </span>
+                          <span className="violation-time">{formatRelativeTime(v.createdAt)}</span>
                         </div>
                       </div>
-                      <div className="violation-item-right">
-                        <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color }}>
-                          {statusCfg.label}
-                        </span>
-                        <span className="violation-time">{formatRelativeTime(v.createdAt)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        </div>
+                    );
+                  })}
+                </div>
+              )
+            }
+          </section >
+        </div >
 
         {/* Requests Tabs Section */}
-        <section className="dashboard-panel panel-elevated requests-panel">
+        < section className="dashboard-panel panel-elevated requests-panel" >
           <div className="panel-header">
             <h3 className="panel-title">Yêu cầu và phản hồi</h3>
           </div>
@@ -758,23 +871,22 @@ const Dashboard = () => {
               })
             )}
           </div>
-        </section>
+        </section >
 
-        {/* Bottom section: News + Zone occupancy */}
-        <div className="dashboard-grid-bottom">
-          {/* News redesigned */}
-          <section className="dashboard-panel panel-elevated news-panel">
-            <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bell size={16} color="#6b7280" />
-                <h3 className="panel-title">Tin tức gần đây</h3>
-              </div>
-              <a href="/librarian/news" className="panel-link">
-                Xem tất cả <ChevronRight size={14} />
-              </a>
+        {/* Bottom section: News */}
+        < section className="dashboard-panel panel-elevated news-panel" >
+          <div className="panel-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Bell size={16} color="#6b7280" />
+              <h3 className="panel-title">Tin tức gần đây</h3>
             </div>
+            <a href="/librarian/news" className="panel-link">
+              Xem tất cả <ChevronRight size={14} />
+            </a>
+          </div>
 
-            {recentNews.length === 0 ? (
+          {
+            recentNews.length === 0 ? (
               <div className="empty-section">Chưa có tin tức</div>
             ) : (
               <div className="news-cards-grid">
@@ -811,462 +923,408 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            )}
-          </section>
-
-          {/* Zone occupancy */}
-          <section className="dashboard-panel panel-elevated">
-            <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Layers size={16} color="#6b7280" />
-                <h3 className="panel-title">Trạng thái khu vực</h3>
-              </div>
-            </div>
-
-            <div className="legend">
-              <span className="legend-item">
-                <i className="dot dotGreen" />
-                Trống
-              </span>
-              <span className="legend-item">
-                <i className="dot dotYellow" />
-                Khá đông
-              </span>
-              <span className="legend-item">
-                <i className="dot dotRed" />
-                Đầy
-              </span>
-            </div>
-
-            {Object.keys(zonesByArea).length === 0 ? (
-              <div className="empty-section">Chưa có dữ liệu khu vực</div>
-            ) : (
-              Object.entries(zonesByArea).map(([areaName, zones]) => (
-                <div key={areaName} className="zone-area-group">
-                  <div className="zone-area-header">
-                    <MapPin size={13} />
-                    <span>{areaName}</span>
-                  </div>
-                  {zones.map((zone, idx) => (
-                    <div key={idx} className="area-row zone-row">
-                      <div className="area-top">
-                        <span className="area-name">{zone.zoneName}</span>
-                        <span className="area-stats">
-                          {zone.occupiedSeats}/{zone.totalSeats} ({zone.occupancyPercentage}%)
-                        </span>
-                      </div>
-                      <div className="area-bar">
-                        <div
-                          className="area-bar-fill"
-                          style={{
-                            width: `${zone.occupancyPercentage}%`,
-                            background: zone.occupancyPercentage >= 90 ? '#ef4444'
-                              : zone.occupancyPercentage >= 60 ? '#fbbf24' : '#22c55e'
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))
-            )}
-          </section>
-        </div>
-      </div>
+            )
+          }
+        </section >
+      </div >
 
       {/* Student Detail Modal */}
-      {selectedStudent && (
-        <div className="student-modal-overlay" onClick={() => setSelectedStudent(null)}>
-          <div className="student-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="student-modal-header">
-              <h3>Thông tin sinh viên</h3>
-              <button className="student-modal-close" onClick={() => setSelectedStudent(null)}>
-                <X size={16} />
-              </button>
-            </div>
-            <div className="student-modal-avatar">
-              {selectedStudent.fullName?.charAt(0) || '?'}
-            </div>
-            <p className="student-modal-name">{selectedStudent.fullName}</p>
-            <p className="student-modal-code">{selectedStudent.userCode}</p>
-            <div className="student-modal-stats">
-              <div className="student-modal-stat">
-                <span className="student-modal-stat-value">
-                  {selectedStudent.totalMinutes > 60
-                    ? `${Math.floor(selectedStudent.totalMinutes / 60)}h${selectedStudent.totalMinutes % 60}p`
-                    : `${selectedStudent.totalMinutes}p`
-                  }
-                </span>
-                <span className="student-modal-stat-label">Tổng thời gian học</span>
+      {
+        selectedStudent && (
+          <div className="student-modal-overlay" onClick={() => setSelectedStudent(null)}>
+            <div className="student-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="student-modal-header">
+                <h3>Thông tin sinh viên</h3>
+                <button className="student-modal-close" onClick={() => setSelectedStudent(null)}>
+                  <X size={16} />
+                </button>
               </div>
-              <div className="student-modal-stat">
-                <span className="student-modal-stat-value">{selectedStudent.totalVisits}</span>
-                <span className="student-modal-stat-label">Số lần ghé thăm</span>
+              <div className="student-modal-avatar">
+                {selectedStudent.fullName?.charAt(0) || '?'}
               </div>
-              <div className="student-modal-stat">
-                <span className="student-modal-stat-value">
-                  {selectedStudent.totalVisits > 0
-                    ? `${Math.round(selectedStudent.totalMinutes / selectedStudent.totalVisits)}p`
-                    : '0p'
-                  }
-                </span>
-                <span className="student-modal-stat-label">Trung bình mỗi lần</span>
-              </div>
-              <div className="student-modal-stat">
-                <span className="student-modal-stat-value" style={{ color: '#10b981' }}>
-                  {selectedStudent.totalMinutes >= 600 ? 'Xuất sắc' : selectedStudent.totalMinutes >= 300 ? 'Tốt' : 'Khá'}
-                </span>
-                <span className="student-modal-stat-label">Đánh giá</span>
+              <p className="student-modal-name">{selectedStudent.fullName}</p>
+              <p className="student-modal-code">{selectedStudent.userCode}</p>
+              <div className="student-modal-stats">
+                <div className="student-modal-stat">
+                  <span className="student-modal-stat-value">
+                    {selectedStudent.totalMinutes > 60
+                      ? `${Math.floor(selectedStudent.totalMinutes / 60)}h${selectedStudent.totalMinutes % 60}p`
+                      : `${selectedStudent.totalMinutes}p`
+                    }
+                  </span>
+                  <span className="student-modal-stat-label">Tổng thời gian học</span>
+                </div>
+                <div className="student-modal-stat">
+                  <span className="student-modal-stat-value">{selectedStudent.totalVisits}</span>
+                  <span className="student-modal-stat-label">Số lần ghé thăm</span>
+                </div>
+                <div className="student-modal-stat">
+                  <span className="student-modal-stat-value">
+                    {selectedStudent.totalVisits > 0
+                      ? `${Math.round(selectedStudent.totalMinutes / selectedStudent.totalVisits)}p`
+                      : '0p'
+                    }
+                  </span>
+                  <span className="student-modal-stat-label">Trung bình mỗi lần</span>
+                </div>
+                <div className="student-modal-stat">
+                  <span className="student-modal-stat-value" style={{ color: '#10b981' }}>
+                    {selectedStudent.totalMinutes >= 600 ? 'Xuất sắc' : selectedStudent.totalMinutes >= 300 ? 'Tốt' : 'Khá'}
+                  </span>
+                  <span className="student-modal-stat-label">Đánh giá</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Detail Modal */}
-      {detailModal && (
-        <div className="detail-modal-overlay" onClick={() => setDetailModal(null)}>
-          <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="detail-modal-header">
-              <h3>
-                {detailModal.type === 'booking' && 'Chi tiết đặt chỗ'}
-                {detailModal.type === 'violation' && 'Chi tiết vi phạm'}
-                {detailModal.type === 'support' && 'Chi tiết yêu cầu hỗ trợ'}
-                {detailModal.type === 'complaint' && 'Chi tiết khiếu nại'}
-                {detailModal.type === 'feedback' && 'Chi tiết phản hồi'}
-                {detailModal.type === 'news' && 'Chi tiết tin tức'}
-              </h3>
-              <button className="detail-modal-close" onClick={() => setDetailModal(null)}>
-                <X size={16} />
-              </button>
-            </div>
+      {
+        detailModal && (
+          <div className="detail-modal-overlay" onClick={() => setDetailModal(null)}>
+            <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="detail-modal-header">
+                <h3>
+                  {detailModal.type === 'booking' && 'Chi tiết đặt chỗ'}
+                  {detailModal.type === 'violation' && 'Chi tiết vi phạm'}
+                  {detailModal.type === 'support' && 'Chi tiết yêu cầu hỗ trợ'}
+                  {detailModal.type === 'complaint' && 'Chi tiết khiếu nại'}
+                  {detailModal.type === 'feedback' && 'Chi tiết phản hồi'}
+                  {detailModal.type === 'news' && 'Chi tiết tin tức'}
+                </h3>
+                <button className="detail-modal-close" onClick={() => setDetailModal(null)}>
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="detail-modal-body">
-              {/* BOOKING */}
-              {detailModal.type === 'booking' && (() => {
-                const d = detailModal.data;
-                const sc = getStatusConfig(d.status);
-                return (
-                  <>
-                    <div className="detail-info-grid">
-                      <div className="detail-info-item">
-                        <span className="detail-label">Sinh viên</span>
-                        <span className="detail-value">{d.userName}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Mã số</span>
-                        <span className="detail-value">{d.userCode}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Khu vực</span>
-                        <span className="detail-value">{d.zoneName}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Ghế</span>
-                        <span className="detail-value">{d.seatCode}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Bắt đầu</span>
-                        <span className="detail-value">{formatDateTime(d.startTime)}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Kết thúc</span>
-                        <span className="detail-value">{formatDateTime(d.endTime)}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Trạng thái</span>
-                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                      </div>
-                      {d.createdAt && (
+              <div className="detail-modal-body">
+                {/* BOOKING */}
+                {detailModal.type === 'booking' && (() => {
+                  const d = detailModal.data;
+                  const sc = getStatusConfig(d.status);
+                  return (
+                    <>
+                      <div className="detail-info-grid">
                         <div className="detail-info-item">
-                          <span className="detail-label">Ngày tạo</span>
-                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                          <span className="detail-label">Sinh viên</span>
+                          <span className="detail-value">{d.userName}</span>
                         </div>
-                      )}
-                    </div>
-                    <a
-                      href="/librarian/bookings"
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <ExternalLink size={15} />
-                      Đi tới trang quản lý đặt chỗ
-                    </a>
-                  </>
-                );
-              })()}
-
-              {/* VIOLATION */}
-              {detailModal.type === 'violation' && (() => {
-                const d = detailModal.data;
-                const sc = getStatusConfig(d.status);
-                return (
-                  <>
-                    <div className="detail-info-grid">
-                      <div className="detail-info-item">
-                        <span className="detail-label">Người vi phạm</span>
-                        <span className="detail-value">{d.violatorName || 'Không xác định'}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Loại vi phạm</span>
-                        <span className="detail-value">{getViolationLabel(d.violationType)}</span>
-                      </div>
-                      {d.seatCode && (
+                        <div className="detail-info-item">
+                          <span className="detail-label">Mã số</span>
+                          <span className="detail-value">{d.userCode}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Khu vực</span>
+                          <span className="detail-value">{d.zoneName}</span>
+                        </div>
                         <div className="detail-info-item">
                           <span className="detail-label">Ghế</span>
                           <span className="detail-value">{d.seatCode}</span>
                         </div>
-                      )}
-                      <div className="detail-info-item">
-                        <span className="detail-label">Trạng thái</span>
-                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                      </div>
-                      {d.pointDeducted != null && (
                         <div className="detail-info-item">
-                          <span className="detail-label">Điểm trừ</span>
-                          <span className="detail-value" style={{ color: '#ef4444', fontWeight: 600 }}>-{d.pointDeducted}</span>
+                          <span className="detail-label">Bắt đầu</span>
+                          <span className="detail-value">{formatDateTime(d.startTime)}</span>
                         </div>
-                      )}
-                      <div className="detail-info-item">
-                        <span className="detail-label">Thời gian</span>
-                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
-                      </div>
-                    </div>
-                    {d.description && (
-                      <div className="detail-description">
-                        <span className="detail-label">Mô tả</span>
-                        <p>{d.description}</p>
-                      </div>
-                    )}
-                    {d.evidenceUrl && (
-                      <div className="detail-evidence">
-                        <span className="detail-label">Bằng chứng</span>
-                        <img src={d.evidenceUrl} alt="Bằng chứng" className="detail-evidence-img" />
-                      </div>
-                    )}
-                    <a
-                      href="/librarian/violation"
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <ExternalLink size={15} />
-                      Đi tới trang xử lý vi phạm
-                    </a>
-                  </>
-                );
-              })()}
-
-              {/* SUPPORT REQUEST */}
-              {detailModal.type === 'support' && (() => {
-                const d = detailModal.data;
-                const sc = getStatusConfig(d.status);
-                return (
-                  <>
-                    <div className="detail-info-grid">
-                      <div className="detail-info-item">
-                        <span className="detail-label">Sinh viên</span>
-                        <span className="detail-value">{d.studentName || 'N/A'}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Mã số</span>
-                        <span className="detail-value">{d.studentCode || ''}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Trạng thái</span>
-                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Thời gian</span>
-                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
-                      </div>
-                    </div>
-                    {d.description && (
-                      <div className="detail-description">
-                        <span className="detail-label">Nội dung yêu cầu</span>
-                        <p>{d.description}</p>
-                      </div>
-                    )}
-                    {d.adminResponse && (
-                      <div className="detail-description detail-response">
-                        <span className="detail-label">Phản hồi từ thủ thư</span>
-                        <p>{d.adminResponse}</p>
-                      </div>
-                    )}
-                    {d.imageUrls && d.imageUrls.length > 0 && (
-                      <div className="detail-evidence">
-                        <span className="detail-label">Hình ảnh đính kèm</span>
-                        <div className="detail-images-grid">
-                          {d.imageUrls.map((url, i) => (
-                            <img key={i} src={url} alt={`Ảnh ${i + 1}`} className="detail-evidence-img" />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <a
-                      href="/librarian/support-requests"
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <ExternalLink size={15} />
-                      Đi tới trang xử lý yêu cầu hỗ trợ
-                    </a>
-                  </>
-                );
-              })()}
-
-              {/* COMPLAINT */}
-              {detailModal.type === 'complaint' && (() => {
-                const d = detailModal.data;
-                const sc = getStatusConfig(d.status);
-                return (
-                  <>
-                    <div className="detail-info-grid">
-                      <div className="detail-info-item">
-                        <span className="detail-label">Sinh viên</span>
-                        <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Mã số</span>
-                        <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Trạng thái</span>
-                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Thời gian</span>
-                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
-                      </div>
-                    </div>
-                    {d.subject && (
-                      <div className="detail-description">
-                        <span className="detail-label">Tiêu đề</span>
-                        <p style={{ fontWeight: 600 }}>{d.subject}</p>
-                      </div>
-                    )}
-                    {d.content && (
-                      <div className="detail-description">
-                        <span className="detail-label">Nội dung</span>
-                        <p>{d.content}</p>
-                      </div>
-                    )}
-                    {d.response && (
-                      <div className="detail-description detail-response">
-                        <span className="detail-label">Phản hồi từ thủ thư</span>
-                        <p>{d.response}</p>
-                      </div>
-                    )}
-                    <a
-                      href="/librarian/complaints"
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <ExternalLink size={15} />
-                      Đi tới trang xử lý khiếu nại
-                    </a>
-                  </>
-                );
-              })()}
-
-              {/* FEEDBACK */}
-              {detailModal.type === 'feedback' && (() => {
-                const d = detailModal.data;
-                const sc = getStatusConfig(d.status);
-                return (
-                  <>
-                    <div className="detail-info-grid">
-                      <div className="detail-info-item">
-                        <span className="detail-label">Sinh viên</span>
-                        <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Mã số</span>
-                        <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Trạng thái</span>
-                        <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                      </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Thời gian</span>
-                        <span className="detail-value">{formatDateTime(d.createdAt)}</span>
-                      </div>
-                    </div>
-                    {d.rating && (
-                      <div className="detail-rating">
-                        <span className="detail-label">Đánh giá</span>
-                        <div className="detail-stars">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} size={20} fill={i < d.rating ? '#f59e0b' : 'none'} color={i < d.rating ? '#f59e0b' : '#d1d5db'} />
-                          ))}
-                          <span className="detail-rating-text">{d.rating}/5</span>
-                        </div>
-                      </div>
-                    )}
-                    {d.content && (
-                      <div className="detail-description">
-                        <span className="detail-label">Nội dung phản hồi</span>
-                        <p>{d.content}</p>
-                      </div>
-                    )}
-                    <a
-                      href="/librarian/feedback"
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <ExternalLink size={15} />
-                      Đi tới trang quản lý phản hồi
-                    </a>
-                  </>
-                );
-              })()}
-
-              {/* NEWS */}
-              {detailModal.type === 'news' && (() => {
-                const d = detailModal.data;
-                return (
-                  <>
-                    {d.imageUrl && (
-                      <div className="detail-news-image">
-                        <img src={d.imageUrl} alt={d.title} />
-                      </div>
-                    )}
-                    <div className="detail-info-grid">
-                      {d.categoryName && (
                         <div className="detail-info-item">
-                          <span className="detail-label">Danh mục</span>
-                          <span className="detail-value">{d.categoryName}</span>
+                          <span className="detail-label">Kết thúc</span>
+                          <span className="detail-value">{formatDateTime(d.endTime)}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Trạng thái</span>
+                          <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </div>
+                        {d.createdAt && (
+                          <div className="detail-info-item">
+                            <span className="detail-label">Ngày tạo</span>
+                            <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <a
+                        href="/librarian/bookings"
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <ExternalLink size={15} />
+                        Đi tới trang quản lý đặt chỗ
+                      </a>
+                    </>
+                  );
+                })()}
+
+                {/* VIOLATION */}
+                {detailModal.type === 'violation' && (() => {
+                  const d = detailModal.data;
+                  const sc = getStatusConfig(d.status);
+                  return (
+                    <>
+                      <div className="detail-info-grid">
+                        <div className="detail-info-item">
+                          <span className="detail-label">Người vi phạm</span>
+                          <span className="detail-value">{d.violatorName || 'Không xác định'}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Loại vi phạm</span>
+                          <span className="detail-value">{getViolationLabel(d.violationType)}</span>
+                        </div>
+                        {d.seatCode && (
+                          <div className="detail-info-item">
+                            <span className="detail-label">Ghế</span>
+                            <span className="detail-value">{d.seatCode}</span>
+                          </div>
+                        )}
+                        <div className="detail-info-item">
+                          <span className="detail-label">Trạng thái</span>
+                          <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </div>
+                        {d.pointDeducted != null && (
+                          <div className="detail-info-item">
+                            <span className="detail-label">Điểm trừ</span>
+                            <span className="detail-value" style={{ color: '#ef4444', fontWeight: 600 }}>-{d.pointDeducted}</span>
+                          </div>
+                        )}
+                        <div className="detail-info-item">
+                          <span className="detail-label">Thời gian</span>
+                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                        </div>
+                      </div>
+                      {d.description && (
+                        <div className="detail-description">
+                          <span className="detail-label">Mô tả</span>
+                          <p>{d.description}</p>
                         </div>
                       )}
-                      <div className="detail-info-item">
-                        <span className="detail-label">Ngày đăng</span>
-                        <span className="detail-value">{formatDateTime(d.publishedAt || d.createdAt)}</span>
+                      {d.evidenceUrl && (
+                        <div className="detail-evidence">
+                          <span className="detail-label">Bằng chứng</span>
+                          <img src={d.evidenceUrl} alt="Bằng chứng" className="detail-evidence-img" />
+                        </div>
+                      )}
+                      <a
+                        href="/librarian/violation"
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <ExternalLink size={15} />
+                        Đi tới trang xử lý vi phạm
+                      </a>
+                    </>
+                  );
+                })()}
+
+                {/* SUPPORT REQUEST */}
+                {detailModal.type === 'support' && (() => {
+                  const d = detailModal.data;
+                  const sc = getStatusConfig(d.status);
+                  return (
+                    <>
+                      <div className="detail-info-grid">
+                        <div className="detail-info-item">
+                          <span className="detail-label">Sinh viên</span>
+                          <span className="detail-value">{d.studentName || 'N/A'}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Mã số</span>
+                          <span className="detail-value">{d.studentCode || ''}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Trạng thái</span>
+                          <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Thời gian</span>
+                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                        </div>
                       </div>
-                      <div className="detail-info-item">
-                        <span className="detail-label">Lượt xem</span>
-                        <span className="detail-value">{d.viewCount || 0}</span>
+                      {d.description && (
+                        <div className="detail-description">
+                          <span className="detail-label">Nội dung yêu cầu</span>
+                          <p>{d.description}</p>
+                        </div>
+                      )}
+                      {d.adminResponse && (
+                        <div className="detail-description detail-response">
+                          <span className="detail-label">Phản hồi từ thủ thư</span>
+                          <p>{d.adminResponse}</p>
+                        </div>
+                      )}
+                      {d.imageUrls && d.imageUrls.length > 0 && (
+                        <div className="detail-evidence">
+                          <span className="detail-label">Hình ảnh đính kèm</span>
+                          <div className="detail-images-grid">
+                            {d.imageUrls.map((url, i) => (
+                              <img key={i} src={url} alt={`Ảnh ${i + 1}`} className="detail-evidence-img" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <a
+                        href="/librarian/support-requests"
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <ExternalLink size={15} />
+                        Đi tới trang xử lý yêu cầu hỗ trợ
+                      </a>
+                    </>
+                  );
+                })()}
+
+                {/* COMPLAINT */}
+                {detailModal.type === 'complaint' && (() => {
+                  const d = detailModal.data;
+                  const sc = getStatusConfig(d.status);
+                  return (
+                    <>
+                      <div className="detail-info-grid">
+                        <div className="detail-info-item">
+                          <span className="detail-label">Sinh viên</span>
+                          <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Mã số</span>
+                          <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Trạng thái</span>
+                          <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Thời gian</span>
+                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="detail-description">
-                      <h4 style={{ margin: '0 0 8px', fontSize: '15px' }}>{d.title}</h4>
-                      {d.summary && <p>{d.summary}</p>}
-                      {d.content && <p style={{ marginTop: '8px' }}>{d.content}</p>}
-                    </div>
-                    <a
-                      href={`/librarian/news/view/${d.id}`}
-                      className="detail-view-btn"
-                      onClick={() => setDetailModal(null)}
-                    >
-                      <Eye size={15} />
-                      Xem chi tiết bài viết
-                    </a>
-                  </>
-                );
-              })()}
-            </div >
+                      {d.subject && (
+                        <div className="detail-description">
+                          <span className="detail-label">Tiêu đề</span>
+                          <p style={{ fontWeight: 600 }}>{d.subject}</p>
+                        </div>
+                      )}
+                      {d.content && (
+                        <div className="detail-description">
+                          <span className="detail-label">Nội dung</span>
+                          <p>{d.content}</p>
+                        </div>
+                      )}
+                      {d.response && (
+                        <div className="detail-description detail-response">
+                          <span className="detail-label">Phản hồi từ thủ thư</span>
+                          <p>{d.response}</p>
+                        </div>
+                      )}
+                      <a
+                        href="/librarian/complaints"
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <ExternalLink size={15} />
+                        Đi tới trang xử lý khiếu nại
+                      </a>
+                    </>
+                  );
+                })()}
+
+                {/* FEEDBACK */}
+                {detailModal.type === 'feedback' && (() => {
+                  const d = detailModal.data;
+                  const sc = getStatusConfig(d.status);
+                  return (
+                    <>
+                      <div className="detail-info-grid">
+                        <div className="detail-info-item">
+                          <span className="detail-label">Sinh viên</span>
+                          <span className="detail-value">{d.studentName || d.userName || 'N/A'}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Mã số</span>
+                          <span className="detail-value">{d.studentCode || d.userCode || ''}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Trạng thái</span>
+                          <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Thời gian</span>
+                          <span className="detail-value">{formatDateTime(d.createdAt)}</span>
+                        </div>
+                      </div>
+                      {d.rating && (
+                        <div className="detail-rating">
+                          <span className="detail-label">Đánh giá</span>
+                          <div className="detail-stars">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} size={20} fill={i < d.rating ? '#f59e0b' : 'none'} color={i < d.rating ? '#f59e0b' : '#d1d5db'} />
+                            ))}
+                            <span className="detail-rating-text">{d.rating}/5</span>
+                          </div>
+                        </div>
+                      )}
+                      {d.content && (
+                        <div className="detail-description">
+                          <span className="detail-label">Nội dung phản hồi</span>
+                          <p>{d.content}</p>
+                        </div>
+                      )}
+                      <a
+                        href="/librarian/feedback"
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <ExternalLink size={15} />
+                        Đi tới trang quản lý phản hồi
+                      </a>
+                    </>
+                  );
+                })()}
+
+                {/* NEWS */}
+                {detailModal.type === 'news' && (() => {
+                  const d = detailModal.data;
+                  return (
+                    <>
+                      {d.imageUrl && (
+                        <div className="detail-news-image">
+                          <img src={d.imageUrl} alt={d.title} />
+                        </div>
+                      )}
+                      <div className="detail-info-grid">
+                        {d.categoryName && (
+                          <div className="detail-info-item">
+                            <span className="detail-label">Danh mục</span>
+                            <span className="detail-value">{d.categoryName}</span>
+                          </div>
+                        )}
+                        <div className="detail-info-item">
+                          <span className="detail-label">Ngày đăng</span>
+                          <span className="detail-value">{formatDateTime(d.publishedAt || d.createdAt)}</span>
+                        </div>
+                        <div className="detail-info-item">
+                          <span className="detail-label">Lượt xem</span>
+                          <span className="detail-value">{d.viewCount || 0}</span>
+                        </div>
+                      </div>
+                      <div className="detail-description">
+                        <h4 style={{ margin: '0 0 8px', fontSize: '15px' }}>{d.title}</h4>
+                        {d.summary && <p>{d.summary}</p>}
+                        {d.content && <p style={{ marginTop: '8px' }}>{d.content}</p>}
+                      </div>
+                      <a
+                        href={`/librarian/news/view/${d.id}`}
+                        className="detail-view-btn"
+                        onClick={() => setDetailModal(null)}
+                      >
+                        <Eye size={15} />
+                        Xem chi tiết bài viết
+                      </a>
+                    </>
+                  );
+                })()}
+              </div >
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 };

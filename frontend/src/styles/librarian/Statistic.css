@@ -60,7 +60,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 16px;
   color: #EA580C;
 }
@@ -124,7 +124,7 @@
 }
 
 .st-bar.highlight {
-  background: var(--lib-primary, #FF751F);
+  background: var(--lib-primary, #e8600a);
 }
 
 .st-bar-label {
@@ -143,7 +143,7 @@
 
 .st-big-number {
   font-size: 48px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--lib-text, #1f2937);
   margin-bottom: 4px;
 }
@@ -282,8 +282,8 @@
 }
 
 .st-nav-btn:hover:not(:disabled) {
-  border-color: var(--lib-primary, #FF751F);
-  color: var(--lib-primary, #FF751F);
+  border-color: var(--lib-primary, #e8600a);
+  color: var(--lib-primary, #e8600a);
 }
 
 .st-nav-btn:disabled {

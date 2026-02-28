@@ -1,80 +1,17 @@
 /* =================== BOOKING MANAGE =================== */
+/* Extends librarian-shared.css + CheckInOut.css (cio-* classes) */
 
-/* --- Filter Row --- */
-.bm-filter-row {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 12px;
-}
-
-.bm-date-filters {
-    display: flex;
-    align-items: flex-end;
-    gap: 10px;
-}
-
-.bm-date-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.bm-date-label {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--lib-muted, #64748b);
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-}
-
-.bm-date-input {
-    padding: 8px 12px;
-    border: 1.5px solid var(--lib-border, #e2e8f0);
-    border-radius: var(--lib-r-sm, 8px);
-    font-size: 13px;
-    font-family: inherit;
-    color: var(--lib-text, #1f2937);
-    background: #fff;
-    outline: none;
-    transition: var(--lib-transition);
-}
-
-.bm-date-input:focus {
-    border-color: var(--lib-primary, #FF751F);
-    box-shadow: 0 0 0 3px rgba(255, 117, 31, 0.1);
-}
-
-.bm-date-sep {
-    margin-bottom: 8px;
-    color: var(--lib-muted, #64748b);
-    font-weight: 500;
-}
-
-.bm-clear-btn {
-    padding: 8px 14px;
-    border: 1.5px solid var(--lib-border, #e2e8f0);
-    border-radius: var(--lib-r-sm, 8px);
-    font-size: 12px;
-    font-weight: 600;
-    font-family: inherit;
-    color: var(--lib-muted, #64748b);
-    background: #fff;
-    cursor: pointer;
-    transition: var(--lib-transition);
-}
-
-.bm-clear-btn:hover {
-    background: var(--lib-bg-secondary, #f8fafc);
-    border-color: var(--lib-primary, #FF751F);
-    color: var(--lib-primary, #FF751F);
+/* Reset text-transform for dropdowns (inherited from th uppercase) */
+.bm-table .cio-filter-dropdown,
+.bm-table .cio-column-menu,
+.bm-table .cio-filter-dropdown *,
+.bm-table .cio-column-menu * {
+    text-transform: none;
 }
 
 /* --- Table --- */
 .bm-table-wrapper {
     overflow-x: auto;
-    margin-top: 16px;
 }
 
 .bm-table {
@@ -95,6 +32,7 @@
     text-transform: uppercase;
     letter-spacing: 0.4px;
     white-space: nowrap;
+    position: relative;
 }
 
 .bm-table th.center,
@@ -141,7 +79,7 @@
     width: 34px;
     height: 34px;
     border-radius: 9px;
-    background: linear-gradient(135deg, #FF751F 0%, #FF9B5A 100%);
+    background: #FF751F;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -271,16 +209,9 @@
 }
 
 /* --- Empty State --- */
-.bm-table-empty {
-    padding: 48px;
+.bm-table-empty-cell {
+    padding: 48px !important;
     text-align: center;
     color: var(--lib-muted, #64748b);
     font-size: 14px;
-}
-
-/* --- Responsive --- */
-@media (max-width: 768px) {
-    .bm-filter-row {
-        flex-direction: column;
-    }
 }

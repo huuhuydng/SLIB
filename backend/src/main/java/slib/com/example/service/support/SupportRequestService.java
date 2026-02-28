@@ -227,6 +227,17 @@ public class SupportRequestService {
     }
 
     /**
+     * Xoá nhiều yêu cầu hỗ trợ cùng lúc
+     */
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        supportRequestRepository.deleteAllById(ids);
+        log.info("[SupportRequest] Deleted {} support requests", ids.size());
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "DELETED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "DELETED");
+    }
+
+    /**
      * Gửi thông báo cho sinh viên khi trạng thái yêu cầu thay đổi
      * Sử dụng afterCommit để không ảnh hưởng transaction chính
      */

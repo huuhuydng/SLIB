@@ -244,9 +244,10 @@ class _HistoryScreenState extends State<HistoryScreen>
     final title = item['title'] ?? '';
     final description = item['description'] ?? '';
     final durationMinutes = item['durationMinutes'];
-    // Parse datetime từ backend (UTC) và convert sang local time
-    final createdAtRaw = DateTime.tryParse(item['createdAt'] ?? '');
-    final createdAt = createdAtRaw?.toLocal() ?? DateTime.now();
+    // Cũng check title để match vi phạm nếu activityType không khớp
+    final isViolationByTitle = title.toString().toLowerCase().contains('vi phạm') ||
+                                title.toString().toLowerCase().contains('báo cáo vi phạm');
+    final createdAt = _parseDateTime(item['createdAt']);
 
     IconData icon;
     Color color;
@@ -281,12 +282,17 @@ class _HistoryScreenState extends State<HistoryScreen>
         color = Colors.red;
         break;
       case 'VIOLATION':
-        icon = Icons.gavel;
+        icon = Icons.error_rounded;
         color = Colors.red;
         break;
       default:
-        icon = Icons.info;
-        color = Colors.grey;
+        if (isViolationByTitle) {
+          icon = Icons.error_rounded;
+          color = Colors.red;
+        } else {
+          icon = Icons.info;
+          color = Colors.grey;
+        }
     }
 
     return Container(
@@ -452,9 +458,29 @@ class _HistoryScreenState extends State<HistoryScreen>
     final points = log['points'] ?? 0;
     final title = log['title'] ?? '';
     final description = log['description'] ?? '';
-    final createdAtRaw = DateTime.tryParse(log['createdAt'] ?? '');
-    final createdAt = createdAtRaw?.toLocal() ?? DateTime.now();
+    final transactionType = log['transactionType'] ?? '';
+    final createdAt = _parseDateTime(log['createdAt']);
     bool isNegative = points < 0;
+
+    // Xác định icon và color dựa trên transactionType
+    IconData icon;
+    Color iconColor;
+    if (title.toString().startsWith('Vi phạm') || transactionType == 'VIOLATION_PENALTY') {
+      icon = Icons.error_rounded;
+      iconColor = Colors.red;
+    } else if (transactionType == 'NO_SHOW_PENALTY' || title.toString().contains('No-show')) {
+      icon = Icons.event_busy_rounded;
+      iconColor = Colors.red.shade700;
+    } else if (transactionType == 'CHECK_OUT_LATE_PENALTY') {
+      icon = Icons.timer_off_rounded;
+      iconColor = Colors.orange.shade800;
+    } else if (isNegative) {
+      icon = Icons.remove_circle_outline;
+      iconColor = AppColors.error;
+    } else {
+      icon = Icons.star_rounded;
+      iconColor = AppColors.success;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -474,6 +500,16 @@ class _HistoryScreenState extends State<HistoryScreen>
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
+            // Icon phân biệt loại
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: iconColor.withAlpha(26),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,6 +551,25 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   // --- HELPER FUNCTIONS ---
+
+  /// Parse datetime từ backend Java
+  /// Backend dùng spring.jackson.time-zone=Asia/Ho_Chi_Minh
+  /// → time đã ở timezone Việt Nam, KHÔNG cần .toLocal()
+  DateTime _parseDateTime(dynamic raw) {
+    if (raw == null) return DateTime.now();
+    String str = raw.toString();
+    // Loại bỏ timezone name suffix [Asia/Ho_Chi_Minh] nếu có
+    final bracketIndex = str.indexOf('[');
+    if (bracketIndex != -1) {
+      str = str.substring(0, bracketIndex);
+    }
+    // Loại bỏ offset (+07:00) để Dart parse thành local time trực tiếp
+    // vì backend đã convert sang Asia/Ho_Chi_Minh rồi
+    final offsetRegex = RegExp(r'[+-]\d{2}:\d{2}$');
+    str = str.replaceAll(offsetRegex, '');
+    final parsed = DateTime.tryParse(str);
+    return parsed ?? DateTime.now();
+  }
 
   String _formatDateTime(DateTime dt) {
     final now = DateTime.now();

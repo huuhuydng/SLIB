@@ -50,7 +50,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         long countByStatusAndCreatedAtBetween(String status, LocalDateTime start, LocalDateTime end);
 
-        List<ReservationEntity> findTop7ByOrderByCreatedAtDesc();
+        List<ReservationEntity> findTop9ByOrderByCreatedAtDesc();
 
         List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
@@ -67,4 +67,9 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         +
                         "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
         List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
+
+        // Tính tổng số phút học từ reservation EXPIRED (endTime - startTime)
+        @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0) " +
+                        "FROM reservations WHERE user_id = :userId AND status = 'EXPIRED'", nativeQuery = true)
+        long getTotalStudyMinutesByUser(@Param("userId") UUID userId);
 }

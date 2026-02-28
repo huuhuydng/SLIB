@@ -134,6 +134,7 @@ public class DashboardStatsDTO {
         private String userCode;
         private long totalVisits;
         private long totalMinutes;
+        private String avatarUrl;
     }
 
     @Getter

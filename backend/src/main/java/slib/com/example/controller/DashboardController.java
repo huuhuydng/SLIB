@@ -26,6 +26,14 @@ public class DashboardController {
     }
 
     /**
+     * Lightweight endpoint for mobile home screen - library occupancy status only
+     */
+    @GetMapping("/library-status")
+    public ResponseEntity<Map<String, Object>> getLibraryStatus() {
+        return ResponseEntity.ok(dashboardService.getLibraryStatus());
+    }
+
+    /**
      * Test endpoint - gửi broadcast WebSocket trực tiếp để debug
      */
     @PostMapping("/test-broadcast")
@@ -45,5 +53,21 @@ public class DashboardController {
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("status", "ERROR", "message", e.getMessage()));
         }
+    }
+
+    /**
+     * Chart stats with range filter: week, month, year
+     */
+    @GetMapping("/chart-stats")
+    public ResponseEntity<?> getChartStats(@RequestParam(defaultValue = "week") String range) {
+        return ResponseEntity.ok(dashboardService.getChartStats(range));
+    }
+
+    /**
+     * Top students with range filter: week, month, year
+     */
+    @GetMapping("/top-students")
+    public ResponseEntity<?> getTopStudents(@RequestParam(defaultValue = "month") String range) {
+        return ResponseEntity.ok(dashboardService.getTopStudents(range));
     }
 }

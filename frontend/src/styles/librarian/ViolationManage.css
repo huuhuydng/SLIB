@@ -1,46 +1,21 @@
 /* =================== VIOLATION MANAGE - Specific styles =================== */
-/* Extends librarian-shared.css */
+/* Main styles from SupportRequestManage.css (sr-* classes) */
 
-.vr-violation-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 8px 0;
-    flex-wrap: wrap;
+/* Violation type text in table */
+.vr-type-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lib-text, #1f2937);
 }
 
-.vr-violation-type {
-    background: var(--lib-red-bg, #fee2e2);
-    color: var(--lib-red, #ef4444);
-    padding: 4px 12px;
-    border-radius: 8px;
+/* Points badge (red) */
+.vr-points-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 6px;
     font-size: 12px;
     font-weight: 700;
-}
-
-.vr-seat-info {
-    font-size: 12px;
-    color: var(--lib-muted, #64748b);
-    font-weight: 500;
-}
-
-.vr-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.vr-modal-image {
-    width: 200px;
-    height: 200px;
-    border-radius: var(--lib-r-md, 12px);
-    object-fit: cover;
-    cursor: pointer;
-    border: 1px solid var(--lib-border-light, #f1f5f9);
-    transition: var(--lib-transition);
-}
-
-.vr-modal-image:hover {
-    transform: scale(1.02);
-    box-shadow: var(--lib-shadow-soft);
+    background: var(--lib-red-bg, #fee2e2);
+    color: var(--lib-red, #ef4444);
 }

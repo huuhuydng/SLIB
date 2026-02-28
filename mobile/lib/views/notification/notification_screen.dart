@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/services/notification_service.dart';
+import 'package:slib/views/profile/booking_history_screen.dart';
+import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:intl/intl.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -128,7 +130,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void _handleNotificationTap(NotificationItem notification) {
     switch (notification.type) {
       case 'BOOKING':
-        debugPrint('Navigate to booking: ${notification.referenceId}');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BookingHistoryScreen()),
+        );
+        break;
+      case 'VIOLATION':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
+        );
         break;
       case 'NEWS':
         debugPrint('Navigate to news: ${notification.referenceId}');

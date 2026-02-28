@@ -73,7 +73,7 @@ public class DashboardService {
             long totalUsers = userRepository.count();
 
             // 7. Recent bookings (top 7)
-            List<ReservationEntity> recentReservations = reservationRepository.findTop7ByOrderByCreatedAtDesc();
+            List<ReservationEntity> recentReservations = reservationRepository.findTop9ByOrderByCreatedAtDesc();
             List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentReservations.stream()
                     .map(r -> DashboardStatsDTO.RecentBookingDTO.builder()
                             .reservationId(r.getReservationId())
@@ -156,6 +156,33 @@ public class DashboardService {
         }
     }
 
+    /**
+     * Lightweight library status for mobile home screen
+     */
+    public Map<String, Object> getLibraryStatus() {
+        try {
+            AccessLogStatsDTO accessStats = checkInService.getTodayStats();
+            long totalSeats = seatRepository.count();
+            long currentlyInLibrary = Math.max(0, accessStats.getCurrentlyInLibrary());
+            double occupancyRate = totalSeats > 0
+                    ? Math.round((double) currentlyInLibrary / totalSeats * 10000.0) / 100.0
+                    : 0;
+
+            return Map.of(
+                    "totalSeats", totalSeats,
+                    "occupiedSeats", currentlyInLibrary,
+                    "occupancyRate", occupancyRate,
+                    "currentlyInLibrary", currentlyInLibrary);
+        } catch (Exception e) {
+            log.error("Error getting library status: {}", e.getMessage());
+            return Map.of(
+                    "totalSeats", 0L,
+                    "occupiedSeats", 0L,
+                    "occupancyRate", 0.0,
+                    "currentlyInLibrary", 0L);
+        }
+    }
+
     private List<DashboardStatsDTO.WeeklyStatsDTO> getWeeklyStats() {
         try {
             LocalDate today = LocalDate.now();
@@ -201,6 +228,122 @@ public class DashboardService {
         }
     }
 
+    /**
+     * Chart stats with range filter: week (7 days), month (30 days), year (12
+     * months)
+     */
+    public List<Map<String, Object>> getChartStats(String range) {
+        try {
+            LocalDate today = LocalDate.now();
+
+            if ("year".equalsIgnoreCase(range)) {
+                // 12 months aggregation
+                List<Map<String, Object>> result = new ArrayList<>();
+                String[] monthNames = { "Th 1", "Th 2", "Th 3", "Th 4", "Th 5", "Th 6",
+                        "Th 7", "Th 8", "Th 9", "Th 10", "Th 11", "Th 12" };
+
+                LocalDate yearStart = today.withDayOfYear(1);
+                LocalDateTime yearStartTime = yearStart.atStartOfDay();
+
+                List<Object[]> checkInData = accessLogRepository.countCheckInsByDay(yearStartTime);
+                List<Object[]> bookingData = reservationRepository.countBookingsByDay(yearStartTime);
+
+                // Aggregate by month
+                Map<Integer, Long> checkInByMonth = new HashMap<>();
+                Map<Integer, Long> bookingByMonth = new HashMap<>();
+
+                for (Object[] row : checkInData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    int month = date.getMonthValue();
+                    checkInByMonth.merge(month, ((Number) row[1]).longValue(), Long::sum);
+                }
+                for (Object[] row : bookingData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    int month = date.getMonthValue();
+                    bookingByMonth.merge(month, ((Number) row[1]).longValue(), Long::sum);
+                }
+
+                for (int m = 1; m <= 12; m++) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("label", monthNames[m - 1]);
+                    item.put("checkInCount", checkInByMonth.getOrDefault(m, 0L));
+                    item.put("bookingCount", bookingByMonth.getOrDefault(m, 0L));
+                    result.add(item);
+                }
+                return result;
+
+            } else if ("month".equalsIgnoreCase(range)) {
+                // Aggregate by week within current month
+                LocalDate monthStart = today.withDayOfMonth(1);
+                LocalDateTime monthStartTime = monthStart.atStartOfDay();
+
+                List<Object[]> checkInData = accessLogRepository.countCheckInsByDay(monthStartTime);
+                List<Object[]> bookingData = reservationRepository.countBookingsByDay(monthStartTime);
+
+                // Group daily data into weeks
+                Map<Integer, Long> checkInByWeek = new HashMap<>();
+                Map<Integer, Long> bookingByWeek = new HashMap<>();
+
+                for (Object[] row : checkInData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    int weekNum = (date.getDayOfMonth() - 1) / 7 + 1;
+                    checkInByWeek.merge(weekNum, ((Number) row[1]).longValue(), Long::sum);
+                }
+                for (Object[] row : bookingData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    int weekNum = (date.getDayOfMonth() - 1) / 7 + 1;
+                    bookingByWeek.merge(weekNum, ((Number) row[1]).longValue(), Long::sum);
+                }
+
+                // Max 5 weeks in a month
+                int totalWeeks = (today.lengthOfMonth() - 1) / 7 + 1;
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (int w = 1; w <= totalWeeks; w++) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("label", "Tuần " + w);
+                    item.put("checkInCount", checkInByWeek.getOrDefault(w, 0L));
+                    item.put("bookingCount", bookingByWeek.getOrDefault(w, 0L));
+                    result.add(item);
+                }
+                return result;
+
+            } else {
+                // week = 7 days, label by day of week
+                LocalDate startDate = today.minusDays(6);
+                LocalDateTime startDateTime = startDate.atStartOfDay();
+
+                List<Object[]> checkInData = accessLogRepository.countCheckInsByDay(startDateTime);
+                Map<LocalDate, Long> checkInMap = new HashMap<>();
+                for (Object[] row : checkInData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    checkInMap.put(date, ((Number) row[1]).longValue());
+                }
+
+                List<Object[]> bookingData = reservationRepository.countBookingsByDay(startDateTime);
+                Map<LocalDate, Long> bookingMap = new HashMap<>();
+                for (Object[] row : bookingData) {
+                    LocalDate date = ((Date) row[0]).toLocalDate();
+                    bookingMap.put(date, ((Number) row[1]).longValue());
+                }
+
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (int i = 0; i <= 6; i++) {
+                    LocalDate date = startDate.plusDays(i);
+                    DayOfWeek dow = date.getDayOfWeek();
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("label", dow.getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("vi")));
+                    item.put("checkInCount", checkInMap.getOrDefault(date, 0L));
+                    item.put("bookingCount", bookingMap.getOrDefault(date, 0L));
+                    result.add(item);
+                }
+                return result;
+            }
+        } catch (Exception e) {
+            log.error("Error calculating chart stats for range {}: {}", range, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
     private List<DashboardStatsDTO.ViolationItemDTO> getRecentViolations() {
         try {
             return violationReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
@@ -220,9 +363,24 @@ public class DashboardService {
     }
 
     private List<DashboardStatsDTO.TopStudentDTO> getTopStudents() {
+        return getTopStudents("month");
+    }
+
+    /**
+     * Top students with range filter: week, month, year
+     */
+    public List<DashboardStatsDTO.TopStudentDTO> getTopStudents(String range) {
         try {
-            LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-            List<Object[]> data = accessLogRepository.findTopStudentsByStudyTime(thirtyDaysAgo);
+            int days;
+            if ("week".equalsIgnoreCase(range)) {
+                days = 7;
+            } else if ("year".equalsIgnoreCase(range)) {
+                days = 365;
+            } else {
+                days = 30;
+            }
+            LocalDateTime since = LocalDateTime.now().minusDays(days);
+            List<Object[]> data = accessLogRepository.findTopStudentsByStudyTime(since);
             return data.stream()
                     .map(row -> DashboardStatsDTO.TopStudentDTO.builder()
                             .userId((UUID) row[0])
@@ -230,10 +388,11 @@ public class DashboardService {
                             .userCode((String) row[2])
                             .totalVisits(((Number) row[3]).longValue())
                             .totalMinutes(((Number) row[4]).longValue())
+                            .avatarUrl(row.length > 5 ? (String) row[5] : null)
                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching top students: {}", e.getMessage());
+            log.error("Error fetching top students for range {}: {}", range, e.getMessage());
             return Collections.emptyList();
         }
     }

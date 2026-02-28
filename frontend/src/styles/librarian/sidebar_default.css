@@ -1,381 +1,214 @@
-/* --- BIẾN CẤU HÌNH (Dễ dàng thay đổi màu sắc tại đây) --- */
+/* Librarian Sidebar */
+
 :root {
-  --sidebar-bg: linear-gradient(180deg, #FF751F 100%, #feb47b 100%);
-
-  /* Kích thước */
-  --sb-width-collapsed: 72px;
-  /* Đủ rộng để icon không bị bí */
-  --sb-width-expanded: 260px;
-
-  /* Màu sắc item */
-  --item-color: rgba(255, 255, 255, 0.8);
-  --item-color-hover: #ffffff;
-  --item-bg-hover: rgba(255, 255, 255, 0.15);
-  --item-bg-active: #ffffff;
-  --item-text-active: #ff7e5f;
-  /* Hiệu ứng chuyển động chuẩn Apple/Google */
-  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-w: 72px;
+  --sb-w-open: 250px;
+  --sb-speed: 0.32s;
+  --sb-curve: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --sb-orange: #e8600a;
 }
 
-/* --- LAYOUT CHÍNH --- */
+/* ── Sidebar shell ── */
 .sidebar {
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
+  top: 0 !important; left: 0 !important;
   height: 100vh !important;
-  width: var(--sb-width-collapsed);
-  background: var(--sidebar-bg) !important;
-  padding: 24px 12px !important;
+  width: var(--sb-w) !important;
+  background: #fff !important;
+  padding: 16px 12px !important;
   display: flex !important;
   flex-direction: column !important;
-  transition: width 0.4s var(--ease-spring);
-  box-shadow: 4px 0 20px rgba(255, 126, 95, 0.25) !important;
-  z-index: 1000 !important;
+  z-index: 1150 !important;
   overflow: hidden !important;
   visibility: visible !important;
   opacity: 1 !important;
+  box-shadow: none !important;
+  border-right: 1px solid #ebedf0;
+  transition: width var(--sb-speed) var(--sb-curve);
+  will-change: width;
 }
+.sidebar:hover { width: var(--sb-w-open) !important; }
+.sidebar::-webkit-scrollbar { width: 0; }
 
-/* Mở rộng khi hover */
-.sidebar:hover {
-  width: var(--sb-width-expanded);
-}
-
-/* --- LOGO AREA --- */
+/* ── Brand / Logo ── */
 .sidebar__brand {
-  height: 60px;
+  height: 104px;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Mặc định căn giữa icon */
-  margin-bottom: 30px;
-  transition: all 0.4s var(--ease-spring);
-}
-
-.sidebar__brandIcon {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  transition: transform 0.4s var(--ease-spring);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-}
-
-.sidebar__brandRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Khi mở sidebar, logo phóng to nhẹ hoặc dịch chuyển nếu cần */
-.sidebar:hover .sidebar__brand {
-  justify-content: flex-start;
-  padding-left: 12px;
-}
-
-/* --- NAVIGATION MENU --- */
-.sidebar__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* Ẩn thanh cuộn xấu xí */
-.sidebar__nav::-webkit-scrollbar {
-  display: none;
-}
-
-/* ITEM STYLE */
-.sidebar__item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  color: var(--item-color);
-  padding: 0;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  position: relative;
-  min-height: 48px;
-  height: 48px;
-  width: 48px;
-  margin: 0 auto;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
+  margin-bottom: 8px;
   overflow: hidden;
-  gap: 0;
 }
-
-/* Icon căn chỉnh */
-.sidebar__icon {
+.sidebar__brandLink {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  transition: margin 0.3s var(--ease-spring);
-}
-
-.sidebar__item>svg:first-child {
-  width: 22px;
-  height: 22px;
-  transition: transform 0.2s ease;
-  flex-shrink: 0;
-  min-width: 22px;
-}
-
-/* Expanded state */
-.sidebar:hover .sidebar__item {
-  justify-content: flex-start;
-  padding: 10px 14px;
   width: 100%;
-  margin: 0;
-  gap: 0;
+  height: 100%;
 }
-
-.sidebar:hover .sidebar__icon {
-  margin-right: 12px;
-}
-
-/* Chữ menu - ẨN HOÀN TOÀN khi collapsed (độ rộng 0) */
-.sidebar__label {
-  font-size: 14px;
-  font-weight: 500;
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: all 0.3s var(--ease-spring);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-/* Hiện chữ khi hover sidebar */
-.sidebar:hover .sidebar__label {
-  opacity: 1;
+.sidebar__brandLogo {
+  height: 90px;
   width: auto;
-  margin-left: 12px;
-  pointer-events: auto;
-  transition-delay: 0.05s;
+  max-width: 240px;
+  object-fit: contain;
+  transform: scale(0.5);
+  transform-origin: center;
+  transition: transform var(--sb-speed) var(--sb-curve);
+  will-change: transform;
+}
+.sidebar:hover .sidebar__brandLogo { transform: scale(1.12); }
+
+/* ── Nav ── */
+.sidebar__nav {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+}
+.sidebar__nav::-webkit-scrollbar { width: 0; }
+
+/* ── Menu item ── */
+.sidebar__item {
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; color: #4b5563;
+  padding: 0; border-radius: 25px;
+  white-space: nowrap; position: relative;
+  height: 44px; min-height: 44px; width: 44px; margin: 1px auto;
+  border: none; background: transparent; cursor: pointer;
+  font-family: inherit; font-size: inherit; overflow: visible; gap: 0;
+  transition: background 0.18s ease, color 0.18s ease,
+              width var(--sb-speed) var(--sb-curve),
+              padding var(--sb-speed) var(--sb-curve),
+              margin var(--sb-speed) var(--sb-curve);
 }
 
-/* --- TRẠNG THÁI HOVER & ACTIVE --- */
-
-/* Hover nhẹ */
-.sidebar__item:hover {
-  background: var(--item-bg-hover);
-  color: var(--item-color-hover);
+.sidebar__icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; flex-shrink: 0;
+}
+.sidebar__item > svg:first-child {
+  width: 20px; height: 20px; flex-shrink: 0; min-width: 20px;
 }
 
-/* Active (Đang chọn) - Style "Viên thuốc trắng" nổi bật */
-.sidebar__item--active {
-  background: var(--item-bg-active);
-  color: var(--item-text-active);
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.sidebar__label {
+  font-size: 14px; font-weight: 500;
+  opacity: 0; max-width: 0; overflow: hidden;
+  flex-shrink: 0; pointer-events: none; white-space: nowrap;
+  margin-left: 0;
+  transition: opacity 0.2s ease 0.08s,
+              max-width var(--sb-speed) var(--sb-curve),
+              margin var(--sb-speed) var(--sb-curve);
 }
 
-/* Giữ icon màu cam khi active để đồng bộ */
-.sidebar__item--active svg {
-  stroke-width: 2.5px;
+.sidebar:hover .sidebar__item {
+  justify-content: flex-start; padding: 0 14px;
+  width: 100%; margin: 1px 0; gap: 0;
+}
+.sidebar:hover .sidebar__icon { margin-right: 0; }
+.sidebar:hover .sidebar__label {
+  opacity: 1; max-width: 180px; margin-left: 12px; pointer-events: auto;
 }
 
-/* --- GROUP STYLING --- */
-.sidebar__group {
-  display: flex;
-  flex-direction: column;
-}
+/* Hover / Active */
+.sidebar__item:hover { background: #f3f4f6; color: #1f2937; }
 
-.sidebar__groupBtn {
-  position: relative;
-}
+.sidebar__item--active { background: var(--sb-orange); color: #fff; }
+.sidebar__item--active:hover { background: #d45609; color: #fff; }
+.sidebar__item--active svg { stroke-width: 2px; color: #fff; }
+.sidebar__item--active .sidebar__label { font-weight: 600; color: #fff; }
 
-/* Khi collapsed, group button chỉ hiển thị icon đầu tiên, căn giữa */
-.sidebar__groupBtn>svg:first-child {
-  min-width: 22px;
-}
+/* ── Group ── */
+.sidebar__group { display: flex; flex-direction: column; }
+.sidebar__groupBtn { position: relative; }
+.sidebar__groupBtn > svg:first-child { min-width: 20px; }
 
-/* Group active (có child đang active) */
-.sidebar__item--groupActive {
-  color: var(--item-color-hover);
-  background: rgba(255, 255, 255, 0.1);
-}
+.sidebar__item--groupActive { color: var(--sb-orange); background: #fff4ec; }
 
-/* Chevron - ẨN HOÀN TOÀN khi collapsed (display:none) để không chiếm flex space */
+/* Chevron */
 .sidebar__chevron {
-  display: none;
-  opacity: 0;
-  flex-shrink: 0;
-  transition: all 0.3s var(--ease-spring);
+  display: none; opacity: 0; flex-shrink: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease 0.08s;
 }
-
 .sidebar:hover .sidebar__chevron {
-  display: block;
-  opacity: 0.7;
-  width: 14px;
-  margin-left: auto;
+  display: block; opacity: .5; width: 14px; margin-left: auto;
 }
+.sidebar__chevron--open { transform: rotate(180deg); }
 
-.sidebar__chevron--open {
-  transform: rotate(180deg);
-}
-
-/* --- SUBMENU --- */
+/* ── Submenu ── */
 .sidebar__submenu {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.35s var(--ease-spring), opacity 0.25s ease;
-  opacity: 0;
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.3s var(--sb-curve), opacity 0.22s ease;
 }
-
-.sidebar__submenu--open {
-  max-height: 300px;
-  opacity: 1;
-}
-
-/* Khi sidebar collapsed, ẩn submenu */
+.sidebar__submenu--open { max-height: 400px; opacity: 1; }
 .sidebar:not(:hover) .sidebar__submenu {
-  max-height: 0 !important;
-  opacity: 0 !important;
+  max-height: 0 !important; opacity: 0 !important;
 }
 
 /* Sub items */
 .sidebar__subitem {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  color: rgba(255, 255, 255, 0.65);
-  border-radius: 10px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  min-height: 38px;
-  height: 38px;
-  width: 38px;
-  margin: 2px auto;
-  font-size: 13px;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  text-decoration: none; color: #6b7280; border-radius: 25px;
+  white-space: nowrap; height: 38px; min-height: 38px;
+  width: 38px; margin: 1px auto; font-size: 13px;
+  transition: background 0.18s ease, color 0.18s ease,
+              width var(--sb-speed) var(--sb-curve),
+              padding var(--sb-speed) var(--sb-curve),
+              margin var(--sb-speed) var(--sb-curve);
 }
-
-.sidebar__subitem svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
+.sidebar__subitem svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 .sidebar:hover .sidebar__subitem {
-  justify-content: flex-start;
-  padding: 8px 14px 8px 42px;
-  width: 100%;
-  margin: 1px 0;
+  justify-content: flex-start; padding: 0 14px 0 46px;
+  width: 100%; margin: 1px 0;
 }
-
-.sidebar__subitem:hover {
-  color: var(--item-color-hover);
-  background: rgba(255, 255, 255, 0.1);
-}
-
+.sidebar__subitem:hover { color: #1f2937; background: #f3f4f6; }
 .sidebar__subitem--active {
-  color: white !important;
-  background: rgba(255, 255, 255, 0.2) !important;
-  font-weight: 600;
+  color: #fff !important; background: var(--sb-orange) !important; font-weight: 500;
 }
+.sidebar__subitem .sidebar__label { font-size: 13px; }
 
-.sidebar__subitem .sidebar__label {
-  font-size: 13px;
-}
-
-/* --- BADGE --- */
+/* ── Badge ── */
 .sidebar__badge {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: #ef4444;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 4px;
-  line-height: 1;
+  position: absolute; top: 4px; right: 4px;
+  background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 600;
+  min-width: 18px; height: 18px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px; line-height: 1;
 }
+.sidebar:hover .sidebar__badge { position: static; margin-left: auto; }
+.sidebar__badge--group { position: absolute; top: 4px; right: 4px; }
+.sidebar:hover .sidebar__badge--group { position: static; margin-left: 6px; }
+.sidebar__badge--groupExpanded { display: none; }
 
-/* Badge khi sidebar mở rộng */
-.sidebar:hover .sidebar__badge {
-  position: static;
-  margin-left: auto;
-}
-
-/* Badge cho group */
-.sidebar__badge--group {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-.sidebar:hover .sidebar__badge--group {
-  position: static;
-  margin-left: 8px;
-}
-
-.sidebar__badge--groupExpanded {
-  display: none;
-}
-
-/* --- HELP SECTION (FOOTER) --- */
+/* ── Footer ── */
 .sidebar__helpWrap {
-  margin-top: auto;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin-top: auto; padding-top: 14px;
+  border-top: 1px solid #ebedf0;
 }
 
 .sidebar__helpItem {
-  display: flex;
-  align-items: center;
-  color: var(--item-color);
-  padding: 12px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: inherit;
-  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: #6b7280; padding: 0; height: 44px; width: 44px; margin: 1px auto;
+  border-radius: 25px; cursor: pointer;
+  text-decoration: none; border: none; background: transparent;
+  font-family: inherit; font-size: inherit;
+  transition: background 0.18s ease, color 0.18s ease,
+              width var(--sb-speed) var(--sb-curve),
+              padding var(--sb-speed) var(--sb-curve),
+              margin var(--sb-speed) var(--sb-curve);
 }
+.sidebar__helpItem:hover { background: #f3f4f6; color: #1f2937; }
 
-.sidebar__helpItem:hover {
-  background: var(--item-bg-hover);
-  color: var(--item-color-hover);
-}
+.sidebar__helpItem--active { background: var(--sb-orange); color: #fff; }
 
-.sidebar__helpItem--active {
-  background: var(--item-bg-active);
-  color: var(--item-text-active);
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Để icon help thẳng hàng với menu trên */
 .sidebar__helpItem svg {
-  min-width: 24px;
-  margin-right: 16px;
-  flex-shrink: 0;
+  min-width: 20px; width: 20px; height: 20px; flex-shrink: 0;
 }
 
-.sidebar__logoutBtn:hover {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fff;
+.sidebar:hover .sidebar__helpItem {
+  justify-content: flex-start; padding: 0 14px;
+  width: 100%; margin: 1px 0;
 }
+.sidebar:hover .sidebar__helpItem svg { margin-right: 12px; }
+
+.sidebar__logoutBtn { color: #9ca3af; }
+.sidebar__logoutBtn:hover { background: #fef2f2; color: #dc2626; }

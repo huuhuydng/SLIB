@@ -14,6 +14,8 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
 
     List<SeatViolationReportEntity> findByReporter_IdOrderByCreatedAtDesc(UUID reporterId);
 
+    List<SeatViolationReportEntity> findByViolator_IdOrderByCreatedAtDesc(UUID violatorId);
+
     List<SeatViolationReportEntity> findByStatusOrderByCreatedAtDesc(ReportStatus status);
 
     List<SeatViolationReportEntity> findAllByOrderByCreatedAtDesc();

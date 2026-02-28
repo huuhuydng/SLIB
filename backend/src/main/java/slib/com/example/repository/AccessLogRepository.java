@@ -30,7 +30,7 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         long countByUserId(@Param("userId") UUID userId);
 
         // Tính tổng số phút học (native query PostgreSQL)
-        @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) / 60), 0) FROM access_logs WHERE user_id = :userId AND check_out_time IS NOT NULL", nativeQuery = true)
+        @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (check_out_time - check_in_time)) / 60), 0) FROM access_logs WHERE user_id = :userId AND check_out_time IS NOT NULL AND check_out_time > check_in_time", nativeQuery = true)
         long getTotalStudyMinutes(@Param("userId") UUID userId);
 
         // Lấy danh sách access logs mới nhất, sắp xếp theo thời gian check-in giảm dần
@@ -58,11 +58,12 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         // Dashboard: top 5 sinh viên có thời gian học nhiều nhất (trong 30 ngày gần
         // đây)
         @Query(value = "SELECT a.user_id, u.full_name, u.user_code, COUNT(*) as visit_count, " +
-                        "COALESCE(SUM(EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time)) / 60), 0) as total_minutes "
+                        "COALESCE(SUM(EXTRACT(EPOCH FROM (a.check_out_time - a.check_in_time)) / 60), 0) as total_minutes, "
                         +
+                        "u.avt_url " +
                         "FROM access_logs a JOIN users u ON a.user_id = u.id " +
                         "WHERE a.check_in_time >= :startDate AND a.check_out_time IS NOT NULL " +
-                        "GROUP BY a.user_id, u.full_name, u.user_code " +
+                        "GROUP BY a.user_id, u.full_name, u.user_code, u.avt_url " +
                         "ORDER BY total_minutes DESC LIMIT 5", nativeQuery = true)
         List<Object[]> findTopStudentsByStudyTime(@Param("startDate") LocalDateTime startDate);
 }

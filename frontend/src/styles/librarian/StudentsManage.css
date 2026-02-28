@@ -1,11 +1,47 @@
 /* =================== STUDENTS MANAGE - Specific styles =================== */
-/* Extends librarian-shared.css */
+/* Extends librarian-shared.css + CheckInOut.css (cio-* classes) */
 
-/* --- Controls --- */
-.sm-controls {
+/* Reset text-transform for dropdowns inside table */
+.sm-table .cio-filter-dropdown,
+.sm-table .cio-column-menu,
+.sm-table .cio-filter-dropdown *,
+.sm-table .cio-column-menu * {
+  text-transform: none;
+}
+
+/* --- View Toggle Tabs --- */
+.sm-view-tabs {
   display: flex;
-  gap: 12px;
-  align-items: center;
+  gap: 0;
+  border: 1.5px solid var(--lib-border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sm-view-tab {
+  padding: 7px 16px;
+  border: none;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--lib-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.sm-view-tab:not(:last-child) {
+  border-right: 1.5px solid var(--lib-border, #e2e8f0);
+}
+
+.sm-view-tab.active {
+  background: var(--lib-primary, #FF751F);
+  color: #fff;
+}
+
+.sm-view-tab:hover:not(.active) {
+  background: #f8fafc;
 }
 
 /* --- Table --- */
@@ -64,7 +100,7 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #FF751F 0%, #FF9B5A 100%);
+  background: #e8600a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,7 +112,7 @@
 }
 
 .sm-avatar-in {
-  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  background: #1e8e3e;
 }
 
 .sm-student-name {
@@ -139,6 +175,13 @@
 /* --- Empty State --- */
 .sm-table-empty {
   padding: 48px;
+  text-align: center;
+  color: var(--lib-muted, #64748b);
+  font-size: 14px;
+}
+
+.sm-table-empty-cell {
+  padding: 48px !important;
   text-align: center;
   color: var(--lib-muted, #64748b);
   font-size: 14px;

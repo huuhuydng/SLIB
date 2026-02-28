@@ -119,6 +119,17 @@ public class FeedbackService {
         return feedbackRepository.count();
     }
 
+    /**
+     * Xoá nhiều phản hồi cùng lúc
+     */
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        feedbackRepository.deleteAllById(ids);
+        log.info("[Feedback] Deleted {} feedbacks", ids.size());
+        broadcastDashboardUpdate("FEEDBACK_UPDATE", "DELETED");
+        librarianNotificationService.broadcastPendingCounts("FEEDBACK", "DELETED");
+    }
+
     private void broadcastDashboardUpdate(String type, String action) {
         try {
             messagingTemplate.convertAndSend("/topic/dashboard",

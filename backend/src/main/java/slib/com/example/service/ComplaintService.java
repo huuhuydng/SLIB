@@ -141,6 +141,17 @@ public class ComplaintService {
                 return complaintRepository.countByStatus(status);
         }
 
+        /**
+         * Xoá nhiều khiếu nại cùng lúc
+         */
+        @Transactional
+        public void deleteBatch(List<UUID> ids) {
+                complaintRepository.deleteAllById(ids);
+                log.info("[Complaint] Deleted {} complaints", ids.size());
+                broadcastDashboardUpdate("COMPLAINT_UPDATE", "DELETED");
+                librarianNotificationService.broadcastPendingCounts("COMPLAINT", "DELETED");
+        }
+
         private void broadcastDashboardUpdate(String type, String action) {
                 try {
                         messagingTemplate.convertAndSend("/topic/dashboard",

@@ -253,6 +253,69 @@ class LibrarianService {
     return userStr ? JSON.parse(userStr) : null;
   }
 
+  // ========== Access Logs (HCE) ==========
+
+  _getAuthHeaders() {
+    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
+
+  get _hceBaseUrl() {
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce`;
+  }
+
+  async getStudentDetail(userId) {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/student-detail/${userId}`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getStudentDetail error:', error);
+      return null;
+    }
+  }
+
+  async getAllAccessLogs() {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAllAccessLogs error:', error);
+      return [];
+    }
+  }
+
+  async getAccessLogStats() {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs/stats`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAccessLogStats error:', error);
+      return { totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 };
+    }
+  }
+
+  async getAccessLogsByDateRange(startDate, endDate) {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs/filter`, {
+        params: { startDate, endDate },
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAccessLogsByDateRange error:', error);
+      return [];
+    }
+  }
+
   logout() {
     localStorage.removeItem('librarian_token');
     localStorage.removeItem('librarian_user');

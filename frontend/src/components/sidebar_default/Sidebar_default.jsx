@@ -130,7 +130,7 @@ const SidebarAdmin = () => {
           onClick={handleLogout}
           style={{
             cursor: 'pointer',
-            color: '#FF751F',
+            color: '#e8600a',
             marginTop: '4px'
           }}
         >

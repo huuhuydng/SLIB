@@ -1,7 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/student_profile.dart';
 import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/library_status_service.dart';
 import 'package:slib/services/student_profile_service.dart';
 
 class LiveStatusDashboard extends StatefulWidget {
@@ -13,19 +18,93 @@ class LiveStatusDashboard extends StatefulWidget {
 
 class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   StudentProfile? _studentProfile;
+  double _realStudyHours = 0.0;
   bool _isLoading = true;
+  StompClient? _stompClient;
+  bool _wsConnected = false;
 
   @override
   void initState() {
     super.initState();
     _loadStudentProfile();
+    _connectWebSocket();
+  }
+
+  @override
+  void dispose() {
+    _stompClient?.deactivate();
+    _stompClient = null;
+    super.dispose();
+  }
+
+  /// Connect STOMP WebSocket → subscribe /topic/dashboard
+  /// Khi reservation EXPIRED → ReservationScheduler gửi event AUTO_EXPIRED
+  /// → reload giờ học realtime
+  void _connectWebSocket() {
+    if (_wsConnected) return;
+    try {
+      String wsUrl = ApiConstants.domain;
+      if (wsUrl.startsWith('https://')) {
+        wsUrl = wsUrl.replaceFirst('https://', 'wss://');
+      } else if (wsUrl.startsWith('http://')) {
+        wsUrl = wsUrl.replaceFirst('http://', 'ws://');
+      }
+      final stompUrl = '$wsUrl/ws/websocket';
+
+      _stompClient = StompClient(
+        config: StompConfig(
+          url: stompUrl,
+          webSocketConnectHeaders: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+          onConnect: (StompFrame frame) {
+            debugPrint('[LiveStatus] WebSocket connected');
+            _wsConnected = true;
+            _stompClient?.subscribe(
+              destination: '/topic/dashboard',
+              callback: (StompFrame frame) {
+                if (frame.body != null) {
+                  try {
+                    final data = jsonDecode(frame.body!);
+                    if (data['action'] == 'AUTO_EXPIRED') {
+                      debugPrint('[LiveStatus] Reservation expired → reloading study hours');
+                      _loadStudentProfile();
+                    }
+                  } catch (e) {
+                    debugPrint('[LiveStatus] Parse error: $e');
+                  }
+                }
+              },
+            );
+          },
+          onWebSocketError: (error) {
+            debugPrint('[LiveStatus] WebSocket error: $error');
+            _wsConnected = false;
+          },
+          onDisconnect: (_) {
+            _wsConnected = false;
+            // Auto-reconnect sau 5s
+            Future.delayed(const Duration(seconds: 5), () {
+              if (mounted) _connectWebSocket();
+            });
+          },
+          reconnectDelay: const Duration(seconds: 5),
+        ),
+      );
+      _stompClient!.activate();
+    } catch (e) {
+      debugPrint('[LiveStatus] WebSocket connection error: $e');
+    }
   }
 
   /// Public method to refresh data - can be called from parent widget
   Future<void> refresh() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    await _loadStudentProfile();
+    await Future.wait([
+      _loadStudentProfile(),
+      Provider.of<LibraryStatusService>(context, listen: false).fetchLibraryStatus(),
+    ]);
   }
 
   Future<void> _loadStudentProfile() async {
@@ -34,9 +113,32 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     
     final profile = await profileService.getMyProfile();
     
+    // Lấy totalStudyHours realtime từ Activity API (tính từ reservation EXPIRED)
+    double realHours = profile?.totalStudyHours ?? 0.0;
+    try {
+      final token = await authService.getToken();
+      final user = authService.currentUser;
+      if (token != null && user != null) {
+        final response = await http.get(
+          Uri.parse('${ApiConstants.activityUrl}/user/${user.id}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(response.bodyBytes));
+          realHours = (data['totalStudyHours'] ?? 0).toDouble();
+        }
+      }
+    } catch (e) {
+      debugPrint('[LiveStatus] Error loading study hours: $e');
+    }
+    
     if (mounted) {
       setState(() {
         _studentProfile = profile;
+        _realStudyHours = realHours;
         _isLoading = false;
       });
     }
@@ -59,59 +161,65 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
       ),
       child: Column(
         children: [
-          // Dòng 1: Trạng thái thư viện (Live Occupancy)
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.people_alt_rounded, color: Colors.orange),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Trạng thái thư viện",
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+          // Dòng 1: Trạng thái thư viện (Live Occupancy) - real-time từ WebSocket
+          Consumer<LibraryStatusService>(
+            builder: (context, libraryStatus, _) {
+              return Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: libraryStatus.statusColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: const [
-                        Text(
-                          "Khá đông đúc",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.black87),
+                    child: Icon(Icons.people_alt_rounded, color: libraryStatus.statusColor),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Trạng thái thư viện",
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
-                        SizedBox(width: 8),
-                        Icon(Icons.circle, size: 8, color: Colors.orange),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              libraryStatus.isLoading ? "Đang tải..." : libraryStatus.statusText,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.black87),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.circle, size: 8, color: libraryStatus.statusColor),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              // % Đông đúc
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  "78% Full",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12),
-                ),
-              )
-            ],
+                  ),
+                  // % Đông đúc - dynamic
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: libraryStatus.badgeColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      libraryStatus.isLoading
+                          ? "..."
+                          : "${libraryStatus.occupancyRate.round()}% Full",
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12),
+                    ),
+                  )
+                ],
+              );
+            },
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 15),
@@ -137,7 +245,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                     Container(width: 1, height: 40, color: Colors.grey[200]),
                     _buildStatItem(
                       label: "Giờ đã học",
-                      value: _studentProfile?.formattedStudyHours ?? "0.0h",
+                      value: "${_realStudyHours.toStringAsFixed(1)}h",
                       valueColor: Colors.blue,
                       icon: Icons.timer_outlined,
                     ),

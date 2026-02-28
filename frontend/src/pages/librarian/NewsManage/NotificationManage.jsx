@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
@@ -7,105 +7,122 @@ import {
   Paperclip,
   ChevronDown,
   Pin,
-  Search
+  Search,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  X,
+  SlidersHorizontal,
+  Loader2
 } from 'lucide-react';
 import '../../../styles/librarian/librarian-shared.css';
+import '../../../styles/librarian/CheckInOut.css';
+import '../../../styles/librarian/BookingManage.css';
 import '../../../styles/librarian/NotificationManage.css';
 import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
 import axios from 'axios';
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'published', label: 'Đã đăng' },
+  { value: 'scheduled', label: 'Lên lịch' },
+  { value: 'draft', label: 'Nháp' },
+];
 
 const NotificationManage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Always use /librarian/news as base path
   const basePath = '/librarian/news';
 
-  const [viewMode, setViewMode] = useState('list'); // list | create | detail
+  const [viewMode, setViewMode] = useState('list');
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [viewFilter, setViewFilter] = useState('all'); // all | scheduled | draft
-  const [searchQuery, setSearchQuery] = useState(''); // Search query
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Sort & Filter & Pagination
+  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
+  const [columnFilters, setColumnFilters] = useState({ category: '', title: '', status: '', publishedAt: '' });
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [visibleColumns, setVisibleColumns] = useState({
+    category: true, title: true, status: true, publishedAt: true, actions: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const filterRef = useRef(null);
 
   const classifyStatus = (item, now = new Date()) => {
     const publishedFlag = item?.isPublished === true || item?.isPublished === 'true';
     const publishedAtDate = item?.publishedAt ? new Date(item.publishedAt) : null;
     const isScheduled = !!(publishedAtDate && publishedAtDate > now);
     const publishedBySchedule = !!(publishedAtDate && publishedAtDate <= now);
-    // Only treat as published when either explicit publish flag is true AND schedule time has arrived (or no schedule),
-    // or when the scheduled time is already due even if the flag is still false.
     const effectivePublished = (publishedFlag && !isScheduled) || publishedBySchedule;
     const isDraft = !effectivePublished && !isScheduled;
     return { publishedFlag, publishedBySchedule, effectivePublished, isScheduled, isDraft, publishedAtDate };
   };
 
+  const getStatusLabel = (item) => {
+    const s = classifyStatus(item);
+    if (s.isDraft) return 'Nháp';
+    if (s.isScheduled) return 'Lên lịch';
+    return 'Đã đăng';
+  };
+
+  const getStatusKey = (item) => {
+    const s = classifyStatus(item);
+    if (s.isDraft) return 'draft';
+    if (s.isScheduled) return 'scheduled';
+    return 'published';
+  };
+
   // Create Form State
   const [formData, setFormData] = useState({
-    startTime: '',
-    endTime: '',
-    title: '',
-    subject: 'Thông báo',
-    description: ''
+    startTime: '', endTime: '', title: '', subject: 'Thông báo', description: ''
   });
 
-  // Load notifications when component mounts
+  useEffect(() => { loadNotifications(); }, [location]);
+
+  // Close filter dropdown on outside click
   useEffect(() => {
-    console.log('🔄 NotificationManage component mounted, loading notifications...');
-    loadNotifications();
-  }, [location]);
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setActiveFilterCol(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadNotifications = async () => {
     try {
-      console.log('📡 Calling getAllNewsForAdmin API...');
       setLoading(true);
       const data = await getAllNewsForAdmin();
-      console.log('📰 API Response:', data);
-      console.log('📊 Response type:', typeof data);
-      console.log('📊 Is Array:', Array.isArray(data));
-      console.log('📊 Data length:', data?.length);
-
-      // API trả về trực tiếp là array
       if (data && Array.isArray(data)) {
-        // Sắp xếp: tin tức được ghim lên đầu, sau đó sắp xếp theo thời gian mới nhất
         const sortedData = [...data].sort((a, b) => {
-          // Tin được ghim lên trước
           if (a.isPinned && !b.isPinned) return -1;
           if (!a.isPinned && b.isPinned) return 1;
-          // Cùng trạng thái ghim, sắp xếp theo thời gian (mới nhất trước)
-          const dateA = new Date(a.publishedAt || a.createdAt);
-          const dateB = new Date(b.publishedAt || b.createdAt);
-          return dateB - dateA;
+          return new Date(b.publishedAt || b.createdAt) - new Date(a.publishedAt || a.createdAt);
         });
-
-        console.log('✅ Setting notifications array, length:', sortedData.length);
         setNotifications(sortedData);
       } else {
-        console.log('⚠️ Data is not array, setting empty array');
         setNotifications([]);
       }
     } catch (error) {
-      console.error('❌ Error loading notifications:', error);
-      console.error('Error details:', error.response?.data);
+      console.error('Error loading notifications:', error);
       setNotifications([]);
     } finally {
       setLoading(false);
-      console.log('🏁 Loading complete, current notifications:', notifications.length);
     }
   };
 
   const handleDelete = async (id, event) => {
     event.stopPropagation();
-
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tin tức này?')) {
-      return;
-    }
-
+    if (!window.confirm('Bạn có chắc chắn muốn xóa tin tức này?')) return;
     try {
       await deleteNews(id);
-      // Reload notifications after delete
       loadNotifications();
     } catch (error) {
       console.error('Error deleting notification:', error);
@@ -124,8 +141,7 @@ const NotificationManage = () => {
     }
   };
 
-  const handleViewDetail = async (item) => {
-    // Navigate to detail view page
+  const handleViewDetail = (item) => {
     navigate(`${basePath}/view/${item.id}`);
   };
 
@@ -133,30 +149,15 @@ const NotificationManage = () => {
     if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      hour: '2-digit', minute: '2-digit',
+      day: '2-digit', month: '2-digit', year: 'numeric'
     });
   };
 
   const getSubjectFromCategory = (item) => {
-    const CATEGORY_MAP = {
-      1: 'Sự kiện',
-      2: 'Thông báo quan trọng',
-      3: 'Sách mới',
-      4: 'Ưu đãi'
-    };
-
+    const CATEGORY_MAP = { 1: 'Sự kiện', 2: 'Thông báo quan trọng', 3: 'Sách mới', 4: 'Ưu đãi' };
     if (!item) return 'Thông báo';
-
-    // Support various API shapes: category object, id field, or raw id
-    const id = item.categoryId
-      ?? item.category?.id
-      ?? (typeof item.category === 'number' ? item.category : undefined);
-
+    const id = item.categoryId ?? item.category?.id ?? (typeof item.category === 'number' ? item.category : undefined);
     if (id && CATEGORY_MAP[id]) return CATEGORY_MAP[id];
     if (item.category?.name) return item.category.name;
     return 'Thông báo';
@@ -167,21 +168,228 @@ const NotificationManage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Sort handler
+  const handleSort = (column) => {
+    setSortConfig(prev => {
+      if (prev.column === column) {
+        if (prev.direction === 'asc') return { column, direction: 'desc' };
+        if (prev.direction === 'desc') return { column: null, direction: null };
+      }
+      return { column, direction: 'asc' };
+    });
+  };
+
+  const handleFilterChange = (column, value) => {
+    setColumnFilters(prev => ({ ...prev, [column]: value }));
+    setCurrentPage(1);
+  };
+
+  const clearColumnFilter = (column) => {
+    setColumnFilters(prev => ({ ...prev, [column]: '' }));
+  };
+
+  const getNewsValue = (item, column) => {
+    switch (column) {
+      case 'category': return getSubjectFromCategory(item);
+      case 'title': return item.title || '';
+      case 'status': return getStatusKey(item);
+      case 'publishedAt': return item.publishedAt || item.createdAt || '';
+      default: return '';
+    }
+  };
+
+  // Filtered + Sorted data
+  const filteredNews = useMemo(() => {
+    let result = [...notifications];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(item =>
+        (item.title || '').toLowerCase().includes(q) ||
+        getSubjectFromCategory(item).toLowerCase().includes(q)
+      );
+    }
+
+    Object.entries(columnFilters).forEach(([col, val]) => {
+      if (!val) return;
+      if (col === 'status') {
+        result = result.filter(item => getStatusKey(item) === val);
+      } else {
+        const v = val.toLowerCase();
+        result = result.filter(item => getNewsValue(item, col).toLowerCase().includes(v));
+      }
+    });
+
+    if (sortConfig.column) {
+      result.sort((a, b) => {
+        let aVal = getNewsValue(a, sortConfig.column);
+        let bVal = getNewsValue(b, sortConfig.column);
+        if (sortConfig.column === 'publishedAt') {
+          aVal = new Date(aVal || 0).getTime();
+          bVal = new Date(bVal || 0).getTime();
+        } else {
+          aVal = String(aVal).toLowerCase();
+          bVal = String(bVal).toLowerCase();
+        }
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [notifications, searchQuery, columnFilters, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredNews.length / pageSize) || 1;
+  const paginatedNews = filteredNews.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const max = 5;
+    let start = Math.max(1, currentPage - Math.floor(max / 2));
+    let end = Math.min(totalPages, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
+  // Render sort icon
+  const renderSortIcon = (column) => {
+    if (sortConfig.column === column) {
+      if (sortConfig.direction === 'asc') return <ArrowUp size={13} />;
+      if (sortConfig.direction === 'desc') return <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
+  };
+
+  // Column header with sort + filter (BookingManage pattern)
+  const renderColumnHeader = (column, label, isCenter = false) => {
+    const hasFilter = !!columnFilters[column];
+    return (
+      <th key={column} className={isCenter ? 'center' : ''}>
+        <div className="cio-th-content" style={isCenter ? { justifyContent: 'center' } : {}}>
+          <span className="cio-th-label">{label}</span>
+          <div className="cio-th-actions">
+            <button
+              className={`cio-th-btn${sortConfig.column === column ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); handleSort(column); }}
+              title="Sắp xếp"
+            >
+              {renderSortIcon(column)}
+            </button>
+            <button
+              className={`cio-th-btn${hasFilter ? ' active' : ''}${activeFilterCol === column ? ' open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveFilterCol(prev => prev === column ? null : column);
+              }}
+              title="Lọc"
+            >
+              <Filter size={13} className={hasFilter ? 'cio-filter-active' : ''} />
+            </button>
+          </div>
+          {activeFilterCol === column && (
+            <div className="cio-filter-dropdown" ref={filterRef} onClick={e => e.stopPropagation()}>
+              {column === 'status' ? (
+                <div className="cio-filter-options">
+                  {STATUS_OPTIONS.map(opt => (
+                    <label key={opt.value} className="cio-filter-option">
+                      <input
+                        type="radio"
+                        name="status-filter"
+                        checked={columnFilters.status === opt.value}
+                        onChange={() => { handleFilterChange('status', opt.value); setActiveFilterCol(null); }}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="cio-filter-input"
+                    placeholder={`Lọc ${label.toLowerCase()}...`}
+                    value={columnFilters[column]}
+                    onChange={(e) => handleFilterChange(column, e.target.value)}
+                    autoFocus
+                  />
+                  {hasFilter && (
+                    <button className="cio-filter-clear" onClick={() => clearColumnFilter(column)}>
+                      <X size={12} /> Xóa lọc
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
+
   return (
     <div className="lib-container">
       {/* ================= LIST VIEW ================= */}
       {viewMode === 'list' && (
         <div className="nt-fade-in">
           <div className="lib-page-title">
-            <h1>Quản lý tin tức</h1>
-            <div className="lib-inline-stats">
-              <span className="lib-inline-stat">
-                <span className="dot blue"></span>
-                Tổng <strong>{notifications?.length || 0}</strong>
-              </span>
-              <span className="lib-inline-stat">
-                <span className="dot green"></span>
-                Đã đăng <strong>{notifications?.filter(n => classifyStatus(n).effectivePublished)?.length || 0}</strong>
+            <h1>QUẢN LÝ TIN TỨC</h1>
+          </div>
+
+          <div className="lib-panel">
+            {/* Toolbar */}
+            <div className="cio-toolbar">
+              <div className="lib-search">
+                <Search size={16} className="lib-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Tìm tiêu đề, chủ đề..."
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="cio-column-toggle"
+                  onClick={() => setShowColumnMenu(!showColumnMenu)}
+                >
+                  <SlidersHorizontal size={14} />
+                  Hiển thị cột
+                </button>
+                {showColumnMenu && (
+                  <div className="cio-column-menu">
+                    {[
+                      { key: 'category', label: 'Chủ đề' },
+                      { key: 'title', label: 'Tiêu đề' },
+                      { key: 'status', label: 'Trạng thái' },
+                      { key: 'publishedAt', label: 'Thời gian đăng' },
+                      { key: 'actions', label: 'Thao tác' },
+                    ].map(col => (
+                      <label key={col.key} className="cio-column-menu-item">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[col.key]}
+                          onChange={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                          style={{ accentColor: '#FF751F' }}
+                        />
+                        {col.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span className="cio-result-count">
+                {activeFilterCount > 0 && (
+                  <span className="cio-active-filters">
+                    {activeFilterCount} bộ lọc |{' '}
+                  </span>
+                )}
+                Tổng số <strong>{filteredNews.length}</strong> kết quả
               </span>
               <button
                 className="lib-btn primary"
@@ -191,401 +399,126 @@ const NotificationManage = () => {
                 <Plus size={16} /> Tạo mới
               </button>
             </div>
-          </div>
 
-          <div className="lib-controls">
-            <div className="lib-search">
-              <Search size={16} className="lib-search-icon" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm tin tức..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="lib-tabs">
-            <button
-              className={`lib-tab ${viewFilter === 'all' ? 'active' : ''}`}
-              onClick={() => setViewFilter('all')}
-            >
-              Tất cả ({notifications?.length || 0})
-            </button>
-            <button
-              className={`lib-tab ${viewFilter === 'scheduled' ? 'active' : ''}`}
-              onClick={() => setViewFilter('scheduled')}
-            >
-              Chờ lịch ({notifications?.filter(n => classifyStatus(n).isScheduled).length || 0})
-            </button>
-            <button
-              className={`lib-tab ${viewFilter === 'draft' ? 'active' : ''}`}
-              onClick={() => setViewFilter('draft')}
-            >
-              Nháp ({notifications?.filter(n => classifyStatus(n).isDraft).length || 0})
-            </button>
-          </div>
-
-          <div className="lib-panel">
-            <div className="nt-table-container">
-              {(() => {
-                if (loading) {
-                  return (
-                    <div style={{ textAlign: 'center', padding: '2rem' }}>
-                      Đang tải...
-                    </div>
-                  );
-                }
-
-                const now = new Date();
-
-                // Search filter function - search in title only
-                const matchesSearch = (item) => {
-                  if (!searchQuery.trim()) return true;
-                  const query = searchQuery.toLowerCase().trim();
-                  const title = (item.title || '').toLowerCase();
-                  return title.includes(query);
-                };
-
-                // Apply search filter first, then status filter
-                const searchFiltered = (notifications || []).filter(matchesSearch);
-                const scheduled = searchFiltered.filter(n => classifyStatus(n, now).isScheduled);
-                const drafts = searchFiltered.filter(n => classifyStatus(n, now).isDraft);
-                const published = searchFiltered.filter(n => classifyStatus(n, now).effectivePublished);
-
-                if ((notifications?.length || 0) === 0) {
-                  return (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                      Chưa có thông báo nào
-                    </div>
-                  );
-                }
-
-                // Check if search has no results
-                if (searchQuery.trim() && searchFiltered.length === 0) {
-                  return (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
-                      <div style={{ fontWeight: 500, marginBottom: '4px' }}>Không tìm thấy kết quả</div>
-                      <div style={{ fontSize: '14px' }}>Thử tìm kiếm với từ khóa khác</div>
-                    </div>
-                  );
-                }
-
-                if (viewFilter === 'scheduled') {
-                  if (scheduled.length === 0) {
-                    return (
-                      <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                        Chưa có tin nào chờ lịch đăng
-                      </div>
-                    );
-                  }
-                  return (
-                    <table className="nt-table">
-                      <thead>
-                        <tr>
-                          <th width="15%">Chủ đề</th>
-                          <th width="35%">Tiêu đề thông báo / sự kiện</th>
-                          <th width="20%">Lịch đăng</th>
-                          <th width="15%">Thời gian tạo</th>
-                          <th width="15%"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {scheduled.map((item) => (
-                          <tr
-                            key={item.id}
-                            onClick={() => handleViewDetail(item)}
-                            style={{ cursor: 'pointer', background: '#e3f2fd' }}
-                          >
-                            <td>{getSubjectFromCategory(item)}</td>
-                            <td className="nt-font-medium">
-                              {item.title}
-                              {item.isPinned && (
-                                <span style={{
-                                  marginLeft: '0.5rem',
-                                  fontSize: '0.8rem',
-                                  padding: '0.2rem 0.5rem',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  borderRadius: '4px'
-                                }}>
-                                  📌 Ghim
-                                </span>
-                              )}
-                            </td>
-                            <td className="nt-text-gray">
-                              <strong style={{ color: '#2196F3' }}>
-                                {formatDateTime(item.publishedAt)}
-                              </strong>
-                            </td>
-                            <td className="nt-text-gray">
-                              {formatDateTime(item.createdAt)}
-                            </td>
-                            <td>
-                              <div className="nt-actions">
-                                <button
-                                  className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
-                                  onClick={(e) => handleTogglePin(item.id, e)}
-                                  title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
-                                  style={{
-                                    background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                                    color: item.isPinned ? '#92400e' : '#64748b'
-                                  }}
-                                >
-                                  <Pin size={16} />
-                                </button>
-                                <button
-                                  className="nt-action-btn nt-btn-edit"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`${basePath}/edit/${item.id}`);
-                                  }}
-                                >
-                                  <Pencil size={16} />
-                                </button>
-                                <button
-                                  className="nt-action-btn nt-btn-delete"
-                                  onClick={(e) => handleDelete(item.id, e)}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  );
-                }
-
-                if (viewFilter === 'draft') {
-                  if (drafts.length === 0) {
-                    return (
-                      <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                        Chưa có bản nháp nào
-                      </div>
-                    );
-                  }
-                  return (
-                    <table className="nt-table">
-                      <thead>
-                        <tr>
-                          <th width="15%">Chủ đề</th>
-                          <th width="45%">Tiêu đề thông báo / sự kiện</th>
-                          <th width="25%">Thời gian tạo</th>
-                          <th width="15%"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {drafts.map((item) => (
-                          <tr
-                            key={item.id}
-                            onClick={() => handleViewDetail(item)}
-                            style={{ cursor: 'pointer', background: '#f8fafc' }}
-                          >
-                            <td>{getSubjectFromCategory(item)}</td>
-                            <td className="nt-font-medium">
-                              {item.title}
-                              {item.isPinned && (
-                                <span style={{
-                                  marginLeft: '0.5rem',
-                                  fontSize: '0.8rem',
-                                  padding: '0.2rem 0.5rem',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  borderRadius: '4px'
-                                }}>
-                                  📌 Ghim
-                                </span>
-                              )}
-                              <span style={{
-                                marginLeft: '0.5rem',
-                                fontSize: '0.8rem',
-                                padding: '0.2rem 0.5rem',
-                                backgroundColor: '#e5e7eb',
-                                color: '#4b5563',
-                                borderRadius: '4px'
-                              }}>
-                                Nháp
-                              </span>
-                            </td>
-                            <td className="nt-text-gray">
-                              {formatDateTime(item.createdAt)}
-                            </td>
-                            <td>
-                              <div className="nt-actions">
-                                <button
-                                  className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
-                                  onClick={(e) => handleTogglePin(item.id, e)}
-                                  title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
-                                  style={{
-                                    background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                                    color: item.isPinned ? '#92400e' : '#64748b'
-                                  }}
-                                >
-                                  <Pin size={16} />
-                                </button>
-                                <button
-                                  className="nt-action-btn nt-btn-edit"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`${basePath}/edit/${item.id}`);
-                                  }}
-                                >
-                                  <Pencil size={16} />
-                                </button>
-                                <button
-                                  className="nt-action-btn nt-btn-delete"
-                                  onClick={(e) => handleDelete(item.id, e)}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  );
-                }
-
-                // Default 'all' tab: hiển thị TẤT CẢ items (kể cả draft, scheduled) - đã filter theo search
-                const listToShow = searchFiltered;
-
-                if (listToShow.length === 0) {
-                  return (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                      Chưa có thông báo nào
-                    </div>
-                  );
-                }
-
-                return (
-                  <table className="nt-table">
-                    <thead>
+            {/* Table */}
+            {loading ? (
+              <div className="sm-loading">
+                <Loader2 size={28} className="sm-spinner" />
+                <span>Đang tải...</span>
+              </div>
+            ) : (
+              <div className="bm-table-wrapper">
+                <table className="bm-table">
+                  <thead>
+                    <tr>
+                      {visibleColumns.category && renderColumnHeader('category', 'Chủ đề')}
+                      {visibleColumns.title && renderColumnHeader('title', 'Tiêu đề')}
+                      {visibleColumns.status && renderColumnHeader('status', 'Trạng thái', true)}
+                      {visibleColumns.publishedAt && renderColumnHeader('publishedAt', 'Thời gian đăng', true)}
+                      {visibleColumns.actions && <th className="center"><span className="cio-th-label">Thao tác</span></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedNews.length === 0 ? (
                       <tr>
-                        <th width="12%">Chủ đề</th>
-                        <th width="35%">
-                          Tiêu đề thông báo / sự kiện
-                        </th>
-                        <th width="12%">Trạng thái</th>
-                        <th width="20%">Thời gian đăng tải</th>
-                        <th width="12%"></th>
+                        <td colSpan={visibleColumnCount} className="bm-table-empty-cell">
+                          {searchQuery ? `Không tìm thấy kết quả cho "${searchQuery}"` : 'Chưa có tin tức nào.'}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {listToShow.map((item) => (
-                        <tr
-                          key={item.id}
-                          onClick={() => handleViewDetail(item)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <td>{getSubjectFromCategory(item)}</td>
-                          <td className="nt-font-medium">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
-                                {item.title}
-                              </span>
-                              {item.isPinned && (
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  padding: '0.15rem 0.4rem',
-                                  backgroundColor: '#fef3c7',
-                                  color: '#92400e',
-                                  borderRadius: '4px',
-                                  whiteSpace: 'nowrap',
-                                  flexShrink: 0
-                                }}>
-                                  📌 Ghim
+                    ) : (
+                      paginatedNews.map((item) => {
+                        const statusKey = getStatusKey(item);
+                        return (
+                          <tr
+                            key={item.id}
+                            className="bm-table-row"
+                            onClick={() => handleViewDetail(item)}
+                          >
+                            {visibleColumns.category && (
+                              <td>
+                                <span className="nt-category-tag">{getSubjectFromCategory(item)}</span>
+                              </td>
+                            )}
+                            {visibleColumns.title && (
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontWeight: 500, color: '#1e293b' }}>{item.title}</span>
+                                  {item.isPinned && <span className="nt-pin-badge">Ghim</span>}
+                                </div>
+                              </td>
+                            )}
+                            {visibleColumns.status && (
+                              <td className="center">
+                                <span className="sr-status-text">
+                                  <span className="sr-status-dot" style={{ background: statusKey === 'published' ? '#22c55e' : statusKey === 'scheduled' ? '#3b82f6' : '#94a3b8' }} />
+                                  {getStatusLabel(item)}
                                 </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            {(() => {
-                              const status = classifyStatus(item, new Date());
-                              if (status.isDraft) {
-                                return (
-                                  <span style={{
-                                    fontSize: '0.8rem',
-                                    padding: '0.25rem 0.6rem',
-                                    backgroundColor: '#e5e7eb',
-                                    color: '#4b5563',
-                                    borderRadius: '6px',
-                                    fontWeight: 500
-                                  }}>
-                                    Nháp
-                                  </span>
-                                );
-                              } else if (status.isScheduled) {
-                                return (
-                                  <span style={{
-                                    fontSize: '0.8rem',
-                                    padding: '0.25rem 0.6rem',
-                                    backgroundColor: '#dbeafe',
-                                    color: '#1e40af',
-                                    borderRadius: '6px',
-                                    fontWeight: 500
-                                  }}>
-                                    ⏰ Lên lịch
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span style={{
-                                    fontSize: '0.8rem',
-                                    padding: '0.25rem 0.6rem',
-                                    backgroundColor: '#dcfce7',
-                                    color: '#166534',
-                                    borderRadius: '6px',
-                                    fontWeight: 500
-                                  }}>
-                                    ✓ Đã đăng
-                                  </span>
-                                );
-                              }
-                            })()}
-                          </td>
-                          <td className="nt-text-gray">
-                            {formatDateTime(item.publishedAt || item.createdAt)}
-                          </td>
-                          <td>
-                            <div className="nt-actions">
-                              <button
-                                className={`nt-action-btn ${item.isPinned ? 'nt-btn-pin-active' : 'nt-btn-pin'}`}
-                                onClick={(e) => handleTogglePin(item.id, e)}
-                                title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
-                                style={{
-                                  background: item.isPinned ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                                  color: item.isPinned ? '#92400e' : '#64748b'
-                                }}
-                              >
-                                <Pin size={16} />
-                              </button>
-                              <button
-                                className="nt-action-btn nt-btn-edit"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`${basePath}/edit/${item.id}`);
-                                }}
-                              >
-                                <Pencil size={16} />
-                              </button>
-                              <button
-                                className="nt-action-btn nt-btn-delete"
-                                onClick={(e) => handleDelete(item.id, e)}
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
+                              </td>
+                            )}
+                            {visibleColumns.publishedAt && (
+                              <td className="center" style={{ color: '#64748b', fontSize: 13 }}>
+                                {formatDateTime(item.publishedAt || item.createdAt)}
+                              </td>
+                            )}
+                            {visibleColumns.actions && (
+                              <td className="center">
+                                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                                  <button
+                                    className="cio-th-btn"
+                                    style={{ width: 32, height: 32, color: item.isPinned ? '#92400e' : '#64748b' }}
+                                    onClick={(e) => handleTogglePin(item.id, e)}
+                                    title={item.isPinned ? 'Bỏ ghim' : 'Ghim'}
+                                  >
+                                    <Pin size={15} />
+                                  </button>
+                                  <button
+                                    className="cio-th-btn"
+                                    style={{ width: 32, height: 32, color: '#059669' }}
+                                    onClick={(e) => { e.stopPropagation(); navigate(`${basePath}/edit/${item.id}`); }}
+                                  >
+                                    <Pencil size={15} />
+                                  </button>
+                                  <button
+                                    className="cio-th-btn"
+                                    style={{ width: 32, height: 32, color: '#dc2626' }}
+                                    onClick={(e) => handleDelete(item.id, e)}
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            <div className="cio-pagination">
+              <div className="cio-page-size">
+                <span>Hiển thị</span>
+                <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+                <span>dòng</span>
+              </div>
+              <div className="cio-pagination-right">
+                <button className="cio-page-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage(1)}>«</button>
+                <button className="cio-page-btn" disabled={currentPage <= 1} onClick={() => setCurrentPage(p => p - 1)}>‹</button>
+                <div className="cio-page-numbers">
+                  {getPageNumbers().map(p => (
+                    <button key={p} className={`cio-page-btn${p === currentPage ? ' active' : ''}`} onClick={() => setCurrentPage(p)}>{p}</button>
+                  ))}
+                </div>
+                <button className="cio-page-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</button>
+                <button className="cio-page-btn" disabled={currentPage >= totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+              </div>
             </div>
           </div>
         </div>
@@ -769,9 +702,9 @@ const NotificationManage = () => {
               <div>
                 <strong style={{ color: '#374151' }}>Trạng thái:</strong>{' '}
                 {selectedNotification.isPublished ? (
-                  <span style={{ color: '#10b981' }}>✓ Đã đăng</span>
+                  <span style={{ color: '#10b981' }}>Đã đăng</span>
                 ) : (
-                  <span style={{ color: '#6b7280' }}>📝 Nháp</span>
+                  <span style={{ color: '#6b7280' }}>Nháp</span>
                 )}
               </div>
               <div>

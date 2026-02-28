@@ -40,7 +40,7 @@
   display: flex;
   gap: 0;
   background: linear-gradient(145deg, #F47B2B 0%, #E8601A 50%, #D4510F 100%);
-  border-radius: 20px;
+  border-radius: 12px;
   height: calc(100vh - 160px);
   box-shadow:
     0 8px 32px rgba(242, 111, 33, 0.25),
@@ -79,7 +79,7 @@
   gap: 12px;
   background: rgba(255, 255, 255, 0.88);
   padding: 12px 16px;
-  border-radius: 14px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid transparent;
@@ -406,7 +406,7 @@
 /* Message Bubbles */
 .cm-bubble {
   padding: 10px 16px;
-  border-radius: 16px;
+  border-radius: 10px;
   font-size: 14px;
   line-height: 1.5;
   position: relative;
@@ -639,7 +639,7 @@
   text-align: center;
   padding: 60px 20px;
   background: white;
-  border-radius: 16px;
+  border-radius: 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 

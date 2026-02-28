@@ -23,7 +23,7 @@
 .fm-seat-tag {
     font-size: 12px;
     font-weight: 600;
-    color: var(--lib-primary, #FF751F);
+    color: var(--lib-primary, #e8600a);
     background: var(--lib-primary-light, #fff3eb);
     padding: 4px 10px;
     border-radius: 6px;

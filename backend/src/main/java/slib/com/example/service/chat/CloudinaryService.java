@@ -47,6 +47,30 @@ public class CloudinaryService {
     }
 
     /**
+     * XOA 1 ANH: Xoa anh tren Cloudinary theo URL
+     * Dung chung cho avatar, news, chat images
+     *
+     * @param url URL cua anh can xoa
+     * @return true neu xoa thanh cong
+     */
+    public boolean deleteImageByUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+        try {
+            String publicId = extractPublicIdFromUrl(url);
+            if (publicId != null) {
+                cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+                log.info("[Cloudinary] Da xoa anh: {}", publicId);
+                return true;
+            }
+        } catch (Exception e) {
+            log.warn("[Cloudinary] Loi xoa anh {}: {}", url, e.getMessage());
+        }
+        return false;
+    }
+
+    /**
      * XOA AVATARS: Dung cho rollback khi import fail
      * 
      * @param urls List cac URL can xoa

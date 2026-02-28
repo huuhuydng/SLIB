@@ -120,6 +120,16 @@ public class SeatViolationReportService {
     }
 
     /**
+     * Sinh viên xem danh sách vi phạm bị gán cho mình
+     */
+    public List<ViolationReportResponse> getViolationsAgainstMe(UUID violatorId) {
+        return violationReportRepository.findByViolator_IdOrderByCreatedAtDesc(violatorId)
+                .stream()
+                .map(ViolationReportResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Thu thu xem tat ca bao cao
      */
     public List<ViolationReportResponse> getAll() {
@@ -256,6 +266,17 @@ public class SeatViolationReportService {
      */
     public long countByStatus(ReportStatus status) {
         return violationReportRepository.countByStatus(status);
+    }
+
+    /**
+     * Xoa nhieu bao cao cung luc
+     */
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        violationReportRepository.deleteAllById(ids);
+        log.info("[ViolationReport] Deleted {} reports", ids.size());
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "DELETED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "DELETED");
     }
 
     // ===== PRIVATE HELPERS =====

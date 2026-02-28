@@ -301,13 +301,13 @@ const AIConfig = () => {
   };
 
   // Styles
-  const cardStyle = { background: '#fff', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' };
+  const cardStyle = { background: '#fff', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' };
   const inputStyle = { width: '100%', padding: '12px 16px', border: '2px solid #E2E8F0', borderRadius: '12px', fontSize: '14px', outline: 'none' };
-  const btnPrimary = { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#FF751F', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', color: '#fff', cursor: 'pointer' };
+  const btnPrimary = { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: '#e8600a', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600', color: '#fff', cursor: 'pointer' };
   const btnSecondary = { ...btnPrimary, background: '#F7FAFC', color: '#4A5568', border: '2px solid #E2E8F0' };
   const btnIcon = { padding: '8px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
   const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 };
-  const modalContent = { background: '#fff', borderRadius: '20px', width: '600px', maxHeight: '85vh', overflow: 'auto', padding: '24px' };
+  const modalContent = { background: '#fff', borderRadius: '10px', width: '600px', maxHeight: '85vh', overflow: 'auto', padding: '24px' };
 
   // Get all items from all materials for KS selection
   const allItems = materials.flatMap(m => (m.items || []).map(item => ({ ...item, materialName: m.name, materialId: m.id })));
@@ -319,8 +319,8 @@ const AIConfig = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Sparkles size={32} color="#FF751F" />
+            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Sparkles size={32} color="#e8600a" />
               Quản lý Tri thức AI
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>Tài liệu → Kho tri thức → Vector DB</p>
@@ -343,18 +343,18 @@ const AIConfig = () => {
 
             <div style={{ background: '#F7FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div><div style={{ fontSize: '20px', fontWeight: '700', color: '#FF751F' }}>{materials.length}</div><div style={{ fontSize: '11px', color: '#A0AEC0' }}>Tài liệu</div></div>
-                <div><div style={{ fontSize: '20px', fontWeight: '700', color: '#2563EB' }}>{knowledgeStores.length}</div><div style={{ fontSize: '11px', color: '#A0AEC0' }}>Kho tri thức</div></div>
+                <div><div style={{ fontSize: '20px', fontWeight: '600', color: '#e8600a' }}>{materials.length}</div><div style={{ fontSize: '11px', color: '#A0AEC0' }}>Tài liệu</div></div>
+                <div><div style={{ fontSize: '20px', fontWeight: '600', color: '#2563EB' }}>{knowledgeStores.length}</div><div style={{ fontSize: '11px', color: '#A0AEC0' }}>Kho tri thức</div></div>
               </div>
             </div>
 
             {TABS.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px',
-                background: activeTab === tab.id ? '#FFF7F2' : 'transparent',
-                border: activeTab === tab.id ? '2px solid #FF751F' : '2px solid transparent',
+                background: activeTab === tab.id ? '#fef6f0' : 'transparent',
+                border: activeTab === tab.id ? '2px solid #e8600a' : '2px solid transparent',
                 borderRadius: '12px', fontSize: '14px', fontWeight: activeTab === tab.id ? '600' : '500',
-                color: activeTab === tab.id ? '#FF751F' : '#4A5568', cursor: 'pointer', marginBottom: '8px', textAlign: 'left'
+                color: activeTab === tab.id ? '#e8600a' : '#4A5568', cursor: 'pointer', marginBottom: '8px', textAlign: 'left'
               }}><tab.icon size={20} />{tab.label}</button>
             ))}
           </div>
@@ -366,7 +366,7 @@ const AIConfig = () => {
               <div style={cardStyle}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0' }}>Tài liệu gốc</h2>
+                    <h2 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Tài liệu gốc</h2>
                     <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>Nguồn tài liệu gốc (PDF, DOCX, Text)</p>
                   </div>
                   <button onClick={() => setShowMaterialModal(true)} style={btnPrimary}><Plus size={18} /> Thêm tài liệu</button>
@@ -380,7 +380,7 @@ const AIConfig = () => {
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', cursor: 'pointer', background: '#F7FAFC' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           {expandedMaterial === m.id ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                          <FolderOpen size={20} color="#FF751F" />
+                          <FolderOpen size={20} color="#e8600a" />
                           <div>
                             <div style={{ fontWeight: '600' }}>{m.name}</div>
                             <div style={{ fontSize: '12px', color: '#A0AEC0' }}>{m.itemCount || 0} mục • {m.createdBy}</div>
@@ -426,7 +426,7 @@ const AIConfig = () => {
               <div style={cardStyle}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0' }}>Kho tri thức</h2>
+                    <h2 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Kho tri thức</h2>
                     <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>Chọn mục để đồng bộ xuống Vector DB</p>
                   </div>
                   <button onClick={() => setShowKSModal(true)} style={btnPrimary}><Plus size={18} /> Thêm kho</button>
@@ -443,7 +443,7 @@ const AIConfig = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                               <Layers size={20} color="#2563EB" />
                               <span style={{ fontSize: '16px', fontWeight: '600' }}>{ks.name}</span>
-                              <span style={{ fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: '20px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span>
+                              <span style={{ fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: '10px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span>
                             </div>
                             {ks.description && <p style={{ margin: '0 0 8px', color: '#4A5568', fontSize: '13px' }}>{ks.description}</p>}
                             <div style={{ fontSize: '12px', color: '#A0AEC0' }}>
@@ -478,7 +478,7 @@ const AIConfig = () => {
                 <div style={{ ...cardStyle, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0' }}>Test Chat</h2>
+                      <h2 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Test Chat</h2>
                       <p style={{ fontSize: '13px', color: '#A0AEC0', margin: 0 }}>Kiểm tra RAG với dữ liệu đã đồng bộ</p>
                     </div>
                     <button onClick={handleClearChat} style={btnSecondary}><RotateCcw size={16} /> Xóa chat</button>
@@ -492,14 +492,14 @@ const AIConfig = () => {
                           flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
                           cursor: msg.debug ? 'pointer' : 'default'
                         }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: msg.role === 'user' ? '#DBEAFE' : '#FFF7F2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {msg.role === 'user' ? <User size={14} color="#2563EB" /> : <Bot size={14} color="#FF751F" />}
+                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: msg.role === 'user' ? '#DBEAFE' : '#fef6f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {msg.role === 'user' ? <User size={14} color="#2563EB" /> : <Bot size={14} color="#e8600a" />}
                         </div>
                         <div style={{
                           maxWidth: '75%', padding: '10px 14px', borderRadius: '12px',
-                          background: msg.role === 'user' ? '#DBEAFE' : selectedDebugInfo === msg.debug ? '#FFF7F2' : '#F7FAFC',
+                          background: msg.role === 'user' ? '#DBEAFE' : selectedDebugInfo === msg.debug ? '#fef6f0' : '#F7FAFC',
                           fontSize: '13px',
-                          border: selectedDebugInfo === msg.debug ? '2px solid #FF751F' : '2px solid transparent'
+                          border: selectedDebugInfo === msg.debug ? '2px solid #e8600a' : '2px solid transparent'
                         }}>
                           {msg.isLoading ? (
                             <span style={{ display: 'inline-flex', gap: '4px' }}>
@@ -529,8 +529,8 @@ const AIConfig = () => {
                 {/* Debug Panel - Right */}
                 <div style={{ ...cardStyle, width: '420px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', background: '#F7FAFC' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Brain size={18} color="#FF751F" /> Debug RAG
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Brain size={18} color="#e8600a" /> Debug RAG
                     </h3>
                     <p style={{ fontSize: '11px', color: '#A0AEC0', margin: '4px 0 0' }}>Click vào tin nhắn để xem AI xử lý thế nào</p>
                   </div>
@@ -565,13 +565,13 @@ const AIConfig = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                               <div>
                                 <div style={{ color: '#A0AEC0', fontSize: '10px' }}>Điểm tương đồng cao nhất</div>
-                                <div style={{ fontSize: '16px', fontWeight: '700', color: selectedDebugInfo.retrieval?.passed_threshold ? '#059669' : '#DC2626' }}>
+                                <div style={{ fontSize: '16px', fontWeight: '600', color: selectedDebugInfo.retrieval?.passed_threshold ? '#059669' : '#DC2626' }}>
                                   {((selectedDebugInfo.retrieval?.best_score || 0) * 100).toFixed(1)}%
                                 </div>
                               </div>
                               <div>
                                 <div style={{ color: '#A0AEC0', fontSize: '10px' }}>Ngưỡng tối thiểu</div>
-                                <div style={{ fontSize: '16px', fontWeight: '700', color: '#4A5568' }}>
+                                <div style={{ fontSize: '16px', fontWeight: '600', color: '#4A5568' }}>
                                   {((selectedDebugInfo.retrieval?.threshold || 0) * 100).toFixed(0)}%
                                 </div>
                               </div>
@@ -598,7 +598,7 @@ const AIConfig = () => {
                                 const isExpanded = expandedChunks[i] || false;
                                 const hasFullContent = chunk.full_content && chunk.full_content.length > 200;
                                 return (
-                                  <div key={i} style={{ background: i === 0 ? '#FFF7F2' : '#F7FAFC', borderRadius: '8px', padding: '10px', marginBottom: '8px', border: i === 0 ? '1px solid #FFE4D6' : '1px solid #E2E8F0' }}>
+                                  <div key={i} style={{ background: i === 0 ? '#fef6f0' : '#F7FAFC', borderRadius: '8px', padding: '10px', marginBottom: '8px', border: i === 0 ? '1px solid #FFE4D6' : '1px solid #E2E8F0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                                       <span style={{ fontWeight: '600', color: '#4A5568' }}>#{chunk.rank} {i === 0 && '⭐ Phù hợp nhất'}</span>
                                       <span style={{ background: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#D1FAE5' : '#FEE2E2', color: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>
@@ -615,7 +615,7 @@ const AIConfig = () => {
                                         style={{
                                           marginTop: '6px',
                                           fontSize: '10px',
-                                          color: '#FF751F',
+                                          color: '#e8600a',
                                           background: 'none',
                                           border: 'none',
                                           cursor: 'pointer',
@@ -745,7 +745,7 @@ const AIConfig = () => {
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Loại</label>
-                <span style={{ fontSize: '12px', background: viewingItem.type === 'FILE' ? '#DBEAFE' : '#D1FAE5', color: viewingItem.type === 'FILE' ? '#2563EB' : '#059669', padding: '4px 12px', borderRadius: '20px' }}>{viewingItem.type === 'FILE' ? 'Tệp' : 'Văn bản'}</span>
+                <span style={{ fontSize: '12px', background: viewingItem.type === 'FILE' ? '#DBEAFE' : '#D1FAE5', color: viewingItem.type === 'FILE' ? '#2563EB' : '#059669', padding: '4px 12px', borderRadius: '10px' }}>{viewingItem.type === 'FILE' ? 'Tệp' : 'Văn bản'}</span>
               </div>
               {viewingItem.type === 'FILE' && (
                 <div style={{ marginBottom: '12px' }}>
@@ -849,7 +849,7 @@ const AIConfig = () => {
               )}
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Trạng thái</label>
-                <span style={{ fontSize: '12px', fontWeight: '600', padding: '4px 12px', borderRadius: '20px', background: STATUS_STYLES[viewingKS.status]?.bg, color: STATUS_STYLES[viewingKS.status]?.color }}>{STATUS_STYLES[viewingKS.status]?.label}</span>
+                <span style={{ fontSize: '12px', fontWeight: '600', padding: '4px 12px', borderRadius: '10px', background: STATUS_STYLES[viewingKS.status]?.bg, color: STATUS_STYLES[viewingKS.status]?.color }}>{STATUS_STYLES[viewingKS.status]?.label}</span>
               </div>
               <div>
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '8px' }}>Danh sách mục ({viewingKS.items?.length || 0})</label>

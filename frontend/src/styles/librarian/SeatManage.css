@@ -1,6 +1,6 @@
 :root {
-  --color-primary-start: #f58220;
-  --color-primary-end: #ef6f12;
+  --color-primary-start: #e8600a;
+  --color-primary-end: #c44f06;
   --color-bg: #f6f7fb;
   --color-white: #ffffff;
   --color-text-main: #333333;
@@ -10,7 +10,7 @@
   --seat-empty: #93c5fd;
   --seat-occupied: #ff9b4a;
   --seat-restricted: #e5e7eb;
-  --seat-selected-border: #ef6f12;
+  --seat-selected-border: #c44f06;
 
   --sidebar-width: 240px;
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);
@@ -322,7 +322,7 @@
   background-color: #d1d5db;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  border-radius: 16px;
+  border-radius: 10px;
   height: 100%;
   align-self: start;
   max-height: 500px;
@@ -340,7 +340,7 @@
   grid-column: 3;
   grid-row: 2;
   background-color: #d1d5db;
-  border-radius: 16px;
+  border-radius: 10px;
 }
 
 .seatManage__librarian {
@@ -426,7 +426,7 @@
   font-weight: 600;
   color: white;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: 12px;
   white-space: nowrap;
   letter-spacing: 0.3px;
 }

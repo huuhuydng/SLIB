@@ -18,6 +18,8 @@ import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.ai.ChatSessionRepository;
 
+import slib.com.example.service.chat.CloudinaryService;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +44,7 @@ public class UserService {
     private final PointTransactionRepository pointTransactionRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final AuthService authService;
+    private final CloudinaryService cloudinaryService;
 
     /**
      * Get current user profile by email
@@ -240,6 +243,11 @@ public class UserService {
         // Check if user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+
+        // 0. Delete avatar on Cloudinary if exists
+        if (user.getAvtUrl() != null && !user.getAvtUrl().isEmpty()) {
+            cloudinaryService.deleteImageByUrl(user.getAvtUrl());
+        }
 
         // Delete in order (child tables first, then parent)
         // 1. Delete activity logs (no FK constraint, just column)

@@ -146,24 +146,37 @@ function HeaderBar() {
     navigate(info.route);
   };
 
+  const [userData] = useState(() => {
+    try {
+      const s = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
+      if (s) { const u = JSON.parse(s); return { name: u.fullName || u.email?.split('@')[0] || 'Thủ thư', role: u.role || 'LIBRARIAN' }; }
+    } catch {}
+    return { name: 'Thủ thư', role: 'LIBRARIAN' };
+  });
+
+  const getInitials = (n) => n ? n.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2) : 'TT';
+
   return (
-    <div className="librarian-header">
-      <div ref={bellRef} style={{ position: "relative" }}>
-        <button
-          className="notif-bell"
-          onClick={() => {
-            setShowDropdown(!showDropdown);
-            if (showDropdown) setExpandedCategory(null);
-          }}
-          title="Thông báo"
-        >
-          <Bell className="notif-bell__icon" />
-          {pendingCounts.total > 0 && (
-            <span className="notif-bell__badge">
-              {pendingCounts.total > 99 ? "99+" : pendingCounts.total}
-            </span>
-          )}
-        </button>
+    <header className="top-header">
+      <div className="top-header__left">
+      </div>
+      <div className="top-header__right">
+        <div ref={bellRef} style={{ position: "relative" }}>
+          <button
+            className="notif-bell"
+            onClick={() => {
+              setShowDropdown(!showDropdown);
+              if (showDropdown) setExpandedCategory(null);
+            }}
+            title="Thông báo"
+          >
+            <Bell className="notif-bell__icon" />
+            {pendingCounts.total > 0 && (
+              <span className="notif-bell__badge">
+                {pendingCounts.total > 99 ? "99+" : pendingCounts.total}
+              </span>
+            )}
+          </button>
 
         {showDropdown && (
           <div className="notif-dropdown">
@@ -299,8 +312,13 @@ function HeaderBar() {
             </div>
           </div>
         )}
+        </div>
+        <div className="top-header__user">
+          <div className="top-header__avatar">{getInitials(userData.name)}</div>
+          <span className="top-header__name">{userData.name}</span>
+        </div>
       </div>
-    </div>
+    </header>
   );
 }
 
@@ -445,10 +463,10 @@ function ToastNotifications() {
 function MainLayout() {
   return (
     <LibrarianNotificationProvider>
+      <HeaderBar />
       <div className="appLayout">
         <Sidebar />
         <div className="main">
-          <HeaderBar />
           <Outlet />
         </div>
         <ToastNotifications />

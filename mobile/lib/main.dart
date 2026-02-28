@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/library_status_service.dart';
 import 'package:slib/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
@@ -58,6 +59,9 @@ void main() async {
         ChangeNotifierProvider(
           create: (_) => NotificationService(authService),
         ),
+        ChangeNotifierProvider(
+          create: (_) => LibraryStatusService(authService),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -110,6 +114,7 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final AuthService authService = context.read<AuthService>();
       final NotificationService notificationService = context.read<NotificationService>();
+      final LibraryStatusService libraryStatusService = context.read<LibraryStatusService>();
       
       final results = await Future.wait([
         Future.delayed(const Duration(seconds: 2)),
@@ -118,9 +123,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
       final bool isLoggedIn = results[1] as bool;
 
-      // Initialize notifications if logged in
+      // Initialize services if logged in (song song, không block navigation)
       if (isLoggedIn) {
-        await notificationService.initialize();
+        notificationService.initialize();
+        libraryStatusService.initialize();
       }
 
       if (!mounted) return;

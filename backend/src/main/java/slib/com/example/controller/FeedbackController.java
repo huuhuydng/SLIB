@@ -109,4 +109,25 @@ public class FeedbackController {
                 "reviewed", feedbackService.countByStatus(FeedbackStatus.REVIEWED),
                 "acted", feedbackService.countByStatus(FeedbackStatus.ACTED)));
     }
+
+    /**
+     * DELETE /slib/feedbacks/batch
+     * Thủ thư xoá nhiều phản hồi cùng lúc
+     */
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            feedbackService.deleteBatch(uuids);
+            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            log.error("[Feedback] Error deleting batch: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 }

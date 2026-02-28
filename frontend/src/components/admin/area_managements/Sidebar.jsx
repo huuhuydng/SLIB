@@ -329,7 +329,7 @@ function Sidebar() {
       {/* Header */}
       <div style={{
         padding: '14px 16px',
-        background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+        background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
         color: 'white',
         flexShrink: 0
       }}>
@@ -529,7 +529,7 @@ function Sidebar() {
         }}>
           Phòng thư viện
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -550,10 +550,10 @@ function Sidebar() {
                 fontWeight: '600',
                 color: isAreaSelected(area.areaId) ? '#C2410C' : '#374151',
                 background: isAreaSelected(area.areaId)
-                  ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                  ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                   : '#F8FAFC',
                 border: isAreaSelected(area.areaId)
-                  ? '2px solid #FF751F'
+                  ? '2px solid #e8600a'
                   : '2px solid transparent',
                 transition: 'all 0.2s',
                 display: 'flex',
@@ -569,7 +569,7 @@ function Sidebar() {
                 fontSize: '10px',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: isAreaSelected(area.areaId) ? '#FF751F' : '#E2E8F0',
+                background: isAreaSelected(area.areaId) ? '#e8600a' : '#E2E8F0',
                 color: isAreaSelected(area.areaId) ? 'white' : '#64748B',
                 fontWeight: '700'
               }}>
@@ -612,7 +612,7 @@ function Sidebar() {
         }}>
           Khu vực ghế
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -641,10 +641,10 @@ function Sidebar() {
                   fontWeight: '600',
                   color: isZoneSelected(zone.zoneId) ? '#C2410C' : '#374151',
                   background: isZoneSelected(zone.zoneId)
-                    ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                    ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                     : '#F8FAFC',
                   border: isZoneSelected(zone.zoneId)
-                    ? '2px solid #FF751F'
+                    ? '2px solid #e8600a'
                     : '2px solid transparent',
                   transition: 'all 0.2s',
                   display: 'flex',
@@ -657,7 +657,7 @@ function Sidebar() {
                   fontSize: '11px',
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  background: isZoneSelected(zone.zoneId) ? '#FF751F' : '#E2E8F0',
+                  background: isZoneSelected(zone.zoneId) ? '#e8600a' : '#E2E8F0',
                   color: isZoneSelected(zone.zoneId) ? 'white' : '#64748B',
                   fontWeight: '700'
                 }}>
@@ -710,7 +710,7 @@ function Sidebar() {
             width: '100%',
             padding: '12px 16px',
             borderRadius: '10px',
-            border: '2px solid #FF751F',
+            border: '2px solid #e8600a',
             background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
             cursor: 'pointer',
             fontSize: '13px',
@@ -748,7 +748,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {areas.length}
@@ -774,7 +774,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {zones.length}
@@ -800,7 +800,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {totalSeats}
@@ -947,7 +947,7 @@ function Sidebar() {
                   border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                  background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
@@ -1165,7 +1165,7 @@ function Sidebar() {
                   border: 'none',
                   background: nfcCheckScanning
                     ? '#FFF7ED'
-                    : 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                    : 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                   cursor: nfcCheckScanning ? 'wait' : 'pointer',
                   fontSize: '15px',
                   fontWeight: '600',
@@ -1280,7 +1280,7 @@ function Sidebar() {
                     border: 'none',
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                    background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                     color: 'white',
                     fontSize: '14px',
                     fontWeight: '600'

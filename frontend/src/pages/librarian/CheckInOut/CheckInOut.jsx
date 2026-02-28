@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import librarianService from "../../../services/librarianService";
@@ -9,16 +9,6 @@ import websocketService from "../../../services/websocketService";
 
 const CheckInOut = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterSort, setFilterSort] = useState('');
-
-  // Date filter states - mặc định ngày hôm nay
-  const todayStr = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(todayStr);
-
-  // Time filter states
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
 
   // State for real data
   const [accessLogs, setAccessLogs] = useState([]);
@@ -35,21 +25,47 @@ const CheckInOut = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Convert YYYY-MM-DD to DD/MM/YYYY for display
-  const formatDateDisplay = (isoDate) => {
-    if (!isoDate) return '';
-    const [year, month, day] = isoDate.split('-');
-    return `${day}/${month}/${year}`;
-  };
+  // Sort state: { column: string, direction: 'asc' | 'desc' | null }
+  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
 
-  // Fetch data on component mount and when date filter changes
+  // Column filter state: { columnKey: filterValue }
+  const [columnFilters, setColumnFilters] = useState({
+    userCode: '',
+    userName: '',
+    action: '',
+    time: '',
+  });
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const filterRef = useRef(null);
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    userName: true,
+    userCode: true,
+    action: true,
+    time: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  // Fetch data on mount
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [startDate, endDate]);
+  }, []);
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setActiveFilterCol(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // WebSocket real-time updates
   useEffect(() => {
@@ -98,16 +114,10 @@ const CheckInOut = () => {
     };
   }, []);
 
-
   const fetchData = async () => {
     try {
       setLoading(true);
-      let logsData;
-      if (startDate || endDate) {
-        logsData = await librarianService.getAccessLogsByDateRange(startDate, endDate);
-      } else {
-        logsData = await librarianService.getAllAccessLogs();
-      }
+      const logsData = await librarianService.getAllAccessLogs();
       const statsData = await librarianService.getAccessLogStats();
       setAccessLogs(logsData);
       setStats(statsData);
@@ -126,41 +136,73 @@ const CheckInOut = () => {
     return `${time} ${dateStr}`;
   };
 
+  // Get value for sorting/filtering
+  const getLogValue = (log, column) => {
+    switch (column) {
+      case 'userCode': return log.userCode || '';
+      case 'userName': return log.userName || '';
+      case 'action': return log.action === 'CHECK_IN' ? 'Vào' : 'Ra';
+      case 'time':
+        return log.action === 'CHECK_IN' ? log.checkInTime : (log.checkOutTime || '');
+      default: return '';
+    }
+  };
+
   const displayedLogs = useMemo(() => {
-    let data = accessLogs.filter(log =>
-      log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.userCode.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (filterSort === 'checkin') {
-      data = data.filter(log => log.checkOutTime === null);
-    } else if (filterSort === 'checkout') {
-      data = data.filter(log => log.checkOutTime !== null);
+    let data = [...accessLogs];
+
+    // Global search
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      data = data.filter(log =>
+        log.userName.toLowerCase().includes(q) ||
+        log.userCode.toLowerCase().includes(q)
+      );
     }
 
-    // Lọc theo thời gian (giờ)
-    if (startTime || endTime) {
-      data = data.filter(log => {
-        const logTime = log.action === 'CHECK_IN' ? log.checkInTime : log.checkOutTime;
-        if (!logTime) return false;
-        const date = new Date(logTime);
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        const logMinutes = hours * 60 + minutes;
+    // Column filters
+    Object.entries(columnFilters).forEach(([col, filterVal]) => {
+      if (!filterVal) return;
+      const q = filterVal.toLowerCase();
+      if (col === 'action') {
+        // Special: filter by action type
+        if (q === 'vào' || q === 'vao' || q === 'check_in' || q === 'in') {
+          data = data.filter(log => log.action === 'CHECK_IN');
+        } else if (q === 'ra' || q === 'check_out' || q === 'out') {
+          data = data.filter(log => log.action === 'CHECK_OUT');
+        }
+      } else if (col === 'time') {
+        data = data.filter(log => {
+          const timeStr = getLogValue(log, 'time');
+          return timeStr && formatDateTime(timeStr).toLowerCase().includes(q);
+        });
+      } else {
+        data = data.filter(log => getLogValue(log, col).toLowerCase().includes(q));
+      }
+    });
 
-        if (startTime) {
-          const [sh, sm] = startTime.split(':').map(Number);
-          if (logMinutes < sh * 60 + sm) return false;
+    // Sort
+    if (sortConfig.column && sortConfig.direction) {
+      data.sort((a, b) => {
+        let valA = getLogValue(a, sortConfig.column);
+        let valB = getLogValue(b, sortConfig.column);
+
+        if (sortConfig.column === 'time') {
+          valA = valA ? new Date(valA).getTime() : 0;
+          valB = valB ? new Date(valB).getTime() : 0;
+        } else {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
         }
-        if (endTime) {
-          const [eh, em] = endTime.split(':').map(Number);
-          if (logMinutes > eh * 60 + em) return false;
-        }
-        return true;
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
       });
     }
 
     return data;
-  }, [searchTerm, filterSort, accessLogs, startTime, endTime]);
+  }, [searchTerm, accessLogs, columnFilters, sortConfig]);
 
   const totalPages = Math.ceil(displayedLogs.length / itemsPerPage);
   const paginatedLogs = useMemo(() => {
@@ -171,20 +213,28 @@ const CheckInOut = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterSort, startTime, endTime]);
+  }, [searchTerm, columnFilters, sortConfig, itemsPerPage]);
 
-  const handleFilterClick = (type) => {
-    setFilterSort(prev => prev === type ? '' : type);
+  // Sort handler: cycle null -> asc -> desc -> null
+  const handleSort = (column) => {
+    setSortConfig(prev => {
+      if (prev.column !== column) return { column, direction: 'asc' };
+      if (prev.direction === 'asc') return { column, direction: 'desc' };
+      return { column: null, direction: null };
+    });
   };
 
-  const clearDateFilter = () => {
-    setStartDate('');
-    setEndDate('');
-    setStartTime('');
-    setEndTime('');
+  // Filter handler
+  const handleFilterChange = (column, value) => {
+    setColumnFilters(prev => ({ ...prev, [column]: value }));
   };
 
-  // Hàm tính các trang cần hiện (rút gọn)
+  const clearColumnFilter = (column) => {
+    setColumnFilters(prev => ({ ...prev, [column]: '' }));
+    setActiveFilterCol(null);
+  };
+
+  // Pagination helpers
   const getPageNumbers = () => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
     const pages = [];
@@ -246,13 +296,113 @@ const CheckInOut = () => {
     }
   };
 
-  const getMinDate = () => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 3);
-    return date.toISOString().split('T')[0];
+  // Render sort icon
+  const renderSortIcon = (column) => {
+    if (sortConfig.column === column) {
+      if (sortConfig.direction === 'asc') return <ArrowUp size={13} />;
+      if (sortConfig.direction === 'desc') return <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
   };
 
-  const getMaxDate = () => new Date().toISOString().split('T')[0];
+  // Render filter icon with active state
+  const renderFilterIcon = (column) => {
+    const isActive = !!columnFilters[column];
+    return (
+      <Filter
+        size={13}
+        className={isActive ? 'cio-filter-active' : ''}
+      />
+    );
+  };
+
+  // Column header with sort + filter
+  const renderColumnHeader = (column, label) => {
+    const hasFilter = !!columnFilters[column];
+    return (
+      <th key={column}>
+        <div className="cio-th-content">
+          <span className="cio-th-label">{label}</span>
+          <div className="cio-th-actions">
+            <button
+              className={`cio-th-btn${sortConfig.column === column ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); handleSort(column); }}
+              title="Sắp xếp"
+            >
+              {renderSortIcon(column)}
+            </button>
+            <button
+              className={`cio-th-btn${hasFilter ? ' active' : ''}${activeFilterCol === column ? ' open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveFilterCol(prev => prev === column ? null : column);
+              }}
+              title="Lọc"
+            >
+              {renderFilterIcon(column)}
+            </button>
+          </div>
+          {activeFilterCol === column && (
+            <div className="cio-filter-dropdown" ref={filterRef} onClick={e => e.stopPropagation()}>
+              {column === 'action' ? (
+                <div className="cio-filter-options">
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === ''}
+                      onChange={() => { handleFilterChange('action', ''); setActiveFilterCol(null); }}
+                    />
+                    Tất cả
+                  </label>
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === 'vào'}
+                      onChange={() => { handleFilterChange('action', 'vào'); setActiveFilterCol(null); }}
+                    />
+                    Vào
+                  </label>
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === 'ra'}
+                      onChange={() => { handleFilterChange('action', 'ra'); setActiveFilterCol(null); }}
+                    />
+                    Ra
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="cio-filter-input"
+                    placeholder={`Lọc ${label.toLowerCase()}...`}
+                    value={columnFilters[column]}
+                    onChange={(e) => handleFilterChange(column, e.target.value)}
+                    autoFocus
+                  />
+                  {hasFilter && (
+                    <button className="cio-filter-clear" onClick={() => clearColumnFilter(column)}>
+                      <X size={12} /> Xóa lọc
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  // Count active filters
+  const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
+
+  // Count visible columns
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
 
   if (loading) {
     return (
@@ -266,136 +416,65 @@ const CheckInOut = () => {
 
   return (
     <div className="lib-container">
-      {/* Page Title + Inline Stats */}
+      {/* Page Title */}
       <div className="lib-page-title">
-        <h1>Kiểm tra ra/vào</h1>
-        <div className="lib-inline-stats">
-          <span className="lib-inline-stat">
-            <span className="dot blue"></span>
-            Lượt vào <strong>{stats.totalCheckInsToday}</strong>
-          </span>
-          <span className="lib-inline-stat">
-            <span className="dot red"></span>
-            Lượt ra <strong>{stats.totalCheckOutsToday}</strong>
-          </span>
-          <span className="lib-inline-stat">
-            <span className="dot green"></span>
-            Đang trong TV <strong>{stats.currentlyInLibrary}</strong>
-          </span>
-        </div>
+        <h1>DANH SÁCH SINH VIÊN</h1>
       </div>
 
       {/* Table Panel */}
       <div className="lib-panel">
-        <div className="lib-panel-header cio-header-layout">
-          {/* Hàng 1: Title + Bộ lọc ngày giờ */}
-          <div className="cio-header-row">
-            <h3 className="lib-panel-title">Danh sách sinh viên ra vào</h3>
-            <div className="cio-date-filters">
-              <div className="cio-date-field">
-                <label>Từ ngày</label>
-                <div className="cio-date-input-wrapper">
-                  <input
-                    type="text"
-                    value={formatDateDisplay(startDate)}
-                    readOnly
-                    placeholder="dd/mm/yyyy"
-                    onClick={() => document.getElementById('startDatePicker').showPicker()}
-                    className="cio-date-display"
-                  />
-                  <input
-                    id="startDatePicker"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    min={getMinDate()}
-                    max={getMaxDate()}
-                    className="cio-date-hidden"
-                  />
-                </div>
-              </div>
-              <span className="cio-date-separator">-</span>
-              <div className="cio-date-field">
-                <label>Đến ngày</label>
-                <div className="cio-date-input-wrapper">
-                  <input
-                    type="text"
-                    value={formatDateDisplay(endDate)}
-                    readOnly
-                    placeholder="dd/mm/yyyy"
-                    onClick={() => document.getElementById('endDatePicker').showPicker()}
-                    className="cio-date-display"
-                  />
-                  <input
-                    id="endDatePicker"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    min={getMinDate()}
-                    max={getMaxDate()}
-                    className="cio-date-hidden"
-                  />
-                </div>
-              </div>
-              <span className="cio-date-separator-dot"></span>
-              <div className="cio-date-field">
-                <label>Từ giờ</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="cio-time-input"
-                />
-              </div>
-              <span className="cio-date-separator">-</span>
-              <div className="cio-date-field">
-                <label>Đến giờ</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="cio-time-input"
-                />
-              </div>
-              {(startDate || endDate || startTime || endTime) && (
-                <button className="lib-btn ghost cio-clear-btn" onClick={clearDateFilter}>
-                  Xóa lọc
-                </button>
-              )}
-            </div>
+        {/* Toolbar: Search + Column Toggle + Count + Export */}
+        <div className="cio-toolbar">
+          <div className="lib-search">
+            <Search size={16} className="lib-search-icon" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm"
+            />
           </div>
-
-          {/* Hàng 2: Tìm kiếm + Filter Tabs */}
-          <div className="cio-header-row">
-            <div className="lib-search">
-              <Search size={16} className="lib-search-icon" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm tên hoặc mã SV..."
-              />
-            </div>
-            <div className="lib-tabs" style={{ margin: 0 }}>
-              <button
-                className={`lib-tab ${filterSort === '' ? 'active' : ''}`}
-                onClick={() => setFilterSort('')}
-              >
-                Tất cả
-              </button>
-              <button
-                className={`lib-tab ${filterSort === 'checkin' ? 'active' : ''}`}
-                onClick={() => handleFilterClick('checkin')}
-              >
-                Vào
-              </button>
-              <button
-                className={`lib-tab ${filterSort === 'checkout' ? 'active' : ''}`}
-                onClick={() => handleFilterClick('checkout')}
-              >
-                Ra
-              </button>
-            </div>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="cio-column-toggle"
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+            >
+              <SlidersHorizontal size={14} />
+              Hiển thị cột
+            </button>
+            {showColumnMenu && (
+              <div className="cio-column-menu">
+                {[
+                  { key: 'userCode', label: 'Mã sinh viên' },
+                  { key: 'userName', label: 'Tên sinh viên' },
+                  { key: 'action', label: 'Hành động' },
+                  { key: 'time', label: 'Thời gian' },
+                ].map(col => (
+                  <label key={col.key} className="cio-column-menu-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns[col.key]}
+                      onChange={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                      style={{ accentColor: '#FF751F' }}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="cio-result-count">
+            {activeFilterCount > 0 && (
+              <span className="cio-active-filters">
+                {activeFilterCount} bộ lọc |{' '}
+              </span>
+            )}
+            Tổng số <strong>{displayedLogs.length}</strong> kết quả
+          </span>
+          <div style={{ marginLeft: 'auto' }}>
+            <button className="lib-btn primary" onClick={handleExportToExcel}>
+              In báo cáo Excel
+            </button>
           </div>
         </div>
 
@@ -404,16 +483,17 @@ const CheckInOut = () => {
           <table className="cio-table">
             <thead>
               <tr>
-                <th>Tên sinh viên</th>
-                <th>Mã số sinh viên</th>
-                <th>Hành động</th>
-                <th>Thời gian</th>
+                {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã sinh viên')}
+                {visibleColumns.userName && renderColumnHeader('userName', 'Tên sinh viên')}
+                {visibleColumns.action && renderColumnHeader('action', 'Hành động')}
+                {visibleColumns.time && renderColumnHeader('time', 'Thời gian')}
+                <th style={{ width: 80, textAlign: 'center' }}>Tùy chọn</th>
               </tr>
             </thead>
             <tbody>
               {paginatedLogs.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="cio-table-empty">
+                  <td colSpan={visibleColumnCount + 1} className="cio-table-empty">
                     Không có dữ liệu
                   </td>
                 </tr>
@@ -421,21 +501,34 @@ const CheckInOut = () => {
                 paginatedLogs.map((log) => (
                   <tr
                     key={`${log.logId}-${log.action}`}
-                    onClick={() => handleUserClick(log)}
                     className="cio-table-row"
                   >
-                    <td className="cio-name-cell">{log.userName}</td>
-                    <td className="cio-code-cell">{log.userCode}</td>
-                    <td>
-                      <span className={`cio-action-badge ${log.action === 'CHECK_IN' ? 'in' : 'out'}`}>
-                        {log.action === 'CHECK_IN' ? 'Vào' : 'Ra'}
-                      </span>
-                    </td>
-                    <td className="cio-time-cell">
-                      {log.action === 'CHECK_IN'
-                        ? formatDateTime(log.checkInTime)
-                        : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
-                      }
+                    {visibleColumns.userCode && <td className="cio-code-cell">{log.userCode}</td>}
+                    {visibleColumns.userName && <td className="cio-name-cell">{log.userName}</td>}
+                    {visibleColumns.action && (
+                      <td>
+                        <span className={`cio-action-badge ${log.action === 'CHECK_IN' ? 'in' : 'out'}`}>
+                          {log.action === 'CHECK_IN' ? 'Vào' : 'Ra'}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumns.time && (
+                      <td className="cio-time-cell">
+                        {log.action === 'CHECK_IN'
+                          ? formatDateTime(log.checkInTime)
+                          : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
+                        }
+                      </td>
+                    )}
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        className="lib-btn secondary"
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => handleUserClick(log)}
+                        title="Xem chi tiết"
+                      >
+                        Chi tiết
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -445,51 +538,55 @@ const CheckInOut = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="cio-pagination">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="cio-page-btn"
+        <div className="cio-pagination">
+          <div className="cio-page-size">
+            <span>Số hàng mỗi trang:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
             >
-              Trước
-            </button>
-            <div className="cio-page-numbers">
-              {getPageNumbers().map((page, idx) => (
-                page === '...' ? (
-                  <span key={`ellipsis-${idx}`} className="cio-page-ellipsis">...</span>
-                ) : (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`cio-page-btn ${currentPage === page ? 'active' : ''}`}
-                  >
-                    {page}
-                  </button>
-                )
-              ))}
-            </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="cio-page-btn"
-            >
-              Sau
-            </button>
-            <div className="cio-page-info">
-              Trang {currentPage} / {totalPages} ({displayedLogs.length} kết quả)
-            </div>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
           </div>
-        )}
-
-        {/* Export Button */}
-        <div className="cio-export">
-          <button className="lib-btn primary" onClick={handleExportToExcel}>
-            In báo cáo Excel
-          </button>
+          {totalPages > 1 && (
+            <div className="cio-pagination-right">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="cio-page-btn"
+              >
+                &lt;
+              </button>
+              <div className="cio-page-numbers">
+                {getPageNumbers().map((page, idx) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="cio-page-ellipsis">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`cio-page-btn ${currentPage === page ? 'active' : ''}`}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="cio-page-btn"
+              >
+                &gt;
+              </button>
+            </div>
+          )}
         </div>
       </div>
-      {/* Student Detail Modal (chỉ đọc) */}
+
+      {/* Student Detail Modal */}
       <StudentDetailModal
         userId={selectedUserId}
         isOpen={showStudentModal}
@@ -498,6 +595,14 @@ const CheckInOut = () => {
           setSelectedUserId(null);
         }}
       />
+
+      {/* Close menus when clicking outside */}
+      {showColumnMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+          onClick={() => setShowColumnMenu(false)}
+        />
+      )}
     </div>
   );
 };

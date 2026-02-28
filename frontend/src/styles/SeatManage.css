@@ -1,6 +1,6 @@
 :root {
-  --color-primary-start: #f58220;
-  --color-primary-end: #ef6f12;
+  --color-primary-start: #e8600a;
+  --color-primary-end: #c44f06;
   --color-bg: #f6f7fb;
   --color-white: #ffffff;
   --color-text-main: #333333;
@@ -10,7 +10,7 @@
   --seat-empty: #dbe7f6;
   --seat-occupied: #ff9b4a;
   --seat-restricted: #e5e7eb;
-  --seat-selected-border: #ef6f12;
+  --seat-selected-border: #c44f06;
 
   --sidebar-width: 240px;
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.04);

@@ -25,9 +25,9 @@ import {
 } from "lucide-react";
 import { useLibrarianNotification } from "../../contexts/LibrarianNotificationContext";
 
-import logo from "../../assets/logonencam.png";
 import "../../styles/librarian/sidebar_default.css";
 import "../../styles/librarian/LibrarianNotification.css";
+import appLogo from "../../assets/logo.png";
 
 const Sidebar = () => {
   const location = useLocation();
@@ -179,14 +179,11 @@ const Sidebar = () => {
 
   return (
     <aside className="sidebar">
-      {/* Brand / Logo */}
       <div className="sidebar__brand">
-        <div className="sidebar__brandRow">
-          <img src={logo} alt="Slib" className="sidebar__brandIcon" />
-        </div>
+        <NavLink to="/librarian/dashboard" className="sidebar__brandLink" aria-label="Slib">
+          <img src={appLogo} alt="Slib" className="sidebar__brandLogo" />
+        </NavLink>
       </div>
-
-      {/* Navigation */}
       <nav className="sidebar__nav">
         {menuStructure.map((item) => {
           const Icon = item.icon;

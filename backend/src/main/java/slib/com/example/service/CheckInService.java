@@ -53,6 +53,9 @@ public class CheckInService {
     @Autowired
     private ActivityLogRepository activityLogRepository;
 
+    @Autowired
+    private StudentProfileService studentProfileService;
+
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     /**
@@ -142,6 +145,10 @@ public class CheckInService {
 
                 // Tính toán thời gian sử dụng
                 int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), now);
+
+                // Cập nhật giờ đã học vào student profile
+                double studyHours = durationMinutes / 60.0;
+                studentProfileService.addStudyHours(userId, studyHours);
 
                 // Ghi log hoạt động
                 activityService.logActivity(ActivityLogEntity.builder()
@@ -293,12 +300,17 @@ public class CheckInService {
             LocalDateTime autoCheckOutTime = checkInTime.toLocalDate().atTime(21, 0);
 
             // Nếu hiện tại đã qua 21:00 của ngày check-in đó
-            if (now.isAfter(autoCheckOutTime)) {
+            // VÀ check-in phải TRƯỚC 21:00 (tránh duration âm)
+            if (now.isAfter(autoCheckOutTime) && checkInTime.isBefore(autoCheckOutTime)) {
                 log.setCheckOutTime(autoCheckOutTime);
                 accessLogRepository.save(log);
 
                 // Calculate duration in minutes
                 int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), autoCheckOutTime);
+
+                // Cập nhật giờ đã học vào student profile
+                double studyHours = durationMinutes / 60.0;
+                studentProfileService.addStudyHours(log.getUserId(), studyHours);
 
                 // Log activity for auto CHECK_OUT
                 activityService.logActivity(ActivityLogEntity.builder()

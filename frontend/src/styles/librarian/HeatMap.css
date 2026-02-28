@@ -34,7 +34,7 @@
   justify-content: center;
   flex-shrink: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .hm-stat-icon.green {
@@ -54,7 +54,7 @@
 
 .hm-stat-number {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--lib-text, #1f2937);
   line-height: 1.2;
   margin-bottom: 2px;
@@ -138,7 +138,7 @@
   padding: 4px 12px;
   border-radius: var(--lib-r-pill, 9999px);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   margin-top: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   color: var(--lib-text, #1f2937);
@@ -160,7 +160,7 @@
   grid-area: entrance;
   background: #d1d5db;
   color: white;
-  border-radius: 20px;
+  border-radius: 12px;
   width: 60%;
   justify-self: center;
   font-size: 12px;
@@ -177,7 +177,7 @@
   grid-area: library;
   background: #d1d5db;
   color: white;
-  border-radius: 20px;
+  border-radius: 12px;
   width: 60%;
   justify-self: center;
   font-size: 12px;

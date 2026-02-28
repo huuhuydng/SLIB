@@ -435,11 +435,15 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _configureFirebaseMessaging() async {
-    // Handle foreground messages - update UI only (WebSocket handles showing local notification)
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _handleIncomingNotification(message);
-      // Không gọi _showLocalNotification ở đây vì WebSocket đã show rồi
-      // Tránh duplicate notification
+      // Show local notification nếu WebSocket không kết nối (fallback)
+      // Khi WebSocket connected, nó đã show notification rồi nên skip tránh duplicate
+      if (!_wsConnected) {
+        debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
+        _showLocalNotification(message);
+      }
     });
 
     // Handle background/terminated message opens

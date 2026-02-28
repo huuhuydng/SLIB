@@ -49,7 +49,7 @@ const keyframes = `
 }
 `;
 
-const BRAND = '#FF751F';
+const BRAND = '#e8600a';
 const BRAND_LIGHT = '#FFF3EB';
 const BRAND_DARK = '#CC5D19';
 const GRAY_50 = '#FAFAFA';
