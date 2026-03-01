@@ -151,8 +151,17 @@ public class BookingService {
                         System.err.println("Failed to log activity: " + e.getMessage());
                 }
 
-                // NOTE: Push notification đã được chuyển sang confirmSeatWithNfc()
-                // Không gửi notification ngay khi tạo booking nữa
+                // Send push notification ngay khi tạo booking (PROCESSING)
+                try {
+                        String notifTitle = "Đặt chỗ đang chờ xác nhận";
+                        String notifBody = String.format(
+                                        "Ghế %s tại %s (%s) đang chờ bạn xác nhận. Vui lòng xác nhận trong 5 phút!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(userId, notifTitle, notifBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send booking notification: " + e.getMessage());
+                }
 
                 return saved;
         }
