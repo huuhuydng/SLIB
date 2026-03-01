@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -31,7 +31,7 @@ import appLogo from "../../assets/logo.png";
 
 const Sidebar = () => {
   const location = useLocation();
-  const navigate = useNavigate();
+
   const [expandedGroups, setExpandedGroups] = useState({});
   const { pendingCounts } = useLibrarianNotification();
 
@@ -42,7 +42,7 @@ const Sidebar = () => {
     sessionStorage.removeItem('librarian_token');
     sessionStorage.removeItem('librarian_user');
     sessionStorage.removeItem('refresh_token');
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   const toggleGroup = (groupId) => {
@@ -199,9 +199,11 @@ const Sidebar = () => {
                   `sidebar__item ${isActive ? "sidebar__item--active" : ""}`
                 }
               >
-                <Icon size={20} strokeWidth={2} />
+                <span className="sidebar__iconWrap">
+                  <Icon size={20} strokeWidth={2} />
+                  {badge > 0 && <span className="sidebar__badge">{badge}</span>}
+                </span>
                 <span className="sidebar__label">{item.label}</span>
-                {badge > 0 && <span className="sidebar__badge">{badge > 99 ? "99+" : badge}</span>}
               </NavLink>
             );
           }
@@ -218,16 +220,16 @@ const Sidebar = () => {
                   }`}
                 onClick={() => toggleGroup(item.id)}
               >
-                <Icon size={20} strokeWidth={2} />
+                <span className="sidebar__iconWrap">
+                  <Icon size={20} strokeWidth={2} />
+                  {groupBadge > 0 && <span className="sidebar__badge">{groupBadge}</span>}
+                </span>
                 <span className="sidebar__label">{item.label}</span>
                 <ChevronDown
                   size={14}
                   className={`sidebar__chevron ${isExpanded ? "sidebar__chevron--open" : ""
                     }`}
                 />
-                {groupBadge > 0 && (
-                  <span className={`sidebar__badge sidebar__badge--group ${isExpanded ? 'sidebar__badge--groupExpanded' : ''}`}>{groupBadge > 99 ? "99+" : groupBadge}</span>
-                )}
               </button>
 
               <div
@@ -246,9 +248,11 @@ const Sidebar = () => {
                         }`
                       }
                     >
-                      <ChildIcon size={16} strokeWidth={2} />
+                      <span className="sidebar__iconWrap">
+                        <ChildIcon size={16} strokeWidth={2} />
+                        {childBadge > 0 && <span className="sidebar__badge">{childBadge}</span>}
+                      </span>
                       <span className="sidebar__label">{child.label}</span>
-                      {childBadge > 0 && <span className="sidebar__badge">{childBadge > 99 ? "99+" : childBadge}</span>}
                     </NavLink>
                   );
                 })}

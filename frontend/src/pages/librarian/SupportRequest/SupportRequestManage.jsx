@@ -370,19 +370,14 @@ function SupportRequestManage() {
                     {activeFilterCol === column && (
                         <div className="cio-filter-dropdown" ref={filterRef} onClick={e => e.stopPropagation()}>
                             {column === 'status' ? (
-                                <div className="cio-filter-options">
-                                    {STATUS_OPTIONS.map(opt => (
-                                        <label key={opt.value} className="cio-filter-option">
-                                            <input
-                                                type="radio"
-                                                name="status-filter"
-                                                checked={columnFilters.status === opt.value}
-                                                onChange={() => { handleFilterChange('status', opt.value); setActiveFilterCol(null); }}
-                                            />
-                                            {opt.label}
-                                        </label>
-                                    ))}
-                                </div>
+                                <select
+                                    value={columnFilters.status}
+                                    onChange={(e) => { handleFilterChange('status', e.target.value); setActiveFilterCol(null); }}
+                                    autoFocus
+                                    className="cio-filter-input"
+                                >
+                                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
                             ) : (
                                 <>
                                     <input

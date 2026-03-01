@@ -407,6 +407,7 @@ function ComplaintManage() {
                                                                             value={columnFilters.status}
                                                                             onChange={(e) => setColumnFilters(prev => ({ ...prev, status: e.target.value }))}
                                                                             autoFocus
+                                                                            className="cio-filter-input"
                                                                         >
                                                                             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                                                         </select>

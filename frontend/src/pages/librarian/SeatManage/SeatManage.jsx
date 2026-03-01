@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { seatService } from '../../../services/seatService';
 import "../../../styles/librarian/librarian-shared.css";
+import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatManage.css";
 
 // Tính occupancy cho mỗi zone từ seatStatusMap
@@ -324,90 +325,72 @@ const SeatManage = () => {
 
   return (
     <div className="lib-container">
-      {/* Page Title + Inline Stats */}
+      {/* Page Title */}
       <div className="lib-page-title">
-        <h1>Quản lý chỗ ngồi</h1>
-        <div className="lib-inline-stats">
-          <span className="lib-inline-stat">
-            <span className="dot orange"></span>
-            Đang dùng <strong>{stats.bookedSeats}/{stats.totalSeats}</strong>
-          </span>
-          <span className="lib-inline-stat">
-            <span className="dot green"></span>
-            Trống <strong>{stats.availableSeats}</strong>
-          </span>
-          <span className="lib-inline-stat">
-            <span className="dot gray"></span>
-            Hạn chế <strong>{stats.unavailableSeats}</strong>
-          </span>
-        </div>
+        <h1>QUẢN LÝ CHỖ NGỒI</h1>
       </div>
 
-      {/* Controls Row */}
-      <div className="lib-controls">
-        <div className="lib-search">
-          <Search size={16} className="lib-search-icon" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={handleSearch}
-            placeholder="Tìm ghế (A1, B2...)"
-          />
-        </div>
-
-        <div className="seatManage__filterWrapper">
-          <div className="seatManage__dropdownTrigger">
-            <Filter size={16} />
-            <select
-              value={activeFilter}
-              onChange={handleFilterChange}
-              className="seatManage__filterSelect"
-            >
-              {FILTER_OPTIONS.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="seatManage__dropdownArrow" />
+      {/* Toolbar */}
+      <div className="lib-panel">
+        <div className="cio-toolbar">
+          <div className="lib-search">
+            <Search size={16} className="lib-search-icon" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={handleSearch}
+              placeholder="Tìm ghế (A1, B2...)"
+            />
           </div>
-        </div>
-      </div>
 
-      {/* Time Slot Tabs */}
-      <div className="lib-tabs">
-        {TIME_SLOTS.map((slot, index) => (
-          <button
-            key={slot}
-            className={`lib-tab ${index === currentSlotIndex ? "active" : ""}`}
-            onClick={() => setCurrentSlotIndex(index)}
-          >
-            {index === currentSlotIndex && <Check size={14} style={{ marginRight: 4 }} />}
-            {slot}
-          </button>
-        ))}
-      </div>
-
-      {/* Restricted Seats + AI Card */}
-      {(stats.unavailableSeats > 0) && (
-        <div className="seatManage__infoRow">
-          <div className="seatManage__restrictedCard">
-            <div className="seatManage__restrictedHeader">
-              <span className="seatManage__restrictedTitle">Ghế bị hạn chế</span>
-              <span className="seatManage__restrictedCount">{stats.unavailableSeats} ghế</span>
-            </div>
-            <div className="seatManage__chipList">
-              {Object.keys(seatStatusMap)
-                .filter(code => seatStatusMap[code]?.status === 'UNAVAILABLE')
-                .slice(0, 8)
-                .map((id) => (
-                  <span key={id} className="seatManage__chip">{id}</span>
+          <div className="seatManage__filterWrapper">
+            <div className="seatManage__dropdownTrigger">
+              <Filter size={16} />
+              <select
+                value={activeFilter}
+                onChange={handleFilterChange}
+                className="seatManage__filterSelect"
+              >
+                {FILTER_OPTIONS.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
                 ))}
-              {stats.unavailableSeats > 8 && (
-                <span className="seatManage__chipMore">+{stats.unavailableSeats - 8}</span>
-              )}
+              </select>
+              <ChevronDown size={14} className="seatManage__dropdownArrow" />
             </div>
           </div>
+
+          <div className="seatManage__filterWrapper">
+            <div className="seatManage__dropdownTrigger">
+              <Clock size={16} />
+              <select
+                value={currentSlotIndex}
+                onChange={(e) => setCurrentSlotIndex(Number(e.target.value))}
+                className="seatManage__filterSelect"
+              >
+                {TIME_SLOTS.map((slot, index) => (
+                  <option key={slot} value={index}>{slot}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="seatManage__dropdownArrow" />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginLeft: 'auto' }}>
+            <span className="lib-inline-stat">
+              <span className="dot orange"></span>
+              Đang dùng <strong>{stats.bookedSeats}/{stats.totalSeats}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot green"></span>
+              Trống <strong>{stats.availableSeats}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot gray"></span>
+              Hạn chế <strong>{stats.unavailableSeats}</strong>
+            </span>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Map Panel */}
       <div className="lib-panel seatManage__mapPanel">

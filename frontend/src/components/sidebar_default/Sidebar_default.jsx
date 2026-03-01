@@ -51,9 +51,9 @@ const SidebarAdmin = () => {
       </div>
 
       {/* Admin Badge */}
-      <div className="sidebar__badge">
+      <div className="sidebar__roleBadge">
         <Shield size={14} />
-        <span className="sidebar__badgeText">Admin</span>
+        <span className="sidebar__roleBadgeText">Admin</span>
       </div>
 
       {/* Navigation */}
