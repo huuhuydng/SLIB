@@ -438,9 +438,15 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _handleIncomingNotification(message);
-      // Show local notification nếu WebSocket không kết nối (fallback)
-      // Khi WebSocket connected, nó đã show notification rồi nên skip tránh duplicate
-      if (!_wsConnected) {
+      
+      // CHAT_MESSAGE: luôn hiện notification vì WebSocket notification topic
+      // chỉ nhận entity notifications, không nhận chat messages
+      final notificationType = message.data['type'] ?? '';
+      if (notificationType == 'CHAT_MESSAGE') {
+        debugPrint('[FCM] CHAT_MESSAGE received, always showing notification');
+        _showLocalNotification(message);
+      } else if (!_wsConnected) {
+        // Các loại khác: chỉ hiện khi WebSocket không kết nối (tránh duplicate)
         debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
         _showLocalNotification(message);
       }

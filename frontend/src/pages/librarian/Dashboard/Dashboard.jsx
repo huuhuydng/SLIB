@@ -113,7 +113,8 @@ const Dashboard = () => {
       const stats = await dashboardService.getDashboardStats();
       if (stats) {
         setDashStats(stats);
-        setLastUpdated(new Date());
+        // Dùng server time thay vì client time
+        setLastUpdated(stats.serverTime ? new Date(stats.serverTime) : new Date());
       }
     } catch (e) {
       console.warn('Error refreshing stats:', e);
@@ -132,9 +133,10 @@ const Dashboard = () => {
         setDashStats(stats);
         const data = await getLibraryInsights(stats);
         setInsights(Array.isArray(data) ? data : []);
+        // Dùng server time thay vì client time
+        setLastUpdated(stats.serverTime ? new Date(stats.serverTime) : new Date());
       }
       setRecentNews(news || []);
-      setLastUpdated(new Date());
 
       // Fetch pending counts from new APIs
       const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
@@ -236,11 +238,11 @@ const Dashboard = () => {
     return () => { unsubscribers.forEach(unsub => { if (unsub) unsub(); }); };
   }, []);
 
-  // Fallback polling 30s - đảm bảo dashboard cập nhật khi WebSocket message không đến
+  // Fallback polling 60s - đảm bảo dashboard cập nhật khi WebSocket message không đến
   useEffect(() => {
     const interval = setInterval(() => {
       refreshStatsOnly();
-    }, 30000);
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 

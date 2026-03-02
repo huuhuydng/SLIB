@@ -174,4 +174,13 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
        // 17. Đếm messages trong conversation (dùng để skip duplicate khi mobile gửi
        // history)
        long countByConversationId(UUID conversationId);
+
+       // 18. Đếm tin nhắn chưa đọc từ student trong conversation đang HUMAN_CHATTING
+       // Dùng cho badge tin nhắn trên web (thủ thư)
+       @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.status = slib.com.example.entity.chat.ConversationStatus.HUMAN_CHATTING "
+                     +
+                     "AND m.conversation.librarian.id = :librarianId " +
+                     "AND m.senderType = 'STUDENT' " +
+                     "AND m.isRead = false")
+       long countUnreadStudentMessagesForLibrarian(@Param("librarianId") UUID librarianId);
 }

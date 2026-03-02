@@ -67,6 +67,9 @@ public class DashboardStatsDTO {
     // Zone occupancy
     private List<ZoneOccupancyDTO> zoneOccupancies;
 
+    // Server time for frontend display
+    private LocalDateTime serverTime;
+
     @Getter
     @Setter
     @NoArgsConstructor

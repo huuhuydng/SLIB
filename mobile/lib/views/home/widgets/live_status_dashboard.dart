@@ -28,6 +28,10 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     super.initState();
     _loadStudentProfile();
     _connectWebSocket();
+    // Tự động fetch trạng thái thư viện khi vào trang
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<LibraryStatusService>(context, listen: false).initialize();
+    });
   }
 
   @override

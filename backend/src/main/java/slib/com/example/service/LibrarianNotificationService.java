@@ -34,6 +34,7 @@ public class LibrarianNotificationService {
     private final ConversationRepository conversationRepository;
     private final SeatViolationReportRepository violationReportRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final slib.com.example.repository.chat.MessageRepository messageRepository;
 
     /**
      * Lấy tổng hợp pending counts
@@ -53,6 +54,13 @@ public class LibrarianNotificationService {
         counts.put("violations", violations);
         counts.put("total", supportRequests + complaints + feedbacks + chats + violations);
         return counts;
+    }
+
+    /**
+     * Đếm tin nhắn chưa đọc từ student cho một librarian cụ thể
+     */
+    public long getUnreadChatCount(java.util.UUID librarianId) {
+        return messageRepository.countUnreadStudentMessagesForLibrarian(librarianId);
     }
 
     /**

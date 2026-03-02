@@ -150,7 +150,7 @@ function HeaderBar() {
     try {
       const s = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
       if (s) { const u = JSON.parse(s); return { name: u.fullName || u.email?.split('@')[0] || 'Thủ thư', role: u.role || 'LIBRARIAN' }; }
-    } catch {}
+    } catch { }
     return { name: 'Thủ thư', role: 'LIBRARIAN' };
   });
 
@@ -178,140 +178,140 @@ function HeaderBar() {
             )}
           </button>
 
-        {showDropdown && (
-          <div className="notif-dropdown">
-            <div className="notif-dropdown__header">
-              <h3 className="notif-dropdown__title">Thông báo</h3>
-              <span className="notif-dropdown__count">
-                {pendingCounts.total} cần xử lý
-              </span>
-            </div>
+          {showDropdown && (
+            <div className="notif-dropdown">
+              <div className="notif-dropdown__header">
+                <h3 className="notif-dropdown__title">Thông báo</h3>
+                <span className="notif-dropdown__count">
+                  {pendingCounts.total} cần xử lý
+                </span>
+              </div>
 
-            <div className="notif-dropdown__list">
-              {/* Hiển thị summary counts với expand */}
-              {Object.entries(NOTIF_ICON_MAP).map(([key, config]) => {
-                const countKey = COUNT_KEY_MAP[key];
-                const count = pendingCounts[countKey] || 0;
-                if (count === 0) return null;
+              <div className="notif-dropdown__list">
+                {/* Hiển thị summary counts với expand */}
+                {Object.entries(NOTIF_ICON_MAP).map(([key, config]) => {
+                  const countKey = COUNT_KEY_MAP[key];
+                  const count = pendingCounts[countKey] || 0;
+                  if (count === 0) return null;
 
-                const Icon = config.icon;
-                const isExpanded = expandedCategory === key;
-                const isLoading = loadingCategory === key;
-                const items = pendingItems[key] || [];
+                  const Icon = config.icon;
+                  const isExpanded = expandedCategory === key;
+                  const isLoading = loadingCategory === key;
+                  const items = pendingItems[key] || [];
 
-                return (
-                  <div key={key} className="notif-category">
-                    <div
-                      className={`notif-item notif-item--expandable ${isExpanded ? "notif-item--expanded" : ""}`}
-                      onClick={() => handleCategoryClick(key)}
-                    >
-                      <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
-                        <Icon size={18} />
-                      </div>
-                      <div className="notif-item__body">
-                        <p className="notif-item__title">{config.label}</p>
-                        <p className="notif-item__desc">{count} mục cần xử lý</p>
-                      </div>
-                      <span className="notif-item__badge">{count}</span>
-                      <ChevronDown
-                        size={16}
-                        className={`notif-item__chevron ${isExpanded ? "notif-item__chevron--open" : ""}`}
-                      />
-                    </div>
-
-                    {/* Detail list */}
-                    {isExpanded && (
-                      <div className="notif-detail-list">
-                        {isLoading ? (
-                          <div className="notif-detail-loading">Đang tải...</div>
-                        ) : items.length > 0 ? (
-                          items.slice(0, 5).map((item, idx) => {
-                            const info = getItemDisplayInfo(key, item);
-                            return (
-                              <div
-                                key={item.id || idx}
-                                className="notif-detail-item"
-                                onClick={() => handleItemClick(key, item)}
-                              >
-                                <div className="notif-detail-item__body">
-                                  <p className="notif-detail-item__name">{info.name}</p>
-                                  <p className="notif-detail-item__desc">{info.desc}</p>
-                                </div>
-                                {info.time && (
-                                  <span className="notif-detail-item__time">
-                                    {getTimeAgo(info.time)}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="notif-detail-loading">Không có dữ liệu</div>
-                        )}
-                        {items.length > 5 && (
-                          <div
-                            className="notif-detail-viewall"
-                            onClick={() => {
-                              setShowDropdown(false);
-                              setExpandedCategory(null);
-                              navigate(NOTIF_ROUTE_MAP[key]);
-                            }}
-                          >
-                            Xem tất cả {items.length} mục
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Recent activity */}
-              {notifications.length > 0 && (
-                <>
-                  <div style={{ padding: "8px 12px 4px", fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>
-                    Hoạt động gần đây
-                  </div>
-                  {notifications.slice(0, 5).map((notif) => {
-                    const config = NOTIF_ICON_MAP[notif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
-                    const Icon = config.icon;
-                    const actionLabel = ACTION_LABELS[notif.action] || notif.action;
-                    const timeAgo = getTimeAgo(notif.timestamp);
-
-                    return (
+                  return (
+                    <div key={key} className="notif-category">
                       <div
-                        key={notif.id}
-                        className="notif-item notif-item--clickable"
-                        onClick={() => {
-                          setShowDropdown(false);
-                          setExpandedCategory(null);
-                          navigate(NOTIF_ROUTE_MAP[notif.source] || "/librarian/dashboard");
-                        }}
+                        className={`notif-item notif-item--expandable ${isExpanded ? "notif-item--expanded" : ""}`}
+                        onClick={() => handleCategoryClick(key)}
                       >
                         <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
                           <Icon size={18} />
                         </div>
                         <div className="notif-item__body">
-                          <p className="notif-item__title">
-                            {config.label} {actionLabel}
-                          </p>
-                          <p className="notif-item__desc">{timeAgo}</p>
+                          <p className="notif-item__title">{config.label}</p>
+                          <p className="notif-item__desc">{count} mục cần xử lý</p>
                         </div>
+                        <span className="notif-item__badge">{count}</span>
+                        <ChevronDown
+                          size={16}
+                          className={`notif-item__chevron ${isExpanded ? "notif-item__chevron--open" : ""}`}
+                        />
                       </div>
-                    );
-                  })}
-                </>
-              )}
 
-              {pendingCounts.total === 0 && notifications.length === 0 && (
-                <div className="notif-dropdown__empty">
-                  <CheckCircle2 size={40} />
-                  <p>Không có thông báo mới</p>
-                </div>
-              )}
+                      {/* Detail list */}
+                      {isExpanded && (
+                        <div className="notif-detail-list">
+                          {isLoading ? (
+                            <div className="notif-detail-loading">Đang tải...</div>
+                          ) : items.length > 0 ? (
+                            items.slice(0, 5).map((item, idx) => {
+                              const info = getItemDisplayInfo(key, item);
+                              return (
+                                <div
+                                  key={item.id || idx}
+                                  className="notif-detail-item"
+                                  onClick={() => handleItemClick(key, item)}
+                                >
+                                  <div className="notif-detail-item__body">
+                                    <p className="notif-detail-item__name">{info.name}</p>
+                                    <p className="notif-detail-item__desc">{info.desc}</p>
+                                  </div>
+                                  {info.time && (
+                                    <span className="notif-detail-item__time">
+                                      {getTimeAgo(info.time)}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="notif-detail-loading">Không có dữ liệu</div>
+                          )}
+                          {items.length > 5 && (
+                            <div
+                              className="notif-detail-viewall"
+                              onClick={() => {
+                                setShowDropdown(false);
+                                setExpandedCategory(null);
+                                navigate(NOTIF_ROUTE_MAP[key]);
+                              }}
+                            >
+                              Xem tất cả {items.length} mục
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Recent activity */}
+                {notifications.length > 0 && (
+                  <>
+                    <div style={{ padding: "8px 12px 4px", fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>
+                      Hoạt động gần đây
+                    </div>
+                    {notifications.slice(0, 5).map((notif) => {
+                      const config = NOTIF_ICON_MAP[notif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
+                      const Icon = config.icon;
+                      const actionLabel = ACTION_LABELS[notif.action] || notif.action;
+                      const timeAgo = getTimeAgo(notif.timestamp);
+
+                      return (
+                        <div
+                          key={notif.id}
+                          className="notif-item notif-item--clickable"
+                          onClick={() => {
+                            setShowDropdown(false);
+                            setExpandedCategory(null);
+                            navigate(NOTIF_ROUTE_MAP[notif.source] || "/librarian/dashboard");
+                          }}
+                        >
+                          <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
+                            <Icon size={18} />
+                          </div>
+                          <div className="notif-item__body">
+                            <p className="notif-item__title">
+                              {config.label} {actionLabel}
+                            </p>
+                            <p className="notif-item__desc">{timeAgo}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+
+                {pendingCounts.total === 0 && notifications.length === 0 && (
+                  <div className="notif-dropdown__empty">
+                    <CheckCircle2 size={40} />
+                    <p>Không có thông báo mới</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
         <div className="top-header__user">
           <div className="top-header__avatar">{getInitials(userData.name)}</div>
@@ -460,6 +460,53 @@ function ToastNotifications() {
   );
 }
 
+// Chat toast notification — hiện khi có tin nhắn chat mới từ student
+function ChatToastNotification() {
+  const { chatToast, setChatToast } = useLibrarianNotification();
+  const navigate = useNavigate();
+
+  if (!chatToast) return null;
+
+  return (
+    <div
+      className="toast-container"
+      style={{ top: '80px' }}
+    >
+      <div
+        className="toast-item toast-item--chat"
+        onClick={() => {
+          setChatToast(null);
+          navigate(`/librarian/chat?conversationId=${chatToast.conversationId}`);
+        }}
+      >
+        <div className="toast-item__icon toast-item__icon--chat">
+          <MessageSquare size={20} />
+        </div>
+        <div className="toast-item__body">
+          <div className="toast-item__header">
+            <p className="toast-item__title">Tin nhắn mới</p>
+          </div>
+          <p className="toast-item__desc">
+            <strong>{chatToast.senderName}</strong>: {chatToast.content}
+          </p>
+          <div className="toast-item__footer">
+            <span className="toast-item__cta">Xem tin nhắn →</span>
+          </div>
+        </div>
+        <button
+          className="toast-item__close"
+          onClick={(e) => {
+            e.stopPropagation();
+            setChatToast(null);
+          }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MainLayout() {
   return (
     <LibrarianNotificationProvider>
@@ -470,6 +517,7 @@ function MainLayout() {
           <Outlet />
         </div>
         <ToastNotifications />
+        <ChatToastNotification />
       </div>
     </LibrarianNotificationProvider>
   );

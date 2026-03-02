@@ -64,6 +64,7 @@ public class NotificationEntity {
         VIOLATION,
         SYSTEM,
         NEWS,
-        SUPPORT_REQUEST
+        SUPPORT_REQUEST,
+        CHAT_MESSAGE
     }
 }

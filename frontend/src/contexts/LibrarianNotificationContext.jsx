@@ -37,7 +37,13 @@ export function LibrarianNotificationProvider({ children }) {
         CHAT: null,
         VIOLATION: null,
     });
+    const [chatToast, setChatToast] = useState(null);
+    const chatToastTimerRef = useRef(null);
     const mountedRef = useRef(true);
+
+    // Danh sach tin nhan moi tu student (cho Header notification)
+    const [chatMessages, setChatMessages] = useState([]);
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
 
     const getToken = useCallback(() => {
         return localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
@@ -61,6 +67,26 @@ export function LibrarianNotificationProvider({ children }) {
             }
         } catch (err) {
             console.warn('[LibrarianNotification] Fetch error:', err);
+        }
+    }, [getToken]);
+
+    // Fetch unread chat message count
+    const fetchUnreadChatCount = useCallback(async () => {
+        try {
+            const token = getToken();
+            if (!token) return;
+            const res = await fetch('/slib/librarian/unread-chat-count', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (res.ok && mountedRef.current) {
+                const data = await res.json();
+                setUnreadChatCount(data.count || 0);
+            }
+        } catch (err) {
+            console.warn('[LibrarianNotification] Fetch unread chat error:', err);
         }
     }, [getToken]);
 
@@ -100,12 +126,19 @@ export function LibrarianNotificationProvider({ children }) {
         });
     }, []);
 
+    // Clear chat messages khi user mo dropdown
+    const clearChatMessages = useCallback(() => {
+        setChatMessages([]);
+        setUnreadChatCount(0);
+    }, []);
+
     // Fetch on mount
     useEffect(() => {
         mountedRef.current = true;
         fetchPendingCounts();
+        fetchUnreadChatCount();
         return () => { mountedRef.current = false; };
-    }, [fetchPendingCounts]);
+    }, [fetchPendingCounts, fetchUnreadChatCount]);
 
     // Subscribe to WebSocket - separate effect
     useEffect(() => {
@@ -121,6 +154,28 @@ export function LibrarianNotificationProvider({ children }) {
                     action: data.action,
                     timestamp: data.timestamp,
                 }, ...prev].slice(0, 20));
+            } else if (data.type === 'CHAT_NEW_MESSAGE') {
+                // Toast thông báo tin nhắn mới từ student
+                setChatToast({
+                    senderName: data.senderName,
+                    content: data.content,
+                    conversationId: data.conversationId,
+                });
+                if (chatToastTimerRef.current) clearTimeout(chatToastTimerRef.current);
+                chatToastTimerRef.current = setTimeout(() => setChatToast(null), 5000);
+
+                // Them vao danh sach chat messages cho Header
+                setChatMessages(prev => [{
+                    id: Date.now(),
+                    senderName: data.senderName,
+                    content: data.content,
+                    conversationId: data.conversationId,
+                    timestamp: data.timestamp || new Date().toISOString(),
+                }, ...prev].slice(0, 20));
+                setUnreadChatCount(prev => prev + 1);
+
+                // Also refresh pending counts
+                fetchPendingCounts();
             }
         };
 
@@ -153,6 +208,11 @@ export function LibrarianNotificationProvider({ children }) {
         pendingItems,
         fetchPendingItems,
         refetch: fetchPendingCounts,
+        chatToast,
+        setChatToast,
+        chatMessages,
+        unreadChatCount,
+        clearChatMessages,
     };
 
     return (

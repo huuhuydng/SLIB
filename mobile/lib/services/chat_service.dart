@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:slib/core/constants/api_constants.dart';
 
@@ -98,6 +99,36 @@ class ChatService {
     } catch (e) {
       print('Send Message Error: $e');
       return false;
+    }
+  }
+
+  /// Gửi tin nhắn kèm ảnh đến backend
+  /// Trả về content (chứa [IMAGES] url) nếu thành công, null nếu thất bại
+  Future<String?> sendMessageWithImage({
+    required String conversationId,
+    required File imageFile,
+    String content = '',
+    String senderType = 'STUDENT',
+    required String authToken,
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages/with-image');
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $authToken'
+        ..fields['content'] = content
+        ..fields['senderType'] = senderType
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final body = await response.stream.bytesToString();
+        final data = jsonDecode(body);
+        return data['content'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Send Image Message Error: $e');
+      return null;
     }
   }
 

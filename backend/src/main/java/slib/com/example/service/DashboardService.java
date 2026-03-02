@@ -138,6 +138,7 @@ public class DashboardService {
                     .recentComplaints(recentComplaints)
                     .recentFeedbacks(recentFeedbacks)
                     .zoneOccupancies(zoneOccupancies)
+                    .serverTime(LocalDateTime.now())
                     .build();
 
         } catch (Exception e) {
@@ -380,7 +381,8 @@ public class DashboardService {
                 days = 30;
             }
             LocalDateTime since = LocalDateTime.now().minusDays(days);
-            List<Object[]> data = accessLogRepository.findTopStudentsByStudyTime(since);
+            // Dùng reservation time (CONFIRMED/EXPIRED) thay vì access log
+            List<Object[]> data = reservationRepository.findTopStudentsByReservationTime(since);
             return data.stream()
                     .map(row -> DashboardStatsDTO.TopStudentDTO.builder()
                             .userId((UUID) row[0])
@@ -471,9 +473,11 @@ public class DashboardService {
                     long zoneOccupiedSeats = 0;
 
                     for (SeatEntity seat : seats) {
-                        List<ReservationEntity> activeReservations = reservationRepository
-                                .findOverlappingReservations(seat.getSeatId(), now.minusHours(1), now.plusHours(1));
-                        if (!activeReservations.isEmpty()) {
+                        // Chỉ đếm ghế có reservation CONFIRMED (đã check-in thực tế)
+                        List<ReservationEntity> confirmedReservations = reservationRepository
+                                .findConfirmedReservationsForSeat(seat.getSeatId(), now.minusHours(1),
+                                        now.plusHours(1));
+                        if (!confirmedReservations.isEmpty()) {
                             zoneOccupiedSeats++;
                         }
                     }
@@ -515,9 +519,11 @@ public class DashboardService {
 
                     LocalDateTime now = LocalDateTime.now();
                     for (SeatEntity seat : seats) {
-                        List<ReservationEntity> activeReservations = reservationRepository
-                                .findOverlappingReservations(seat.getSeatId(), now.minusHours(1), now.plusHours(1));
-                        if (!activeReservations.isEmpty()) {
+                        // Chỉ đếm ghế có reservation CONFIRMED (đã check-in thực tế)
+                        List<ReservationEntity> confirmedReservations = reservationRepository
+                                .findConfirmedReservationsForSeat(seat.getSeatId(), now.minusHours(1),
+                                        now.plusHours(1));
+                        if (!confirmedReservations.isEmpty()) {
                             areaOccupiedSeats++;
                         }
                     }

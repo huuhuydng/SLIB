@@ -17,6 +17,8 @@ import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.chat.MessageRepository;
 import slib.com.example.service.LibrarianNotificationService;
+import slib.com.example.service.PushNotificationService;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
@@ -42,6 +44,7 @@ public class ConversationService {
         private final MessageRepository messageRepository;
         private final SimpMessagingTemplate messagingTemplate;
         private final @Lazy LibrarianNotificationService librarianNotificationService;
+        private final @Lazy PushNotificationService pushNotificationService;
 
         @Value("${app.ai-service.url:http://127.0.0.1:8001}")
         private String aiServiceUrl;
@@ -502,6 +505,7 @@ public class ConversationService {
                                 .id(conv.getId())
                                 .studentId(conv.getStudent().getId())
                                 .studentName(conv.getStudent().getFullName())
+                                .studentCode(conv.getStudent().getUserCode())
                                 .studentEmail(conv.getStudent().getEmail())
                                 .librarianId(conv.getLibrarian() != null ? conv.getLibrarian().getId() : null)
                                 .librarianName(conv.getLibrarian() != null ? conv.getLibrarian().getFullName() : null)
@@ -706,6 +710,40 @@ public class ConversationService {
 
                 // Broadcast qua WebSocket
                 messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, dto);
+
+                // Gửi notification cho phía bên kia
+                try {
+                        String notifyContent = content.contains("[IMAGES]") ? "Đã gửi một hình ảnh" : content;
+                        if (notifyContent.length() > 100) {
+                                notifyContent = notifyContent.substring(0, 100) + "...";
+                        }
+
+                        if ("STUDENT".equals(senderType)) {
+                                // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
+                                Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
+                                chatNotify.put("type", "CHAT_NEW_MESSAGE");
+                                chatNotify.put("conversationId", conversationId.toString());
+                                chatNotify.put("senderName", sender.getFullName());
+                                chatNotify.put("content", notifyContent);
+                                chatNotify.put("timestamp", java.time.Instant.now().toString());
+                                messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
+                                log.info("[Chat] Sent librarian notification for new student message in conv {}",
+                                                conversationId);
+                        } else if ("LIBRARIAN".equals(senderType)) {
+                                // Librarian gửi → push notification cho student qua FCM
+                                UUID studentId = conv.getStudent().getId();
+                                pushNotificationService.sendToUser(
+                                                studentId,
+                                                "Tin nhắn mới từ Thủ thư",
+                                                notifyContent,
+                                                NotificationType.CHAT_MESSAGE,
+                                                conversationId);
+                                log.info("[Chat] Sent push notification to student {} for conv {}", studentId,
+                                                conversationId);
+                        }
+                } catch (Exception e) {
+                        log.warn("[Chat] Failed to send chat notification: {}", e.getMessage());
+                }
 
                 return dto;
         }

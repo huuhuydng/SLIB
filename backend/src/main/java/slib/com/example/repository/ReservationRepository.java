@@ -54,11 +54,31 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
-        // Đếm booking đã xác nhận trong ngày (BOOKED + CONFIRMED + COMPLETED, không
-        // giảm khi đổi status)
-        @Query("SELECT COUNT(r) FROM ReservationEntity r WHERE r.status IN ('BOOKED', 'CONFIRMED', 'COMPLETED') " +
+        // Đếm tổng đặt chỗ trong ngày (tất cả trừ CANCELLED - không giảm khi đổi
+        // status)
+        @Query("SELECT COUNT(r) FROM ReservationEntity r WHERE r.status NOT IN ('CANCELLED', 'CANCEL') " +
                         "AND r.createdAt BETWEEN :start AND :end")
         long countConfirmedBookingsToday(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+        // Tìm reservations CONFIRMED (đã check-in) cho một ghế trong khoảng thời gian
+        @Query("SELECT r FROM ReservationEntity r WHERE r.seat.seatId = :seatId " +
+                        "AND r.status = 'CONFIRMED' " +
+                        "AND r.startTime < :endTime AND r.endTime > :startTime")
+        List<ReservationEntity> findConfirmedReservationsForSeat(
+                        @Param("seatId") Integer seatId,
+                        @Param("startTime") LocalDateTime startTime,
+                        @Param("endTime") LocalDateTime endTime);
+
+        // Top 5 sinh viên có thời gian học nhiều nhất (tính từ reservation
+        // CONFIRMED/EXPIRED)
+        @Query(value = "SELECT r.user_id, u.full_name, u.user_code, COUNT(*) as visit_count, " +
+                        "COALESCE(SUM(EXTRACT(EPOCH FROM (r.end_time - r.start_time)) / 60), 0) as total_minutes, " +
+                        "u.avt_url " +
+                        "FROM reservations r JOIN users u ON r.user_id = u.id " +
+                        "WHERE r.created_at >= :startDate AND r.status IN ('CONFIRMED', 'EXPIRED') " +
+                        "GROUP BY r.user_id, u.full_name, u.user_code, u.avt_url " +
+                        "ORDER BY total_minutes DESC LIMIT 5", nativeQuery = true)
+        List<Object[]> findTopStudentsByReservationTime(@Param("startDate") LocalDateTime startDate);
 
         // Dashboard: đếm đặt chỗ đã xác nhận theo từng ngày (BOOKED + CONFIRMED +
         // COMPLETED)
