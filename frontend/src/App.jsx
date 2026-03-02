@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
+import KioskRoutes from "./routes/KioskRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
 import ChatWidget from "./components/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
@@ -16,6 +17,7 @@ const ConditionalChatWidget = () => {
     const hiddenRoutes = [
         '/admin/chat',
         '/librarian/chat',
+        '/kiosk',                   // Kiosk mode
         '/login',                   // Trang login chung
         '/admin/login',             // Redirect cu
         '/librarian/login'          // Redirect cu
@@ -143,6 +145,9 @@ function App() {
                             ? <LibrarianRoutes />
                             : <Navigate to="/login" replace />
                     } />
+
+                    {/* Kiosk Routes - Public, không cần đăng nhập */}
+                    <Route path="/kiosk/*" element={<KioskRoutes />} />
 
                     {/* Root redirects based on role */}
                     <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
