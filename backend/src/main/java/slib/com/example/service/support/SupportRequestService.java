@@ -2,6 +2,7 @@ package slib.com.example.service.support;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -16,6 +17,7 @@ import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
+import slib.com.example.service.LibrarianNotificationService;
 import slib.com.example.service.PushNotificationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.chat.ConversationService;
@@ -37,6 +39,8 @@ public class SupportRequestService {
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
     private final ConversationService conversationService;
+    private final LibrarianNotificationService librarianNotificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Tạo yêu cầu hỗ trợ mới
@@ -72,6 +76,8 @@ public class SupportRequestService {
         SupportRequest saved = supportRequestRepository.save(request);
         log.info("[SupportRequest] Created support request {} by student {}", saved.getId(), studentId);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "CREATED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "CREATED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -128,6 +134,8 @@ public class SupportRequestService {
         // Gửi thông báo cho sinh viên
         sendStatusNotification(saved, status);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "STATUS_CHANGED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "STATUS_CHANGED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -153,6 +161,8 @@ public class SupportRequestService {
         // Gửi thông báo cho sinh viên khi thủ thư phản hồi
         sendStatusNotification(saved, SupportRequestStatus.RESOLVED);
 
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "RESPONDED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "RESPONDED");
         return SupportRequestDTO.fromEntity(saved);
     }
 
@@ -217,6 +227,17 @@ public class SupportRequestService {
     }
 
     /**
+     * Xoá nhiều yêu cầu hỗ trợ cùng lúc
+     */
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        supportRequestRepository.deleteAllById(ids);
+        log.info("[SupportRequest] Deleted {} support requests", ids.size());
+        broadcastDashboardUpdate("SUPPORT_UPDATE", "DELETED");
+        librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "DELETED");
+    }
+
+    /**
      * Gửi thông báo cho sinh viên khi trạng thái yêu cầu thay đổi
      * Sử dụng afterCommit để không ảnh hưởng transaction chính
      */
@@ -266,6 +287,15 @@ public class SupportRequestService {
                     });
         } catch (Exception e) {
             log.error("[SupportRequest] Failed to prepare notification: {}", e.getMessage());
+        }
+    }
+
+    private void broadcastDashboardUpdate(String type, String action) {
+        try {
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
         }
     }
 }

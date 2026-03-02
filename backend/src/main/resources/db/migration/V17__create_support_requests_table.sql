@@ -1,7 +1,7 @@
 -- V17__create_support_requests_table.sql
 -- Bảng yêu cầu hỗ trợ từ sinh viên
 
-CREATE TABLE support_requests (
+CREATE TABLE IF NOT EXISTS support_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
     student_id UUID NOT NULL REFERENCES users (id),
     description TEXT NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE support_requests (
     resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_support_requests_student ON support_requests (student_id);
+CREATE INDEX IF NOT EXISTS idx_support_requests_student ON support_requests (student_id);
 
-CREATE INDEX idx_support_requests_status ON support_requests (status);
+CREATE INDEX IF NOT EXISTS idx_support_requests_status ON support_requests (status);
 
-CREATE INDEX idx_support_requests_created ON support_requests (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_support_requests_created ON support_requests (created_at DESC);

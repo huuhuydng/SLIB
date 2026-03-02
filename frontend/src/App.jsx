@@ -6,7 +6,6 @@ import LibrarianRoutes from "./routes/LibrarianRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
 import ChatWidget from "./components/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
-import { SessionExpired, TokenExpired, NotFound, ServerError, SessionTimeout, Forbidden } from "./pages/errors/ErrorPages";
 
 
 const ConditionalChatWidget = () => {
@@ -82,8 +81,7 @@ function App() {
             if (isTokenExpired(token)) {
                 console.warn('[Auth] Token het han, tu dong dang xuat');
                 performLogout();
-                // Redirect toi trang session-timeout thay vi alert
-                window.location.href = '/session-timeout';
+                alert('Phien dang nhap da het han. Vui long dang nhap lai.');
             }
         }, 60 * 1000);
 
@@ -148,15 +146,8 @@ function App() {
                     {/* Root redirects based on role */}
                     <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
-                    {/* Error Pages */}
-                    <Route path="/session-expired" element={<SessionExpired />} />
-                    <Route path="/token-expired" element={<TokenExpired />} />
-                    <Route path="/server-error" element={<ServerError />} />
-                    <Route path="/session-timeout" element={<SessionTimeout />} />
-                    <Route path="/forbidden" element={<Forbidden />} />
-
-                    {/* Fallback - 404 */}
-                    <Route path="*" element={<NotFound />} />
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </BrowserRouter>
         </ModalProvider>

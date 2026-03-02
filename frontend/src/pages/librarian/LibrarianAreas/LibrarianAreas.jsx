@@ -5,8 +5,9 @@ import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_
 import { getAreas } from "../../../services/admin/area_management/api";
 import { seatService } from "../../../services/seatService";
 import { handleLogout } from "../../../utils/auth";
-import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate } from "lucide-react";
+import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate, User, Clock, X } from "lucide-react";
 import LibrarianArea from "../../../components/librarian/LibrarianArea";
+import "../../../styles/librarian/librarian-shared.css";
 import "./LibrarianAreas.css";
 
 // Build time params for API calls
@@ -76,7 +77,7 @@ function LibrarianAreasContent() {
   useEffect(() => {
     (async () => {
       try {
-        const response = await fetch('http://localhost:8080/slib/settings/time-slots');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings/time-slots`);
         if (response.ok) {
           const slots = await response.json();
           setTimeSlots(slots);
@@ -152,6 +153,10 @@ function LibrarianAreasContent() {
         rowNumber: s.rowNumber ?? s.row_number ?? 1,
         columnNumber: s.columnNumber ?? s.column_number ?? 1,
         reservationEndTime: s.reservationEndTime ?? null,
+        reservationStartTime: s.reservationStartTime ?? null,
+        bookedByUserName: s.bookedByUserName ?? null,
+        bookedByUserCode: s.bookedByUserCode ?? null,
+        bookedByAvatarUrl: s.bookedByAvatarUrl ?? null,
       }));
 
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
@@ -349,17 +354,16 @@ function LibrarianAreasContent() {
   };
 
   return (
-    <div className="librarian-areas-page">
-      <Header searchPlaceholder="Tìm ghế hoặc khu vực" onLogout={handleLogout} />
+    <div className="lib-container">
+      {/* Page Title */}
+      <div className="lib-page-title">
+        <h1>QUẢN LÝ CHỖ NGỒI</h1>
+      </div>
 
-      <main className="librarian-areas-main">
-        {/* Top bar */}
-        <div className="librarian-topbar">
-          <div className="librarian-topbar-title">
-            <LayoutTemplate size={18} />
-            <span>Sơ đồ thư viện & Quản lý ghế</span>
-          </div>
-          <div className="librarian-topbar-actions" style={{ display: 'flex', gap: 8 }}>
+      {/* Toolbar */}
+      <div className="lib-panel" style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
               type="date"
               className="librarian-time-select"
@@ -373,9 +377,7 @@ function LibrarianAreasContent() {
               value={slotValue}
               onChange={(e) => setSlotValue(e.target.value)}
             >
-              {/* Option "Hiện tại" */}
               <option value="now">Hiện tại</option>
-              {/* Dynamic time slots from API */}
               {timeSlots.map((slot) => {
                 const slotValueStr = `${slot.startTime}-${slot.endTime}`;
                 let disabled = false;
@@ -391,165 +393,174 @@ function LibrarianAreasContent() {
               })}
             </select>
           </div>
+
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginLeft: 'auto' }}>
+            <span className="lib-inline-stat">
+              <span className="dot orange"></span>
+              Đang dùng <strong>{stats.booked}/{stats.total}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot blue"></span>
+              Lấp đầy <strong>{stats.occupancy}%</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot green"></span>
+              Trống <strong>{stats.available}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot gray"></span>
+              Hạn chế <strong>{stats.restricted}</strong>
+            </span>
+          </div>
         </div>
+      </div>
 
-        {/* Statistics */}
-        <section className="librarian-stats">
-          <div className="librarian-stat-card">
-            <div className="librarian-stat-icon librarian-stat-icon--orange">
-              <Armchair size={18} />
-            </div>
-            <div>
-              <div className="librarian-stat-title">Đang sử dụng</div>
-              <div className="librarian-stat-number">{stats.booked} / {stats.total}</div>
-            </div>
-          </div>
-          <div className="librarian-stat-card">
-            <div className="librarian-stat-icon librarian-stat-icon--green">
-              <Armchair size={18} />
-            </div>
-            <div>
-              <div className="librarian-stat-title">Tỷ lệ lấp đầy</div>
-              <div className="librarian-stat-number">{stats.occupancy}%</div>
-            </div>
-          </div>
-          <div className="librarian-stat-card">
-            <div className="librarian-stat-icon librarian-stat-icon--blue">
-              <Clock4 size={18} />
-            </div>
-            <div>
-              <div className="librarian-stat-title">Khung giờ</div>
-              <div className="librarian-stat-number">
-                {slotValue === 'now'
-                  ? 'Hiện tại'
-                  : timeSlots.find((t) => `${t.startTime}-${t.endTime}` === slotValue)?.label || slotValue}
-              </div>
-            </div>
-          </div>
-          <div className="librarian-stat-card">
-            <div className="librarian-stat-icon librarian-stat-icon--amber">
-              <ShieldOff size={18} />
-            </div>
-            <div>
-              <div className="librarian-stat-title">Ghế hạn chế</div>
-              <div className="librarian-stat-number">{stats.restricted}</div>
-            </div>
-          </div>
-          <div className="librarian-stat-card">
-            <div className="librarian-stat-icon librarian-stat-icon--mint">
-              <ShieldCheck size={18} />
-            </div>
-            <div>
-              <div className="librarian-stat-title">Ghế trống</div>
-              <div className="librarian-stat-number">{stats.available}</div>
-            </div>
-          </div>
-        </section>
+      {/* Message banner */}
+      {message && (
+        <div className={`librarian-message ${message.includes('❌') ? 'librarian-message--error' : ''}`}>
+          <AlertCircle size={16} />
+          <span>{message}</span>
+        </div>
+      )}
 
-        {/* Message banner */}
-        {message && (
-          <div className={`librarian-message ${message.includes('❌') ? 'librarian-message--error' : ''}`}>
-            <AlertCircle size={16} />
-            <span>{message}</span>
-          </div>
-        )}
+      {/* Loading indicator */}
+      {loading && <div className="librarian-loading">Đang tải dữ liệu...</div>}
 
-        {/* Loading indicator */}
-        {loading && <div className="librarian-loading">Đang tải dữ liệu...</div>}
-
-        {/* Floor plan display */}
-        <div className="librarian-content">
-          {/* Canvas - static view */}
+      {/* Floor plan + Sidebar */}
+      <div className="librarian-content">
+        {/* Canvas - static view */}
+        <div
+          ref={canvasRef}
+          className="librarian-canvas"
+          style={{ cursor: 'default', position: 'relative', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}
+        >
           <div
-            ref={canvasRef}
-            className="librarian-canvas"
-            style={{ cursor: 'default', position: 'relative', width: '100%', height: '100%', overflowX: 'hidden', overflowY: 'auto' }}
+            className="librarian-canvas-board"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              transform: `translate(${canvas.panX}px, ${canvas.panY}px) scale(${canvas.zoom})`,
+              transformOrigin: 'top left',
+            }}
           >
-            <div
-              className="librarian-canvas-board"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                transform: `translate(${canvas.panX}px, ${canvas.panY}px) scale(${canvas.zoom})`,
-                transformOrigin: 'top left',
-              }}
-            >
-              {areas.map((area) => (
-                <LibrarianArea
-                  key={area.areaId}
-                  area={area}
-                  onSeatClick={handleSeatClick}
-                />
-              ))}
+            {areas.map((area) => (
+              <LibrarianArea
+                key={area.areaId}
+                area={area}
+                onSeatClick={handleSeatClick}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside className="librarian-sidebar">
+          <div className="librarian-sidebar-section">
+            <div className="librarian-sidebar-title">
+              <Armchair size={16} /> Chi tiết ghế
             </div>
+            {selectedSeat ? (
+              <div className="librarian-seat-detail">
+                <div className="librarian-seat-code">{selectedSeat.seatCode}</div>
+                <div className="librarian-seat-info">Khu vực: {(() => {
+                  const seatZone = state.zones.find(zone => String(zone.zoneId) === String(selectedSeat.zoneId));
+                  if (!seatZone) return 'Không xác định';
+                  const area = areas.find(a => String(a.areaId) === String(seatZone.areaId));
+                  return area?.areaName || 'Không xác định';
+                })()}</div>
+                <div className="librarian-seat-info">
+                  Trạng thái: <strong>{
+                    selectedSeat.seatStatus === 'AVAILABLE' ? 'Trống' :
+                      selectedSeat.seatStatus === 'BOOKED' ? 'Đã đặt' :
+                        selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bị hạn chế' :
+                          selectedSeat.seatStatus
+                  }</strong>
+                </div>
+
+                {/* Thông tin sinh viên khi ghế BOOKED */}
+                {selectedSeat.seatStatus === 'BOOKED' && selectedSeat.bookedByUserName && (
+                  <div className="librarian-booker-section">
+                    <div className="librarian-booker-info">
+                      <div className="librarian-booker-avatar">
+                        {selectedSeat.bookedByAvatarUrl ? (
+                          <img src={selectedSeat.bookedByAvatarUrl} alt="avatar" />
+                        ) : (
+                          <div className="librarian-avatar-fallback">
+                            <User size={20} />
+                          </div>
+                        )}
+                      </div>
+                      <div className="librarian-booker-details">
+                        <span className="librarian-booker-name">{selectedSeat.bookedByUserName}</span>
+                        <span className="librarian-booker-code">{selectedSeat.bookedByUserCode}</span>
+                      </div>
+                    </div>
+                    {selectedSeat.reservationStartTime && (
+                      <div className="librarian-booker-time">
+                        <Clock size={14} />
+                        <span>
+                          {new Date(selectedSeat.reservationStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          {' - '}
+                          {selectedSeat.reservationEndTime
+                            ? new Date(selectedSeat.reservationEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                            : '--:--'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  className="librarian-btn"
+                  onClick={() => toggleRestriction(selectedSeat)}
+                  style={{
+                    backgroundColor: selectedSeat.seatStatus === 'UNAVAILABLE' ? '#10b981' : '#ef4444',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bỏ hạn chế' : 'Hạn chế ghế'}
+                </button>
+              </div>
+            ) : (
+              <div className="librarian-empty">Chọn một ghế để xem chi tiết</div>
+            )}
           </div>
 
-          {/* Sidebar */}
-          <aside className="librarian-sidebar">
-            <div className="librarian-sidebar-section">
-              <div className="librarian-sidebar-title">
-                <Armchair size={16} /> Chi tiết ghế
-              </div>
-              {selectedSeat ? (
-                <div className="librarian-seat-detail">
-                  <div className="librarian-seat-code">{selectedSeat.seatCode}</div>
-                  <div className="librarian-seat-info">Khu vực: {(() => {
-                    // Tìm khu vực chứa ghế này
-                    if (!state.zones || !areas) return 'Không xác định';
-                    const seatZone = state.zones.find(zone => String(zone.zoneId) === String(selectedSeat.zoneId));
-                    if (!seatZone) return 'Không xác định';
-                    const area = areas.find(a => String(a.areaId) === String(seatZone.areaId));
-                    return area?.areaName || 'Không xác định';
-                  })()}</div>
-                  <div className="librarian-seat-info">
-                    Trạng thái: <strong>{
-                      selectedSeat.seatStatus === 'AVAILABLE' ? 'Trống' :
-                        selectedSeat.seatStatus === 'BOOKED' ? 'Đã đặt' :
-                          selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bị hạn chế' :
-                            selectedSeat.seatStatus
-                    }</strong>
-                  </div>
-                  <button
-                    className="librarian-btn"
-                    onClick={() => toggleRestriction(selectedSeat)}
-                    disabled={selectedSeat.seatStatus === 'BOOKED'}
-                    style={{
-                      backgroundColor: selectedSeat.seatStatus === 'BOOKED' ? '#ccc' :
-                        selectedSeat.seatStatus === 'UNAVAILABLE' ? '#10b981' : '#ef4444',
-                      cursor: selectedSeat.seatStatus === 'BOOKED' ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {selectedSeat.seatStatus === 'BOOKED' ? 'Đang được đặt' :
-                      selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bỏ hạn chế' : 'Hạn chế ghế'}
-                  </button>
-                </div>
-              ) : (
-                <div className="librarian-empty">Chọn một ghế để xem chi tiết</div>
-              )}
+          {/* Legend */}
+          <div className="librarian-legend">
+            <div className="librarian-legend-title">Chú thích</div>
+            <div className="librarian-legend-item">
+              <span className="librarian-legend-dot librarian-legend-dot--green" />
+              <span>Trống (Available)</span>
+            </div>
+            <div className="librarian-legend-item">
+              <span className="librarian-legend-dot librarian-legend-dot--orange" />
+              <span>Đã đặt (Booked)</span>
+            </div>
+            <div className="librarian-legend-item">
+              <span className="librarian-legend-dot librarian-legend-dot--gray" />
+              <span>Bị hạn chế (Unavailable)</span>
             </div>
 
-            {/* Legend */}
-            <div className="librarian-legend">
-              <div className="librarian-legend-title">Chú thích</div>
-              <div className="librarian-legend-item">
-                <span className="librarian-legend-dot librarian-legend-dot--green" />
-                <span>Trống (Available)</span>
-              </div>
-              <div className="librarian-legend-item">
-                <span className="librarian-legend-dot librarian-legend-dot--orange" />
-                <span>Đã đặt (Booked)</span>
-              </div>
-              <div className="librarian-legend-item">
-                <span className="librarian-legend-dot librarian-legend-dot--gray" />
-                <span>Bị hạn chế (Unavailable)</span>
-              </div>
+            <div className="librarian-legend-title" style={{ marginTop: 12 }}>Mật độ khu vực</div>
+            <div className="librarian-legend-item">
+              <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(39, 174, 96, 0.3)', border: '1px solid #27AE60', display: 'inline-block', flexShrink: 0 }} />
+              <span>Vắng ({'<'} 50%)</span>
             </div>
-          </aside>
-        </div>
-      </main>
+            <div className="librarian-legend-item">
+              <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(243, 156, 18, 0.3)', border: '1px solid #F39C12', display: 'inline-block', flexShrink: 0 }} />
+              <span>Khá đông (50 - 90%)</span>
+            </div>
+            <div className="librarian-legend-item">
+              <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: 'rgba(231, 76, 60, 0.3)', border: '1px solid #E74C3C', display: 'inline-block', flexShrink: 0 }} />
+              <span>Đông {'≥'} 90%)</span>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

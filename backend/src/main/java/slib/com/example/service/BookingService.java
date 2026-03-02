@@ -8,6 +8,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import slib.com.example.entity.LibrarySetting;
@@ -35,13 +36,15 @@ public class BookingService {
         private final SeatAvailabilityService seatAvailabilityService;
         private final PushNotificationService pushNotificationService;
         private final ActivityService activityService;
+        private final SimpMessagingTemplate messagingTemplate;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
                         SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService,
                         SeatAvailabilityService seatAvailabilityService,
                         PushNotificationService pushNotificationService,
-                        ActivityService activityService) {
+                        ActivityService activityService,
+                        SimpMessagingTemplate messagingTemplate) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -51,6 +54,7 @@ public class BookingService {
                 this.seatAvailabilityService = seatAvailabilityService;
                 this.pushNotificationService = pushNotificationService;
                 this.activityService = activityService;
+                this.messagingTemplate = messagingTemplate;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -151,8 +155,8 @@ public class BookingService {
                         System.err.println("Failed to log activity: " + e.getMessage());
                 }
 
-                // NOTE: Push notification đã được chuyển sang confirmSeatWithNfc()
-                // Không gửi notification ngay khi tạo booking nữa
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CREATED");
 
                 return saved;
         }
@@ -329,6 +333,9 @@ public class BookingService {
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "AVAILABLE",
                                 reservation.getStartTime(), reservation.getEndTime());
 
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CANCELLED");
+
                 return saved;
         }
 
@@ -399,6 +406,24 @@ public class BookingService {
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
                                 reservation.getStartTime(), reservation.getEndTime());
 
+                // Send push notification khi check-in NFC thành công
+                try {
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                        reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                        reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String notiTitle = "Check-in thành công";
+                        String notiBody = String.format(
+                                        "Ghế %s tại %s (%s) đã check-in bằng NFC. Chúc bạn học tập hiệu quả!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(reservation.getUser().getId(), notiTitle, notiBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send NFC confirmation notification: " + e.getMessage());
+                }
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");
+
                 return saved;
         }
 
@@ -432,6 +457,9 @@ public class BookingService {
                                 System.err.println("Failed to send booking notification: " + e.getMessage());
                         }
                 }
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "STATUS_CHANGED");
 
                 return saved;
         }
@@ -587,4 +615,13 @@ public class BookingService {
                 return result;
         }
 
+        private void broadcastDashboardUpdate(String type, String action) {
+                try {
+                        messagingTemplate.convertAndSend("/topic/dashboard",
+                                        java.util.Map.of("type", type, "action", action, "timestamp",
+                                                        java.time.Instant.now().toString()));
+                } catch (Exception e) {
+                        System.err.println("Failed to broadcast dashboard update: " + e.getMessage());
+                }
+        }
 }

@@ -151,7 +151,8 @@
   display: flex;
   gap: 20px;
   overflow: hidden;
-  min-height: 0;
+  min-height: 600px;
+  height: calc(100vh - 200px);
   /* Allow flexbox to shrink properly */
 }
 
@@ -362,6 +363,76 @@
 
 .librarian-legend-dot--gray {
   background: #9ca3af;
+}
+
+/* Booker Info Section */
+.librarian-booker-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.librarian-booker-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.librarian-booker-avatar img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffedd5;
+}
+
+.librarian-avatar-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c2410c;
+}
+
+.librarian-booker-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.librarian-booker-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.librarian-booker-code {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.librarian-booker-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  padding: 6px 10px;
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.librarian-booker-time svg {
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
 /* Responsive */

@@ -34,7 +34,7 @@ public class SeatEntity {
 
     @ManyToOne
     @JoinColumn(name = "zone_id", nullable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "seats" })
     private ZoneEntity zone;
 
     @Column(name = "seat_code", nullable = false)

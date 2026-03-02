@@ -18,4 +18,7 @@ public interface SupportRequestRepository extends JpaRepository<SupportRequest, 
     List<SupportRequest> findByStatusOrderByCreatedAtDesc(SupportRequestStatus status);
 
     long countByStatus(SupportRequestStatus status);
+
+    // Dashboard: lấy 5 yêu cầu hỗ trợ gần đây nhất
+    List<SupportRequest> findTop5ByOrderByCreatedAtDesc();
 }

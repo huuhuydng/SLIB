@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/ChatManage.css';
 import Header from "../../../components/shared/Header";
 import { handleLogout } from "../../../utils/auth";
@@ -9,11 +10,12 @@ import {
   Image as ImageIcon,
   Send,
   MessageCircle,
-  User,
   Clock,
   CheckCircle,
   XCircle,
-  Bot
+  Bot,
+  Search,
+  AlertTriangle,
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -28,10 +30,18 @@ const ChatManage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wsConnected, setWsConnected] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [chatToast, setChatToast] = useState(null);
 
   const messagesEndRef = useRef(null);
   const stompClientRef = useRef(null);
   const subscriptionRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const chatToastTimeoutRef = useRef(null);
 
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
@@ -81,7 +91,6 @@ const ChatManage = () => {
           isMine: msg.senderType === 'LIBRARIAN'
         }));
         setMessages(prev => {
-          // Giữ lại optimistic messages chưa được server confirm
           const pendingOptimistic = prev.filter(m =>
             m._optimistic && !serverMessages.some(sm =>
               sm.content === m.content && sm.senderType === m.senderType
@@ -116,19 +125,23 @@ const ChatManage = () => {
     }
   };
 
-  // Send message
+  // Send message (text or with image)
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim() || !selectedConversationId) return;
+    const hasText = inputValue.trim();
+    const hasImage = selectedFile;
+    if ((!hasText && !hasImage) || !selectedConversationId) return;
 
     const messageContent = inputValue;
     setInputValue("");
+    const currentFile = selectedFile;
+    setSelectedFile(null);
+    setImagePreview(null);
 
-    // Optimistic UI update with temporary ID
     const tempId = `optimistic_${Date.now()}`;
     const optimisticMsg = {
       id: tempId,
-      content: messageContent,
+      content: currentFile ? (messageContent || 'Đang gửi ảnh...') : messageContent,
       senderType: 'LIBRARIAN',
       createdAt: new Date().toISOString(),
       isMine: true,
@@ -138,20 +151,59 @@ const ChatManage = () => {
 
     try {
       const token = localStorage.getItem('librarian_token');
-      await fetch(`${API_BASE}/slib/chat/conversations/${selectedConversationId}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ content: messageContent, senderType: 'LIBRARIAN' })
-      });
+
+      if (currentFile) {
+        // Upload ảnh kèm message
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append('file', currentFile);
+        formData.append('content', messageContent);
+        formData.append('senderType', 'LIBRARIAN');
+        await fetch(`${API_BASE}/slib/chat/conversations/${selectedConversationId}/messages/with-image`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        setUploadingImage(false);
+      } else {
+        // Text message
+        await fetch(`${API_BASE}/slib/chat/conversations/${selectedConversationId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ content: messageContent, senderType: 'LIBRARIAN' })
+        });
+      }
     } catch (err) {
       console.error('Error sending message:', err);
+      setUploadingImage(false);
     }
   };
 
-  // End chat - resolve conversation
+  // Handle image selection
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File quá lớn. Tối đa: 5MB');
+      return;
+    }
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  // Parse [IMAGES] from message content
+  const parseMessageContent = (content) => {
+    if (!content || !content.includes('[IMAGES]')) return { text: content || '', imageUrls: [] };
+    const parts = content.split('[IMAGES]');
+    const text = parts[0].trim();
+    const imageUrls = parts[1]?.trim().split('\n').filter(url => url.trim().startsWith('http')) || [];
+    return { text, imageUrls };
+  };
+
+  // End chat with confirmation
   const handleEndChat = async (conversationId) => {
     try {
       const token = localStorage.getItem('librarian_token');
@@ -167,6 +219,7 @@ const ChatManage = () => {
         fetchConversations();
         setSelectedConversationId(null);
         setMessages([]);
+        setShowEndConfirm(false);
       }
     } catch (err) {
       console.error('Error ending chat:', err);
@@ -187,7 +240,6 @@ const ChatManage = () => {
   useEffect(() => {
     if (selectedConversationId) {
       fetchMessages(selectedConversationId);
-      // Fallback polling chậm (10s) phòng khi WebSocket miss
       const interval = setInterval(() => {
         fetchMessages(selectedConversationId);
       }, 10000);
@@ -197,7 +249,7 @@ const ChatManage = () => {
 
   // WebSocket connection
   useEffect(() => {
-    const backendUrl = API_BASE || 'http://localhost:8080';
+    const backendUrl = API_BASE || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
     const wsEndpoint = backendUrl + '/ws';
 
     const client = new Client({
@@ -207,6 +259,38 @@ const ChatManage = () => {
       onConnect: () => {
         stompClientRef.current = client;
         setWsConnected(true);
+
+        client.subscribe('/topic/escalate', (message) => {
+          const data = JSON.parse(message.body);
+          if (data.type === 'QUEUE_CANCELLED') {
+            setConversations(prev => prev.filter(c => c.id !== data.conversationId));
+            setSelectedConversationId(prev => prev === data.conversationId ? null : prev);
+          } else if (data.type === 'CONVERSATION_ACCEPTED' || data.type === 'CONVERSATION_RESOLVED') {
+            fetchConversations();
+          } else if (data.id) {
+            setConversations(prev => {
+              if (prev.some(c => c.id === data.id)) return prev;
+              return [data, ...prev];
+            });
+          }
+        });
+
+        // Subscribe cho chat notification toast
+        client.subscribe('/topic/librarian-notifications', (message) => {
+          const data = JSON.parse(message.body);
+          if (data.type === 'CHAT_NEW_MESSAGE') {
+            // Hiện toast notification
+            setChatToast({ senderName: data.senderName, content: data.content, conversationId: data.conversationId });
+            if (chatToastTimeoutRef.current) clearTimeout(chatToastTimeoutRef.current);
+            chatToastTimeoutRef.current = setTimeout(() => setChatToast(null), 5000);
+            // Refresh messages nếu đang xem conversation này
+            if (data.conversationId === selectedConversationId) {
+              fetchMessages(data.conversationId);
+            }
+            // Refresh conversation list
+            fetchConversations();
+          }
+        });
       },
       onStompError: (frame) => {
         console.error('[WS] STOMP error:', frame);
@@ -235,14 +319,11 @@ const ChatManage = () => {
       (message) => {
         const newMessage = JSON.parse(message.body);
         newMessage.isMine = newMessage.senderType === 'LIBRARIAN';
-        // Đảm bảo luôn có createdAt cho mọi message
         if (!newMessage.createdAt) {
           newMessage.createdAt = new Date().toISOString();
         }
         setMessages(prev => {
-          // Skip if already exists (by server id)
           if (prev.some(m => m.id === newMessage.id && !m._optimistic)) return prev;
-          // Replace optimistic message with server message
           const hasOptimistic = prev.some(m =>
             m._optimistic && m.content === newMessage.content && m.senderType === newMessage.senderType
           );
@@ -251,7 +332,6 @@ const ChatManage = () => {
             return prev.map(m => {
               if (!replaced && m._optimistic && m.content === newMessage.content && m.senderType === newMessage.senderType) {
                 replaced = true;
-                // Giữ createdAt từ optimistic nếu server không gửi
                 return { ...newMessage, createdAt: newMessage.createdAt || m.createdAt, _optimistic: false };
               }
               return m;
@@ -283,11 +363,21 @@ const ChatManage = () => {
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
-    // Backend dùng LocalDateTime (giờ local server, UTC+7)
-    // Không thêm 'Z' vì sẽ bị lệch timezone
     const date = new Date(timeStr);
     if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getWaitDuration = (escalatedAt) => {
+    if (!escalatedAt) return null;
+    const now = new Date();
+    const escalated = new Date(escalatedAt);
+    const diffMs = now - escalated;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Vừa xong';
+    if (diffMin < 60) return `${diffMin} phút`;
+    const diffHour = Math.floor(diffMin / 60);
+    return `${diffHour}h ${diffMin % 60}p`;
   };
 
   const getInitial = (name) => {
@@ -309,129 +399,162 @@ const ChatManage = () => {
     }
   };
 
-  // Separate conversations by status
+  // Separate and filter conversations
   const waitingConvs = conversations.filter(c => c.status === 'QUEUE_WAITING');
   const activeConvs = conversations.filter(c => c.status === 'HUMAN_CHATTING');
   const otherConvs = conversations.filter(c => c.status !== 'QUEUE_WAITING' && c.status !== 'HUMAN_CHATTING');
+
+  const filteredWaiting = useMemo(() => {
+    if (!searchTerm) return waitingConvs;
+    const q = searchTerm.toLowerCase();
+    return waitingConvs.filter(c =>
+      (c.studentName || '').toLowerCase().includes(q) ||
+      (c.studentCode || '').toLowerCase().includes(q)
+    );
+  }, [waitingConvs, searchTerm]);
+
+  const filteredActive = useMemo(() => {
+    if (!searchTerm) return activeConvs;
+    const q = searchTerm.toLowerCase();
+    return activeConvs.filter(c =>
+      (c.studentName || '').toLowerCase().includes(q) ||
+      (c.studentCode || '').toLowerCase().includes(q)
+    );
+  }, [activeConvs, searchTerm]);
+
+  const filteredOther = useMemo(() => {
+    if (!searchTerm) return otherConvs;
+    const q = searchTerm.toLowerCase();
+    return otherConvs.filter(c =>
+      (c.studentName || '').toLowerCase().includes(q) ||
+      (c.studentCode || '').toLowerCase().includes(q)
+    );
+  }, [otherConvs, searchTerm]);
+
+  const renderConvItem = (conv) => (
+    <div
+      key={conv.id}
+      onClick={() => setSelectedConversationId(conv.id)}
+      className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
+    >
+      <div className="cm-conv-avatar">
+        {getInitial(conv.studentName)}
+      </div>
+      <div className="cm-conv-info">
+        <div className="cm-conv-name-row">
+          <span className="cm-conv-name">{conv.studentName || 'Sinh viên'}</span>
+          <span className="cm-conv-time">
+            {formatTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
+          </span>
+        </div>
+        {conv.studentCode && (
+          <span className="cm-conv-code">{conv.studentCode}</span>
+        )}
+        {conv.escalationReason && (
+          <span className="cm-conv-reason">{conv.escalationReason}</span>
+        )}
+        <div className="cm-conv-bottom">
+          {conv.status === 'QUEUE_WAITING' && conv.escalatedAt && (
+            <span className="cm-conv-wait-time">
+              <Clock size={11} />
+              {getWaitDuration(conv.escalatedAt)}
+            </span>
+          )}
+          {getStatusBadge(conv.status)}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
       <Header searchPlaceholder="Tìm kiếm..." onLogout={handleLogout} />
 
-      <div style={{
-        padding: '1.5rem 2rem',
-        maxWidth: '1500px',
-        margin: '0 auto',
-        backgroundColor: '#f9fafb',
-        minHeight: 'calc(100vh - 80px)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.2rem' }}>
-          <h2 className="cm-page-title">Hỗ trợ sinh viên</h2>
+      <div className="lib-container">
+        <div className="cm-header-row">
+          <h1 className="cm-page-title">Hỗ trợ sinh viên</h1>
           {waitingConvs.length > 0 && (
             <span className="cm-badge-count">
               {waitingConvs.length} đang chờ
             </span>
           )}
+          <div className="cm-ws-indicator">
+            <span className={`cm-ws-dot ${wsConnected ? 'connected' : ''}`} />
+            {wsConnected ? 'Đang kết nối' : 'Mất kết nối'}
+          </div>
         </div>
 
         {loading ? (
           <div className="cm-loading">
-            <div className="cm-loading-spinner"></div>
+            <div className="cm-loading-spinner" />
             <p>Đang tải dữ liệu...</p>
           </div>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: '#ef4444' }}>
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--lib-red)' }}>
             <XCircle size={48} style={{ margin: '0 auto 12px', display: 'block' }} />
             <p>{error}</p>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="cm-empty-state-big">
-            <MessageCircle size={56} color="#d1d5db" />
+          <div className="lib-panel cm-empty-state-big">
+            <MessageCircle size={52} color="#d1d5db" />
             <p>Không có cuộc hội thoại nào</p>
           </div>
         ) : (
           <div className="cm-chat-container">
             {/* Conversation List */}
             <div className="cm-conversation-list">
-              {waitingConvs.length > 0 && (
-                <div className="cm-section-header">Chờ xử lý ({waitingConvs.length})</div>
-              )}
-              {waitingConvs.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => {
-                    handleTakeOver(conv.id);
-                  }}
-                  className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
-                >
-                  <div className="cm-conv-avatar">
-                    {getInitial(conv.studentName)}
-                  </div>
-                  <div className="cm-conv-info">
-                    <span className="cm-conv-name">{conv.studentName || 'Sinh viên'}</span>
-                    <span className="cm-conv-meta">
-                      <Clock size={11} />
-                      {formatTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
-                    </span>
-                  </div>
-                  {getStatusBadge(conv.status)}
+              <div className="cm-sidebar-header">
+                <div className="cm-sidebar-search">
+                  <Search size={15} className="cm-sidebar-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên hoặc mã SV..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-              ))}
+              </div>
 
-              {activeConvs.length > 0 && (
-                <div className="cm-section-header">Đang hỗ trợ ({activeConvs.length})</div>
-              )}
-              {activeConvs.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => setSelectedConversationId(conv.id)}
-                  className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
-                >
-                  <div className="cm-conv-avatar">
-                    {getInitial(conv.studentName)}
-                  </div>
-                  <div className="cm-conv-info">
-                    <span className="cm-conv-name">{conv.studentName || 'Sinh viên'}</span>
-                    <span className="cm-conv-meta">
-                      <Clock size={11} />
-                      {formatTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
-                    </span>
-                  </div>
-                  {getStatusBadge(conv.status)}
-                </div>
-              ))}
+              <div className="cm-sidebar-body">
+                {filteredWaiting.length > 0 && (
+                  <>
+                    <div className="cm-section-header">
+                      <span className="cm-section-dot waiting" />
+                      Chờ xử lý ({filteredWaiting.length})
+                    </div>
+                    {filteredWaiting.map(renderConvItem)}
+                  </>
+                )}
 
-              {otherConvs.length > 0 && (
-                <div className="cm-section-header">Khác</div>
-              )}
-              {otherConvs.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => setSelectedConversationId(conv.id)}
-                  className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
-                >
-                  <div className="cm-conv-avatar">
-                    {getInitial(conv.studentName)}
-                  </div>
-                  <div className="cm-conv-info">
-                    <span className="cm-conv-name">{conv.studentName || 'Sinh viên'}</span>
-                    <span className="cm-conv-meta">
-                      <Clock size={11} />
-                      {formatTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
-                    </span>
-                  </div>
-                  {getStatusBadge(conv.status)}
-                </div>
-              ))}
+                {filteredActive.length > 0 && (
+                  <>
+                    <div className="cm-section-header">
+                      <span className="cm-section-dot active" />
+                      Đang hỗ trợ ({filteredActive.length})
+                    </div>
+                    {filteredActive.map(renderConvItem)}
+                  </>
+                )}
 
-              {conversations.length === 0 && (
-                <div className="cm-conv-empty">
-                  <div className="cm-conv-empty-icon">
-                    <MessageCircle size={40} />
+                {filteredOther.length > 0 && (
+                  <>
+                    <div className="cm-section-header">
+                      <span className="cm-section-dot other" />
+                      Khác ({filteredOther.length})
+                    </div>
+                    {filteredOther.map(renderConvItem)}
+                  </>
+                )}
+
+                {filteredWaiting.length === 0 && filteredActive.length === 0 && filteredOther.length === 0 && (
+                  <div className="cm-conv-empty">
+                    <div className="cm-conv-empty-icon">
+                      <MessageCircle size={36} />
+                    </div>
+                    <p>{searchTerm ? 'Không tìm thấy kết quả' : 'Chưa có hội thoại mới'}</p>
                   </div>
-                  <p>Chưa có hội thoại mới</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Chat Window */}
@@ -444,12 +567,17 @@ const ChatManage = () => {
                       <div className="cm-chat-header-avatar">
                         {getInitial(currentConversation.studentName)}
                         {currentConversation.status === 'HUMAN_CHATTING' && (
-                          <span className="cm-online-dot"></span>
+                          <span className="cm-online-dot" />
                         )}
                       </div>
                       <div className="cm-chat-header-info">
                         <span className="cm-chat-header-name">
                           {currentConversation.studentName || 'Sinh viên'}
+                          {currentConversation.studentCode && (
+                            <span className="cm-chat-header-code">
+                              ({currentConversation.studentCode})
+                            </span>
+                          )}
                         </span>
                         <span className="cm-chat-header-sub">
                           {currentConversation.status === 'HUMAN_CHATTING'
@@ -474,7 +602,7 @@ const ChatManage = () => {
                       {currentConversation.status === 'HUMAN_CHATTING' && (
                         <button
                           className="cm-btn-end"
-                          onClick={() => handleEndChat(currentConversation.id)}
+                          onClick={() => setShowEndConfirm(true)}
                         >
                           <XCircle size={16} />
                           Kết thúc
@@ -483,6 +611,14 @@ const ChatManage = () => {
                     </div>
                   </div>
 
+                  {/* Escalation reason banner */}
+                  {currentConversation.escalationReason && currentConversation.status !== 'RESOLVED' && (
+                    <div className="cm-escalation-banner">
+                      <AlertTriangle size={14} />
+                      <span>Lý do: <strong>{currentConversation.escalationReason}</strong></span>
+                    </div>
+                  )}
+
                   {/* Messages */}
                   <div className="cm-messages-area">
                     {messages.map((msg, index) => {
@@ -490,11 +626,10 @@ const ChatManage = () => {
                       const isLibrarian = msg.senderType === 'LIBRARIAN';
                       const isStudent = !isAI && !isLibrarian;
 
-                      // System messages - context card cho yêu cầu hỗ trợ
+                      // System messages
                       if (msg.senderType === 'SYSTEM') {
                         const isSupportRequest = msg.content?.startsWith('[YÊU CẦU HỖ TRỢ]');
 
-                        // Parse images from message if present
                         let textContent = msg.content;
                         let imageUrls = [];
                         if (isSupportRequest && msg.content?.includes('[IMAGES]')) {
@@ -529,27 +664,35 @@ const ChatManage = () => {
                         );
                       }
 
+                      const parsed = parseMessageContent(msg.content);
                       return (
                         <div
                           key={msg.id || index}
                           className={`cm-message-row ${isLibrarian ? 'mine' : 'theirs'}`}
                         >
-                          {/* Avatar for non-librarian */}
                           {!isLibrarian && (
                             <div className={`cm-msg-avatar ${isAI ? 'ai' : 'student'}`}>
-                              {isAI ? <Bot size={16} /> : getInitial(currentConversation.studentName)}
+                              {isAI ? <Bot size={14} /> : getInitial(currentConversation.studentName)}
                             </div>
                           )}
 
-                          {/* Bubble */}
                           <div className={`cm-bubble ${isAI ? 'ai-bubble' : isStudent ? 'student-bubble' : ''}`}>
                             {isAI && (
                               <div className="cm-ai-label">
-                                <Bot size={12} />
+                                <Bot size={11} />
                                 SLIB AI
                               </div>
                             )}
-                            {msg.content}
+                            {parsed.text && <span>{parsed.text}</span>}
+                            {parsed.imageUrls.length > 0 && (
+                              <div className="cm-msg-images">
+                                {parsed.imageUrls.map((url, i) => (
+                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                    <img src={url} alt={`Ảnh ${i + 1}`} className="cm-msg-img" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                             <div className="cm-msg-time">
                               {formatTime(msg.createdAt)}
                             </div>
@@ -560,33 +703,48 @@ const ChatManage = () => {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Composer - only show for active conversations */}
+                  {/* Composer */}
                   {currentConversation.status === 'HUMAN_CHATTING' && (
                     <div className="cm-composer">
-                      <button className="cm-btn-icon">
-                        <ImageIcon size={20} />
-                      </button>
-                      <form onSubmit={handleSendMessage} className="cm-composer-form">
+                      {imagePreview && (
+                        <div className="cm-image-preview">
+                          <img src={imagePreview} alt="Preview" />
+                          <button onClick={() => { setSelectedFile(null); setImagePreview(null); }} className="cm-preview-remove">&times;</button>
+                        </div>
+                      )}
+                      <div className="cm-composer-row">
                         <input
-                          type="text"
-                          placeholder="Nhập tin nhắn..."
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handleImageSelect}
                         />
-                        <button
-                          type="submit"
-                          className="cm-btn-send"
-                          disabled={!inputValue.trim()}
-                        >
-                          <Send size={20} />
+                        <button className="cm-btn-icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}>
+                          <ImageIcon size={18} />
                         </button>
-                      </form>
+                        <form onSubmit={handleSendMessage} className="cm-composer-form">
+                          <input
+                            type="text"
+                            placeholder="Nhập tin nhắn..."
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                          />
+                          <button
+                            type="submit"
+                            className="cm-btn-send"
+                            disabled={(!inputValue.trim() && !selectedFile) || uploadingImage}
+                          >
+                            {uploadingImage ? '...' : <Send size={18} />}
+                          </button>
+                        </form>
+                      </div>
                     </div>
                   )}
                 </>
               ) : (
                 <div className="cm-empty-state">
-                  <MessageCircle size={52} className="cm-empty-state-icon" />
+                  <MessageCircle size={48} className="cm-empty-state-icon" />
                   <p>Chọn một cuộc hội thoại để bắt đầu</p>
                 </div>
               )}
@@ -594,6 +752,43 @@ const ChatManage = () => {
           </div>
         )}
       </div>
+
+      {/* Confirm End Chat Dialog */}
+      {showEndConfirm && currentConversation && (
+        <div className="cm-confirm-overlay" onClick={() => setShowEndConfirm(false)}>
+          <div className="cm-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Kết thúc hội thoại</h3>
+            <p>
+              Bạn có chắc chắn muốn kết thúc cuộc trò chuyện với{' '}
+              <strong>{currentConversation.studentName}</strong>?
+            </p>
+            <div className="cm-confirm-actions">
+              <button
+                className="cm-confirm-cancel"
+                onClick={() => setShowEndConfirm(false)}
+              >
+                Hủy
+              </button>
+              <button
+                className="cm-confirm-yes"
+                onClick={() => handleEndChat(currentConversation.id)}
+              >
+                Kết thúc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Chat Toast Notification */}
+      {chatToast && (
+        <div className="cm-chat-toast" onClick={() => {
+          setSelectedConversationId(chatToast.conversationId);
+          setChatToast(null);
+        }}>
+          <strong>{chatToast.senderName}</strong>
+          <span>{chatToast.content}</span>
+        </div>
+      )}
     </>
   );
 };

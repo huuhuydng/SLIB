@@ -18,8 +18,8 @@ class WebSocketService {
 
     try {
       // Create SockJS connection
-      const socket = new SockJS('http://localhost:8080/ws');
-      
+      const socket = new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`);
+
       // Create STOMP client
       this.client = new Client({
         webSocketFactory: () => socket,
@@ -90,7 +90,7 @@ class WebSocketService {
           try {
             const data = JSON.parse(message.body);
             console.log('📨 Received message on', topic, ':', data);
-            
+
             // Notify all registered callbacks for this topic
             const topicCallbacks = this.callbacks.get(topic);
             if (topicCallbacks) {

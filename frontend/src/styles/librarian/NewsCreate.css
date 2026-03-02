@@ -86,7 +86,7 @@
 /* ===== EDITOR CONTAINER ===== */
 .news-editor-container {
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #ffffff;
   overflow: hidden;
   transition: all 0.25s;
@@ -195,7 +195,7 @@
 /* ===== UPLOAD ZONE ===== */
 .news-upload-zone {
   border: 2px dashed #e2e8f0;
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
@@ -252,7 +252,7 @@
 .news-image-preview {
   position: relative;
   border: 2px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 10px;
   overflow: hidden;
   min-height: 220px;
   background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
@@ -321,7 +321,7 @@
 .news-time-column {
   background: #ffffff;
   border: 2px solid #e2e8f0;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -430,7 +430,7 @@
   background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
   color: #dc2626;
   padding: 16px 20px;
-  border-radius: 14px;
+  border-radius: 8px;
   margin-bottom: 24px;
   font-size: 14px;
   display: flex;
@@ -460,7 +460,7 @@
   .news-card {
     padding: 24px 20px;
     margin: 16px;
-    border-radius: 20px;
+    border-radius: 12px;
   }
 
   .news-btn-group {

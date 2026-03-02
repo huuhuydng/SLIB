@@ -167,8 +167,18 @@ public class SeatService {
                             .findFirst();
 
                     if (matchingReservation.isPresent()) {
+                        var reservation = matchingReservation.get();
                         response.setSeatStatus(SeatStatus.BOOKED);
-                        response.setReservationEndTime(matchingReservation.get().getEndTime().toString());
+                        response.setReservationEndTime(reservation.getEndTime().toString());
+                        response.setReservationStartTime(reservation.getStartTime().toString());
+
+                        // Set booker info
+                        var user = reservation.getUser();
+                        if (user != null) {
+                            response.setBookedByUserName(user.getFullName());
+                            response.setBookedByUserCode(user.getUserCode());
+                            response.setBookedByAvatarUrl(user.getAvtUrl());
+                        }
                     } else {
                         response.setSeatStatus(SeatStatus.AVAILABLE);
                     }

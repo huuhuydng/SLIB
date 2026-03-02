@@ -15,11 +15,13 @@ import {
     Check,
     Eye,
     EyeOff,
-    Hash
+    Hash,
+    Bell,
+    LogOut,
 } from 'lucide-react';
 import '../styles/AccountSettings.css';
 
-const API_BASE_URL = 'http://localhost:8080/slib';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib`;
 
 const AccountSettings = () => {
     const navigate = useNavigate();
@@ -57,6 +59,10 @@ const AccountSettings = () => {
     const [passwordError, setPasswordError] = useState(null);
 
     const [isLoading, setIsLoading] = useState(true);
+    const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+        const saved = localStorage.getItem('slib_notifications_enabled');
+        return saved !== 'false'; // Default: bật
+    });
 
     // Load user data from API and save to session
     useEffect(() => {
@@ -316,6 +322,22 @@ const AccountSettings = () => {
         navigate(`${basePath}/dashboard`);
     };
 
+    const handleToggleNotifications = () => {
+        const newVal = !notificationsEnabled;
+        setNotificationsEnabled(newVal);
+        localStorage.setItem('slib_notifications_enabled', String(newVal));
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('librarian_token');
+        localStorage.removeItem('librarian_user');
+        localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('librarian_token');
+        sessionStorage.removeItem('librarian_user');
+        sessionStorage.removeItem('refresh_token');
+        navigate('/login');
+    };
+
     return (
         <div className="account-settings-container">
             {/* Page Header */}
@@ -532,6 +554,70 @@ const AccountSettings = () => {
                                     </div>
                                 </div>
                                 <ArrowLeft size={18} style={{ transform: 'rotate(180deg)' }} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Notification Settings Card */}
+                    <div className="settings-card">
+                        <div className="card-header">
+                            <div className="card-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                                <Bell size={20} />
+                            </div>
+                            <div>
+                                <h3>Thông báo</h3>
+                                <p>Quản lý cài đặt thông báo</p>
+                            </div>
+                        </div>
+
+                        <div className="card-content">
+                            <div className="info-item" style={{ cursor: 'pointer' }} onClick={handleToggleNotifications}>
+                                <div className="info-label">
+                                    <Bell size={16} />
+                                    <span>Hiển thị thông báo popup</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <button
+                                        className={`notif-toggle ${notificationsEnabled ? 'notif-toggle--on' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); handleToggleNotifications(); }}
+                                        aria-label="Toggle notifications"
+                                    >
+                                        <span className="notif-toggle__thumb" />
+                                    </button>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: 12, color: '#94a3b8', margin: '8px 0 0 36px' }}>
+                                Khi bật, thông báo sẽ hiện ở góc phải trên màn hình trong 5 giây mỗi khi có hoạt động mới.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Logout Card */}
+                    <div className="settings-card">
+                        <div className="card-header">
+                            <div className="card-icon" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                                <LogOut size={20} />
+                            </div>
+                            <div>
+                                <h3>Phiên đăng nhập</h3>
+                                <p>Đăng xuất khỏi tài khoản</p>
+                            </div>
+                        </div>
+
+                        <div className="card-content">
+                            <button
+                                className="security-button"
+                                onClick={handleLogout}
+                                style={{ borderColor: '#fecaca' }}
+                            >
+                                <div className="security-button-content">
+                                    <LogOut size={18} style={{ color: '#ef4444' }} />
+                                    <div>
+                                        <span className="security-title" style={{ color: '#ef4444' }}>Đăng xuất</span>
+                                        <span className="security-desc">Kết thúc phiên làm việc và quay về trang đăng nhập</span>
+                                    </div>
+                                </div>
+                                <ArrowLeft size={18} style={{ transform: 'rotate(180deg)', color: '#ef4444' }} />
                             </button>
                         </div>
                     </div>

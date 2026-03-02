@@ -67,8 +67,8 @@ const StatCard = ({
     <div 
       style={{
         background: styles.cardBg,
-        borderRadius: '16px',
-        boxShadow: '0 4px 20px rgba(26, 26, 26, 0.06)',
+        borderRadius: '10px',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         padding: '24px',
         display: 'flex',
         alignItems: 'flex-start',
@@ -121,8 +121,8 @@ const StatCard = ({
       {/* Content */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: '28px',
-          fontWeight: '700',
+          fontSize: '20px',
+          fontWeight: '600',
           color: 'var(--slib-text-primary, #1A1A1A)',
           lineHeight: '1.2',
           marginBottom: '4px'
@@ -142,7 +142,7 @@ const StatCard = ({
             gap: '4px',
             marginTop: '12px',
             padding: '4px 10px',
-            borderRadius: '20px',
+            borderRadius: '10px',
             fontSize: '12px',
             fontWeight: '600',
             color: getTrendColor(),

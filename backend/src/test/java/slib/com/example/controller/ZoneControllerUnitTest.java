@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.controller.zone_config.ZoneController;
+import slib.com.example.dto.zone_config.ZoneOccupancyDTO;
 import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.service.BookingService;
@@ -397,6 +398,79 @@ class ZoneControllerUnitTest {
                 .andExpect(status().isInternalServerError());
 
         verify(zoneService, times(1)).deleteZone(zoneId);
+    }
+
+    // ===============================================
+    // === GET ZONE OCCUPANCY ENDPOINT ===
+    // ===============================================
+
+    @Test
+    @DisplayName("getZoneOccupancy_validAreaId_returns200WithOccupancyList")
+    void getZoneOccupancy_validAreaId_returns200WithOccupancyList() throws Exception {
+        // Arrange
+        Long areaId = 5L;
+        ZoneOccupancyDTO occupancy1 = ZoneOccupancyDTO.builder()
+                .zoneId(1)
+                .zoneName("Reading Zone")
+                .color("#3498db")
+                .positionX(100)
+                .positionY(200)
+                .width(800)
+                .height(600)
+                .hasPowerOutlet(true)
+                .totalSeats(50L)
+                .occupiedSeats(30L)
+                .occupancyRate(0.6)
+                .build();
+
+        ZoneOccupancyDTO occupancy2 = ZoneOccupancyDTO.builder()
+                .zoneId(2)
+                .zoneName("Study Zone")
+                .color("#e74c3c")
+                .positionX(300)
+                .positionY(400)
+                .width(700)
+                .height(500)
+                .hasPowerOutlet(false)
+                .totalSeats(40L)
+                .occupiedSeats(35L)
+                .occupancyRate(0.875)
+                .build();
+
+        List<ZoneOccupancyDTO> occupancies = List.of(occupancy1, occupancy2);
+
+        when(zoneService.getZoneOccupancy(areaId)).thenReturn(occupancies);
+
+        // Act & Assert
+        mockMvc.perform(get("/slib/zones/occupancy/{areaId}", areaId)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].zoneId").value(1))
+                .andExpect(jsonPath("$[0].zoneName").value("Reading Zone"))
+                .andExpect(jsonPath("$[0].occupancyRate").value(0.6))
+                .andExpect(jsonPath("$[1].zoneId").value(2))
+                .andExpect(jsonPath("$[1].occupancyRate").value(0.875));
+
+        verify(zoneService, times(1)).getZoneOccupancy(areaId);
+    }
+
+    @Test
+    @DisplayName("getZoneOccupancy_emptyArea_returns200WithEmptyList")
+    void getZoneOccupancy_emptyArea_returns200WithEmptyList() throws Exception {
+        // Arrange
+        Long areaId = 99L;
+        when(zoneService.getZoneOccupancy(areaId)).thenReturn(List.of());
+
+        // Act & Assert
+        mockMvc.perform(get("/slib/zones/occupancy/{areaId}", areaId)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(zoneService, times(1)).getZoneOccupancy(areaId);
     }
 
     // ==========================================

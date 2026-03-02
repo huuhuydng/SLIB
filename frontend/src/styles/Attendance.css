@@ -16,7 +16,7 @@
 
 .monitor-title {
   font-size: 2.5rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #2d3748;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -166,7 +166,7 @@
 
 .student-name {
   font-size: 3.8rem;
-  font-weight: 900;
+  font-weight: 700;
   margin: 10px 0;
 }
 
@@ -213,7 +213,7 @@
 
 .monitor-title {
   font-size: 2.5rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #2d3748;
   text-transform: uppercase;
   margin-top: 0;
@@ -234,7 +234,7 @@
 /* Đảm bảo tiêu đề chính vẫn giữ font chữ cũ, chỉ đổi màu 2 chữ kia */
 .monitor-title {
   font-size: 2.5rem;
-  font-weight: 900;
+  font-weight: 700;
   color: #2d3748;
   /* Màu xám than cho các chữ còn lại */
   text-transform: uppercase;

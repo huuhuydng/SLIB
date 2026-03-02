@@ -17,12 +17,14 @@ import slib.com.example.entity.chat.Message;
 
 import slib.com.example.service.chat.UserChatService;
 import slib.com.example.service.chat.ConversationService;
+import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.UserService;
 
 import java.util.List;
 import java.util.Map; // Nhớ import Map
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/slib/chat")
@@ -33,6 +35,7 @@ public class UserChatController {
     private final UserChatService chatService;
     private final ConversationService conversationService;
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
 
     // ==========================================
     // PHẦN 1: WEBSOCKET
@@ -252,14 +255,12 @@ public class UserChatController {
         UUID userId = getCurrentUserId(userDetails);
         String reason = request != null ? (String) request.get("reason") : "User yêu cầu gặp thủ thư";
 
-        // Lấy message history từ request
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> messageHistory = request != null
-                ? (List<Map<String, Object>>) request.get("messageHistory")
-                : null;
+        // Lấy AI session ID để backend có thể đọc chat history từ MongoDB
+        String aiSessionId = request != null ? (String) request.get("aiSessionId") : null;
 
-        // Tạo conversation mới và escalate với message history
-        ConversationDTO conversation = conversationService.createAndEscalateWithHistory(userId, reason, messageHistory);
+        // Tạo conversation mới và escalate với aiSessionId
+        ConversationDTO conversation = conversationService.createAndEscalateWithHistory(
+                userId, reason, null, aiSessionId);
         int queuePosition = conversationService.getQueuePosition(conversation.getId());
         long totalWaiting = conversationService.countWaitingConversations();
 
@@ -293,6 +294,38 @@ public class UserChatController {
         ChatMessageDTO message = conversationService.addMessageToConversation(
                 conversationId, senderId, content, senderType);
         return ResponseEntity.ok(message);
+    }
+
+    // 18b. Gửi tin nhắn kèm ảnh vào conversation
+    @PostMapping("/conversations/{conversationId}/messages/with-image")
+    public ResponseEntity<?> sendMessageWithImage(
+            @PathVariable UUID conversationId,
+            @RequestParam(value = "file") MultipartFile file,
+            @RequestParam(value = "content", required = false, defaultValue = "") String content,
+            @RequestParam(value = "senderType", required = false, defaultValue = "STUDENT") String senderType,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            UUID senderId = getCurrentUserId(userDetails);
+
+            // Validate file size (5MB max)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File quá lớn. Tối đa: 5MB"));
+            }
+
+            // Upload ảnh lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImageChat(file);
+
+            // Ghép URL vào content theo format [IMAGES]
+            String fullContent = content.isEmpty()
+                    ? "[IMAGES]\n" + imageUrl
+                    : content + "\n[IMAGES]\n" + imageUrl;
+
+            ChatMessageDTO message = conversationService.addMessageToConversation(
+                    conversationId, senderId, fullContent, senderType);
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi gửi ảnh: " + e.getMessage()));
+        }
     }
 
     // 19. Lay conversation status (cho mobile polling)

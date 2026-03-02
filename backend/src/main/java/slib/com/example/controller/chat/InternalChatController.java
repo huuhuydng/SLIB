@@ -80,6 +80,7 @@ public class InternalChatController {
                     .attachmentUrl(request.getAttachmentUrl())
                     .type(parseMessageType(request.getMessageType()))
                     .conversation(conversation)
+                    .senderType("AI")
                     .build();
 
             Message savedMessage = messageRepository.save(message);

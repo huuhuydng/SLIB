@@ -8,6 +8,7 @@ import slib.com.example.entity.news.News;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.repository.NewsRepository;
 import slib.com.example.scheduler.NewsScheduler;
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,9 @@ public class NewsService {
 
     @Autowired
     private NewsScheduler newsScheduler;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
@@ -60,6 +64,7 @@ public class NewsService {
                         .viewCount(news.getViewCount())
                         .createdAt(news.getCreatedAt())
                         .publishedAt(news.getPublishedAt())
+                        .imageUrl(news.getImageUrl())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -79,6 +84,7 @@ public class NewsService {
                 .viewCount(news.getViewCount())
                 .createdAt(news.getCreatedAt())
                 .publishedAt(news.getPublishedAt())
+                .imageUrl(news.getImageUrl())
                 .build();
     }
 
@@ -119,6 +125,15 @@ public class NewsService {
         existingNews.setTitle(newsDetails.getTitle());
         existingNews.setSummary(newsDetails.getSummary());
         existingNews.setContent(newsDetails.getContent());
+
+        // Xoa anh cu tren Cloudinary neu imageUrl thay doi
+        String oldImageUrl = existingNews.getImageUrl();
+        String newImageUrl = newsDetails.getImageUrl();
+        if (oldImageUrl != null && !oldImageUrl.isEmpty()
+                && (newImageUrl == null || !oldImageUrl.equals(newImageUrl))) {
+            cloudinaryService.deleteImageByUrl(oldImageUrl);
+        }
+
         existingNews.setImageUrl(newsDetails.getImageUrl());
         existingNews.setCategory(newsDetails.getCategory());
         existingNews.setIsPinned(newsDetails.getIsPinned());
@@ -148,9 +163,14 @@ public class NewsService {
     }
 
     public void deleteNews(Long id) {
-        if (!newsRepository.existsById(id)) {
-            throw new RuntimeException("Không tồn tại tin tức để xóa!");
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tồn tại tin tức để xóa!"));
+
+        // Xoa anh tren Cloudinary neu co
+        if (news.getImageUrl() != null && !news.getImageUrl().isEmpty()) {
+            cloudinaryService.deleteImageByUrl(news.getImageUrl());
         }
+
         // Cancel scheduled task nếu có
         newsScheduler.cancelScheduledTask(id);
         newsRepository.deleteById(id);

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
-import Header from "../../../components/shared/Header";
 import '../../../styles/librarian/NewsDetailView.css';
-import { handleLogout } from "../../../utils/auth";
 import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } from '../../../services/newsService';
 
 const NewsDetailView = () => {
@@ -50,10 +48,10 @@ const NewsDetailView = () => {
   const loadRelatedNews = async () => {
     try {
       const allNews = await getAllNewsForAdmin();
-      // Filter out current news and get latest 10
+      // Filter out current news and get latest 5
       const filtered = allNews
         .filter(news => news.id !== parseInt(id) && news.isPublished)
-        .slice(0, 10);
+        .slice(0, 5);
 
       // Load images for related news
       const newsWithImages = await Promise.all(
@@ -110,191 +108,181 @@ const NewsDetailView = () => {
 
   if (loading) {
     return (
-      <>
-        <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
-        <div className="news-detail-loading">
-          <div className="loading-spinner"></div>
-          <p>Đang tải...</p>
-        </div>
-      </>
+      <div className="news-detail-loading">
+        <div className="loading-spinner"></div>
+        <p>Đang tải...</p>
+      </div>
     );
   }
 
   if (error || !newsData) {
     return (
-      <>
-        <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
-        <div className="news-detail-error">
-          <p>{error || 'Không tìm thấy tin tức'}</p>
-          <button onClick={() => navigate(basePath)} className="btn-back">
-            Quay lại
-          </button>
-        </div>
-      </>
+      <div className="news-detail-error">
+        <p>{error || 'Không tìm thấy tin tức'}</p>
+        <button onClick={() => navigate(basePath)} className="btn-back">
+          Quay lại
+        </button>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
-
-      <div className="news-detail-wrapper">
-        {/* Breadcrumb */}
-        <div
-          className="breadcrumb-section"
-          style={{
-            backgroundImage: newsData.imageUrl
-              ? `url(${newsData.imageUrl})`
-              : 'url(https://lib.tdtu.edu.vn/sites/tdt_lib/files/breadcrumb-tvvv.png)'
-          }}
-        >
-          <div className="breadcrumb-content">
-            <div className="crumb-badge">Tin tức & Sự kiện</div>
-            <h1 className="page-title">{newsData.title}</h1>
-            <div className="crumb-meta">
-              <span className="chip ghost"><Calendar size={14} /> {formatDate(newsData.publishedAt || newsData.createdAt)}</span>
-              <span className="chip ghost"><Eye size={14} /> {newsData.viewCount || 0} lượt xem</span>
-              <span className="chip ghost"><Tag size={14} /> {getCategoryName(newsData.categoryId)}</span>
-            </div>
-            <nav className="breadcrumb-nav">
-              <a href="/">Trang chủ</a>
-              <span className="separator">/</span>
-              <a href={basePath}>Tin tức</a>
-              <span className="separator">/</span>
-              <span className="current">{newsData.title}</span>
-            </nav>
+    <div className="news-detail-wrapper">
+      {/* Breadcrumb */}
+      <div
+        className="breadcrumb-section"
+        style={{
+          backgroundImage: newsData.imageUrl
+            ? `url(${newsData.imageUrl})`
+            : 'url(https://lib.tdtu.edu.vn/sites/tdt_lib/files/breadcrumb-tvvv.png)'
+        }}
+      >
+        <div className="breadcrumb-content">
+          <div className="crumb-badge">Tin tức & Sự kiện</div>
+          <h1 className="page-title">{newsData.title}</h1>
+          <div className="crumb-meta">
+            <span className="chip ghost"><Calendar size={14} /> {formatDate(newsData.publishedAt || newsData.createdAt)}</span>
+            <span className="chip ghost"><Eye size={14} /> {newsData.viewCount || 0} lượt xem</span>
+            <span className="chip ghost"><Tag size={14} /> {getCategoryName(newsData.categoryId)}</span>
           </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="news-detail-container">
-          <div className="news-detail-layout">
-            {/* Left Column - Main Content */}
-            <div className="news-main-content">
-              <div className="news-cover">
-                <img src={newsData.imageUrl || 'https://via.placeholder.com/1200x500'} alt={newsData.title} />
-                <div className="cover-gradient" />
-              </div>
-
-              <div className="news-header">
-                <div className="eyebrow">
-                  <span className="chip ghost">ID #{newsData.id}</span>
-                  <span className="chip ghost">{newsData.viewCount || 0} lượt xem</span>
-                  <span className="chip ghost">{formatDate(newsData.createdAt)}</span>
-                </div>
-                <h2 className="news-title">{newsData.title}</h2>
-                <p className="news-subtitle">{newsData.summary || 'Không có mô tả ngắn'}</p>
-              </div>
-
-              <article className="news-article">
-                <div
-                  className="news-content"
-                  dangerouslySetInnerHTML={{ __html: newsData.content }}
-                />
-              </article>
-
-              <div className="news-actions-bar actions-bottom">
-                <div className="actions-left">
-                  <button
-                    onClick={() => navigate(basePath)}
-                    className="btn-action btn-back"
-                  >
-                    <ArrowLeft size={16} />
-                    Quay lại
-                  </button>
-                </div>
-                <div className="actions-right">
-                  <button
-                    onClick={() => navigate(`${basePath}/edit/${id}`)}
-                    className="btn-action btn-edit"
-                  >
-                    <Pencil size={16} />
-                    Chỉnh sửa
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="btn-action btn-delete"
-                  >
-                    <Trash2 size={16} />
-                    Xóa
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Sidebar */}
-            <aside className="news-sidebar">
-              {/* Related News */}
-              <div className="sidebar-section related-news-section">
-                <h3 className="sidebar-title">Tin tức</h3>
-                <div className="related-news-list">
-                  {relatedNews.map((item) => (
-                    <div
-                      key={item.id}
-                      className="related-news-item"
-                      onClick={() => navigate(`${basePath}/view/${item.id}`)}
-                    >
-                      <div className="related-news-image">
-                        <img
-                          src={item.imageUrl || 'https://via.placeholder.com/150'}
-                          alt={item.title}
-                        />
-                      </div>
-                      <div className="related-news-content">
-                        <h4 className="related-news-title">{item.title}</h4>
-                        <p className="related-meta">{formatDate(item.publishedAt || item.createdAt)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sidebar-section">
-                <h3 className="sidebar-title">Thông tin bài viết</h3>
-
-                <div className="info-card">
-                  <div className="info-row">
-                    <span className="info-label">ID:</span>
-                    <span className="info-value">{newsData.id}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">Chủ đề:</span>
-                    <span className="info-value">
-                      {getCategoryName(newsData.categoryId)}
-                    </span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">Trạng thái:</span>
-                    <span className="info-value">
-                      {newsData.isPublished ? '✓ Đã đăng' : '📝 Nháp'}
-                    </span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">Ghim:</span>
-                    <span className="info-value">
-                      {newsData.isPinned ? 'Có' : 'Không'}
-                    </span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">Lượt xem:</span>
-                    <span className="info-value">{newsData.viewCount || 0}</span>
-                  </div>
-
-                  <div className="info-row">
-                    <span className="info-label">Ngày tạo:</span>
-                    <span className="info-value">{formatDate(newsData.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </div>
+          <nav className="breadcrumb-nav">
+            <a href="/">Trang chủ</a>
+            <span className="separator">/</span>
+            <a href={basePath}>Tin tức</a>
+            <span className="separator">/</span>
+            <span className="current">{newsData.title}</span>
+          </nav>
         </div>
       </div>
-    </>
+
+      {/* Main Content */}
+      <div className="news-detail-container">
+        <div className="news-detail-layout">
+          {/* Left Column - Main Content */}
+          <div className="news-main-content">
+            <div className="news-cover">
+              <img src={newsData.imageUrl || 'https://via.placeholder.com/1200x500'} alt={newsData.title} />
+              <div className="cover-gradient" />
+            </div>
+
+            <div className="news-header">
+              <div className="eyebrow">
+                <span className="chip ghost">ID #{newsData.id}</span>
+                <span className="chip ghost">{newsData.viewCount || 0} lượt xem</span>
+                <span className="chip ghost">{formatDate(newsData.createdAt)}</span>
+              </div>
+              <h2 className="news-title">{newsData.title}</h2>
+              <p className="news-subtitle">{newsData.summary || 'Không có mô tả ngắn'}</p>
+            </div>
+
+            <article className="news-article">
+              <div
+                className="news-content"
+                dangerouslySetInnerHTML={{ __html: newsData.content }}
+              />
+            </article>
+
+            <div className="news-actions-bar actions-bottom">
+              <div className="actions-left">
+                <button
+                  onClick={() => navigate(basePath)}
+                  className="btn-action btn-back"
+                >
+                  <ArrowLeft size={16} />
+                  Quay lại
+                </button>
+              </div>
+              <div className="actions-right">
+                <button
+                  onClick={() => navigate(`${basePath}/edit/${id}`)}
+                  className="btn-action btn-edit"
+                >
+                  <Pencil size={16} />
+                  Chỉnh sửa
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="btn-action btn-delete"
+                >
+                  <Trash2 size={16} />
+                  Xóa
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar */}
+          <aside className="news-sidebar">
+            {/* Related News */}
+            <div className="sidebar-section related-news-section">
+              <h3 className="sidebar-title">Tin tức</h3>
+              <div className="related-news-list">
+                {relatedNews.map((item) => (
+                  <div
+                    key={item.id}
+                    className="related-news-item"
+                    onClick={() => navigate(`${basePath}/view/${item.id}`)}
+                  >
+                    <div className="related-news-image">
+                      <img
+                        src={item.imageUrl || 'https://via.placeholder.com/150'}
+                        alt={item.title}
+                      />
+                    </div>
+                    <div className="related-news-content">
+                      <h4 className="related-news-title">{item.title}</h4>
+                      <p className="related-meta">{formatDate(item.publishedAt || item.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="sidebar-section">
+              <h3 className="sidebar-title">Thông tin bài viết</h3>
+
+              <div className="info-card">
+                <div className="info-row">
+                  <span className="info-label">ID:</span>
+                  <span className="info-value">{newsData.id}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">Chủ đề:</span>
+                  <span className="info-value">
+                    {getCategoryName(newsData.categoryId)}
+                  </span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">Trạng thái:</span>
+                  <span className="info-value">
+                    {newsData.isPublished ? '✓ Đã đăng' : '📝 Nháp'}
+                  </span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">Ghim:</span>
+                  <span className="info-value">
+                    {newsData.isPinned ? 'Có' : 'Không'}
+                  </span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">Lượt xem:</span>
+                  <span className="info-value">{newsData.viewCount || 0}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">Ngày tạo:</span>
+                  <span className="info-value">{formatDate(newsData.createdAt)}</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
   );
 };
 

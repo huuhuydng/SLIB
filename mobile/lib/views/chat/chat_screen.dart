@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/services/chat_service.dart';
@@ -431,7 +433,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
                 ),
                 Text(
-                  _isEscalated ? "Đang chờ..." : "Trung tâm hỗ trợ", 
+                  _isEscalated 
+                    ? (_isWaitingInQueue 
+                        ? "Đang chờ..." 
+                        : (_librarianName != null && _librarianName!.isNotEmpty 
+                            ? _librarianName! 
+                            : "Đang trực tuyến"))
+                    : "Trung tâm hỗ trợ", 
                   style: const TextStyle(color: Colors.grey, fontSize: 12)
                 ),
               ],
@@ -543,7 +551,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.add_circle_outline, color: Colors.grey), 
-                    onPressed: () {}
+                    onPressed: _isEscalated && _conversationId != null && !_isWaitingInQueue
+                        ? () => _handlePickImage()
+                        : null,
                   ),
                   Expanded(
                     child: TextField(
@@ -878,6 +888,106 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Chọn và gửi ảnh
+  void _handlePickImage() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Chọn từ thư viện'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndSendImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Chụp ảnh'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickAndSendImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickAndSendImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source, maxWidth: 1200, imageQuality: 80);
+      if (pickedFile == null) return;
+
+      final file = File(pickedFile.path);
+
+      // Thêm optimistic message
+      setState(() {
+        _messages.add(ChatMessage(
+          text: 'Đang gửi ảnh...',
+          isUser: true,
+          time: DateTime.now(),
+        ));
+      });
+      _scrollToBottom();
+
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = await authService.getToken();
+      if (token != null && _conversationId != null) {
+        final responseContent = await _chatService.sendMessageWithImage(
+          conversationId: _conversationId!,
+          imageFile: file,
+          senderType: 'STUDENT',
+          authToken: token,
+        );
+        
+        // Xóa optimistic message
+        setState(() {
+          _messages.removeWhere((m) => m.text == 'Đang gửi ảnh...' && m.isUser);
+        });
+        
+        if (responseContent != null) {
+          // Parse [IMAGES] tag và thêm message thật kèm ảnh
+          String textPart = '';
+          List<String>? imgUrls;
+          if (responseContent.contains('[IMAGES]')) {
+            final parts = responseContent.split('[IMAGES]');
+            textPart = parts[0].trim();
+            imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+          }
+          setState(() {
+            _messages.add(ChatMessage(
+              text: textPart.isNotEmpty ? textPart : 'Đã gửi ảnh',
+              isUser: true,
+              time: DateTime.now(),
+              imageUrls: imgUrls,
+            ));
+          });
+          _scrollToBottom();
+          _saveMessages();
+          print('[CHAT] Image sent successfully, urls: $imgUrls');
+        } else {
+          setState(() {
+            _messages.add(ChatMessage(
+              text: 'Gửi ảnh thất bại. Vui lòng thử lại.',
+              isUser: false,
+              time: DateTime.now(),
+            ));
+          });
+        }
+      }
+    } catch (e) {
+      print('[CHAT] Error picking/sending image: $e');
+      setState(() {
+        _messages.removeWhere((m) => m.text == 'Đang gửi ảnh...' && m.isUser);
+      });
+    }
+  }
+
   // Xử lý gửi tin nhắn & Gọi AI Service
   void _handleSubmitted(String text) async {
     if (text.trim().isEmpty) return;
@@ -925,12 +1035,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
               final senderType = msgData['senderType'] as String? ?? '';
               if (senderType == 'LIBRARIAN') {
+                final msgContent = msgData['content'] ?? '';
+                // Parse [IMAGES] tag
+                String textPart = msgContent;
+                List<String>? imgUrls;
+                if (msgContent.contains('[IMAGES]')) {
+                  final parts = msgContent.split('[IMAGES]');
+                  textPart = parts[0].trim();
+                  imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+                }
                 setState(() {
                   _messages.add(ChatMessage(
-                    text: msgData['content'] ?? '',
+                    text: textPart,
                     isUser: false,
                     time: DateTime.now(),
                     isFromLibrarian: true,
+                    imageUrls: imgUrls,
                   ));
                 });
                 _scrollToBottom();
@@ -1150,38 +1270,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final token = await authService.getToken();
       
       if (token != null) {
-        // Gửi chat history từ SESSION HIỆN TẠI (không lấy hội thoại cũ)
-        // Tìm vị trí message "kết thúc" cuối cùng để chỉ lấy messages sau đó
-        int lastEndedIndex = -1;
-        for (int i = _messages.length - 1; i >= 0; i--) {
-          if (_messages[i].text.contains('kết thúc cuộc trò chuyện') ||
-              _messages[i].text.contains('sẵn sàng tiếp tục hỗ trợ')) {
-            lastEndedIndex = i;
-            break;
-          }
-        }
-        
-        final recentMessages = lastEndedIndex >= 0 
-            ? _messages.sublist(lastEndedIndex + 1)
-            : _messages;
-        
-        final messageHistory = recentMessages
-          .where((m) => 
-            (m.type == ChatMessageType.text || m.type == ChatMessageType.withActions) &&
-            !m.text.contains('đang kết nối') &&
-            !m.text.contains('đã tiếp nhận') &&
-            !m.text.contains('Chào bạn! Mình là trợ lý ảo'))
-          .map((m) => {
-            'content': m.text,
-            'isUser': m.isUser,
-            'senderType': m.isUser ? 'STUDENT' : 'AI',
-          })
-          .toList();
-        
+        // Gửi AI session ID để backend đọc chat history từ MongoDB
         final result = await _chatService.requestLibrarian(
           'User yêu cầu gặp thủ thư',
           token,
-          messageHistory: messageHistory,
+          aiSessionId: _chatService.sessionId,
         );
         
         if (result.success && mounted) {
@@ -1256,8 +1349,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _queuePosition = 0;
     });
 
-    // Load messages from backend
-    await _loadMessagesFromBackend(_conversationId!, token);
+    // Load messages from backend - GIỮ messages local (AI chat context)
+    await _loadMessagesFromBackend(_conversationId!, token, keepExisting: true);
 
     // Show notification message
     setState(() {
@@ -1281,12 +1374,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         final senderType = msgData['senderType'] as String? ?? '';
         if (senderType == 'LIBRARIAN') {
+          final msgContent = msgData['content'] ?? '';
+          // Parse [IMAGES] tag
+          String textPart = msgContent;
+          List<String>? imgUrls;
+          if (msgContent.contains('[IMAGES]')) {
+            final parts = msgContent.split('[IMAGES]');
+            textPart = parts[0].trim();
+            imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+          }
           setState(() {
             _messages.add(ChatMessage(
-              text: msgData['content'] ?? '',
+              text: textPart,
               isUser: false,
               time: DateTime.now(),
               isFromLibrarian: true,
+              imageUrls: imgUrls,
             ));
           });
           _scrollToBottom();
@@ -1335,6 +1438,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       return;
     }
 
+    int consecutiveErrors = 0;
+    const int maxRetries = 60; // 60 lần x 500ms = 30 giây chờ server khôi phục
+
     while (_isEscalated && mounted && _conversationId != null && !_isWaitingInQueue) {
       await Future.delayed(const Duration(milliseconds: 500)); // 500ms cho gan real-time
       
@@ -1346,12 +1452,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       try {
         // Check nếu conversation đã resolved hoặc quay về AI mode
         final status = await _chatService.getConversationStatus(_conversationId!, token);
+        
+        // API thành công → reset đếm lỗi
+        consecutiveErrors = 0;
+        
         if (status.isResolved) {
           print('[POLLING] Conversation resolved, ending chat');
           _handleChatEnded();
           break;
         }
-        // NEW: Check nếu thủ thư đã kết thúc (status quay về AI_HANDLING)
+        // Check nếu thủ thư đã kết thúc (status quay về AI_HANDLING)
         if (status.isAIHandling && _isEscalated) {
           print('[POLLING] Librarian ended chat (status is AI_HANDLING), back to AI mode');
           _handleChatEnded();
@@ -1373,7 +1483,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             // DEBUG: In ra tất cả messages để kiểm tra
             print('[POLLING] MSG: id=$msgId, senderType=$senderType, content=${content.length > 30 ? content.substring(0, 30) : content}...');
             
-            // NEW: Check SYSTEM message (thủ thư kết thúc)
+            // Check SYSTEM message (thủ thư kết thúc)
             if (senderType == 'SYSTEM' && content.contains('kết thúc')) {
               print('[POLLING] >>> SYSTEM message: librarian ended chat');
               _handleChatEnded();
@@ -1388,12 +1498,21 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               if (senderType == 'LIBRARIAN' && content.isNotEmpty) {
                 print('[POLLING] >>> NEW librarian message: $content');
                 hasNewMessages = true;
+                // Parse [IMAGES] tag
+                String textPart = content;
+                List<String>? imgUrls;
+                if (content.contains('[IMAGES]')) {
+                  final parts = content.split('[IMAGES]');
+                  textPart = parts[0].trim();
+                  imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+                }
                 setState(() {
                   _messages.add(ChatMessage(
-                    text: content,
+                    text: textPart,
                     isUser: false,
                     isFromLibrarian: true,
                     time: DateTime.now(),
+                    imageUrls: imgUrls,
                   ));
                 });
               }
@@ -1405,7 +1524,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           }
         }
       } catch (e) {
-        print('[POLLING] Error: $e');
+        consecutiveErrors++;
+        print('[POLLING] Error #$consecutiveErrors: $e');
+        
+        // Server đang restart → chờ lâu hơn, KHÔNG kết thúc chat
+        if (consecutiveErrors <= maxRetries) {
+          print('[POLLING] Server có thể đang restart, chờ thêm... ($consecutiveErrors/$maxRetries)');
+          // Chờ lâu hơn khi có lỗi liên tiếp (1-3 giây)
+          await Future.delayed(Duration(milliseconds: consecutiveErrors > 10 ? 3000 : 1000));
+        } else {
+          // Quá 30 giây lỗi liên tiếp → thông báo lỗi nhưng vẫn KHÔNG kết thúc
+          print('[POLLING] Quá nhiều lỗi liên tiếp, tạm dừng polling');
+          break;
+        }
       }
     }
     print('[POLLING] Polling ended');

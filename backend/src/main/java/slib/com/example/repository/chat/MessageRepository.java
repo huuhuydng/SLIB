@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.stereotype.Repository;
+import java.time.LocalDateTime;
 import slib.com.example.entity.chat.Message;
 import slib.com.example.entity.chat.MessageType;
 // import slib.com.example.entity.users.User; // Không cần dùng nữa nếu chỉ lấy ID
@@ -113,15 +114,34 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
        // 13. Lấy messages của conversation với filter theo humanSessionId
        // Quy tắc:
-       // - Load TẤT CẢ messages có humanSessionId IS NULL (AI + USER context)
-       // - Load LIBRARIAN messages CHỈ nếu humanSessionId = current session
-       // - KHÔNG load LIBRARIAN messages từ session cũ
+       // - CHỈ load messages có humanSessionId = current session
+       // - KHÔNG load messages từ session cũ
        @Query("SELECT m FROM Message m WHERE m.conversation.id = :sessionId " +
-                     "AND (m.humanSessionId IS NULL OR m.humanSessionId = :currentHumanSession) " +
+                     "AND m.humanSessionId = :currentHumanSession " +
                      "ORDER BY m.createdAt ASC")
        List<Message> findBySessionWithHumanSessionFilter(
                      @Param("sessionId") UUID sessionId,
                      @Param("currentHumanSession") Integer currentHumanSession);
+
+       // 13b. Lấy messages gần đây có humanSessionId IS NULL (tin nhắn AI/STUDENT chưa
+       // gán session)
+       // Dùng khi cần hiện context AI cho thủ thư trong escalation
+       @Query("SELECT m FROM Message m WHERE m.conversation.id = :sessionId " +
+                     "AND m.humanSessionId IS NULL " +
+                     "AND m.createdAt > :afterTimestamp " +
+                     "ORDER BY m.createdAt ASC")
+       List<Message> findRecentNullSessionMessages(
+                     @Param("sessionId") UUID sessionId,
+                     @Param("afterTimestamp") LocalDateTime afterTimestamp);
+
+       // 13c. Lấy thời gian message cuối cùng của human session trước
+       // Dùng để filter AI messages: chỉ lấy AI messages SAU thời điểm session trước
+       // kết thúc
+       @Query("SELECT MAX(m.createdAt) FROM Message m WHERE m.conversation.id = :conversationId " +
+                     "AND m.humanSessionId = :previousSession")
+       LocalDateTime findMaxCreatedAtBySession(
+                     @Param("conversationId") UUID conversationId,
+                     @Param("previousSession") Integer previousSession);
 
        // 14. Lấy chỉ bot messages (cho AI context loading)
        @Query("SELECT m FROM Message m WHERE m.conversation.id = :sessionId " +
@@ -138,4 +158,29 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
        int assignBotMessagesToHumanSession(
                      @Param("conversationId") UUID conversationId,
                      @Param("humanSessionId") Integer humanSessionId);
+
+       // 16. Gán bot messages (humanSessionId = NULL) tạo SAU thời điểm nhất định
+       // Dùng khi escalate lần 2+ để chỉ gán messages mới (sau lần resolve gần nhất)
+       @Modifying
+       @Query("UPDATE Message m SET m.humanSessionId = :humanSessionId " +
+                     "WHERE m.conversation.id = :conversationId " +
+                     "AND m.humanSessionId IS NULL " +
+                     "AND m.createdAt > :afterTimestamp")
+       int assignRecentBotMessagesToHumanSession(
+                     @Param("conversationId") UUID conversationId,
+                     @Param("humanSessionId") Integer humanSessionId,
+                     @Param("afterTimestamp") LocalDateTime afterTimestamp);
+
+       // 17. Đếm messages trong conversation (dùng để skip duplicate khi mobile gửi
+       // history)
+       long countByConversationId(UUID conversationId);
+
+       // 18. Đếm tin nhắn chưa đọc từ student trong conversation đang HUMAN_CHATTING
+       // Dùng cho badge tin nhắn trên web (thủ thư)
+       @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.status = slib.com.example.entity.chat.ConversationStatus.HUMAN_CHATTING "
+                     +
+                     "AND m.conversation.librarian.id = :librarianId " +
+                     "AND m.senderType = 'STUDENT' " +
+                     "AND m.isRead = false")
+       long countUnreadStudentMessagesForLibrarian(@Param("librarianId") UUID librarianId);
 }

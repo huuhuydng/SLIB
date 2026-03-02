@@ -2,6 +2,7 @@ package slib.com.example.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -46,6 +47,8 @@ public class SeatViolationReportService {
     private final StudentProfileRepository studentProfileRepository;
     private final CloudinaryService cloudinaryService;
     private final PushNotificationService pushNotificationService;
+    private final LibrarianNotificationService librarianNotificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /**
      * Sinh vien tao bao cao vi pham
@@ -101,6 +104,8 @@ public class SeatViolationReportService {
             sendNewReportNotification(violator.getId(), saved);
         }
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "CREATED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "CREATED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -109,6 +114,16 @@ public class SeatViolationReportService {
      */
     public List<ViolationReportResponse> getMyReports(UUID reporterId) {
         return violationReportRepository.findByReporter_IdOrderByCreatedAtDesc(reporterId)
+                .stream()
+                .map(ViolationReportResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Sinh viên xem danh sách vi phạm bị gán cho mình
+     */
+    public List<ViolationReportResponse> getViolationsAgainstMe(UUID violatorId) {
+        return violationReportRepository.findByViolator_IdOrderByCreatedAtDesc(violatorId)
                 .stream()
                 .map(ViolationReportResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -210,6 +225,8 @@ public class SeatViolationReportService {
         log.info("[ViolationReport] Verified report {} by librarian {}, deducted {} points",
                 reportId, librarianId, pointsToDeduct);
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "VERIFIED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "VERIFIED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -239,6 +256,8 @@ public class SeatViolationReportService {
 
         log.info("[ViolationReport] Rejected report {} by librarian {}", reportId, librarianId);
 
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "REJECTED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "REJECTED");
         return ViolationReportResponse.fromEntity(saved);
     }
 
@@ -247,6 +266,17 @@ public class SeatViolationReportService {
      */
     public long countByStatus(ReportStatus status) {
         return violationReportRepository.countByStatus(status);
+    }
+
+    /**
+     * Xoa nhieu bao cao cung luc
+     */
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        violationReportRepository.deleteAllById(ids);
+        log.info("[ViolationReport] Deleted {} reports", ids.size());
+        broadcastDashboardUpdate("VIOLATION_UPDATE", "DELETED");
+        librarianNotificationService.broadcastPendingCounts("VIOLATION", "DELETED");
     }
 
     // ===== PRIVATE HELPERS =====
@@ -287,7 +317,7 @@ public class SeatViolationReportService {
             case FOOD_DRINK -> "FOOD_DRINK";
             case SLEEPING -> "SLEEPING";
             case LEFT_BELONGINGS -> "LEFT_BELONGINGS";
-            case OTHER -> "NOISE_VIOLATION"; // default
+            case OTHER -> "OTHER_VIOLATION"; // vi phạm khác
         };
     }
 
@@ -456,6 +486,15 @@ public class SeatViolationReportService {
                     });
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare new report notification: {}", e.getMessage());
+        }
+    }
+
+    private void broadcastDashboardUpdate(String type, String action) {
+        try {
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
         }
     }
 }

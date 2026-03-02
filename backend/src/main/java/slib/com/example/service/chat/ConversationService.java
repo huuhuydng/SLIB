@@ -2,6 +2,7 @@ package slib.com.example.service.chat;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,13 +16,23 @@ import slib.com.example.entity.users.User;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.chat.MessageRepository;
+import slib.com.example.service.LibrarianNotificationService;
+import slib.com.example.service.PushNotificationService;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +43,13 @@ public class ConversationService {
         private final UserRepository userRepository;
         private final MessageRepository messageRepository;
         private final SimpMessagingTemplate messagingTemplate;
+        private final @Lazy LibrarianNotificationService librarianNotificationService;
+        private final @Lazy PushNotificationService pushNotificationService;
+
+        @Value("${app.ai-service.url:http://127.0.0.1:8001}")
+        private String aiServiceUrl;
+
+        private final RestTemplate restTemplate = new RestTemplate();
 
         /**
          * Lấy hoặc tạo session duy nhất cho student
@@ -86,7 +104,17 @@ public class ConversationService {
 
                 // Gán bot messages (humanSessionId = NULL) vào session mới
                 // Để thủ thư thấy context AI trước khi escalate
-                int updated = messageRepository.assignBotMessagesToHumanSession(conversationId, newHumanSession);
+                // QUAN TRỌNG: Nếu đã từng resolve, chỉ gán messages MỚI (sau lần resolve gần
+                // nhất)
+                // để tránh gán lại messages cũ từ session trước
+                int updated;
+                if (conv.getResolvedAt() != null) {
+                        updated = messageRepository.assignRecentBotMessagesToHumanSession(
+                                        conversationId, newHumanSession, conv.getResolvedAt());
+                } else {
+                        updated = messageRepository.assignBotMessagesToHumanSession(
+                                        conversationId, newHumanSession);
+                }
                 log.info("[Conversation] Assigned {} bot context messages to human session {}",
                                 updated, newHumanSession);
 
@@ -99,6 +127,7 @@ public class ConversationService {
                 // Broadcast queue position updates to all waiting students
                 broadcastQueuePositionUpdates();
 
+                librarianNotificationService.broadcastPendingCounts("CHAT", "ESCALATED");
                 return dto;
         }
 
@@ -143,6 +172,7 @@ public class ConversationService {
                 // Broadcast queue position updates to remaining waiting students
                 broadcastQueuePositionUpdates();
 
+                librarianNotificationService.broadcastPendingCounts("CHAT", "TAKEN_OVER");
                 return convertToDTO(saved);
         }
 
@@ -185,6 +215,7 @@ public class ConversationService {
                                 "conversationId", conversationId.toString()));
 
                 log.info("[WebSocket] Sent CHAT_ENDED notification to student for conversation: {}", conversationId);
+                librarianNotificationService.broadcastPendingCounts("CHAT", "RESOLVED");
                 return convertToDTO(saved);
         }
 
@@ -260,6 +291,9 @@ public class ConversationService {
 
                 // Broadcast queue position updates to remaining waiting students
                 broadcastQueuePositionUpdates();
+
+                // Broadcast pending counts để badge thủ thư tự cập nhật
+                librarianNotificationService.broadcastPendingCounts("CHAT", "CANCELLED");
         }
 
         /**
@@ -324,16 +358,14 @@ public class ConversationService {
         }
 
         /**
-         * Tạo conversation, escalate, và lưu message history
-         * Messages được gán humanSessionId = currentSession (KHÔNG PHẢI NULL)
-         * để tránh duplicate khi escalate nhiều lần
+         * Tạo conversation, escalate, và lưu aiSessionId để backend có thể đọc
+         * chat history từ MongoDB qua AI service API
          */
         @Transactional
         public ConversationDTO createAndEscalateWithHistory(UUID studentId, String reason,
-                        List<Map<String, Object>> messageHistory) {
+                        List<Map<String, Object>> messageHistory, String aiSessionId) {
                 // Tạo hoặc lấy conversation
                 Conversation conv = getOrCreateConversation(studentId);
-                User student = conv.getStudent();
 
                 // Increment human session counter (1, 2, 3, ...)
                 int newHumanSession = (conv.getCurrentHumanSession() != null ? conv.getCurrentHumanSession() : 0) + 1;
@@ -341,44 +373,51 @@ public class ConversationService {
                 conv.setStatus(ConversationStatus.QUEUE_WAITING);
                 conv.setEscalationReason(reason);
                 conv.setEscalatedAt(LocalDateTime.now());
+
+                // Lưu AI session ID để load chat history từ MongoDB
+                if (aiSessionId != null && !aiSessionId.trim().isEmpty()) {
+                        conv.setAiSessionId(aiSessionId);
+                        log.info("[Conversation] Saved aiSessionId={} for conversation {}", aiSessionId, conv.getId());
+                }
+
                 Conversation saved = conversationRepository.save(conv);
 
-                // KHÔNG gọi assignBotMessagesToHumanSession ở đây
-                // Vì messages AI chỉ tồn tại local trên mobile, sẽ được lưu từ messageHistory
-                // bên dưới
+                // Lưu escalation messages vào PostgreSQL
+                // Để thủ thư thấy context: "Chat với Thủ thư SLIB" + "Dạ mình đang điều
+                // hướng..."
+                Message studentMsg = Message.builder()
+                                .conversation(saved)
+                                .content("Chat với Thủ thư SLIB")
+                                .type(MessageType.TEXT)
+                                .senderType("STUDENT")
+                                .sender(saved.getStudent())
+                                .receiver(saved.getStudent())
+                                .humanSessionId(newHumanSession)
+                                .build();
+                messageRepository.save(studentMsg);
 
-                // Lưu message history với humanSessionId = newHumanSession
-                if (messageHistory != null && !messageHistory.isEmpty()) {
-                        for (Map<String, Object> msg : messageHistory) {
-                                String content = (String) msg.get("content");
-                                String senderType = (String) msg.get("senderType");
-
-                                if (content == null || content.trim().isEmpty())
-                                        continue;
-                                if ("LIBRARIAN".equals(senderType))
-                                        continue;
-
-                                Message message = Message.builder()
-                                                .sender(student)
-                                                .receiver(student)
-                                                .content(content)
-                                                .type(MessageType.TEXT)
-                                                .conversation(conv)
-                                                .senderType(senderType != null ? senderType : "STUDENT")
-                                                .humanSessionId(newHumanSession)
-                                                .build();
-
-                                messageRepository.save(message);
-                        }
-                        log.info("[Conversation] Saved {} message history with humanSession={}",
-                                        messageHistory.size(), newHumanSession);
-                }
+                Message aiMsg = Message.builder()
+                                .conversation(saved)
+                                .content("Dạ mình đang điều hướng bạn tới bộ phận thủ thư của thư viện, bạn vui lòng đợi chút nhé")
+                                .type(MessageType.TEXT)
+                                .senderType("AI")
+                                .sender(saved.getStudent())
+                                .receiver(saved.getStudent())
+                                .humanSessionId(newHumanSession)
+                                .build();
+                messageRepository.save(aiMsg);
 
                 // Broadcast cho tất cả Librarian
                 ConversationDTO dto = convertToDTO(saved);
                 messagingTemplate.convertAndSend("/topic/escalate", dto);
                 log.info("[Conversation] Escalated conversation {} to human. Human session: {}, Reason: {}",
                                 conv.getId(), newHumanSession, reason);
+
+                // Broadcast queue position updates to all waiting students
+                broadcastQueuePositionUpdates();
+
+                // Broadcast pending counts để badge thủ thư tự cập nhật
+                librarianNotificationService.broadcastPendingCounts("CHAT", "ESCALATED");
 
                 return dto;
         }
@@ -466,6 +505,7 @@ public class ConversationService {
                                 .id(conv.getId())
                                 .studentId(conv.getStudent().getId())
                                 .studentName(conv.getStudent().getFullName())
+                                .studentCode(conv.getStudent().getUserCode())
                                 .studentEmail(conv.getStudent().getEmail())
                                 .librarianId(conv.getLibrarian() != null ? conv.getLibrarian().getId() : null)
                                 .librarianName(conv.getLibrarian() != null ? conv.getLibrarian().getFullName() : null)
@@ -480,31 +520,143 @@ public class ConversationService {
         }
 
         /**
-         * Lấy messages của conversation với filter theo currentHumanSession
-         * Chi load: bot messages (humanSessionId IS NULL) + messages của current human
-         * session
+         * Lấy messages của conversation:
+         * 1. Messages từ PostgreSQL (chat với thủ thư)
+         * 2. Messages từ MongoDB qua AI service API (chat với AI)
+         * Merge và sort theo thời gian
          */
         public List<ChatMessageDTO> getConversationMessages(UUID conversationId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
 
+                // 1. Load messages từ PostgreSQL (librarian/student chat sau escalation)
                 Integer currentHumanSession = conv.getCurrentHumanSession();
-                List<Message> messages;
+                List<ChatMessageDTO> allMessages = new java.util.ArrayList<>();
 
                 if (currentHumanSession != null && currentHumanSession > 0) {
-                        // Filter by humanSessionId
-                        messages = messageRepository.findBySessionWithHumanSessionFilter(conversationId,
-                                        currentHumanSession);
-                        log.info("[Conversation] Loading messages for session {} with humanSessionId={}",
+                        List<Message> dbMessages = messageRepository.findBySessionWithHumanSessionFilter(
                                         conversationId, currentHumanSession);
-                } else {
-                        // No human session yet, load all
-                        messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId);
+                        allMessages.addAll(dbMessages.stream()
+                                        .map(this::convertMessageToDTO)
+                                        .collect(Collectors.toList()));
+                        log.info("[Conversation] Loaded {} DB messages for session {}",
+                                        dbMessages.size(), currentHumanSession);
                 }
 
-                return messages.stream()
-                                .map(this::convertMessageToDTO)
-                                .collect(Collectors.toList());
+                // 2. Load messages từ MongoDB qua AI service API
+                // Nếu lần escalate >= 2: chỉ lấy AI messages SAU thời điểm session trước kết
+                // thúc
+                if (conv.getAiSessionId() != null && !conv.getAiSessionId().isEmpty()) {
+                        try {
+                                List<ChatMessageDTO> aiMessages = fetchAiChatHistory(conv.getAiSessionId(),
+                                                conv.getStudent().getId());
+                                if (!aiMessages.isEmpty()) {
+                                        // Nếu có session trước (lần 2+), filter AI messages
+                                        if (currentHumanSession != null && currentHumanSession > 1) {
+                                                int prevSession = currentHumanSession - 1;
+                                                LocalDateTime prevSessionEnd = messageRepository
+                                                                .findMaxCreatedAtBySession(
+                                                                                conversationId, prevSession);
+                                                if (prevSessionEnd != null) {
+                                                        log.info("[Conversation] Filtering AI messages after previous session {} end: {}",
+                                                                        prevSession, prevSessionEnd);
+                                                        aiMessages = aiMessages.stream()
+                                                                        .filter(m -> m.getCreatedAt() != null
+                                                                                        && m.getCreatedAt().isAfter(
+                                                                                                        prevSessionEnd))
+                                                                        .collect(Collectors.toList());
+                                                }
+                                        }
+                                        allMessages.addAll(aiMessages);
+                                        log.info("[Conversation] Loaded {} AI messages from MongoDB for session {}",
+                                                        aiMessages.size(), conv.getAiSessionId());
+                                }
+                        } catch (Exception e) {
+                                log.warn("[Conversation] Failed to load AI messages from MongoDB: {}", e.getMessage());
+                        }
+                }
+
+                // Sort theo thời gian
+                allMessages.sort((a, b) -> {
+                        if (a.getCreatedAt() == null && b.getCreatedAt() == null)
+                                return 0;
+                        if (a.getCreatedAt() == null)
+                                return -1;
+                        if (b.getCreatedAt() == null)
+                                return 1;
+                        return a.getCreatedAt().compareTo(b.getCreatedAt());
+                });
+
+                log.info("[Conversation] Total {} messages for conversation {}",
+                                allMessages.size(), conversationId);
+                return allMessages;
+        }
+
+        /**
+         * Gọi AI service API để lấy chat history từ MongoDB
+         */
+        @SuppressWarnings("unchecked")
+        private List<ChatMessageDTO> fetchAiChatHistory(String aiSessionId, UUID studentId) {
+                String url = aiServiceUrl + "/api/v1/chat/history/" + aiSessionId + "?limit=100";
+                log.info("[Conversation] Fetching AI chat history from: {}", url);
+
+                ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+                Map<String, Object> body = response.getBody();
+
+                if (body == null || !Boolean.TRUE.equals(body.get("success"))) {
+                        return List.of();
+                }
+
+                List<Map<String, Object>> messages = (List<Map<String, Object>>) body.get("messages");
+                if (messages == null || messages.isEmpty()) {
+                        return List.of();
+                }
+
+                int[] indexHolder = { 0 };
+                return messages.stream().map(msg -> {
+                        int idx = indexHolder[0]++;
+                        String role = (String) msg.get("role");
+                        String content = (String) msg.get("content");
+                        String timestamp = (String) msg.get("timestamp");
+
+                        // role: "user" -> STUDENT, "assistant" -> AI
+                        String senderType = "user".equals(role) ? "STUDENT" : "AI";
+
+                        // Parse timestamp (API trả format: 2026-02-23T08:37:57.826000 - không có Z)
+                        // MongoDB lưu UTC, cần chuyển sang VN timezone
+                        LocalDateTime createdAt = null;
+                        if (timestamp != null) {
+                                try {
+                                        // Thử parse ISO instant (có Z)
+                                        createdAt = Instant.parse(timestamp)
+                                                        .atZone(ZoneId.of("Asia/Ho_Chi_Minh"))
+                                                        .toLocalDateTime();
+                                } catch (Exception e1) {
+                                        try {
+                                                // Parse LocalDateTime (không có Z) rồi chuyển từ UTC sang VN
+                                                LocalDateTime utcTime = LocalDateTime.parse(timestamp);
+                                                createdAt = utcTime.atZone(ZoneId.of("UTC"))
+                                                                .withZoneSameInstant(ZoneId.of("Asia/Ho_Chi_Minh"))
+                                                                .toLocalDateTime();
+                                        } catch (Exception e2) {
+                                                createdAt = LocalDateTime.now();
+                                        }
+                                }
+                        }
+
+                        // Generate deterministic UUID for dedup on frontend
+                        UUID msgId = UUID.nameUUIDFromBytes(
+                                        ("ai-" + aiSessionId + "-" + idx).getBytes());
+
+                        return ChatMessageDTO.builder()
+                                        .id(msgId)
+                                        .content(content)
+                                        .senderType(senderType)
+                                        .senderName("user".equals(role) ? null : "SLIB AI")
+                                        .createdAt(createdAt)
+                                        .senderId(studentId)
+                                        .build();
+                }).collect(Collectors.toList());
         }
 
         /**
@@ -558,6 +710,40 @@ public class ConversationService {
 
                 // Broadcast qua WebSocket
                 messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, dto);
+
+                // Gửi notification cho phía bên kia
+                try {
+                        String notifyContent = content.contains("[IMAGES]") ? "Đã gửi một hình ảnh" : content;
+                        if (notifyContent.length() > 100) {
+                                notifyContent = notifyContent.substring(0, 100) + "...";
+                        }
+
+                        if ("STUDENT".equals(senderType)) {
+                                // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
+                                Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
+                                chatNotify.put("type", "CHAT_NEW_MESSAGE");
+                                chatNotify.put("conversationId", conversationId.toString());
+                                chatNotify.put("senderName", sender.getFullName());
+                                chatNotify.put("content", notifyContent);
+                                chatNotify.put("timestamp", java.time.Instant.now().toString());
+                                messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
+                                log.info("[Chat] Sent librarian notification for new student message in conv {}",
+                                                conversationId);
+                        } else if ("LIBRARIAN".equals(senderType)) {
+                                // Librarian gửi → push notification cho student qua FCM
+                                UUID studentId = conv.getStudent().getId();
+                                pushNotificationService.sendToUser(
+                                                studentId,
+                                                "Tin nhắn mới từ Thủ thư",
+                                                notifyContent,
+                                                NotificationType.CHAT_MESSAGE,
+                                                conversationId);
+                                log.info("[Chat] Sent push notification to student {} for conv {}", studentId,
+                                                conversationId);
+                        }
+                } catch (Exception e) {
+                        log.warn("[Chat] Failed to send chat notification: {}", e.getMessage());
+                }
 
                 return dto;
         }

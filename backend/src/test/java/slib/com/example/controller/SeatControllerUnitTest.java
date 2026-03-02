@@ -494,6 +494,224 @@ class SeatControllerUnitTest {
                 verify(bookingService, times(1)).getAllSeatsByArea(areaId, date, start, end);
         }
 
+        // =============================================
+        // === RESTRICT SEAT ENDPOINT ===
+        // =============================================
+
+        @Test
+        @DisplayName("restrictSeat_validSeatId_returns200WithRestrictedSeat")
+        void restrictSeat_validSeatId_returns200WithRestrictedSeat() throws Exception {
+                // Arrange
+                Integer seatId = 50;
+                SeatResponse response = createSeatResponse(seatId, 5, "M01", SeatStatus.UNAVAILABLE, 1, 1);
+
+                when(seatService.restrictSeatById(seatId)).thenReturn(response);
+
+                // Act & Assert
+                mockMvc.perform(post("/slib/seats/{seatId}/restrict", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.seatId").value(seatId))
+                                .andExpect(jsonPath("$.seatCode").value("M01"))
+                                .andExpect(jsonPath("$.seatStatus").value("UNAVAILABLE"));
+
+                verify(seatService, times(1)).restrictSeatById(seatId);
+        }
+
+        @Test
+        @DisplayName("restrictSeat_seatNotFound_returns400WithError")
+        void restrictSeat_seatNotFound_returns400WithError() throws Exception {
+                // Arrange
+                Integer seatId = 999;
+                String errorMessage = "Seat not found with id: " + seatId;
+
+                when(seatService.restrictSeatById(seatId))
+                                .thenThrow(new RuntimeException(errorMessage));
+
+                // Act & Assert
+                mockMvc.perform(post("/slib/seats/{seatId}/restrict", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value(errorMessage));
+
+                verify(seatService, times(1)).restrictSeatById(seatId);
+        }
+
+        // ===============================================
+        // === UNRESTRICT SEAT ENDPOINT ===
+        // ===============================================
+
+        @Test
+        @DisplayName("unrestrictSeat_validSeatId_returns200WithSuccessMessage")
+        void unrestrictSeat_validSeatId_returns200WithSuccessMessage() throws Exception {
+                // Arrange
+                Integer seatId = 50;
+                doNothing().when(seatService).unrestrictSeatById(seatId);
+
+                // Act & Assert
+                mockMvc.perform(delete("/slib/seats/{seatId}/restrict", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.message").value("Da bo han che ghe voi id: " + seatId));
+
+                verify(seatService, times(1)).unrestrictSeatById(seatId);
+        }
+
+        @Test
+        @DisplayName("unrestrictSeat_seatNotFound_returns400WithError")
+        void unrestrictSeat_seatNotFound_returns400WithError() throws Exception {
+                // Arrange
+                Integer seatId = 999;
+                String errorMessage = "Seat not found with id: " + seatId;
+
+                doThrow(new RuntimeException(errorMessage)).when(seatService).unrestrictSeatById(seatId);
+
+                // Act & Assert
+                mockMvc.perform(delete("/slib/seats/{seatId}/restrict", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value(errorMessage));
+
+                verify(seatService, times(1)).unrestrictSeatById(seatId);
+        }
+
+        // =========================================
+        // === UPDATE NFC UID ENDPOINT ===
+        // =========================================
+
+        @Test
+        @DisplayName("updateSeatNfcUid_validData_returns200WithUpdatedSeat")
+        void updateSeatNfcUid_validData_returns200WithUpdatedSeat() throws Exception {
+                // Arrange
+                Integer seatId = 60;
+                String nfcTagUid = "04A23C91";
+                SeatResponse response = createSeatResponse(seatId, 7, "N01", SeatStatus.AVAILABLE, 2, 3);
+
+                when(seatService.updateNfcTagUid(seatId, nfcTagUid)).thenReturn(response);
+
+                Map<String, String> requestBody = new HashMap<>();
+                requestBody.put("nfcTagUid", nfcTagUid);
+
+                // Act & Assert
+                mockMvc.perform(put("/slib/seats/{seatId}/nfc-uid", seatId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(requestBody)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.seatId").value(seatId))
+                                .andExpect(jsonPath("$.seatCode").value("N01"));
+
+                verify(seatService, times(1)).updateNfcTagUid(seatId, nfcTagUid);
+        }
+
+        @Test
+        @DisplayName("updateSeatNfcUid_seatNotFound_returns400WithError")
+        void updateSeatNfcUid_seatNotFound_returns400WithError() throws Exception {
+                // Arrange
+                Integer seatId = 999;
+                String nfcTagUid = "04A23C91";
+                String errorMessage = "Seat not found with id: " + seatId;
+
+                when(seatService.updateNfcTagUid(seatId, nfcTagUid))
+                                .thenThrow(new RuntimeException(errorMessage));
+
+                Map<String, String> requestBody = new HashMap<>();
+                requestBody.put("nfcTagUid", nfcTagUid);
+
+                // Act & Assert
+                mockMvc.perform(put("/slib/seats/{seatId}/nfc-uid", seatId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(requestBody)))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value(errorMessage));
+
+                verify(seatService, times(1)).updateNfcTagUid(seatId, nfcTagUid);
+        }
+
+        // =========================================
+        // === DELETE NFC UID ENDPOINT ===
+        // =========================================
+
+        @Test
+        @DisplayName("clearSeatNfcUid_validSeatId_returns200WithUpdatedSeat")
+        void clearSeatNfcUid_validSeatId_returns200WithUpdatedSeat() throws Exception {
+                // Arrange
+                Integer seatId = 60;
+                SeatResponse response = createSeatResponse(seatId, 7, "N01", SeatStatus.AVAILABLE, 2, 3);
+
+                when(seatService.clearNfcTagUid(seatId)).thenReturn(response);
+
+                // Act & Assert
+                mockMvc.perform(delete("/slib/seats/{seatId}/nfc-uid", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.seatId").value(seatId))
+                                .andExpect(jsonPath("$.seatCode").value("N01"));
+
+                verify(seatService, times(1)).clearNfcTagUid(seatId);
+        }
+
+        @Test
+        @DisplayName("clearSeatNfcUid_seatNotFound_returns400WithError")
+        void clearSeatNfcUid_seatNotFound_returns400WithError() throws Exception {
+                // Arrange
+                Integer seatId = 999;
+                String errorMessage = "Seat not found with id: " + seatId;
+
+                when(seatService.clearNfcTagUid(seatId))
+                                .thenThrow(new RuntimeException(errorMessage));
+
+                // Act & Assert
+                mockMvc.perform(delete("/slib/seats/{seatId}/nfc-uid", seatId)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value(errorMessage));
+
+                verify(seatService, times(1)).clearNfcTagUid(seatId);
+        }
+
+        // =========================================
+        // === GET SEAT BY NFC UID ENDPOINT ===
+        // =========================================
+
+        @Test
+        @DisplayName("getSeatByNfcUid_validUid_returns200WithSeat")
+        void getSeatByNfcUid_validUid_returns200WithSeat() throws Exception {
+                // Arrange
+                String nfcTagUid = "04A23C91";
+                SeatResponse response = createSeatResponse(70, 8, "P01", SeatStatus.AVAILABLE, 3, 4);
+
+                when(seatService.getSeatByNfcTagUid(nfcTagUid)).thenReturn(response);
+
+                // Act & Assert
+                mockMvc.perform(get("/slib/seats/by-nfc-uid/{nfcTagUid}", nfcTagUid)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.seatId").value(70))
+                                .andExpect(jsonPath("$.seatCode").value("P01"))
+                                .andExpect(jsonPath("$.seatStatus").value("AVAILABLE"));
+
+                verify(seatService, times(1)).getSeatByNfcTagUid(nfcTagUid);
+        }
+
+        @Test
+        @DisplayName("getSeatByNfcUid_notFound_returns404WithError")
+        void getSeatByNfcUid_notFound_returns404WithError() throws Exception {
+                // Arrange
+                String nfcTagUid = "UNKNOWN1234";
+                String errorMessage = "Seat not found with NFC UID: " + nfcTagUid;
+
+                when(seatService.getSeatByNfcTagUid(nfcTagUid))
+                                .thenThrow(new RuntimeException(errorMessage));
+
+                // Act & Assert
+                mockMvc.perform(get("/slib/seats/by-nfc-uid/{nfcTagUid}", nfcTagUid)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.error").value(errorMessage));
+
+                verify(seatService, times(1)).getSeatByNfcTagUid(nfcTagUid);
+        }
+
         // ==========================================
         // === HELPER METHOD TO CREATE TEST DATA ===
         // ==========================================
@@ -506,6 +724,6 @@ class SeatControllerUnitTest {
         private SeatResponse createSeatResponse(Integer seatId, Integer zoneId, String seatCode,
                         SeatStatus seatStatus, Integer rowNumber, Integer columnNumber) {
                 return new SeatResponse(seatId, zoneId, seatCode, seatStatus, rowNumber, columnNumber, true, null,
-                                null);
+                                null, null, null, null, null);
         }
 }

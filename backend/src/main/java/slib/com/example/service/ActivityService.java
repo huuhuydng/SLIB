@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.activity.PointTransactionEntity;
 import slib.com.example.repository.AccessLogRepository;
+import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 
@@ -19,6 +20,7 @@ public class ActivityService {
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
     private final AccessLogRepository accessLogRepository;
+    private final ReservationRepository reservationRepository;
 
     // ========== Activity Logs ==========
 
@@ -35,10 +37,10 @@ public class ActivityService {
     }
 
     /**
-     * Get total study hours for user (from access_logs - actual HCE check-in/out)
+     * Get total study hours for user (from reservations EXPIRED only)
      */
     public double getTotalStudyHours(UUID userId) {
-        long totalMinutes = accessLogRepository.getTotalStudyMinutes(userId);
+        long totalMinutes = reservationRepository.getTotalStudyMinutesByUser(userId);
         return Math.round(totalMinutes / 6.0) / 10.0; // Round to 1 decimal
     }
 

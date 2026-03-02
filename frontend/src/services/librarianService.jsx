@@ -262,53 +262,6 @@ class LibrarianService {
     sessionStorage.removeItem('librarian_user');
     sessionStorage.removeItem('refresh_token');
   }
-
-  // ========== Access Logs API ==========
-
-  async getAllAccessLogs() {
-    try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs');
-      return response.data || [];
-    } catch (error) {
-      console.error('❌ [Service] getAllAccessLogs error:', error);
-      return [];
-    }
-  }
-
-  async getTodayAccessLogs() {
-    try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs/today');
-      return response.data || [];
-    } catch (error) {
-      console.error('❌ [Service] getTodayAccessLogs error:', error);
-      return [];
-    }
-  }
-
-  async getAccessLogStats() {
-    try {
-      const response = await axios.get('http://localhost:8080/slib/hce/access-logs/stats');
-      return response.data || { totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 };
-    } catch (error) {
-      console.error('❌ [Service] getAccessLogStats error:', error);
-      return { totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 };
-    }
-  }
-
-  async getAccessLogsByDateRange(startDate, endDate) {
-    try {
-      const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-
-      const url = `http://localhost:8080/slib/hce/access-logs/filter${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await axios.get(url);
-      return response.data || [];
-    } catch (error) {
-      console.error('❌ [Service] getAccessLogsByDateRange error:', error);
-      return [];
-    }
-  }
 }
 
 export default new LibrarianService();

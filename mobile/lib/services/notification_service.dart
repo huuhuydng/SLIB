@@ -56,6 +56,47 @@ class NotificationItem {
   }
 }
 
+/// Global helper to show local notification from background message
+Future<void> showBackgroundNotification(RemoteMessage message) async {
+  final notification = message.notification;
+  if (notification == null && message.data.isEmpty) return;
+
+  final title = notification?.title ?? message.data['title'] ?? 'Thông báo';
+  final body = notification?.body ?? message.data['body'] ?? message.data['content'] ?? '';
+
+  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+  
+  const androidDetails = AndroidNotificationDetails(
+    'slib_notifications',
+    'SLIB',
+    channelDescription: 'Thông báo từ thư viện SLIB',
+    importance: Importance.high,
+    priority: Priority.high,
+    showWhen: true,
+    icon: '@drawable/ic_stat_notification',
+    color: Color(0xFFFF751F),
+  );
+  
+  const iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+  
+  const details = NotificationDetails(
+    android: androidDetails,
+    iOS: iosDetails,
+  );
+  
+  await localNotifications.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    title,
+    body,
+    details,
+    payload: message.data['notificationId'],
+  );
+}
+
 /// Notification settings model
 class NotificationSettings {
   final bool notifyBooking;
@@ -266,7 +307,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_stat_notification',
+      color: Color(0xFFFF751F),
     );
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true, presentBadge: true, presentSound: true,
@@ -339,7 +381,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _initializeLocalNotifications() async {
     // Android initialization
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
     
     // iOS initialization
     const iosSettings = DarwinInitializationSettings(
@@ -393,10 +435,21 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _configureFirebaseMessaging() async {
-    // Handle foreground messages - show local notification and update count
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _handleIncomingNotification(message);
-      _showLocalNotification(message);
+      
+      // CHAT_MESSAGE: luôn hiện notification vì WebSocket notification topic
+      // chỉ nhận entity notifications, không nhận chat messages
+      final notificationType = message.data['type'] ?? '';
+      if (notificationType == 'CHAT_MESSAGE') {
+        debugPrint('[FCM] CHAT_MESSAGE received, always showing notification');
+        _showLocalNotification(message);
+      } else if (!_wsConnected) {
+        // Các loại khác: chỉ hiện khi WebSocket không kết nối (tránh duplicate)
+        debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
+        _showLocalNotification(message);
+      }
     });
 
     // Handle background/terminated message opens
@@ -424,7 +477,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/ic_stat_notification',
+      color: Color(0xFFFF751F),
     );
     
     const iosDetails = DarwinNotificationDetails(

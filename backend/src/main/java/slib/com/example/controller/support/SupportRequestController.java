@@ -153,4 +153,25 @@ public class SupportRequestController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    /**
+     * DELETE /slib/support-requests/batch
+     * Thủ thư xoá nhiều yêu cầu hỗ trợ cùng lúc
+     */
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            supportRequestService.deleteBatch(uuids);
+            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            log.error("[SupportRequest] Error deleting batch: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 }

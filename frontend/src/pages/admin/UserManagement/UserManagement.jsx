@@ -1183,7 +1183,7 @@ const UserManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '500px',
             maxHeight: '90vh',
             overflow: 'auto',
@@ -1287,7 +1287,7 @@ const UserManagement = () => {
                   style={{
                     flex: 1,
                     padding: '14px',
-                    background: '#FF751F',
+                    background: '#e8600a',
                     border: 'none',
                     borderRadius: '12px',
                     fontSize: '14px',
@@ -1326,7 +1326,7 @@ const UserManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: importStep === 'preview' ? '800px' : '550px',
             maxHeight: '90vh',
             overflow: 'auto',
@@ -1364,7 +1364,7 @@ const UserManagement = () => {
 
                   <div style={{
                     border: '2px dashed #E2E8F0',
-                    borderRadius: '16px',
+                    borderRadius: '10px',
                     padding: '48px 24px',
                     textAlign: 'center',
                     background: '#F7FAFC',
@@ -1386,7 +1386,7 @@ const UserManagement = () => {
                         cursor: 'pointer'
                       }}
                     />
-                    <FileSpreadsheet size={48} color="#FF751F" style={{ marginBottom: '16px' }} />
+                    <FileSpreadsheet size={48} color="#e8600a" style={{ marginBottom: '16px' }} />
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 8px' }}>
                       Kéo thả file Excel (.xlsx) hoặc Zip (.zip) vào đây
                     </p>
@@ -1395,14 +1395,14 @@ const UserManagement = () => {
                     </p>
                   </div>
                   <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Download size={18} color="#FF751F" />
+                    <Download size={18} color="#e8600a" />
                     <button
                       onClick={() => userService.downloadTemplate()}
                       style={{
                         background: 'none',
                         border: 'none',
                         fontSize: '14px',
-                        color: '#FF751F',
+                        color: '#e8600a',
                         fontWeight: '500',
                         cursor: 'pointer',
                         textDecoration: 'underline'
@@ -1436,7 +1436,7 @@ const UserManagement = () => {
               {/* Processing Step */}
               {importStep === 'processing' && (
                 <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-                  <Loader2 size={48} color="#FF751F" style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+                  <Loader2 size={48} color="#e8600a" style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
                   <p style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 8px' }}>
                     {processingStatus || 'Đang xử lý...'}
                   </p>
@@ -1469,7 +1469,7 @@ const UserManagement = () => {
 
                 return (
                   <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-                    <Loader2 size={48} color="#FF751F" style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
+                    <Loader2 size={48} color="#e8600a" style={{ animation: 'spin 1s linear infinite', marginBottom: '16px' }} />
 
                     {/* Main status text */}
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 8px' }}>
@@ -1481,7 +1481,7 @@ const UserManagement = () => {
                       <p style={{
                         fontSize: '24px',
                         fontWeight: '700',
-                        color: '#FF751F',
+                        color: '#e8600a',
                         margin: '12px 0',
                         fontFamily: 'monospace'
                       }}>
@@ -1501,7 +1501,7 @@ const UserManagement = () => {
                       <div style={{
                         width: `${displayProgress}%`,
                         height: '100%',
-                        background: 'linear-gradient(90deg, #FF751F, #FF9B5A)',
+                        background: 'linear-gradient(90deg, #e8600a, #f0853e)',
                         transition: 'width 0.3s',
                         borderRadius: '6px'
                       }} />
@@ -1739,7 +1739,7 @@ const UserManagement = () => {
                         style={{
                           flex: 1,
                           padding: '14px',
-                          background: successCount > 0 ? '#FF751F' : '#E2E8F0',
+                          background: successCount > 0 ? '#e8600a' : '#E2E8F0',
                           border: 'none',
                           borderRadius: '12px',
                           fontSize: '14px',
@@ -1819,7 +1819,7 @@ const UserManagement = () => {
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background: '#FF751F',
+                      background: '#e8600a',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '14px',
@@ -1853,7 +1853,7 @@ const UserManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '450px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -1861,7 +1861,7 @@ const UserManagement = () => {
               <div style={{
                 width: '64px',
                 height: '64px',
-                borderRadius: '16px',
+                borderRadius: '10px',
                 background: selectedUser.isActive !== false ? '#FEF3C7' : '#D1FAE5',
                 display: 'flex',
                 alignItems: 'center',
@@ -1943,7 +1943,7 @@ const UserManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '450px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -1951,7 +1951,7 @@ const UserManagement = () => {
               <div style={{
                 width: '64px',
                 height: '64px',
-                borderRadius: '16px',
+                borderRadius: '10px',
                 background: '#F3E8FF',
                 display: 'flex',
                 alignItems: 'center',

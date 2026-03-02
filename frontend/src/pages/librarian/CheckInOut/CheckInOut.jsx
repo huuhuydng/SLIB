@@ -1,33 +1,14 @@
-
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  LogOut,
-  Filter,
-  LogIn,
-  Users,
-  Check,
-  ChevronDown,
-  Search,
-  FileDown
-} from 'lucide-react';
-import Header from "../../../components/shared/Header";
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
+import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
-import { handleLogout } from "../../../utils/auth";
 import librarianService from "../../../services/librarianService";
-import userService from "../../../services/userService";
-import UserDetailsModal from "../../../components/admin/UserDetailsModal";
+import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
 import websocketService from "../../../services/websocketService";
 
 
 const CheckInOut = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterSort, setFilterSort] = useState('');
-  const [selectedZone, setSelectedZone] = useState('');
-
-  // Date filter states
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
 
   // State for real data
   const [accessLogs, setAccessLogs] = useState([]);
@@ -39,60 +20,60 @@ const CheckInOut = () => {
   const [loading, setLoading] = useState(true);
 
   // Modal state
-  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [allUsers, setAllUsers] = useState([]);
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Convert YYYY-MM-DD to DD/MM/YYYY for display
-  const formatDateDisplay = (isoDate) => {
-    if (!isoDate) return '';
-    const [year, month, day] = isoDate.split('-');
-    return `${day}/${month}/${year}`;
-  };
+  // Sort state: { column: string, direction: 'asc' | 'desc' | null }
+  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
 
-  // Convert DD/MM/YYYY to YYYY-MM-DD for API
-  const formatDateISO = (displayDate) => {
-    if (!displayDate || displayDate.length !== 10) return '';
-    const [day, month, year] = displayDate.split('/');
-    return `${year}-${month}-${day}`;
-  };
+  // Column filter state: { columnKey: filterValue }
+  const [columnFilters, setColumnFilters] = useState({
+    userCode: '',
+    userName: '',
+    action: '',
+    time: '',
+  });
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const filterRef = useRef(null);
 
-  // Fetch users on component mount
-  useEffect(() => {
-    fetchAllUsers();
-  }, []);
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    userName: true,
+    userCode: true,
+    action: true,
+    time: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
 
-  // Fetch data on component mount and when date filter changes
+  // Fetch data on mount
   useEffect(() => {
     fetchData();
-    // Auto refresh every 30 seconds (fallback)
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [startDate, endDate]);
+  }, []);
+
+  // Close filter dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setActiveFilterCol(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // WebSocket real-time updates
   useEffect(() => {
-    console.log('🔌 Connecting to WebSocket...');
     let unsubscribe = null;
-
-    // Connect to WebSocket
     websocketService.connect(
       () => {
-        console.log('✅ WebSocket connected successfully');
-
-        // Subscribe to access-logs topic
         unsubscribe = websocketService.subscribe('/topic/access-logs', (message) => {
-          console.log('📨 Received real-time update:', message);
-
-          // Add new record to the top of the list without full page refresh
           if (message.type === 'CHECK_IN' || message.type === 'CHECK_OUT') {
-            console.log('➕ Adding new record to list...');
-
-            // Create new log entry from WebSocket message
             const newLog = {
               logId: `${message.userId}-${message.type}-${Date.now()}`,
               userId: message.userId,
@@ -104,26 +85,15 @@ const CheckInOut = () => {
               deviceId: message.deviceId || null,
               avatarUrl: null
             };
-
-            // Check for duplicates before adding (prevent double data)
             setAccessLogs(prevLogs => {
-              // Check if this exact record already exists (same user, action, and recent time)
               const isDuplicate = prevLogs.some(log =>
                 log.userId === newLog.userId &&
                 log.action === newLog.action &&
-                Math.abs(new Date(log.checkInTime || log.checkOutTime) - new Date(newLog.checkInTime || newLog.checkOutTime)) < 2000 // Within 2 seconds
+                Math.abs(new Date(log.checkInTime || log.checkOutTime) - new Date(newLog.checkInTime || newLog.checkOutTime)) < 2000
               );
-
-              if (isDuplicate) {
-                console.log('⚠️ Duplicate detected, skipping...');
-                return prevLogs;
-              }
-
-              // Prepend new log to existing list
+              if (isDuplicate) return prevLogs;
               return [newLog, ...prevLogs];
             });
-
-            // Update stats locally (only if not duplicate)
             setStats(prevStats => ({
               ...prevStats,
               totalCheckInsToday: message.type === 'CHECK_IN' ? prevStats.totalCheckInsToday + 1 : prevStats.totalCheckInsToday,
@@ -136,42 +106,19 @@ const CheckInOut = () => {
         });
       },
       (error) => {
-        console.error('❌ WebSocket connection error:', error);
+        console.error('WebSocket connection error:', error);
       }
     );
-
-    // Cleanup on unmount
     return () => {
-      console.log('🔌 Unsubscribing from WebSocket...');
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      if (unsubscribe) unsubscribe();
     };
-  }, []); // Only run once on mount
-
-  const fetchAllUsers = async () => {
-    try {
-      const users = await userService.getAllUsers();
-      setAllUsers(users);
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    }
-  };
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-
-      let logsData;
-      // If any date is selected, use date range API
-      if (startDate || endDate) {
-        logsData = await librarianService.getAccessLogsByDateRange(startDate, endDate);
-      } else {
-        logsData = await librarianService.getAllAccessLogs();
-      }
-
+      const logsData = await librarianService.getAllAccessLogs();
       const statsData = await librarianService.getAccessLogStats();
-
       setAccessLogs(logsData);
       setStats(statsData);
     } catch (error) {
@@ -181,7 +128,6 @@ const CheckInOut = () => {
     }
   };
 
-  // Format datetime
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '';
     const date = new Date(dateTimeString);
@@ -190,25 +136,74 @@ const CheckInOut = () => {
     return `${time} ${dateStr}`;
   };
 
-  const displayedLogs = useMemo(() => {
-    let data = accessLogs.filter(log =>
-      log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.userCode.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  // Get value for sorting/filtering
+  const getLogValue = (log, column) => {
+    switch (column) {
+      case 'userCode': return log.userCode || '';
+      case 'userName': return log.userName || '';
+      case 'action': return log.action === 'CHECK_IN' ? 'Vào' : 'Ra';
+      case 'time':
+        return log.action === 'CHECK_IN' ? log.checkInTime : (log.checkOutTime || '');
+      default: return '';
+    }
+  };
 
-    // Filter by check in/check out status
-    if (filterSort === 'checkin') {
-      // Show only those who have checked in but not checked out yet
-      data = data.filter(log => log.checkOutTime === null);
-    } else if (filterSort === 'checkout') {
-      // Show only those who have checked out
-      data = data.filter(log => log.checkOutTime !== null);
+  const displayedLogs = useMemo(() => {
+    let data = [...accessLogs];
+
+    // Global search
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      data = data.filter(log =>
+        log.userName.toLowerCase().includes(q) ||
+        log.userCode.toLowerCase().includes(q)
+      );
+    }
+
+    // Column filters
+    Object.entries(columnFilters).forEach(([col, filterVal]) => {
+      if (!filterVal) return;
+      const q = filterVal.toLowerCase();
+      if (col === 'action') {
+        // Special: filter by action type
+        if (q === 'vào' || q === 'vao' || q === 'check_in' || q === 'in') {
+          data = data.filter(log => log.action === 'CHECK_IN');
+        } else if (q === 'ra' || q === 'check_out' || q === 'out') {
+          data = data.filter(log => log.action === 'CHECK_OUT');
+        }
+      } else if (col === 'time') {
+        data = data.filter(log => {
+          const timeStr = getLogValue(log, 'time');
+          return timeStr && formatDateTime(timeStr).toLowerCase().includes(q);
+        });
+      } else {
+        data = data.filter(log => getLogValue(log, col).toLowerCase().includes(q));
+      }
+    });
+
+    // Sort
+    if (sortConfig.column && sortConfig.direction) {
+      data.sort((a, b) => {
+        let valA = getLogValue(a, sortConfig.column);
+        let valB = getLogValue(b, sortConfig.column);
+
+        if (sortConfig.column === 'time') {
+          valA = valA ? new Date(valA).getTime() : 0;
+          valB = valB ? new Date(valB).getTime() : 0;
+        } else {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+        }
+
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
     }
 
     return data;
-  }, [searchTerm, filterSort, selectedZone, accessLogs]);
+  }, [searchTerm, accessLogs, columnFilters, sortConfig]);
 
-  // Pagination logic
   const totalPages = Math.ceil(displayedLogs.length / itemsPerPage);
   const paginatedLogs = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -216,652 +211,400 @@ const CheckInOut = () => {
     return displayedLogs.slice(startIndex, endIndex);
   }, [displayedLogs, currentPage, itemsPerPage]);
 
-  // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterSort, selectedZone]);
+  }, [searchTerm, columnFilters, sortConfig, itemsPerPage]);
 
-  const handleFilterClick = (type) => {
-    // Toggle if clicking the same one, otherwise set new
-    setFilterSort(prev => prev === type ? '' : type);
-    setIsFilterOpen(false);
+  // Sort handler: cycle null -> asc -> desc -> null
+  const handleSort = (column) => {
+    setSortConfig(prev => {
+      if (prev.column !== column) return { column, direction: 'asc' };
+      if (prev.direction === 'asc') return { column, direction: 'desc' };
+      return { column: null, direction: null };
+    });
   };
 
-  const handleZoneSelect = (zone) => {
-    setSelectedZone(prev => prev === zone ? '' : zone);
-    setIsFilterOpen(false);
+  // Filter handler
+  const handleFilterChange = (column, value) => {
+    setColumnFilters(prev => ({ ...prev, [column]: value }));
   };
 
-  const clearDateFilter = () => {
-    setStartDate('');
-    setEndDate('');
+  const clearColumnFilter = (column) => {
+    setColumnFilters(prev => ({ ...prev, [column]: '' }));
+    setActiveFilterCol(null);
+  };
+
+  // Pagination helpers
+  const getPageNumbers = () => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages = [];
+    if (currentPage <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
   };
 
   const handleUserClick = (log) => {
-    // Find user by userId from allUsers
-    const user = allUsers.find(u => u.id === log.userId);
-    if (user) {
-      setSelectedUser(user);
-      setShowUserDetailsModal(true);
-    } else {
-      console.warn('User not found:', log.userId);
+    if (log.userId) {
+      setSelectedUserId(log.userId);
+      setShowStudentModal(true);
     }
   };
 
   const handleExportToExcel = async () => {
     try {
-      // Build URL with query params
-      let url = 'http://localhost:8080/slib/hce/access-logs/export';
+      let url = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/hce/access-logs/export`;
       const params = new URLSearchParams();
-
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
+      if (params.toString()) url += '?' + params.toString();
 
-      if (params.toString()) {
-        url += '?' + params.toString();
-      }
+      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) throw new Error('Không thể xuất báo cáo');
 
-      // Fetch the Excel file
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Không thể xuất báo cáo');
-      }
-
-      // Convert response to blob
       const blob = await response.blob();
-
-      // Create download link
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
 
-      // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = 'BaoCao_CheckIn_CheckOut.xlsx';
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
+        if (filenameMatch) filename = filenameMatch[1];
       }
-
       link.download = filename;
       document.body.appendChild(link);
       link.click();
-
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-
-      console.log('Xuất báo cáo thành công!');
     } catch (error) {
       console.error('Lỗi khi xuất báo cáo:', error);
       alert('Không thể xuất báo cáo. Vui lòng thử lại.');
     }
   };
 
-  // Calculate min and max dates (3 months ago to today)
-  const getMinDate = () => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - 3);
-    return date.toISOString().split('T')[0];
+  // Render sort icon
+  const renderSortIcon = (column) => {
+    if (sortConfig.column === column) {
+      if (sortConfig.direction === 'asc') return <ArrowUp size={13} />;
+      if (sortConfig.direction === 'desc') return <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
   };
 
-  const getMaxDate = () => {
-    return new Date().toISOString().split('T')[0];
+  // Render filter icon with active state
+  const renderFilterIcon = (column) => {
+    const isActive = !!columnFilters[column];
+    return (
+      <Filter
+        size={13}
+        className={isActive ? 'cio-filter-active' : ''}
+      />
+    );
   };
+
+  // Column header with sort + filter
+  const renderColumnHeader = (column, label) => {
+    const hasFilter = !!columnFilters[column];
+    return (
+      <th key={column}>
+        <div className="cio-th-content">
+          <span className="cio-th-label">{label}</span>
+          <div className="cio-th-actions">
+            <button
+              className={`cio-th-btn${sortConfig.column === column ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); handleSort(column); }}
+              title="Sắp xếp"
+            >
+              {renderSortIcon(column)}
+            </button>
+            <button
+              className={`cio-th-btn${hasFilter ? ' active' : ''}${activeFilterCol === column ? ' open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveFilterCol(prev => prev === column ? null : column);
+              }}
+              title="Lọc"
+            >
+              {renderFilterIcon(column)}
+            </button>
+          </div>
+          {activeFilterCol === column && (
+            <div className="cio-filter-dropdown" ref={filterRef} onClick={e => e.stopPropagation()}>
+              {column === 'action' ? (
+                <div className="cio-filter-options">
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === ''}
+                      onChange={() => { handleFilterChange('action', ''); setActiveFilterCol(null); }}
+                    />
+                    Tất cả
+                  </label>
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === 'vào'}
+                      onChange={() => { handleFilterChange('action', 'vào'); setActiveFilterCol(null); }}
+                    />
+                    Vào
+                  </label>
+                  <label className="cio-filter-option">
+                    <input
+                      type="radio"
+                      name="action-filter"
+                      checked={columnFilters.action === 'ra'}
+                      onChange={() => { handleFilterChange('action', 'ra'); setActiveFilterCol(null); }}
+                    />
+                    Ra
+                  </label>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="cio-filter-input"
+                    placeholder={`Lọc ${label.toLowerCase()}...`}
+                    value={columnFilters[column]}
+                    onChange={(e) => handleFilterChange(column, e.target.value)}
+                    autoFocus
+                  />
+                  {hasFilter && (
+                    <button className="cio-filter-clear" onClick={() => clearColumnFilter(column)}>
+                      <X size={12} /> Xóa lọc
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  // Count active filters
+  const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
+
+  // Count visible columns
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
 
   if (loading) {
     return (
-      <>
-        <Header
-          onLogout={handleLogout}
-        />
-        <div style={{
-          padding: '2rem',
-          textAlign: 'center',
-          fontSize: '16px',
-          color: '#6b7280'
-        }}>
-          Đang tải dữ liệu...
+      <div className="lib-container">
+        <div className="lib-loading">
+          <div className="lib-spinner" />
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header
-        onLogout={handleLogout}
-      />
+    <div className="lib-container">
+      {/* Page Title */}
+      <div className="lib-page-title">
+        <h1>DANH SÁCH SINH VIÊN</h1>
+      </div>
 
-      <div style={{
-        padding: '2rem',
-        maxWidth: '1400px',
-        margin: '0 auto',
-        backgroundColor: '#f9fafb',
-        minHeight: 'auto'
-      }}>
-        {/* Page Title */}
-        <h1 className="page-title" style={{
-          fontSize: '28px',
-          fontWeight: '700',
-          color: '#1f2937',
-          marginBottom: '24px'
-        }}>Kiểm tra ra/vào</h1>
-
-        {/* Stats Cards */}
-        <section className="stats-row" style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '20px',
-          marginBottom: '24px',
-          padding: '0 32px'
-        }}>
-          <StatCard
-            number={stats.totalCheckInsToday}
-            label="Đã check in hôm nay"
-            icon={<LogIn size={28} color="#6366f1" />}
-            iconBg="#e0e7ff"
-          />
-          <StatCard
-            number={stats.totalCheckOutsToday}
-            label="Đã check out hôm nay"
-            icon={<LogOut size={28} color="#ec4899" />}
-            iconBg="#fce7f3"
-          />
-          <StatCard
-            number={stats.currentlyInLibrary}
-            label="Đang trong thư viện"
-            icon={<Users size={28} color="#8b5cf6" />}
-            iconBg="#ede9fe"
-          />
-        </section>
-
-        {/* Table Panel */}
-        <section className="table-panel" style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '24px',
-          margin: '0 32px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <div className="panel-header" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px'
-          }}>
-            <h2 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#1f2937'
-            }}>Danh sách sinh viên ra vào</h2>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-              {/* Date Filter Section */}
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>
-                    Từ ngày
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={formatDateDisplay(startDate)}
-                      readOnly
-                      placeholder="dd/mm/yyyy"
-                      onClick={() => document.getElementById('startDatePicker').showPicker()}
-                      style={{
-                        padding: '8px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        width: '150px',
-                        backgroundColor: 'white'
-                      }}
-                    />
-                    <input
-                      id="startDatePicker"
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      min={getMinDate()}
-                      max={getMaxDate()}
-                      style={{
-                        position: 'absolute',
-                        opacity: 0,
-                        width: 0,
-                        height: 0,
-                        pointerEvents: 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-                <span style={{ color: '#6b7280', paddingBottom: '8px' }}>-</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500' }}>
-                    Đến ngày
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      value={formatDateDisplay(endDate)}
-                      readOnly
-                      placeholder="dd/mm/yyyy"
-                      onClick={() => document.getElementById('endDatePicker').showPicker()}
-                      style={{
-                        padding: '8px 12px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        width: '150px',
-                        backgroundColor: 'white'
-                      }}
-                    />
-                    <input
-                      id="endDatePicker"
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      min={getMinDate()}
-                      max={getMaxDate()}
-                      style={{
-                        position: 'absolute',
-                        opacity: 0,
-                        width: 0,
-                        height: 0,
-                        pointerEvents: 'none'
-                      }}
-                    />
-                  </div>
-                </div>
-                {(startDate || endDate) && (
-                  <button
-                    onClick={clearDateFilter}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      cursor: 'pointer',
-                      fontWeight: '500'
-                    }}
-                  >
-                    Xóa lọc
-                  </button>
-                )}
-              </div>
-
-              {/* Search Input */}
-              <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-                <Search size={18} style={{ position: 'absolute', left: '12px', color: '#9ca3af' }} />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Tìm tên hoặc mã SV..."
-                  style={{
-                    padding: '8px 12px 8px 38px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    width: '220px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#f76b1c'}
-                  onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-                />
-              </div>
-
-              <div className="filter-container" style={{ position: 'relative' }}>
-                <button className="filter-btn" onClick={() => setIsFilterOpen(!isFilterOpen)} style={{
-                  padding: '8px 12px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: filterSort ? '#f76b1c' : '#fff',
-                  color: filterSort ? '#fff' : '#1f2937',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <Filter size={18} />
-                </button>
-                {isFilterOpen && (
-                  <div className="filter-dropdown" style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '8px',
-                    backgroundColor: '#fff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    minWidth: '180px',
-                    zIndex: 10
-                  }}>
-                    <div
-                      className={`filter-item ${filterSort === 'checkin' ? 'active' : ''}`}
-                      onClick={() => handleFilterClick('checkin')}
-                      style={{
-                        padding: '10px 16px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '14px',
-                        color: filterSort === 'checkin' ? '#f76b1c' : '#1f2937',
-                        backgroundColor: filterSort === 'checkin' ? '#fff5f0' : 'transparent',
-                        borderBottom: '1px solid #e5e7eb'
-                      }}
-                    >
-                      Check In
-                      {filterSort === 'checkin' && <Check size={14} />}
-                    </div>
-                    <div
-                      className={`filter-item ${filterSort === 'checkout' ? 'active' : ''}`}
-                      onClick={() => handleFilterClick('checkout')}
-                      style={{
-                        padding: '10px 16px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '14px',
-                        color: filterSort === 'checkout' ? '#f76b1c' : '#1f2937',
-                        backgroundColor: filterSort === 'checkout' ? '#fff5f0' : 'transparent'
-                      }}
-                    >
-                      Check Out
-                      {filterSort === 'checkout' && <Check size={14} />}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+      {/* Table Panel */}
+      <div className="lib-panel">
+        {/* Toolbar: Search + Column Toggle + Count + Export */}
+        <div className="cio-toolbar">
+          <div className="lib-search">
+            <Search size={16} className="lib-search-icon" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm kiếm"
+            />
           </div>
+          <div style={{ position: 'relative' }}>
+            <button
+              className="cio-column-toggle"
+              onClick={() => setShowColumnMenu(!showColumnMenu)}
+            >
+              <SlidersHorizontal size={14} />
+              Hiển thị cột
+            </button>
+            {showColumnMenu && (
+              <div className="cio-column-menu">
+                {[
+                  { key: 'userCode', label: 'Mã sinh viên' },
+                  { key: 'userName', label: 'Tên sinh viên' },
+                  { key: 'action', label: 'Hành động' },
+                  { key: 'time', label: 'Thời gian' },
+                ].map(col => (
+                  <label key={col.key} className="cio-column-menu-item">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns[col.key]}
+                      onChange={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                      style={{ accentColor: '#FF751F' }}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <span className="cio-result-count">
+            {activeFilterCount > 0 && (
+              <span className="cio-active-filters">
+                {activeFilterCount} bộ lọc |{' '}
+              </span>
+            )}
+            Tổng số <strong>{displayedLogs.length}</strong> kết quả
+          </span>
+          <div style={{ marginLeft: 'auto' }}>
+            <button className="lib-btn primary" onClick={handleExportToExcel}>
+              In báo cáo Excel
+            </button>
+          </div>
+        </div>
 
-          <div className="table-wrapper">
-            <table className="log-table" style={{
-              width: '100%',
-              borderCollapse: 'collapse'
-            }}>
-              <thead>
-                <tr style={{
-                  borderBottom: '2px solid #e5e7eb'
-                }}>
-                  <th style={{
-                    padding: '12px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#6b7280',
-                    textTransform: 'uppercase'
-                  }}>Tên sinh viên</th>
-                  <th style={{
-                    padding: '12px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#6b7280',
-                    textTransform: 'uppercase'
-                  }}>Mã số sinh viên</th>
-                  <th style={{
-                    padding: '12px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#6b7280',
-                    textTransform: 'uppercase'
-                  }}>Hành động</th>
-                  <th style={{
-                    padding: '12px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#6b7280',
-                    textTransform: 'uppercase'
-                  }}>Thời gian</th>
+        {/* Table */}
+        <div className="cio-table-wrapper">
+          <table className="cio-table">
+            <thead>
+              <tr>
+                {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã sinh viên')}
+                {visibleColumns.userName && renderColumnHeader('userName', 'Tên sinh viên')}
+                {visibleColumns.action && renderColumnHeader('action', 'Hành động')}
+                {visibleColumns.time && renderColumnHeader('time', 'Thời gian')}
+                <th style={{ width: 80, textAlign: 'center' }}>Tùy chọn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleColumnCount + 1} className="cio-table-empty">
+                    Không có dữ liệu
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginatedLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="4" style={{
-                      padding: '40px',
-                      textAlign: 'center',
-                      color: '#9ca3af',
-                      fontSize: '14px'
-                    }}>
-                      Không có dữ liệu
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedLogs.map((log) => (
-                    <tr key={`${log.logId}-${log.action}`} onClick={() => handleUserClick(log)} style={{
-                      borderBottom: '1px solid #f3f4f6',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.2s'
-                    }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f0'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    >
-                      <td className="fw-500" style={{
-                        padding: '12px',
-                        fontSize: '14px',
-                        color: '#1f2937',
-                        fontWeight: '500'
-                      }}>{log.userName}</td>
-                      <td className="code-cell" style={{
-                        padding: '12px',
-                        fontSize: '14px',
-                        color: '#6b7280'
-                      }}>{log.userCode}</td>
-                      <td style={{
-                        padding: '12px'
-                      }}>
-                        <span className={`badge action ${log.action === 'CHECK_IN' ? 'in' : 'out'}`} style={{
-                          display: 'inline-block',
-                          padding: '4px 12px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          backgroundColor: log.action === 'CHECK_IN' ? '#dcfce7' : '#fee2e2',
-                          color: log.action === 'CHECK_IN' ? '#166534' : '#991b1b'
-                        }}>
-                          {log.action === 'CHECK_IN' ? 'Check in' : 'Check out'}
+              ) : (
+                paginatedLogs.map((log) => (
+                  <tr
+                    key={`${log.logId}-${log.action}`}
+                    className="cio-table-row"
+                  >
+                    {visibleColumns.userCode && <td className="cio-code-cell">{log.userCode}</td>}
+                    {visibleColumns.userName && <td className="cio-name-cell">{log.userName}</td>}
+                    {visibleColumns.action && (
+                      <td>
+                        <span className={`cio-action-badge ${log.action === 'CHECK_IN' ? 'in' : 'out'}`}>
+                          {log.action === 'CHECK_IN' ? 'Vào' : 'Ra'}
                         </span>
                       </td>
-                      <td className="time-cell" style={{
-                        padding: '12px',
-                        fontSize: '14px',
-                        color: '#6b7280'
-                      }}>
+                    )}
+                    {visibleColumns.time && (
+                      <td className="cio-time-cell">
                         {log.action === 'CHECK_IN'
                           ? formatDateTime(log.checkInTime)
                           : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
                         }
                       </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        className="lib-btn secondary"
+                        style={{ padding: '4px 8px', fontSize: 12 }}
+                        onClick={() => handleUserClick(log)}
+                        title="Xem chi tiết"
+                      >
+                        Chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
-          {/* Pagination Controls */}
+        {/* Pagination */}
+        <div className="cio-pagination">
+          <div className="cio-page-size">
+            <span>Số hàng mỗi trang:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
           {totalPages > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '24px',
-              padding: '12px'
-            }}>
+            <div className="cio-pagination-right">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: currentPage === 1 ? '#f3f4f6' : '#fff',
-                  color: currentPage === 1 ? '#9ca3af' : '#1f2937',
-                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
+                className="cio-page-btn"
               >
-                Trước
+                &lt;
               </button>
-
-              <div style={{
-                display: 'flex',
-                gap: '4px'
-              }}>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    style={{
-                      padding: '8px 12px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      backgroundColor: currentPage === page ? '#f76b1c' : '#fff',
-                      color: currentPage === page ? '#fff' : '#1f2937',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: currentPage === page ? '600' : '500',
-                      minWidth: '40px'
-                    }}
-                  >
-                    {page}
-                  </button>
+              <div className="cio-page-numbers">
+                {getPageNumbers().map((page, idx) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="cio-page-ellipsis">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`cio-page-btn ${currentPage === page ? 'active' : ''}`}
+                    >
+                      {page}
+                    </button>
+                  )
                 ))}
               </div>
-
               <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  backgroundColor: currentPage === totalPages ? '#f3f4f6' : '#fff',
-                  color: currentPage === totalPages ? '#9ca3af' : '#1f2937',
-                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '500'
-                }}
+                className="cio-page-btn"
               >
-                Sau
+                &gt;
               </button>
-
-              <div style={{
-                marginLeft: '16px',
-                fontSize: '14px',
-                color: '#6b7280'
-              }}>
-                Trang {currentPage} / {totalPages} ({displayedLogs.length} kết quả)
-              </div>
             </div>
           )}
-
-          {/* Export Button */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: '24px',
-            paddingTop: '24px',
-            borderTop: '1px solid #e5e7eb'
-          }}>
-            <button
-              onClick={handleExportToExcel}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 24px',
-                backgroundColor: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#10b981'}
-            >
-              <FileDown size={18} />
-              In báo cáo Excel
-            </button>
-          </div>
-        </section>
+        </div>
       </div>
 
-      {/* User Details Modal */}
-      <UserDetailsModal
-        user={selectedUser}
-        isOpen={showUserDetailsModal}
+      {/* Student Detail Modal */}
+      <StudentDetailModal
+        userId={selectedUserId}
+        isOpen={showStudentModal}
         onClose={() => {
-          setShowUserDetailsModal(false);
-          setSelectedUser(null);
+          setShowStudentModal(false);
+          setSelectedUserId(null);
         }}
       />
-    </>
+
+      {/* Close menus when clicking outside */}
+      {showColumnMenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+          onClick={() => setShowColumnMenu(false)}
+        />
+      )}
+    </div>
   );
 };
-
-// --- Sub Components ---
-
-const StatCard = ({ number, label, icon, iconBg }) => (
-  <div className="stat-card" style={{
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    padding: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  }}>
-    <div className="stat-icon-wrapper" style={{
-      backgroundColor: iconBg,
-      padding: '12px',
-      borderRadius: '12px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      {icon}
-    </div>
-    <div className="stat-info">
-      <div className="stat-number" style={{
-        fontSize: '24px',
-        fontWeight: '700',
-        color: '#1f2937',
-        marginBottom: '4px'
-      }}>{number}</div>
-      <div className="stat-label" style={{
-        fontSize: '14px',
-        color: '#6b7280'
-      }}>{label}</div>
-    </div>
-  </div>
-);
 
 export default CheckInOut;

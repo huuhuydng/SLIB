@@ -1724,7 +1724,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                           const Icon(Icons.event_seat, color: Colors.white, size: 10),
                           const SizedBox(width: 2),
                           Text(
-                            '$availableSeats/$totalSeats',
+                            '${totalSeats - availableSeats}/$totalSeats',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

@@ -7,6 +7,7 @@ import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.AccessLogRepository;
 import slib.com.example.repository.RefreshTokenRepository;
 import slib.com.example.repository.ReservationRepository;
@@ -16,6 +17,8 @@ import slib.com.example.repository.UserSettingRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.ai.ChatSessionRepository;
+
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +44,7 @@ public class UserService {
     private final PointTransactionRepository pointTransactionRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final AuthService authService;
+    private final CloudinaryService cloudinaryService;
 
     /**
      * Get current user profile by email
@@ -190,6 +194,22 @@ public class UserService {
 
                 User savedUser = userRepository.save(user);
 
+                // Tạo UserSetting mặc định cho user mới
+                try {
+                    UserSetting setting = UserSetting.builder()
+                            .userId(savedUser.getId())
+                            .user(savedUser)
+                            .isHceEnabled(true)
+                            .isAiRecommendEnabled(true)
+                            .isBookingRemindEnabled(true)
+                            .themeMode("light")
+                            .languageCode("vi")
+                            .build();
+                    userSettingRepository.save(setting);
+                } catch (Exception settingEx) {
+                    // Bỏ qua nếu DB trigger đã tạo sẵn
+                }
+
                 Map<String, Object> successEntry = new HashMap<>();
                 successEntry.put("id", savedUser.getId());
                 successEntry.put("userCode", savedUser.getUserCode());
@@ -223,6 +243,11 @@ public class UserService {
         // Check if user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+
+        // 0. Delete avatar on Cloudinary if exists
+        if (user.getAvtUrl() != null && !user.getAvtUrl().isEmpty()) {
+            cloudinaryService.deleteImageByUrl(user.getAvtUrl());
+        }
 
         // Delete in order (child tables first, then parent)
         // 1. Delete activity logs (no FK constraint, just column)

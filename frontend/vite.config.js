@@ -7,6 +7,7 @@ export default defineConfig({
     'global': 'globalThis',
   },
   server: {
+    allowedHosts: ['slibsystem.site', 'api.slibsystem.site', 'ai.slibsystem.site'],
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       'Cross-Origin-Embedder-Policy': 'unsafe-none'

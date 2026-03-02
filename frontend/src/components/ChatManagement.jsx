@@ -58,6 +58,9 @@ const ChatManagement = () => {
     const [showEscalateToast, setShowEscalateToast] = useState(false);
     const [escalateToastData, setEscalateToastData] = useState(null);
     const [conversationUnread, setConversationUnread] = useState({}); // {convId: count}
+    const [showChatToast, setShowChatToast] = useState(false);
+    const [chatToastData, setChatToastData] = useState(null);
+    const chatToastTimerRef = useRef(null);
 
     // ================= REFS =================
     const stompClientRef = useRef(null);
@@ -173,7 +176,7 @@ const ChatManagement = () => {
     const setupWebSocket = () => {
         if (stompClientRef.current && stompClientRef.current.connected) return;
         const client = new Client({
-            webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+            webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`),
             connectHeaders: { Authorization: `Bearer ${TOKEN}` },
             debug: () => { }, // Suppress STOMP debug logs
             onConnect: () => {
@@ -323,12 +326,21 @@ const ChatManagement = () => {
                             }
                         });
                     } else {
-                        // Khong dang xem -> tang unread count
+                        // Khong dang xem -> tang unread count + toast
                         if (newMsg.senderType === 'STUDENT') {
                             setConversationUnread(prev => ({
                                 ...prev,
                                 [conv.id]: (prev[conv.id] || 0) + 1
                             }));
+                            // Toast thông báo tin nhắn mới
+                            setChatToastData({
+                                studentName: conv.studentName || 'Sinh viên',
+                                content: newMsg.content || '',
+                                conversationId: conv.id,
+                            });
+                            setShowChatToast(true);
+                            if (chatToastTimerRef.current) clearTimeout(chatToastTimerRef.current);
+                            chatToastTimerRef.current = setTimeout(() => setShowChatToast(false), 5000);
                         }
                     }
                 }
@@ -613,6 +625,18 @@ const ChatManagement = () => {
                 </div>
             )}
 
+            {/* Toast thông báo tin nhắn mới từ sinh viên */}
+            {showChatToast && chatToastData && (
+                <div className="chat-message-toast">
+                    <span>💬</span>
+                    <div>
+                        <strong>{chatToastData.studentName} gửi tin nhắn mới</strong>
+                        <p>{chatToastData.content?.length > 60 ? chatToastData.content.substring(0, 60) + '...' : chatToastData.content}</p>
+                    </div>
+                    <button onClick={() => setShowChatToast(false)}>✕</button>
+                </div>
+            )}
+
             <div className="chat-sidebar">
                 <div className="sidebar-header">Đoạn chat</div>
 
@@ -792,14 +816,14 @@ const ChatManagement = () => {
                     ) : (
                         messages.map((msg, idx) => {
                             // Xác định vị trí tin nhắn dựa trên senderType
-                            // STUDENT: bên trái (received), AI/LIBRARIAN: bên phải (sent)
+                            // STUDENT + AI: bên trái (received - context), LIBRARIAN: bên phải (sent)
                             const senderType = msg.senderType || 'STUDENT';
                             const isFromStudent = senderType === 'STUDENT';
                             const isFromAI = senderType === 'AI';
                             const isFromLibrarian = senderType === 'LIBRARIAN';
 
-                            // Sinh viên bên trái, AI/Thủ thư bên phải
-                            const messagePosition = isFromStudent ? 'received' : 'sent';
+                            // Chỉ librarian bên phải, student + AI context bên trái
+                            const messagePosition = isFromLibrarian ? 'sent' : 'received';
                             const isLastMsg = idx === messages.length - 1;
 
                             // Xác định avatar

@@ -114,7 +114,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
         switch (type) {
             case 'CHECK_IN': return { icon: LogIn, color: '#059669' };
             case 'CHECK_OUT': return { icon: LogIn, color: '#2563EB' };
-            case 'BOOKING': return { icon: Calendar, color: '#FF751F' };
+            case 'BOOKING': return { icon: Calendar, color: '#e8600a' };
             case 'VIOLATION': return { icon: AlertTriangle, color: '#DC2626' };
             default: return { icon: Activity, color: '#6B7280' };
         }
@@ -177,7 +177,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
         },
         header: {
-            background: 'linear-gradient(135deg, #FF751F 0%, #FF9B5A 100%)',
+            background: 'linear-gradient(135deg, #e8600a 0%, #f0853e 100%)',
             padding: '24px',
             color: '#fff',
             position: 'relative'
@@ -207,10 +207,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
             padding: '16px 24px',
             fontSize: '14px',
             fontWeight: '600',
-            color: isActive ? '#FF751F' : '#6B7280',
+            color: isActive ? '#e8600a' : '#6B7280',
             background: 'transparent',
             border: 'none',
-            borderBottom: isActive ? '3px solid #FF751F' : '3px solid transparent',
+            borderBottom: isActive ? '3px solid #e8600a' : '3px solid transparent',
             marginBottom: '-2px',
             cursor: 'pointer',
             transition: 'all 0.2s'
@@ -473,7 +473,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                             icon={Calendar}
                                             value={stats.totalBookings}
                                             label="Lượt đặt chỗ"
-                                            color="#FF751F"
+                                            color="#e8600a"
                                             bg="#FFF7ED"
                                         />
                                         <StatCard
@@ -544,7 +544,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                             alignItems: 'center',
                                             gap: '6px',
                                             padding: '8px 12px',
-                                            background: '#FF751F',
+                                            background: '#e8600a',
                                             color: '#fff',
                                             border: 'none',
                                             borderRadius: '8px',
@@ -687,7 +687,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                             alignItems: 'center',
                             gap: '8px',
                             padding: '10px 20px',
-                            background: '#FF751F',
+                            background: '#e8600a',
                             color: '#fff',
                             border: 'none',
                             borderRadius: '10px',

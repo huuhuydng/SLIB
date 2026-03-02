@@ -63,6 +63,10 @@ public class Conversation {
     @Builder.Default
     private Integer currentHumanSession = 0;
 
+    // AI service session ID (MongoDB) - dùng để lấy chat history từ AI service
+    @Column(name = "ai_session_id")
+    private String aiSessionId;
+
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Message> messages = new ArrayList<>();

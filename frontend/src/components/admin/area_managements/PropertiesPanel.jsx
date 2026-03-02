@@ -198,8 +198,15 @@ function PropertiesPanel() {
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
 
+    // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
+    const apiPayload = {
+      ...updated,
+      positionX: Math.max(0, updated.positionX ?? 0),
+      positionY: Math.max(0, updated.positionY ?? 0),
+    };
+
     // API call in background (non-blocking)
-    updateArea(selectedData.areaId, updated).catch(e => {
+    updateArea(selectedData.areaId, apiPayload).catch(e => {
       console.error("Failed to update area:", e);
     });
   };

@@ -76,6 +76,17 @@ public class SeatViolationReportController {
     }
 
     /**
+     * GET /slib/violation-reports/against-me
+     * Sinh viên xem danh sách vi phạm bị gán cho mình
+     */
+    @GetMapping("/against-me")
+    public ResponseEntity<List<ViolationReportResponse>> getViolationsAgainstMe(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        return ResponseEntity.ok(violationReportService.getViolationsAgainstMe(userId));
+    }
+
+    /**
      * GET /slib/violation-reports
      * Thu thu xem tat ca bao cao (filter theo ?status=PENDING)
      */
@@ -128,5 +139,26 @@ public class SeatViolationReportController {
                 "verified", violationReportService.countByStatus(ReportStatus.VERIFIED),
                 "resolved", violationReportService.countByStatus(ReportStatus.RESOLVED),
                 "rejected", violationReportService.countByStatus(ReportStatus.REJECTED)));
+    }
+
+    /**
+     * DELETE /slib/violation-reports/batch
+     * Thu thu xoa nhieu bao cao cung luc
+     */
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            violationReportService.deleteBatch(uuids);
+            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            log.error("[ViolationReport] Error deleting batch: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
     }
 }

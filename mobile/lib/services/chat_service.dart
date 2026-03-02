@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:slib/core/constants/api_constants.dart';
 
@@ -101,6 +102,36 @@ class ChatService {
     }
   }
 
+  /// Gửi tin nhắn kèm ảnh đến backend
+  /// Trả về content (chứa [IMAGES] url) nếu thành công, null nếu thất bại
+  Future<String?> sendMessageWithImage({
+    required String conversationId,
+    required File imageFile,
+    String content = '',
+    String senderType = 'STUDENT',
+    required String authToken,
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages/with-image');
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $authToken'
+        ..fields['content'] = content
+        ..fields['senderType'] = senderType
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final body = await response.stream.bytesToString();
+        final data = jsonDecode(body);
+        return data['content'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print('Send Image Message Error: $e');
+      return null;
+    }
+  }
+
   /// Lấy tất cả messages của conversation
   Future<List<Map<String, dynamic>>> getMessages(String conversationId, String authToken) async {
     try {
@@ -162,11 +193,11 @@ class ChatService {
   // ==========================================
 
   /// Request librarian - tạo conversation mới và escalate trong 1 bước
-  /// messageHistory: list của {content, isUser, senderType}
+  /// aiSessionId: session ID của AI service (MongoDB) để backend đọc chat history
   Future<EscalationResult> requestLibrarian(
     String? reason, 
     String authToken, 
-    {List<Map<String, dynamic>>? messageHistory}
+    {String? aiSessionId}
   ) async {
     try {
       final response = await http.post(
@@ -177,7 +208,7 @@ class ChatService {
         },
         body: jsonEncode({
           'reason': reason ?? 'User yêu cầu gặp thủ thư',
-          'messageHistory': messageHistory ?? [],
+          'aiSessionId': aiSessionId,
         }),
       );
 
