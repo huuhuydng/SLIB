@@ -477,7 +477,7 @@ const Dashboard = () => {
               <div className="chart-legend">
                 <span className="chart-legend-item">
                   <i className="chart-legend-dot" style={{ background: '#FF751F' }}></i>
-                  Vào thư viện
+                  Lượt vào
                 </span>
                 <span className="chart-legend-item">
                   <i className="chart-legend-dot" style={{ background: '#fbbf24' }}></i>

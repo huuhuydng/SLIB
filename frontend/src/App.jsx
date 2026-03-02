@@ -1,12 +1,11 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
 import ChatWidget from "./components/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
-import { SessionExpired, TokenExpired, NotFound, ServerError, Forbidden, SessionTimeout } from "./pages/errors/ErrorPages";
 
 
 const ConditionalChatWidget = () => {
@@ -80,9 +79,9 @@ function App() {
         const intervalId = setInterval(() => {
             const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
             if (isTokenExpired(token)) {
-                console.warn('[Auth] Token hết hạn, tự động đăng xuất');
+                console.warn('[Auth] Token het han, tu dong dang xuat');
                 performLogout();
-                window.location.href = '/session-expired';
+                alert('Phien dang nhap da het han. Vui long dang nhap lai.');
             }
         }, 60 * 1000);
 
@@ -97,9 +96,9 @@ function App() {
     // Update document title based on role (only when logged in)
     React.useEffect(() => {
         if (isLoggedIn && userRole === 'ADMIN') {
-            document.title = 'SLIB - Quản trị viên';
+            document.title = 'SLIB - Admin';
         } else if (isLoggedIn && userRole === 'LIBRARIAN') {
-            document.title = 'SLIB - Thủ thư';
+            document.title = 'SLIB - Thu Thu';
         } else {
             document.title = 'SLIB';
         }
@@ -147,15 +146,8 @@ function App() {
                     {/* Root redirects based on role */}
                     <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
-                    {/* Error Pages */}
-                    <Route path="/session-expired" element={<SessionExpired />} />
-                    <Route path="/token-expired" element={<TokenExpired />} />
-                    <Route path="/server-error" element={<ServerError />} />
-                    <Route path="/forbidden" element={<Forbidden />} />
-                    <Route path="/session-timeout" element={<SessionTimeout />} />
-
-                    {/* Fallback - 404 */}
-                    <Route path="*" element={<NotFound />} />
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </BrowserRouter>
         </ModalProvider>

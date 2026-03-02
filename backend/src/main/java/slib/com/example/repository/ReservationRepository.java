@@ -92,4 +92,22 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
         @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0) " +
                         "FROM reservations WHERE user_id = :userId AND status = 'EXPIRED'", nativeQuery = true)
         long getTotalStudyMinutesByUser(@Param("userId") UUID userId);
+
+        // Statistic: đếm booking theo status group trong range
+        @Query(value = "SELECT status, COUNT(*) as cnt FROM reservations " +
+                        "WHERE created_at >= :startDate GROUP BY status", nativeQuery = true)
+        List<Object[]> countBookingsGroupByStatus(@Param("startDate") LocalDateTime startDate);
+
+        // Statistic: đếm booking cho mỗi zone trong range
+        @Query(value = "SELECT s.zone_id, z.zone_name, a.area_name, COUNT(r.reservation_id) as booking_count, " +
+                        "(SELECT COUNT(*) FROM seats s2 WHERE s2.zone_id = s.zone_id) as total_seats " +
+                        "FROM reservations r " +
+                        "JOIN seats s ON r.seat_id = s.seat_id " +
+                        "JOIN zones z ON s.zone_id = z.zone_id " +
+                        "JOIN areas a ON z.area_id = a.area_id " +
+                        "WHERE r.created_at >= :startDate AND r.status IN ('BOOKED', 'CONFIRMED', 'COMPLETED', 'EXPIRED') "
+                        +
+                        "GROUP BY s.zone_id, z.zone_name, a.area_name " +
+                        "ORDER BY booking_count DESC", nativeQuery = true)
+        List<Object[]> countBookingsByZone(@Param("startDate") LocalDateTime startDate);
 }

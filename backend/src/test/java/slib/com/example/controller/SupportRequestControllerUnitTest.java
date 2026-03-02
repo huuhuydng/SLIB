@@ -243,4 +243,69 @@ class SupportRequestControllerUnitTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversationId").value(conversationId.toString()));
     }
+
+    // =========================================
+    // === CREATE SUPPORT REQUEST ===
+    // =========================================
+
+    @Test
+    @WithMockUser(username = "student@test.com")
+    @DisplayName("createSupportRequest_validRequest_returns201")
+    void createSupportRequest_validRequest_returns201() throws Exception {
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("student@test.com");
+        when(userRepository.findByEmail("student@test.com")).thenReturn(Optional.of(user));
+
+        SupportRequestDTO dto = createMockDTO();
+        when(supportRequestService.create(eq(user.getId()), eq("Test description"), any()))
+                .thenReturn(dto);
+
+        mockMvc.perform(post("/slib/support-requests")
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .param("description", "Test description"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.description").value("Test support request"));
+    }
+
+    @Test
+    @WithMockUser(username = "student@test.com")
+    @DisplayName("createSupportRequest_missingDescription_returns400")
+    void createSupportRequest_missingDescription_returns400() throws Exception {
+        mockMvc.perform(post("/slib/support-requests")
+                .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isBadRequest());
+    }
+
+    // =========================================
+    // === DELETE BATCH ===
+    // =========================================
+
+    @Test
+    @WithMockUser(username = "librarian@test.com")
+    @DisplayName("deleteBatch_validIds_returns200")
+    void deleteBatch_validIds_returns200() throws Exception {
+        User user = createMockUser();
+        when(userRepository.findByEmail("librarian@test.com")).thenReturn(Optional.of(user));
+
+        List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
+        doNothing().when(supportRequestService).deleteBatch(ids);
+
+        mockMvc.perform(delete("/slib/support-requests/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("ids", ids.stream().map(UUID::toString).toList()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "librarian@test.com")
+    @DisplayName("deleteBatch_emptyIds_returns400")
+    void deleteBatch_emptyIds_returns400() throws Exception {
+        mockMvc.perform(delete("/slib/support-requests/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("ids", List.of()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
+    }
 }

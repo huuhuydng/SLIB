@@ -10,14 +10,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import jakarta.servlet.http.HttpServletRequest;
+import slib.com.example.dto.hce.AccessLogDTO;
+import slib.com.example.dto.hce.AccessLogStatsDTO;
 import slib.com.example.dto.hce.CheckInRequest;
+import slib.com.example.dto.hce.StudentDetailDTO;
 import slib.com.example.service.CheckInService;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 
 class HCEControllerTest {
     @Mock
@@ -92,4 +98,112 @@ class HCEControllerTest {
         assertTrue(response.getBody() instanceof java.util.ArrayList);
         assertTrue(((java.util.ArrayList<?>) response.getBody()).isEmpty());
     }
+
+    @Test
+    void testGetAllAccessLogs_success() {
+        List<AccessLogDTO> logs = List.of(new AccessLogDTO());
+        when(checkInService.getAllAccessLogs()).thenReturn(logs);
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getAllAccessLogs();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(logs, response.getBody());
+    }
+
+    @Test
+    void testGetAllAccessLogs_exception() {
+        when(checkInService.getAllAccessLogs()).thenThrow(new RuntimeException("Error"));
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getAllAccessLogs();
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void testGetTodayAccessLogs_success() {
+        List<AccessLogDTO> logs = List.of(new AccessLogDTO());
+        when(checkInService.getTodayAccessLogs()).thenReturn(logs);
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getTodayAccessLogs();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(logs, response.getBody());
+    }
+
+    @Test
+    void testGetTodayAccessLogs_exception() {
+        when(checkInService.getTodayAccessLogs()).thenThrow(new RuntimeException("Error"));
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getTodayAccessLogs();
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void testGetTodayStats_success() {
+        AccessLogStatsDTO stats = new AccessLogStatsDTO();
+        when(checkInService.getTodayStats()).thenReturn(stats);
+
+        ResponseEntity<AccessLogStatsDTO> response = hceController.getTodayStats();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(stats, response.getBody());
+    }
+
+    @Test
+    void testGetTodayStats_exception() {
+        when(checkInService.getTodayStats()).thenThrow(new RuntimeException("Error"));
+
+        ResponseEntity<AccessLogStatsDTO> response = hceController.getTodayStats();
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void testGetAccessLogsByDateRange_withDates_success() {
+        List<AccessLogDTO> logs = List.of(new AccessLogDTO());
+        when(checkInService.getAccessLogsByDateRange(any(), any())).thenReturn(logs);
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getAccessLogsByDateRange("2024-01-01", "2024-01-31");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void testGetAccessLogsByDateRange_noDates_returnsAll() {
+        List<AccessLogDTO> logs = List.of(new AccessLogDTO());
+        when(checkInService.getAllAccessLogs()).thenReturn(logs);
+
+        ResponseEntity<List<AccessLogDTO>> response = hceController.getAccessLogsByDateRange(null, null);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(checkInService).getAllAccessLogs();
+    }
+
+    @Test
+    void testGetStudentDetail_validUUID_success() {
+        StudentDetailDTO detail = new StudentDetailDTO();
+        when(checkInService.getStudentDetail(any())).thenReturn(detail);
+
+        ResponseEntity<StudentDetailDTO> response = hceController.getStudentDetail(UUID.randomUUID().toString());
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void testGetStudentDetail_invalidUUID_badRequest() {
+        ResponseEntity<StudentDetailDTO> response = hceController.getStudentDetail("invalid-uuid");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void testGetStudentDetail_notFound() {
+        when(checkInService.getStudentDetail(any())).thenThrow(new RuntimeException("Not found"));
+
+        ResponseEntity<StudentDetailDTO> response = hceController.getStudentDetail(UUID.randomUUID().toString());
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
 }

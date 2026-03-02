@@ -1,5 +1,6 @@
 package slib.com.example.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,9 @@ import slib.com.example.service.FeedbackService;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,6 +51,9 @@ class FeedbackControllerUnitTest {
 
     @MockBean
     private UserRepository userRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private User createMockUser() {
         User user = new User();
@@ -218,5 +224,61 @@ class FeedbackControllerUnitTest {
                 .andExpect(jsonPath("$.new").value(10))
                 .andExpect(jsonPath("$.reviewed").value(8))
                 .andExpect(jsonPath("$.acted").value(2));
+    }
+
+    // =========================================
+    // === DELETE BATCH ===
+    // =========================================
+
+    @Test
+    @DisplayName("deleteBatch_validIds_returns200")
+    void deleteBatch_validIds_returns200() throws Exception {
+        // Arrange
+        List<UUID> ids = Arrays.asList(UUID.randomUUID(), UUID.randomUUID());
+        List<String> idStrings = ids.stream().map(UUID::toString).toList();
+
+        doNothing().when(feedbackService).deleteBatch(ids);
+
+        Map<String, List<String>> request = new HashMap<>();
+        request.put("ids", idStrings);
+
+        // Act & Assert
+        mockMvc.perform(delete("/slib/feedbacks/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deleted").value(2));
+
+        verify(feedbackService, times(1)).deleteBatch(ids);
+    }
+
+    @Test
+    @DisplayName("deleteBatch_emptyIds_returns400")
+    void deleteBatch_emptyIds_returns400() throws Exception {
+        // Arrange
+        Map<String, List<String>> request = new HashMap<>();
+        request.put("ids", List.of());
+
+        // Act & Assert
+        mockMvc.perform(delete("/slib/feedbacks/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Danh sách ID không được trống"));
+
+        verify(feedbackService, never()).deleteBatch(anyList());
+    }
+
+    @Test
+    @DisplayName("deleteBatch_nullIds_returns400")
+    void deleteBatch_nullIds_returns400() throws Exception {
+        // Act & Assert
+        mockMvc.perform(delete("/slib/feedbacks/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Danh sách ID không được trống"));
+
+        verify(feedbackService, never()).deleteBatch(anyList());
     }
 }

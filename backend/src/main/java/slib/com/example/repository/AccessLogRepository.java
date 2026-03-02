@@ -66,4 +66,13 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
                         "GROUP BY a.user_id, u.full_name, u.user_code, u.avt_url " +
                         "ORDER BY total_minutes DESC LIMIT 5", nativeQuery = true)
         List<Object[]> findTopStudentsByStudyTime(@Param("startDate") LocalDateTime startDate);
+
+        // Statistic: đếm check-in theo giờ trong ngày (peak hours)
+        @Query(value = "SELECT EXTRACT(HOUR FROM check_in_time) as hour_of_day, COUNT(*) as cnt " +
+                        "FROM access_logs WHERE check_in_time >= :startDate " +
+                        "GROUP BY EXTRACT(HOUR FROM check_in_time) ORDER BY hour_of_day", nativeQuery = true)
+        List<Object[]> countCheckInsByHour(@Param("startDate") LocalDateTime startDate);
+
+        // Statistic: tổng check-in trong range
+        long countByCheckInTimeAfter(LocalDateTime startDate);
 }

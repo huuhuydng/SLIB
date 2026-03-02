@@ -10,9 +10,12 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.LibrarianNotificationService;
+import slib.com.example.service.UserService;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +23,9 @@ import java.util.Map;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Unit Tests for LibrarianNotificationController
@@ -36,6 +42,9 @@ class LibrarianNotificationControllerUnitTest {
 
     @MockBean
     private LibrarianNotificationService librarianNotificationService;
+
+    @MockBean
+    private UserService userService;
 
     @Test
     @DisplayName("getPendingCounts_returns200WithCounts")
@@ -82,5 +91,55 @@ class LibrarianNotificationControllerUnitTest {
                 .andExpect(jsonPath("$.total").value(0));
 
         verify(librarianNotificationService).getPendingCounts();
+    }
+
+    // =========================================
+    // === GET UNREAD CHAT COUNT ===
+    // =========================================
+
+    @Test
+    @DisplayName("getUnreadChatCount_authenticatedUser_returns200WithCount")
+    @WithMockUser(username = "librarian@fpt.edu.vn")
+    void getUnreadChatCount_authenticatedUser_returns200WithCount() throws Exception {
+        // Arrange
+        UUID librarianId = UUID.randomUUID();
+        User librarian = new User();
+        librarian.setId(librarianId);
+        librarian.setEmail("librarian@fpt.edu.vn");
+
+        when(userService.getUserByEmail("librarian@fpt.edu.vn")).thenReturn(librarian);
+        when(librarianNotificationService.getUnreadChatCount(librarianId)).thenReturn(7L);
+
+        // Act & Assert
+        mockMvc.perform(get("/slib/librarian/unread-chat-count")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(7));
+
+        verify(userService, times(1)).getUserByEmail("librarian@fpt.edu.vn");
+        verify(librarianNotificationService, times(1)).getUnreadChatCount(librarianId);
+    }
+
+    @Test
+    @DisplayName("getUnreadChatCount_noUnread_returns200WithZeroCount")
+    @WithMockUser(username = "librarian@fpt.edu.vn")
+    void getUnreadChatCount_noUnread_returns200WithZeroCount() throws Exception {
+        // Arrange
+        UUID librarianId = UUID.randomUUID();
+        User librarian = new User();
+        librarian.setId(librarianId);
+        librarian.setEmail("librarian@fpt.edu.vn");
+
+        when(userService.getUserByEmail("librarian@fpt.edu.vn")).thenReturn(librarian);
+        when(librarianNotificationService.getUnreadChatCount(librarianId)).thenReturn(0L);
+
+        // Act & Assert
+        mockMvc.perform(get("/slib/librarian/unread-chat-count")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
+
+        verify(userService, times(1)).getUserByEmail("librarian@fpt.edu.vn");
+        verify(librarianNotificationService, times(1)).getUnreadChatCount(librarianId);
     }
 }

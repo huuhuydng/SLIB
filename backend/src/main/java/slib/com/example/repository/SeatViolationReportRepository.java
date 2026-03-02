@@ -1,6 +1,8 @@
 package slib.com.example.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import slib.com.example.entity.feedback.SeatViolationReportEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity.ReportStatus;
@@ -27,4 +29,12 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
 
     // Dashboard: lấy 5 vi phạm gần đây nhất
     List<SeatViolationReportEntity> findTop5ByOrderByCreatedAtDesc();
+
+    // Statistic: phân bổ vi phạm theo loại trong range
+    @Query(value = "SELECT violation_type, COUNT(*) as cnt FROM seat_violation_reports " +
+            "WHERE created_at >= :startDate GROUP BY violation_type ORDER BY cnt DESC", nativeQuery = true)
+    List<Object[]> countByViolationTypeAfter(@Param("startDate") LocalDateTime startDate);
+
+    // Statistic: tổng vi phạm trong range
+    long countByCreatedAtAfter(LocalDateTime startDate);
 }
