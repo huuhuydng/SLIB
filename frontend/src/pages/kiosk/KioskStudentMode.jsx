@@ -7,7 +7,7 @@ import websocketService from '../../services/websocketService';
 import kioskService from '../../services/kioskService';
 import logo from '../../assets/logo.png';
 import fptLogo from '../../assets/fpt_logo.png';
-import '../../styles/kiosk/kiosk.css';
+import '../../styles/kiosk/Kiosk.css';
 import './KioskStudentMode.css';
 
 const KIOSK_CODE = 'KIOSK_001';

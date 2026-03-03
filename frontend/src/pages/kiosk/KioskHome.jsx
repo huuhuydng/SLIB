@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import IdleSlideshow from '../../components/common/IdleSlideshow';
 import { CalendarDays, QrCode, Map, Info, Monitor, LogIn } from 'lucide-react';
 import logo from '../../assets/logo.png';
-import '../../styles/kiosk/kiosk.css';
+import '../../styles/kiosk/Kiosk.css';
 
 /**
  * KioskHome - Trang chủ Kiosk Menu

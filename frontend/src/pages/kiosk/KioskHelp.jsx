@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import IdleSlideshow from '../../components/common/IdleSlideshow';
 import { ArrowLeft } from 'lucide-react';
-import '../../styles/kiosk/kiosk.css';
+import '../../styles/kiosk/Kiosk.css';
 
 /**
  * KioskHelp - Hướng dẫn sử dụng Kiosk
