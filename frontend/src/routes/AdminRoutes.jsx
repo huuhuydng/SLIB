@@ -14,8 +14,6 @@ import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
 import AccountSettings from "../components/AccountSettings";
-import SlideshowManagement from "../components/admin/kiosk_managements/SlideshowManagement";
-import SlideshowPreview from "../components/admin/kiosk_managements/SlideshowPreview";
 
 function AdminRoutes() {
   return (
@@ -39,10 +37,6 @@ function AdminRoutes() {
         <Route path="config" element={<SystemConfig />} />
         <Route path="health" element={<SystemHealth />} />
         <Route path="ai-config" element={<AIConfig />} />
-
-        {/* Quản lý Kiosk */}
-        <Route path="slideshow-management" element={<SlideshowManagement />} />
-        <Route path="slideshow-preview" element={<SlideshowPreview />} />
 
         {/* Cài đặt tài khoản */}
         <Route path="settings" element={<AccountSettings />} />
