@@ -31,6 +31,9 @@ public class KioskImageEntity {
     @Column(name = "image_url", columnDefinition = "TEXT", nullable = false)
     private String imageUrl;
 
+    @Column(name = "public_id", length = 255)
+    private String publicId;
+
     @Builder.Default
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 0;

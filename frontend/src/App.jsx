@@ -1,11 +1,13 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import AuthPage from "./components/auth/AuthPage";
 import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
+
 import { ModalProvider } from "./components/shared/ModalContext";
 import ChatWidget from "./components/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
+import { SessionExpired, TokenExpired, NotFound, ServerError, Forbidden, SessionTimeout } from "./pages/errors/ErrorPages";
 
 
 const ConditionalChatWidget = () => {
@@ -15,6 +17,7 @@ const ConditionalChatWidget = () => {
     const hiddenRoutes = [
         '/admin/chat',
         '/librarian/chat',
+        '/kiosk',                   // Kiosk mode
         '/login',                   // Trang login chung
         '/admin/login',             // Redirect cu
         '/librarian/login'          // Redirect cu
@@ -79,9 +82,9 @@ function App() {
         const intervalId = setInterval(() => {
             const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
             if (isTokenExpired(token)) {
-                console.warn('[Auth] Token het han, tu dong dang xuat');
+                console.warn('[Auth] Token hết hạn, tự động đăng xuất');
                 performLogout();
-                alert('Phien dang nhap da het han. Vui long dang nhap lai.');
+                window.location.href = '/session-expired';
             }
         }, 60 * 1000);
 
@@ -96,9 +99,9 @@ function App() {
     // Update document title based on role (only when logged in)
     React.useEffect(() => {
         if (isLoggedIn && userRole === 'ADMIN') {
-            document.title = 'SLIB - Admin';
+            document.title = 'SLIB - Quản trị viên';
         } else if (isLoggedIn && userRole === 'LIBRARIAN') {
-            document.title = 'SLIB - Thu Thu';
+            document.title = 'SLIB - Thủ thư';
         } else {
             document.title = 'SLIB';
         }
@@ -143,11 +146,21 @@ function App() {
                             : <Navigate to="/login" replace />
                     } />
 
+                    {/* Kiosk Routes - Public, không cần đăng nhập */}
+
+
                     {/* Root redirects based on role */}
                     <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
-                    {/* Fallback */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    {/* Error Pages */}
+                    <Route path="/session-expired" element={<SessionExpired />} />
+                    <Route path="/token-expired" element={<TokenExpired />} />
+                    <Route path="/server-error" element={<ServerError />} />
+                    <Route path="/forbidden" element={<Forbidden />} />
+                    <Route path="/session-timeout" element={<SessionTimeout />} />
+
+                    {/* Fallback - 404 */}
+                    <Route path="*" element={<NotFound />} />
                 </Routes>
             </BrowserRouter>
         </ModalProvider>
