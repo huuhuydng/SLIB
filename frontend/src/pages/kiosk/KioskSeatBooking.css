@@ -1,0 +1,439 @@
+/* KioskSeatBooking - Sơ đồ ghế cho kiosk cảm ứng */
+
+/* Override màu ghế trống: xanh dương → xanh lá cây */
+.ksb {
+    --color-seat-available: #22c55e;
+    --color-seat-available-light: #dcfce7;
+}
+
+.ksb .canvas-board {
+    background: none;
+}
+
+.ksb {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf4 100%);
+    overflow: hidden;
+}
+
+/* Header */
+.ksb__header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    flex-shrink: 0;
+}
+
+.ksb__back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #475569;
+    transition: all 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 48px;
+}
+
+.ksb__back:active {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.ksb__title {
+    flex: 1;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.ksb__slot-select {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #475569;
+}
+
+.ksb__slot-select select {
+    padding: 12px 18px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    font-size: 16px;
+    color: #1e293b;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+    min-height: 48px;
+}
+
+.ksb__slot-select select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Stats */
+.ksb__stats {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 14px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.ksb__stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: #64748b;
+}
+
+.ksb__stat strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.ksb__stat-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.ksb__stat-dot--available {
+    background: #22c55e;
+}
+
+.ksb__stat-dot--booked {
+    background: #f59e0b;
+}
+
+.ksb__stat-dot--unavailable {
+    background: #94a3b8;
+}
+
+.ksb__stat--occupancy {
+    margin-left: auto;
+    color: #3b82f6;
+}
+
+.ksb__stat--occupancy strong {
+    color: #3b82f6;
+}
+
+/* Map canvas */
+.ksb__map {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    padding: 8px;
+}
+
+.ksb__canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.ksb__canvas:active {
+    cursor: grabbing;
+}
+
+.ksb__loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: #64748b;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Zoom controls - nút to dễ bấm trên kiosk cảm ứng */
+.ksb__zoom-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 20;
+    backdrop-filter: blur(8px);
+}
+
+.ksb__zoom-btn {
+    width: 48px;
+    height: 48px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 22px;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ksb__zoom-btn:active {
+    background: #e2e8f0;
+    transform: scale(0.93);
+}
+
+.ksb__zoom-btn--reset {
+    width: auto;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.ksb__zoom-level {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    min-width: 44px;
+    text-align: center;
+}
+
+/* Seat detail overlay */
+.ksb__detail-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: ksb-fadeIn 0.2s ease;
+}
+
+@keyframes ksb-fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.ksb__detail-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px;
+    min-width: 360px;
+    max-width: 440px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    animation: ksb-slideUp 0.3s ease;
+}
+
+@keyframes ksb-slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.ksb__detail-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    color: #1e293b;
+}
+
+.ksb__detail-code {
+    font-size: 26px;
+    font-weight: 700;
+    flex: 1;
+}
+
+.ksb__detail-status {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 20px;
+    text-transform: uppercase;
+}
+
+.ksb__detail-status--available {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.ksb__detail-status--booked {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.ksb__detail-status--unavailable {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.ksb__detail-info {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 16px;
+    color: #64748b;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ksb__detail-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ksb__detail-info-label {
+    color: #94a3b8;
+    font-size: 14px;
+}
+
+.ksb__detail-info-value {
+    color: #1e293b;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.ksb__detail-note {
+    font-size: 15px;
+    color: #3b82f6;
+    background: #eff6ff;
+    padding: 14px 18px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+.ksb__detail-close {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 17px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 52px;
+}
+
+.ksb__detail-close:active {
+    background: #e2e8f0;
+}
+
+/* Nút đặt chỗ - xanh lá, to dễ bấm trên cảm ứng */
+.ksb__detail-book {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: #fff;
+    font-size: 19px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: opacity 0.2s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 56px;
+}
+
+.ksb__detail-book:active {
+    transform: scale(0.97);
+}
+
+.ksb__detail-book:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Note cảnh báo */
+.ksb__detail-note--warn {
+    color: #92400e;
+    background: #fef3c7;
+}
+
+/* Toast thông báo */
+.ksb__toast {
+    position: fixed;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 32px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    z-index: 9999;
+    animation: ksb-toastIn 0.4s ease;
+}
+
+.ksb__toast--success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.ksb__toast--error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+@keyframes ksb-toastIn {
+    from {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
