@@ -1,0 +1,150 @@
+.dynamic-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.dynamic-qr__code {
+  position: relative;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+  border: 3px solid #f0f0f0;
+}
+
+.dynamic-qr__code svg {
+  display: block;
+}
+
+.dynamic-qr__refreshing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  z-index: 10;
+}
+
+.dynamic-qr__timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #555;
+}
+
+.dynamic-qr__timer svg {
+  color: #FF751F;
+}
+
+.dynamic-qr__progress {
+  width: 100%;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.dynamic-qr__progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FF751F, #ff9a5c);
+  border-radius: 3px;
+  transition: width 1s linear;
+}
+
+.dynamic-qr__instructions {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.dynamic-qr__instructions p {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.dynamic-qr__hint {
+  margin-top: 8px !important;
+  font-size: 14px !important;
+  color: #888 !important;
+}
+
+.dynamic-qr__refreshing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: #888;
+}
+
+.dynamic-qr__loading,
+.dynamic-qr__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  text-align: center;
+}
+
+.dynamic-qr__loading p,
+.dynamic-qr__error p {
+  margin-top: 16px;
+  font-size: 18px;
+  color: #666;
+}
+
+.dynamic-qr__error {
+  color: #e53e3e;
+}
+
+.dynamic-qr__error svg {
+  color: #e53e3e;
+}
+
+.retry-button {
+  margin-top: 20px;
+  padding: 12px 32px;
+  background: #FF751F;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.retry-button:hover {
+  background: #e6681a;
+}
+
+/* Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  color: #FF751F;
+}

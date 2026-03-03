@@ -91,7 +91,7 @@ export const seatService = {
     try {
       const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats/${seatId}/restrict`;
 
-      console.log('🔓 Removing restriction for seatId:', seatId);
+      console.log('Removing restriction for seatId:', seatId);
 
       const response = await fetch(url, {
         method: 'DELETE',
@@ -105,7 +105,30 @@ export const seatService = {
 
       return await response.json();
     } catch (error) {
-      console.error('❌ Error removing restriction:', error);
+      console.error('Error removing restriction:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách zones
+   * GET /slib/zones
+   */
+  async getZones() {
+    try {
+      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/zones`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch zones (${response.status})`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching zones:', error);
       throw error;
     }
   }
