@@ -117,20 +117,24 @@ function KioskCanvas({ onSeatClick }) {
         });
 
         const rect = containerRef.current.getBoundingClientRect();
-        const pad = 16;
+        const pad = 32;
         const contentW = maxX - minX;
         const contentH = maxY - minY;
+        if (contentW <= 0 || contentH <= 0) return;
+
         const viewW = rect.width - pad * 2;
         const viewH = rect.height - pad * 2;
 
-        const scale = Math.min(viewW / contentW, viewH / contentH);
-        const centerX = (minX + maxX) / 2;
-        const centerY = (minY + maxY) / 2;
+        const scale = Math.min(viewW / contentW, viewH / contentH, MAX_ZOOM);
+
+        // Center content in viewport
+        const scaledW = contentW * scale;
+        const scaledH = contentH * scale;
 
         setZoom(scale);
         setPan({
-            x: rect.width / 2 - centerX * scale,
-            y: rect.height / 2 - centerY * scale,
+            x: (rect.width - scaledW) / 2 - minX * scale,
+            y: (rect.height - scaledH) / 2 - minY * scale,
         });
     }, [areas]);
 
@@ -141,6 +145,15 @@ function KioskCanvas({ onSeatClick }) {
         dispatch({ type: actions.SET_ZOOM, payload: zoom });
         dispatch({ type: actions.SET_PAN, payload: pan });
     }, [zoom, pan]);
+
+    // Zoom helper: zoom towards a specific point in the viewport
+    const zoomTowards = useCallback((cx, cy, newZoom, oldZoom) => {
+        // cx, cy = point in container coords
+        setPan(pp => ({
+            x: cx - (cx - pp.x) * (newZoom / oldZoom),
+            y: cy - (cy - pp.y) * (newZoom / oldZoom),
+        }));
+    }, []);
 
     // === MOUSE DRAG ===
     const handleMouseDown = useCallback((e) => {
@@ -198,7 +211,7 @@ function KioskCanvas({ onSeatClick }) {
                     const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * scaleDelta));
                     const rect = containerRef.current.getBoundingClientRect();
                     const cx = newCenter.x - rect.left, cy = newCenter.y - rect.top;
-                    setPan(pp => ({ x: cx - (cx - pp.x) * (nz / prev), y: cy - (cy - pp.y) * (nz / prev) }));
+                    zoomTowards(cx, cy, nz, prev);
                     return nz;
                 });
             }
@@ -212,7 +225,7 @@ function KioskCanvas({ onSeatClick }) {
             setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
             touchRef.current.lastSingleTouch = { x: t.clientX, y: t.clientY };
         }
-    }, []);
+    }, [zoomTowards]);
 
     const handleTouchEnd = useCallback(() => {
         touchRef.current.lastDistance = 0;
@@ -220,7 +233,7 @@ function KioskCanvas({ onSeatClick }) {
         touchRef.current.isPanning = false;
     }, []);
 
-    // Mouse wheel zoom
+    // Mouse wheel zoom — zoom towards cursor position
     const handleWheel = useCallback((e) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -228,13 +241,33 @@ function KioskCanvas({ onSeatClick }) {
         const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
         setZoom(prev => {
             const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta));
-            setPan(pp => ({ x: cx - (cx - pp.x) * (nz / prev), y: cy - (cy - pp.y) * (nz / prev) }));
+            zoomTowards(cx, cy, nz, prev);
             return nz;
         });
-    }, []);
+    }, [zoomTowards]);
 
-    const handleZoomIn = () => setZoom(prev => Math.min(MAX_ZOOM, prev * 1.3));
-    const handleZoomOut = () => setZoom(prev => Math.max(MIN_ZOOM, prev / 1.3));
+    // Zoom buttons: zoom towards CENTER of viewport
+    const handleZoomIn = useCallback(() => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const cx = rect.width / 2, cy = rect.height / 2;
+        setZoom(prev => {
+            const nz = Math.min(MAX_ZOOM, prev * 1.3);
+            zoomTowards(cx, cy, nz, prev);
+            return nz;
+        });
+    }, [zoomTowards]);
+
+    const handleZoomOut = useCallback(() => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+        const cx = rect.width / 2, cy = rect.height / 2;
+        setZoom(prev => {
+            const nz = Math.max(MIN_ZOOM, prev / 1.3);
+            zoomTowards(cx, cy, nz, prev);
+            return nz;
+        });
+    }, [zoomTowards]);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -260,9 +293,9 @@ function KioskCanvas({ onSeatClick }) {
                 style={{
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                     transformOrigin: "0 0",
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
                 }}
             >
                 {areas.map((area) => (
