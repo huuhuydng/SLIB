@@ -36,7 +36,7 @@ const Attendance = () => {
           id: `history-${index}-${Date.now()}`,
           name: item.fullName,
           code: item.userCode,
-          action: item.type === 'CHECK_IN' ? 'Check in' : 'Check out',
+          action: item.type === 'CHECK_IN' ? 'Vào' : 'Ra',
           zone: item.deviceId || 'GATE_01',
           time: formatTimeOnly(item.time)
         })) : [];
@@ -70,7 +70,7 @@ const Attendance = () => {
           id: Date.now(),
           name: data.fullName,
           code: data.userCode,
-          action: data.type === 'CHECK_IN' ? 'Check in' : 'Check out',
+          action: data.type === 'CHECK_IN' ? 'Vào' : 'Ra',
           zone: data.deviceId || 'GATE_01',
           time: formatTimeOnly(rawTime)
         };
@@ -97,7 +97,7 @@ const Attendance = () => {
     <div className="waiting-screen">
       {/* POPUP KHI CÓ HOẠT ĐỘNG MỚI */}
       {latestActivity && (
-        <div className={`activity-overlay ${latestActivity.action === 'Check in' ? 'is-in' : 'is-out'}`}>
+        <div className={`activity-overlay ${latestActivity.action === 'Vào' ? 'is-in' : 'is-out'}`}>
           <div className="overlay-card">
             <div className="status-label">{latestActivity.action.toUpperCase()}</div>
             <h1 className="student-name">{latestActivity.name}</h1>
@@ -131,7 +131,7 @@ const Attendance = () => {
               <div className="col-name txt-name">{log.name}</div>
               <div className="col-code txt-code">{log.code}</div>
               <div className="col-action">
-                <span className={`status-badge ${log.action === 'Check in' ? 'in' : 'out'}`}>
+                <span className={`status-badge ${log.action === 'Vào' ? 'in' : 'out'}`}>
                   {log.action}
                 </span>
               </div>

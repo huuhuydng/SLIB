@@ -14,7 +14,7 @@ import {
 const TABS = [
   { id: 'materials', label: 'Tài liệu', icon: Package },
   { id: 'knowledge', label: 'Kho tri thức', icon: Database },
-  { id: 'testing', label: 'Test Chat', icon: MessageSquare },
+  { id: 'testing', label: 'Kiểm tra chat', icon: MessageSquare },
 ];
 
 const STATUS_STYLES = {
@@ -478,7 +478,7 @@ const AIConfig = () => {
                 <div style={{ ...cardStyle, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <div style={{ padding: '20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <h2 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Test Chat</h2>
+                      <h2 style={{ fontSize: '18px', fontWeight: '600', margin: '0 0 4px 0' }}>Kiểm tra chat</h2>
                       <p style={{ fontSize: '13px', color: '#A0AEC0', margin: 0 }}>Kiểm tra RAG với dữ liệu đã đồng bộ</p>
                     </div>
                     <button onClick={handleClearChat} style={btnSecondary}><RotateCcw size={16} /> Xóa chat</button>

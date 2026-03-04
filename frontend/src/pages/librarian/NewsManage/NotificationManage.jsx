@@ -612,12 +612,12 @@ const NotificationManage = () => {
           </div>
 
           <div className="nt-footer-actions">
-            <button className="nt-btn-draft">Save Draft</button>
+            <button className="nt-btn-draft">Lưu nháp</button>
             <button
               className="nt-btn-submit"
               disabled={!formData.title}
             >
-              Submit
+              Đăng tin
             </button>
           </div>
         </div>

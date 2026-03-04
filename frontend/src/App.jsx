@@ -13,14 +13,14 @@ import { SessionExpired, TokenExpired, NotFound, ServerError, Forbidden, Session
 const ConditionalChatWidget = () => {
     const location = useLocation();
 
-    // Danh sach cac duong dan muon AN bong bong chat
+    // Danh sách các đường dẫn muốn ẨN bóng bóng chat
     const hiddenRoutes = [
         '/admin/chat',
         '/librarian/chat',
         '/kiosk',                   // Kiosk mode
         '/login',                   // Trang login chung
-        '/admin/login',             // Redirect cu
-        '/librarian/login'          // Redirect cu
+        '/admin/login',             // Redirect cho admin
+        '/librarian/login'          // Redirect cho librarian
     ];
 
     const shouldHide = hiddenRoutes.some(route => location.pathname.startsWith(route));
@@ -33,7 +33,7 @@ function App() {
     const [userRole, setUserRole] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
 
-    // Ham xoa toan bo token va logout
+    // Hàm xóa toàn bộ token và logout
     const performLogout = React.useCallback(() => {
         localStorage.removeItem('librarian_token');
         localStorage.removeItem('librarian_user');
@@ -47,14 +47,14 @@ function App() {
     }, []);
 
     React.useEffect(() => {
-        // Check for existing auth - kiem tra ca localStorage va sessionStorage
+        // Check for existing auth - kiểm tra cả localStorage và sessionStorage
         const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
         const userStr = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
 
         if (token && userStr) {
-            // Kiem tra token het han
+            // Kiểm tra token hết hạn
             if (isTokenExpired(token)) {
-                console.warn('[Auth] Token da het han, yeu cau dang nhap lai');
+                console.warn('[Auth] Token đã hết hạn, yêu cầu đăng nhập lại');
                 performLogout();
                 setLoading(false);
                 return;
@@ -75,7 +75,7 @@ function App() {
         setLoading(false);
     }, [performLogout]);
 
-    // Kiem tra token het han dinh ky moi 60 giay
+    // Kiểm tra token hết hạn định kỳ mỗi 60 giây
     React.useEffect(() => {
         if (!isLoggedIn) return;
 
@@ -108,7 +108,7 @@ function App() {
     }, [userRole, isLoggedIn]);
 
     if (loading) {
-        return <div>Dang tai...</div>;
+        return <div>Đang tải...</div>;
     }
 
     // Redirect to appropriate dashboard based on role after login
