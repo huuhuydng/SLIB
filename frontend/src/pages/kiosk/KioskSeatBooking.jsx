@@ -294,8 +294,8 @@ function KioskCanvas({ onSeatClick }) {
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                     transformOrigin: "0 0",
                     position: "absolute",
-                    top: 0,
-                    left: 0,
+                    inset: 0,
+                    overflow: "visible",
                 }}
             >
                 {areas.map((area) => (
