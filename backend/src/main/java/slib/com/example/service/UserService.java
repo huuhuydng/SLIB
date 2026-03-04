@@ -194,6 +194,19 @@ public class UserService {
 
                 User savedUser = userRepository.save(user);
 
+                // Auto-create student profile for STUDENT role
+                if (savedUser.getRole() == Role.STUDENT) {
+                    slib.com.example.entity.users.StudentProfile profile = 
+                        slib.com.example.entity.users.StudentProfile.builder()
+                            .userId(savedUser.getId())
+                            .user(savedUser)
+                            .reputationScore(100)
+                            .totalStudyHours(0.0)
+                            .violationCount(0)
+                            .build();
+                    studentProfileRepository.save(profile);
+                }
+
                 // Tạo UserSetting mặc định cho user mới
                 try {
                     UserSetting setting = UserSetting.builder()
@@ -294,5 +307,65 @@ public class UserService {
         }
 
         return userRepository.save(user);
+    }
+
+    /**
+     * Get all students with reputation score
+     * Used for violation management
+     */
+    @Transactional(readOnly = true)
+    public List<slib.com.example.dto.users.StudentProfileResponse> getStudentsWithReputation() {
+        return studentProfileRepository.findAllWithUser().stream()
+                .map(profile -> {
+                    long bookingCount = reservationRepository.countByUserId(profile.getUserId());
+                    return slib.com.example.dto.users.StudentProfileResponse.fromEntity(profile, bookingCount);
+                })
+                .toList();
+    }
+
+    /**
+     * Create missing student profiles for all STUDENT users
+     * Returns count of created profiles
+     */
+    @Transactional
+    public Map<String, Object> createMissingStudentProfiles() {
+        // Get all STUDENT users
+        List<User> allStudents = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.STUDENT)
+                .toList();
+
+        int created = 0;
+        int alreadyExists = 0;
+        List<String> createdUserCodes = new ArrayList<>();
+
+        for (User student : allStudents) {
+            // Check if profile exists
+            if (!studentProfileRepository.existsByUserId(student.getId())) {
+                // Create new profile with default values
+                slib.com.example.entity.users.StudentProfile newProfile = 
+                    slib.com.example.entity.users.StudentProfile.builder()
+                        .userId(student.getId())
+                        .user(student)
+                        .reputationScore(100)
+                        .totalStudyHours(0.0)
+                        .violationCount(0)
+                        .build();
+                
+                studentProfileRepository.save(newProfile);
+                created++;
+                createdUserCodes.add(student.getUserCode());
+            } else {
+                alreadyExists++;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalStudents", allStudents.size());
+        result.put("created", created);
+        result.put("alreadyExists", alreadyExists);
+        result.put("createdUserCodes", createdUserCodes);
+        result.put("message", "Đã tạo " + created + " student profile mới");
+        
+        return result;
     }
 }

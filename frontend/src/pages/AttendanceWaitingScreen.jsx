@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import Stomp from 'stompjs';
 import "../styles/Attendance.css";
 import logoFpt from '../assets/fpt_logo.png';
 
@@ -54,10 +54,7 @@ const Attendance = () => {
       stompClient = Stomp.over(Sock);
       stompClient.debug = null;
 
-      stompClient.connect({},
-        () => { if (isMounted) onConnected(); },
-        () => { if (isMounted) connectTimeout = setTimeout(connect, 10000); }
-      );
+      stompClient.activate();
     };
 
     const onConnected = () => {
@@ -89,7 +86,7 @@ const Attendance = () => {
     return () => {
       isMounted = false;
       if (connectTimeout) clearTimeout(connectTimeout);
-      if (stompClient?.connected) stompClient.disconnect();
+      if (stompClient?.active) stompClient.deactivate();
     };
   }, []);
 

@@ -18,4 +18,5 @@ public class AccessLogDTO {
     private LocalDateTime checkInTime;
     private LocalDateTime checkOutTime;
     private String action; // "CHECK_IN" or "CHECK_OUT"
+    private Boolean isAutoCheckOut; // true nếu tự động checkout lúc 21:00
 }

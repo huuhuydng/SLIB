@@ -426,6 +426,23 @@ public class CheckInService {
 
         // Nếu đã checkout, tạo thêm DTO cho CHECK_OUT
         if (log.getCheckOutTime() != null) {
+            // Check nếu checkout đúng lúc 21:00:00 thì là auto checkout
+            LocalDateTime checkOutTime = log.getCheckOutTime();
+            boolean isAutoCheckOut = checkOutTime.getHour() == 21 
+                && checkOutTime.getMinute() == 0 
+                && checkOutTime.getSecond() == 0;
+            
+            // Debug log
+            if (checkOutTime.getHour() == 21) {
+                System.out.println("🔍 [DEBUG] CheckOut at 21:00 detected:");
+                System.out.println("   User: " + userName);
+                System.out.println("   Time: " + checkOutTime);
+                System.out.println("   Hour: " + checkOutTime.getHour());
+                System.out.println("   Minute: " + checkOutTime.getMinute());
+                System.out.println("   Second: " + checkOutTime.getSecond());
+                System.out.println("   isAutoCheckOut: " + isAutoCheckOut);
+            }
+            
             dtos.add(AccessLogDTO.builder()
                     .logId(log.getLogId())
                     .userId(log.getUserId())
@@ -435,6 +452,7 @@ public class CheckInService {
                     .checkInTime(log.getCheckInTime())
                     .checkOutTime(log.getCheckOutTime())
                     .action("CHECK_OUT")
+                    .isAutoCheckOut(isAutoCheckOut)
                     .build());
         }
 
@@ -446,6 +464,16 @@ public class CheckInService {
      */
     private AccessLogDTO convertToDTO(AccessLog log) {
         User user = log.getUser();
+        
+        // Check nếu checkout đúng lúc 21:00:00 thì là auto checkout
+        boolean isAutoCheckOut = false;
+        if (log.getCheckOutTime() != null) {
+            LocalDateTime checkOutTime = log.getCheckOutTime();
+            isAutoCheckOut = checkOutTime.getHour() == 21 
+                && checkOutTime.getMinute() == 0 
+                && checkOutTime.getSecond() == 0;
+        }
+        
         return AccessLogDTO.builder()
                 .logId(log.getLogId())
                 .userId(log.getUserId())
@@ -455,6 +483,7 @@ public class CheckInService {
                 .checkInTime(log.getCheckInTime())
                 .checkOutTime(log.getCheckOutTime())
                 .action(log.getCheckOutTime() != null ? "CHECK_OUT" : "CHECK_IN")
+                .isAutoCheckOut(isAutoCheckOut)
                 .build();
     }
 

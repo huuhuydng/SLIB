@@ -69,7 +69,8 @@ class WebSocketService {
   }
 
   subscribe(topic, callback) {
-    if (!this.client || !this.connected) {
+    // Check if client is properly connected and active
+    if (!this.client || !this.connected || !this.client.connected) {
       console.warn('⚠️ Cannot subscribe - WebSocket not connected');
       return null;
     }

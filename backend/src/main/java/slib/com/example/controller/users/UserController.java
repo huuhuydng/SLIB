@@ -104,6 +104,21 @@ public class UserController {
     }
 
     /**
+     * Get all students with reputation score (Librarian/Admin only)
+     * Used for violation management
+     */
+    @GetMapping("/students-with-reputation")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
+    public ResponseEntity<?> getStudentsWithReputation() {
+        try {
+            List<slib.com.example.dto.users.StudentProfileResponse> students = userService.getStudentsWithReputation();
+            return ResponseEntity.ok(students);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Import users in bulk (Admin only)
      * Request body: Array of ImportUserRequest
      */
@@ -417,6 +432,21 @@ public class UserController {
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid batchId format"));
+        }
+    }
+
+    /**
+     * Create missing student profiles for all STUDENT users (Admin/Librarian only)
+     * This fixes the issue where some students don't have profiles yet
+     */
+    @PostMapping("/sync-student-profiles")
+    @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
+    public ResponseEntity<?> syncStudentProfiles() {
+        try {
+            Map<String, Object> result = userService.createMissingStudentProfiles();
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi: " + e.getMessage()));
         }
     }
 }
