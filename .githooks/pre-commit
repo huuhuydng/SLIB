@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Pre-commit hook: Kiểm tra nếu có thay đổi Controller thì phải có UnitTest tương ứng
+
+echo "🔍 Checking Controller changes for unit tests..."
+
+# Lấy danh sách các file đã staged
+STAGED_FILES=$(git diff --cached --name-only)
+
+# Tìm các file Controller thay đổi
+CONTROLLER_CHANGES=""
+for file in $STAGED_FILES; do
+    if [[ $file == *"Controller.java" ]]; then
+        CONTROLLER_CHANGES="$CONTROLLER_CHANGES $file"
+    fi
+done
+
+# Nếu không có Controller thay đổi, cho phép commit
+if [ -z "$CONTROLLER_CHANGES" ]; then
+    echo "✅ No Controller changes detected. Proceeding with commit."
+    exit 0
+fi
+
+# Kiểm tra từng Controller
+MISSING_TESTS=""
+for controller in $CONTROLLER_CHANGES; do
+    # Lấy tên Controller (không có path và .java)
+    CONTROLLER_NAME=$(basename "$controller" .java)
+
+    # Tìm file test tương ứng
+    TEST_FILE=$(find backend/src/test -name "${CONTROLLER_NAME}Test.java" 2>/dev/null)
+
+    if [ -z "$TEST_FILE" ]; then
+        MISSING_TESTS="$MISSING_TESTS $CONTROLLER_NAME"
+    fi
+done
+
+# Nếu có Controller thiếu test
+if [ -n "$MISSING_TESTS" ]; then
+    echo ""
+    echo "❌ ERROR: Missing unit tests for Controller changes!"
+    echo ""
+    echo "The following Controllers are modified but have no corresponding test:"
+    for controller in $MISSING_TESTS; do
+        echo "   - $controller"
+    done
+    echo ""
+    echo "Please create/update unit tests before committing."
+    echo "Expected test location: backend/src/test/java/slib/com/example/"
+    echo ""
+    exit 1
+fi
+
+echo "✅ All Controller changes have corresponding unit tests. Proceeding with commit."
+exit 0
