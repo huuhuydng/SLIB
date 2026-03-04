@@ -9,14 +9,35 @@ const kioskApi = axios.create({
   },
 });
 
-// Add auth token if available
+// Add auth token and kiosk code for all requests
 kioskApi.interceptors.request.use((config) => {
+  // Add librarian token if available
   const token = localStorage.getItem('librarian_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Add kiosk code header for kiosk authentication
+  const kioskCode = localStorage.getItem('kiosk_code') || 'KIOSK_001';
+  config.headers['X-Kiosk-Code'] = kioskCode;
+
   return config;
 });
+
+// Handle kiosk authentication errors
+kioskApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403) {
+      // Kiosk access denied - redirect to access denied page
+      console.error('Kiosk access denied:', error.response.data);
+      window.dispatchEvent(new CustomEvent('kiosk-auth-error', {
+        detail: error.response.data
+      }));
+    }
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Kiosk Service
