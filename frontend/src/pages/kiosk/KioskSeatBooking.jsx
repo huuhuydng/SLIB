@@ -57,8 +57,7 @@ function KioskCanvas({ onSeatClick }) {
     const { areas } = state;
     const containerRef = useRef(null);
 
-    const [zoom, setZoom] = useState(1);
-    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [view, setView] = useState({ zoom: 1, panX: 0, panY: 0 });
 
     // Touch gesture refs
     const touchRef = useRef({
@@ -126,15 +125,13 @@ function KioskCanvas({ onSeatClick }) {
         const viewH = rect.height - pad * 2;
 
         const scale = Math.min(viewW / contentW, viewH / contentH, MAX_ZOOM);
-
-        // Center content in viewport
         const scaledW = contentW * scale;
         const scaledH = contentH * scale;
 
-        setZoom(scale);
-        setPan({
-            x: (rect.width - scaledW) / 2 - minX * scale,
-            y: (rect.height - scaledH) / 2 - minY * scale,
+        setView({
+            zoom: scale,
+            panX: (rect.width - scaledW) / 2 - minX * scale,
+            panY: (rect.height - scaledH) / 2 - minY * scale,
         });
     }, [areas]);
 
@@ -142,18 +139,9 @@ function KioskCanvas({ onSeatClick }) {
 
     // Sync zoom/pan to LayoutContext
     useEffect(() => {
-        dispatch({ type: actions.SET_ZOOM, payload: zoom });
-        dispatch({ type: actions.SET_PAN, payload: pan });
-    }, [zoom, pan]);
-
-    // Zoom helper: zoom towards a specific point in the viewport
-    const zoomTowards = useCallback((cx, cy, newZoom, oldZoom) => {
-        // cx, cy = point in container coords
-        setPan(pp => ({
-            x: cx - (cx - pp.x) * (newZoom / oldZoom),
-            y: cy - (cy - pp.y) * (newZoom / oldZoom),
-        }));
-    }, []);
+        dispatch({ type: actions.SET_ZOOM, payload: view.zoom });
+        dispatch({ type: actions.SET_PAN, payload: { x: view.panX, y: view.panY } });
+    }, [view]);
 
     // === MOUSE DRAG ===
     const handleMouseDown = useCallback((e) => {
@@ -169,7 +157,7 @@ function KioskCanvas({ onSeatClick }) {
         e.preventDefault();
         const dx = e.clientX - mouseRef.current.lastX;
         const dy = e.clientY - mouseRef.current.lastY;
-        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+        setView(prev => ({ ...prev, panX: prev.panX + dx, panY: prev.panY + dy }));
         mouseRef.current.lastX = e.clientX;
         mouseRef.current.lastY = e.clientY;
     }, []);
@@ -207,12 +195,16 @@ function KioskCanvas({ onSeatClick }) {
             const newCenter = getCenter(e.touches[0], e.touches[1]);
             if (touchRef.current.lastDistance > 0) {
                 const scaleDelta = newDist / touchRef.current.lastDistance;
-                setZoom(prev => {
-                    const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * scaleDelta));
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const cx = newCenter.x - rect.left, cy = newCenter.y - rect.top;
-                    zoomTowards(cx, cy, nz, prev);
-                    return nz;
+                const rect = containerRef.current.getBoundingClientRect();
+                const cx = newCenter.x - rect.left, cy = newCenter.y - rect.top;
+                setView(prev => {
+                    const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * scaleDelta));
+                    const ratio = nz / prev.zoom;
+                    return {
+                        zoom: nz,
+                        panX: cx - (cx - prev.panX) * ratio,
+                        panY: cy - (cy - prev.panY) * ratio,
+                    };
                 });
             }
             touchRef.current.lastDistance = newDist;
@@ -222,10 +214,10 @@ function KioskCanvas({ onSeatClick }) {
             const t = e.touches[0];
             const dx = t.clientX - touchRef.current.lastSingleTouch.x;
             const dy = t.clientY - touchRef.current.lastSingleTouch.y;
-            setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+            setView(prev => ({ ...prev, panX: prev.panX + dx, panY: prev.panY + dy }));
             touchRef.current.lastSingleTouch = { x: t.clientX, y: t.clientY };
         }
-    }, [zoomTowards]);
+    }, []);
 
     const handleTouchEnd = useCallback(() => {
         touchRef.current.lastDistance = 0;
@@ -239,35 +231,47 @@ function KioskCanvas({ onSeatClick }) {
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-        setZoom(prev => {
-            const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta));
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * delta));
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     // Zoom buttons: zoom towards CENTER of viewport
     const handleZoomIn = useCallback(() => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = rect.width / 2, cy = rect.height / 2;
-        setZoom(prev => {
-            const nz = Math.min(MAX_ZOOM, prev * 1.3);
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.min(MAX_ZOOM, prev.zoom * 1.3);
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     const handleZoomOut = useCallback(() => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = rect.width / 2, cy = rect.height / 2;
-        setZoom(prev => {
-            const nz = Math.max(MIN_ZOOM, prev / 1.3);
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.max(MIN_ZOOM, prev.zoom / 1.3);
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -291,7 +295,7 @@ function KioskCanvas({ onSeatClick }) {
             <div
                 className="canvas-board"
                 style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transform: `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`,
                     transformOrigin: "0 0",
                     position: "absolute",
                     inset: 0,
@@ -310,7 +314,7 @@ function KioskCanvas({ onSeatClick }) {
             {/* Zoom controls */}
             <div className="ksb__zoom-controls">
                 <button className="ksb__zoom-btn" onClick={handleZoomIn} title="Phóng to">+</button>
-                <span className="ksb__zoom-level">{Math.round(zoom * 100)}%</span>
+                <span className="ksb__zoom-level">{Math.round(view.zoom * 100)}%</span>
                 <button className="ksb__zoom-btn" onClick={handleZoomOut} title="Thu nhỏ">-</button>
                 <button className="ksb__zoom-btn ksb__zoom-btn--reset" onClick={fitToView} title="Vừa khung hình">Vừa</button>
             </div>
