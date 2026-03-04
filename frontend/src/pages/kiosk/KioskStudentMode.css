@@ -71,9 +71,9 @@
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: #EBF8FF;
-    color: #3182ce;
-    border: 2px solid #bee3f8;
+    background: #FFF7F2;
+    color: #FF751F;
+    border: 2px solid #FFD4B8;
     border-radius: 14px;
     font-size: 15px;
     font-weight: 700;
@@ -82,8 +82,8 @@
 }
 
 .ksm__help-btn:hover {
-    background: #bee3f8;
-    border-color: #90cdf4;
+    background: #FFE8D6;
+    border-color: #FF751F;
     transform: scale(1.04);
 }
 
