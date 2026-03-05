@@ -11,6 +11,7 @@ import {
 import { getLibraryInsights } from "../../../services/geminiService.jsx";
 import librarianService from "../../../services/librarianService";
 import dashboardService from "../../../services/dashboardService";
+import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
 import websocketService from "../../../services/websocketService";
 
 import "../../../styles/librarian/Dashboard.css";
@@ -35,6 +36,7 @@ const Dashboard = () => {
   const [pendingCounts, setPendingCounts] = useState({
     feedbackNew: 0, complaintPending: 0, supportPending: 0, supportInProgress: 0
   });
+  const [realtimeCapacity, setRealtimeCapacity] = useState(null);
 
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '';
@@ -155,6 +157,14 @@ const Dashboard = () => {
         });
       } catch (e) {
         console.warn('Could not fetch pending counts:', e);
+      }
+
+      // Fetch realtime capacity
+      try {
+        const capacity = await getRealtimeCapacity();
+        setRealtimeCapacity(capacity);
+      } catch (e) {
+        console.warn('Could not fetch realtime capacity:', e);
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -548,14 +558,8 @@ const Dashboard = () => {
 
             {(insights || []).map((it, idx) => (
               <div key={idx} className={`ai-card ${it.type === "warning" ? "ai-card--warn" : "ai-card--info"}`}>
-                <div className="ai-card-icon">
-                  {it.type === "warning" ?
-                    <AlertCircle size={16} color="#f59e0b" /> :
-                    <TrendingUp size={16} color="#3b82f6" />
-                  }
-                </div>
-                <div>
-                  <p className="ai-card-title">{it.title}</p>
+                <div style={{ padding: '12px 0' }}>
+                  <p className="ai-card-title" style={{ marginBottom: '4px' }}>{it.title}</p>
                   <p className="ai-card-msg">{it.message}</p>
                 </div>
               </div>
@@ -563,23 +567,49 @@ const Dashboard = () => {
 
             {/* Quick overview */}
             <div className="quick-overview">
-              <h4 className="quick-overview-title">Tổng quan nhanh</h4>
-              <div className="quick-stat-row">
-                <span className="quick-stat-label">Tổng sinh viên</span>
-                <span className="quick-stat-value">{stats.totalUsers}</span>
-              </div>
-              <div className="quick-stat-row">
-                <span className="quick-stat-label">Tổng ghế ngồi</span>
-                <span className="quick-stat-value">{stats.totalSeats}</span>
-              </div>
-              <div className="quick-stat-row">
-                <span className="quick-stat-label">Tỷ lệ sử dụng</span>
-                <span className="quick-stat-value highlight-value">{stats.occupancyRate}%</span>
-              </div>
-              <div className="quick-stat-row">
-                <span className="quick-stat-label">Đặt chỗ đang hoạt động</span>
-                <span className="quick-stat-value">{stats.activeBookings}</span>
-              </div>
+              <h4 className="quick-overview-title">Công suất thời gian thực</h4>
+              {realtimeCapacity ? (
+                <>
+                  <div className="quick-stat-row">
+                    <span className="quick-stat-label">Tổng ghế</span>
+                    <span className="quick-stat-value">{realtimeCapacity.total_seats}</span>
+                  </div>
+                  <div className="quick-stat-row">
+                    <span className="quick-stat-label">Đang sử dụng</span>
+                    <span className="quick-stat-value">{realtimeCapacity.occupied_seats}</span>
+                  </div>
+                  <div className="quick-stat-row">
+                    <span className="quick-stat-label">Tỷ lệ</span>
+                    <span
+                      className="quick-stat-value highlight-value"
+                      style={{
+                        color: realtimeCapacity.occupancy_rate >= 90 ? '#dc2626' :
+                               realtimeCapacity.occupancy_rate >= 70 ? '#f59e0b' : '#16a34a'
+                      }}
+                    >
+                      {realtimeCapacity.occupancy_rate}%
+                    </span>
+                  </div>
+                  <div className="quick-stat-row">
+                    <span className="quick-stat-label">Trạng thái</span>
+                    <span
+                      className="quick-stat-value"
+                      style={{
+                        color: realtimeCapacity.status === 'Đã kín' ? '#dc2626' :
+                               realtimeCapacity.status === 'Khá đông' ? '#f59e0b' :
+                               realtimeCapacity.status === 'Bình thường' ? '#3b82f6' : '#16a34a',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {realtimeCapacity.status}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: '12px', color: '#666' }}>
+                  Đang tải...
+                </div>
+              )}
             </div>
           </section>
         </div>
