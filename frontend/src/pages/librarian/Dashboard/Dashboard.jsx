@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import {
-  Users, Armchair, AlertCircle, Sparkles, Clock,
+  Users, Armchair, AlertCircle, AlertTriangle, Sparkles, Clock,
   Bell, Calendar, ChevronRight, BookOpen,
   ArrowDownLeft, ArrowUpRight, CalendarCheck,
   MessageSquare, TrendingUp, RefreshCw,
@@ -37,6 +37,10 @@ const Dashboard = () => {
     feedbackNew: 0, complaintPending: 0, supportPending: 0, supportInProgress: 0
   });
   const [realtimeCapacity, setRealtimeCapacity] = useState(null);
+  const [peakHours, setPeakHours] = useState([]);
+  const [quietHours, setQuietHours] = useState([]);
+  const [densityHours, setDensityHours] = useState([]);
+  const [behaviorIssues, setBehaviorIssues] = useState([]);
 
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '';
@@ -166,6 +170,27 @@ const Dashboard = () => {
       } catch (e) {
         console.warn('Could not fetch realtime capacity:', e);
       }
+
+      // Fetch AI Analytics data
+      const AI_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+      try {
+        const peakRes = await fetch(`${AI_URL}/api/ai/analytics/peak-hours`);
+        const peakData = await peakRes.json();
+        if (peakData.peak_hours) setPeakHours(peakData.peak_hours.slice(0, 3));
+        if (peakData.quiet_hours) setQuietHours(peakData.quiet_hours);
+      } catch (e) { console.warn('Could not fetch peak hours:', e); }
+
+      try {
+        const densityRes = await fetch(`${AI_URL}/api/ai/analytics/density-prediction`);
+        const densityData = await densityRes.json();
+        if (densityData.hourly_predictions) setDensityHours(densityData.hourly_predictions);
+      } catch (e) { console.warn('Could not fetch density:', e); }
+
+      try {
+        const behaviorRes = await fetch(`${AI_URL}/api/ai/analytics/behavior-issues`);
+        const behaviorData = await behaviorRes.json();
+        if (behaviorData.students) setBehaviorIssues(behaviorData.students);
+      } catch (e) { console.warn('Could not fetch behavior issues:', e); }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
       setInsights([]);
@@ -547,67 +572,102 @@ const Dashboard = () => {
             </div>
           </section>
 
-          {/* AI Panel */}
-          <section className="dashboard-panel ai-panel panel-elevated">
+          {/* AI Analytics */}
+          <section className="dashboard-panel panel-elevated ai-panel">
             <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={16} color="#f59e0b" />
-                <h3 className="panel-title">AI phân tích</h3>
-              </div>
+              <h3 className="panel-title">AI Analytics</h3>
             </div>
 
-            {(insights || []).map((it, idx) => (
-              <div key={idx} className={`ai-card ${it.type === "warning" ? "ai-card--warn" : "ai-card--info"}`}>
-                <div style={{ padding: '12px 0' }}>
-                  <p className="ai-card-title" style={{ marginBottom: '4px' }}>{it.title}</p>
-                  <p className="ai-card-msg">{it.message}</p>
+            {/* Peak hours horizontal bars */}
+            {peakHours.length > 0 ? (
+              <div className="peak-hours-list">
+                {peakHours.map((h, i) => (
+                  <div key={i} className="peak-hour-row">
+                    <span className="peak-hour-time">{h.label}</span>
+                    <div className="area-bar" style={{ flex: 1 }}>
+                      <div
+                        className="area-bar-fill"
+                        style={{
+                          width: `${Math.round(h.occupancy * 100)}%`,
+                          background: h.occupancy >= 0.8 ? '#ef4444' : h.occupancy >= 0.5 ? '#f59e0b' : '#22c55e'
+                        }}
+                      />
+                    </div>
+                    <span className="peak-hour-pct">{Math.round(h.occupancy * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-section">Chưa đủ dữ liệu</div>
+            )}
+
+            {/* Quiet hours note */}
+            {quietHours.length > 0 && (
+              <div className="peak-quiet-note">
+                Giờ vắng: {quietHours.map(h => h.label).join(', ')}
+              </div>
+            )}
+
+            {/* Density mini bars */}
+            {densityHours.length > 0 && (
+              <div className="density-mini-section">
+                <div className="density-mini-header">
+                  <span>Phân bố theo giờ</span>
+                  <span className="density-mini-sub">7 ngày</span>
+                </div>
+                <div className="density-mini-bars">
+                  {densityHours.map((h, i) => {
+                    const occ = h.predicted_occupancy || 0;
+                    const barColor = occ >= 0.8 ? '#ef4444' : occ >= 0.5 ? '#f59e0b' : '#22c55e';
+                    return (
+                      <div key={i} className="density-mini-bar-col" title={`${h.hour}:00 — ${Math.round(occ * 100)}%`}>
+                        <div className="density-mini-bar-bg">
+                          <div className="density-mini-bar-fill" style={{ height: `${Math.max(occ * 100, 4)}%`, background: barColor }} />
+                        </div>
+                        <span className="density-mini-label">{h.hour}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            ))}
+            )}
 
-            {/* Quick overview */}
-            <div className="quick-overview">
-              <h4 className="quick-overview-title">Công suất thời gian thực</h4>
-              {realtimeCapacity ? (
-                <>
-                  <div className="quick-stat-row">
-                    <span className="quick-stat-label">Tổng ghế</span>
-                    <span className="quick-stat-value">{realtimeCapacity.total_seats}</span>
-                  </div>
-                  <div className="quick-stat-row">
-                    <span className="quick-stat-label">Đang sử dụng</span>
-                    <span className="quick-stat-value">{realtimeCapacity.occupied_seats}</span>
-                  </div>
-                  <div className="quick-stat-row">
-                    <span className="quick-stat-label">Tỷ lệ</span>
-                    <span
-                      className="quick-stat-value highlight-value"
-                      style={{
-                        color: realtimeCapacity.occupancy_rate >= 90 ? '#dc2626' :
-                               realtimeCapacity.occupancy_rate >= 70 ? '#f59e0b' : '#16a34a'
-                      }}
-                    >
-                      {realtimeCapacity.occupancy_rate}%
-                    </span>
-                  </div>
-                  <div className="quick-stat-row">
-                    <span className="quick-stat-label">Trạng thái</span>
-                    <span
-                      className="quick-stat-value"
-                      style={{
-                        color: realtimeCapacity.status === 'Đã kín' ? '#dc2626' :
-                               realtimeCapacity.status === 'Khá đông' ? '#f59e0b' :
-                               realtimeCapacity.status === 'Bình thường' ? '#3b82f6' : '#16a34a',
-                        fontWeight: '600'
-                      }}
-                    >
-                      {realtimeCapacity.status}
-                    </span>
-                  </div>
-                </>
+            {/* Behavior issues */}
+            <div className="behavior-section">
+              <div className="behavior-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertTriangle size={14} color="#f59e0b" />
+                  <span className="behavior-title">SV cần lưu ý</span>
+                </div>
+                {behaviorIssues.length > 0 && (
+                  <span className="behavior-count">{behaviorIssues.length}</span>
+                )}
+              </div>
+
+              {behaviorIssues.length === 0 ? (
+                <div className="behavior-ok">
+                  <span>✓ Không có sinh viên nào cần lưu ý</span>
+                </div>
               ) : (
-                <div style={{ padding: '12px', color: '#666' }}>
-                  Đang tải...
+                <div className="behavior-list">
+                  {behaviorIssues.map((s, idx) => (
+                    <div key={idx} className={`behavior-item ${s.severity === 'critical' ? 'behavior-item--critical' : s.severity === 'warning' ? 'behavior-item--warning' : ''}`}>
+                      <div className="behavior-item-top">
+                        <span className="behavior-item-name">{s.full_name}</span>
+                        <span className="behavior-item-code">{s.user_code}</span>
+                      </div>
+                      <div className="behavior-item-stats">
+                        <span className={`behavior-score ${s.reputation_score < 70 ? 'score--low' : s.reputation_score < 90 ? 'score--mid' : ''}`}>
+                          {s.reputation_score} điểm
+                        </span>
+                        <span className={`behavior-tag behavior-tag--${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'gray'}`}>
+                          {s.primary_issue}
+                        </span>
+                      </div>
+                      {s.detail && <div className="behavior-detail">{s.detail}</div>}
+                      <div className="behavior-suggestion">{s.suggestion}</div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
