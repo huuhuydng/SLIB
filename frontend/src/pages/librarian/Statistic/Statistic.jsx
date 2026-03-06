@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import statisticService from '../../../services/statisticService';
 import dashboardService from '../../../services/dashboardService';
+import AIAnalyticsPanel from './AIAnalyticsPanel';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/Statistic.css';
 
@@ -440,6 +441,11 @@ const Statistic = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Row 4: AI Analytics */}
+      <div className="lib-panel" style={{ marginBottom: '14px' }}>
+        <AIAnalyticsPanel period={range === 'year' ? 'month' : range} onPeriodChange={(p) => setRange(p)} />
       </div>
     </div>
   );
