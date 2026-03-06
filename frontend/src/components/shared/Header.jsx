@@ -1,39 +1,46 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronDown, Search, User, LogOut } from 'lucide-react';
-import avatarImage from "../../assets/avatar.svg";
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare } from 'lucide-react';
+import { useLibrarianNotification } from '../../contexts/LibrarianNotificationContext';
+import '../../styles/librarian/header.css';
 
-const Header = ({ 
-  searchValue = '', 
-  onSearchChange = () => {},
-  searchPlaceholder = "Search for anything...",
+const Header = ({
   showBackButton = false,
-  onBackClick = () => {},
-  onLogout = () => {}
+  onBackClick = () => { },
+  onLogout = null
 }) => {
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [userData, setUserData] = useState({ name: 'User', role: 'Admin' });
+  const [showMsgDropdown, setShowMsgDropdown] = useState(false);
+  const [userData, setUserData] = useState({ name: 'Admin', role: 'ADMIN', email: '' });
   const dropdownRef = useRef(null);
+  const msgDropdownRef = useRef(null);
 
-  // Debug: Check if onLogout is passed
-  useEffect(() => {
-    console.log('🔍 Header mounted with onLogout:', onLogout.toString().substring(0, 50));
-  }, []);
+  // Notification context
+  let notificationCtx = null;
+  try {
+    notificationCtx = useLibrarianNotification();
+  } catch {
+    // Context not available (admin pages)
+  }
 
-  // Load user data from localStorage
+  const chatMessages = notificationCtx?.chatMessages || [];
+  const unreadChatCount = notificationCtx?.unreadChatCount || 0;
+  const clearChatMessages = notificationCtx?.clearChatMessages;
+
   useEffect(() => {
     try {
-      const userStr = localStorage.getItem('librarian_user');
+      const userStr = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
       if (userStr) {
         const user = JSON.parse(userStr);
         setUserData({
-          name: user.user_metadata?.name || user.user_metadata?.full_name || user.fullName || user.email?.split('@')[0] || 'User',
-          role: user.role || user.user_metadata?.role || 'Admin',
-          email: user.email
+          name: user.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Admin',
+          role: user.role || user.user_metadata?.role || 'ADMIN',
+          email: user.email || ''
         });
-        console.log('✅ User data loaded:', user);
       }
     } catch (error) {
-      console.error('❌ Error loading user data:', error);
+      console.error('Error loading user data:', error);
     }
   }, []);
 
@@ -42,225 +49,170 @@ const Header = ({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
       }
+      if (msgDropdownRef.current && !msgDropdownRef.current.contains(event.target)) {
+        setShowMsgDropdown(false);
+      }
     };
-
-    if (showDropdown) {
+    if (showDropdown || showMsgDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown, showMsgDropdown]);
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showDropdown]);
+  const handleLogout = () => {
+    setShowDropdown(false);
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('librarian_token');
+      localStorage.removeItem('librarian_user');
+      sessionStorage.removeItem('librarian_token');
+      sessionStorage.removeItem('librarian_user');
+      window.location.href = '/';
+    }
+  };
+
+  const handleSettings = () => {
+    setShowDropdown(false);
+    const basePath = userData.role?.toUpperCase() === 'ADMIN' ? '/admin' : '/librarian';
+    navigate(`${basePath}/settings`);
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'AD';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  const getRoleDisplay = (role) => {
+    switch (role?.toUpperCase()) {
+      case 'ADMIN': return 'Quản trị viên';
+      case 'LIBRARIAN': return 'Thủ thư';
+      default: return role;
+    }
+  };
+
+  const handleMsgClick = (conversationId) => {
+    setShowMsgDropdown(false);
+    navigate(`/librarian/chat?conversationId=${conversationId}`);
+  };
+
+  const handleToggleMsgDropdown = () => {
+    const next = !showMsgDropdown;
+    setShowMsgDropdown(next);
+    if (next && clearChatMessages) {
+      // Khi mở dropdown, đánh dấu đã xem
+      clearChatMessages();
+    }
+  };
+
+  const formatMsgTime = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Vừa xong';
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <header style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '1.25rem 2rem',
-      backgroundColor: '#ffffff',
-      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-      marginBottom: '1.5rem',
-      borderRadius: '24px',
-      position: 'relative'
-    }}>
-      {showBackButton ? (
-        <button 
-          onClick={onBackClick}
-          style={{
-            padding: '0.625rem',
-            border: 'none',
-            background: '#f3f4f6',
-            borderRadius: '16px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s',
-            color: '#374151'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#f3f4f6'}
-        >
-          <ChevronLeft size={20} />
-        </button>
-      ) : (
-        <div style={{ width: '42px' }}></div>
-      )}
-      
-      <div style={{
-        flex: 1,
-        maxWidth: '650px',
-        margin: '0 2rem',
-        position: 'relative'
-      }}>
-        <Search 
-          size={18} 
-          style={{
-            position: 'absolute',
-            left: '1.125rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#9ca3af',
-            pointerEvents: 'none'
-          }}
-        />
-        <input 
-          type="text" 
-          placeholder={searchPlaceholder}
-          value={searchValue}
-          onChange={onSearchChange}
-          style={{
-            width: '100%',
-            padding: '0.75rem 1.25rem 0.75rem 3rem',
-            border: '1px solid #e5e7eb',
-            borderRadius: '20px',
-            fontSize: '0.875rem',
-            outline: 'none',
-            transition: 'all 0.2s',
-            backgroundColor: '#f9fafb'
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#8b5cf6';
-            e.target.style.backgroundColor = '#ffffff';
-            e.target.style.boxShadow = '0 0 0 3px rgba(139, 92, 246, 0.1)';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = '#e5e7eb';
-            e.target.style.backgroundColor = '#f9fafb';
-            e.target.style.boxShadow = 'none';
-          }}
-        />
+    <header className="hdr">
+      {/* Left: Back button */}
+      <div className="hdr-left">
+        {showBackButton && (
+          <button className="hdr-back" onClick={onBackClick}>
+            &#8592;
+          </button>
+        )}
       </div>
-      
-      <div style={{ position: 'relative' }} ref={dropdownRef}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.875rem',
-          padding: '0.5rem 1rem 0.5rem 0.75rem',
-          backgroundColor: '#f9fafb',
-          borderRadius: '30px',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          border: '1px solid transparent'
-        }}
-        onClick={() => setShowDropdown(!showDropdown)}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f3f4f6';
-          e.currentTarget.style.borderColor = '#e5e7eb';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#f9fafb';
-          e.currentTarget.style.borderColor = 'transparent';
-        }}
-        >
-          <img 
-            src={avatarImage} 
-            alt="Avatar" 
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              border: '2px solid #ffffff',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
-            }} 
-          />
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start'
-          }}>
-            <span style={{
-              fontSize: '0.875rem',
-              fontWeight: '600'
-            }}>{userData.name}</span>
-            <span style={{
-              fontSize: '0.75rem',
-              color: '#6b7280'
-            }}>{userData.role}</span>
-          </div>
-          <ChevronDown size={16} style={{
-            transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s'
-          }} />
-        </div>
 
-        {showDropdown && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            right: 0,
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            border: '1px solid #e5e7eb',
-            minWidth: '180px',
-            overflow: 'hidden',
-            zIndex: 1000
-          }}>
-            <div 
-              onClick={() => {
-                setShowDropdown(false);
-                // TODO: Navigate to profile page
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-                borderBottom: '1px solid #f3f4f6'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+      {/* Right: Message notification + User profile */}
+      <div className="hdr-right-group">
+        {/* Message notification icon */}
+        {notificationCtx && (
+          <div className="hdr-msg-wrap" ref={msgDropdownRef}>
+            <button
+              className={`hdr-msg-btn ${showMsgDropdown ? 'active' : ''}`}
+              onClick={handleToggleMsgDropdown}
             >
-              <User size={18} style={{ color: '#6b7280' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500' }}>Profile</span>
-            </div>
-            <div 
-              onClick={() => {
-                console.log('🔴 Logout button clicked!');
-                console.log('🔴 onLogout function:', typeof onLogout, onLogout);
-                setShowDropdown(false);
-                
-                // Call onLogout if provided, otherwise do direct logout
-                if (onLogout && onLogout.toString() !== '() => {}') {
-                  onLogout();
-                } else {
-                  // Direct logout fallback
-                  console.log('⚠️ No valid onLogout prop, doing direct logout');
-                  localStorage.clear();
-                  sessionStorage.clear();
-                  window.location.href = '/';
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fef2f2';
-                e.currentTarget.querySelector('svg').style.color = '#dc2626';
-                e.currentTarget.querySelector('span').style.color = '#dc2626';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.querySelector('svg').style.color = '#6b7280';
-                e.currentTarget.querySelector('span').style.color = '#000000';
-              }}
-            >
-              <LogOut size={18} style={{ color: '#6b7280', transition: 'color 0.2s' }} />
-              <span style={{ fontSize: '0.875rem', fontWeight: '500', transition: 'color 0.2s' }}>Logout</span>
-            </div>
+              <MessageSquare size={18} />
+              {unreadChatCount > 0 && (
+                <span className="hdr-msg-badge">{unreadChatCount > 9 ? '9+' : unreadChatCount}</span>
+              )}
+            </button>
+
+            {showMsgDropdown && (
+              <div className="hdr-msg-dropdown">
+                <div className="hdr-msg-dropdown-header">
+                  <span>Tin nhắn</span>
+                </div>
+                <div className="hdr-msg-dropdown-body">
+                  {chatMessages.length === 0 ? (
+                    <div className="hdr-msg-empty">Không có tin nhắn mới</div>
+                  ) : (
+                    chatMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className="hdr-msg-item"
+                        onClick={() => handleMsgClick(msg.conversationId)}
+                      >
+                        <div className="hdr-msg-item-avatar">
+                          {(msg.senderName || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="hdr-msg-item-content">
+                          <span className="hdr-msg-item-name">{msg.senderName || 'Sinh viên'}</span>
+                          <span className="hdr-msg-item-text">
+                            {msg.content?.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content}
+                          </span>
+                        </div>
+                        <span className="hdr-msg-item-time">{formatMsgTime(msg.timestamp)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="hdr-msg-dropdown-footer">
+                  <button onClick={() => { setShowMsgDropdown(false); navigate('/librarian/chat'); }}>
+                    Xem tất cả
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
+
+        {/* User profile */}
+        <div className="hdr-right" ref={dropdownRef}>
+          <button
+            className={`hdr-user ${showDropdown ? 'active' : ''}`}
+            onClick={() => setShowDropdown(!showDropdown)}
+          >
+            <div className="hdr-avatar">
+              {getInitials(userData.name)}
+            </div>
+            <div className="hdr-user-info">
+              <span className="hdr-name">{userData.name}</span>
+              <span className="hdr-role">{getRoleDisplay(userData.role)}</span>
+            </div>
+            <span className={`hdr-chevron ${showDropdown ? 'open' : ''}`}>&#9662;</span>
+          </button>
+
+          {showDropdown && (
+            <div className="hdr-dropdown">
+              <div className="hdr-dropdown-info">
+                <span className="hdr-dropdown-name">{userData.name}</span>
+                <span className="hdr-dropdown-email">{userData.email}</span>
+              </div>
+              <button className="hdr-dropdown-item" onClick={handleSettings}>
+                Cài đặt tài khoản
+              </button>
+              <button className="hdr-dropdown-item danger" onClick={handleLogout}>
+                Đăng xuất
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

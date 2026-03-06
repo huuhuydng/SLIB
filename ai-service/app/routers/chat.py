@@ -11,20 +11,21 @@ from fastapi import APIRouter, HTTPException
 from app.models.schemas import (
     RAGQueryRequest,
     RAGQueryResponse,
+    DebugRAGResponse,
     ChatRequest,
     ChatResponse,
     ActionType
 )
 from app.services.chat_service import get_rag_chat_service
 from app.services.escalation_service import escalation_service
+from app.services.mongo_service import get_mongo_service
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 
-# In-memory session storage (use Redis in production)
-chat_sessions: Dict[str, list] = {}
+# Note: Session storage moved to MongoDB (see mongo_service.py)
 
 
 @router.post("/query", response_model=RAGQueryResponse)
@@ -54,21 +55,10 @@ async def rag_query(request: RAGQueryRequest):
         rag_service = get_rag_chat_service()
         result = rag_service.query(request.message)
         
-        # Save to session history
-        if session_id not in chat_sessions:
-            chat_sessions[session_id] = []
-        chat_sessions[session_id].append({
-            "role": "user",
-            "content": request.message
-        })
-        chat_sessions[session_id].append({
-            "role": "assistant",
-            "content": result["reply"]
-        })
-        
-        # Limit history size
-        if len(chat_sessions[session_id]) > 20:
-            chat_sessions[session_id] = chat_sessions[session_id][-20:]
+        # Save to MongoDB (replaces in-memory storage)
+        mongo_service = get_mongo_service()
+        mongo_service.save_message(session_id, "user", request.message)
+        mongo_service.save_message(session_id, "assistant", result["reply"], action=result["action"].value if result["action"] else None)
         
         return RAGQueryResponse(
             success=result["success"],
@@ -81,6 +71,53 @@ async def rag_query(request: RAGQueryRequest):
         
     except Exception as e:
         logger.error(f"[ChatRouter] Error processing RAG query: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/debug", response_model=DebugRAGResponse)
+async def rag_debug_query(request: RAGQueryRequest):
+    """
+    RAG Debug Query Endpoint - For Admin Testing
+    
+    Returns detailed debug information about the RAG processing:
+    - Query analysis (normalization, greeting detection)
+    - Retrieval info (threshold, scores, chunks)
+    - Generation details (LLM usage, action reason)
+    
+    Example request:
+    ```json
+    {
+        "message": "Bị trừ bao nhiêu điểm nếu không check-in?",
+        "session_id": "optional-session-id"
+    }
+    ```
+    """
+    try:
+        session_id = request.session_id or str(uuid.uuid4())
+        
+        # Get RAG service and process with debug
+        rag_service = get_rag_chat_service()
+        result = rag_service.query_with_debug(request.message)
+        
+        # Save to MongoDB with debug info
+        mongo_service = get_mongo_service()
+        mongo_service.save_message(session_id, "user", request.message)
+        mongo_service.save_message(
+            session_id, "assistant", result["reply"],
+            debug=result["debug"],
+            action=result["action"].value if result["action"] else None
+        )
+        
+        return DebugRAGResponse(
+            success=result["success"],
+            reply=result["reply"],
+            action=result["action"],
+            session_id=session_id,
+            debug=result["debug"]
+        )
+        
+    except Exception as e:
+        logger.error(f"[ChatRouter] Error processing debug query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -178,8 +215,42 @@ async def test_rag_service():
 
 @router.delete("/session/{session_id}")
 async def clear_session(session_id: str):
-    """Clear chat session history"""
-    if session_id in chat_sessions:
-        del chat_sessions[session_id]
-        return {"success": True, "message": f"Session {session_id} cleared"}
-    return {"success": False, "message": "Session not found"}
+    """Clear chat session history from MongoDB"""
+    mongo_service = get_mongo_service()
+    deleted = mongo_service.clear_session(session_id)
+    return {"success": True, "message": f"Đã xóa {deleted} tin nhắn", "deleted_count": deleted}
+
+
+@router.get("/history/{session_id}")
+async def get_chat_history(session_id: str, limit: int = 50):
+    """
+    Get chat history for a session from MongoDB
+    Returns messages ordered by timestamp
+    """
+    mongo_service = get_mongo_service()
+    messages = mongo_service.get_session_history(session_id, limit)
+    
+    # Format for frontend
+    formatted = []
+    for msg in messages:
+        formatted.append({
+            "role": msg.get("role"),
+            "content": msg.get("content"),
+            "timestamp": msg.get("created_at").isoformat() if msg.get("created_at") else None,
+            "debug": msg.get("debug"),
+            "action": msg.get("action")
+        })
+    
+    return {
+        "success": True,
+        "session_id": session_id,
+        "messages": formatted,
+        "count": len(formatted)
+    }
+
+
+@router.get("/stats")
+async def get_chat_stats():
+    """Get chat storage statistics"""
+    mongo_service = get_mongo_service()
+    return mongo_service.get_stats()

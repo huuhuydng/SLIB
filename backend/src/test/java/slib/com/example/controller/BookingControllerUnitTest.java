@@ -165,22 +165,18 @@ class BookingControllerUnitTest {
                 UUID reservationId = UUID.randomUUID();
                 String newStatus = "CHECKED_IN";
                 ReservationEntity reservation = createReservationEntity(reservationId, UUID.randomUUID(), 5,
-                                "CONFIRMED", LocalDateTime.now(), LocalDateTime.now().plusHours(1));
-                reservation.setStatus(newStatus);
+                                newStatus, LocalDateTime.now(), LocalDateTime.now().plusHours(1));
 
-                when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
-                when(reservationRepository.save(any(ReservationEntity.class))).thenReturn(reservation);
+                when(bookingService.updateStatus(eq(reservationId), eq(newStatus))).thenReturn(reservation);
 
                 // Act & Assert
                 mockMvc.perform(put("/slib/bookings/updateStatusReserv/{reservationId}", reservationId)
                                 .param("status", newStatus)
                                 .contentType(MediaType.APPLICATION_JSON))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.reservationId").value(reservationId.toString()))
                                 .andExpect(jsonPath("$.status").value(newStatus));
 
-                verify(reservationRepository, times(1)).findById(reservationId);
-                verify(reservationRepository, times(1)).save(any(ReservationEntity.class));
+                verify(bookingService, times(1)).updateStatus(eq(reservationId), eq(newStatus));
         }
 
         @Test
@@ -188,7 +184,8 @@ class BookingControllerUnitTest {
         void updateStatus_notFound_throwsRuntimeException() throws Exception {
                 // Arrange
                 UUID reservationId = UUID.randomUUID();
-                when(reservationRepository.findById(reservationId)).thenReturn(Optional.empty());
+                when(bookingService.updateStatus(eq(reservationId), anyString()))
+                                .thenThrow(new RuntimeException("Reservation not found"));
 
                 // Act & Assert
                 mockMvc.perform(put("/slib/bookings/updateStatusReserv/{reservationId}", reservationId)
@@ -196,8 +193,7 @@ class BookingControllerUnitTest {
                                 .contentType(MediaType.APPLICATION_JSON))
                                 .andExpect(status().isInternalServerError());
 
-                verify(reservationRepository, times(1)).findById(reservationId);
-                verify(reservationRepository, never()).save(any());
+                verify(bookingService, times(1)).updateStatus(eq(reservationId), anyString());
         }
 
         @Test

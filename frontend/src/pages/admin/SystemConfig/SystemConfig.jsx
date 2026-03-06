@@ -19,9 +19,9 @@ import {
   PlusCircle,
   Loader2
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 
-const API_BASE_URL = 'http://localhost:8080/slib/settings';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
 
 // Mock Data
 const VIOLATION_RULES = [
@@ -136,7 +136,7 @@ const SystemConfig = () => {
           marginBottom: '24px'
         }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
               Cấu hình hệ thống
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -168,7 +168,7 @@ const SystemConfig = () => {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 20px',
-                background: saving ? '#ccc' : '#FF751F',
+                background: saving ? '#ccc' : '#e8600a',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '14px',
@@ -190,9 +190,9 @@ const SystemConfig = () => {
             width: '280px',
             flexShrink: 0,
             background: '#fff',
-            borderRadius: '16px',
+            borderRadius: '10px',
             padding: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             height: 'fit-content'
           }}>
             {tabs.map((tab) => (
@@ -205,12 +205,12 @@ const SystemConfig = () => {
                   alignItems: 'center',
                   gap: '12px',
                   padding: '14px 16px',
-                  background: activeTab === tab.id ? '#FFF7F2' : 'transparent',
-                  border: activeTab === tab.id ? '2px solid #FF751F' : '2px solid transparent',
+                  background: activeTab === tab.id ? '#fef6f0' : 'transparent',
+                  border: activeTab === tab.id ? '2px solid #e8600a' : '2px solid transparent',
                   borderRadius: '12px',
                   fontSize: '14px',
                   fontWeight: activeTab === tab.id ? '600' : '500',
-                  color: activeTab === tab.id ? '#FF751F' : '#4A5568',
+                  color: activeTab === tab.id ? '#e8600a' : '#4A5568',
                   cursor: 'pointer',
                   marginBottom: '8px',
                   textAlign: 'left',
@@ -230,12 +230,12 @@ const SystemConfig = () => {
             {activeTab === 'library' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                     Tham số thư viện
                   </h2>
                   <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -246,7 +246,7 @@ const SystemConfig = () => {
                   {/* Operating Hours */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={18} color="#FF751F" />
+                      <Clock size={18} color="#e8600a" />
                       Giờ hoạt động
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -292,7 +292,7 @@ const SystemConfig = () => {
                   {/* Booking Rules */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Calendar size={18} color="#FF751F" />
+                      <Calendar size={18} color="#e8600a" />
                       Quy định đặt chỗ
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -393,7 +393,7 @@ const SystemConfig = () => {
                   {/* Auto Checkout */}
                   <div>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Timer size={18} color="#FF751F" />
+                      <Timer size={18} color="#e8600a" />
                       Tự động check-out
                     </h3>
                     <div style={{
@@ -423,7 +423,7 @@ const SystemConfig = () => {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          background: libraryConfig.autoCheckoutEnabled ? '#FF751F' : '#E2E8F0',
+                          background: libraryConfig.autoCheckoutEnabled ? '#e8600a' : '#E2E8F0',
                           borderRadius: '14px',
                           transition: 'all 0.3s'
                         }}>
@@ -471,13 +471,13 @@ const SystemConfig = () => {
             {activeTab === 'reputation' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                       Quy tắc điểm uy tín
                     </h2>
                     <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -491,7 +491,7 @@ const SystemConfig = () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 16px',
-                      background: '#FF751F',
+                      background: '#e8600a',
                       border: 'none',
                       borderRadius: '10px',
                       fontSize: '13px',
@@ -531,9 +531,9 @@ const SystemConfig = () => {
                             <span style={{
                               padding: '6px 14px',
                               background: '#DC2626',
-                              borderRadius: '20px',
+                              borderRadius: '10px',
                               fontSize: '14px',
-                              fontWeight: '700',
+                              fontWeight: '600',
                               color: '#fff'
                             }}>{rule.points}</span>
                             <button style={{
@@ -576,9 +576,9 @@ const SystemConfig = () => {
                             <span style={{
                               padding: '6px 14px',
                               background: '#059669',
-                              borderRadius: '20px',
+                              borderRadius: '10px',
                               fontSize: '14px',
-                              fontWeight: '700',
+                              fontWeight: '600',
                               color: '#fff'
                             }}>+{rule.points}</span>
                             <button style={{
@@ -603,12 +603,12 @@ const SystemConfig = () => {
             {activeTab === 'notifications' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                     Cấu hình thông báo
                   </h2>
                   <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -646,7 +646,7 @@ const SystemConfig = () => {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          background: item.enabled ? '#FF751F' : '#E2E8F0',
+                          background: item.enabled ? '#e8600a' : '#E2E8F0',
                           borderRadius: '14px',
                           transition: 'all 0.3s'
                         }}>
@@ -688,7 +688,7 @@ const SystemConfig = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '500px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -699,7 +699,7 @@ const SystemConfig = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>
                 {editingRule ? 'Sửa quy tắc' : 'Thêm quy tắc mới'}
               </h2>
               <button onClick={() => setShowRuleModal(false)} style={{
@@ -810,7 +810,7 @@ const SystemConfig = () => {
                 <button style={{
                   flex: 1,
                   padding: '14px',
-                  background: '#FF751F',
+                  background: '#e8600a',
                   border: 'none',
                   borderRadius: '12px',
                   fontSize: '14px',

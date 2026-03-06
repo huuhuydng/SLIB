@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Activity, 
-  Database, 
-  Server, 
+import {
+  Activity,
+  Database,
+  Server,
   HardDrive,
   Cpu,
   MemoryStick,
@@ -30,7 +30,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 
 // Mock Data
 const SYSTEM_METRICS = {
@@ -79,14 +79,14 @@ const SystemHealth = () => {
   const filteredLogs = useMemo(() => {
     return SYSTEM_LOGS.filter(log => {
       const matchSearch = log.message.toLowerCase().includes(searchLog.toLowerCase()) ||
-                         log.service.toLowerCase().includes(searchLog.toLowerCase());
+        log.service.toLowerCase().includes(searchLog.toLowerCase());
       const matchFilter = logFilter === 'all' || log.level === logFilter;
       return matchSearch && matchFilter;
     });
   }, [searchLog, logFilter]);
 
   const getLogLevelStyle = (level) => {
-    switch(level) {
+    switch (level) {
       case 'error': return { bg: '#FEE2E2', color: '#DC2626', icon: XCircle };
       case 'warning': return { bg: '#FEF3C7', color: '#F59E0B', icon: AlertTriangle };
       case 'info': return { bg: '#DBEAFE', color: '#2563EB', icon: Info };
@@ -96,7 +96,7 @@ const SystemHealth = () => {
   };
 
   const getStatusStyle = (status) => {
-    switch(status) {
+    switch (status) {
       case 'healthy': return { bg: '#D1FAE5', color: '#059669' };
       case 'warning': return { bg: '#FEF3C7', color: '#F59E0B' };
       case 'error': return { bg: '#FEE2E2', color: '#DC2626' };
@@ -132,7 +132,7 @@ const SystemHealth = () => {
           marginBottom: '24px'
         }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
               Giám sát hệ thống
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -161,7 +161,7 @@ const SystemHealth = () => {
               alignItems: 'center',
               gap: '8px',
               padding: '12px 20px',
-              background: '#FF751F',
+              background: '#e8600a',
               border: 'none',
               borderRadius: '12px',
               fontSize: '14px',
@@ -200,7 +200,7 @@ const SystemHealth = () => {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 20px',
-                background: activeTab === tab.id ? '#FF751F' : 'transparent',
+                background: activeTab === tab.id ? '#e8600a' : 'transparent',
                 border: 'none',
                 borderRadius: '10px',
                 fontSize: '14px',
@@ -234,9 +234,9 @@ const SystemHealth = () => {
               ].map((metric, idx) => (
                 <div key={idx} style={{
                   background: '#fff',
-                  borderRadius: '16px',
+                  borderRadius: '10px',
                   padding: '24px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.06)'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div style={{
@@ -262,7 +262,7 @@ const SystemHealth = () => {
                       {metric.trend}
                     </span>
                   </div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', marginBottom: '4px' }}>{metric.value}</div>
+                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{metric.value}</div>
                   <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{metric.label}</div>
                   {/* Progress bar */}
                   <div style={{ marginTop: '12px', height: '6px', background: '#E2E8F0', borderRadius: '100px', overflow: 'hidden' }}>
@@ -283,12 +283,12 @@ const SystemHealth = () => {
               {/* System Info */}
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Thông tin hệ thống</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Thông tin hệ thống</h3>
                 </div>
                 <div style={{ padding: '24px' }}>
                   {[
@@ -328,12 +328,12 @@ const SystemHealth = () => {
               {/* API Status */}
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Trạng thái API</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Trạng thái API</h3>
                   <span style={{ fontSize: '12px', color: '#A0AEC0' }}>Cập nhật: Vừa xong</span>
                 </div>
                 <div style={{ padding: '16px 24px' }}>
@@ -364,7 +364,7 @@ const SystemHealth = () => {
                             <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                               <span style={{
                                 padding: '4px 10px',
-                                borderRadius: '20px',
+                                borderRadius: '10px',
                                 fontSize: '12px',
                                 fontWeight: '600',
                                 background: statusStyle.bg,
@@ -400,8 +400,8 @@ const SystemHealth = () => {
         {activeTab === 'logs' && (
           <div style={{
             background: '#fff',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            borderRadius: '10px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             overflow: 'hidden'
           }}>
             {/* Filter Bar */}
@@ -508,7 +508,7 @@ const SystemHealth = () => {
                           padding: '2px 8px',
                           borderRadius: '4px',
                           fontSize: '11px',
-                          fontWeight: '700',
+                          fontWeight: '600',
                           textTransform: 'uppercase',
                           background: levelStyle.bg,
                           color: levelStyle.color
@@ -534,13 +534,13 @@ const SystemHealth = () => {
             {/* Backup Actions */}
             <div style={{
               background: '#fff',
-              borderRadius: '16px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+              borderRadius: '10px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               overflow: 'hidden',
               height: 'fit-content'
             }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Sao lưu thủ công</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Sao lưu thủ công</h3>
               </div>
               <div style={{ padding: '24px' }}>
                 <div style={{
@@ -550,11 +550,11 @@ const SystemHealth = () => {
                   textAlign: 'center',
                   marginBottom: '20px'
                 }}>
-                  <HardDrive size={48} color="#FF751F" style={{ marginBottom: '12px' }} />
+                  <HardDrive size={48} color="#e8600a" style={{ marginBottom: '12px' }} />
                   <p style={{ fontSize: '14px', color: '#4A5568', margin: '0 0 16px' }}>
                     Tạo bản sao lưu database ngay lập tức
                   </p>
-                  <button 
+                  <button
                     onClick={handleManualBackup}
                     disabled={isBackingUp}
                     style={{
@@ -564,7 +564,7 @@ const SystemHealth = () => {
                       gap: '8px',
                       width: '100%',
                       padding: '14px',
-                      background: isBackingUp ? '#A0AEC0' : '#FF751F',
+                      background: isBackingUp ? '#A0AEC0' : '#e8600a',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '14px',
@@ -644,12 +644,12 @@ const SystemHealth = () => {
             {/* Backup History */}
             <div style={{
               background: '#fff',
-              borderRadius: '16px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+              borderRadius: '10px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               overflow: 'hidden'
             }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
               </div>
               <div style={{ padding: '16px 24px' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -684,7 +684,7 @@ const SystemHealth = () => {
                         <td style={{ padding: '16px' }}>
                           <span style={{
                             padding: '4px 12px',
-                            borderRadius: '20px',
+                            borderRadius: '10px',
                             fontSize: '12px',
                             fontWeight: '600',
                             background: backup.status === 'success' ? '#D1FAE5' : '#FEE2E2',

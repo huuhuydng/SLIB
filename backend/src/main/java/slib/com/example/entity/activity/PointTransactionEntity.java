@@ -1,8 +1,12 @@
 package slib.com.example.entity.activity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
+import slib.com.example.entity.reputation.ReputationRuleEntity;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -13,6 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class PointTransactionEntity {
 
     @Id
@@ -40,13 +45,21 @@ public class PointTransactionEntity {
     @Column(name = "activity_log_id")
     private UUID activityLogId;
 
+    // Liên kết đến quy tắc đã áp dụng
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "rule_id")
+    @JsonIgnore
+    private ReputationRuleEntity rule;
+
     @Column(name = "created_at")
     private ZonedDateTime createdAt;
+
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = ZonedDateTime.now();
+            createdAt = ZonedDateTime.now(VIETNAM_ZONE);
         }
     }
 

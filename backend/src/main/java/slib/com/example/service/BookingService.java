@@ -4,12 +4,16 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import slib.com.example.entity.LibrarySetting;
+import slib.com.example.entity.activity.ActivityLogEntity;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -29,16 +33,28 @@ public class BookingService {
         private final ZoneRepository zoneRepository;
         private final SeatStatusSyncService seatStatusSyncService;
         private final LibrarySettingService librarySettingService;
+        private final SeatAvailabilityService seatAvailabilityService;
+        private final PushNotificationService pushNotificationService;
+        private final ActivityService activityService;
+        private final SimpMessagingTemplate messagingTemplate;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
-                        SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService) {
+                        SeatStatusSyncService seatStatusSyncService, LibrarySettingService librarySettingService,
+                        SeatAvailabilityService seatAvailabilityService,
+                        PushNotificationService pushNotificationService,
+                        ActivityService activityService,
+                        SimpMessagingTemplate messagingTemplate) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
                 this.zoneRepository = zoneRepository;
                 this.seatStatusSyncService = seatStatusSyncService;
                 this.librarySettingService = librarySettingService;
+                this.seatAvailabilityService = seatAvailabilityService;
+                this.pushNotificationService = pushNotificationService;
+                this.activityService = activityService;
+                this.messagingTemplate = messagingTemplate;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -113,12 +129,34 @@ public class BookingService {
                 // KHÔNG thay đổi seat_status trực tiếp - status được tính động từ reservations
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync seat status ngay lập tức (nếu trong khung giờ hiện tại)
-                seatStatusSyncService.updateSeatStatus(seat, startTime, endTime, "PROCESSING");
+                // Broadcast to WebSocket clients for real-time updates
 
                 // LUÔN broadcast WebSocket cho tất cả bookings (kể cả future) để clients sync
                 // được
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(seat, "HOLDING", startTime, endTime);
+
+                // Log activity for BOOKING_SUCCESS
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                startTime.getHour(), startTime.getMinute(),
+                                endTime.getHour(), endTime.getMinute());
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(userId)
+                                        .activityType(ActivityLogEntity.TYPE_BOOKING_SUCCESS)
+                                        .title("Đặt chỗ thành công")
+                                        .description("Đã đặt ghế " + seat.getSeatCode() + " tại " + zoneName + " ("
+                                                        + timeStr + ")")
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CREATED");
 
                 return saved;
         }
@@ -182,13 +220,15 @@ public class BookingService {
          */
         public java.util.Optional<slib.com.example.dto.booking.UpcomingBookingResponse> getUpcomingBooking(
                         UUID userId) {
-                LocalDateTime now = LocalDateTime.now();
+                // Use Vietnam timezone explicitly to ensure consistent time comparison
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
 
                 return reservationRepository.findByUserId(userId).stream()
-                                // Only BOOKED or PROCESSING status
+                                // Only BOOKED, PROCESSING, or CONFIRMED status
                                 .filter(r -> r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                r.getStatus().equalsIgnoreCase("PROCESSING"))
-                                // End time hasn't passed yet
+                                                r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                r.getStatus().equalsIgnoreCase("CONFIRMED"))
+                                // End time hasn't passed yet (booking still valid)
                                 .filter(r -> r.getEndTime().isAfter(now))
                                 // Sort by start time (closest first)
                                 .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
@@ -240,34 +280,61 @@ public class BookingService {
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
 
                 // Check if reservation is already cancelled or completed
-                if ("CANCEL".equalsIgnoreCase(reservation.getStatus())) {
+                if ("CANCEL".equalsIgnoreCase(reservation.getStatus()) ||
+                                "CANCELLED".equalsIgnoreCase(reservation.getStatus())) {
                         throw new RuntimeException("Đặt chỗ này đã được hủy");
                 }
                 if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())) {
                         throw new RuntimeException("Không thể hủy đặt chỗ đã hoàn thành");
                 }
 
-                // Check 12-hour rule
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
+                // PROCESSING reservations can be cancelled immediately (user is still
+                // confirming)
+                // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
+                if (!"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                        // Check 12-hour rule for confirmed bookings
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
-                if (now.isAfter(cancelDeadline)) {
-                        long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime()).toHours();
-                        throw new RuntimeException(
-                                        "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
-                                                        "Còn " + hoursUntilStart + " tiếng nữa là đến giờ đặt.");
+                        if (now.isAfter(cancelDeadline)) {
+                                long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime())
+                                                .toHours();
+                                throw new RuntimeException(
+                                                "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
+                                                                "Còn " + hoursUntilStart
+                                                                + " tiếng nữa là đến giờ đặt.");
+                        }
                 }
 
                 reservation.setStatus("CANCEL");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync seat status ngay - trả về AVAILABLE nếu đang trong khung giờ
-                seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
-                                reservation.getStartTime(), reservation.getEndTime(), "CANCEL");
+                // Log activity for BOOKING_CANCEL
+                SeatEntity seat = reservation.getSeat();
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(reservation.getUser().getId())
+                                        .activityType(ActivityLogEntity.TYPE_BOOKING_CANCEL)
+                                        .title("Hủy đặt chỗ thành công")
+                                        .description("Đã hủy ghế " + seat.getSeatCode() + " tại " + zoneName)
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // Broadcast to WebSocket clients for real-time updates
+                // (status is calculated dynamically, no DB update needed)
 
                 // Broadcast cho tất cả clients kể cả đang xem future time slots
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "AVAILABLE",
                                 reservation.getStartTime(), reservation.getEndTime());
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CANCELLED");
 
                 return saved;
         }
@@ -317,11 +384,45 @@ public class BookingService {
                 reservation.setStatus("BOOKED");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
-                // Sync status
-                seatStatusSyncService.updateSeatStatus(reservation.getSeat(),
-                                reservation.getStartTime(), reservation.getEndTime(), "BOOKED");
+                // Log activity for NFC_CONFIRM
+                SeatEntity seat = reservation.getSeat();
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(reservation.getUser().getId())
+                                        .activityType(ActivityLogEntity.TYPE_NFC_CONFIRM)
+                                        .title("Xác nhận ghế thành công")
+                                        .description("Đã xác nhận ghế " + seat.getSeatCode() + " tại " + zoneName
+                                                        + " bằng NFC")
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // Broadcast status to WebSocket clients
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
                                 reservation.getStartTime(), reservation.getEndTime());
+
+                // Send push notification khi check-in NFC thành công
+                try {
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                        reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                        reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String notiTitle = "Check-in thành công";
+                        String notiBody = String.format(
+                                        "Ghế %s tại %s (%s) đã check-in bằng NFC. Chúc bạn học tập hiệu quả!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(reservation.getUser().getId(), notiTitle, notiBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send NFC confirmation notification: " + e.getMessage());
+                }
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");
 
                 return saved;
         }
@@ -332,15 +433,33 @@ public class BookingService {
                 reserv.setStatus(status);
                 ReservationEntity saved = reservationRepository.save(reserv);
 
-                // Sync seat status ngay lập tức
-                seatStatusSyncService.updateSeatStatus(reserv.getSeat(),
-                                reserv.getStartTime(), reserv.getEndTime(), status);
-
-                // Broadcast cho tất cả clients
+                // Broadcast status to WebSocket clients
                 String wsStatus = "BOOKED".equalsIgnoreCase(status) ? "BOOKED"
                                 : "CANCEL".equalsIgnoreCase(status) ? "AVAILABLE" : "HOLDING";
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reserv.getSeat(), wsStatus,
                                 reserv.getStartTime(), reserv.getEndTime());
+
+                // Send push notification khi xác nhận đặt chỗ thành công (BOOKED)
+                if ("BOOKED".equalsIgnoreCase(status)) {
+                        try {
+                                SeatEntity seat = reserv.getSeat();
+                                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                                String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                                reserv.getStartTime().getHour(), reserv.getStartTime().getMinute(),
+                                                reserv.getEndTime().getHour(), reserv.getEndTime().getMinute());
+                                String title = "Đặt chỗ thành công";
+                                String body = String.format(
+                                                "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến sớm để check-in!",
+                                                seat.getSeatCode(), zoneName, timeStr);
+                                pushNotificationService.sendToUser(reserv.getUser().getId(), title, body,
+                                                NotificationType.BOOKING, saved.getReservationId());
+                        } catch (Exception e) {
+                                System.err.println("Failed to send booking notification: " + e.getMessage());
+                        }
+                }
+
+                // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "STATUS_CHANGED");
 
                 return saved;
         }
@@ -355,13 +474,17 @@ public class BookingService {
         }
 
         private SeatDTO mapToDTO(SeatEntity seat) {
+                // Calculate current status dynamically
+                SeatStatus status = seatAvailabilityService.calculateCurrentStatus(seat);
                 return new SeatDTO(
                                 seat.getSeatId(),
                                 seat.getSeatCode(),
-                                seat.getSeatStatus(),
+                                status,
                                 seat.getRowNumber(),
                                 seat.getColumnNumber(),
-                                seat.getZone().getZoneId());
+                                seat.getZone().getZoneId(),
+                                seat.getNfcTagUid(),
+                                null);
         }
 
         public List<SeatDTO> getSeatsByTime(Integer zoneId, LocalDate date, LocalTime start, LocalTime end) {
@@ -371,10 +494,24 @@ public class BookingService {
                 LocalDateTime endDateTime = LocalDateTime.of(date, end);
 
                 return seats.stream().map(seat -> {
+                        // Check if seat is restricted (isActive = false)
+                        if (seat.getIsActive() == null || !seat.getIsActive()) {
+                                return new SeatDTO(
+                                                seat.getSeatId(),
+                                                seat.getSeatCode(),
+                                                SeatStatus.UNAVAILABLE,
+                                                seat.getRowNumber(),
+                                                seat.getColumnNumber(),
+                                                seat.getZone().getZoneId(),
+                                                seat.getNfcTagUid(),
+                                                null);
+                        }
+
                         // Tìm reservation trùng time slot
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                        r.getStatus().equalsIgnoreCase("PROCESSING")) &&
+                                                        r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                        r.getStatus().equalsIgnoreCase("CONFIRMED")) &&
                                                         r.getStartTime().toLocalDate().equals(date) &&
                                                         r.getStartTime().isBefore(endDateTime) &&
                                                         r.getEndTime().isAfter(startDateTime))
@@ -382,12 +519,16 @@ public class BookingService {
 
                         // Xác định seat status dựa trên reservation status
                         SeatStatus status = SeatStatus.AVAILABLE;
+                        String endTimeStr = null;
                         if (matchingReservation.isPresent()) {
                                 String reservStatus = matchingReservation.get().getStatus();
-                                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                                if ("BOOKED".equalsIgnoreCase(reservStatus) ||
+                                                "CONFIRMED".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.BOOKED;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.HOLDING;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 }
                         }
 
@@ -397,7 +538,9 @@ public class BookingService {
                                         status,
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
-                                        seat.getZone().getZoneId());
+                                        seat.getZone().getZoneId(),
+                                        seat.getNfcTagUid(),
+                                        endTimeStr);
                 }).toList();
         }
 
@@ -405,21 +548,39 @@ public class BookingService {
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
                 return seats.stream().map(seat -> {
+                        // Check if seat is restricted (isActive = false)
+                        if (seat.getIsActive() == null || !seat.getIsActive()) {
+                                return new SeatDTO(
+                                                seat.getSeatId(),
+                                                seat.getSeatCode(),
+                                                SeatStatus.UNAVAILABLE,
+                                                seat.getRowNumber(),
+                                                seat.getColumnNumber(),
+                                                seat.getZone().getZoneId(),
+                                                seat.getNfcTagUid(),
+                                                null);
+                        }
+
                         // Tìm reservation trong ngày
                         var matchingReservation = seat.getReservation().stream()
                                         .filter(r -> (r.getStatus().equalsIgnoreCase("BOOKED") ||
-                                                        r.getStatus().equalsIgnoreCase("PROCESSING")) &&
+                                                        r.getStatus().equalsIgnoreCase("PROCESSING") ||
+                                                        r.getStatus().equalsIgnoreCase("CONFIRMED")) &&
                                                         r.getStartTime().toLocalDate().equals(date))
                                         .findFirst();
 
                         // Xác định seat status dựa trên reservation status
                         SeatStatus status = SeatStatus.AVAILABLE;
+                        String endTimeStr = null;
                         if (matchingReservation.isPresent()) {
                                 String reservStatus = matchingReservation.get().getStatus();
-                                if ("BOOKED".equalsIgnoreCase(reservStatus)) {
+                                if ("BOOKED".equalsIgnoreCase(reservStatus) ||
+                                                "CONFIRMED".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.BOOKED;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 } else if ("PROCESSING".equalsIgnoreCase(reservStatus)) {
                                         status = SeatStatus.HOLDING;
+                                        endTimeStr = matchingReservation.get().getEndTime().toString();
                                 }
                         }
 
@@ -429,7 +590,9 @@ public class BookingService {
                                         status,
                                         seat.getRowNumber(),
                                         seat.getColumnNumber(),
-                                        seat.getZone().getZoneId());
+                                        seat.getZone().getZoneId(),
+                                        seat.getNfcTagUid(),
+                                        endTimeStr);
                 }).toList();
         }
 
@@ -452,4 +615,13 @@ public class BookingService {
                 return result;
         }
 
+        private void broadcastDashboardUpdate(String type, String action) {
+                try {
+                        messagingTemplate.convertAndSend("/topic/dashboard",
+                                        java.util.Map.of("type", type, "action", action, "timestamp",
+                                                        java.time.Instant.now().toString()));
+                } catch (Exception e) {
+                        System.err.println("Failed to broadcast dashboard update: " + e.getMessage());
+                }
+        }
 }

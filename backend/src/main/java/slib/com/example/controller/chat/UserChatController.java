@@ -9,7 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-// 👇 Import các DTO và Entity cần thiết
+// Import các DTO và Entity cần thiết
 import slib.com.example.dto.chat.ChatMessageDTO;
 import slib.com.example.dto.chat.ChatPartnerDTO;
 import slib.com.example.dto.chat.ConversationDTO;
@@ -17,12 +17,14 @@ import slib.com.example.entity.chat.Message;
 
 import slib.com.example.service.chat.UserChatService;
 import slib.com.example.service.chat.ConversationService;
+import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.UserService;
 
 import java.util.List;
 import java.util.Map; // Nhớ import Map
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/slib/chat")
@@ -33,6 +35,7 @@ public class UserChatController {
     private final UserChatService chatService;
     private final ConversationService conversationService;
     private final UserService userService;
+    private final CloudinaryService cloudinaryService;
 
     // ==========================================
     // PHẦN 1: WEBSOCKET
@@ -117,18 +120,18 @@ public class UserChatController {
         return ResponseEntity.ok(pageIndex);
     }
 
-    // 👇 [SỬA] 5. API Lấy số lượng tin chưa đọc
+    // [FIX] 5. API Lấy số lượng tin chưa đọc
     @GetMapping("/unread-count")
     public ResponseEntity<Long> getUnreadCount(@AuthenticationPrincipal UserDetails userDetails) {
         UUID myId = getCurrentUserId(userDetails);
 
-        // ❌ LỖI CŨ: messageRepository.countUnreadMessages(myId);
+        // BUG FIX: messageRepository.countUnreadMessages(myId);
         long count = chatService.getUnreadCount(myId);
 
         return ResponseEntity.ok(count);
     }
 
-    // 👇 [SỬA] 6. API Đánh dấu đã đọc
+    // [FIX] 6. API Đánh dấu đã đọc
     @PostMapping("/mark-read")
     public ResponseEntity<Void> markAsRead(
             @RequestBody Map<String, String> payload,
@@ -140,7 +143,7 @@ public class UserChatController {
         // 1. Cập nhật Database (is_read = true)
         chatService.markMessagesAsRead(myId, partnerId);
 
-        // 2. 👇 GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
+        // 2. GỬI THÔNG BÁO "SEEN" QUA WEBSOCKET
         messagingTemplate.convertAndSend(
                 "/topic/chat/seen/" + partnerId,
                 Map.of("partnerId", myId));
@@ -218,6 +221,157 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         getCurrentUserId(userDetails);
         return ResponseEntity.ok(conversationService.countWaitingConversations());
+    }
+
+    // 14. Lấy vị trí trong hàng đợi cho một conversation
+    @GetMapping("/conversations/{conversationId}/queue-position")
+    public ResponseEntity<Map<String, Object>> getQueuePosition(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        int position = conversationService.getQueuePosition(conversationId);
+        long totalWaiting = conversationService.countWaitingConversations();
+        return ResponseEntity.ok(Map.of(
+                "position", position,
+                "totalWaiting", totalWaiting,
+                "conversationId", conversationId));
+    }
+
+    // 15. Hủy chờ trong queue - quay lại AI handling
+    @PostMapping("/conversations/{conversationId}/cancel-escalation")
+    public ResponseEntity<ConversationDTO> cancelEscalation(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.cancelEscalation(conversationId);
+        return ResponseEntity.ok(result);
+    }
+
+    // 16. User yêu cầu gặp thủ thư (tạo conversation mới và escalate)
+    @PostMapping("/conversations/request-librarian")
+    public ResponseEntity<Map<String, Object>> requestLibrarian(
+            @RequestBody(required = false) Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        String reason = request != null ? (String) request.get("reason") : "User yêu cầu gặp thủ thư";
+
+        // Lấy AI session ID để backend có thể đọc chat history từ MongoDB
+        String aiSessionId = request != null ? (String) request.get("aiSessionId") : null;
+
+        // Tạo conversation mới và escalate với aiSessionId
+        ConversationDTO conversation = conversationService.createAndEscalateWithHistory(
+                userId, reason, null, aiSessionId);
+        int queuePosition = conversationService.getQueuePosition(conversation.getId());
+        long totalWaiting = conversationService.countWaitingConversations();
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "conversationId", conversation.getId(),
+                "queuePosition", queuePosition,
+                "totalWaiting", totalWaiting));
+    }
+
+    // 17. Lấy tất cả messages của conversation
+    @GetMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<List<ChatMessageDTO>> getConversationMessages(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        List<ChatMessageDTO> messages = conversationService.getConversationMessages(conversationId);
+        return ResponseEntity.ok(messages);
+    }
+
+    // 18. Gửi tin nhắn mới vào conversation
+    @PostMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<ChatMessageDTO> sendMessage(
+            @PathVariable UUID conversationId,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID senderId = getCurrentUserId(userDetails);
+        String content = request.get("content");
+        String senderType = request.getOrDefault("senderType", "STUDENT"); // STUDENT, LIBRARIAN, AI
+
+        ChatMessageDTO message = conversationService.addMessageToConversation(
+                conversationId, senderId, content, senderType);
+        return ResponseEntity.ok(message);
+    }
+
+    // 18b. Gửi tin nhắn kèm ảnh vào conversation
+    @PostMapping("/conversations/{conversationId}/messages/with-image")
+    public ResponseEntity<?> sendMessageWithImage(
+            @PathVariable UUID conversationId,
+            @RequestParam(value = "file") MultipartFile file,
+            @RequestParam(value = "content", required = false, defaultValue = "") String content,
+            @RequestParam(value = "senderType", required = false, defaultValue = "STUDENT") String senderType,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            UUID senderId = getCurrentUserId(userDetails);
+
+            // Validate file size (5MB max)
+            if (file.getSize() > 5 * 1024 * 1024) {
+                return ResponseEntity.badRequest().body(Map.of("error", "File quá lớn. Tối đa: 5MB"));
+            }
+
+            // Upload ảnh lên Cloudinary
+            String imageUrl = cloudinaryService.uploadImageChat(file);
+
+            // Ghép URL vào content theo format [IMAGES]
+            String fullContent = content.isEmpty()
+                    ? "[IMAGES]\n" + imageUrl
+                    : content + "\n[IMAGES]\n" + imageUrl;
+
+            ChatMessageDTO message = conversationService.addMessageToConversation(
+                    conversationId, senderId, fullContent, senderType);
+            return ResponseEntity.ok(message);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi gửi ảnh: " + e.getMessage()));
+        }
+    }
+
+    // 19. Lay conversation status (cho mobile polling)
+    @GetMapping("/conversations/{conversationId}/status")
+    public ResponseEntity<Map<String, Object>> getConversationStatus(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        getCurrentUserId(userDetails);
+        ConversationDTO conv = conversationService.getConversationById(conversationId)
+                .map(c -> conversationService.convertToDTO(c))
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        int queuePosition = conversationService.getQueuePosition(conversationId);
+
+        Map<String, Object> response = new java.util.HashMap<>();
+        response.put("id", conv.getId());
+        response.put("status", conv.getStatus());
+        response.put("librarianName", conv.getLibrarianName() != null ? conv.getLibrarianName() : "");
+        response.put("queuePosition", queuePosition);
+        return ResponseEntity.ok(response);
+    }
+
+    // 20. Student check active conversation (HUMAN_CHATTING hoặc QUEUE_WAITING)
+    @GetMapping("/conversations/my-active")
+    public ResponseEntity<Map<String, Object>> getMyActiveConversation(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID studentId = getCurrentUserId(userDetails);
+        var activeConv = conversationService.getActiveConversationForStudent(studentId);
+        if (activeConv != null) {
+            return ResponseEntity.ok(Map.of(
+                    "hasActive", true,
+                    "conversationId", activeConv.getId().toString(),
+                    "status", activeConv.getStatus().toString(),
+                    "librarianName", activeConv.getLibrarianName() != null ? activeConv.getLibrarianName() : ""));
+        }
+        return ResponseEntity.ok(Map.of("hasActive", false));
+    }
+
+    // 21. Student hủy chờ queue (cancel queue)
+    @PostMapping("/conversations/{conversationId}/cancel-queue")
+    public ResponseEntity<Map<String, Object>> cancelQueue(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID studentId = getCurrentUserId(userDetails);
+        conversationService.cancelQueue(conversationId, studentId);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Đã hủy chờ"));
     }
 
     // ==========================================

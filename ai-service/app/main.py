@@ -212,6 +212,13 @@ async def legacy_chat(request: ChatRequest):
                 reason=escalation_reason
             )
         
+        # Save escalation messages to MongoDB
+        from app.services.mongo_service import get_mongo_service
+        mongo_service = get_mongo_service()
+        mongo_service.save_message(session_id, "user", request.message)
+        mongo_service.save_message(session_id, "assistant", escalation_message,
+                                   action=ActionType.ESCALATE_TO_LIBRARIAN.value)
+        
         return ChatResponse(
             success=True,
             reply=escalation_message,
@@ -238,14 +245,12 @@ async def legacy_chat(request: ChatRequest):
     
     confidence_score = min(result["similarity_score"], 1.0) if not needs_review else 0.3
     
-    # Save to session
-    if session_id not in chat_sessions:
-        chat_sessions[session_id] = []
-    chat_sessions[session_id].append({"role": "user", "content": request.message})
-    chat_sessions[session_id].append({"role": "assistant", "content": result["reply"]})
-    
-    if len(chat_sessions[session_id]) > 20:
-        chat_sessions[session_id] = chat_sessions[session_id][-20:]
+    # Save to MongoDB (để backend Java có thể đọc qua /api/v1/chat/history/{session_id})
+    from app.services.mongo_service import get_mongo_service
+    mongo_service = get_mongo_service()
+    mongo_service.save_message(session_id, "user", request.message)
+    mongo_service.save_message(session_id, "assistant", result["reply"],
+                               action=result["action"].value if result["action"] else None)
     
     return ChatResponse(
         success=True,

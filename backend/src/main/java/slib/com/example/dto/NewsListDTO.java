@@ -23,5 +23,5 @@ public class NewsListDTO {
     private Integer viewCount;
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;
-    // Không có imageUrl để giảm kích thước response
+    private String imageUrl;
 }

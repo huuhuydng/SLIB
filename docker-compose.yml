@@ -1,0 +1,187 @@
+# ============================================
+# SLIB - Multi-Container Microservices Architecture
+# ============================================
+# 
+# Services:
+#   - slib-postgres: PostgreSQL database with pgvector
+#   - slib-redis: Redis cache
+#   - slib-qdrant: Qdrant vector database
+#   - slib-backend: SpringBoot API
+#   - slib-ai-service: Python FastAPI AI Service
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose down           # Stop all services
+#   docker-compose logs -f        # View logs
+#   docker-compose build --no-cache  # Rebuild all images
+#
+# ============================================
+
+services:
+  # ========== DATABASE ==========
+  slib-postgres:
+    image: pgvector/pgvector:pg15
+    container_name: slib-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: Asia/Ho_Chi_Minh
+      PGTZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./ai-service/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    networks:
+      - slib-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========== REDIS CACHE ==========
+  slib-redis:
+    image: redis:7-alpine
+    container_name: slib-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - slib-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========== QDRANT VECTOR DATABASE ==========
+  slib-qdrant:
+    image: qdrant/qdrant:latest
+    container_name: slib-qdrant
+    ports:
+      - "6333:6333"  # REST API & Web UI
+      - "6334:6334"  # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - slib-network
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ========== MONGODB (Chat Messages) ==========
+  slib-mongo:
+    image: mongo:7
+    container_name: slib-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: slib_chat
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - slib-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ========== BACKEND (SpringBoot) ==========
+  slib-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: slib-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://slib-postgres:5432/${POSTGRES_DB}?stringtype=unspecified
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - REDIS_HOST=slib-redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GATE_SECRET=${GATE_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    volumes:
+      - maven-repo:/root/.m2
+    networks:
+      - slib-network
+    depends_on:
+      slib-postgres:
+        condition: service_healthy
+      slib-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ========== AI SERVICE (Python FastAPI) ==========
+  slib-ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: slib-ai-service
+    ports:
+      - "8001:8001"
+    environment:
+      - AI_PROVIDER=ollama
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.2
+      - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@slib-postgres:5432/${POSTGRES_DB}
+      - JAVA_BACKEND_URL=http://slib-backend:8080/slib
+      - REDIS_URL=redis://slib-redis:6379
+      - QDRANT_URL=http://slib-qdrant:6333
+      - QDRANT_COLLECTION=slib_knowledge
+      - SIMILARITY_THRESHOLD=0.45
+      - MONGODB_URL=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@slib-mongo:27017/slib_chat?authSource=admin
+      - DEBUG=false
+    networks:
+      - slib-network
+    depends_on:
+      slib-postgres:
+        condition: service_healthy
+      slib-redis:
+        condition: service_healthy
+      slib-qdrant:
+        condition: service_healthy
+      slib-mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ========== NETWORKS ==========
+networks:
+  slib-network:
+    driver: bridge
+    name: slib-network
+
+# ========== VOLUMES ==========
+volumes:
+  postgres_data:
+    name: slib_postgres_data
+  maven-repo:
+    name: slib_maven_repo
+  redis_data:
+    name: slib_redis_data
+  qdrant_data:
+    name: slib_qdrant_data
+  mongo_data:
+    name: slib_mongo_data

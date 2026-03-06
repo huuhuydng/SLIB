@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/slib/news';
+const API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news`;
 
 // Lấy danh sách tất cả news cho admin/librarian
 export const getAllNewsForAdmin = async () => {
@@ -95,27 +95,25 @@ export const getNewsDetail = async (id) => {
   }
 };
 
-// Toggle pin status
-export const toggleNewsPin = async (id) => {
+// Toggle pin status của news
+export const togglePinNews = async (id) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/${id}/pin`);
+    const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`);
     return response.data;
   } catch (error) {
-    console.error('Error toggling pin:', error);
+    console.error('Error toggling pin status:', error);
     throw error;
   }
 };
 
-// ============================================
-// CATEGORY APIs
-// ============================================
+// ============== CATEGORY APIs ==============
 
-const CATEGORY_URL = 'http://localhost:8080/slib/categories';
+const CATEGORY_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news-categories`;
 
-// Lấy tất cả categories
+// Lay danh sach tat ca categories
 export const getAllCategories = async () => {
   try {
-    const response = await axios.get(CATEGORY_URL);
+    const response = await axios.get(`${CATEGORY_URL}`);
     return response.data;
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -123,10 +121,10 @@ export const getAllCategories = async () => {
   }
 };
 
-// Tạo category mới
-export const createCategory = async (name, colorCode = null) => {
+// Tao category moi
+export const createCategory = async (name, colorCode = '#3b82f6') => {
   try {
-    const response = await axios.post(CATEGORY_URL, { name, colorCode });
+    const response = await axios.post(`${CATEGORY_URL}`, { name, colorCode });
     return response.data;
   } catch (error) {
     console.error('Error creating category:', error);
@@ -134,7 +132,7 @@ export const createCategory = async (name, colorCode = null) => {
   }
 };
 
-// Xoá category
+// Xoa category
 export const deleteCategory = async (id) => {
   try {
     const response = await axios.delete(`${CATEGORY_URL}/${id}`);
@@ -145,38 +143,17 @@ export const deleteCategory = async (id) => {
   }
 };
 
-// ============================================
-// IMAGE UPLOAD API (via Backend -> Cloudinary)
-// ============================================
-
-const UPLOAD_URL = 'http://localhost:8080/slib/files/upload_news_image';
-
-// Upload ảnh qua Backend
+// Upload image va tra ve URL
 export const uploadImage = async (file) => {
-  if (!file) {
-    throw new Error('No file provided');
-  }
-
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Invalid file type. Only images are allowed.');
-  }
-
-  const MAX_SIZE = 10 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    throw new Error('File too large. Maximum size is 10MB.');
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-
   try {
-    const response = await axios.post(UPLOAD_URL, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/files/upload_news_image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
-    console.log('✅ Image upload success:', response.data);
-    return response.data;
+    return response.data.url;
   } catch (error) {
-    console.error('❌ Image upload error:', error);
-    throw new Error(error.response?.data?.message || 'Upload failed');
+    console.error('Error uploading image:', error);
+    throw error;
   }
 };

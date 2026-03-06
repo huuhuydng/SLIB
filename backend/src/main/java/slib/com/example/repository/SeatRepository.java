@@ -6,9 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import slib.com.example.entity.zone_config.SeatEntity;
-import slib.com.example.entity.zone_config.SeatStatus;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,7 +14,8 @@ import java.util.Optional;
 public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     List<SeatEntity> findByZone_ZoneId(Integer zoneId);
 
-    long countByZone_ZoneIdAndSeatStatus(Integer zoneId, SeatStatus seatStatus);
+    // Find only active seats in a zone
+    List<SeatEntity> findByZone_ZoneIdAndIsActiveTrue(Integer zoneId);
 
     Optional<SeatEntity> findBySeatCode(String seatCode);
 
@@ -25,10 +24,9 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     @Query("SELECT MAX(s.columnNumber) FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.rowNumber = :rowNumber")
     Integer findMaxColumnByZoneIdAndRow(@Param("zoneId") Integer zoneId, @Param("rowNumber") Integer rowNumber);
 
+    // Find seat by NFC tag UID (for UID Mapping Strategy)
+    Optional<SeatEntity> findByNfcTagUid(String nfcTagUid);
+
     // Delete all seats by zone ID
     void deleteByZone_ZoneId(Integer zoneId);
-
-    // Find expired HOLDING seats
-    @Query("SELECT s FROM SeatEntity s WHERE s.seatStatus = :status AND s.holdExpiresAt < :now")
-    List<SeatEntity> findByStatusAndExpired(@Param("status") SeatStatus status, @Param("now") LocalDateTime now);
 }

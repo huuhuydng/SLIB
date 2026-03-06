@@ -3,12 +3,12 @@ name: Frontend CI (Test & Build)
 # Trigger: Chạy khi có thay đổi ở thư mục frontend
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend_ci.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'frontend/**'
 

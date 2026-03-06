@@ -1,7 +1,7 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api`;
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('librarian_token');
   return {
     'Content-Type': 'application/json',
     'Authorization': token ? `Bearer ${token}` : ''
@@ -33,8 +33,8 @@ export const seatService = {
 
       const queryString = queryParams.toString();
       const url = queryString
-        ? `http://localhost:8080/slib/seats?${queryString}`
-        : `http://localhost:8080/slib/seats`;
+        ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats?${queryString}`
+        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats`;
 
       console.log('📡 API URL:', url);
 
@@ -61,7 +61,7 @@ export const seatService = {
    */
   async addRestriction(seatId) {
     try {
-      const url = `http://localhost:8080/slib/seats/${seatId}/restrict`;
+      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats/${seatId}/restrict`;
 
       console.log('🔒 Adding restriction for seatId:', seatId);
 
@@ -89,9 +89,9 @@ export const seatService = {
    */
   async removeRestriction(seatId) {
     try {
-      const url = `http://localhost:8080/slib/seats/${seatId}/restrict`;
+      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats/${seatId}/restrict`;
 
-      console.log('🔓 Removing restriction for seatId:', seatId);
+      console.log('Removing restriction for seatId:', seatId);
 
       const response = await fetch(url, {
         method: 'DELETE',
@@ -105,7 +105,30 @@ export const seatService = {
 
       return await response.json();
     } catch (error) {
-      console.error('❌ Error removing restriction:', error);
+      console.error('Error removing restriction:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách zones
+   * GET /slib/zones
+   */
+  async getZones() {
+    try {
+      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/zones`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch zones (${response.status})`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching zones:', error);
       throw error;
     }
   }

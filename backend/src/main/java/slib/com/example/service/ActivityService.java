@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.activity.PointTransactionEntity;
+import slib.com.example.repository.AccessLogRepository;
+import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 
@@ -17,6 +19,8 @@ public class ActivityService {
 
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
+    private final AccessLogRepository accessLogRepository;
+    private final ReservationRepository reservationRepository;
 
     // ========== Activity Logs ==========
 
@@ -33,20 +37,18 @@ public class ActivityService {
     }
 
     /**
-     * Get total study hours for user (from CHECK_OUT activities)
+     * Get total study hours for user (from reservations EXPIRED only)
      */
     public double getTotalStudyHours(UUID userId) {
-        long totalMinutes = activityLogRepository.getTotalStudyMinutes(userId);
+        long totalMinutes = reservationRepository.getTotalStudyMinutesByUser(userId);
         return Math.round(totalMinutes / 6.0) / 10.0; // Round to 1 decimal
     }
 
     /**
-     * Get total visits count (CHECK_IN or GATE_ENTRY count)
+     * Get total visits count (from access_logs - actual HCE check-in count)
      */
     public long getTotalVisits(UUID userId) {
-        long checkIns = activityLogRepository.countByUserIdAndType(userId, ActivityLogEntity.TYPE_CHECK_IN);
-        long gateEntries = activityLogRepository.countByUserIdAndType(userId, ActivityLogEntity.TYPE_GATE_ENTRY);
-        return checkIns + gateEntries;
+        return accessLogRepository.countByUserId(userId);
     }
 
     // ========== Point Transactions ==========

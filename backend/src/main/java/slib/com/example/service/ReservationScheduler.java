@@ -3,8 +3,10 @@ package slib.com.example.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.zone_config.SeatEntity;
@@ -16,62 +18,72 @@ import slib.com.example.repository.SeatRepository;
 public class ReservationScheduler {
     private final ReservationRepository reservationRepository;
     private final SeatRepository seatRepository;
+    private final SeatStatusSyncService seatStatusSyncService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public ReservationScheduler(ReservationRepository reservationRepository,
-            SeatRepository seatRepository) {
+            SeatRepository seatRepository,
+            SeatStatusSyncService seatStatusSyncService,
+            SimpMessagingTemplate messagingTemplate) {
         this.reservationRepository = reservationRepository;
         this.seatRepository = seatRepository;
+        this.seatStatusSyncService = seatStatusSyncService;
+        this.messagingTemplate = messagingTemplate;
     }
 
-    @Scheduled(fixedRate = 60000) // check mỗi 60s
+    @Scheduled(fixedRate = 10000) // check mỗi 10s cho real-time
+    @Transactional
     public void releaseExpiredSeats() {
-        LocalDateTime now = LocalDateTime.now();
+        try {
+            LocalDateTime now = LocalDateTime.now();
 
-        // 1. Hủy các reservation BOOKED đã hết hạn
-        List<ReservationEntity> expired = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
-        for (ReservationEntity r : expired) {
-            r.setStatus("EXPIRED");
-            reservationRepository.save(r);
-
-            SeatEntity seat = r.getSeat();
-            seat.setSeatStatus(SeatStatus.AVAILABLE);
-            seatRepository.save(seat);
-        }
-
-        // 2. Hủy các reservation PROCESSING quá 2 phút (120s)
-        LocalDateTime cutoff = now.minusSeconds(120);
-        List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
-                "PROCESSING");
-
-        for (ReservationEntity r : processingExpired) {
-            r.setStatus("CANCEL");
-            reservationRepository.save(r);
-
-            SeatEntity seat = r.getSeat();
-            seat.setSeatStatus(SeatStatus.AVAILABLE);
-            seatRepository.save(seat);
-        }
-
-        // 3. Kích hoạt seat_status = BOOKED cho reservations đang trong khung giờ
-        activateBookedSeats(now);
-    }
-
-    /**
-     * Update seat_status thành BOOKED khi reservation BOOKED đến giờ bắt đầu
-     */
-    private void activateBookedSeats(LocalDateTime now) {
-        // Tìm tất cả reservations BOOKED đang trong khung giờ active
-        List<ReservationEntity> activeBookings = reservationRepository.findAll().stream()
-                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus()))
-                .filter(r -> !now.isBefore(r.getStartTime()) && now.isBefore(r.getEndTime()))
-                .toList();
-
-        for (ReservationEntity r : activeBookings) {
-            SeatEntity seat = r.getSeat();
-            if (seat.getSeatStatus() != SeatStatus.BOOKED) {
-                seat.setSeatStatus(SeatStatus.BOOKED);
-                seatRepository.save(seat);
+            // 1. Hủy các reservation BOOKED đã hết hạn (endTime < now)
+            List<ReservationEntity> expiredBooked = reservationRepository.findByEndTimeBeforeAndStatus(now, "BOOKED");
+            for (ReservationEntity r : expiredBooked) {
+                r.setStatus("EXPIRED");
+                reservationRepository.save(r);
+                // Broadcast WebSocket để clients cập nhật real-time
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                        r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
             }
+
+            // 2. Hủy các reservation CONFIRMED đã hết hạn (endTime < now)
+            List<ReservationEntity> expiredConfirmed = reservationRepository.findByEndTimeBeforeAndStatus(now,
+                    "CONFIRMED");
+            for (ReservationEntity r : expiredConfirmed) {
+                r.setStatus("EXPIRED");
+                reservationRepository.save(r);
+                // Broadcast WebSocket để clients cập nhật real-time
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                        r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
+            }
+
+            // 3. Hủy các reservation PROCESSING quá 2 phút (120s)
+            LocalDateTime cutoff = now.minusSeconds(120);
+            List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(cutoff,
+                    "PROCESSING");
+
+            for (ReservationEntity r : processingExpired) {
+                r.setStatus("CANCEL");
+                reservationRepository.save(r);
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                        r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
+            }
+            // Broadcast dashboard update nếu có bất kỳ thay đổi nào
+            int totalChanged = expiredBooked.size() + expiredConfirmed.size() + processingExpired.size();
+            if (totalChanged > 0) {
+                try {
+                    messagingTemplate.convertAndSend("/topic/dashboard",
+                            java.util.Map.of("type", "BOOKING_UPDATE", "action", "AUTO_EXPIRED",
+                                    "count", totalChanged, "timestamp", java.time.Instant.now().toString()));
+                } catch (Exception wsErr) {
+                    System.err.println("Failed to broadcast dashboard update: " + wsErr.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            // Log error nhưng không để crash application
+            System.err.println("Error in releaseExpiredSeats: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

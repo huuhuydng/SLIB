@@ -3,12 +3,14 @@ class StudentProfile {
   final int reputationScore;
   final double totalStudyHours;
   final int violationCount;
+  final int totalBookings;
 
   StudentProfile({
     required this.userId,
     required this.reputationScore,
     required this.totalStudyHours,
     required this.violationCount,
+    required this.totalBookings,
   });
 
   factory StudentProfile.fromJson(Map<String, dynamic> json) {
@@ -17,6 +19,7 @@ class StudentProfile {
       reputationScore: json['reputationScore'] ?? 100,
       totalStudyHours: (json['totalStudyHours'] ?? 0).toDouble(),
       violationCount: json['violationCount'] ?? 0,
+      totalBookings: json['totalBookings'] ?? 0,
     );
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
@@ -17,6 +18,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   UpcomingBooking? _upcomingBooking;
   bool _isLoading = true;
   bool _hasError = false;
+  Timer? _expiryTimer;
 
   final BookingService _bookingService = BookingService();
 
@@ -29,6 +31,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
 
   @override
   void dispose() {
+    _expiryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -49,6 +52,9 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   }
 
   Future<void> _loadUpcomingBooking() async {
+    // Cancel any existing expiry timer
+    _expiryTimer?.cancel();
+    
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
@@ -65,8 +71,15 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     try {
       final data = await _bookingService.getUpcomingBooking(user.id);
       if (mounted) {
+        final booking = data != null ? UpcomingBooking.fromJson(data) : null;
+        
+        // Set up timer to refresh when booking expires
+        if (booking != null) {
+          _scheduleExpiryRefresh(booking.endTime);
+        }
+        
         setState(() {
-          _upcomingBooking = data != null ? UpcomingBooking.fromJson(data) : null;
+          _upcomingBooking = booking;
           _isLoading = false;
           _hasError = false;
         });
@@ -82,17 +95,58 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     }
   }
 
+  /// Schedule a timer to auto-refresh when the booking expires
+  void _scheduleExpiryRefresh(DateTime endTime) {
+    final now = DateTime.now();
+    final duration = endTime.difference(now);
+    
+    // If booking already expired, don't schedule anything - just let it show empty
+    if (duration.isNegative) {
+      debugPrint("Booking already expired, not scheduling refresh");
+      // Clear the booking so it shows empty state
+      if (mounted) {
+        setState(() {
+          _upcomingBooking = null;
+        });
+      }
+      return;
+    }
+    
+    debugPrint("Scheduling refresh in ${duration.inMinutes} minutes");
+    // Schedule refresh when booking expires (add 1 second buffer)
+    _expiryTimer = Timer(duration + const Duration(seconds: 1), () {
+      if (mounted) {
+        debugPrint("Booking expired timer fired, refreshing...");
+        refresh();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return _buildLoadingCard();
     }
 
+    // Only check if booking exists and status is not EXPIRED/CANCEL/COMPLETED
     if (_hasError || _upcomingBooking == null) {
+      return _buildEmptyCard();
+    }
+    
+    // Filter out expired/cancelled/completed bookings
+    final status = _upcomingBooking!.status.toUpperCase();
+    if (status == 'EXPIRED' || status == 'CANCEL' || status == 'COMPLETED') {
+      debugPrint("Hiding booking with status: $status");
       return _buildEmptyCard();
     }
 
     return _buildBookingCard(_upcomingBooking!);
+  }
+
+  /// Check if booking is confirmed via NFC (only CONFIRMED status)
+  bool _isConfirmed(UpcomingBooking booking) {
+    final status = booking.status.toUpperCase();
+    return status == 'CONFIRMED';
   }
 
   Widget _buildLoadingCard() {
@@ -161,11 +215,33 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   }
 
   Widget _buildBookingCard(UpcomingBooking booking) {
-    final bool isActive = booking.isActive;
-    final Color primaryColor = isActive ? Colors.green : Colors.blue;
-    final Color bgColor = isActive 
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFEFF6FF);
+    final bool isActive = booking.isActive; // Đang trong giờ đặt
+    final bool isConfirmed = _isConfirmed(booking); // Đã xác nhận NFC (CONFIRMED)
+    
+    // Xác định màu sắc:
+    // - Xám (grey): chưa đến giờ, lịch sắp tới
+    // - Vàng (orange): đã đến giờ nhưng chưa xác nhận NFC
+    // - Xanh lá (green): đã xác nhận NFC và đang học
+    Color primaryColor;
+    Color bgColor;
+    String statusText;
+    
+    if (isActive && isConfirmed) {
+      // Đang trong giờ + đã xác nhận NFC → Xanh lá, "Đang học"
+      primaryColor = Colors.green;
+      bgColor = const Color(0xFFE8F5E9);
+      statusText = "Đang học";
+    } else if (isActive && !isConfirmed) {
+      // Đang trong giờ + chưa xác nhận NFC → Vàng, "Chưa xác nhận chỗ ngồi"
+      primaryColor = Colors.orange;
+      bgColor = const Color(0xFFFFF3E0);
+      statusText = "Chưa xác nhận chỗ ngồi";
+    } else {
+      // Chưa đến giờ → Xám, "Lịch sắp tới"
+      primaryColor = Colors.grey;
+      bgColor = Colors.grey[100]!;
+      statusText = "Lịch sắp tới";
+    }
 
     return Container(
       width: double.infinity,
@@ -212,12 +288,15 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
               children: [
                 Row(
                   children: [
-                    Text(
-                      isActive ? "Đang học" : "Đặt chỗ sắp tới",
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        statusText,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isActive) ...[
@@ -226,11 +305,11 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: primaryColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.green.withOpacity(0.5),
+                              color: primaryColor.withOpacity(0.5),
                               blurRadius: 4,
                               spreadRadius: 1,
                             ),

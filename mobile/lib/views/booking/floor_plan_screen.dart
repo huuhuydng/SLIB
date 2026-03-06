@@ -79,54 +79,35 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final seatId = data['seatId'] as int?;
     final zoneId = data['zoneId'] as int?;
     final status = data['status'] as String?;
-    final msgDate = data['date'] as String?;         // "2026-01-22"
-    final msgStartTime = data['startTime'] as String?; // "09:00"
-    final msgEndTime = data['endTime'] as String?;     // "10:00"
     
     if (seatId == null || zoneId == null || status == null) return;
     
-    debugPrint('🔔 Seat update: seatId=$seatId, status=$status, date=$msgDate, time=$msgStartTime-$msgEndTime');
-    
-    // Kiểm tra xem update này có thuộc về time slot đang xem không
-    bool isRelevant = true;
-    if (msgDate != null && msgStartTime != null && msgEndTime != null && _selectedTimeSlot != null) {
-      final selectedDateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      final selectedSlot = '$msgStartTime - $msgEndTime';
-      
-      // Chỉ apply update nếu đúng date VÀ đúng time slot
-      isRelevant = (msgDate == selectedDateStr) && (_selectedTimeSlot == selectedSlot);
-      
-      if (!isRelevant) {
-        debugPrint('⏭️ Skipping update (different time slot: viewing $_selectedTimeSlot on $selectedDateStr, got $selectedSlot on $msgDate)');
-      }
-    }
-    
-    // Clear cache để lần sau fetch sẽ lấy data mới
-    _clearSeatsCache();
-    
-    // Chỉ update UI nếu update thuộc time slot đang xem
-    if (isRelevant) {
-      setState(() {
-        final seats = _zoneSeats[zoneId];
-        if (seats != null) {
-          final index = seats.indexWhere((s) => s.seatId == seatId);
-          if (index != -1) {
-            final newStatus = status == 'AVAILABLE' ? 'AVAILABLE' 
-                            : status == 'HOLDING' ? 'HOLDING'
-                            : 'BOOKED';
-            seats[index] = Seat(
-              seatId: seats[index].seatId,
-              zoneId: seats[index].zoneId,
-              seatCode: seats[index].seatCode,
-              seatStatus: newStatus,
-              rowNumber: seats[index].rowNumber,
-              columnNumber: seats[index].columnNumber,
-            );
-            debugPrint('✅ Updated seat $seatId to $newStatus');
-          }
+    // Optimistic update: cập nhật local state NGAY LẬP TỨC (0ms delay)
+    setState(() {
+      for (final entry in _zoneSeats.entries) {
+        final seats = entry.value;
+        final idx = seats.indexWhere((s) => s.seatId == seatId);
+        if (idx != -1) {
+          final old = seats[idx];
+          seats[idx] = Seat(
+            seatId: old.seatId,
+            zoneId: old.zoneId,
+            seatCode: old.seatCode,
+            seatStatus: status == 'AVAILABLE' ? 'AVAILABLE' 
+                       : status == 'HOLDING' ? 'HOLDING' : 'BOOKED',
+            rowNumber: old.rowNumber,
+            columnNumber: old.columnNumber,
+            isActive: old.isActive,
+            reservationEndTime: data['endTime'] as String?,
+          );
+          break;
         }
-      });
-    }
+      }
+    });
+    
+    // Fetch API background để đồng bộ data chính xác + schedule timer mới
+    _clearSeatsCache();
+    _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
   }
 
   String _getVietnameseDayName(DateTime date) {
@@ -283,19 +264,91 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     return slots.first.label;
   }
 
-  /// Timer for real-time refresh
+  /// Timer for smart seat expiration
   Timer? _refreshTimer;
+  Timer? _expirationTimer;
   
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) _loadZonesAndFactories();
+    // Smart timer cho expiration chính xác
+    _scheduleExpirationRefresh();
+    // Fallback polling 10s — safety net khi WebSocket mất kết nối hoặc DB thay đổi trực tiếp
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) {
+        _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
+      }
     });
+  }
+
+  /// Smart timer: tìm endTime gần nhất trong _zoneSeats → set Timer re-fetch đúng lúc
+  void _scheduleExpirationRefresh() {
+    _expirationTimer?.cancel();
+    
+    DateTime? nearestEnd;
+    final now = DateTime.now();
+    
+    for (final seats in _zoneSeats.values) {
+      for (final seat in seats) {
+        if (seat.reservationEndTime != null && 
+            (seat.seatStatus == 'BOOKED' || seat.seatStatus == 'HOLDING')) {
+          try {
+            final endTime = DateTime.parse(seat.reservationEndTime!);
+            if (endTime.isAfter(now)) {
+              if (nearestEnd == null || endTime.isBefore(nearestEnd)) {
+                nearestEnd = endTime;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+    
+    if (nearestEnd != null) {
+      final delay = nearestEnd.difference(now) + const Duration(milliseconds: 100);
+      debugPrint('Smart timer: re-fetch trong ${delay.inSeconds}s lúc $nearestEnd');
+      _expirationTimer = Timer(delay, () {
+        if (mounted) {
+          _forceRefreshSeats().then((_) {
+            // Sau khi refresh, schedule timer tiếp cho endTime kế tiếp
+            _scheduleExpirationRefresh();
+          });
+        }
+      });
+    }
+  }
+
+  /// Force refresh seats từ API, bypass cache/debounce hoàn toàn
+  Future<void> _forceRefreshSeats() async {
+    if (_selectedArea == null || _selectedTimeSlot == null) return;
+    
+    try {
+      final parts = _selectedTimeSlot!.split(' - ');
+      final zoneSeats = await _bookingService.getAllSeatsByArea(
+        _selectedArea!.areaId,
+        _selectedDate,
+        parts[0],
+        parts[1],
+      );
+      
+      if (mounted) {
+        // Cập nhật cache và state
+        final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+        final cacheKey = '$dateStr|${parts[0]}-${parts[1]}';
+        _seatsCache[cacheKey] = zoneSeats;
+        
+        setState(() {
+          _zoneSeats = zoneSeats;
+        });
+      }
+    } catch (e) {
+      debugPrint('Auto-refresh error: $e');
+    }
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _expirationTimer?.cancel();
     _debounceTimer?.cancel();
     seatWebSocketService.removeListener(_onSeatUpdate);
     super.dispose();
@@ -305,21 +358,25 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     if (_selectedArea == null) return;
     
     try {
-      // Load zones with occupancy and factories in parallel using new API
+      // Load zones and factories first (critical)
       final results = await Future.wait([
-        _bookingService.getZoneOccupancy(_selectedArea!.areaId),
         _bookingService.getFactoriesByArea(_selectedArea!.areaId),
         _bookingService.getZonesByArea(_selectedArea!.areaId),
       ]);
       
-      final zoneOccupancies = results[0] as List<ZoneOccupancy>;
-      final factories = results[1] as List<AreaFactory>;
-      final zones = results[2] as List<Zone>;
+      final factories = results[0] as List<AreaFactory>;
+      final zones = results[1] as List<Zone>;
       
-      // Build occupancy map from new API response
+      // Load occupancy separately (non-critical, don't block seats)
       Map<int, double> occupancy = {};
-      for (final zo in zoneOccupancies) {
-        occupancy[zo.zoneId] = zo.occupancyRate * 100;
+      try {
+        final zoneOccupancies = await _bookingService.getZoneOccupancy(_selectedArea!.areaId);
+        for (final zo in zoneOccupancies) {
+          occupancy[zo.zoneId] = zo.occupancyRate * 100;
+        }
+      } catch (e) {
+        debugPrint('Warning: Could not load zone occupancy: $e');
+        // Continue without occupancy data
       }
       
       // Load seats for each zone - use getSeatsByTime if date+slot selected
@@ -1151,33 +1208,33 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
-              : Column(
-                  children: [
-                    // Area tabs
-                    if (_areas.length > 1) _buildAreaTabs(),
-                    // Date and Time Slot Filter
-                    _buildDateTimeFilter(),
-                    // Non-working day message OR Floor plan
-                    Expanded(
-                      child: _isNonWorkingDay 
-                          ? _buildClosedDayMessage()
+          : Column(
+              children: [
+                // Area tabs
+                if (_areas.length > 1) _buildAreaTabs(),
+                // Date and Time Slot Filter - LUÔN HIỂN THỊ để cho phép chọn ngày khác
+                _buildDateTimeFilter(),
+                // Non-working day message OR Error message OR Floor plan
+                Expanded(
+                  child: _isNonWorkingDay 
+                      ? _buildClosedDayMessage()
+                      : _errorMessage != null
+                          ? _buildClosedTodayMessage()
                           : _buildFloorPlan(),
-                    ),
-                    // Tip (only show when working day)
-                    if (!_isNonWorkingDay)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        color: const Color(0xFFFFF5EE),
-                        child: const Text(
-                          'Chạm vào ghế màu xanh để đặt chỗ',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                      ),
-                  ],
                 ),
+                // Tip (only show when working day and no error)
+                if (!_isNonWorkingDay && _errorMessage == null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    color: const Color(0xFFFFF5EE),
+                    child: const Text(
+                      'Chạm vào ghế màu xanh để đặt chỗ',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 
@@ -1259,6 +1316,86 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
               },
               icon: const Icon(Icons.calendar_today),
               label: Text('Chọn $nextDayName ($nextDateStr)'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Widget hiển thị khi thư viện đã đóng cửa hôm nay (quá giờ)
+  Widget _buildClosedTodayMessage() {
+    // Find next working day
+    DateTime nextWorkingDay = DateTime.now().add(const Duration(days: 1));
+    while (_librarySettings != null && !_librarySettings!.isWorkingDay(nextWorkingDay)) {
+      nextWorkingDay = nextWorkingDay.add(const Duration(days: 1));
+      if (nextWorkingDay.difference(DateTime.now()).inDays > 7) break;
+    }
+    final nextDayName = _getVietnameseDayName(nextWorkingDay);
+    final nextDateStr = DateFormat('dd/MM').format(nextWorkingDay);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.schedule,
+                size: 64,
+                color: Colors.orange[400],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Đã hết giờ đặt chỗ hôm nay',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Thư viện đã đóng cửa hôm nay.\nHãy chọn ngày khác để đặt chỗ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Filter slots cho ngày mới
+                final validSlots = _filterTimeSlotsForDate(nextWorkingDay, _timeSlots);
+                final newTimeSlot = _findCurrentSlot(validSlots, forDate: nextWorkingDay);
+                
+                setState(() {
+                  _selectedDate = nextWorkingDay;
+                  _selectedTimeSlot = newTimeSlot;
+                  _errorMessage = null;
+                });
+                _clearSeatsCache();
+                _loadZonesAndFactories();
+              },
+              icon: const Icon(Icons.calendar_today),
+              label: Text('Đặt chỗ $nextDayName ($nextDateStr)'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandColor,
                 foregroundColor: Colors.white,
@@ -1587,7 +1724,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                           const Icon(Icons.event_seat, color: Colors.white, size: 10),
                           const SizedBox(width: 2),
                           Text(
-                            '$availableSeats/$totalSeats',
+                            '${totalSeats - availableSeats}/$totalSeats',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -1704,10 +1841,14 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       width: fixedSeatSize,
                       height: fixedSeatSize,
                       decoration: BoxDecoration(
-                        color: isAvailable ? Colors.green : Colors.red[400],
+                        color: seat.isUnavailable 
+                            ? Colors.grey[400] 
+                            : (isAvailable ? Colors.green : Colors.red[400]),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: isAvailable ? Colors.green[700]! : Colors.red[700]!,
+                          color: seat.isUnavailable
+                              ? Colors.grey[600]!
+                              : (isAvailable ? Colors.green[700]! : Colors.red[700]!),
                           width: 1.5,
                         ),
                       ),
@@ -1779,6 +1920,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   DateTime? _selectedDate;
   String? _selectedTime;
   bool _isLoading = true;
+  LibrarySetting? _settings;
 
   final List<String> _timeSlots = [
     "07:00 - 09:00",
@@ -1790,7 +1932,32 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSeats();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Load settings first
+      final settings = await _bookingService.getLibrarySettings();
+      
+      // Find first working day from today
+      DateTime firstWorkingDay = DateTime.now();
+      for (int i = 0; i < 14; i++) {
+        if (settings.isWorkingDay(firstWorkingDay)) break;
+        firstWorkingDay = firstWorkingDay.add(const Duration(days: 1));
+      }
+      
+      setState(() {
+        _settings = settings;
+        _selectedDate = firstWorkingDay;
+      });
+      
+      await _loadSeats();
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+      await _loadSeats();
+    }
   }
 
   Future<void> _loadSeats() async {
@@ -1909,11 +2076,35 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
               ),
               onPressed: () async {
                 final now = DateTime.now();
+                // Calculate last bookable date based on working days
+                DateTime lastBookableDate = now;
+                int workingDaysCount = 0;
+                final maxDays = _settings?.maxBookingDays ?? 14;
+                while (workingDaysCount < maxDays) {
+                  lastBookableDate = lastBookableDate.add(const Duration(days: 1));
+                  if (_settings?.isWorkingDay(lastBookableDate) ?? true) {
+                    workingDaysCount++;
+                  }
+                }
+                
+                // Find first working day for initial date
+                DateTime initialDate = _selectedDate ?? now;
+                if (_settings != null && !_settings!.isWorkingDay(initialDate)) {
+                  for (int i = 0; i < 14; i++) {
+                    initialDate = initialDate.add(const Duration(days: 1));
+                    if (_settings!.isWorkingDay(initialDate)) break;
+                  }
+                }
+                
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: now,
+                  initialDate: initialDate,
                   firstDate: now,
-                  lastDate: now.add(const Duration(days: 30)),
+                  lastDate: lastBookableDate,
+                  selectableDayPredicate: (DateTime day) {
+                    // Only allow working days
+                    return _settings?.isWorkingDay(day) ?? true;
+                  },
                 );
                 if (picked != null) {
                   setState(() {
@@ -1965,6 +2156,8 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                 _legend(AppColors.seatAvailable, 'Trống'),
                 const SizedBox(width: 16),
                 _legend(AppColors.seatOccupied, 'Đã đặt'),
+                const SizedBox(width: 16),
+                _legend(Colors.grey[400]!, 'Bảo trì'),
                 const SizedBox(width: 16),
                 _legend(AppColors.brandColor, 'Đang chọn'),
               ],
@@ -2044,13 +2237,19 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                     children: rowSeats.map((seat) {
                       final globalIndex = _seats.indexOf(seat);
                       final isSelected = _selectedIndex == globalIndex;
-                      final isAvailable = seat.seatStatus == 'AVAILABLE';
+                      final isUnavailable = seat.isUnavailable;
+                      final isAvailable = seat.seatStatus == 'AVAILABLE' && !isUnavailable;
                       
-                      final color = isSelected
-                          ? AppColors.brandColor
-                          : isAvailable
-                              ? AppColors.seatAvailable
-                              : AppColors.seatOccupied;
+                      Color color;
+                      if (isSelected) {
+                        color = AppColors.brandColor;
+                      } else if (isUnavailable) {
+                        color = Colors.grey[400]!;
+                      } else if (isAvailable) {
+                        color = AppColors.seatAvailable;
+                      } else {
+                        color = AppColors.seatOccupied;
+                      }
 
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),

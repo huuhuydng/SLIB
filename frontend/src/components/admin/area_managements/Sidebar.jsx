@@ -7,6 +7,7 @@ import {
   getZonesByArea,
   getSeats,
   createAreaFactoryInArea,
+  getSeatByNfcUid,
 } from "../../../services/admin/area_management/api";
 import { generateNewSeatData } from "../../../utils/admin/seatLayout";
 import "../../../styles/admin/sidebar_area.css";
@@ -41,6 +42,12 @@ function Sidebar() {
   const [showRowModal, setShowRowModal] = useState(false);
   const [showZoneTypeModal, setShowZoneTypeModal] = useState(false);
   const [selectedZoneType, setSelectedZoneType] = useState(ZONE_TYPES[0]);
+
+  // NFC Check state
+  const [showNfcCheckModal, setShowNfcCheckModal] = useState(false);
+  const [nfcCheckScanning, setNfcCheckScanning] = useState(false);
+  const [nfcCheckResult, setNfcCheckResult] = useState(null);
+  const [nfcCheckError, setNfcCheckError] = useState(null);
 
   /* ================= FILTER ================= */
   const currentAreaZones = zones.filter((z) => z.areaId === selectedAreaId);
@@ -200,35 +207,29 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      alert("Vui long chon hang hop le (A-Z)");
       return;
     }
 
-    try {
-      const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
+    const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
 
-      const seatData = generateNewSeatData({
-        zoneId: selectedZone.zoneId,
-        rowNumber: rowNum,
-        seatsInZone,
-        seatHeight: 44,
-      });
+    const seatData = generateNewSeatData({
+      zoneId: selectedZone.zoneId,
+      rowNumber: rowNum,
+      seatsInZone,
+      seatHeight: 44,
+    });
 
-      const res = await createSeat(seatData);
+    // Generate temporary ID for the new seat (negative to identify as pending)
+    const tempId = -Date.now();
+    const tempSeat = {
+      ...seatData,
+      seatId: tempId,
+    };
 
-      const completeSeatData = {
-        ...res.data,
-        rowNumber: seatData.rowNumber,
-        columnNumber: seatData.columnNumber,
-        seatCode: seatData.seatCode,
-      };
-
-      dispatch({ type: actions.ADD_SEAT, payload: completeSeatData });
-      setShowRowModal(false);
-    } catch (e) {
-      console.error("Error adding seat:", e);
-      alert("Tạo ghế thất bại: " + (e.response?.data?.message || e.message));
-    }
+    // Add to local state only - will be created in DB when user clicks Save
+    dispatch({ type: actions.ADD_SEAT, payload: tempSeat });
+    setShowRowModal(false);
   };
 
   // OPTIMISTIC UPDATE: Add seats to UI immediately, API in parallel
@@ -328,7 +329,7 @@ function Sidebar() {
       {/* Header */}
       <div style={{
         padding: '14px 16px',
-        background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+        background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
         color: 'white',
         flexShrink: 0
       }}>
@@ -528,7 +529,7 @@ function Sidebar() {
         }}>
           Phòng thư viện
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -549,10 +550,10 @@ function Sidebar() {
                 fontWeight: '600',
                 color: isAreaSelected(area.areaId) ? '#C2410C' : '#374151',
                 background: isAreaSelected(area.areaId)
-                  ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                  ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                   : '#F8FAFC',
                 border: isAreaSelected(area.areaId)
-                  ? '2px solid #FF751F'
+                  ? '2px solid #e8600a'
                   : '2px solid transparent',
                 transition: 'all 0.2s',
                 display: 'flex',
@@ -568,7 +569,7 @@ function Sidebar() {
                 fontSize: '10px',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: isAreaSelected(area.areaId) ? '#FF751F' : '#E2E8F0',
+                background: isAreaSelected(area.areaId) ? '#e8600a' : '#E2E8F0',
                 color: isAreaSelected(area.areaId) ? 'white' : '#64748B',
                 fontWeight: '700'
               }}>
@@ -611,7 +612,7 @@ function Sidebar() {
         }}>
           Khu vực ghế
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -640,10 +641,10 @@ function Sidebar() {
                   fontWeight: '600',
                   color: isZoneSelected(zone.zoneId) ? '#C2410C' : '#374151',
                   background: isZoneSelected(zone.zoneId)
-                    ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                    ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                     : '#F8FAFC',
                   border: isZoneSelected(zone.zoneId)
-                    ? '2px solid #FF751F'
+                    ? '2px solid #e8600a'
                     : '2px solid transparent',
                   transition: 'all 0.2s',
                   display: 'flex',
@@ -656,7 +657,7 @@ function Sidebar() {
                   fontSize: '11px',
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  background: isZoneSelected(zone.zoneId) ? '#FF751F' : '#E2E8F0',
+                  background: isZoneSelected(zone.zoneId) ? '#e8600a' : '#E2E8F0',
                   color: isZoneSelected(zone.zoneId) ? 'white' : '#64748B',
                   fontWeight: '700'
                 }}>
@@ -694,6 +695,38 @@ function Sidebar() {
         </ul>
       </div>
 
+      {/* Check NFC Info Section */}
+      <div style={{
+        padding: '16px',
+        borderBottom: '1px solid #E2E8F0'
+      }}>
+        <button
+          onClick={() => {
+            setShowNfcCheckModal(true);
+            setNfcCheckResult(null);
+            setNfcCheckError(null);
+          }}
+          style={{
+            width: '100%',
+            padding: '12px 16px',
+            borderRadius: '10px',
+            border: '2px solid #e8600a',
+            background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#C2410C',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.2s'
+          }}
+        >
+          Check Thông tin NFC
+        </button>
+      </div>
+
       {/* Statistics Footer */}
       <div style={{
         padding: '16px',
@@ -715,7 +748,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {areas.length}
@@ -741,7 +774,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {zones.length}
@@ -767,7 +800,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {totalSeats}
@@ -914,7 +947,7 @@ function Sidebar() {
                   border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                  background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
@@ -1036,6 +1069,226 @@ function Sidebar() {
               >
                 Tạo {selectedZoneType.name}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NFC Check Modal */}
+      {showNfcCheckModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '28px',
+            width: '90%',
+            maxWidth: '450px',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)'
+          }}>
+            <h3 style={{
+              marginTop: 0,
+              marginBottom: '20px',
+              color: '#1F2937',
+              fontSize: '18px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              Check Thông tin NFC
+            </h3>
+
+            {/* Scan Button */}
+            {!nfcCheckResult && (
+              <button
+                onClick={async () => {
+                  setNfcCheckScanning(true);
+                  setNfcCheckError(null);
+                  setNfcCheckResult(null);
+                  try {
+                    // Scan NFC tag
+                    const scanResponse = await fetch('http://localhost:5050/scan-uid', {
+                      method: 'GET',
+                      headers: { 'Accept': 'application/json' }
+                    });
+                    const scanData = await scanResponse.json();
+
+                    if (scanData.success && scanData.uid) {
+                      // Look up seat info
+                      try {
+                        const seatResponse = await getSeatByNfcUid(scanData.uid);
+                        const seat = seatResponse.data;
+                        // Find zone and area for this seat
+                        const zone = zones.find(z => z.zoneId === seat.zoneId);
+                        const area = zone ? areas.find(a => a.areaId === zone.areaId) : null;
+                        setNfcCheckResult({
+                          ...seat,
+                          zoneName: zone?.zoneName || 'Không rõ',
+                          areaName: area?.areaName || 'Không rõ'
+                        });
+                      } catch (err) {
+                        if (err.response?.status === 404) {
+                          setNfcCheckError('Thẻ NFC này chưa được gán cho ghế nào');
+                        } else {
+                          setNfcCheckError(err.response?.data?.error || 'Lỗi khi tra cứu thông tin ghế');
+                        }
+                      }
+                    } else {
+                      setNfcCheckError(scanData.error || 'Không đọc được thẻ NFC');
+                    }
+                  } catch (err) {
+                    if (err.message?.includes('Failed to fetch')) {
+                      setNfcCheckError('Không kết nối được NFC Bridge Server (cổng 5050)');
+                    } else {
+                      setNfcCheckError(err.message || 'Lỗi quét NFC');
+                    }
+                  } finally {
+                    setNfcCheckScanning(false);
+                  }
+                }}
+                disabled={nfcCheckScanning}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: nfcCheckScanning
+                    ? '#FFF7ED'
+                    : 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
+                  cursor: nfcCheckScanning ? 'wait' : 'pointer',
+                  fontSize: '15px',
+                  fontWeight: '600',
+                  color: nfcCheckScanning ? '#EA580C' : 'white',
+                  marginBottom: '16px'
+                }}
+              >
+                {nfcCheckScanning ? 'Đang chờ thẻ...' : 'Quét thẻ NFC'}
+              </button>
+            )}
+
+            {/* Result Display */}
+            {nfcCheckResult && (
+              <div style={{
+                backgroundColor: '#ECFDF5',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+                border: '1px solid #22C55E'
+              }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    Mã ghế
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#166534' }}>
+                    {nfcCheckResult.seatCode}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      ID ghế
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
+                      {nfcCheckResult.seatId}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Trạng thái
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: nfcCheckResult.isActive ? '#22C55E' : '#EF4444' }}>
+                      {nfcCheckResult.isActive ? 'Hoạt động' : 'Bảo trì'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Khu vực
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
+                      {nfcCheckResult.zoneName}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Phòng
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: '600', color: '#374151' }}>
+                      {nfcCheckResult.areaName}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {nfcCheckError && (
+              <div style={{
+                backgroundColor: '#FEE2E2',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+                border: '1px solid #EF4444',
+                color: '#DC2626',
+                fontSize: '14px'
+              }}>
+                {nfcCheckError}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setShowNfcCheckModal(false);
+                  setNfcCheckResult(null);
+                  setNfcCheckError(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  backgroundColor: '#F8FAFC',
+                  color: '#374151',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                Đóng
+              </button>
+              {nfcCheckResult && (
+                <button
+                  onClick={() => {
+                    setNfcCheckResult(null);
+                    setNfcCheckError(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  Quét thẻ khác
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -55,10 +55,8 @@ public class BookingController {
     public ResponseEntity<ReservationEntity> updateStatus(
             @PathVariable UUID reservationId,
             @RequestParam String status) {
-        ReservationEntity reserv = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reservation not found"));
-        reserv.setStatus(status);
-        return ResponseEntity.ok(reservationRepository.save(reserv));
+        ReservationEntity reserv = bookingService.updateStatus(reservationId, status);
+        return ResponseEntity.ok(reserv);
     }
 
     // --- GET BOOKINGS BY USER (with zone/area info) ---

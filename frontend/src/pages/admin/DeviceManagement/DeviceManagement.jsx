@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Cpu, 
-  Search, 
-  Plus, 
+import {
+  Cpu,
+  Search,
+  Plus,
   MoreVertical,
   Wifi,
   WifiOff,
@@ -20,7 +20,7 @@ import {
   Link2,
   Unlink
 } from 'lucide-react';
-import Header from '../Dashboard/Header';
+import Header from '../../../components/shared/Header';
 
 // Mock Data
 const MOCK_DEVICES = [
@@ -46,8 +46,8 @@ const DeviceManagement = () => {
   const filteredDevices = useMemo(() => {
     return MOCK_DEVICES.filter(device => {
       const matchSearch = device.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                         device.deviceId.toLowerCase().includes(searchText.toLowerCase()) ||
-                         device.location.toLowerCase().includes(searchText.toLowerCase());
+        device.deviceId.toLowerCase().includes(searchText.toLowerCase()) ||
+        device.location.toLowerCase().includes(searchText.toLowerCase());
       const matchStatus = statusFilter === 'all' || device.status === statusFilter;
       const matchType = typeFilter === 'all' || device.type === typeFilter;
       return matchSearch && matchStatus && matchType;
@@ -62,7 +62,7 @@ const DeviceManagement = () => {
   }), []);
 
   const getStatusStyle = (status) => {
-    switch(status) {
+    switch (status) {
       case 'online': return { bg: '#D1FAE5', color: '#059669', icon: Wifi, label: 'Hoạt động' };
       case 'offline': return { bg: '#FEE2E2', color: '#DC2626', icon: WifiOff, label: 'Mất kết nối' };
       case 'warning': return { bg: '#FEF3C7', color: '#F59E0B', icon: AlertTriangle, label: 'Cảnh báo' };
@@ -82,7 +82,7 @@ const DeviceManagement = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchValue={searchText}
         onSearchChange={(e) => setSearchText(e.target.value)}
         searchPlaceholder="Tìm kiếm thiết bị..."
@@ -102,7 +102,7 @@ const DeviceManagement = () => {
           marginBottom: '24px'
         }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
               Quản lý thiết bị
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -111,7 +111,7 @@ const DeviceManagement = () => {
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
-              onClick={() => {}}
+              onClick={() => { }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -136,7 +136,7 @@ const DeviceManagement = () => {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 20px',
-                background: '#FF751F',
+                background: '#e8600a',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '14px',
@@ -186,7 +186,7 @@ const DeviceManagement = () => {
                 <stat.icon size={22} color={stat.color} />
               </div>
               <div>
-                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A1A' }}>{stat.value}</div>
+                <div style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A' }}>{stat.value}</div>
                 <div style={{ fontSize: '13px', color: '#A0AEC0', fontWeight: '500' }}>{stat.label}</div>
               </div>
             </div>
@@ -196,8 +196,8 @@ const DeviceManagement = () => {
         {/* Device Grid */}
         <div style={{
           background: '#fff',
-          borderRadius: '16px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+          borderRadius: '10px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
           overflow: 'hidden'
         }}>
           {/* Filter Bar */}
@@ -232,7 +232,7 @@ const DeviceManagement = () => {
                   }}
                 />
               </div>
-              
+
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -290,14 +290,14 @@ const DeviceManagement = () => {
                   border: '2px solid #E2E8F0',
                   transition: 'all 0.2s ease'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = '#FF751F';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 117, 31, 0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = '#E2E8F0';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#e8600a';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 117, 31, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#E2E8F0';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -326,7 +326,7 @@ const DeviceManagement = () => {
                       alignItems: 'center',
                       gap: '6px',
                       padding: '4px 10px',
-                      borderRadius: '20px',
+                      borderRadius: '10px',
                       background: statusStyle.bg
                     }}>
                       <StatusIcon size={14} color={statusStyle.color} />
@@ -365,7 +365,7 @@ const DeviceManagement = () => {
                   )}
 
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
+                    <button
                       onClick={() => { setSelectedDevice(device); setShowMappingModal(true); }}
                       style={{
                         flex: 1,
@@ -428,7 +428,7 @@ const DeviceManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '500px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -439,7 +439,7 @@ const DeviceManagement = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Thêm thiết bị mới</h2>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Thêm thiết bị mới</h2>
               <button onClick={() => setShowAddModal(false)} style={{
                 padding: '8px',
                 background: '#F7FAFC',
@@ -524,7 +524,7 @@ const DeviceManagement = () => {
                 <button style={{
                   flex: 1,
                   padding: '14px',
-                  background: '#FF751F',
+                  background: '#e8600a',
                   border: 'none',
                   borderRadius: '12px',
                   fontSize: '14px',
@@ -554,7 +554,7 @@ const DeviceManagement = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '550px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -565,7 +565,7 @@ const DeviceManagement = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>
                 Ánh xạ vị trí - {selectedDevice.deviceId}
               </h2>
               <button onClick={() => { setShowMappingModal(false); setSelectedDevice(null); }} style={{
@@ -589,7 +589,7 @@ const DeviceManagement = () => {
                   Liên kết thiết bị <strong>{selectedDevice.name}</strong> với một vị trí cụ thể trên bản đồ thư viện.
                 </p>
               </div>
-              
+
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
                   Loại vị trí
@@ -647,7 +647,7 @@ const DeviceManagement = () => {
                 <button style={{
                   flex: 1,
                   padding: '14px',
-                  background: '#FF751F',
+                  background: '#e8600a',
                   border: 'none',
                   borderRadius: '12px',
                   fontSize: '14px',

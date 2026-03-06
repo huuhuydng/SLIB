@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/librarian';
+const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/librarian`;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -58,11 +58,58 @@ class LibrarianService {
     return response.data;
   }
 
+  async loginWithPassword(identifier, password) {
+    try {
+      console.log('[Service] Calling loginWithPassword with identifier:', identifier);
+
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/login`, {
+        identifier: identifier,
+        password: password
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Info': navigator.userAgent
+        }
+      });
+
+      console.log('[Service] loginWithPassword success:', response.data);
+
+      const { accessToken, refreshToken } = response.data;
+
+      if (accessToken) {
+        localStorage.setItem('librarian_token', accessToken);
+        console.log('[Service] Access token saved');
+      }
+
+      if (refreshToken) {
+        localStorage.setItem('refresh_token', refreshToken);
+        console.log('[Service] Refresh token saved');
+      }
+
+      const user = {
+        id: response.data.id,
+        email: response.data.email,
+        fullName: response.data.fullName,
+        studentCode: response.data.studentCode || response.data.userCode,
+        role: response.data.role
+      };
+
+      localStorage.setItem('librarian_user', JSON.stringify(user));
+      console.log('[Service] User saved:', user);
+
+      return response.data;
+
+    } catch (error) {
+      console.error('[Service] loginWithPassword error:', error);
+      throw error;
+    }
+  }
+
   async googleLogin(idToken) {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
 
-      const response = await axios.post('http://localhost:8080/slib/auth/google', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/google`, {
         idToken: idToken,
         fullName: "",
         fcmToken: "",
@@ -75,12 +122,12 @@ class LibrarianService {
       const { accessToken, refreshToken } = response.data;
 
       if (accessToken) {
-        localStorage.setItem('librarian_token', accessToken);
+        sessionStorage.setItem('librarian_token', accessToken);
         console.log('✅ [Service] Access token saved:', accessToken.substring(0, 20) + '...');
       }
 
       if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
+        sessionStorage.setItem('refresh_token', refreshToken);
         console.log('✅ [Service] Refresh token saved');
       }
 
@@ -92,8 +139,8 @@ class LibrarianService {
         studentCode: response.data.studentCode,
         role: response.data.role
       };
-      
-      localStorage.setItem('librarian_user', JSON.stringify(user));
+
+      sessionStorage.setItem('librarian_user', JSON.stringify(user));
       console.log('✅ [Service] Google user saved:', user);
 
       return response.data;
@@ -206,10 +253,77 @@ class LibrarianService {
     return userStr ? JSON.parse(userStr) : null;
   }
 
+  // ========== Access Logs (HCE) ==========
+
+  _getAuthHeaders() {
+    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
+
+  get _hceBaseUrl() {
+    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce`;
+  }
+
+  async getStudentDetail(userId) {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/student-detail/${userId}`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getStudentDetail error:', error);
+      return null;
+    }
+  }
+
+  async getAllAccessLogs() {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAllAccessLogs error:', error);
+      return [];
+    }
+  }
+
+  async getAccessLogStats() {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs/stats`, {
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAccessLogStats error:', error);
+      return { totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 };
+    }
+  }
+
+  async getAccessLogsByDateRange(startDate, endDate) {
+    try {
+      const response = await axios.get(`${this._hceBaseUrl}/access-logs/filter`, {
+        params: { startDate, endDate },
+        headers: this._getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[LibrarianService] getAccessLogsByDateRange error:', error);
+      return [];
+    }
+  }
+
   logout() {
     localStorage.removeItem('librarian_token');
     localStorage.removeItem('librarian_user');
     localStorage.removeItem('temp_reset_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('librarian_token');
+    sessionStorage.removeItem('librarian_user');
+    sessionStorage.removeItem('refresh_token');
   }
 }
 

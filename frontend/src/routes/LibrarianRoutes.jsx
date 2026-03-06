@@ -6,16 +6,22 @@ import MainLayout from "../layouts/librarian/MainLayout";
 // Librarian Pages
 import Dashboard from "../pages/librarian/Dashboard/Dashboard";
 import CheckInOut from "../pages/librarian/CheckInOut/CheckInOut";
-import HeatMap from "../pages/librarian/HeatMap/HeatMap";
-import SeatManage from "../pages/librarian/SeatManage/SeatManage";
+import LibrarianAreas from "../pages/librarian/LibrarianAreas/LibrarianAreas";
 import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
-import ChatManagement from "../components/ChatManagement";
+
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
+import AccountSettings from "../components/AccountSettings";
+import HeatMap from "../pages/librarian/HeatMap/HeatMap";
+import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
+import BookingManage from "../pages/librarian/BookingManage/BookingManage";
+import FeedbackManage from "../pages/librarian/FeedbackManage/FeedbackManage";
+import ComplaintManage from "../pages/librarian/ComplaintManage/ComplaintManage";
+import Attendance from "../pages/AttendanceWaitingScreen";
 
 
 function LibrarianRoutes() {
@@ -27,39 +33,40 @@ function LibrarianRoutes() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
-        {/* Check In/Out */}
+        {/* Giám sát */}
         <Route path="checkinout" element={<CheckInOut />} />
+        <Route path="seatmanage" element={<LibrarianAreas />} />
 
-        {/* Sơ đồ nhiệt */}
-        <Route path="areas" element={<HeatMap />} />
-
-        {/* Quản lý chỗ ngồi */}
-        <Route path="seatmanage" element={<SeatManage />} />
-
-        {/* Quản lý sinh viên */}
+        {/* Quản lý */}
+        <Route path="bookings" element={<BookingManage />} />
         <Route path="students" element={<StudentsManage />} />
 
-        {/* Vi phạm */}
+        {/* Xử lý */}
         <Route path="violation" element={<ViolationManage />} />
+        <Route path="support-requests" element={<SupportRequestManage />} />
+        <Route path="complaints" element={<ComplaintManage />} />
+        <Route path="feedback" element={<FeedbackManage />} />
 
         {/* Trò chuyện */}
-        <Route path="chat" element={<ChatManagement />} />
+        <Route path="chat" element={<ChatManage />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
 
-        {/* Tin tức */}
+        {/* Nội dung */}
         <Route path="news" element={<NotificationManage />} />
         <Route path="news/create" element={<NewCreate />} />
         <Route path="news/edit/:id" element={<NewCreate />} />
         <Route path="news/view/:id" element={<NewsDetailView />} />
 
-        {/* Thông báo (legacy routes - giữ để tương thích) */}
-        <Route path="notification" element={<NotificationManage />} />
-        <Route path="notification/create" element={<NewCreate />} />
-        <Route path="notification/edit/:id" element={<NewCreate />} />
-        <Route path="notification/view/:id" element={<NewsDetailView />} />
+
+        {/* Cài đặt tài khoản */}
+        <Route path="settings" element={<AccountSettings />} />
+        <Route path="setting" element={<Navigate to="/librarian/settings" replace />} />
       </Route>
+
+      {/* Check In/Out */}
+      <Route path="attendance" element={<Attendance />} />
 
       {/* Redirect any unmatched routes */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
@@ -68,4 +75,3 @@ function LibrarianRoutes() {
 }
 
 export default LibrarianRoutes;
-

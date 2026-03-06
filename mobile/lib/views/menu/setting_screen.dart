@@ -6,6 +6,9 @@ import 'package:slib/services/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
+import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/support/support_request_history_screen.dart';
+import 'package:slib/views/violation_report/violation_report_screen.dart';
 // import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
@@ -147,7 +150,34 @@ class _SettingScreenState extends State<SettingScreen> {
                 title: "Lịch sử vi phạm",
                 trailingText: "0 vi phạm",
                 onTap: () {
-                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ViolationHistoryScreen()),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.report_outlined,
+                iconColor: const Color(0xFFD32F2F),
+                title: "Báo cáo vi phạm ghế ngồi",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ViolationReportScreen()),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.support_agent_rounded,
+                iconColor: AppColors.brandColor,
+                title: "Yêu cầu hỗ trợ",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SupportRequestHistoryScreen()),
+                  );
                 },
               ),
             ]),
@@ -203,6 +233,8 @@ class _SettingScreenState extends State<SettingScreen> {
     String firstLetter = (user?.fullName.isNotEmpty ?? false)
         ? user!.fullName[0].toUpperCase()
         : "S";
+    
+    final hasAvatar = user?.avtUrl != null && user!.avtUrl!.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -234,14 +266,17 @@ class _SettingScreenState extends State<SettingScreen> {
             child: CircleAvatar(
               radius: 30,
               backgroundColor: AppColors.brandColor.withOpacity(0.1),
-              child: Text(
-                firstLetter,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.brandColor,
-                ),
-              ),
+              backgroundImage: hasAvatar ? NetworkImage(user!.avtUrl!) : null,
+              child: !hasAvatar
+                  ? Text(
+                      firstLetter,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.brandColor,
+                      ),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -429,7 +464,7 @@ class _SettingScreenState extends State<SettingScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Đăng xuất?",
@@ -441,24 +476,26 @@ class _SettingScreenState extends State<SettingScreen> {
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // Đóng Dialog
-              try {
-                // SỬA LẠI: Dùng context.read để gọi hàm logout của Provider
-                await context.read<AuthService>().logout();
+              // Lưu reference trước khi pop dialog
+              final navigator = Navigator.of(context);
+              final authService = context.read<AuthService>();
 
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const OnBoardingScreen(),
-                    ),
-                    (route) => false,
-                  );
-                }
+              Navigator.pop(dialogContext); // Đóng Dialog
+
+              try {
+                await authService.logout();
+
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const OnBoardingScreen(),
+                  ),
+                  (route) => false,
+                );
               } catch (e) {
                 print("Lỗi logout: $e");
               }

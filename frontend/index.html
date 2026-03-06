@@ -8,6 +8,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SLIB</title>
 
+  <!-- Fix sockjs-client "global is not defined" -->
+  <script>
+    window.global = window;
+  </script>
+
   <!-- ✅ THÊM DÒNG NÀY -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>

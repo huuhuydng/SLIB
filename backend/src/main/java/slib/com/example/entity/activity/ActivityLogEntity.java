@@ -3,6 +3,7 @@ package slib.com.example.entity.activity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -46,10 +47,12 @@ public class ActivityLogEntity {
     @Column(name = "created_at")
     private ZonedDateTime createdAt;
 
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = ZonedDateTime.now();
+            createdAt = ZonedDateTime.now(VIETNAM_ZONE);
         }
     }
 
@@ -61,4 +64,5 @@ public class ActivityLogEntity {
     public static final String TYPE_NFC_CONFIRM = "NFC_CONFIRM";
     public static final String TYPE_GATE_ENTRY = "GATE_ENTRY";
     public static final String TYPE_NO_SHOW = "NO_SHOW";
+    public static final String TYPE_VIOLATION = "VIOLATION";
 }

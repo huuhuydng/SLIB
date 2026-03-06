@@ -4,6 +4,7 @@ import 'package:slib/main_screen.dart';
 import 'package:slib/views/checkin/qr_scan_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/activity_history_screen.dart';
+import 'package:slib/views/violation_report/violation_report_screen.dart';
 
 class QuickActionGrid extends StatelessWidget {
   const QuickActionGrid({super.key});
@@ -34,9 +35,9 @@ class QuickActionGrid extends StatelessWidget {
   }
 
   void _onReportPressed(BuildContext context) {
-    // TODO: Navigate to report screen when implemented
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Tính năng báo cáo đang phát triển")),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ViolationReportScreen()),
     );
   }
 
