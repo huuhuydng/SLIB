@@ -27,8 +27,8 @@ for controller in $CONTROLLER_CHANGES; do
     # Lấy tên Controller (không có path và .java)
     CONTROLLER_NAME=$(basename "$controller" .java)
 
-    # Tìm file test tương ứng
-    TEST_FILE=$(find backend/src/test -name "${CONTROLLER_NAME}Test.java" 2>/dev/null)
+    # Tìm file test tương ứng (match cả *Test.java và *UnitTest.java)
+    TEST_FILE=$(find backend/src/test -name "${CONTROLLER_NAME}*Test.java" 2>/dev/null)
 
     if [ -z "$TEST_FILE" ]; then
         MISSING_TESTS="$MISSING_TESTS $CONTROLLER_NAME"
