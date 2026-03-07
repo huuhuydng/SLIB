@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -22,6 +23,7 @@ import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
+import slib.com.example.repository.StudentProfileRepository;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.ZoneRepository;
 
@@ -37,6 +39,7 @@ public class BookingService {
         private final PushNotificationService pushNotificationService;
         private final ActivityService activityService;
         private final SimpMessagingTemplate messagingTemplate;
+        private final StudentProfileRepository studentProfileRepository;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
@@ -44,7 +47,8 @@ public class BookingService {
                         SeatAvailabilityService seatAvailabilityService,
                         PushNotificationService pushNotificationService,
                         ActivityService activityService,
-                        SimpMessagingTemplate messagingTemplate) {
+                        SimpMessagingTemplate messagingTemplate,
+                        StudentProfileRepository studentProfileRepository) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -55,6 +59,7 @@ public class BookingService {
                 this.pushNotificationService = pushNotificationService;
                 this.activityService = activityService;
                 this.messagingTemplate = messagingTemplate;
+                this.studentProfileRepository = studentProfileRepository;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -66,6 +71,22 @@ public class BookingService {
 
                 // Lấy cấu hình giới hạn đặt chỗ
                 LibrarySetting settings = librarySettingService.getSettings();
+
+                // Kiểm tra điểm uy tín tối thiểu
+                int minReputation = settings.getMinReputation() != null ? settings.getMinReputation() : 0;
+                if (minReputation > 0) {
+                        StudentProfile profile = studentProfileRepository.findByUserId(userId).orElse(null);
+                        int currentReputation = (profile != null && profile.getReputationScore() != null)
+                                        ? profile.getReputationScore()
+                                        : 100;
+                        if (currentReputation < minReputation) {
+                                throw new RuntimeException(
+                                                "Điểm uy tín của bạn (" + currentReputation
+                                                                + ") thấp hơn mức tối thiểu ("
+                                                                + minReputation + ") để đặt chỗ.");
+                        }
+                }
+
                 LocalDate bookingDate = startTime.toLocalDate();
 
                 // Đếm số lượt đặt của user trong ngày này (chỉ tính BOOKED và PROCESSING)
@@ -451,10 +472,14 @@ public class BookingService {
                                 String body = String.format(
                                                 "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến sớm để check-in!",
                                                 seat.getSeatCode(), zoneName, timeStr);
+                                System.out.println("[DEBUG-BOOKING] Sending notification to user="
+                                                + reserv.getUser().getId());
                                 pushNotificationService.sendToUser(reserv.getUser().getId(), title, body,
                                                 NotificationType.BOOKING, saved.getReservationId());
+                                System.out.println("[DEBUG-BOOKING] Notification sent OK");
                         } catch (Exception e) {
-                                System.err.println("Failed to send booking notification: " + e.getMessage());
+                                System.out.println("[DEBUG-BOOKING] ERROR: " + e.getMessage());
+                                e.printStackTrace();
                         }
                 }
 

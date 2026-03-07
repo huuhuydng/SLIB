@@ -36,4 +36,13 @@ public class LibrarySetting {
 
     @Column(name = "max_hours_per_day", nullable = false)
     private Integer maxHoursPerDay = 4; // Số giờ tối đa được đặt trong 1 ngày
+
+    @Column(name = "auto_cancel_minutes", nullable = false)
+    private Integer autoCancelMinutes = 15; // Phút tự hủy booking không check-in
+
+    @Column(name = "auto_cancel_on_leave_minutes", nullable = false)
+    private Integer autoCancelOnLeaveMinutes = 30; // Phút tự hủy sau khi rời chỗ
+
+    @Column(name = "min_reputation", nullable = false)
+    private Integer minReputation = 0; // Điểm uy tín tối thiểu để đặt chỗ (0 = không giới hạn)
 }

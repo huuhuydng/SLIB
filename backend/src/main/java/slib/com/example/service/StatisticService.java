@@ -100,12 +100,9 @@ public class StatisticService {
                 total += count;
             }
 
-            long used = statusMap.getOrDefault("CONFIRMED", 0L) + statusMap.getOrDefault("EXPIRED", 0L)
-                    + statusMap.getOrDefault("COMPLETED", 0L);
+            long used = statusMap.getOrDefault("CONFIRMED", 0L) + statusMap.getOrDefault("COMPLETED", 0L);
             long cancelled = statusMap.getOrDefault("CANCELLED", 0L) + statusMap.getOrDefault("CANCEL", 0L);
-            long expiredNoShow = total - used - cancelled;
-            if (expiredNoShow < 0)
-                expiredNoShow = 0;
+            long expiredNoShow = statusMap.getOrDefault("EXPIRED", 0L);
 
             double usedP = total > 0 ? Math.round(used * 10000.0 / total) / 100.0 : 0;
             double cancelP = total > 0 ? Math.round(cancelled * 10000.0 / total) / 100.0 : 0;

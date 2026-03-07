@@ -103,12 +103,16 @@ function getItemDisplayInfo(category, item) {
 }
 
 function HeaderBar() {
-  const { pendingCounts, notifications, pendingItems, fetchPendingItems } = useLibrarianNotification();
+  const { pendingCounts, notifications, pendingItems, fetchPendingItems, chatMessages, unreadChatCount } = useLibrarianNotification();
   const [showDropdown, setShowDropdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [loadingCategory, setLoadingCategory] = useState(null);
   const bellRef = useRef(null);
   const navigate = useNavigate();
+
+  // Replace chats count in total with unreadChatCount to avoid double-counting
+  const chatBadge = unreadChatCount || pendingCounts.chats || 0;
+  const bellTotal = (pendingCounts.total - (pendingCounts.chats || 0)) + chatBadge;
 
   // Dong dropdown khi click ra ngoai
   useEffect(() => {
@@ -171,9 +175,9 @@ function HeaderBar() {
             title="Thông báo"
           >
             <Bell className="notif-bell__icon" />
-            {pendingCounts.total > 0 && (
+            {bellTotal > 0 && (
               <span className="notif-bell__badge">
-                {pendingCounts.total > 99 ? "99+" : pendingCounts.total}
+                {bellTotal > 99 ? "99+" : bellTotal}
               </span>
             )}
           </button>
@@ -183,11 +187,73 @@ function HeaderBar() {
               <div className="notif-dropdown__header">
                 <h3 className="notif-dropdown__title">Thông báo</h3>
                 <span className="notif-dropdown__count">
-                  {pendingCounts.total} cần xử lý
+                  {bellTotal} cần xử lý
                 </span>
               </div>
 
               <div className="notif-dropdown__list">
+                {/* Tin nhắn mới từ sinh viên */}
+                {(unreadChatCount > 0 || chatMessages.length > 0) && (
+                  <div className="notif-category">
+                    <div
+                      className="notif-item notif-item--expandable notif-item--clickable"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        setExpandedCategory(null);
+                        navigate('/librarian/chat');
+                      }}
+                    >
+                      <div className="notif-item__icon notif-item__icon--chat">
+                        <MessageSquare size={18} />
+                      </div>
+                      <div className="notif-item__body">
+                        <p className="notif-item__title">Tin nhắn</p>
+                        <p className="notif-item__desc">{unreadChatCount || chatMessages.length} tin nhắn mới</p>
+                      </div>
+                      {(unreadChatCount > 0 || chatMessages.length > 0) && (
+                        <span className="notif-item__badge">{unreadChatCount || chatMessages.length}</span>
+                      )}
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <div className="notif-detail-list" style={{ display: 'block' }}>
+                        {chatMessages.slice(0, 5).map((msg) => (
+                          <div
+                            key={msg.id}
+                            className="notif-detail-item"
+                            onClick={() => {
+                              setShowDropdown(false);
+                              setExpandedCategory(null);
+                              navigate(`/librarian/chat?conversationId=${msg.conversationId}`);
+                            }}
+                          >
+                            <div className="notif-detail-item__body">
+                              <p className="notif-detail-item__name">{msg.senderName || 'Sinh viên'}</p>
+                              <p className="notif-detail-item__desc">
+                                {msg.content?.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content}
+                              </p>
+                            </div>
+                            {msg.timestamp && (
+                              <span className="notif-detail-item__time">
+                                {getTimeAgo(msg.timestamp)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="notif-detail-viewall"
+                          onClick={() => {
+                            setShowDropdown(false);
+                            setExpandedCategory(null);
+                            navigate('/librarian/chat');
+                          }}
+                        >
+                          Xem tất cả tin nhắn
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Hiển thị summary counts với expand */}
                 {Object.entries(NOTIF_ICON_MAP).map(([key, config]) => {
                   const countKey = COUNT_KEY_MAP[key];
@@ -303,7 +369,7 @@ function HeaderBar() {
                   </>
                 )}
 
-                {pendingCounts.total === 0 && notifications.length === 0 && (
+                {pendingCounts.total === 0 && notifications.length === 0 && chatMessages.length === 0 && (
                   <div className="notif-dropdown__empty">
                     <CheckCircle2 size={40} />
                     <p>Không có thông báo mới</p>

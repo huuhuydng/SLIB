@@ -4,6 +4,7 @@ import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/zones.dart';
 import 'package:slib/services/auth_service.dart';
 import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/notification_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/booking/floor_plan_screen.dart';
@@ -73,6 +74,12 @@ class MainScreenState extends State<MainScreen> {
   ];
 
   void _onItemTapped(int index) {
+    // Clear chat badge when switching to chat tab
+    if (index == 3) {
+      try {
+        context.read<NotificationService>().clearChatBadge();
+      } catch (_) {}
+    }
     setState(() {
       _selectedIndex = index;
     });
@@ -92,11 +99,17 @@ class MainScreenState extends State<MainScreen> {
       _currentUser = authService.currentUser;
     }
 
+    // Watch notification service for chat badge count
+    final chatBadge = context.select<NotificationService, int>(
+      (service) => service.unreadChatCount,
+    );
+
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: BottomNavWidget(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+        chatBadgeCount: chatBadge,
       ),
     );
   }

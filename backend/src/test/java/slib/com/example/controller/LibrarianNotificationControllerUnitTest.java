@@ -142,4 +142,34 @@ class LibrarianNotificationControllerUnitTest {
         verify(userService, times(1)).getUserByEmail("librarian@fpt.edu.vn");
         verify(librarianNotificationService, times(1)).getUnreadChatCount(librarianId);
     }
+
+    // =========================================
+    // === MARK CONVERSATION AS READ ===
+    // =========================================
+
+    @Test
+    @DisplayName("markConversationAsRead_validConversation_returns200WithUpdatedCount")
+    @WithMockUser(username = "librarian@fpt.edu.vn")
+    void markConversationAsRead_validConversation_returns200WithUpdatedCount() throws Exception {
+        // Arrange
+        UUID conversationId = UUID.randomUUID();
+        UUID librarianId = UUID.randomUUID();
+        User librarian = new User();
+        librarian.setId(librarianId);
+        librarian.setEmail("librarian@fpt.edu.vn");
+
+        when(librarianNotificationService.markConversationAsRead(conversationId)).thenReturn(5);
+        when(userService.getUserByEmail("librarian@fpt.edu.vn")).thenReturn(librarian);
+        when(librarianNotificationService.getUnreadChatCount(librarianId)).thenReturn(2L);
+
+        // Act & Assert
+        mockMvc.perform(post("/slib/librarian/chat/" + conversationId + "/mark-read")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(5))
+                .andExpect(jsonPath("$.remainingUnread").value(2));
+
+        verify(librarianNotificationService, times(1)).markConversationAsRead(conversationId);
+        verify(librarianNotificationService, times(1)).getUnreadChatCount(librarianId);
+    }
 }

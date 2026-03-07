@@ -87,6 +87,7 @@ public class SeatStatusSyncService {
             case "CANCEL":
             case "CANCELLED":
             case "EXPIRED":
+            case "COMPLETED":
             default:
                 return "AVAILABLE";
         }

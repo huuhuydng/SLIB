@@ -21,6 +21,8 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
 
+        List<ReservationEntity> findByStatus(String status);
+
         // Delete all reservations by seat ID (for cascade delete when seat is deleted)
         void deleteBySeat_SeatId(Integer seatId);
 
@@ -70,12 +72,12 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         @Param("endTime") LocalDateTime endTime);
 
         // Top 5 sinh viên có thời gian học nhiều nhất (tính từ reservation
-        // CONFIRMED/EXPIRED)
+        // CONFIRMED/COMPLETED)
         @Query(value = "SELECT r.user_id, u.full_name, u.user_code, COUNT(*) as visit_count, " +
                         "COALESCE(SUM(EXTRACT(EPOCH FROM (r.end_time - r.start_time)) / 60), 0) as total_minutes, " +
                         "u.avt_url " +
                         "FROM reservations r JOIN users u ON r.user_id = u.id " +
-                        "WHERE r.created_at >= :startDate AND r.status IN ('CONFIRMED', 'EXPIRED') " +
+                        "WHERE r.created_at >= :startDate AND r.status IN ('CONFIRMED', 'COMPLETED') " +
                         "GROUP BY r.user_id, u.full_name, u.user_code, u.avt_url " +
                         "ORDER BY total_minutes DESC LIMIT 5", nativeQuery = true)
         List<Object[]> findTopStudentsByReservationTime(@Param("startDate") LocalDateTime startDate);
@@ -88,9 +90,9 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
         List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
 
-        // Tính tổng số phút học từ reservation EXPIRED (endTime - startTime)
+        // Tính tổng số phút học từ reservation COMPLETED (endTime - startTime)
         @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0) " +
-                        "FROM reservations WHERE user_id = :userId AND status = 'EXPIRED'", nativeQuery = true)
+                        "FROM reservations WHERE user_id = :userId AND status = 'COMPLETED'", nativeQuery = true)
         long getTotalStudyMinutesByUser(@Param("userId") UUID userId);
 
         // Statistic: đếm booking theo status group trong range

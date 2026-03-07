@@ -153,12 +153,14 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   List<NotificationItem> _notifications = [];
   int _unreadCount = 0;
+  int _unreadChatCount = 0;
   NotificationSettings _settings = NotificationSettings();
   bool _isLoading = false;
   bool _isInitialized = false;
 
   List<NotificationItem> get notifications => _notifications;
   int get unreadCount => _unreadCount;
+  int get unreadChatCount => _unreadChatCount;
   NotificationSettings get settings => _settings;
   bool get isLoading => _isLoading;
 
@@ -272,11 +274,20 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Xử lý notification từ WebSocket — update UI tức thì (0ms)
   void _handleWebSocketNotification(Map<String, dynamic> data) {
+    final notifType = data['notificationType'] ?? 'SYSTEM';
+
+    // CHAT_MESSAGE đã được xử lý qua FCM (hiện notification + badge)
+    // Nếu xử lý ở đây nữa sẽ bị duplicate
+    if (notifType == 'CHAT_MESSAGE') {
+      debugPrint('[NotificationWS] Skipping CHAT_MESSAGE (handled by FCM)');
+      return;
+    }
+
     final notification = NotificationItem(
       id: data['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: data['title'] ?? 'Thông báo',
       content: data['content'] ?? '',
-      type: data['notificationType'] ?? 'SYSTEM',
+      type: notifType,
       referenceType: data['notificationType'],
       referenceId: data['referenceId'],
       isRead: false,
@@ -437,18 +448,27 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _configureFirebaseMessaging() async {
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      _handleIncomingNotification(message);
-      
-      // CHAT_MESSAGE: luôn hiện notification vì WebSocket notification topic
-      // chỉ nhận entity notifications, không nhận chat messages
       final notificationType = message.data['type'] ?? '';
+      
       if (notificationType == 'CHAT_MESSAGE') {
-        debugPrint('[FCM] CHAT_MESSAGE received, always showing notification');
-        _showLocalNotification(message);
-      } else if (!_wsConnected) {
-        // Các loại khác: chỉ hiện khi WebSocket không kết nối (tránh duplicate)
-        debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
-        _showLocalNotification(message);
+        // CHAT_MESSAGE: backend gửi data-only FCM (không có notification payload)
+        // → mobile tự hiện notification, tránh duplicate
+        debugPrint('[FCM] CHAT_MESSAGE received, showing local notification + badge');
+        _showLocalNotificationFromData({
+          'title': message.data['title'] ?? 'Tin nhắn mới từ Thủ thư',
+          'content': message.data['body'] ?? '',
+        });
+        _unreadChatCount++;
+        notifyListeners();
+      } else {
+        // Các loại khác: xử lý bình thường
+        _handleIncomingNotification(message);
+        
+        if (!_wsConnected) {
+          // Chỉ hiện local notification khi WebSocket không kết nối (tránh duplicate)
+          debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
+          _showLocalNotification(message);
+        }
       }
     });
 
@@ -733,12 +753,21 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Clear chat badge when user opens chat tab
+  void clearChatBadge() {
+    if (_unreadChatCount > 0) {
+      _unreadChatCount = 0;
+      notifyListeners();
+    }
+  }
+
   /// Clear all data on logout
   void clearData() {
     _stopFallbackPolling();
     _disconnectWebSocket();
     _notifications = [];
     _unreadCount = 0;
+    _unreadChatCount = 0;
     _settings = NotificationSettings();
     _isInitialized = false;
     notifyListeners();

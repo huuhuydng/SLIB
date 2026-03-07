@@ -85,7 +85,7 @@ const Dashboard = () => {
       case 'CANCELLED': return { label: 'Đã huỷ', bg: '#fee2e2', color: '#991b1b' };
       case 'CANCEL': return { label: 'Đã huỷ', bg: '#fee2e2', color: '#991b1b' };
       case 'COMPLETED': return { label: 'Hoàn thành', bg: '#d1fae5', color: '#065f46' };
-      case 'EXPIRED': return { label: 'Hết hạn', bg: '#f3f4f6', color: '#6b7280' };
+      case 'EXPIRED': return { label: 'Không đến', bg: '#fef3c7', color: '#92400e' };
       case 'PENDING': return { label: 'Chờ xử lý', bg: '#fef3c7', color: '#92400e' };
       case 'VERIFIED': return { label: 'Đã xác minh', bg: '#dbeafe', color: '#1e40af' };
       case 'RESOLVED': return { label: 'Đã giải quyết', bg: '#d1fae5', color: '#065f46' };

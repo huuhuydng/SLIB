@@ -6,6 +6,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/ChatManage.css';
 import Header from "../../../components/shared/Header";
 import { handleLogout } from "../../../utils/auth";
+import { useLibrarianNotification } from "../../../contexts/LibrarianNotificationContext";
 import {
   Image as ImageIcon,
   Send,
@@ -42,6 +43,9 @@ const ChatManage = () => {
   const subscriptionRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatToastTimeoutRef = useRef(null);
+
+  // Notification context for badge updates
+  const { refreshUnreadChatCount } = useLibrarianNotification();
 
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
@@ -240,6 +244,21 @@ const ChatManage = () => {
   useEffect(() => {
     if (selectedConversationId) {
       fetchMessages(selectedConversationId);
+      // Mark messages as read when opening conversation
+      const token = localStorage.getItem('librarian_token');
+      if (token) {
+        fetch(`${API_BASE}/slib/librarian/chat/${selectedConversationId}/mark-read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }).then(() => {
+          if (refreshUnreadChatCount) {
+            refreshUnreadChatCount();
+          }
+        }).catch(err => console.warn('[Chat] Mark read error:', err));
+      }
       const interval = setInterval(() => {
         fetchMessages(selectedConversationId);
       }, 10000);

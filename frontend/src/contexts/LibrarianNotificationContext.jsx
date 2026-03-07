@@ -213,6 +213,7 @@ export function LibrarianNotificationProvider({ children }) {
         chatMessages,
         unreadChatCount,
         clearChatMessages,
+        refreshUnreadChatCount: fetchUnreadChatCount,
     };
 
     return (

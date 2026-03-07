@@ -11,7 +11,6 @@ import {
   HelpCircle,
   Shield,
   LogOut,
-  Film
 } from "lucide-react";
 
 import "../../styles/admin/sidebar_default.css";
@@ -23,7 +22,6 @@ const Sidebar = () => {
     { icon: Map, label: "Bản đồ thư viện", path: "/admin/library-map" },
     { icon: Users, label: "Quản lý người dùng", path: "/admin/users" },
     { icon: Cpu, label: "Quản lý thiết bị", path: "/admin/devices" },
-    { icon: Film, label: "Quản lý Kiosk", path: "/admin/slideshow-management" },
   ];
 
   const systemMenuItems = [

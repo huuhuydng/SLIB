@@ -220,6 +220,48 @@ public class ConversationService {
         }
 
         /**
+         * Sinh viên kết thúc cuộc trò chuyện với thủ thư
+         * Tương tự resolveConversation nhưng từ phía sinh viên
+         */
+        @Transactional
+        public ConversationDTO studentResolveConversation(UUID conversationId, UUID studentId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                // Verify student owns this conversation
+                if (!conv.getStudent().getId().equals(studentId)) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
+
+                // Only resolve if currently HUMAN_CHATTING
+                if (conv.getStatus() != ConversationStatus.HUMAN_CHATTING) {
+                        throw new RuntimeException("Conversation is not in HUMAN_CHATTING status");
+                }
+
+                conv.setStatus(ConversationStatus.AI_HANDLING);
+                conv.setResolvedAt(LocalDateTime.now());
+
+                Conversation saved = conversationRepository.save(conv);
+
+                log.info("[Conversation] Student {} ended chat for conversation {}. Human session: {}",
+                                studentId, conversationId, conv.getCurrentHumanSession());
+
+                // Broadcast STUDENT_ENDED_CHAT cho librarian qua WebSocket
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "STUDENT_ENDED_CHAT",
+                                "conversationId", conversationId.toString(),
+                                "studentName", conv.getStudent().getFullName()));
+
+                // Broadcast CONVERSATION_RESOLVED để frontend xóa khỏi active list
+                messagingTemplate.convertAndSend("/topic/escalate", Map.of(
+                                "type", "CONVERSATION_RESOLVED",
+                                "conversationId", conversationId.toString()));
+
+                librarianNotificationService.broadcastPendingCounts("CHAT", "STUDENT_RESOLVED");
+                return convertToDTO(saved);
+        }
+
+        /**
          * Lấy danh sách conversation đang chờ xử lý
          */
         public List<ConversationDTO> getWaitingConversations() {
@@ -718,6 +760,9 @@ public class ConversationService {
                                 notifyContent = notifyContent.substring(0, 100) + "...";
                         }
 
+                        log.debug("[Chat] Processing message notification for senderType={} in conv {}", senderType,
+                                        conversationId);
+
                         if ("STUDENT".equals(senderType)) {
                                 // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
                                 Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
@@ -732,6 +777,7 @@ public class ConversationService {
                         } else if ("LIBRARIAN".equals(senderType)) {
                                 // Librarian gửi → push notification cho student qua FCM
                                 UUID studentId = conv.getStudent().getId();
+                                log.debug("[Chat] Sending FCM to student {} for conv {}", studentId, conversationId);
                                 pushNotificationService.sendToUser(
                                                 studentId,
                                                 "Tin nhắn mới từ Thủ thư",
@@ -740,9 +786,11 @@ public class ConversationService {
                                                 conversationId);
                                 log.info("[Chat] Sent push notification to student {} for conv {}", studentId,
                                                 conversationId);
+                        } else {
+                                log.warn("[Chat] Unknown senderType for notification: {}", senderType);
                         }
                 } catch (Exception e) {
-                        log.warn("[Chat] Failed to send chat notification: {}", e.getMessage());
+                        log.error("[Chat] Failed to send chat notification: {}", e.getMessage(), e);
                 }
 
                 return dto;
@@ -757,6 +805,36 @@ public class ConversationService {
                                 .createdAt(msg.getCreatedAt())
                                 .senderName(msg.getSender().getFullName())
                                 .senderType(msg.getSenderType())
+                                .isRead(msg.isRead())
                                 .build();
+        }
+
+        /**
+         * Đánh dấu tất cả messages của đối phương là đã đọc
+         * - Student gọi: mark LIBRARIAN messages as read
+         * - Librarian gọi: mark STUDENT messages as read
+         */
+        @Transactional
+        public int markConversationAsRead(UUID conversationId, UUID userId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                int updated;
+                if (conv.getStudent().getId().equals(userId)) {
+                        // Student gọi → mark librarian messages as read
+                        updated = messageRepository.markConversationLibrarianMessagesAsRead(conversationId);
+                } else {
+                        // Librarian gọi → mark student messages as read
+                        updated = messageRepository.markConversationStudentMessagesAsRead(conversationId);
+                }
+
+                if (updated > 0) {
+                        log.info("[Conversation] Marked {} messages as read in conversation {} by user {}",
+                                        updated, conversationId, userId);
+                        // Broadcast MESSAGES_READ event cho đối phương
+                        messagingTemplate.convertAndSend("/topic/conversation/" + conversationId,
+                                        Map.of("type", "MESSAGES_READ", "readBy", userId.toString()));
+                }
+                return updated;
         }
 }

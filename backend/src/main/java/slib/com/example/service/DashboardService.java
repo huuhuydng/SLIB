@@ -381,7 +381,7 @@ public class DashboardService {
                 days = 30;
             }
             LocalDateTime since = LocalDateTime.now().minusDays(days);
-            // Dùng reservation time (CONFIRMED/EXPIRED) thay vì access log
+            // Dùng reservation time (CONFIRMED/COMPLETED) thay vì access log
             List<Object[]> data = reservationRepository.findTopStudentsByReservationTime(since);
             return data.stream()
                     .map(row -> DashboardStatsDTO.TopStudentDTO.builder()

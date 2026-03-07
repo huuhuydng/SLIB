@@ -23,6 +23,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
   print("Handling a background message: ${message.messageId}");
   
+  // CHAT_MESSAGE: Android tự hiện notification từ FCM notification payload
+  // → không cần showBackgroundNotification (tránh duplicate)
+  final type = message.data['type'] ?? '';
+  if (type == 'CHAT_MESSAGE') {
+    print('[BG] Skipping CHAT_MESSAGE (auto-displayed by Android)');
+    return;
+  }
+  
   // Show local notification using our helper
   await showBackgroundNotification(message);
 }

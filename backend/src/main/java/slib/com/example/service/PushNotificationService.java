@@ -91,6 +91,54 @@ public class PushNotificationService {
     }
 
     /**
+     * Send data-only push notification (no notification payload)
+     * Mobile app controls notification display entirely
+     * Used for CHAT_MESSAGE to avoid Android auto-displaying duplicate
+     * notifications
+     */
+    public String sendDataOnly(String fcmToken, String title, String body, Map<String, String> data,
+            int badgeCount) {
+        if (firebaseMessaging == null) {
+            log.warn("Firebase Messaging not initialized, skipping notification");
+            return null;
+        }
+
+        if (fcmToken == null || fcmToken.isEmpty()) {
+            log.warn("FCM token is null or empty, skipping notification");
+            return null;
+        }
+
+        try {
+            // Include title and body in data so mobile can show notification
+            Map<String, String> fullData = new HashMap<>(data != null ? data : new HashMap<>());
+            fullData.put("title", title);
+            fullData.put("body", body);
+
+            Message message = Message.builder()
+                    .setToken(fcmToken)
+                    .putAllData(fullData)
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .build())
+                    .setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder()
+                                    .setContentAvailable(true)
+                                    .setSound("default")
+                                    .setBadge(badgeCount)
+                                    .build())
+                            .build())
+                    .build();
+
+            String response = firebaseMessaging.send(message);
+            log.info("Data-only notification sent successfully: {}", response);
+            return response;
+        } catch (FirebaseMessagingException e) {
+            log.error("Failed to send data-only notification: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Send push notification to a user by userId
      * Also saves notification to database
      */
@@ -132,7 +180,13 @@ public class PushNotificationService {
             data.put("referenceId", referenceId.toString());
         }
 
-        sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+        // CHAT_MESSAGE: gửi data-only để tránh Android tự hiện notification (duplicate)
+        // Các loại khác: gửi có notification payload để Android hiện tự động
+        if (type == NotificationType.CHAT_MESSAGE) {
+            sendDataOnly(user.getNotiDevice(), title, body, data, badgeCount);
+        } else {
+            sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+        }
 
         // Broadcast qua WebSocket → mobile nhận real-time (0ms delay)
         Map<String, Object> wsPayload = new HashMap<>();

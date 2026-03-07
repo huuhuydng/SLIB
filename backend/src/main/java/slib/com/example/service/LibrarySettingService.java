@@ -51,6 +51,9 @@ public class LibrarySettingService {
                 .workingDays(settings.getWorkingDays())
                 .maxBookingsPerDay(settings.getMaxBookingsPerDay())
                 .maxHoursPerDay(settings.getMaxHoursPerDay())
+                .autoCancelMinutes(settings.getAutoCancelMinutes())
+                .autoCancelOnLeaveMinutes(settings.getAutoCancelOnLeaveMinutes())
+                .minReputation(settings.getMinReputation())
                 .build();
     }
 
@@ -80,6 +83,15 @@ public class LibrarySettingService {
         }
         if (dto.getMaxHoursPerDay() != null) {
             settings.setMaxHoursPerDay(dto.getMaxHoursPerDay());
+        }
+        if (dto.getAutoCancelMinutes() != null) {
+            settings.setAutoCancelMinutes(dto.getAutoCancelMinutes());
+        }
+        if (dto.getAutoCancelOnLeaveMinutes() != null) {
+            settings.setAutoCancelOnLeaveMinutes(dto.getAutoCancelOnLeaveMinutes());
+        }
+        if (dto.getMinReputation() != null) {
+            settings.setMinReputation(dto.getMinReputation());
         }
 
         repository.save(settings);

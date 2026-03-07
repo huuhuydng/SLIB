@@ -259,7 +259,7 @@ const Statistic = () => {
               <div className="st-metric-indicator st-ind-gray"></div>
               <div className="st-metric-detail">
                 <span className="st-metric-val">{booking.expiredNoShow || 0}</span>
-                <span className="st-metric-desc">{booking.expiredPercent || 0}% Khác</span>
+                <span className="st-metric-desc">{booking.expiredPercent || 0}% Không đến</span>
               </div>
             </div>
           </div>

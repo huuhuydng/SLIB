@@ -61,33 +61,34 @@ public class StudentBehaviorEntity {
 
     public enum BehaviorType {
         // Booking behaviors
-        BOOKING_CREATED,        // Tạo booking mới
-        BOOKING_CONFIRMED,     // Xác nhận (check-in)
-        BOOKING_CANCELLED,    // Hủy booking
-        BOOKING_NO_SHOW,      // Không đến (bỏ chỗ)
-        BOOKING_EXPIRED,      // Hết hạn
+        BOOKING_CREATED, // Tạo booking mới
+        BOOKING_CONFIRMED, // Xác nhận (check-in)
+        BOOKING_CANCELLED, // Hủy booking
+        BOOKING_NO_SHOW, // Không đến (bỏ chỗ)
+        BOOKING_EXPIRED, // Không đến check-in (no-show)
+        BOOKING_COMPLETED, // Hoàn thành (đã check-in, hết giờ)
 
         // Check-in behaviors
-        CHECKIN_ON_TIME,      // Check-in đúng giờ
-        CHECKIN_LATE,         // Check-in muộn
-        CHECKIN_EARLY,         // Check-in sớm
-        CHECKOUT_ON_TIME,     // Check-out đúng giờ
-        CHECKOUT_LATE,        // Check-out muộn
+        CHECKIN_ON_TIME, // Check-in đúng giờ
+        CHECKIN_LATE, // Check-in muộn
+        CHECKIN_EARLY, // Check-in sớm
+        CHECKOUT_ON_TIME, // Check-out đúng giờ
+        CHECKOUT_LATE, // Check-out muộn
 
         // Seat holding behavior
-        SEAT_HOLDING,         // Giữ chỗ bất thường (check-in rồi đi quá lâu)
+        SEAT_HOLDING, // Giữ chỗ bất thường (check-in rồi đi quá lâu)
 
         // Violation behaviors
-        VIOLATION_REPORTED,   // Bị báo vi phạm
-        VIOLATION_CONFIRMED,  // Vi phạm được xác nhận
-        VIOLATION_DISPUTED,   // Khiếu nại vi phạm
+        VIOLATION_REPORTED, // Bị báo vi phạm
+        VIOLATION_CONFIRMED, // Vi phạm được xác nhận
+        VIOLATION_DISPUTED, // Khiếu nại vi phạm
 
         // Reputation behaviors
-        POINTS_EARNED,        // Được cộng điểm
-        POINTS_DEDUCTED,      // Bị trừ điểm
+        POINTS_EARNED, // Được cộng điểm
+        POINTS_DEDUCTED, // Bị trừ điểm
 
         // General
-        LOGIN,                // Đăng nhập
-        LOGOUT               // Đăng xuất
+        LOGIN, // Đăng nhập
+        LOGOUT // Đăng xuất
     }
 }

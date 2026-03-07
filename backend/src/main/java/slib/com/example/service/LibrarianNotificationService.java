@@ -64,6 +64,19 @@ public class LibrarianNotificationService {
     }
 
     /**
+     * Đánh dấu tất cả tin nhắn student trong conversation đã đọc
+     * Gọi khi thủ thư mở/chọn conversation
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int markConversationAsRead(java.util.UUID conversationId) {
+        int updated = messageRepository.markConversationStudentMessagesAsRead(conversationId);
+        if (updated > 0) {
+            log.debug("[LibrarianNotification] Marked {} messages as read in conversation {}", updated, conversationId);
+        }
+        return updated;
+    }
+
+    /**
      * Broadcast pending counts mới nhất tới tất cả thủ thư qua WebSocket
      * Gọi sau khi có thay đổi (tạo mới, xử lý, v.v.)
      */

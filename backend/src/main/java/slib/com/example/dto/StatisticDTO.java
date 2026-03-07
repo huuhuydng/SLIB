@@ -42,7 +42,7 @@ public class StatisticDTO {
     @Builder
     public static class BookingAnalysisDTO {
         private long totalBookings;
-        private long usedBookings; // CONFIRMED + EXPIRED (actually used)
+        private long usedBookings; // CONFIRMED + COMPLETED (actually used)
         private long cancelledBookings; // CANCELLED / CANCEL
         private long expiredNoShow; // bookings that expired without check-in
         private double usedPercent;

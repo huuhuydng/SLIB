@@ -72,7 +72,10 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             'time': '${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}',
           };
 
-          if (status == 'CANCEL') {
+          if (status == 'CANCEL' || status == 'CANCELLED') {
+            _cancelledBookings.add(parsedBooking);
+          } else if (status == 'EXPIRED') {
+            // EXPIRED = no-show (đặt nhưng không đến check-in)
             _cancelledBookings.add(parsedBooking);
           } else if (status == 'COMPLETED' || endTime.isBefore(now)) {
             _completedBookings.add(parsedBooking);
@@ -200,10 +203,14 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     IconData statusIcon;
     bool isOngoing = now.isAfter(startTime) && now.isBefore(endTime);
 
-    if (status == 'CANCEL') {
+    if (status == 'CANCEL' || status == 'CANCELLED') {
       statusColor = Colors.red;
       statusText = "Đã hủy";
       statusIcon = Icons.cancel_outlined;
+    } else if (status == 'EXPIRED') {
+      statusColor = Colors.orange;
+      statusText = "Không đến";
+      statusIcon = Icons.warning_amber_rounded;
     } else if (status == 'COMPLETED' || endTime.isBefore(now)) {
       statusColor = Colors.green;
       statusText = "Hoàn thành";

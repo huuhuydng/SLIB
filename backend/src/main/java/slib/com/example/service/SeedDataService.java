@@ -62,7 +62,7 @@ public class SeedDataService {
         }
 
         // Trạng thái cho booking quá khứ (đã kết thúc) - scheduler sẽ không đổi
-        String[] pastStatuses = { "EXPIRED", "CANCEL" };
+        String[] pastStatuses = { "COMPLETED", "EXPIRED", "CANCEL" };
         // Trạng thái cho booking tương lai (chưa kết thúc) - scheduler sẽ không đổi
         String[] futureStatuses = { "BOOKED", "CONFIRMED" };
 
@@ -71,7 +71,7 @@ public class SeedDataService {
         Random rng = new Random();
 
         // Đảm bảo ít nhất 1 booking cho mỗi trạng thái
-        String[] guaranteedStatuses = { "PROCESSING", "BOOKED", "CONFIRMED", "CANCEL", "EXPIRED" };
+        String[] guaranteedStatuses = { "PROCESSING", "BOOKED", "CONFIRMED", "CANCEL", "EXPIRED", "COMPLETED" };
         int guaranteed = Math.min(guaranteedStatuses.length, count);
 
         for (int i = 0; i < count; i++) {
@@ -122,6 +122,7 @@ public class SeedDataService {
 
                 case "CANCEL":
                 case "EXPIRED":
+                case "COMPLETED":
                 default:
                     // Booking quá khứ - an toàn, scheduler không đổi
                     int daysAgo = 1 + rng.nextInt(6);

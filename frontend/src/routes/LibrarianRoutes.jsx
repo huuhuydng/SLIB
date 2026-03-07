@@ -22,6 +22,8 @@ import BookingManage from "../pages/librarian/BookingManage/BookingManage";
 import FeedbackManage from "../pages/librarian/FeedbackManage/FeedbackManage";
 import ComplaintManage from "../pages/librarian/ComplaintManage/ComplaintManage";
 import Attendance from "../pages/AttendanceWaitingScreen";
+import SlideshowManagement from "../components/admin/kiosk_managements/SlideshowManagement";
+import SlideshowPreview from "../components/admin/kiosk_managements/SlideshowPreview";
 
 
 function LibrarianRoutes() {
@@ -58,6 +60,10 @@ function LibrarianRoutes() {
         <Route path="news/create" element={<NewCreate />} />
         <Route path="news/edit/:id" element={<NewCreate />} />
         <Route path="news/view/:id" element={<NewsDetailView />} />
+
+        {/* Quản lý Kiosk */}
+        <Route path="slideshow-management" element={<SlideshowManagement />} />
+        <Route path="slideshow-preview" element={<SlideshowPreview />} />
 
 
         {/* Cài đặt tài khoản */}

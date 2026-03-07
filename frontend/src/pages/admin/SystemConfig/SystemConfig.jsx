@@ -56,6 +56,9 @@ const SystemConfig = () => {
     maxHoursPerDay: 4,
     maxBookingDays: 14,
     workingDays: '2,3,4,5,6',
+    autoCancelMinutes: 15,
+    autoCancelOnLeaveMinutes: 30,
+    minReputation: 0,
   });
 
   // Load settings from API on mount
@@ -73,6 +76,9 @@ const SystemConfig = () => {
             maxHoursPerDay: data.maxHoursPerDay || 4,
             maxBookingDays: data.maxBookingDays || 14,
             workingDays: data.workingDays || '2,3,4,5,6',
+            autoCancelMinutes: data.autoCancelMinutes ?? 15,
+            autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? 30,
+            minReputation: data.minReputation ?? 0,
           });
         }
       } catch (error) {
@@ -386,6 +392,79 @@ const SystemConfig = () => {
                             outline: 'none'
                           }}
                         />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tự động hủy & Uy tín */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Timer size={18} color="#e8600a" />
+                      Tự động hủy & Uy tín
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tự hủy sau (phút) nếu không check-in
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.autoCancelMinutes}
+                          onChange={(e) => handleConfigChange('autoCancelMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Đặt chỗ sẽ bị hủy nếu không check-in sau số phút này
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tự hủy sau (phút) khi rời chỗ
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.autoCancelOnLeaveMinutes}
+                          onChange={(e) => handleConfigChange('autoCancelOnLeaveMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Đặt chỗ sẽ bị hủy nếu rời chỗ quá lâu
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Điểm uy tín tối thiểu để đặt chỗ
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.minReputation}
+                          onChange={(e) => handleConfigChange('minReputation', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          0 = không giới hạn. Sinh viên cần đạt mức tối thiểu để đặt chỗ
+                        </div>
                       </div>
                     </div>
                   </div>

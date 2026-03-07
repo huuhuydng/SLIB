@@ -42,13 +42,13 @@ const SlideshowManagement = () => {
       setError(null);
       console.log('Fetching images from:', `${API_BASE_URL}/api/slideshow/images`);
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images`);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       if (data.success && Array.isArray(data.images)) {
         // Dữ liệu từ backend DB trả về: { id, url, isActive, name, ... }
         setImages(data.images);
@@ -95,7 +95,7 @@ const SlideshowManagement = () => {
   const handleUploadImages = async (files) => {
     if (!files || files.length === 0) return;
 
-    const validFiles = Array.from(files).filter(file => 
+    const validFiles = Array.from(files).filter(file =>
       file.type.startsWith('image/')
     );
 
@@ -138,7 +138,7 @@ const SlideshowManagement = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.images) {
         // Backend trả về danh sách ảnh mới đã lưu vào DB
         const newImages = data.images;
@@ -149,7 +149,7 @@ const SlideshowManagement = () => {
         // Reset input file value để cho phép chọn lại cùng file nếu cần
         const fileInput = document.getElementById('uploadInput');
         if (fileInput) fileInput.value = '';
-        
+
         setTimeout(() => setSuccessMsg(null), 3000);
       }
     } catch (err) {
@@ -183,15 +183,15 @@ const SlideshowManagement = () => {
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images/${editingImage}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           newName: editName
         }),
       });
 
       const data = await response.json();
       if (data.success && data.image) {
-        setImages(images.map(img => 
-          img.id === editingImage 
+        setImages(images.map(img =>
+          img.id === editingImage
             ? data.image // Cập nhật object ảnh mới từ backend (chứa tên mới)
             : img
         ));
@@ -211,7 +211,7 @@ const SlideshowManagement = () => {
   const handleToggleStatus = async (targetImage) => {
     try {
       const newStatus = !targetImage.isActive;
-      
+
       // Gọi API PATCH để update status, backend sẽ kiểm tra giới hạn 5 ảnh
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images/${targetImage.id}/status`, {
         method: 'PATCH',
@@ -225,9 +225,9 @@ const SlideshowManagement = () => {
       }
 
       // Cập nhật state local nếu thành công
-      setImages(images.map(img => 
-        img.id === targetImage.id 
-          ? { ...img, isActive: newStatus } 
+      setImages(images.map(img =>
+        img.id === targetImage.id
+          ? { ...img, isActive: newStatus }
           : img
       ));
 
@@ -264,13 +264,13 @@ const SlideshowManagement = () => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.size} ảnh này?`)) return;
 
     try {
-      const deletePromises = Array.from(selectedIds).map(id => 
+      const deletePromises = Array.from(selectedIds).map(id =>
         fetch(`${API_BASE_URL}/api/slideshow/images/${id}`, { method: 'DELETE' })
       );
 
       const results = await Promise.allSettled(deletePromises);
       const failedCount = results.filter(r => r.status === 'rejected').length;
-      
+
       setImages(images.filter(img => !selectedIds.has(img.id)));
       setSelectedIds(new Set());
       setIsSelectingAll(false);
@@ -291,7 +291,7 @@ const SlideshowManagement = () => {
     if (selectedIds.size === 0) return;
 
     try {
-      const updatePromises = Array.from(selectedIds).map(id => 
+      const updatePromises = Array.from(selectedIds).map(id =>
         fetch(`${API_BASE_URL}/api/slideshow/images/${id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -359,7 +359,7 @@ const SlideshowManagement = () => {
     let result = images;
 
     if (searchTerm) {
-      result = images.filter(img => 
+      result = images.filter(img =>
         (img.imageName || img.imageUrl || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -375,7 +375,7 @@ const SlideshowManagement = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchValue={searchTerm}
         onSearchChange={(e) => setSearchTerm(e.target.value)}
         searchPlaceholder="Tìm kiếm ảnh..."
@@ -440,7 +440,7 @@ const SlideshowManagement = () => {
                     const windowName = 'slideshowPreview';
                     const windowFeatures = 'width=1200,height=700,left=0,top=0,resizable=yes';
                     const previewWindow = window.open(
-                      `${window.location.origin}/admin/slideshow-preview`,
+                      `${window.location.origin}/librarian/slideshow-preview`,
                       windowName,
                       windowFeatures
                     );
@@ -481,7 +481,7 @@ const SlideshowManagement = () => {
           <div className="slideshowManagement__alert slideshowManagement__alert--error">
             <AlertCircle size={20} />
             <span>{error}</span>
-            <button 
+            <button
               className="slideshowManagement__alertClose"
               onClick={() => setError(null)}
             >
@@ -494,7 +494,7 @@ const SlideshowManagement = () => {
           <div className="slideshowManagement__alert slideshowManagement__alert--success">
             <Check size={20} />
             <span>{successMsg}</span>
-            <button 
+            <button
               className="slideshowManagement__alertClose"
               onClick={() => setSuccessMsg(null)}
             >
@@ -511,9 +511,9 @@ const SlideshowManagement = () => {
             { label: 'Đang dự phòng', value: stats.backup, icon: Upload, color: '#64748B', bg: '#F1F5F9', key: 'backup' },
           ].map((stat) => (
             <div key={stat.key} className="slideshowManagement__statCard">
-              <div 
+              <div
                 className="slideshowManagement__statIcon"
-                style={{ 
+                style={{
                   '--stat-bg': stat.bg,
                   backgroundColor: stat.bg
                 }}
@@ -551,8 +551,8 @@ const SlideshowManagement = () => {
                 <thead>
                   <tr className="slideshowManagement__tableHeader">
                     <th className="slideshowManagement__th" style={{ width: '40px', textAlign: 'center' }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         checked={isSelectingAll}
                         onChange={(e) => handleSelectAll(e.target.checked)}
                         style={{ cursor: 'pointer', width: '18px', height: '18px' }}
@@ -568,20 +568,20 @@ const SlideshowManagement = () => {
                 </thead>
                 <tbody>
                   {filteredImages.map((imageObj, idx) => (
-                    <tr 
+                    <tr
                       key={imageObj.id}
                       draggable={!searchTerm && !selectedIds.has(imageObj.id)} // Chỉ cho phép kéo thả khi không tìm kiếm và không selected
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, idx)}
                       className="slideshowManagement__tr"
-                      style={{ 
+                      style={{
                         backgroundColor: selectedIds.has(imageObj.id) ? '#F0F9FF' : 'transparent'
                       }}
                     >
                       <td className="slideshowManagement__td" style={{ textAlign: 'center' }}>
-                        <input 
-                          type="checkbox" 
+                        <input
+                          type="checkbox"
                           checked={selectedIds.has(imageObj.id)}
                           onChange={() => handleToggleSelect(imageObj.id)}
                           style={{ cursor: 'pointer', width: '18px', height: '18px' }}
@@ -594,12 +594,12 @@ const SlideshowManagement = () => {
                         #{idx + 1}
                       </td>
                       <td className="slideshowManagement__td">
-                        <div 
+                        <div
                           className="slideshowManagement__tableImageWrapper"
                           onClick={() => setSelectedImage(imageObj.imageUrl)}
                         >
-                          <img 
-                            src={imageObj.imageUrl || ''} 
+                          <img
+                            src={imageObj.imageUrl || ''}
                             alt={`Slide ${idx + 1}`}
                             className="slideshowManagement__tableImage"
                           />
@@ -633,16 +633,16 @@ const SlideshowManagement = () => {
                       </td>
                       <td className="slideshowManagement__td slideshowManagement__td--center">
                         <label className="slideshowManagement__switch">
-                          <input 
-                            type="checkbox" 
+                          <input
+                            type="checkbox"
                             checked={imageObj.isActive}
                             onChange={() => handleToggleStatus(imageObj)}
                           />
                           <span className="slideshowManagement__slider"></span>
                         </label>
-                        <span style={{ 
-                          display: 'block', 
-                          fontSize: '11px', 
+                        <span style={{
+                          display: 'block',
+                          fontSize: '11px',
                           marginTop: '4px',
                           color: imageObj.isActive ? '#059669' : '#64748B',
                           fontWeight: '600'
@@ -654,14 +654,14 @@ const SlideshowManagement = () => {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                           {editingImage === imageObj.id ? (
                             <>
-                              <button 
+                              <button
                                 onClick={handleRenameImage}
                                 className="slideshowManagement__actionBtn slideshowManagement__actionBtn--save"
                               >
                                 <Save size={16} />
                                 Lưu
                               </button>
-                              <button 
+                              <button
                                 onClick={handleCancelEdit}
                                 className="slideshowManagement__actionBtn slideshowManagement__actionBtn--cancel"
                               >
@@ -671,21 +671,21 @@ const SlideshowManagement = () => {
                             </>
                           ) : (
                             <>
-                              <button 
+                              <button
                                 onClick={() => setSelectedImage(imageObj.imageUrl)}
                                 className="slideshowManagement__actionBtn slideshowManagement__actionBtn--view"
                               >
                                 <Eye size={16} />
                                 Xem
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleStartEdit(imageObj)}
                                 className="slideshowManagement__actionBtn slideshowManagement__actionBtn--edit"
                               >
                                 <Edit size={16} />
                                 Sửa
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleDeleteImage(imageObj)}
                                 className="slideshowManagement__actionBtn slideshowManagement__actionBtn--delete"
                               >
@@ -711,7 +711,7 @@ const SlideshowManagement = () => {
           <div className="slideshowManagement__modalContent">
             <div className="slideshowManagement__modalHeader">
               <h2>Tải lên ảnh mới</h2>
-              <button 
+              <button
                 className="slideshowManagement__modalCloseBtn"
                 onClick={() => setShowUploadModal(false)}
               >
@@ -720,7 +720,7 @@ const SlideshowManagement = () => {
             </div>
 
             <div className="slideshowManagement__modalBody">
-              <div 
+              <div
                 className="slideshowManagement__dropZone"
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -755,7 +755,7 @@ const SlideshowManagement = () => {
                 />
               </div>
               <label htmlFor="uploadInput">
-                <button 
+                <button
                   onClick={() => document.getElementById('uploadInput').click()}
                   type="button"
                   className="slideshowManagement__selectBtn"
@@ -764,9 +764,9 @@ const SlideshowManagement = () => {
                 </button>
               </label>
 
-              <p style={{ 
-                fontSize: '12px', 
-                color: '#A0AEC0', 
+              <p style={{
+                fontSize: '12px',
+                color: '#A0AEC0',
                 textAlign: 'center',
                 marginTop: '16px',
                 marginBottom: 0
@@ -787,8 +787,8 @@ const SlideshowManagement = () => {
               )}
 
               <div className="slideshowManagement__modalActions">
-                <button 
-                  onClick={() => setShowUploadModal(false)} 
+                <button
+                  onClick={() => setShowUploadModal(false)}
                   className="slideshowManagement__modalBtn slideshowManagement__modalBtnSecondary"
                 >
                   Hủy
@@ -803,14 +803,14 @@ const SlideshowManagement = () => {
       {selectedImage && (
         <div className="slideshowManagement__previewModal">
           <div className="slideshowManagement__previewContent">
-            <button 
+            <button
               className="slideshowManagement__previewCloseBtn"
               onClick={() => setSelectedImage(null)}
             >
               <X size={24} />
             </button>
-            <img 
-              src={selectedImage} 
+            <img
+              src={selectedImage}
               alt="Preview"
               className="slideshowManagement__previewImage"
             />
