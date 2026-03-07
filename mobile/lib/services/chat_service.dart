@@ -42,6 +42,7 @@ class ChatService {
           escalationMessage: jsonMap['escalation_message'],
         );
       } else {
+        print('[AI Chat] Error: status=${response.statusCode}, body=${response.body}');
         return ChatResponse(
           success: false,
           reply: 'Lỗi kết nối với AI. Vui lòng thử lại sau.',
@@ -142,17 +143,8 @@ class ChatService {
         },
       );
 
-      print('[ChatService] getMessages response: ${response.statusCode}');
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('[ChatService] Total messages: ${data.length}');
-        // Debug: in ra 3 message cuối để xem senderType
-        if (data.length > 0) {
-          final last3 = data.length > 3 ? data.sublist(data.length - 3) : data;
-          for (var m in last3) {
-            print('[ChatService] Last msg: senderType=${m['senderType']}, content=${(m['content'] as String? ?? '').substring(0, (m['content'] as String? ?? '').length > 20 ? 20 : (m['content'] as String? ?? '').length)}...');
-          }
-        }
         return data.cast<Map<String, dynamic>>();
       }
       return [];
@@ -333,6 +325,36 @@ class ChatService {
     } catch (e) {
       print('Cancel Queue Error: $e');
       return false;
+    }
+  }
+
+  /// Student kết thúc cuộc trò chuyện với thủ thư
+  Future<bool> studentResolveConversation(String conversationId, String authToken) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/student-resolve'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Student Resolve Error: $e');
+      return false;
+    }
+  }
+
+  /// Đánh dấu đã đọc tin nhắn trong conversation
+  Future<void> markConversationAsRead(String conversationId, String authToken) async {
+    try {
+      await http.post(
+        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/mark-read'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+        },
+      );
+    } catch (e) {
+      print('Mark Read Error: $e');
     }
   }
 }

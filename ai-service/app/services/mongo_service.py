@@ -6,8 +6,10 @@
 
 import os
 import logging
+import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING
 from pymongo.errors import ConnectionFailure, OperationFailure
 
@@ -18,6 +20,16 @@ CHAT_MESSAGE_TTL_SECONDS = 30 * 24 * 60 * 60
 
 # Singleton instance
 _mongo_service = None
+
+
+def _fix_mongo_uri(uri: str) -> str:
+    """URL-encode username/password in MongoDB URI per RFC 3986"""
+    # Match mongodb://user:pass@host pattern
+    match = re.match(r'^(mongodb(?:\+srv)?://)([^:]+):([^@]+)@(.+)$', uri)
+    if match:
+        scheme, user, password, rest = match.groups()
+        return f"{scheme}{quote_plus(user)}:{quote_plus(password)}@{rest}"
+    return uri
 
 
 class MongoService:
@@ -39,6 +51,7 @@ class MongoService:
         self.connected = False
         
         mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017/slib_chat")
+        mongo_url = _fix_mongo_uri(mongo_url)
         
         try:
             self.client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)

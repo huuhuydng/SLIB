@@ -78,11 +78,14 @@ public class UserService {
     /**
      * Update user (e.g., FCM token for notifications)
      */
+    @Transactional
     public User updateUser(UUID userId, User req) {
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
 
         if (req.getNotiDevice() != null && !req.getNotiDevice().isEmpty()) {
+            // Xóa FCM token khỏi user khác trước → tránh gửi notification sai người
+            userRepository.clearNotiDeviceForOtherUsers(req.getNotiDevice(), userId);
             existingUser.setNotiDevice(req.getNotiDevice());
         }
         if (req.getPhone() != null) {
@@ -205,9 +208,13 @@ public class UserService {
                             .themeMode("light")
                             .languageCode("vi")
                             .build();
-                    userSettingRepository.save(setting);
+                    userSettingRepository.saveAndFlush(setting);
                 } catch (Exception settingEx) {
-                    // Bỏ qua nếu DB trigger đã tạo sẵn
+                    // Retry: kiểm tra lại xem DB trigger đã tạo chưa
+                    if (!userSettingRepository.existsById(savedUser.getId())) {
+                        System.err.println("[IMPORT] Failed to create UserSetting for user "
+                                + savedUser.getId() + ": " + settingEx.getMessage());
+                    }
                 }
 
                 Map<String, Object> successEntry = new HashMap<>();

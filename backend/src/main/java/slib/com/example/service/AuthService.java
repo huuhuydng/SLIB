@@ -93,6 +93,8 @@ public class AuthService {
         } else {
             // Update FCM token if provided
             if (fcmToken != null && !fcmToken.isEmpty()) {
+                // Xóa FCM token khỏi user khác trước
+                userRepository.clearNotiDeviceForOtherUsers(fcmToken, user.getId());
                 user.setNotiDevice(fcmToken);
                 user = userRepository.save(user);
             }
