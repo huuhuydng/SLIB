@@ -49,6 +49,8 @@ public class SecurityConfig {
                         // User management endpoints (Admin only)
                         .requestMatchers("/slib/users/import").hasRole("ADMIN")
                         .requestMatchers("/slib/users/*/status").hasRole("ADMIN")
+                        // Area management endpoints (Admin only)
+                        .requestMatchers("/slib/areas/{id}/locked").hasRole("ADMIN")
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()

@@ -89,6 +89,11 @@ public class UserService {
             existingUser.setNotiDevice(req.getNotiDevice());
         }
         if (req.getPhone() != null) {
+            // Check duplicate phone
+            if (!req.getPhone().isEmpty() && !req.getPhone().equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(req.getPhone())) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
+            }
             existingUser.setPhone(req.getPhone());
         }
         if (req.getDob() != null) {
@@ -113,7 +118,11 @@ public class UserService {
         if (fullName != null && !fullName.isEmpty()) {
             existingUser.setFullName(fullName);
         }
-        if (phone != null) {
+        if (phone != null && !phone.equals(existingUser.getPhone())) {
+            // Kiểm tra phone đã tồn tại chưa
+            if (userRepository.existsByPhone(phone)) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
+            }
             existingUser.setPhone(phone);
         }
         if (avtUrl != null) {

@@ -20,7 +20,7 @@ import {
   Link2,
   Unlink
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 
 // Mock Data
 const MOCK_DEVICES = [
@@ -82,11 +82,6 @@ const DeviceManagement = () => {
 
   return (
     <>
-      <Header
-        searchValue={searchText}
-        onSearchChange={(e) => setSearchText(e.target.value)}
-        searchPlaceholder="Tìm kiếm thiết bị..."
-      />
 
       <div style={{
         padding: '0 24px 32px',

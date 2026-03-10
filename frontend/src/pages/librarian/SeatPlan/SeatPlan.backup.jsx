@@ -1,6 +1,6 @@
 ﻿// Đã xóa file này vì không còn sử dụng
 import React, { useEffect, useMemo, useState } from "react";
-import Header from "../../../components/shared/Header";
+
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import CanvasBoard from "../../../components/admin/area_managements/CanvasBoard";
 import { seatPlanService } from "../../../services/seatPlanService";
@@ -87,7 +87,7 @@ const normalizeSeat = (seat) => ({
 function SeatPlanContent() {
   const { state, dispatch } = useLayout();
   const { selectedAreaId, seats, zones } = state;
-  
+
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [slotValue, setSlotValue] = useState("now");
   const [message, setMessage] = useState(null);
@@ -126,9 +126,9 @@ function SeatPlanContent() {
     try {
       const res = await seatPlanService.getAreas();
       const normalized = (res.data || []).map(normalizeArea);
-      
+
       console.log('📍 All areas:', normalized);
-      
+
       setAreas(normalized);
       if (normalized[0]) {
         setSelectedAreaId(normalized[0].areaId);
@@ -151,10 +151,10 @@ function SeatPlanContent() {
       ]);
 
       const normalizedSeats = (seatRes.data || []).map(normalizeSeat);
-      
+
       // DEBUG: Log raw API response with details
       console.log('🔍 RAW API zones response:', zoneRes.data);
-      
+
       let normalizedZones = (zoneRes.data || []).map(zone => {
         const normalized = normalizeZone(zone);
         // Ensure areaId is set correctly
@@ -170,11 +170,11 @@ function SeatPlanContent() {
         if (zoneSeats.length > 0) {
           const maxRow = Math.max(...zoneSeats.map(s => s.rowNumber || 1));
           const maxCol = Math.max(...zoneSeats.map(s => s.columnNumber || 1));
-          
+
           // Calculate required dimensions (60px seats + 8px gap + 12px zone padding + header)
           const requiredWidth = maxCol * 60 + (maxCol - 1) * 8 + 24; // 12px padding * 2
           const requiredHeight = 40 + 10 + maxRow * 60 + (maxRow - 1) * 8 + 24; // header + gap + content + padding
-          
+
           // Only update if calculated size is larger than default
           if (requiredWidth > zone.width) zone.width = requiredWidth;
           if (requiredHeight > zone.height) zone.height = requiredHeight;
@@ -184,7 +184,7 @@ function SeatPlanContent() {
 
       console.log('📍 Area ID:', areaId);
       console.log('📍 Loaded zones (normalized):', normalizedZones);
-      console.log('📍 Zone positions:', normalizedZones.map(z => ({name: z.zoneName, x: z.positionX, y: z.positionY, w: z.width, h: z.height})));
+      console.log('📍 Zone positions:', normalizedZones.map(z => ({ name: z.zoneName, x: z.positionX, y: z.positionY, w: z.width, h: z.height })));
       console.log('📍 Loaded seats:', normalizedSeats.length, 'seats');
 
       setZones((prev) => {
@@ -239,7 +239,7 @@ function SeatPlanContent() {
 
   const renderSeatGrid = (zoneId) => {
     const zoneSeats = seatsByZone.get(zoneId) || [];
-    
+
     if (zoneSeats.length === 0) {
       return <div className="sp-empty">Không có ghế</div>;
     }
@@ -247,10 +247,10 @@ function SeatPlanContent() {
     // Tìm số hàng và cột max để tạo layout đẹp
     const maxRow = zoneSeats.reduce((max, s) => Math.max(max, s.rowNumber || 1), 1);
     const maxCol = zoneSeats.reduce((max, s) => Math.max(max, s.columnNumber || 1), 1);
-    
+
     // Tạo ma trận ghế theo vị trí row/column
     const seatMatrix = Array.from({ length: maxRow }, () => Array(maxCol).fill(null));
-    
+
     zoneSeats.forEach((seat) => {
       const row = (seat.rowNumber || 1) - 1;
       const col = (seat.columnNumber || 1) - 1;
@@ -262,7 +262,7 @@ function SeatPlanContent() {
     return (
       <div
         className="sp-seat-grid"
-        style={{ 
+        style={{
           gridTemplateColumns: `repeat(${maxCol}, 60px)`,
           gridTemplateRows: `repeat(${maxRow}, 60px)`
         }}
@@ -271,15 +271,15 @@ function SeatPlanContent() {
           if (!seat) {
             return <div key={`empty-${idx}`} className="sp-seat-empty"></div>;
           }
-          
+
           const status = seat.seatStatus;
           const statusClass =
             status === "BOOKED"
               ? "sp-seat--booked"
               : status === "UNAVAILABLE"
-              ? "sp-seat--blocked"
-              : "sp-seat--free";
-          
+                ? "sp-seat--blocked"
+                : "sp-seat--free";
+
           return (
             <button
               key={seat.seatId}
@@ -296,7 +296,7 @@ function SeatPlanContent() {
 
   return (
     <>
-      <Header searchPlaceholder="Tìm ghế hoặc khu vực" onLogout={handleLogout} />
+
       <main className="sp-page">
         <div className="sp-topbar">
           <div className="sp-topbar__group">

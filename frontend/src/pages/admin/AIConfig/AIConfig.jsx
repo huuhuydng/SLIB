@@ -4,7 +4,7 @@ import {
   AlertTriangle, BookOpen, Send, User, RotateCcw, Database, Upload, FileText,
   FolderOpen, Package, Layers, Edit, ChevronDown, ChevronRight, Eye, Save
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 import { testAPIConnection, sendTestMessage, sendTestMessageWithDebug, getChatHistory, clearChatSession } from '../../../services/admin/ai/pythonAiApi';
 import {
   getMaterials, createMaterial, updateMaterial, deleteMaterial, addTextItem, addFileItem, deleteItem, updateItem,
@@ -314,7 +314,7 @@ const AIConfig = () => {
 
   return (
     <>
-      <Header searchPlaceholder="Tìm kiếm..." />
+
       <div style={{ padding: '0 24px 100px', maxWidth: '1440px', margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>

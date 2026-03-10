@@ -13,7 +13,7 @@ import {
   EyeOff,
   Check
 } from 'lucide-react';
-import Header from "../../../components/shared/Header";
+
 import TipTapEditor from "../../../components/editor/TipTapEditor";
 import '../../../styles/librarian/NewsCreate.css';
 import { handleLogout } from "../../../utils/auth";
@@ -452,7 +452,6 @@ const NewCreate = () => {
 
   return (
     <div className="news-create-container">
-      <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
 
       <div className="news-card">
         {error && (

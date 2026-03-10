@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Client } from '@stomp/stompjs';
-import Header from "../../../components/shared/Header";
+
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import { getAreas } from "../../../services/admin/area_management/api";
 import { seatService } from "../../../services/seatService";

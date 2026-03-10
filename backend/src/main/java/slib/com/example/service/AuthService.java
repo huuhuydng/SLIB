@@ -91,6 +91,10 @@ public class AuthService {
                     .build();
             user = userRepository.save(user);
         } else {
+            // Check if account is locked
+            if (!Boolean.TRUE.equals(user.getIsActive())) {
+                throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            }
             // Update FCM token if provided
             if (fcmToken != null && !fcmToken.isEmpty()) {
                 // Xóa FCM token khỏi user khác trước

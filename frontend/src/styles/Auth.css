@@ -525,7 +525,7 @@ body {
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
 }
 
-.panel {
+.auth-card .panel {
   position: absolute;
   width: 50%;
   height: 100%;
@@ -535,13 +535,13 @@ body {
   transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
 }
 
-.panel-login {
+.auth-card .panel-login {
   left: 0;
   z-index: 2;
   opacity: 1;
 }
 
-.panel-forgot {
+.auth-card .panel-forgot {
   left: 0;
   opacity: 0;
   z-index: 1;

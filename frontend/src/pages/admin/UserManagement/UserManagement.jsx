@@ -21,7 +21,7 @@ import {
   RefreshCw,
   Loader2
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 import userService from '../../../services/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
@@ -588,11 +588,6 @@ const UserManagement = () => {
 
   return (
     <>
-      <Header
-        searchValue={searchText}
-        onSearchChange={(e) => setSearchText(e.target.value)}
-        searchPlaceholder="Tìm kiếm người dùng..."
-      />
 
       <div style={{
         padding: '0 24px 32px',

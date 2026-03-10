@@ -4,7 +4,7 @@ import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/ChatManage.css';
-import Header from "../../../components/shared/Header";
+
 import { handleLogout } from "../../../utils/auth";
 import { useLibrarianNotification } from "../../../contexts/LibrarianNotificationContext";
 import {
@@ -487,7 +487,6 @@ const ChatManage = () => {
 
   return (
     <>
-      <Header searchPlaceholder="Tìm kiếm..." onLogout={handleLogout} />
 
       <div className="lib-container">
         <div className="cm-header-row">

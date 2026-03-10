@@ -149,11 +149,11 @@ public class UserController {
     }
 
     /**
-     * Delete user by ID (Admin/Librarian only)
+     * Delete user by ID (Admin only)
      * This will delete all related data (reservations, access logs, chat sessions,
      * etc.)
      */
-    @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable java.util.UUID userId,
             @AuthenticationPrincipal UserDetails userDetails) {

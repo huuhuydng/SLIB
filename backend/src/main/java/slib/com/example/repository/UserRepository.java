@@ -27,6 +27,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Boolean existsByUsername(String username);
 
+    Boolean existsByPhone(String phone);
+
     /**
      * Tìm user bằng email hoặc username hoặc userCode (MSSV)
      */

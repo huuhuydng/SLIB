@@ -16,7 +16,7 @@ import {
   GripVertical,
   Power
 } from 'lucide-react';
-import Header from '../../shared/Header';
+
 import '../../../styles/admin/SlideshowManagement.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -375,11 +375,6 @@ const SlideshowManagement = () => {
 
   return (
     <>
-      <Header
-        searchValue={searchTerm}
-        onSearchChange={(e) => setSearchTerm(e.target.value)}
-        searchPlaceholder="Tìm kiếm ảnh..."
-      />
 
       <div className="slideshowManagement__wrapper">
         {/* Page Header */}

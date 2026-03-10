@@ -19,7 +19,7 @@ import {
   PlusCircle,
   Loader2
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
 
@@ -124,9 +124,6 @@ const SystemConfig = () => {
 
   return (
     <>
-      <Header
-        searchPlaceholder="Tìm kiếm cài đặt..."
-      />
 
       <div style={{
         padding: '0 24px 32px',

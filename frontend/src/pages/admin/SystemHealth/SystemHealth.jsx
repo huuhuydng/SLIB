@@ -30,7 +30,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 
 // Mock Data
 const SYSTEM_METRICS = {
@@ -116,7 +116,6 @@ const SystemHealth = () => {
 
   return (
     <>
-      <Header searchPlaceholder="Tìm kiếm..." />
 
       <div style={{
         padding: '0 24px 32px',
