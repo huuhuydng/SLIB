@@ -45,6 +45,14 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         @Param("startTime") LocalDateTime startTime,
                         @Param("endTime") LocalDateTime endTime);
 
+        /**
+         * Find BOOKED reservations that need to be checked for late check-in penalty.
+         * Returns reservations that are BOOKED status and have started.
+         */
+        @Query("SELECT r FROM ReservationEntity r WHERE r.status = 'BOOKED' " +
+                        "AND r.startTime <= :currentTime")
+        List<ReservationEntity> findBookedReservationsStarted(@Param("currentTime") LocalDateTime currentTime);
+
         // Dashboard queries
         long countByStatus(String status);
 
