@@ -450,6 +450,40 @@ select.cio-filter-input {
   border-top: 1px solid var(--lib-border-light, #f1f5f9);
 }
 
+.cio-export-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.cio-date-input {
+  padding: 8px 12px;
+  border: 1px solid var(--lib-border, #e2e8f0);
+  border-radius: var(--lib-r-xs, 8px);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--lib-text, #1f2937);
+  background: var(--lib-panel, #fff);
+  transition: var(--lib-transition);
+  outline: none;
+}
+
+.cio-date-input:focus {
+  border-color: var(--lib-primary, #FF751F);
+  box-shadow: 0 0 0 2px rgba(255, 117, 31, 0.1);
+}
+
+.cio-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: grayscale(100%);
+  opacity: 0.5;
+}
+
+.cio-date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .cio-toolbar {
