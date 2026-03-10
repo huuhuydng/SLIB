@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE11 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-11: Turn on/Turn off AI Suggestion</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr><td><b>Function Code</b></td><td>FE-11</td><td><b>Function Name</b></td><td>FE-11_Toggle AI Suggestion</td></tr>
+      <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+      <tr><td><b>Lines of code</b></td><td>~15</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+      <tr><td><b>Class Under Test</b></td><td colspan="3"><code>UserSettingService.updateSettings(UUID userId, UserSettingDTO dto)</code></td></tr>
+      <tr><td><b>Test requirement</b></td><td colspan="3">Verify AI-suggestion preference updates through <code>isAiRecommendEnabled</code>, including merge behavior and repository persistence rules.</td></tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+      <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
+      <tr><td rowspan="8" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>User id and DTO are provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td>Target field is <code>isAiRecommendEnabled</code></td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td><code>getSettings()</code> returns existing settings</td><td>O</td><td></td><td></td><td>O</td><td></td></tr>
+      <tr><td><code>getSettings()</code> auto-creates default settings</td><td></td><td>O</td><td></td><td></td><td></td></tr>
+      <tr><td>Repository save throws runtime exception</td><td></td><td></td><td>O</td><td></td><td>O</td></tr>
+      <tr><td rowspan="2"><b>Input</b></td><td>DTO sets <code>isAiRecommendEnabled = false</code> or <code>true</code></td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+      <tr><td>DTO contains <code>null</code> AI-suggestion field</td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+      <tr><td rowspan="7" class="matrix-section"><b>Confirm</b></td><td rowspan="3"><b>Return</b></td><td>AI suggestion flag is updated and returned correctly</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
+      <tr><td>Default settings are created first and then updated</td><td></td><td>O</td><td></td><td></td><td></td></tr>
+      <tr><td>Null AI-suggestion field leaves current value unchanged</td><td></td><td></td><td></td><td>O</td><td></td></tr>
+      <tr><td rowspan="2"><b>Exception</b></td><td>Save failure during update is propagated</td><td></td><td></td><td>O</td><td></td><td></td></tr>
+      <tr><td>Save failure after no-op merge is propagated</td><td></td><td></td><td></td><td></td><td>O</td></tr>
+      <tr><td rowspan="2"><b>Log message / Interaction</b></td><td><code>save()</code> is called with merged AI preference state</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td>Other user-setting fields remain unchanged unless DTO provides them</td><td>O</td><td>O</td><td></td><td>O</td><td>O</td></tr>
+      <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+      <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+      <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+      <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+    </table>
+  </div>
+</body>
+</html>

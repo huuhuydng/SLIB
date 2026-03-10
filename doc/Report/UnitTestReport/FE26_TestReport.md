@@ -1,0 +1,34 @@
+# Unit Test Report - FE-26: CRUD Zone Attribute
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-26</td><td><b>Function Name</b></td><td>CRUD Zone Attribute</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~15</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>AmenityService.createAmenity(...)</code>, <code>updateAmenity(...)</code>, <code>deleteAmenity(...)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify zone-attribute creation, update, delete, and zone/amenity existence validation.</td></tr>
+</table>
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>6</td><td>0</td><td>0</td><td>1 / 5 / 0</td><td>6</td></tr>
+</table>
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th><th>UTCID06</th></tr>
+  <tr><td rowspan="7" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Amenity request data is provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Amenity CRUD depends on amenity and zone repositories</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td>Zone exists for create</td><td>O</td><td>O</td><td></td><td></td><td></td><td></td></tr>
+  <tr><td>Amenity exists for update/delete</td><td></td><td></td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Zone or amenity lookup fails</td><td></td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="2"><b>Input</b></td><td>Create/update request contains valid attribute fields</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Delete targets existing or missing amenity id</td><td></td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="5" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Amenity is created or updated with mapped fields</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Delete completes without return payload in service layer</td><td></td><td></td><td></td><td></td><td>O</td><td></td></tr>
+  <tr><td rowspan="2"><b>Exception</b></td><td>Throws zone-not-found or amenity-not-found exception</td><td></td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td>Repository failure during save/delete is propagated</td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td><code>save()</code> is called for create/update and <code>delete()</code> for delete</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>

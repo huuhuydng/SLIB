@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE07 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-07: View Barcode</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr><td><b>Function Code</b></td><td>FE-07</td><td><b>Function Name</b></td><td>FE-07_View Barcode</td></tr>
+      <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+      <tr><td><b>Lines of code</b></td><td>~10</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+      <tr><td><b>Class Under Test</b></td><td colspan="3"><code>UserService.getMyProfile(String email)</code></td></tr>
+      <tr><td><b>Test requirement</b></td><td colspan="3">The backend unit scope for barcode viewing is the profile lookup that returns <code>userCode</code>, which the client later renders as barcode content.</td></tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+      <tr><td>3</td><td>0</td><td>0</td><td>2 / 1 / 0</td><td>3</td></tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th></tr>
+      <tr><td rowspan="7" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Email value is provided</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td>Barcode content depends on returned <code>userCode</code></td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Repository returns user with full profile and <code>userCode</code></td><td>O</td><td></td><td></td></tr>
+      <tr><td>Repository returns user with nullable optional fields</td><td></td><td>O</td><td></td></tr>
+      <tr><td><b>Input</b></td><td>Lookup email does not exist</td><td></td><td></td><td>O</td></tr>
+      <tr><td rowspan="5" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td><code>UserProfileResponse.userCode</code> is mapped correctly for barcode rendering</td><td>O</td><td>O</td><td></td></tr>
+      <tr><td>Null optional fields do not affect <code>userCode</code> mapping</td><td></td><td>O</td><td></td></tr>
+      <tr><td><b>Exception</b></td><td>Throws <code>RuntimeException</code> when user is not found</td><td></td><td></td><td>O</td></tr>
+      <tr><td rowspan="2"><b>Log message / Interaction</b></td><td><code>findByEmail()</code> is called exactly once</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td>No save operation is executed during barcode-related profile lookup</td><td>O</td><td>O</td><td>O</td></tr>
+      <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>N</td><td>A</td></tr>
+      <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td></tr>
+      <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+      <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td></tr>
+    </table>
+  </div>
+</body>
+</html>

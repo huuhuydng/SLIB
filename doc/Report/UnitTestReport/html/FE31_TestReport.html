@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-31 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-31: Change Seat Status</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-31</td><td><b>Function Name</b></td><td>Change Seat Status</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~10</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>SeatService.restrictSeatById(Integer seatId)</code> and <code>unrestrictSeatById(Integer seatId)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify seat restriction toggles active/status flags and missing-seat behavior.</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
+  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Seat id is provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Restriction depends on seat repository lookup</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Seat exists for restrict/unrestrict</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td></tr>
+  <tr><td>Seat lookup returns empty result</td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>Target action is restrict or unrestrict</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Restrict sets active=false and status=UNAVAILABLE</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
+  <tr><td>Unrestrict sets active=true and status=AVAILABLE</td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Throws seat-not-found exception for missing id</td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td><code>save()</code> is called once for successful status toggle</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+  </div>
+</body>
+</html>

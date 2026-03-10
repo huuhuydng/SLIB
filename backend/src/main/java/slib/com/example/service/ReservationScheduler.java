@@ -1,7 +1,11 @@
 package slib.com.example.service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -12,17 +16,21 @@ import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.zone_config.SeatEntity;
-import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.ReservationRepository;
-import slib.com.example.repository.SeatRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
-import slib.com.example.service.ReputationService;
-import slib.com.example.service.SeatStatusSyncService;
 
+/**
+ * Scheduler for handling reservation expirations, penalties, and rewards.
+ * 
+ * Flow: PROCESSING → BOOKED → CONFIRMED (NFC) → COMPLETED
+ * - PROCESSING: User vừa tạo booking, chờ xác nhận (2 phút)
+ * - BOOKED: User đã xác nhận booking (chờ quét NFC)
+ * - CONFIRMED: User đã quét NFC tại ghế (check-in thực tế)
+ * - COMPLETED: Hết giờ, tự động hoàn thành
+ */
 @Service
 public class ReservationScheduler {
     private final ReservationRepository reservationRepository;
-    private final SeatRepository seatRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ReputationService reputationService;
     private final SeatStatusSyncService seatStatusSyncService;
@@ -31,7 +39,6 @@ public class ReservationScheduler {
     private final PushNotificationService pushNotificationService;
 
     public ReservationScheduler(ReservationRepository reservationRepository,
-            SeatRepository seatRepository,
             ActivityLogRepository activityLogRepository,
             ReputationService reputationService,
             SeatStatusSyncService seatStatusSyncService,
@@ -39,7 +46,6 @@ public class ReservationScheduler {
             LibrarySettingService librarySettingService,
             PushNotificationService pushNotificationService) {
         this.reservationRepository = reservationRepository;
-        this.seatRepository = seatRepository;
         this.activityLogRepository = activityLogRepository;
         this.reputationService = reputationService;
         this.seatStatusSyncService = seatStatusSyncService;
@@ -48,7 +54,11 @@ public class ReservationScheduler {
         this.pushNotificationService = pushNotificationService;
     }
 
-    @Scheduled(fixedRate = 10000) // check mỗi 10s cho real-time
+    /**
+     * Main scheduler: xử lý tất cả trạng thái reservation.
+     * Chạy mỗi 10 giây.
+     */
+    @Scheduled(fixedRate = 10000)
     @Transactional
     public void releaseExpiredSeats() {
         try {
@@ -58,10 +68,14 @@ public class ReservationScheduler {
                     ? settings.getAutoCancelMinutes()
                     : 15;
 
-            // 1. Auto-cancel BOOKED chưa check-in sau autoCancelMinutes
+            // =========================================================
+            // 1. BOOKED chưa quét NFC (chưa CONFIRMED) sau autoCancelMinutes
+            // → Phạt điểm uy tín + set EXPIRED + giải phóng ghế
+            //
             // Deadline = MAX(startTime, createdAt) + autoCancelMinutes
             // - Đặt trước (createdAt < startTime): đếm từ startTime
             // - Đặt trong slot (createdAt > startTime): đếm từ createdAt
+            // =========================================================
             List<ReservationEntity> bookedList = reservationRepository.findByStatus("BOOKED");
             for (ReservationEntity r : bookedList) {
                 LocalDateTime baseTime = r.getStartTime().isAfter(r.getCreatedAt())
@@ -70,6 +84,21 @@ public class ReservationScheduler {
                 LocalDateTime deadline = baseTime.plusMinutes(autoCancelMinutes);
 
                 if (now.isAfter(deadline)) {
+                    // Áp dụng phạt NO_SHOW (chưa quét NFC trong thời gian quy định)
+                    try {
+                        SeatEntity seat = r.getSeat();
+                        String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                        reputationService.applyNoShowPenalty(
+                                r.getUser().getId(),
+                                seat.getSeatCode(),
+                                zoneName,
+                                r.getReservationId());
+                    } catch (Exception penaltyErr) {
+                        System.err.println("Failed to apply NO_SHOW penalty for reservation "
+                                + r.getReservationId() + ": " + penaltyErr.getMessage());
+                    }
+
+                    // Set EXPIRED và giải phóng ghế
                     r.setStatus("EXPIRED");
                     reservationRepository.save(r);
                     seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
@@ -85,7 +114,8 @@ public class ReservationScheduler {
                         pushNotificationService.sendToUser(
                                 r.getUser().getId(),
                                 "Đặt chỗ đã bị hủy",
-                                String.format("Ghế %s tại %s (%s) đã bị hủy do không check-in sau %d phút.",
+                                String.format(
+                                        "Ghế %s tại %s (%s) đã bị hủy do không quét NFC sau %d phút. Điểm uy tín bị trừ.",
                                         seat.getSeatCode(), zoneName, timeStr, autoCancelMinutes),
                                 NotificationType.BOOKING,
                                 r.getReservationId());
@@ -95,8 +125,10 @@ public class ReservationScheduler {
                 }
             }
 
-            // 2. Hoàn thành CONFIRMED đã hết hạn (endTime < now)
-            // CONFIRMED = đã check-in NFC thành công, hết giờ → COMPLETED
+            // =========================================================
+            // 2. CONFIRMED đã hết hạn (endTime < now) → COMPLETED
+            // CONFIRMED = đã quét NFC thành công, hết giờ → hoàn thành
+            // =========================================================
             List<ReservationEntity> completedConfirmed = reservationRepository.findByEndTimeBeforeAndStatus(now,
                     "CONFIRMED");
             for (ReservationEntity r : completedConfirmed) {
@@ -106,7 +138,9 @@ public class ReservationScheduler {
                         r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
             }
 
-            // 3. Hủy PROCESSING quá 2 phút (chưa xác nhận đặt chỗ)
+            // =========================================================
+            // 3. PROCESSING quá 2 phút → CANCEL (chưa xác nhận đặt chỗ)
+            // =========================================================
             LocalDateTime processingCutoff = now.minusSeconds(120);
             List<ReservationEntity> processingExpired = reservationRepository.findByCreatedAtBeforeAndStatus(
                     processingCutoff, "PROCESSING");
@@ -137,114 +171,57 @@ public class ReservationScheduler {
     }
 
     /**
-     * Check for reservations that haven't been checked in within 15 minutes and
-     * apply penalty.
-     * 
-     * Case 1: If user books BEFORE the time slot starts, they must check in within
-     * 15 minutes
-     * AFTER the time slot starts.
-     * Case 2: If user books DURING the time slot, they must check in within 15
-     * minutes
-     * AFTER the booking creation time.
+     * Thưởng điểm "Tuần hoàn hảo" cho user không có vi phạm trong tuần.
+     * Chạy mỗi Chủ nhật lúc 23:55.
      */
-    @Scheduled(fixedRate = 60000) // Check every 60 seconds
+    @Scheduled(cron = "0 55 23 * * SUN")
     @Transactional
-    public void checkLateCheckInsAndApplyPenalty() {
-        LocalDateTime now = LocalDateTime.now();
-
-        // Find all BOOKED reservations that have started
-        List<ReservationEntity> activeReservations = reservationRepository.findBookedReservationsStarted(now);
-
-        for (ReservationEntity reservation : activeReservations) {
-            try {
-                // Skip if already penalized
-                if (activityLogRepository.hasLateCheckinPenalty(reservation.getReservationId())) {
-                    continue;
-                }
-
-                // Skip if already checked in (NFC confirmed)
-                if (activityLogRepository.hasNfcConfirmation(reservation.getReservationId())) {
-                    continue;
-                }
-
-                // Calculate check-in deadline based on booking time
-                LocalDateTime checkInDeadline;
-
-                // Case 1: Booked BEFORE time slot started (createdAt < startTime)
-                // Deadline = startTime + 15 minutes
-                if (reservation.getCreatedAt().isBefore(reservation.getStartTime())) {
-                    checkInDeadline = reservation.getStartTime().plusMinutes(15);
-                }
-                // Case 2: Booked DURING time slot (createdAt >= startTime)
-                // Deadline = createdAt + 15 minutes
-                else {
-                    checkInDeadline = reservation.getCreatedAt().plusMinutes(15);
-                }
-
-                // Check if deadline has passed
-                if (now.isAfter(checkInDeadline)) {
-                    // Apply penalty
-                    applyLateCheckInPenalty(reservation);
-                }
-            } catch (Exception e) {
-                System.err.println("Error processing late check-in for reservation " +
-                        reservation.getReservationId() + ": " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Apply late check-in penalty to a user using NO_SHOW rule
-     * This now uses ReputationService for dynamic rule application
-     * AND cancels the reservation to release the seat for others
-     */
-    private void applyLateCheckInPenalty(ReservationEntity reservation) {
-        SeatEntity seat = reservation.getSeat();
-        ZoneEntity zone = seat.getZone();
-        String seatCode = seat.getSeatCode();
-        String zoneName = zone != null ? zone.getZoneName() : "";
-
-        // Step 1: Apply NO_SHOW penalty (deduct reputation points)
-        boolean penaltySuccess = reputationService.applyNoShowPenalty(
-                reservation.getUser().getId(),
-                seatCode,
-                zoneName,
-                reservation.getReservationId());
-
-        if (penaltySuccess) {
-            System.out.println(String.format(
-                    "Successfully applied NO_SHOW penalty to user %s for reservation %s",
-                    reservation.getUser().getId(),
-                    reservation.getReservationId()));
-        } else {
-            System.err.println(String.format(
-                    "Failed to apply NO_SHOW penalty to user %s for reservation %s",
-                    reservation.getUser().getId(),
-                    reservation.getReservationId()));
-        }
-
-        // Step 2: Cancel reservation and release seat for others
+    public void applyWeeklyPerfectBonus() {
         try {
-            reservation.setStatus("CANCELLED");
-            reservationRepository.save(reservation);
+            LocalDateTime weekStart = LocalDateTime.now()
+                    .with(DayOfWeek.MONDAY)
+                    .with(LocalTime.MIN);
+            LocalDateTime weekEnd = LocalDateTime.now();
 
-            // Step 3: Broadcast seat status change via WebSocket
-            // This allows other users to book the seat immediately
-            seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
-                    seat,
-                    "AVAILABLE",
-                    reservation.getStartTime(),
-                    reservation.getEndTime());
+            // Lấy tất cả user IDs có reservation COMPLETED trong tuần (đã sử dụng thư viện)
+            List<ReservationEntity> completedThisWeek = reservationRepository
+                    .findByStatus("COMPLETED").stream()
+                    .filter(r -> r.getCreatedAt() != null
+                            && r.getCreatedAt().isAfter(weekStart)
+                            && r.getCreatedAt().isBefore(weekEnd))
+                    .collect(Collectors.toList());
 
-            System.out.println(String.format(
-                    "Cancelled reservation %s and released seat %s for rebooking",
-                    reservation.getReservationId(),
-                    seatCode));
+            // Nhóm theo userId
+            java.util.Set<UUID> activeUserIds = completedThisWeek.stream()
+                    .map(r -> r.getUser().getId())
+                    .collect(Collectors.toSet());
+
+            int bonusCount = 0;
+            for (UUID userId : activeUserIds) {
+                // Kiểm tra user có penalty nào trong tuần không
+                boolean hasPenalty = activityLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                        .filter(log -> log.getCreatedAt() != null
+                                && log.getCreatedAt().toLocalDateTime().isAfter(weekStart))
+                        .anyMatch(log -> "LATE_CHECKIN_PENALTY".equals(log.getActivityType())
+                                || "NO_SHOW".equals(log.getActivityType())
+                                || "VIOLATION".equals(log.getActivityType()));
+
+                if (!hasPenalty) {
+                    try {
+                        reputationService.applyWeeklyPerfectBonus(userId);
+                        bonusCount++;
+                    } catch (Exception e) {
+                        System.err.println("Failed to apply weekly bonus for user " + userId + ": " + e.getMessage());
+                    }
+                }
+            }
+
+            if (bonusCount > 0) {
+                System.out.println("Applied WEEKLY_PERFECT bonus to " + bonusCount + " users");
+            }
         } catch (Exception e) {
-            System.err.println(String.format(
-                    "Failed to cancel reservation %s: %s",
-                    reservation.getReservationId(),
-                    e.getMessage()));
+            System.err.println("Error in applyWeeklyPerfectBonus: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

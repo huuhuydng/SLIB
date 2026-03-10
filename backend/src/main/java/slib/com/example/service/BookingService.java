@@ -26,6 +26,7 @@ import slib.com.example.repository.SeatRepository;
 import slib.com.example.repository.StudentProfileRepository;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.ZoneRepository;
+import slib.com.example.service.ReputationService;
 
 @Service
 public class BookingService {
@@ -40,6 +41,7 @@ public class BookingService {
         private final ActivityService activityService;
         private final SimpMessagingTemplate messagingTemplate;
         private final StudentProfileRepository studentProfileRepository;
+        private final ReputationService reputationService;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
@@ -48,7 +50,8 @@ public class BookingService {
                         PushNotificationService pushNotificationService,
                         ActivityService activityService,
                         SimpMessagingTemplate messagingTemplate,
-                        StudentProfileRepository studentProfileRepository) {
+                        StudentProfileRepository studentProfileRepository,
+                        ReputationService reputationService) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -60,6 +63,7 @@ public class BookingService {
                 this.activityService = activityService;
                 this.messagingTemplate = messagingTemplate;
                 this.studentProfileRepository = studentProfileRepository;
+                this.reputationService = reputationService;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -413,8 +417,8 @@ public class BookingService {
                         throw new RuntimeException("Đã hết thời gian check-in");
                 }
 
-                // Update status to BOOKED (confirmed)
-                reservation.setStatus("BOOKED");
+                // Update status to CONFIRMED (NFC check-in thực tế)
+                reservation.setStatus("CONFIRMED");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
                 // Log activity for NFC_CONFIRM
@@ -435,8 +439,19 @@ public class BookingService {
                         System.err.println("Failed to log activity: " + e.getMessage());
                 }
 
+                // Thưởng điểm uy tín khi check-in đúng giờ
+                try {
+                        reputationService.applyCheckInBonus(
+                                        reservation.getUser().getId(),
+                                        seat.getSeatCode(),
+                                        zoneName,
+                                        saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to apply check-in bonus: " + e.getMessage());
+                }
+
                 // Broadcast status to WebSocket clients
-                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "CONFIRMED",
                                 reservation.getStartTime(), reservation.getEndTime());
 
                 // Send push notification khi check-in NFC thành công

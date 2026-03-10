@@ -22,6 +22,7 @@ import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.repository.*;
+import slib.com.example.repository.reputation.ReputationRuleRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.service.chat.CloudinaryService;

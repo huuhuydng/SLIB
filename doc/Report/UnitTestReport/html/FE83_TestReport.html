@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-83 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-83: View Complaint History</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-83</td><td><b>Function Name</b></td><td>View Complaint History</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~10</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>ComplaintService.getByStudent(UUID studentId)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify complaint-history retrieval for the current student.</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
+  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Student id is provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Complaint history depends on complaint repository query by student id</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Repository returns complaint history</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Repository returns empty list or fails</td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>Student has or does not have complaints</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Returns mapped complaint history ordered by createdAt desc</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Returns empty list when student has no complaints</td><td></td><td></td><td></td><td>O</td><td></td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Repository failure is propagated</td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Complaint history retrieval is read-only</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+  </div>
+</body>
+</html>

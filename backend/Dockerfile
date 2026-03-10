@@ -16,7 +16,7 @@ COPY src ./src
 
 # Build package với cache mount (Bỏ qua test)
 RUN --mount=type=cache,target=/root/.m2,sharing=locked \
-    mvn clean package -DskipTests
+    mvn clean package -Dmaven.test.skip=true
 
 # --- Giai đoạn 2: Run ---
 # Dùng Amazon Corretto 21 bản Alpine (Siêu nhẹ) để chạy

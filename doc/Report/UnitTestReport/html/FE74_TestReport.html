@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-74 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-74: Check-in/out via QR</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-74</td><td><b>Function Name</b></td><td>Check-in/out via QR</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~20</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>KioskQrAuthService.validateQr(...)</code> and <code>checkIn(String sessionToken)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify QR validation, session lifecycle, and automatic kiosk check-in behavior.</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>6</td><td>0</td><td>0</td><td>1 / 5 / 0</td><td>6</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th><th>UTCID06</th></tr>
+  <tr><td rowspan="6" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>QR payload and kiosk/session identifiers are provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>QR flow depends on kiosk session repository and signature validation</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td>QR session exists and signature is valid</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
+  <tr><td>QR payload/signature/session is invalid or expired</td><td></td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
+  <tr><td>Auto check-in path fails unexpectedly</td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>QR payload matches or mismatches kiosk/session context</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Validation returns success response for correct QR payload</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
+  <tr><td>Auto check-in updates session state and creates access-log side effects</td><td></td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Invalid QR format/signature/expiry or check-in failure triggers exception path</td><td></td><td></td><td></td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>QR session state is saved and websocket refresh/check-in events are emitted</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+  </div>
+</body>
+</html>

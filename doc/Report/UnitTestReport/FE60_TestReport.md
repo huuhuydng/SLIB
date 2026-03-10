@@ -1,0 +1,31 @@
+# Unit Test Report - FE-60: Filter Seat Map
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-60</td><td><b>Function Name</b></td><td>Filter Seat Map</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~10</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>BookingService.getSeatsByTime(...)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify seat-map filtering by zone/date/time range and branch selection.</td></tr>
+</table>
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
+</table>
+
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
+  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Filter parameters are provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Filter uses timed seat lookup branch</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Filtered zone has seats and reservations</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Invalid or missing filter values break lookup</td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>Zone/date/time combinations vary</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Filtered result contains only seats for the requested zone/time range</td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Seat statuses reflect the filtered interval only</td><td></td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Invalid filter/date handling is propagated</td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Branch-specific repository queries execute once per filter request</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>

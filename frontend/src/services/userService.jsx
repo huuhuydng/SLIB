@@ -709,15 +709,25 @@ class UserService {
     }
 
     /**
-     * Download XLSX template file
+     * Download XLSX template file from backend API
      */
-    downloadTemplate() {
-        const link = document.createElement('a');
-        link.href = '/user_import_template.xlsx';
-        link.download = 'slib_user_import_template.xlsx';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    async downloadTemplate() {
+        try {
+            const response = await axiosInstance.get('/users/import/template', {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'slib_user_import_template.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('❌ [UserService] downloadTemplate error:', error);
+            throw error;
+        }
     }
 }
 

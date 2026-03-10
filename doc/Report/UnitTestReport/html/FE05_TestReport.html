@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE05 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-05: Change Basic Profile</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr>
+        <td><b>Function Code</b></td>
+        <td>FE-05</td>
+        <td><b>Function Name</b></td>
+        <td>FE-05_Change Basic Profile</td>
+      </tr>
+      <tr>
+        <td><b>Created By</b></td>
+        <td>Hadi</td>
+        <td><b>Executed By</b></td>
+        <td>Hadi</td>
+      </tr>
+      <tr>
+        <td><b>Lines of code</b></td>
+        <td>28</td>
+        <td><b>Lack of test cases</b></td>
+        <td>0</td>
+      </tr>
+      <tr>
+        <td><b>Class Under Test</b></td>
+        <td colspan="3"><code>UserService.updateUser(UUID userId, User req)</code></td>
+      </tr>
+      <tr>
+        <td><b>Test requirement</b></td>
+        <td colspan="3">Verify selective field updates, duplicate-phone validation, notification-device reassignment, and not-found behavior at backend service level.</td>
+      </tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr>
+        <th>Passed</th>
+        <th>Failed</th>
+        <th>Untested</th>
+        <th>N/A/B</th>
+        <th>Total Test Cases</th>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>0</td>
+        <td>0</td>
+        <td>3 / 2 / 1</td>
+        <td>6</td>
+      </tr>
+    </table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+      <tr class="matrix-head">
+        <th>Section</th>
+        <th>Category</th>
+        <th>Item</th>
+        <th>UTCID01</th>
+        <th>UTCID02</th>
+        <th>UTCID03</th>
+        <th>UTCID04</th>
+        <th>UTCID05</th>
+        <th>UTCID06</th>
+      </tr>
+      <tr>
+        <td rowspan="10" class="matrix-section"><b>Condition</b></td>
+        <td rowspan="2"><b>Precondition</b></td>
+        <td>Valid user id is provided</td>
+        <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
+      </tr>
+      <tr>
+        <td>Update request object is created</td>
+        <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
+      </tr>
+      <tr>
+        <td rowspan="5"><b>Mock State (Dependencies)</b></td>
+        <td><code>findById()</code> returns an existing user</td>
+        <td>O</td><td>O</td><td>O</td><td></td><td>O</td><td>O</td>
+      </tr>
+      <tr>
+        <td><code>findById()</code> returns empty result</td>
+        <td></td><td></td><td></td><td>O</td><td></td><td></td>
+      </tr>
+      <tr>
+        <td><code>existsByPhone()</code> returns <code>false</code> for new phone</td>
+        <td>O</td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td><code>existsByPhone()</code> returns <code>true</code> for duplicate phone</td>
+        <td></td><td></td><td>O</td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Non-empty <code>notiDevice</code> is supplied</td>
+        <td></td><td>O</td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td rowspan="3"><b>Input</b></td>
+        <td>Request contains <code>fullName</code>, <code>phone</code>, <code>dob</code>, and <code>avtUrl</code> changes</td>
+        <td>O</td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Request contains duplicate phone value</td>
+        <td></td><td></td><td>O</td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Request contains empty <code>fullName</code> or null optional fields</td>
+        <td></td><td></td><td></td><td></td><td>O</td><td>O</td>
+      </tr>
+      <tr>
+        <td rowspan="9" class="matrix-section"><b>Confirm</b></td>
+        <td rowspan="4"><b>Return</b></td>
+        <td>Updated user contains modified <code>fullName</code>, <code>phone</code>, <code>dob</code>, and <code>avtUrl</code></td>
+        <td>O</td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Updated user contains new <code>notiDevice</code> value</td>
+        <td></td><td>O</td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Existing full name remains unchanged when request full name is empty</td>
+        <td></td><td></td><td></td><td></td><td>O</td><td></td>
+      </tr>
+      <tr>
+        <td>Existing optional values remain unchanged when request fields are null</td>
+        <td></td><td></td><td></td><td></td><td></td><td>O</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><b>Exception</b></td>
+        <td>Throws duplicate-phone exception</td>
+        <td></td><td></td><td>O</td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>Throws user-not-found exception</td>
+        <td></td><td></td><td></td><td>O</td><td></td><td></td>
+      </tr>
+      <tr>
+        <td rowspan="3"><b>Log message / Interaction</b></td>
+        <td><code>clearNotiDeviceForOtherUsers()</code> is called before saving notification device</td>
+        <td></td><td>O</td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td><code>existsByPhone()</code> is checked only when phone changes to a new non-empty value</td>
+        <td>O</td><td></td><td>O</td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td><code>save()</code> is executed for successful update flows</td>
+        <td>O</td><td>O</td><td></td><td></td><td>O</td><td>O</td>
+      </tr>
+      <tr>
+        <td rowspan="4" class="matrix-section"><b>Result</b></td>
+        <td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td>
+        <td>N</td><td>N</td><td>A</td><td>A</td><td>B</td><td>N</td>
+      </tr>
+      <tr>
+        <td colspan="2">Passed/Failed</td>
+        <td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td>
+      </tr>
+      <tr>
+        <td colspan="2">Executed Date</td>
+        <td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td>
+      </tr>
+      <tr>
+        <td colspan="2">Defect ID</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>

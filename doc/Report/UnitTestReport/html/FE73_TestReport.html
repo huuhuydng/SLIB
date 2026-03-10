@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-73 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-73: Check-in/out via HCE</h1>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><td><b>Function Code</b></td><td>FE-73</td><td><b>Function Name</b></td><td>Check-in/out via HCE</td></tr>
+  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~20</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>CheckInService.processCheckIn(CheckInRequest request)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify HCE gate check-in/out flow, API-key-protected controller path, and access-log side effects.</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
+  <tr><td>7</td><td>0</td><td>0</td><td>1 / 6 / 0</td><td>7</td></tr>
+</table>
+
+    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
+  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th><th>UTCID06</th><th>UTCID07</th></tr>
+  <tr><td rowspan="6" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Check-in request and API key are provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>Check-in depends on user lookup, access logs, and gate key validation</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td>API key is valid and user exists</td><td>O</td><td></td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>API key is invalid or user/token data is invalid</td><td></td><td>O</td><td></td><td></td><td></td><td>O</td><td></td></tr>
+  <tr><td>Service layer throws runtime failure</td><td></td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>Request contains valid/invalid token or user identifier</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Returns check-in or check-out result map with user/access data</td><td>O</td><td></td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td>Controller returns forbidden response when API key is wrong</td><td></td><td>O</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Invalid request or service failure is returned through error path</td><td></td><td></td><td></td><td></td><td></td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Access logs, study hours, activity logs, and dashboard broadcasts are triggered in successful flows</td><td>O</td><td></td><td>O</td><td>O</td><td>O</td><td></td><td></td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
+  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
+  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</table>
+  </div>
+</body>
+</html>

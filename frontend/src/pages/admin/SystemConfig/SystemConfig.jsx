@@ -22,22 +22,7 @@ import {
 
 
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
-
-// Mock Data
-const VIOLATION_RULES = [
-  { id: 1, name: 'Gây ồn ào', points: -10, description: 'Vi phạm quy định về tiếng ồn trong thư viện' },
-  { id: 2, name: 'No-show (không đến)', points: -15, description: 'Đặt chỗ nhưng không đến check-in' },
-  { id: 3, name: 'Ngủ trong thư viện', points: -5, description: 'Ngủ tại bàn học quá 30 phút' },
-  { id: 4, name: 'Ăn uống', points: -8, description: 'Mang đồ ăn/nước uống vào khu vực cấm' },
-  { id: 5, name: 'Sử dụng điện thoại gây ồn', points: -5, description: 'Nghe gọi điện thoại trong khu yên tĩnh' },
-  { id: 6, name: 'Hủy đặt chỗ muộn', points: -3, description: 'Hủy đặt chỗ trong vòng 30 phút trước giờ hẹn' },
-];
-
-const REWARD_RULES = [
-  { id: 1, name: 'Check-in đúng giờ', points: 2, description: 'Check-in trong vòng 10 phút sau khi đặt' },
-  { id: 2, name: 'Sử dụng đủ thời gian', points: 3, description: 'Sử dụng ít nhất 80% thời gian đã đặt' },
-  { id: 3, name: 'Không vi phạm trong tuần', points: 10, description: 'Bonus cuối tuần nếu không vi phạm' },
-];
+const REPUTATION_API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/admin/reputation-rules`;
 
 const SystemConfig = () => {
   const [activeTab, setActiveTab] = useState('library');
@@ -46,6 +31,11 @@ const SystemConfig = () => {
   const [ruleType, setRuleType] = useState('violation');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Reputation Rules State
+  const [reputationRules, setReputationRules] = useState([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ ruleCode: '', ruleName: '', description: '', points: '', ruleType: 'PENALTY', isActive: true });
 
   // Library Config State
   const [libraryConfig, setLibraryConfig] = useState({
@@ -89,6 +79,93 @@ const SystemConfig = () => {
     };
     fetchSettings();
   }, []);
+
+  // Fetch reputation rules from API
+  const fetchReputationRules = async () => {
+    setRulesLoading(true);
+    try {
+      const response = await fetch(REPUTATION_API_URL);
+      if (response.ok) {
+        const data = await response.json();
+        setReputationRules(data);
+      }
+    } catch (error) {
+      console.error('Error fetching reputation rules:', error);
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reputation') fetchReputationRules();
+  }, [activeTab]);
+
+  const handleOpenRuleModal = (type, rule = null) => {
+    setRuleType(type);
+    if (rule) {
+      setEditingRule(rule);
+      setRuleForm({
+        ruleCode: rule.ruleCode || '',
+        ruleName: rule.ruleName || '',
+        description: rule.description || '',
+        points: Math.abs(rule.points),
+        ruleType: rule.ruleType || (type === 'violation' ? 'PENALTY' : 'REWARD'),
+        isActive: rule.isActive !== false,
+      });
+    } else {
+      setEditingRule(null);
+      setRuleForm({ ruleCode: '', ruleName: '', description: '', points: '', ruleType: type === 'violation' ? 'PENALTY' : 'REWARD', isActive: true });
+    }
+    setShowRuleModal(true);
+  };
+
+  const handleSaveRule = async () => {
+    const payload = {
+      ruleCode: ruleForm.ruleCode,
+      ruleName: ruleForm.ruleName,
+      description: ruleForm.description,
+      points: ruleForm.ruleType === 'PENALTY' ? -Math.abs(parseInt(ruleForm.points)) : Math.abs(parseInt(ruleForm.points)),
+      ruleType: ruleForm.ruleType,
+      isActive: ruleForm.isActive,
+    };
+    try {
+      const url = editingRule ? `${REPUTATION_API_URL}/${editingRule.id}` : REPUTATION_API_URL;
+      const method = editingRule ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        setShowRuleModal(false);
+        fetchReputationRules();
+      } else {
+        alert(editingRule ? 'Lỗi khi cập nhật quy tắc' : 'Lỗi khi tạo quy tắc (mã đã tồn tại?)');
+      }
+    } catch (error) {
+      console.error('Error saving rule:', error);
+      alert('Lỗi kết nối server');
+    }
+  };
+
+  const handleToggleRule = async (ruleId) => {
+    try {
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}/toggle`, { method: 'PATCH' });
+      if (response.ok) fetchReputationRules();
+    } catch (error) {
+      console.error('Error toggling rule:', error);
+    }
+  };
+
+  const handleDeleteRule = async (ruleId) => {
+    if (!window.confirm('Bạn có chắc muốn xóa quy tắc này?')) return;
+    try {
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}`, { method: 'DELETE' });
+      if (response.ok) fetchReputationRules();
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+    }
+  };
 
   // Save settings to API
   const handleSave = async () => {
@@ -561,7 +638,7 @@ const SystemConfig = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => { setRuleType('violation'); setEditingRule(null); setShowRuleModal(true); }}
+                    onClick={() => handleOpenRuleModal('violation')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -582,95 +659,156 @@ const SystemConfig = () => {
                 </div>
 
                 <div style={{ padding: '24px' }}>
-                  {/* Violation Rules */}
-                  <div style={{ marginBottom: '32px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#DC2626', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <MinusCircle size={18} />
-                      Quy tắc trừ điểm (Vi phạm)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {VIOLATION_RULES.map((rule) => (
-                        <div key={rule.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '16px',
-                          background: '#FEF2F2',
-                          borderRadius: '12px',
-                          border: '1px solid #FECACA'
-                        }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
-                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              background: '#DC2626',
-                              borderRadius: '10px',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              color: '#fff'
-                            }}>{rule.points}</span>
-                            <button style={{
-                              padding: '8px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '8px',
-                              cursor: 'pointer'
-                            }}>
-                              <Edit size={16} color="#4A5568" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                  {rulesLoading ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>
+                      <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                      Đang tải...
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Violation Rules */}
+                      <div style={{ marginBottom: '32px' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#DC2626', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <MinusCircle size={18} />
+                          Quy tắc trừ điểm (Vi phạm)
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {reputationRules.filter(r => r.ruleType === 'PENALTY').length === 0 && (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '14px' }}>Chưa có quy tắc trừ điểm</div>
+                          )}
+                          {reputationRules.filter(r => r.ruleType === 'PENALTY').map((rule) => (
+                            <div key={rule.id} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '16px',
+                              background: rule.isActive ? '#FEF2F2' : '#F7FAFC',
+                              borderRadius: '12px',
+                              border: `1px solid ${rule.isActive ? '#FECACA' : '#E2E8F0'}`,
+                              opacity: rule.isActive ? 1 : 0.6
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {rule.ruleName}
+                                  {!rule.isActive && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E2E8F0', borderRadius: '6px', color: '#4A5568' }}>Tắt</span>}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                                <div style={{ fontSize: '11px', color: '#CBD5E0', marginTop: '4px' }}>Mã: {rule.ruleCode}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{
+                                  padding: '6px 14px',
+                                  background: '#DC2626',
+                                  borderRadius: '10px',
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#fff'
+                                }}>{rule.points}</span>
+                                <button onClick={() => handleToggleRule(rule.id)} title={rule.isActive ? 'Tắt quy tắc' : 'Bật quy tắc'} style={{
+                                  padding: '8px',
+                                  background: rule.isActive ? '#ECFDF5' : '#FEF2F2',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  {rule.isActive ? <AlertTriangle size={16} color="#059669" /> : <AlertTriangle size={16} color="#DC2626" />}
+                                </button>
+                                <button onClick={() => handleOpenRuleModal('violation', rule)} style={{
+                                  padding: '8px',
+                                  background: '#fff',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Edit size={16} color="#4A5568" />
+                                </button>
+                                <button onClick={() => handleDeleteRule(rule.id)} style={{
+                                  padding: '8px',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Trash2 size={16} color="#DC2626" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Reward Rules */}
-                  <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <PlusCircle size={18} />
-                      Quy tắc cộng điểm (Thưởng)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {REWARD_RULES.map((rule) => (
-                        <div key={rule.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '16px',
-                          background: '#ECFDF5',
-                          borderRadius: '12px',
-                          border: '1px solid #A7F3D0'
-                        }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
-                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              background: '#059669',
-                              borderRadius: '10px',
-                              fontSize: '14px',
-                              fontWeight: '600',
-                              color: '#fff'
-                            }}>+{rule.points}</span>
-                            <button style={{
-                              padding: '8px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '8px',
-                              cursor: 'pointer'
+                      {/* Reward Rules */}
+                      <div>
+                        <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <PlusCircle size={18} />
+                          Quy tắc cộng điểm (Thưởng)
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {reputationRules.filter(r => r.ruleType === 'REWARD').length === 0 && (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '14px' }}>Chưa có quy tắc thưởng điểm</div>
+                          )}
+                          {reputationRules.filter(r => r.ruleType === 'REWARD').map((rule) => (
+                            <div key={rule.id} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '16px',
+                              background: rule.isActive ? '#ECFDF5' : '#F7FAFC',
+                              borderRadius: '12px',
+                              border: `1px solid ${rule.isActive ? '#A7F3D0' : '#E2E8F0'}`,
+                              opacity: rule.isActive ? 1 : 0.6
                             }}>
-                              <Edit size={16} color="#4A5568" />
-                            </button>
-                          </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {rule.ruleName}
+                                  {!rule.isActive && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E2E8F0', borderRadius: '6px', color: '#4A5568' }}>Tắt</span>}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                                <div style={{ fontSize: '11px', color: '#CBD5E0', marginTop: '4px' }}>Mã: {rule.ruleCode}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{
+                                  padding: '6px 14px',
+                                  background: '#059669',
+                                  borderRadius: '10px',
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#fff'
+                                }}>+{rule.points}</span>
+                                <button onClick={() => handleToggleRule(rule.id)} title={rule.isActive ? 'Tắt quy tắc' : 'Bật quy tắc'} style={{
+                                  padding: '8px',
+                                  background: rule.isActive ? '#ECFDF5' : '#FEF2F2',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  {rule.isActive ? <AlertTriangle size={16} color="#059669" /> : <AlertTriangle size={16} color="#DC2626" />}
+                                </button>
+                                <button onClick={() => handleOpenRuleModal('reward', rule)} style={{
+                                  padding: '8px',
+                                  background: '#fff',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Edit size={16} color="#4A5568" />
+                                </button>
+                                <button onClick={() => handleDeleteRule(rule.id)} style={{
+                                  padding: '8px',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Trash2 size={16} color="#DC2626" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -795,7 +933,7 @@ const SystemConfig = () => {
                 </label>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button
-                    onClick={() => setRuleType('violation')}
+                    onClick={() => { setRuleType('violation'); setRuleForm(f => ({ ...f, ruleType: 'PENALTY' })); }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -812,7 +950,7 @@ const SystemConfig = () => {
                     Trừ điểm
                   </button>
                   <button
-                    onClick={() => setRuleType('reward')}
+                    onClick={() => { setRuleType('reward'); setRuleForm(f => ({ ...f, ruleType: 'REWARD' })); }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -830,46 +968,69 @@ const SystemConfig = () => {
                   </button>
                 </div>
               </div>
+              {!editingRule && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                    Mã quy tắc (UPPER_SNAKE_CASE)
+                  </label>
+                  <input type="text" placeholder="VD: NO_SHOW, NOISE_VIOLATION" value={ruleForm.ruleCode}
+                    onChange={(e) => setRuleForm(f => ({ ...f, ruleCode: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #E2E8F0',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }} />
+                </div>
+              )}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
                   Tên quy tắc
                 </label>
-                <input type="text" placeholder="Nhập tên quy tắc" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }} />
+                <input type="text" placeholder="Nhập tên quy tắc" value={ruleForm.ruleName}
+                  onChange={(e) => setRuleForm(f => ({ ...f, ruleName: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }} />
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
-                  Số điểm
+                  Số điểm (số dương, hệ thống tự thêm dấu âm cho phạt)
                 </label>
-                <input type="number" placeholder="Nhập số điểm" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }} />
+                <input type="number" placeholder="VD: 10" value={ruleForm.points} min="1"
+                  onChange={(e) => setRuleForm(f => ({ ...f, points: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }} />
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
                   Mô tả
                 </label>
-                <textarea placeholder="Mô tả chi tiết quy tắc" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none',
-                  resize: 'none',
-                  height: '80px'
-                }} />
+                <textarea placeholder="Mô tả chi tiết quy tắc" value={ruleForm.description}
+                  onChange={(e) => setRuleForm(f => ({ ...f, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    resize: 'none',
+                    height: '80px'
+                  }} />
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button onClick={() => setShowRuleModal(false)} style={{
@@ -883,7 +1044,7 @@ const SystemConfig = () => {
                   color: '#4A5568',
                   cursor: 'pointer'
                 }}>Hủy</button>
-                <button style={{
+                <button onClick={handleSaveRule} style={{
                   flex: 1,
                   padding: '14px',
                   background: '#e8600a',
@@ -893,7 +1054,7 @@ const SystemConfig = () => {
                   fontWeight: '600',
                   color: '#fff',
                   cursor: 'pointer'
-                }}>Lưu quy tắc</button>
+                }}>{editingRule ? 'Cập nhật' : 'Lưu quy tắc'}</button>
               </div>
             </div>
           </div>

@@ -45,6 +45,7 @@ public class UserService {
     private final ChatSessionRepository chatSessionRepository;
     private final AuthService authService;
     private final CloudinaryService cloudinaryService;
+    private final EmailService emailService;
 
     /**
      * Get current user profile by email
@@ -224,6 +225,18 @@ public class UserService {
                         System.err.println("[IMPORT] Failed to create UserSetting for user "
                                 + savedUser.getId() + ": " + settingEx.getMessage());
                     }
+                }
+
+                // Gửi welcome email (async, không block)
+                try {
+                    emailService.sendWelcomeEmail(
+                            savedUser.getEmail(),
+                            savedUser.getFullName(),
+                            "Slib@2025",
+                            savedUser.getRole().name());
+                } catch (Exception emailEx) {
+                    System.err.println("[IMPORT] Failed to send welcome email to "
+                            + savedUser.getEmail() + ": " + emailEx.getMessage());
                 }
 
                 Map<String, Object> successEntry = new HashMap<>();
