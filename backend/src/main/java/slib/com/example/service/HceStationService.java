@@ -206,6 +206,15 @@ public class HceStationService {
     }
 
     /**
+     * Xóa trạm quét
+     */
+    public void deleteStation(Integer id) {
+        HceDeviceEntity station = hceDeviceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
+        hceDeviceRepository.delete(station);
+    }
+
+    /**
      * Xử lý heartbeat từ Raspberry Pi
      */
     public void processHeartbeat(String deviceId) {

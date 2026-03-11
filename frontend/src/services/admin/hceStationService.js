@@ -96,6 +96,21 @@ const hceStationService = {
             console.error('Error updating station status:', e);
             throw e.response?.data || { message: 'Không thể cập nhật trạng thái' };
         }
+    },
+
+    /**
+     * Xóa trạm quét
+     */
+    deleteStation: async (id) => {
+        try {
+            const res = await axios.delete(`${API_BASE}/slib/hce/stations/${id}`, {
+                headers: getAuthHeaders()
+            });
+            return res.data;
+        } catch (e) {
+            console.error('Error deleting station:', e);
+            throw e.response?.data || { message: 'Không thể xóa trạm quét' };
+        }
     }
 };
 

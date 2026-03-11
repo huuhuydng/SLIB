@@ -117,6 +117,28 @@ public class HceStationController {
     }
 
     /**
+     * Xóa trạm quét
+     * DELETE /slib/hce/stations/{id}
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteStation(@PathVariable Integer id) {
+        try {
+            hceStationService.deleteStation(id);
+            return ResponseEntity.ok(Map.of(
+                    "status", "OK",
+                    "message", "Đã xóa trạm quét thành công"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(Map.of(
+                    "status", "NOT_FOUND",
+                    "message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "ERROR",
+                    "message", e.getMessage()));
+        }
+    }
+
+    /**
      * Heartbeat từ Raspberry Pi
      * POST /slib/hce/stations/{deviceId}/heartbeat
      * Dùng X-API-KEY giống flow check-in
