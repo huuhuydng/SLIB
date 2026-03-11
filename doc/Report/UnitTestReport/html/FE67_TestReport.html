@@ -14,27 +14,27 @@
     <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
   <tr><td><b>Function Code</b></td><td>FE-67</td><td><b>Function Name</b></td><td>AI Suggest Seat</td></tr>
   <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~0</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3">No dedicated backend seat-suggestion service/controller currently found</td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Current backend has booking and AI services, but no direct seat-suggestion backend method is exposed for this feature.</td></tr>
+  <tr><td><b>Lines of code</b></td><td>~88</td><td><b>Lack of test cases</b></td><td>0</td></tr>
+  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>AIAnalyticsProxyController.getSeatRecommendation(String user_id, String zone_preference, String time_slot, String date)</code></td></tr>
+  <tr><td><b>Test requirement</b></td><td colspan="3">Verify that <code>/slib/ai/analytics/seat-recommendation</code> accepts the required <code>user_id</code>, forwards optional filters to the AI service endpoint, and returns the proxied recommendation payload to the client.</td></tr>
 </table>
 
     <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
   <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
+  <tr><td>5</td><td>0</td><td>0</td><td>2 / 2 / 1</td><td>5</td></tr>
 </table>
 
     <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
   <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
-  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Seat suggestion feature is expected</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>No dedicated AI seat-suggestion endpoint/service is active</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Closest current runtime combines booking data and AI services indirectly</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>No backend method directly maps to seat suggestion</td><td></td><td></td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>Seat suggestion request is assumed by document</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="3" class="matrix-section"><b>Confirm</b></td><td rowspan="1"><b>Return</b></td><td>No concrete backend unit target exists for seat suggestion today</td><td>O</td><td></td><td></td><td></td><td></td></tr>
-  <tr><td rowspan="1"><b>Exception</b></td><td>Feature is treated as implementation gap / doc mismatch</td><td></td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>No active service interaction exists for dedicated seat suggestion</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
+  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>AI analytics proxy controller is active at <code>/slib/ai</code></td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td>AI service base URL and <code>RestTemplate</code> are configured</td><td>O</td><td>O</td><td>O</td><td></td><td>O</td></tr>
+  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Downstream AI endpoint <code>/api/ai/analytics/seat-recommendation</code> is reachable</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
+  <tr><td>Downstream service may reject malformed or incomplete requests</td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
+  <tr><td rowspan="1"><b>Input</b></td><td>GET request includes required <code>user_id</code> and optional filter parameters</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="3" class="matrix-section"><b>Confirm</b></td><td rowspan="1"><b>Return</b></td><td>Backend proxies the recommendation payload from AI service back to the caller</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
+  <tr><td rowspan="1"><b>Exception</b></td><td>Returns 400 when <code>user_id</code> is missing and surfaces downstream failure for invalid AI request</td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
+  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Controller forwards query parameters to <code>/api/ai/analytics/seat-recommendation</code> via <code>RestTemplate</code></td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
+  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>N</td><td>A</td><td>A</td><td>B</td></tr>
   <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
   <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
   <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>

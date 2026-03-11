@@ -5,6 +5,7 @@ import AdminRoutes from "./routes/AdminRoutes";
 import LibrarianRoutes from "./routes/LibrarianRoutes";
 import KioskRoutes from "./routes/KioskRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
+import { ToastProvider } from "./components/common/ToastProvider";
 import ChatWidget from "./components/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
 import { SessionExpired, TokenExpired, NotFound, ServerError, Forbidden, SessionTimeout } from "./pages/errors/ErrorPages";
@@ -118,52 +119,54 @@ function App() {
     };
 
     return (
-        <ModalProvider>
-            <BrowserRouter>
-                <Routes>
-                    {/* Unified Login Route */}
-                    <Route path="/login" element={
-                        isLoggedIn
-                            ? <Navigate to={getDefaultRedirect()} replace />
-                            : <AuthPage onLogin={handleLogin} />
-                    } />
+        <ToastProvider>
+            <ModalProvider>
+                <BrowserRouter>
+                    <Routes>
+                        {/* Unified Login Route */}
+                        <Route path="/login" element={
+                            isLoggedIn
+                                ? <Navigate to={getDefaultRedirect()} replace />
+                                : <AuthPage onLogin={handleLogin} />
+                        } />
 
-                    {/* Legacy login routes - redirect to unified login */}
-                    <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-                    <Route path="/librarian/login" element={<Navigate to="/login" replace />} />
+                        {/* Legacy login routes - redirect to unified login */}
+                        <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+                        <Route path="/librarian/login" element={<Navigate to="/login" replace />} />
 
-                    {/* Admin Routes */}
-                    <Route path="/admin/*" element={
-                        isLoggedIn && userRole === 'ADMIN'
-                            ? <AdminRoutes />
-                            : <Navigate to="/login" replace />
-                    } />
+                        {/* Admin Routes */}
+                        <Route path="/admin/*" element={
+                            isLoggedIn && userRole === 'ADMIN'
+                                ? <AdminRoutes />
+                                : <Navigate to="/login" replace />
+                        } />
 
-                    {/* Librarian Routes */}
-                    <Route path="/librarian/*" element={
-                        isLoggedIn && userRole === 'LIBRARIAN'
-                            ? <LibrarianRoutes />
-                            : <Navigate to="/login" replace />
-                    } />
+                        {/* Librarian Routes */}
+                        <Route path="/librarian/*" element={
+                            isLoggedIn && userRole === 'LIBRARIAN'
+                                ? <LibrarianRoutes />
+                                : <Navigate to="/login" replace />
+                        } />
 
-                    {/* Kiosk Routes - Public, không cần đăng nhập */}
-                    <Route path="/kiosk/*" element={<KioskRoutes />} />
+                        {/* Kiosk Routes - Public, không cần đăng nhập */}
+                        <Route path="/kiosk/*" element={<KioskRoutes />} />
 
-                    {/* Root redirects based on role */}
-                    <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
+                        {/* Root redirects based on role */}
+                        <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
 
-                    {/* Error Pages */}
-                    <Route path="/session-expired" element={<SessionExpired />} />
-                    <Route path="/token-expired" element={<TokenExpired />} />
-                    <Route path="/server-error" element={<ServerError />} />
-                    <Route path="/forbidden" element={<Forbidden />} />
-                    <Route path="/session-timeout" element={<SessionTimeout />} />
+                        {/* Error Pages */}
+                        <Route path="/session-expired" element={<SessionExpired />} />
+                        <Route path="/token-expired" element={<TokenExpired />} />
+                        <Route path="/server-error" element={<ServerError />} />
+                        <Route path="/forbidden" element={<Forbidden />} />
+                        <Route path="/session-timeout" element={<SessionTimeout />} />
 
-                    {/* Fallback - 404 */}
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
-            </BrowserRouter>
-        </ModalProvider>
+                        {/* Fallback - 404 */}
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </BrowserRouter>
+            </ModalProvider>
+        </ToastProvider>
     );
 }
 

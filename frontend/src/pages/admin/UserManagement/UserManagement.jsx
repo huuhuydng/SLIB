@@ -25,11 +25,13 @@ import {
 import userService from '../../../services/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
+import { useToast } from '../../../components/common/ToastProvider';
 
 const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'STUDENT'];
 const STATUSES = ['Tất cả', 'Hoạt động', 'Đã khóa'];
 
 const UserManagement = () => {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -215,14 +217,14 @@ const UserManagement = () => {
         setImportStep('preview');
       } catch (err) {
         console.error('ZIP processing error:', err);
-        alert('Lỗi xử lý file ZIP: ' + err.message);
+        toast.error('Lỗi xử lý file ZIP: ' + err.message);
         setImportStep('upload');
       }
       return;
     }
 
     // Unsupported format
-    alert('Định dạng file không được hỗ trợ. Vui lòng sử dụng file Excel (.xlsx) hoặc ZIP.');
+    toast.warning('Định dạng file không được hỗ trợ. Vui lòng sử dụng file Excel (.xlsx) hoặc ZIP.');
     setImportStep('upload');
   };
 
@@ -414,7 +416,7 @@ const UserManagement = () => {
       // Refresh user list
       await fetchUsers();
     } catch (err) {
-      alert('Lỗi import: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi import: ' + (err.response?.data?.message || err.message));
       setImportStep('preview');
     } finally {
       setImporting(false);
@@ -497,7 +499,7 @@ const UserManagement = () => {
 
     } catch (err) {
       console.error('Server import error:', err);
-      alert('Lỗi import: ' + (err.response?.data?.error || err.message));
+      toast.error('Lỗi import: ' + (err.response?.data?.error || err.message));
       setImportStep('upload');
     } finally {
       setImporting(false);
@@ -516,7 +518,7 @@ const UserManagement = () => {
       setShowLockModal(false);
       setSelectedUser(null);
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -529,11 +531,11 @@ const UserManagement = () => {
     try {
       setActionLoading(true);
       await userService.resetPasswordToDefault(selectedUser.email);
-      alert('Đã reset mật khẩu về mặc định: Slib@2025');
+      toast.success('Đã reset mật khẩu về mặc định: Slib@2025');
       setShowResetPasswordModal(false);
       setSelectedUser(null);
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -542,7 +544,7 @@ const UserManagement = () => {
   // Handle add librarian
   const handleAddLibrarian = async () => {
     if (!newLibrarian.fullName || !newLibrarian.email) {
-      alert('Vui lòng nhập đầy đủ thông tin');
+      toast.warning('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
@@ -552,9 +554,14 @@ const UserManagement = () => {
       await fetchUsers();
       setShowAddModal(false);
       setNewLibrarian({ fullName: '', email: '' });
-      alert('Đã tạo tài khoản thủ thư với mật khẩu mặc định: Slib@2025');
+      toast.success('Đã tạo tài khoản thủ thư thành công!');
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      const errMsg = err.response?.data?.error
+        || err.response?.data?.message
+        || (typeof err.response?.data === 'string' ? err.response.data : null)
+        || err.message
+        || 'Không thể tạo tài khoản';
+      toast.error('Lỗi tạo thủ thư: ' + errMsg);
     } finally {
       setAddingLibrarian(false);
     }
@@ -2026,7 +2033,7 @@ const UserManagement = () => {
         onEdit={(user) => {
           setShowUserDetailsModal(false);
           // TODO: Open edit modal
-          alert('Tính năng chỉnh sửa đang phát triển');
+          toast.info('Tính năng chỉnh sửa đang phát triển');
         }}
         onLock={(user) => {
           setShowUserDetailsModal(false);

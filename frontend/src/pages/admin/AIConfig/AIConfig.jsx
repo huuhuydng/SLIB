@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import {
   Bot, Brain, MessageSquare, Sparkles, RefreshCw, Plus, Trash2, X, CheckCircle,
   AlertTriangle, BookOpen, Send, User, RotateCcw, Database, Upload, FileText,
@@ -33,6 +34,7 @@ const LOADING_ANIMATION_CSS = `
 `;
 
 const AIConfig = () => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('materials');
   const [apiStatus, setApiStatus] = useState('unknown');
 
@@ -140,7 +142,7 @@ const AIConfig = () => {
       setSelectedDebugInfo(null);
     } catch (e) {
       console.error('Lỗi xóa chat:', e);
-      alert('Không thể xóa tin nhắn');
+      toast.error('Không thể xóa tin nhắn');
     }
   };
 
@@ -172,7 +174,7 @@ const AIConfig = () => {
       setShowMaterialModal(false);
       setMaterialForm({ name: '', description: '' });
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleUpdateMaterial = async () => {
@@ -180,7 +182,7 @@ const AIConfig = () => {
       await updateMaterial(editingMaterial.id, { name: editingMaterial.name, description: editingMaterial.description });
       setEditingMaterial(null);
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleDeleteMaterial = async (id) => {
@@ -188,7 +190,7 @@ const AIConfig = () => {
     try {
       await deleteMaterial(id);
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   // Item Handlers
@@ -202,7 +204,7 @@ const AIConfig = () => {
       setShowItemModal(false);
       setItemForm({ name: '', type: 'TEXT', content: '', file: null });
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleUpdateItem = async () => {
@@ -210,7 +212,7 @@ const AIConfig = () => {
       await updateItem(editingItem.materialId, editingItem.id, { name: editingItem.name, content: editingItem.content });
       setEditingItem(null);
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleDeleteItem = async (materialId, itemId) => {
@@ -218,7 +220,7 @@ const AIConfig = () => {
     try {
       await deleteItem(materialId, itemId);
       await loadMaterials();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   // Knowledge Store Handlers
@@ -228,7 +230,7 @@ const AIConfig = () => {
       setShowKSModal(false);
       setKsForm({ name: '', description: '', itemIds: [] });
       await loadKnowledgeStores();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleUpdateKS = async () => {
@@ -237,7 +239,7 @@ const AIConfig = () => {
       await updateKnowledgeStore(editingKS.id, { name: editingKS.name, description: editingKS.description, itemIds });
       setEditingKS(null);
       await loadKnowledgeStores();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleDeleteKS = async (id) => {
@@ -245,17 +247,17 @@ const AIConfig = () => {
     try {
       await deleteKnowledgeStore(id);
       await loadKnowledgeStores();
-    } catch (e) { alert('Lỗi: ' + e.message); }
+    } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
   const handleSync = async (id) => {
     setIsSyncing(prev => ({ ...prev, [id]: true }));
     try {
       const res = await syncKnowledgeStore(id);
-      alert(`Đồng bộ thành công! Số chunks: ${res.data.chunksCreated}`);
+      toast.success(`Đồng bộ thành công! Số chunks: ${res.data.chunksCreated}`);
       await loadKnowledgeStores();
     } catch (e) {
-      alert('Đồng bộ thất bại: ' + e.message);
+      toast.error('Đồng bộ thất bại: ' + e.message);
     } finally {
       setIsSyncing(prev => ({ ...prev, [id]: false }));
     }

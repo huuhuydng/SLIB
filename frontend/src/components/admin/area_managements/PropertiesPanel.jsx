@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   updateArea,
@@ -30,6 +31,7 @@ const QUICK_AMENITIES = [
 ];
 
 function PropertiesPanel() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, areas, zones, seats, factories } = state;
 
@@ -274,7 +276,7 @@ function PropertiesPanel() {
   const handleAddAmenity = async (amenityName) => {
     const name = amenityName || addAmenityName.trim();
     if (!name) {
-      alert("Vui lòng nhập tên tiện ích");
+      toast.warning("Vui lòng nhập tên tiện ích");
       return;
     }
 
@@ -295,7 +297,7 @@ function PropertiesPanel() {
       setAddAmenityName("");
     } catch (e) {
       console.error("Failed to add amenity:", e);
-      alert("Thêm tiện ích thất bại");
+      toast.error("Thêm tiện ích thất bại");
     }
   };
 
@@ -312,7 +314,7 @@ function PropertiesPanel() {
       setDeleteAmenityId(null);
     } catch (e) {
       console.error("Failed to delete amenity:", e);
-      alert("Xóa tiện ích thất bại");
+      toast.error("Xóa tiện ích thất bại");
       setDeleteAmenityId(null);
     }
   };
@@ -447,7 +449,7 @@ function PropertiesPanel() {
       dispatch({ type: actions.SELECT_ITEM, payload: null });
     } catch (e) {
       console.error("Delete error:", e);
-      alert(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
+      toast.error(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
     }
   };
 

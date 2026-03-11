@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
@@ -31,6 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 const NotificationManage = () => {
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = '/librarian/news';
@@ -126,7 +128,7 @@ const NotificationManage = () => {
       loadNotifications();
     } catch (error) {
       console.error('Error deleting notification:', error);
-      alert('Không thể xóa tin tức');
+      toast.error('Không thể xóa tin tức');
     }
   };
 
@@ -137,7 +139,7 @@ const NotificationManage = () => {
       loadNotifications();
     } catch (error) {
       console.error('Error toggling pin:', error);
-      alert('Không thể ghim/bỏ ghim tin tức');
+      toast.error('Không thể ghim/bỏ ghim tin tức');
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useToast } from './common/ToastProvider';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import '../styles/ChatManagement.css';
@@ -27,6 +28,7 @@ import image from '../assets/image.svg';
 import ChatSidebarRight from './ChatSidebarRight';
 
 const ChatManagement = () => {
+    const toast = useToast();
     // ================= STATE =================
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -411,7 +413,7 @@ const ChatManagement = () => {
             }
         } catch (e) {
             console.error('Error taking over conversation:', e);
-            alert('Không thể tiếp nhận cuộc hội thoại này!');
+            toast.error('Không thể tiếp nhận cuộc hội thoại này!');
         }
     };
 
@@ -421,7 +423,7 @@ const ChatManagement = () => {
             // Tìm conversation từ activeConversations theo selectedUser
             const activeConv = activeConversations.find(c => c.studentId === selectedUser);
             if (!activeConv?.id) {
-                alert('Không tìm thấy cuộc hội thoại để kết thúc!');
+                toast.error('Không tìm thấy cuộc hội thoại để kết thúc!');
                 return;
             }
             try {
@@ -434,10 +436,10 @@ const ChatManagement = () => {
                 setMessages([]);
                 loadWaitingConversations();
                 loadActiveConversations();
-                alert('Đã kết thúc cuộc hội thoại!');
+                toast.success('Đã kết thúc cuộc hội thoại!');
             } catch (e) {
                 console.error('Error ending conversation:', e);
-                alert('Không thể kết thúc cuộc hội thoại!');
+                toast.error('Không thể kết thúc cuộc hội thoại!');
             }
             return;
         }
@@ -452,10 +454,10 @@ const ChatManagement = () => {
             setMessages([]);
             loadWaitingConversations();
             loadActiveConversations();
-            alert('Đã kết thúc cuộc hội thoại!');
+            toast.success('Đã kết thúc cuộc hội thoại!');
         } catch (e) {
             console.error('Error ending conversation:', e);
-            alert('Không thể kết thúc cuộc hội thoại!');
+            toast.error('Không thể kết thúc cuộc hội thoại!');
         }
     };
 
@@ -512,7 +514,7 @@ const ChatManagement = () => {
                 setPage(targetPage);
                 setHasMore(targetPage < historyRes.data.totalPages - 1);
                 setTimeout(() => scrollToMessage(msgId), 500);
-            } catch (error) { alert("Không thể tải tin nhắn."); }
+            } catch (error) { toast.error("Không thể tải tin nhắn."); }
         }
     };
 
@@ -568,7 +570,7 @@ const ChatManagement = () => {
             }
         } catch (error) {
             console.error("Lỗi upload:", error);
-            alert("Upload thất bại!");
+            toast.error("Upload thất bại!");
         } finally {
             setIsUploading(false);
             e.target.value = ""; // Reset để chọn lại cùng 1 file nếu cần

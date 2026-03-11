@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   createArea,
@@ -26,6 +27,7 @@ const ZONE_TYPES = [
 ];
 
 function Sidebar() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const {
     areas,
@@ -116,7 +118,7 @@ function Sidebar() {
 
   const handleAddZone = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
 
@@ -169,7 +171,7 @@ function Sidebar() {
 
   const handleAddFactory = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
 
@@ -197,7 +199,7 @@ function Sidebar() {
 
   const handleAddSeat = async () => {
     if (!selectedZone) {
-      alert("Vui lòng chọn khu vực ghế trước");
+      toast.warning("Vui lòng chọn khu vực ghế trước");
       return;
     }
     setShowRowModal(true);
@@ -207,7 +209,7 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui long chon hang hop le (A-Z)");
+      toast.warning("Vui long chon hang hop le (A-Z)");
       return;
     }
 
@@ -237,7 +239,7 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      toast.warning("Vui lòng chọn hàng hợp lệ (A-Z)");
       return;
     }
 

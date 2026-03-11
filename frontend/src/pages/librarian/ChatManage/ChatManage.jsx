@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { useSearchParams } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
@@ -22,6 +23,7 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const ChatManage = () => {
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const urlConversationId = searchParams.get('conversationId');
   const [conversations, setConversations] = useState([]);
@@ -36,16 +38,20 @@ const ChatManage = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [chatToast, setChatToast] = useState(null);
 
   const messagesEndRef = useRef(null);
   const stompClientRef = useRef(null);
   const subscriptionRef = useRef(null);
   const fileInputRef = useRef(null);
-  const chatToastTimeoutRef = useRef(null);
+  const selectedConversationIdRef = useRef(selectedConversationId);
 
-  // Notification context for badge updates
-  const { refreshUnreadChatCount } = useLibrarianNotification();
+  // Notification context for badge updates & chat toast
+  const { refreshUnreadChatCount, chatToast, setChatToast } = useLibrarianNotification();
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
 
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
@@ -61,7 +67,8 @@ const ChatManage = () => {
       if (response.ok) {
         const data = await response.json();
         setConversations(data);
-        if (data.length > 0 && !selectedConversationId && !urlConversationId) {
+        // Only auto-select if no conversation is currently selected
+        if (data.length > 0 && !selectedConversationIdRef.current && !urlConversationId) {
           setSelectedConversationId(data[0].id);
         }
       } else {
@@ -73,7 +80,7 @@ const ChatManage = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedConversationId]);
+  }, []);
 
   // Fetch messages for selected conversation
   const fetchMessages = useCallback(async (conversationId) => {
@@ -191,7 +198,7 @@ const ChatManage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert('File quá lớn. Tối đa: 5MB');
+      toast.warning('File quá lớn. Tối đa: 5MB');
       return;
     }
     setSelectedFile(file);
@@ -294,19 +301,15 @@ const ChatManage = () => {
           }
         });
 
-        // Subscribe cho chat notification toast
+        // Subscribe for new message -> refresh messages in current conversation
         client.subscribe('/topic/librarian-notifications', (message) => {
           const data = JSON.parse(message.body);
           if (data.type === 'CHAT_NEW_MESSAGE') {
-            // Hiện toast notification
-            setChatToast({ senderName: data.senderName, content: data.content, conversationId: data.conversationId });
-            if (chatToastTimeoutRef.current) clearTimeout(chatToastTimeoutRef.current);
-            chatToastTimeoutRef.current = setTimeout(() => setChatToast(null), 5000);
-            // Refresh messages nếu đang xem conversation này
-            if (data.conversationId === selectedConversationId) {
+            // Refresh messages if viewing this conversation (no toast here — context handles it)
+            if (data.conversationId === selectedConversationIdRef.current) {
               fetchMessages(data.conversationId);
             }
-            // Refresh conversation list
+            // Refresh conversation list (but don't auto-switch)
             fetchConversations();
           }
         });

@@ -61,6 +61,10 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   // Non-working day check
   bool _isNonWorkingDay = false;
 
+  // Library locked check
+  bool _isLibraryClosed = false;
+  String? _closedReason;
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +185,8 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         _selectedTimeSlot = newTimeSlot;
         _isLoading = false;
         _isNonWorkingDay = !isWorkingDay;
+        _isLibraryClosed = settings.libraryClosed;
+        _closedReason = settings.closedReason;
         
         // Kiểm tra ngày làm việc trước
         if (!isWorkingDay) {
@@ -1216,14 +1222,16 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                 _buildDateTimeFilter(),
                 // Non-working day message OR Error message OR Floor plan
                 Expanded(
-                  child: _isNonWorkingDay 
+                  child: _isLibraryClosed
+                      ? _buildLibraryLockedMessage()
+                      : _isNonWorkingDay 
                       ? _buildClosedDayMessage()
                       : _errorMessage != null
                           ? _buildClosedTodayMessage()
                           : _buildFloorPlan(),
                 ),
                 // Tip (only show when working day and no error)
-                if (!_isNonWorkingDay && _errorMessage == null)
+                if (!_isLibraryClosed && !_isNonWorkingDay && _errorMessage == null)
                   Container(
                     padding: const EdgeInsets.all(12),
                     color: const Color(0xFFFFF5EE),
@@ -1235,6 +1243,46 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  /// Widget hiển thị khi thư viện bị khoá bởi admin
+  Widget _buildLibraryLockedMessage() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.lock, size: 48, color: Colors.red[400]),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Thư viện đang tạm đóng',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _closedReason != null && _closedReason!.isNotEmpty
+                  ? 'Lý do: $_closedReason'
+                  : 'Thư viện tạm thời không nhận đặt chỗ',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Vui lòng quay lại sau',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

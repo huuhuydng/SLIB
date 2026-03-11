@@ -1,5 +1,6 @@
 package slib.com.example.service;
 
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import slib.com.example.repository.UserSettingRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.ai.ChatSessionRepository;
+import slib.com.example.repository.chat.ConversationRepository;
 
 import slib.com.example.service.chat.CloudinaryService;
 
@@ -43,9 +45,11 @@ public class UserService {
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
     private final ChatSessionRepository chatSessionRepository;
+    private final ConversationRepository conversationRepository;
     private final AuthService authService;
     private final CloudinaryService cloudinaryService;
     private final EmailService emailService;
+    private final EntityManager entityManager;
 
     /**
      * Get current user profile by email
@@ -184,10 +188,10 @@ public class UserService {
 
                 // Check for duplicates
                 if (userRepository.existsByEmail(req.getEmail())) {
-                    throw new RuntimeException("Email already exists: " + req.getEmail());
+                    throw new RuntimeException("Email đã tồn tại: " + req.getEmail());
                 }
                 if (userRepository.existsByUserCode(req.getUserCode())) {
-                    throw new RuntimeException("User code already exists: " + req.getUserCode());
+                    throw new RuntimeException("Mã số đã tồn tại: " + req.getUserCode());
                 }
 
                 // Create user
@@ -205,45 +209,25 @@ public class UserService {
                         .avtUrl(req.getAvtUrl()) // Avatar URL from import
                         .build();
 
+                // Gắn UserSetting mặc định trước khi save (cascade ALL sẽ tự persist)
+                UserSetting setting = UserSetting.builder()
+                        .user(user)
+                        .isHceEnabled(true)
+                        .isAiRecommendEnabled(true)
+                        .isBookingRemindEnabled(true)
+                        .themeMode("light")
+                        .languageCode("vi")
+                        .build();
+                user.setSettings(setting);
+
                 User savedUser = userRepository.save(user);
-
-                // Tạo UserSetting mặc định cho user mới
-                try {
-                    UserSetting setting = UserSetting.builder()
-                            .userId(savedUser.getId())
-                            .user(savedUser)
-                            .isHceEnabled(true)
-                            .isAiRecommendEnabled(true)
-                            .isBookingRemindEnabled(true)
-                            .themeMode("light")
-                            .languageCode("vi")
-                            .build();
-                    userSettingRepository.saveAndFlush(setting);
-                } catch (Exception settingEx) {
-                    // Retry: kiểm tra lại xem DB trigger đã tạo chưa
-                    if (!userSettingRepository.existsById(savedUser.getId())) {
-                        System.err.println("[IMPORT] Failed to create UserSetting for user "
-                                + savedUser.getId() + ": " + settingEx.getMessage());
-                    }
-                }
-
-                // Gửi welcome email (async, không block)
-                try {
-                    emailService.sendWelcomeEmail(
-                            savedUser.getEmail(),
-                            savedUser.getFullName(),
-                            "Slib@2025",
-                            savedUser.getRole().name());
-                } catch (Exception emailEx) {
-                    System.err.println("[IMPORT] Failed to send welcome email to "
-                            + savedUser.getEmail() + ": " + emailEx.getMessage());
-                }
 
                 Map<String, Object> successEntry = new HashMap<>();
                 successEntry.put("id", savedUser.getId());
                 successEntry.put("userCode", savedUser.getUserCode());
                 successEntry.put("email", savedUser.getEmail());
                 successEntry.put("fullName", savedUser.getFullName());
+                successEntry.put("role", savedUser.getRole().name());
                 successList.add(successEntry);
 
             } catch (Exception e) {
@@ -264,6 +248,25 @@ public class UserService {
     }
 
     /**
+     * Gửi welcome email cho danh sách user vừa import thành công.
+     * Gọi SAU KHI transaction commit → đảm bảo user đã được lưu.
+     */
+    public void sendWelcomeEmails(List<Map<String, Object>> successList) {
+        for (Map<String, Object> entry : successList) {
+            try {
+                emailService.sendWelcomeEmail(
+                        (String) entry.get("email"),
+                        (String) entry.get("fullName"),
+                        "Slib@2025",
+                        (String) entry.get("role"));
+            } catch (Exception e) {
+                System.err.println("[IMPORT] Failed to send welcome email to "
+                        + entry.get("email") + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
      * Delete user by ID with all related data.
      * Deletes in correct order to avoid foreign key constraint violations.
      */
@@ -278,32 +281,84 @@ public class UserService {
             cloudinaryService.deleteImageByUrl(user.getAvtUrl());
         }
 
-        // Delete in order (child tables first, then parent)
-        // 1. Delete activity logs (no FK constraint, just column)
-        activityLogRepository.deleteByUserId(userId);
+        // === Delete in order (child tables first, then parent) ===
 
-        // 2. Delete point transactions (no FK constraint, just column)
+        // 1. Activity logs & point transactions
+        activityLogRepository.deleteByUserId(userId);
         pointTransactionRepository.deleteByUserId(userId);
 
-        // 3. Delete chat sessions (cascade deletes messages via entity config)
+        // 2. Messages (must delete before conversations due to FK
+        // sender_id/receiver_id)
+        entityManager.createNativeQuery("DELETE FROM messages WHERE sender_id = :uid OR receiver_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+
+        // 3. Conversations - clear librarian ref, then delete student conversations
+        conversationRepository.clearLibrarianByUserId(userId);
+        conversationRepository.deleteByStudentId(userId);
+
+        // 4. Chat sessions (AI chat - cascade deletes via entity config)
         chatSessionRepository.deleteByUser_Id(userId);
 
-        // 4. Delete access logs
+        // 5. Access logs
         accessLogRepository.deleteByUser_Id(userId);
 
-        // 5. Delete reservations
+        // 6. Reservations
         reservationRepository.deleteByUser_Id(userId);
 
-        // 6. Delete refresh tokens
+        // 7. Refresh tokens
         refreshTokenRepository.deleteByUser_Id(userId);
 
-        // 7. Delete student profile (OneToOne with @MapsId)
+        // 8. Student profile & user settings
         studentProfileRepository.deleteByUserId(userId);
+        try {
+            userSettingRepository.deleteById(userId);
+        } catch (Exception ignored) {
+        }
 
-        // 8. Delete user settings (OneToOne with @MapsId, or cascade from User entity)
-        userSettingRepository.deleteById(userId);
+        // 9. Other FK tables - use native SQL for tables without repositories
+        entityManager.createNativeQuery("DELETE FROM chat_logs WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM complaints WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE complaints SET resolved_by = NULL WHERE resolved_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM feedbacks WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE feedbacks SET reviewed_by = NULL WHERE reviewed_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM kiosk_qr_sessions WHERE student_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM notifications WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM reputation_history WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM student_schedules WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE seat_status_reports SET verified_by = NULL WHERE verified_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM seat_status_reports WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE seat_violation_reports SET verified_by = NULL WHERE verified_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE seat_violation_reports SET reporter_id = NULL WHERE reporter_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM seat_violation_reports WHERE violator_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE support_requests SET resolved_by = NULL WHERE resolved_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("DELETE FROM support_requests WHERE student_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE backup_history SET created_by = NULL WHERE created_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE new_books SET created_by = NULL WHERE created_by = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE news SET user_id = NULL WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
+        entityManager.createNativeQuery("UPDATE system_logs SET user_id = NULL WHERE user_id = :uid")
+                .setParameter("uid", userId).executeUpdate();
 
-        // 9. Finally delete the user
+        // 10. Finally delete the user
+        entityManager.flush();
         userRepository.delete(user);
     }
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
 import '../../../styles/librarian/NewsDetailView.css';
 import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } from '../../../services/newsService';
 
 const NewsDetailView = () => {
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -76,10 +78,10 @@ const NewsDetailView = () => {
 
     try {
       await deleteNews(id);
-      alert('Xóa tin tức thành công!');
+      toast.success('Xóa tin tức thành công!');
       navigate(basePath);
     } catch (error) {
-      alert('Lỗi khi xóa tin tức!');
+      toast.error('Lỗi khi xóa tin tức!');
       console.error(error);
     }
   };

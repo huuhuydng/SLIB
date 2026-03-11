@@ -54,6 +54,8 @@ public class LibrarySettingService {
                 .autoCancelMinutes(settings.getAutoCancelMinutes())
                 .autoCancelOnLeaveMinutes(settings.getAutoCancelOnLeaveMinutes())
                 .minReputation(settings.getMinReputation())
+                .libraryClosed(settings.getLibraryClosed())
+                .closedReason(settings.getClosedReason())
                 .build();
     }
 
@@ -93,7 +95,24 @@ public class LibrarySettingService {
         if (dto.getMinReputation() != null) {
             settings.setMinReputation(dto.getMinReputation());
         }
+        if (dto.getLibraryClosed() != null) {
+            settings.setLibraryClosed(dto.getLibraryClosed());
+        }
+        if (dto.getClosedReason() != null) {
+            settings.setClosedReason(dto.getClosedReason());
+        }
 
+        repository.save(settings);
+        return getSettingsDTO();
+    }
+
+    /**
+     * Toggle trạng thái đóng/mở thư viện
+     */
+    public LibrarySettingDTO toggleLibraryClosed(Boolean closed, String reason) {
+        LibrarySetting settings = getSettings();
+        settings.setLibraryClosed(closed != null ? closed : false);
+        settings.setClosedReason(Boolean.TRUE.equals(closed) ? reason : null);
         repository.save(settings);
         return getSettingsDTO();
     }

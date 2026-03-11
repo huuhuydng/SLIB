@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
@@ -8,6 +9,7 @@ import websocketService from "../../../services/websocketService";
 
 
 const CheckInOut = () => {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
   // State for real data
@@ -303,7 +305,7 @@ const CheckInOut = () => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Lỗi khi xuất báo cáo:', error);
-      alert('Không thể xuất báo cáo. Vui lòng thử lại.');
+      toast.error('Không thể xuất báo cáo. Vui lòng thử lại.');
     }
   };
 

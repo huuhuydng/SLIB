@@ -20,4 +20,6 @@ public class LibrarySettingDTO {
     private Integer autoCancelMinutes; // 15 (phút tự hủy booking không check-in)
     private Integer autoCancelOnLeaveMinutes; // 30 (phút tự hủy sau khi rời chỗ)
     private Integer minReputation; // 0 (điểm uy tín tối thiểu, 0 = không giới hạn)
+    private Boolean libraryClosed; // true = thư viện đang tạm đóng
+    private String closedReason; // Lý do đóng thư viện
 }

@@ -146,9 +146,28 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _conversationId = activeConversationId;
             _isEscalated = true;
             _isWaitingInQueue = true;
+            _queuePosition = status.queuePosition > 0 ? status.queuePosition : 1;
           });
 
           await _loadMessagesFromBackend(activeConversationId!, token);
+          
+          // Re-add queue waiting indicator message (UI-only, not stored in backend)
+          setState(() {
+            // Remove any existing waiting messages first
+            _messages.removeWhere((m) => m.type == ChatMessageType.waiting);
+            _messages.add(ChatMessage(
+              text: "",
+              isUser: false,
+              time: DateTime.now(),
+              type: ChatMessageType.waiting,
+              queuePosition: _queuePosition,
+              actions: [
+                ChatAction(id: 'cancel_queue', label: 'Không chờ nữa'),
+              ],
+            ));
+          });
+          _scrollToBottom();
+          
           await _saveState();
           _connectWebSocketForQueue(token);
         } else {
@@ -1509,6 +1528,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _isWaitingInQueue = false;
       _librarianName = librarianName;
       _queuePosition = 0;
+      // Xóa waiting message (queue indicator) khi thủ thư đã chấp nhận
+      _messages.removeWhere((m) => m.type == ChatMessageType.waiting);
     });
 
     // Load messages from backend - GIỮ messages local (AI chat context)

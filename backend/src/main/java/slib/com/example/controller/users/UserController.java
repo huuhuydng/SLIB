@@ -113,6 +113,7 @@ public class UserController {
      */
     @PostMapping("/import")
     @PreAuthorize("hasRole('ADMIN')")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<?> importUsers(@RequestBody List<ImportUserRequest> requests) {
         try {
             if (requests == null || requests.isEmpty()) {
@@ -120,6 +121,13 @@ public class UserController {
             }
 
             Map<String, Object> result = userService.importUsers(requests);
+
+            // Gửi welcome email SAU KHI transaction commit thành công
+            List<Map<String, Object>> successList = (List<Map<String, Object>>) result.get("success");
+            if (successList != null && !successList.isEmpty()) {
+                userService.sendWelcomeEmails(successList);
+            }
+
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {

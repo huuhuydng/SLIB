@@ -527,11 +527,14 @@ function ToastNotifications() {
 }
 
 // Chat toast notification — hiện khi có tin nhắn chat mới từ student
+// Không hiện khi đang ở trang chat (ChatManage đã có toast riêng)
 function ChatToastNotification() {
   const { chatToast, setChatToast } = useLibrarianNotification();
   const navigate = useNavigate();
 
-  if (!chatToast) return null;
+  // Suppress khi đang ở trang chat
+  const isOnChatPage = window.location.pathname.includes('/librarian/chat');
+  if (!chatToast || isOnChatPage) return null;
 
   return (
     <div

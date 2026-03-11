@@ -45,4 +45,10 @@ public class LibrarySetting {
 
     @Column(name = "min_reputation", nullable = false)
     private Integer minReputation = 0; // Điểm uy tín tối thiểu để đặt chỗ (0 = không giới hạn)
+
+    @Column(name = "library_closed", nullable = false)
+    private Boolean libraryClosed = false; // true = thư viện đang tạm đóng, sinh viên không thể đặt chỗ
+
+    @Column(name = "closed_reason", length = 500)
+    private String closedReason; // Lý do đóng thư viện (VD: "Sự kiện đặc biệt", "Bảo trì")
 }

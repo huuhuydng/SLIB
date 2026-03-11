@@ -76,6 +76,14 @@ public class BookingService {
                 // Lấy cấu hình giới hạn đặt chỗ
                 LibrarySetting settings = librarySettingService.getSettings();
 
+                // Kiểm tra thư viện có đang tạm đóng không
+                if (Boolean.TRUE.equals(settings.getLibraryClosed())) {
+                        String reason = settings.getClosedReason() != null
+                                        ? settings.getClosedReason()
+                                        : "Thư viện hiện đang tạm đóng";
+                        throw new RuntimeException("Thư viện hiện đang tạm đóng. Lý do: " + reason);
+                }
+
                 // Kiểm tra điểm uy tín tối thiểu
                 int minReputation = settings.getMinReputation() != null ? settings.getMinReputation() : 0;
                 if (minReputation > 0) {

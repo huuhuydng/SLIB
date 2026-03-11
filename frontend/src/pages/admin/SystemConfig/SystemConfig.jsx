@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import {
   Settings,
   Clock,
@@ -17,7 +18,10 @@ import {
   Award,
   MinusCircle,
   PlusCircle,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock,
+  Power
 } from 'lucide-react';
 
 
@@ -25,17 +29,23 @@ const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8
 const REPUTATION_API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/admin/reputation-rules`;
 
 const SystemConfig = () => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('library');
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [ruleType, setRuleType] = useState('violation');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
 
   // Reputation Rules State
   const [reputationRules, setReputationRules] = useState([]);
   const [rulesLoading, setRulesLoading] = useState(false);
   const [ruleForm, setRuleForm] = useState({ ruleCode: '', ruleName: '', description: '', points: '', ruleType: 'PENALTY', isActive: true });
+
+  // Library Lock State
+  const [libraryClosed, setLibraryClosed] = useState(false);
+  const [closedReason, setClosedReason] = useState('');
 
   // Library Config State
   const [libraryConfig, setLibraryConfig] = useState({
@@ -58,6 +68,8 @@ const SystemConfig = () => {
         const response = await fetch(`${API_BASE_URL}/library`);
         if (response.ok) {
           const data = await response.json();
+          setLibraryClosed(data.libraryClosed || false);
+          setClosedReason(data.closedReason || '');
           setLibraryConfig({
             openTime: data.openTime || '07:00',
             closeTime: data.closeTime || '22:00',
@@ -140,11 +152,11 @@ const SystemConfig = () => {
         setShowRuleModal(false);
         fetchReputationRules();
       } else {
-        alert(editingRule ? 'Lỗi khi cập nhật quy tắc' : 'Lỗi khi tạo quy tắc (mã đã tồn tại?)');
+        toast.error(editingRule ? 'Lỗi khi cập nhật quy tắc' : 'Lỗi khi tạo quy tắc (mã đã tồn tại?)');
       }
     } catch (error) {
       console.error('Error saving rule:', error);
-      alert('Lỗi kết nối server');
+      toast.error('Lỗi kết nối server');
     }
   };
 
@@ -177,13 +189,13 @@ const SystemConfig = () => {
         body: JSON.stringify(libraryConfig),
       });
       if (response.ok) {
-        alert('Lưu cài đặt thành công!');
+        toast.success('Lưu cài đặt thành công!');
       } else {
-        alert('Lỗi khi lưu cài đặt');
+        toast.error('Lỗi khi lưu cài đặt');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Lỗi kết nối server');
+      toast.error('Lỗi kết nối server');
     } finally {
       setSaving(false);
     }
@@ -197,6 +209,36 @@ const SystemConfig = () => {
 
   const handleConfigChange = (key, value) => {
     setLibraryConfig(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Toggle library lock
+  const handleToggleLock = async () => {
+    const newClosed = !libraryClosed;
+    if (newClosed && !closedReason.trim()) {
+      toast.warning('Vui lòng nhập lý do đóng thư viện');
+      return;
+    }
+    setToggling(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library/toggle-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ closed: newClosed, reason: newClosed ? closedReason.trim() : null }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLibraryClosed(data.libraryClosed || false);
+        setClosedReason(data.closedReason || '');
+        toast.success(newClosed ? 'Đã khoá thư viện!' : 'Đã mở khoá thư viện!');
+      } else {
+        toast.error('Lỗi khi thay đổi trạng thái thư viện');
+      }
+    } catch (error) {
+      console.error('Error toggling lock:', error);
+      toast.error('Lỗi kết nối server');
+    } finally {
+      setToggling(false);
+    }
   };
 
   return (
@@ -323,6 +365,104 @@ const SystemConfig = () => {
                   </p>
                 </div>
                 <div style={{ padding: '24px' }}>
+                  {/* Library Lock Toggle */}
+                  <div style={{
+                    marginBottom: '32px',
+                    padding: '20px',
+                    background: libraryClosed ? 'linear-gradient(135deg, #FFF5F5, #FED7D7)' : 'linear-gradient(135deg, #F0FFF4, #C6F6D5)',
+                    borderRadius: '16px',
+                    border: libraryClosed ? '2px solid #FC8181' : '2px solid #68D391',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          background: libraryClosed ? '#FC8181' : '#68D391',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background 0.3s ease'
+                        }}>
+                          {libraryClosed ? <Lock size={22} color="#fff" /> : <Unlock size={22} color="#fff" />}
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: '700', color: libraryClosed ? '#C53030' : '#276749', margin: '0 0 2px 0' }}>
+                            {libraryClosed ? 'Thư viện đang tạm đóng' : 'Thư viện đang hoạt động'}
+                          </h3>
+                          <p style={{ fontSize: '13px', color: libraryClosed ? '#E53E3E' : '#38A169', margin: 0, fontWeight: '500' }}>
+                            {libraryClosed ? 'Sinh viên không thể đặt chỗ' : 'Sinh viên có thể đặt chỗ bình thường'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleToggleLock}
+                        disabled={toggling}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 20px',
+                          background: libraryClosed ? '#38A169' : '#E53E3E',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: toggling ? 'not-allowed' : 'pointer',
+                          opacity: toggling ? 0.7 : 1,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Power size={16} />}
+                        {libraryClosed ? 'Mở khoá thư viện' : 'Khoá thư viện'}
+                      </button>
+                    </div>
+                    {/* Reason input - show when open and about to close */}
+                    {!libraryClosed && (
+                      <div style={{ marginTop: '12px' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
+                          Lý do khoá (bắt buộc khi khoá)
+                        </label>
+                        <input
+                          type="text"
+                          value={closedReason}
+                          onChange={(e) => setClosedReason(e.target.value)}
+                          placeholder="VD: Sự kiện đặc biệt, Bảo trì hệ thống..."
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            background: '#fff',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* Show reason when closed */}
+                    {libraryClosed && closedReason && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '10px 14px',
+                        background: 'rgba(255,255,255,0.7)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <AlertTriangle size={16} color="#E53E3E" />
+                        <span style={{ fontSize: '13px', color: '#742A2A', fontWeight: '500' }}>
+                          Lý do: {closedReason}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Operating Hours */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
