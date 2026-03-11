@@ -56,6 +56,9 @@ public class CheckInService {
     @Autowired
     private StudentProfileService studentProfileService;
 
+    @Autowired
+    private HceStationService hceStationService;
+
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     /**
@@ -118,6 +121,9 @@ public class CheckInService {
         Map<String, String> response = new HashMap<>();
 
         try {
+            // Validate trạm quét trước khi xử lý check-in
+            hceStationService.validateStationForCheckIn(request.getGateId());
+
             UUID userId = UUID.fromString(request.getToken());
 
             User user = userRepository.findById(userId)

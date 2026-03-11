@@ -293,6 +293,23 @@ class UserService {
     }
 
     /**
+     * Admin update user profile (Admin only)
+     * @param {string} userId - User ID
+     * @param {Object} data - { fullName, phone, email, dob, role }
+     */
+    async adminUpdateUser(userId, data) {
+        try {
+            console.log('📤 [UserService] Admin updating user', userId, data);
+            const response = await axiosInstance.patch(`/users/${userId}`, data);
+            console.log('✅ [UserService] Admin update result:', response.data);
+            return response.data;
+        } catch (error) {
+            console.error('❌ [UserService] adminUpdateUser error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Reset user password to default (Admin only)
      */
     async resetPasswordToDefault(email) {

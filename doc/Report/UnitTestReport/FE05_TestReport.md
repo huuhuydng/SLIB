@@ -1,162 +1,43 @@
 # Unit Test Report - FE-05: Change Basic Profile
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr>
-    <td><b>Function Code</b></td>
-    <td>FE-05</td>
-    <td><b>Function Name</b></td>
-    <td>FE-05_Change Basic Profile</td>
-  </tr>
-  <tr>
-    <td><b>Created By</b></td>
-    <td>Hadi</td>
-    <td><b>Executed By</b></td>
-    <td>Hadi</td>
-  </tr>
-  <tr>
-    <td><b>Lines of code</b></td>
-    <td>28</td>
-    <td><b>Lack of test cases</b></td>
-    <td>0</td>
-  </tr>
-  <tr>
-    <td><b>Class Under Test</b></td>
-    <td colspan="3">`UserService.updateUser(UUID userId, User req)`</td>
-  </tr>
-  <tr>
-    <td><b>Test requirement</b></td>
-    <td colspan="3">Verify selective field updates, duplicate-phone validation, notification-device reassignment, and not-found behavior at backend service level.</td>
-  </tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-05</td>  <td class="label">Function Name</td>  <td class="value link">Change Basic Profile</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic"></td>  <td class="label">Executed By</td>  <td class="value italic"></td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~25</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>`UserService.updateUser(UUID userId, User req)`</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">N/A</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">6</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 5 / 0</td>  <td class="value center">6</td></tr>
 </table>
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr>
-    <th>Passed</th>
-    <th>Failed</th>
-    <th>Untested</th>
-    <th>N/A/B</th>
-    <th>Total Test Cases</th>
-  </tr>
-  <tr>
-    <td>6</td>
-    <td>0</td>
-    <td>0</td>
-    <td>3 / 2 / 1</td>
-    <td>6</td>
-  </tr>
-</table>
-
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr style="background: #001a8d; color: #ffffff;">
-    <th>Section</th>
-    <th>Category</th>
-    <th>Item</th>
-    <th>UTCID01</th>
-    <th>UTCID02</th>
-    <th>UTCID03</th>
-    <th>UTCID04</th>
-    <th>UTCID05</th>
-    <th>UTCID06</th>
-  </tr>
-  <tr>
-    <td rowspan="10" style="background: #001a8d; color: #ffffff;"><b>Condition</b></td>
-    <td rowspan="2"><b>Precondition</b></td>
-    <td>Valid user id is provided</td>
-    <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
-  </tr>
-  <tr>
-    <td>Update request object is created</td>
-    <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
-  </tr>
-  <tr>
-    <td rowspan="5"><b>Mock State (Dependencies)</b></td>
-    <td>`findById()` returns an existing user</td>
-    <td>O</td><td>O</td><td>O</td><td></td><td>O</td><td>O</td>
-  </tr>
-  <tr>
-    <td>`findById()` returns empty result</td>
-    <td></td><td></td><td></td><td>O</td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>`existsByPhone()` returns `false` for new phone</td>
-    <td>O</td><td></td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>`existsByPhone()` returns `true` for duplicate phone</td>
-    <td></td><td></td><td>O</td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Non-empty `notiDevice` is supplied</td>
-    <td></td><td>O</td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td rowspan="3"><b>Input</b></td>
-    <td>Request contains `fullName`, `phone`, `dob`, and `avtUrl` changes</td>
-    <td>O</td><td></td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Request contains duplicate phone value</td>
-    <td></td><td></td><td>O</td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Request contains empty `fullName` or null optional fields</td>
-    <td></td><td></td><td></td><td></td><td>O</td><td>O</td>
-  </tr>
-  <tr>
-    <td rowspan="9" style="background: #001a8d; color: #ffffff;"><b>Confirm</b></td>
-    <td rowspan="4"><b>Return</b></td>
-    <td>Updated user contains modified `fullName`, `phone`, `dob`, and `avtUrl`</td>
-    <td>O</td><td></td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Updated user contains new `notiDevice` value</td>
-    <td></td><td>O</td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Existing full name remains unchanged when request full name is empty</td>
-    <td></td><td></td><td></td><td></td><td>O</td><td></td>
-  </tr>
-  <tr>
-    <td>Existing optional values remain unchanged when request fields are null</td>
-    <td></td><td></td><td></td><td></td><td></td><td>O</td>
-  </tr>
-  <tr>
-    <td rowspan="2"><b>Exception</b></td>
-    <td>Throws duplicate-phone exception</td>
-    <td></td><td></td><td>O</td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>Throws user-not-found exception</td>
-    <td></td><td></td><td></td><td>O</td><td></td><td></td>
-  </tr>
-  <tr>
-    <td rowspan="3"><b>Log message / Interaction</b></td>
-    <td>`clearNotiDeviceForOtherUsers()` is called before saving notification device</td>
-    <td></td><td>O</td><td></td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>`existsByPhone()` is checked only when phone changes to a new non-empty value</td>
-    <td>O</td><td></td><td>O</td><td></td><td></td><td></td>
-  </tr>
-  <tr>
-    <td>`save()` is executed for successful update flows</td>
-    <td>O</td><td>O</td><td></td><td></td><td>O</td><td>O</td>
-  </tr>
-  <tr>
-    <td rowspan="4" style="background: #001a8d; color: #ffffff;"><b>Result</b></td>
-    <td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td>
-    <td>N</td><td>N</td><td>A</td><td>A</td><td>B</td><td>N</td>
-  </tr>
-  <tr>
-    <td colspan="2">Passed/Failed</td>
-    <td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td>
-  </tr>
-  <tr>
-    <td colspan="2">Executed Date</td>
-    <td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td>
-  </tr>
-  <tr>
-    <td colspan="2">Defect ID</td>
-    <td></td><td></td><td></td><td></td><td></td><td></td>
-  </tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th><th class="matrix-head matrix-head--utc"><span>UTCID06</span></th></tr>
+  <tr><td class="section-cell" rowspan="11">Condition</td><td class="category-cell" rowspan="1">Precondition</td><td class="item-cell">Authorized</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Mock State (Dependencies)</td><td class="item-cell">N/A</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">PUT</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/student-profile/me</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="7">Input</td><td class="item-cell">Valid JWT Token</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">phone=&quot;0964106456&quot;, name=&quot;John&quot;</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">No token</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">phone=&quot;abc&quot;, name=&quot;John&quot;</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">email=&quot;existing@fpt.edu.vn&quot;</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">phone=&quot;0987654321&quot;</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Valid token (account deleted)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="13">Confirm</td><td class="category-cell" rowspan="5">Return</td><td class="item-cell">200: OK</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">401: Unauthorized</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">400: Bad Request</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">409: Conflict</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">404: Not Found</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Exception</td><td class="item-cell">None</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">RuntimeException</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="6">Log message</td><td class="item-cell">Successfully updated Change Basic Profile for Valid JWT Token</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Change Basic Profile: Unauthorized request for No token</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Change Basic Profile: Invalid request parameters for Valid JWT Token</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Change Basic Profile: Resource conflict for Valid JWT Token</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Change Basic Profile: Resource conflict for Valid JWT Token (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Change Basic Profile: Requested resource not found for Valid token (account deleted)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="4">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Defect ID</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
 </table>

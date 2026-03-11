@@ -1,31 +1,35 @@
 # Unit Test Report - FE-24: View Zone Map
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><td><b>Function Code</b></td><td>FE-24</td><td><b>Function Name</b></td><td>View Zone Map</td></tr>
-  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~10</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>ZoneService.getAllZones()</code> and <code>getZonesByAreaId(Long areaId)</code></td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Verify zone-map retrieval with and without area filter.</td></tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-24</td>  <td class="label">Function Name</td>  <td class="value link">View Zone Map</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic"></td>  <td class="label">Executed By</td>  <td class="value italic"></td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~25</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>ZoneService.getAllZones() and getZonesByAreaId(Long areaId)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">N/A</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">3</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 2 / 0</td>  <td class="value center">3</td></tr>
 </table>
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>3</td><td>0</td><td>0</td><td>1 / 2 / 0</td><td>3</td></tr>
-</table>
-
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th></tr>
-  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Zone request is made with or without area id</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>Zone list comes from zone repository</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Repository returns zones for target area or all zones</td><td>O</td><td>O</td><td></td></tr>
-  <tr><td>Repository returns empty result</td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>Area filter is present or absent</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Returns mapped zone list with geometry and area id</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>Chooses area-filtered or global repository path correctly</td><td>O</td><td>O</td><td></td></tr>
-  <tr><td rowspan="1"><b>Exception</b></td><td>Repository/runtime failure is propagated</td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td><code>findByArea_AreaId()</code> or <code>findAll()</code> is called once</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td></tr>
-  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td></tr>
-  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
-  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td></tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th></tr>
+  <tr><td class="section-cell" rowspan="8">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">Authorized</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Zones exist</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="1">Mock State (Dependencies)</td><td class="item-cell">N/A</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">GET</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/zones</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="3">Input</td><td class="item-cell">Valid JWT Token</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">No token in request</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Zone not found</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="8">Confirm</td><td class="category-cell" rowspan="3">Return</td><td class="item-cell">200: OK</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">401: Unauthorized</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">404: Not Found</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Exception</td><td class="item-cell">None</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">RuntimeException</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="3">Log message</td><td class="item-cell">Successfully retrieved Zone Map for Valid JWT Token</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to retrieve Zone Map: Unauthorized request for No token in request</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to retrieve Zone Map: Requested resource not found for Zone not found</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="4">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td><td class="mark-cell">A</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td><td class="mark-cell">2026-03-07</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Defect ID</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
 </table>

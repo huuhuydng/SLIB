@@ -10,37 +10,36 @@
   <div class="page">
     <div class="nav"><a href="index.html">Back to index</a></div>
     <h1>Unit Test Report - FE-46: Test AI Chat</h1>
-
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><td><b>Function Code</b></td><td>FE-46</td><td><b>Function Name</b></td><td>Test AI Chat</td></tr>
-  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~15</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>slib.com.example.service.ai.ChatService.sendMessage(User user, Long sessionId, String message)</code></td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Verify AI chat message processing, session reuse/creation, empty-message validation, and escalation behavior.</td></tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-46</td>  <td class="label">Function Name</td>  <td class="value link">Test AI Chat</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~15</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>slib.com.example.service.ai.ChatService.sendMessage(User user, Long sessionId, String message)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify AI chat message processing, session reuse/creation, empty-message validation, and escalation behavior.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">6</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 5 / 0</td>  <td class="value center">6</td></tr>
 </table>
 
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>6</td><td>0</td><td>0</td><td>1 / 5 / 0</td><td>6</td></tr>
-</table>
-
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th><th>UTCID06</th></tr>
-  <tr><td rowspan="6" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Authenticated user and chat message are provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>AI chat depends on session, message, and AI integration repositories/services</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td>Session exists or can be created</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td>Message is empty or session is invalid</td><td></td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
-  <tr><td>AI provider/service throws runtime failure</td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>Message content is non-empty for valid flow</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="5" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>AI response is generated and persisted into chat history</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td>Session is created or reused correctly</td><td></td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td rowspan="2"><b>Exception</b></td><td>Throws validation/runtime exception for empty message or invalid session</td><td></td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
-  <tr><td>AI provider failure is propagated</td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Session and message repositories are updated according to conversation branch</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
-  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
-  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
-  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th><th class="matrix-head matrix-head--utc"><span>UTCID06</span></th></tr>
+  <tr><td class="section-cell" rowspan="8">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">Authenticated user and chat message are provided</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">AI chat depends on session, message, and AI integration repositories/services</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="3">Mock State (Dependencies)</td><td class="item-cell">Session exists or can be created</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Message is empty or session is invalid</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">AI provider/service throws runtime failure</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">POST</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">http://localhost:8001/api/v1/chat/debug</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">Message content is non-empty for valid flow</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="10">Confirm</td><td class="category-cell" rowspan="2">Return</td><td class="item-cell">400: Bad Request</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">200: Success</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="2">Exception</td><td class="item-cell">Throws validation/runtime exception for empty message or invalid session</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">AI provider failure is propagated</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="6">Log message</td><td class="item-cell">Failed to create Test AI Chat: Invalid request parameters for Message content is non-empty for valid flow</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully created Test AI Chat for Message content is non-empty for valid flow</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully created Test AI Chat for Message content is non-empty for valid flow (UTCID03)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to create Test AI Chat: Invalid request parameters for </td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to create Test AI Chat: Invalid request parameters for  (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to create Test AI Chat: Invalid request parameters for Message content is non-empty for valid flow (UTCID06)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
 </table>
   </div>
 </body>

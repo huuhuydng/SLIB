@@ -1,32 +1,31 @@
 # Unit Test Report - FE-66: Cancel Booking
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><td><b>Function Code</b></td><td>FE-66</td><td><b>Function Name</b></td><td>Cancel Booking</td></tr>
-  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~15</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3"><code>BookingService.cancelBooking(UUID reservationId)</code></td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Verify booking cancellation rules, status transition, and 12-hour restriction logic.</td></tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-66</td>  <td class="label">Function Name</td>  <td class="value link">Cancel Booking</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~15</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>BookingService.cancelBooking(UUID reservationId)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify booking cancellation rules, status transition, and 12-hour restriction logic.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">6</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 5 / 0</td>  <td class="value center">6</td></tr>
 </table>
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>6</td><td>0</td><td>0</td><td>1 / 5 / 0</td><td>6</td></tr>
-</table>
-
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th><th>UTCID06</th></tr>
-  <tr><td rowspan="6" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Reservation id is provided</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>Cancellation depends on reservation lookup and current status/time</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="3"><b>Mock State (Dependencies)</b></td><td>Reservation exists and is cancellable</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td>Reservation exists but violates cancellation rules</td><td></td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
-  <tr><td>Reservation lookup fails</td><td></td><td></td><td></td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>Reservation is processing/booked and current time varies</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Confirm</b></td><td rowspan="2"><b>Return</b></td><td>Cancellable reservation is updated to cancelled status</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td>Processing reservations cancel immediately while booked ones obey 12-hour rule</td><td></td><td>O</td><td>O</td><td>O</td><td>O</td><td></td></tr>
-  <tr><td rowspan="1"><b>Exception</b></td><td>Invalid status/timing or missing reservation triggers exception</td><td></td><td></td><td></td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Seat sync and notification side effects run on successful cancellation</td><td>O</td><td>O</td><td>O</td><td></td><td></td><td></td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
-  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
-  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
-  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th><th class="matrix-head matrix-head--utc"><span>UTCID06</span></th></tr>
+  <tr><td class="section-cell" rowspan="8">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">Reservation id is provided</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Cancellation depends on reservation lookup and current status/time</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="3">Mock State (Dependencies)</td><td class="item-cell">Reservation exists and is cancellable</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Reservation exists but violates cancellation rules</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Reservation lookup fails</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">PUT</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/bookings/cancel/{reservationId}</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">Reservation is processing/booked and current time varies</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="8">Confirm</td><td class="category-cell" rowspan="2">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">400: Bad Request</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="6">Log message</td><td class="item-cell">Successfully updated Cancel Booking for Reservation is processing/booked and current time varies</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully updated Cancel Booking for Reservation is processing/booked and current time varies (UTCID02)</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully updated Cancel Booking for Reservation is processing/booked and current time varies (UTCID03)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully updated Cancel Booking for Reservation is processing/booked and current time varies (UTCID04)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully updated Cancel Booking for Reservation is processing/booked and current time varies (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to update Cancel Booking: Invalid request parameters for Reservation is processing/booked and current time varies</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
 </table>

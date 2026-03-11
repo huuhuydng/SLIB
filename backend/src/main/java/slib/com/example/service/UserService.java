@@ -379,4 +379,20 @@ public class UserService {
 
         return userRepository.save(user);
     }
+
+    /**
+     * Get user by ID (Admin)
+     */
+    public User getUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+    }
+
+    /**
+     * Save user entity (Admin)
+     */
+    @Transactional
+    public User saveUser(User user) {
+        return userRepository.save(user);
+    }
 }

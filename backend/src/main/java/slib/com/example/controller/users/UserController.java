@@ -15,6 +15,7 @@ import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.ImportJob;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserImportStaging;
 import slib.com.example.service.AsyncImportService;
@@ -132,6 +133,64 @@ public class UserController {
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Lỗi import: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Admin edit user profile (Admin only)
+     * Allows editing: fullName, phone, email, dob, role
+     */
+    @PatchMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminUpdateUser(
+            @PathVariable java.util.UUID userId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            User existingUser = userService.getUserById(userId);
+            if (existingUser == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            if (request.containsKey("fullName")) {
+                String fullName = (String) request.get("fullName");
+                if (fullName != null && !fullName.trim().isEmpty()) {
+                    existingUser.setFullName(fullName.trim());
+                }
+            }
+            if (request.containsKey("phone")) {
+                String phone = (String) request.get("phone");
+                existingUser.setPhone(phone);
+            }
+            if (request.containsKey("email")) {
+                String email = (String) request.get("email");
+                if (email != null && !email.trim().isEmpty()) {
+                    existingUser.setEmail(email.trim());
+                }
+            }
+            if (request.containsKey("dob")) {
+                String dobStr = (String) request.get("dob");
+                if (dobStr != null && !dobStr.isEmpty()) {
+                    existingUser.setDob(java.time.LocalDate.parse(dobStr));
+                } else {
+                    existingUser.setDob(null);
+                }
+            }
+            if (request.containsKey("role")) {
+                String role = (String) request.get("role");
+                if (role != null && !role.isEmpty()) {
+                    existingUser.setRole(Role.valueOf(role));
+                }
+            }
+
+            User saved = userService.saveUser(existingUser);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã cập nhật thông tin người dùng",
+                    "userId", userId,
+                    "fullName", saved.getFullName() != null ? saved.getFullName() : "",
+                    "email", saved.getEmail() != null ? saved.getEmail() : ""));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

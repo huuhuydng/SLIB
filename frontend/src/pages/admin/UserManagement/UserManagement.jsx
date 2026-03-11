@@ -10,6 +10,7 @@ import {
   Unlock,
   Trash2,
   Eye,
+  Edit2,
   UserPlus,
   Download,
   CheckCircle,
@@ -49,6 +50,9 @@ const UserManagement = () => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', dob: '', role: '' });
+  const [editSaving, setEditSaving] = useState(false);
 
   // Import state
   const [importStep, setImportStep] = useState('upload'); // upload, processing, preview, uploading, result
@@ -516,6 +520,8 @@ const UserManagement = () => {
       await userService.updateUserStatus(selectedUser.id, newStatus);
       await fetchUsers();
       setShowLockModal(false);
+      const userName = selectedUser.fullName || selectedUser.email;
+      toast.success(newStatus ? `Đã mở khóa tài khoản ${userName}` : `Đã khóa tài khoản ${userName}`);
       setSelectedUser(null);
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
@@ -538,6 +544,52 @@ const UserManagement = () => {
       toast.error(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Open edit modal with user data
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    setEditForm({
+      fullName: user.fullName || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      dob: user.dob ? user.dob.substring(0, 10) : '',
+      role: user.role || 'STUDENT'
+    });
+    setShowEditModal(true);
+  };
+
+  // Handle edit user save
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!editForm.fullName.trim()) {
+      toast.warning('Họ và tên không được để trống');
+      return;
+    }
+    if (!editForm.email.trim()) {
+      toast.warning('Email không được để trống');
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      await userService.adminUpdateUser(selectedUser.id, {
+        fullName: editForm.fullName.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim() || null,
+        dob: editForm.dob || null,
+        role: editForm.role
+      });
+      toast.success(`Đã cập nhật thông tin ${editForm.fullName}`);
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      toast.error('Lỗi cập nhật: ' + errMsg);
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -1020,6 +1072,22 @@ const UserManagement = () => {
                                 >
                                   <Eye size={16} color="#2563EB" />
                                   <span style={{ fontSize: '14px', color: '#2563EB' }}>Xem chi tiết</span>
+                                </div>
+                                <div
+                                  onClick={() => { openEditModal(user); setShowActionMenu(null); }}
+                                  style={{
+                                    padding: '12px 16px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    cursor: 'pointer',
+                                    transition: 'background 0.2s'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Edit2 size={16} color="#e8600a" />
+                                  <span style={{ fontSize: '14px', color: '#e8600a' }}>Chỉnh sửa</span>
                                 </div>
                                 <div
                                   onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}
@@ -1929,6 +1997,237 @@ const UserManagement = () => {
         </div>
       )}
 
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            width: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '24px 28px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: '#FFF7ED',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Edit2 size={20} color="#e8600a" />
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+                  Chỉnh sửa người dùng
+                </h3>
+              </div>
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} color="#9CA3AF" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div style={{ padding: '24px 28px' }}>
+              {/* Họ và tên */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Họ và tên <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  placeholder="Nhập họ và tên"
+                />
+              </div>
+
+              {/* Email */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Email <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  placeholder="Nhập email"
+                />
+              </div>
+
+              {/* Phone & DOB row */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                    onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                    placeholder="0901234567"
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Ngày sinh
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.dob}
+                    onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                    onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  />
+                </div>
+              </div>
+
+              {/* Role */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Vai trò
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                >
+                  <option value="STUDENT">Sinh viên</option>
+                  <option value="LIBRARIAN">Thủ thư</option>
+                  <option value="ADMIN">Quản trị viên</option>
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                  disabled={editSaving}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#F7FAFC',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#4A5568',
+                    cursor: editSaving ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleEditUser}
+                  disabled={editSaving}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#e8600a',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#fff',
+                    cursor: editSaving ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: editSaving ? 0.7 : 1
+                  }}
+                >
+                  {editSaving && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  Lưu thay đổi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reset Password Modal */}
       {showResetPasswordModal && selectedUser && (
         <div style={{
@@ -2032,8 +2331,7 @@ const UserManagement = () => {
         onClose={() => { setShowUserDetailsModal(false); setSelectedUser(null); }}
         onEdit={(user) => {
           setShowUserDetailsModal(false);
-          // TODO: Open edit modal
-          toast.info('Tính năng chỉnh sửa đang phát triển');
+          openEditModal(user);
         }}
         onLock={(user) => {
           setShowUserDetailsModal(false);

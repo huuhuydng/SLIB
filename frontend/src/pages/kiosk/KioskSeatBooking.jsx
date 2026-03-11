@@ -6,7 +6,7 @@ import websocketService from "../../services/websocketService";
 import { LayoutProvider, useLayout, ACTIONS } from "../../context/admin/area_management/LayoutContext";
 import { seatPlanService } from "../../services/seatPlanService";
 import LibrarianArea from "../../components/librarian/LibrarianArea";
-import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle, Lock, AlertTriangle } from "lucide-react";
 import "../../styles/librarian/SeatPlan.css";
 import "../../styles/admin/layout.css";
 import "../../styles/admin/canvas.css";
@@ -303,11 +303,46 @@ function KioskCanvas({ onSeatClick }) {
                 }}
             >
                 {areas.map((area) => (
-                    <LibrarianArea
-                        key={area.areaId}
-                        area={area}
-                        onSeatClick={onSeatClick}
-                    />
+                    <div key={area.areaId} style={{ position: 'relative' }}>
+                        <LibrarianArea
+                            area={area}
+                            onSeatClick={(seat) => {
+                                if (area.locked || !area.isActive) return;
+                                onSeatClick(seat);
+                            }}
+                        />
+                        {/* Locked/Inactive overlay */}
+                        {(area.locked || !area.isActive) && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    left: area.positionX || 0,
+                                    top: area.positionY || 0,
+                                    width: area.width || 300,
+                                    height: area.height || 250,
+                                    background: 'rgba(0,0,0,0.45)',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    zIndex: 10,
+                                    pointerEvents: 'none',
+                                }}
+                            >
+                                <Lock size={32} color="#fff" />
+                                <span style={{
+                                    color: '#fff',
+                                    fontSize: '16px',
+                                    fontWeight: '700',
+                                    textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                                }}>
+                                    {area.locked ? 'Phòng đang bị khóa' : 'Phòng đã đóng cửa'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 ))}
             </div>
 
@@ -325,7 +360,7 @@ function KioskCanvas({ onSeatClick }) {
 // Component chính
 function KioskSeatBookingContent() {
     const { state, dispatch } = useLayout();
-    const { selectedAreaId, seats, zones } = state;
+    const { selectedAreaId, seats, zones, areas } = state;
     const navigate = useNavigate();
 
     const [selectedSeat, setSelectedSeat] = useState(null);
@@ -334,6 +369,10 @@ function KioskSeatBookingContent() {
     const [timeSlots, setTimeSlots] = useState([]); // filtered list of labels
     const [bookingLoading, setBookingLoading] = useState(false);
     const [toast, setToast] = useState(null);
+
+    // Library closed state (from library_settings)
+    const [libraryClosed, setLibraryClosed] = useState(false);
+    const [closedReason, setClosedReason] = useState('');
 
     const selectedAreaIdRef = useRef(selectedAreaId);
     const selectedSlotRef = useRef(selectedSlot);
@@ -376,6 +415,24 @@ function KioskSeatBookingContent() {
     useEffect(() => { selectedAreaIdRef.current = selectedAreaId; }, [selectedAreaId]);
     useEffect(() => { selectedSlotRef.current = selectedSlot; }, [selectedSlot]);
 
+    // Fetch library settings to check if library is closed
+    useEffect(() => {
+        const checkLibraryStatus = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/slib/settings/library`);
+                const data = await res.json();
+                setLibraryClosed(data.libraryClosed || false);
+                setClosedReason(data.closedReason || '');
+            } catch (err) {
+                console.error('Failed to check library status:', err);
+            }
+        };
+        checkLibraryStatus();
+        // Re-check every 30s
+        const interval = setInterval(checkLibraryStatus, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Fetch time slots từ library_settings và filter bỏ slots đã qua
     useEffect(() => {
         const fetchTimeSlots = async () => {
@@ -398,8 +455,13 @@ function KioskSeatBookingContent() {
     }, []);
 
     const handleSeatClick = (seat) => {
-        // Tìm tên khu vực (zone) từ zoneId
+        // Tìm zone và area, kiểm tra locked
         const zone = zones.find(z => z.zoneId === seat.zoneId);
+        const area = areas.find(a => {
+            const areaZones = zones.filter(z => z.areaId === a.areaId);
+            return areaZones.some(z => z.zoneId === seat.zoneId);
+        });
+        if (area?.locked || area?.isActive === false) return;
         setSelectedSeat({ ...seat, zoneName: zone?.zoneName || '' });
     };
 
@@ -520,7 +582,7 @@ function KioskSeatBookingContent() {
         <div className="ksb">
             {/* Header */}
             <div className="ksb__header">
-                <button className="ksb__back" onClick={() => navigate(-1)}>
+                <button className="ksb__back" onClick={() => navigate('/kiosk')}>
                     <ArrowLeft size={20} />
                 </button>
                 <h1 className="ksb__title">Sơ đồ chỗ ngồi</h1>
@@ -556,6 +618,34 @@ function KioskSeatBookingContent() {
                     <span>Hạn chế: <strong>{stats.restricted}</strong></span>
                 </div>
             </div>
+
+            {/* Full-page locked message when library is closed (from settings) */}
+            {libraryClosed && (
+                <div className="ksb__locked-overlay">
+                    <div className="ksb__locked-card">
+                        <Lock size={48} color="#DC2626" />
+                        <h2>Thư viện hiện đang tạm đóng</h2>
+                        <p>{closedReason || 'Thư viện đang tạm ngưng hoạt động. Vui lòng quay lại sau.'}</p>
+                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                            <ArrowLeft size={18} /> Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Full-page locked message when ALL areas are locked/inactive */}
+            {!libraryClosed && areas.length > 0 && areas.every(a => a.locked || !a.isActive) && (
+                <div className="ksb__locked-overlay">
+                    <div className="ksb__locked-card">
+                        <Lock size={48} color="#DC2626" />
+                        <h2>Thư viện hiện đang đóng cửa</h2>
+                        <p>Tất cả phòng đọc đang bị khóa hoặc tạm ngưng hoạt động. Vui lòng quay lại sau.</p>
+                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                            <ArrowLeft size={18} /> Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Canvas */}
             <div className="ksb__map">

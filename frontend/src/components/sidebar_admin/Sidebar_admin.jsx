@@ -4,7 +4,8 @@ import {
   LayoutDashboard,
   Map,
   Users,
-  Cpu,
+  Router,
+  Nfc,
   Settings,
   Activity,
   Sparkles,
@@ -23,7 +24,8 @@ const Sidebar = () => {
     { icon: LayoutDashboard, label: "Tổng quan", path: "/admin/dashboard" },
     { icon: Map, label: "Bản đồ thư viện", path: "/admin/library-map" },
     { icon: Users, label: "Quản lý người dùng", path: "/admin/users" },
-    { icon: Cpu, label: "Quản lý thiết bị", path: "/admin/devices" },
+    { icon: Router, label: "Trạm quét HCE", path: "/admin/devices" },
+    { icon: Nfc, label: "Quản lý NFC Tag", path: "/admin/nfc-management" },
   ];
 
   const systemMenuItems = [

@@ -3,174 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FE01 Test Report</title>
+  <title>FE-01 Test Report</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="page">
     <div class="nav"><a href="index.html">Back to index</a></div>
     <h1>Unit Test Report - FE-01: Login with Google Account</h1>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-01</td>  <td class="label">Function Name</td>  <td class="value link">Login with Google Account</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic"></td>  <td class="label">Executed By</td>  <td class="value italic"></td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~86</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>AuthController.loginWithGoogle(Map&lt;String, String&gt; request), AuthService.loginWithGoogle(String googleIdToken, String fullNameFromClient, String fcmToken, String deviceInfo)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify Google login only allows users who were provisioned in the system by admin, validates the Google token, rejects invalid or unauthorized accounts, and returns one clear outcome per test case.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">6</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 5 / 0</td>  <td class="value center">6</td></tr>
+</table>
 
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-      <tr>
-        <td><b>Function Code</b></td>
-        <td>FE-01</td>
-        <td><b>Function Name</b></td>
-        <td>FE-01_Google Login</td>
-      </tr>
-      <tr>
-        <td><b>Created By</b></td>
-        <td>Hadi</td>
-        <td><b>Executed By</b></td>
-        <td>Hadi</td>
-      </tr>
-      <tr>
-        <td><b>Lines of code</b></td>
-        <td>86</td>
-        <td><b>Lack of test cases</b></td>
-        <td>0</td>
-      </tr>
-      <tr>
-        <td><b>Class Under Test</b></td>
-        <td colspan="3"><code>AuthService.loginWithGoogle(String googleIdToken, String fullNameFromClient, String fcmToken, String deviceInfo)</code></td>
-      </tr>
-      <tr>
-        <td><b>Test requirement</b></td>
-        <td colspan="3">Verify Google token validation, user creation or lookup, refresh-token rotation, notification-device handling, and exception behavior at backend service level.</td>
-      </tr>
-    </table>
-
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-      <tr>
-        <th>Passed</th>
-        <th>Failed</th>
-        <th>Untested</th>
-        <th>N/A/B</th>
-        <th>Total Test Cases</th>
-      </tr>
-      <tr>
-        <td>6</td>
-        <td>0</td>
-        <td>0</td>
-        <td>3 / 3 / 0</td>
-        <td>6</td>
-      </tr>
-    </table>
-
-    <table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-      <tr class="matrix-head">
-        <th>Section</th>
-        <th>Category</th>
-        <th>Item</th>
-        <th>UTCID01</th>
-        <th>UTCID02</th>
-        <th>UTCID03</th>
-        <th>UTCID04</th>
-        <th>UTCID05</th>
-        <th>UTCID06</th>
-      </tr>
-      <tr>
-        <td rowspan="10" class="matrix-section"><b>Condition</b></td>
-        <td rowspan="2"><b>Precondition</b></td>
-        <td>Google ID token string is provided</td>
-        <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
-      </tr>
-      <tr>
-        <td><code>googleClientId</code> is configured</td>
-        <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td>
-      </tr>
-      <tr>
-        <td rowspan="5"><b>Mock State (Dependencies)</b></td>
-        <td><code>verifyGoogleToken()</code> returns a valid payload</td>
-        <td>O</td><td>O</td><td>O</td><td>O</td><td>O</td><td></td>
-      </tr>
-      <tr>
-        <td><code>UserRepository.findByEmail()</code> returns an active user</td>
-        <td>O</td><td></td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td><code>UserRepository.findByEmail()</code> returns empty result</td>
-        <td></td><td>O</td><td></td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td><code>UserRepository.findByEmail()</code> returns a locked user</td>
-        <td></td><td></td><td></td><td></td><td>O</td><td></td>
-      </tr>
-      <tr>
-        <td>Non-empty FCM token is supplied</td>
-        <td></td><td></td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td rowspan="3"><b>Input</b></td>
-        <td>Email belongs to <code>@fpt.edu.vn</code></td>
-        <td>O</td><td>O</td><td>O</td><td></td><td>O</td><td></td>
-      </tr>
-      <tr>
-        <td>Email is non-FPT and not whitelisted</td>
-        <td></td><td></td><td></td><td>O</td><td></td><td></td>
-      </tr>
-      <tr>
-        <td>Client full name is provided</td>
-        <td></td><td>O</td><td></td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td rowspan="9" class="matrix-section"><b>Confirm</b></td>
-        <td rowspan="3"><b>Return</b></td>
-        <td><code>AuthResponse</code> contains generated access token, refresh token, and mapped user fields</td>
-        <td>O</td><td>O</td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td>New user is created with role <code>STUDENT</code> and <code>passwordChanged = true</code></td>
-        <td></td><td>O</td><td></td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td>Existing user receives updated notification device data</td>
-        <td></td><td></td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td rowspan="3"><b>Exception</b></td>
-        <td>Throws invalid email-domain exception</td>
-        <td></td><td></td><td></td><td>O</td><td></td><td></td>
-      </tr>
-      <tr>
-        <td>Throws locked-account exception</td>
-        <td></td><td></td><td></td><td></td><td>O</td><td></td>
-      </tr>
-      <tr>
-        <td>Throws Google token verification exception</td>
-        <td></td><td></td><td></td><td></td><td></td><td>O</td>
-      </tr>
-      <tr>
-        <td rowspan="3"><b>Log message / Interaction</b></td>
-        <td><code>revokeAllByUserId()</code> is executed before storing a new refresh token</td>
-        <td>O</td><td>O</td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td>Hashed refresh token is persisted with device information</td>
-        <td>O</td><td>O</td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td><code>clearNotiDeviceForOtherUsers()</code> is called before assigning duplicated FCM token</td>
-        <td></td><td></td><td>O</td><td></td><td></td><td></td>
-      </tr>
-      <tr>
-        <td rowspan="4" class="matrix-section"><b>Result</b></td>
-        <td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td>
-        <td>N</td><td>N</td><td>N</td><td>A</td><td>A</td><td>A</td>
-      </tr>
-      <tr>
-        <td colspan="2">Passed/Failed</td>
-        <td>P</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td>
-      </tr>
-      <tr>
-        <td colspan="2">Executed Date</td>
-        <td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td>
-      </tr>
-      <tr>
-        <td colspan="2">Defect ID</td>
-        <td></td><td></td><td></td><td></td><td></td><td></td>
-      </tr>
-    </table>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th><th class="matrix-head matrix-head--utc"><span>UTCID06</span></th></tr>
+  <tr><td class="section-cell" rowspan="16">Condition</td><td class="category-cell" rowspan="6">Precondition</td><td class="item-cell">The user account was provisioned by admin and is active</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">The Google email has not been provisioned in the system</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">The Google token is missing or has invalid format</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">The Google token fails verification</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">The account exists but is locked</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">An unexpected system error occurs during login</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Mock State (Dependencies)</td><td class="item-cell">`verifyGoogleToken()` returns a valid payload for the success case and the unauthorized-account case</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">`userRepository.findByEmail()` must not auto-create users outside the admin-provisioned list</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">POST</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/auth/google</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="6">Input</td><td class="item-cell">Valid idToken + user already exists in the system</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Valid idToken + user is not provisioned</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Missing idToken or malformed token</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">idToken cannot be verified by Google</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Valid idToken but locked account</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Unexpected system failure</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="16">Confirm</td><td class="category-cell" rowspan="5">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">403: Forbidden</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">400: Bad Request</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">401: Unauthorized</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">500: Internal Server Error</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="5">Exception</td><td class="item-cell">None</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">ForbiddenException / RuntimeException</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">BadRequestException / RuntimeException</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">UnauthorizedException / RuntimeException</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">RuntimeException</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="6">Log message</td><td class="item-cell">User logged in successfully with a valid token</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to log in: Account does not have permission</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to log in: Missing or invalid token format</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to log in: Invalid token</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to log in: Account is locked</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Unexpected error occurred</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="4">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-03-11</td><td class="mark-cell">2026-03-11</td><td class="mark-cell">2026-03-11</td><td class="mark-cell">2026-03-11</td><td class="mark-cell">2026-03-11</td><td class="mark-cell">2026-03-11</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Defect ID</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+</table>
   </div>
 </body>
 </html>

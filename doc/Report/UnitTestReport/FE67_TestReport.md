@@ -1,30 +1,29 @@
 # Unit Test Report - FE-67: AI Suggest Seat
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><td><b>Function Code</b></td><td>FE-67</td><td><b>Function Name</b></td><td>AI Suggest Seat</td></tr>
-  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~88</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3">`AIAnalyticsProxyController.getSeatRecommendation(String user_id, String zone_preference, String time_slot, String date)`</td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Verify that `/slib/ai/analytics/seat-recommendation` accepts the required `user_id`, forwards optional filters to the AI service endpoint, and returns the proxied recommendation payload to the client.</td></tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-67</td>  <td class="label">Function Name</td>  <td class="value link">AI Suggest Seat</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~88</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>`AIAnalyticsProxyController.getSeatRecommendation(String user_id, String zone_preference, String time_slot, String date)`</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify that `/slib/ai/analytics/seat-recommendation` accepts the required `user_id`, forwards optional filters to the AI service endpoint, and returns the proxied recommendation payload to the client.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">5</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">2 / 2 / 1</td>  <td class="value center">5</td></tr>
 </table>
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>5</td><td>0</td><td>0</td><td>2 / 2 / 1</td><td>5</td></tr>
-</table>
-
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
-  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>AI analytics proxy controller is active at `/slib/ai`</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>AI service base URL and `RestTemplate` are configured</td><td>O</td><td>O</td><td>O</td><td></td><td>O</td></tr>
-  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>Downstream AI endpoint `/api/ai/analytics/seat-recommendation` is reachable</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
-  <tr><td>Downstream service may reject malformed or incomplete requests</td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>GET request includes required `user_id` and optional filter parameters</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="3" class="matrix-section"><b>Confirm</b></td><td rowspan="1"><b>Return</b></td><td>Backend proxies the recommendation payload from AI service back to the caller</td><td>O</td><td>O</td><td></td><td></td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Exception</b></td><td>Returns 400 when `user_id` is missing and surfaces downstream failure for invalid AI request</td><td></td><td></td><td>O</td><td>O</td><td></td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>Controller forwards query parameters to `/api/ai/analytics/seat-recommendation` via `RestTemplate`</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>N</td><td>A</td><td>A</td><td>B</td></tr>
-  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
-  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
-  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th></tr>
+  <tr><td class="section-cell" rowspan="7">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">AI analytics proxy controller is active at `/slib/ai`</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">AI service base URL and `RestTemplate` are configured</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Mock State (Dependencies)</td><td class="item-cell">Downstream AI endpoint `/api/ai/analytics/seat-recommendation` is reachable</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Downstream service may reject malformed or incomplete requests</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">GET</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/analytics/seat-recommendation</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">GET request includes required `user_id` and optional filter parameters</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="7">Confirm</td><td class="category-cell" rowspan="2">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">400: Bad Request</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="category-cell" rowspan="5">Log message</td><td class="item-cell">Successfully retrieved AI Suggest Seat for GET request includes required `user_id` and optional filter parameters</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved AI Suggest Seat for GET request includes required `user_id` and optional filter parameters (UTCID02)</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to retrieve AI Suggest Seat: Invalid request parameters for GET request includes required `user_id` and optional filter parameters</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Failed to retrieve AI Suggest Seat: Invalid request parameters for GET request includes required `user_id` and optional filter parameters (UTCID04)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved AI Suggest Seat for GET request includes required `user_id` and optional filter parameters (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
 </table>

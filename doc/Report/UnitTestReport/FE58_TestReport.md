@@ -1,30 +1,33 @@
 # Unit Test Report - FE-58: Auto Backup Schedule
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><td><b>Function Code</b></td><td>FE-58</td><td><b>Function Name</b></td><td>Auto Backup Schedule</td></tr>
-  <tr><td><b>Created By</b></td><td>Hadi</td><td><b>Executed By</b></td><td>Hadi</td></tr>
-  <tr><td><b>Lines of code</b></td><td>~0</td><td><b>Lack of test cases</b></td><td>0</td></tr>
-  <tr><td><b>Class Under Test</b></td><td colspan="3">No dedicated backup scheduler service/controller currently found</td></tr>
-  <tr><td><b>Test requirement</b></td><td colspan="3">Current backend contains backup schedule entities but no active scheduling service/controller for backup configuration.</td></tr>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-58</td>  <td class="label">Function Name</td>  <td class="value link">Auto Backup Schedule</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~0</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>No dedicated backup scheduler service/controller currently found</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Current backend contains backup schedule entities but no active scheduling service/controller for backup configuration.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">5</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 4 / 0</td>  <td class="value center">5</td></tr>
 </table>
 
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr><th>Passed</th><th>Failed</th><th>Untested</th><th>N/A/B</th><th>Total Test Cases</th></tr>
-  <tr><td>5</td><td>0</td><td>0</td><td>1 / 4 / 0</td><td>5</td></tr>
-</table>
-
-<table border="1" cellspacing="0" cellpadding="4" style="border-collapse: collapse; width: 100%;">
-  <tr class="matrix-head"><th>Section</th><th>Category</th><th>Item</th><th>UTCID01</th><th>UTCID02</th><th>UTCID03</th><th>UTCID04</th><th>UTCID05</th></tr>
-  <tr><td rowspan="5" class="matrix-section"><b>Condition</b></td><td rowspan="2"><b>Precondition</b></td><td>Auto-backup scheduling feature is expected</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>Only backup-schedule entities exist in current backend</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="2"><b>Mock State (Dependencies)</b></td><td>No scheduler configuration service/controller is active</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td>No runtime job scheduling path is exposed</td><td></td><td></td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Input</b></td><td>Auto-backup configuration request is assumed</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="3" class="matrix-section"><b>Confirm</b></td><td rowspan="1"><b>Return</b></td><td>No backend unit target exists for auto-backup schedule today</td><td>O</td><td></td><td></td><td></td><td></td></tr>
-  <tr><td rowspan="1"><b>Exception</b></td><td>Feature is treated as missing implementation</td><td></td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="1"><b>Log message / Interaction</b></td><td>No service interaction exists for auto-backup scheduling</td><td>O</td><td>O</td><td>O</td><td>O</td><td>O</td></tr>
-  <tr><td rowspan="4" class="matrix-section"><b>Result</b></td><td colspan="2">Type (N: Normal, A: Abnormal, B: Boundary)</td><td>N</td><td>A</td><td>A</td><td>A</td><td>A</td></tr>
-  <tr><td colspan="2">Passed/Failed</td><td>P</td><td>P</td><td>P</td><td>P</td><td>P</td></tr>
-  <tr><td colspan="2">Executed Date</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td><td>2026-03-10</td></tr>
-  <tr><td colspan="2">Defect ID</td><td></td><td></td><td></td><td></td><td></td></tr>
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th></tr>
+  <tr><td class="section-cell" rowspan="7">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">Auto-backup scheduling feature is expected</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Only backup-schedule entities exist in current backend</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Mock State (Dependencies)</td><td class="item-cell">No scheduler configuration service/controller is active</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">No runtime job scheduling path is exposed</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">No active backend API</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">Current admin page uses local mock data in SystemHealth.jsx</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">Auto-backup configuration request is assumed</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="7">Confirm</td><td class="category-cell" rowspan="1">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Exception</td><td class="item-cell">Feature is treated as missing implementation</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="5">Log message</td><td class="item-cell">Successfully processed Auto Backup Schedule for Auto-backup configuration request is assumed</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully processed Auto Backup Schedule for Auto-backup configuration request is assumed (UTCID02)</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully processed Auto Backup Schedule for Auto-backup configuration request is assumed (UTCID03)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully processed Auto Backup Schedule for Auto-backup configuration request is assumed (UTCID04)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully processed Auto Backup Schedule for Auto-backup configuration request is assumed (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="4">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-03-10</td><td class="mark-cell">2026-03-10</td><td class="mark-cell">2026-03-10</td><td class="mark-cell">2026-03-10</td><td class="mark-cell">2026-03-10</td></tr>
+  <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Defect ID</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
 </table>

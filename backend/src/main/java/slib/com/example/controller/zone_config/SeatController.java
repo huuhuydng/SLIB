@@ -176,6 +176,7 @@ public class SeatController {
     /**
      * Find seat by NFC tag UID (Mobile - for check-in via NFC)
      * GET /slib/seats/by-nfc-uid/{nfcTagUid}
+     * Now always expects raw UID — backend hashes server-side.
      */
     @GetMapping("/by-nfc-uid/{nfcTagUid}")
     public ResponseEntity<?> getSeatByNfcUid(@PathVariable String nfcTagUid) {
@@ -184,6 +185,38 @@ public class SeatController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(404).body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * List all seats with NFC mapping status (Admin - FE-48).
+     * GET /slib/seats/nfc-mappings?zoneId=&areaId=&hasNfc=&search=
+     */
+    @GetMapping("/nfc-mappings")
+    public ResponseEntity<?> getNfcMappings(
+            @RequestParam(required = false) Integer zoneId,
+            @RequestParam(required = false) Integer areaId,
+            @RequestParam(required = false) Boolean hasNfc,
+            @RequestParam(required = false) String search) {
+        try {
+            var mappings = seatService.getNfcMappings(zoneId, areaId, hasNfc, search);
+            return ResponseEntity.ok(mappings);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get NFC info for a specific seat (Admin - FE-49).
+     * GET /slib/seats/{seatId}/nfc-info
+     */
+    @GetMapping("/{seatId}/nfc-info")
+    public ResponseEntity<?> getNfcInfo(@PathVariable Integer seatId) {
+        try {
+            var info = seatService.getNfcInfo(seatId);
+            return ResponseEntity.ok(info);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 }

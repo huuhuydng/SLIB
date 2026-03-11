@@ -2,6 +2,7 @@
 
 import os
 import time
+import threading
 import requests
 import digitalio
 import board
@@ -10,6 +11,13 @@ import adafruit_rgb_display.ili9341 as ili9341
 import RPi.GPIO as GPIO
 from smartcard.System import readers
 from smartcard.util import toHexString
+
+# Load .env file if python-dotenv is available
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, use os.environ only
 
 LOGO_PATH = "logo.png"
 BUZZER_PIN = 17
@@ -26,7 +34,22 @@ COLOR_TEXT_MAIN = "#2c3e50"
 COLOR_TEXT_SUB  = "#7f8c8d"
 COLOR_BRAND     = "#FF751F"
 
-API_URL = "https://api.slibsystem.site/slib/hce/checkin"
+# ============================================================
+# Configuration: loaded from environment variables with fallback
+# ============================================================
+SLIB_API_BASE = os.environ.get("SLIB_API_URL", "https://api.slibsystem.site")
+SLIB_GATE_ID = os.environ.get("SLIB_GATE_ID", "GATE_01")
+SLIB_API_KEY = os.environ.get("SLIB_GATE_API_KEY", "SLIB_SECRET_GATE_FPT_123")
+SLIB_HEARTBEAT_INTERVAL = int(os.environ.get("SLIB_HEARTBEAT_INTERVAL", "30"))
+COOLDOWN_SECONDS = int(os.environ.get("SLIB_COOLDOWN_SECONDS", "30"))
+
+API_URL = f"{SLIB_API_BASE}/slib/hce/checkin"
+HEARTBEAT_URL = f"{SLIB_API_BASE}/slib/hce/stations/{SLIB_GATE_ID}/heartbeat"
+
+# Cooldown tracking: prevents duplicate scans of the same token
+last_scanned_token = None
+last_scanned_time = 0
+
 SELECT_APDU = [0x00, 0xA4, 0x04, 0x00, 0x07, 0xF0, 0x39, 0x41, 0x48, 0x14, 0x81, 0x00]
 
 GPIO.setmode(GPIO.BCM)
@@ -199,26 +222,66 @@ def show_status_screen(status_type, title, message):
 
     disp.image(image.rotate(90, expand=True))
 
+# ============================================================
+# Heartbeat thread: sends periodic heartbeat to backend
+# ============================================================
+def heartbeat_worker():
+    """Background thread that sends heartbeat to backend every N seconds."""
+    while True:
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "X-API-KEY": SLIB_API_KEY
+            }
+            resp = requests.post(HEARTBEAT_URL, headers=headers, timeout=5)
+            if resp.status_code == 200:
+                print(f"[Heartbeat] OK - {SLIB_GATE_ID}")
+            else:
+                print(f"[Heartbeat] Error {resp.status_code}: {resp.text}")
+        except Exception as e:
+            print(f"[Heartbeat] Failed: {e}")
+        time.sleep(SLIB_HEARTBEAT_INTERVAL)
+
+
 def send_to_backend(token):
     try:
         print(f"Token: {token}")
-        payload = {"token": token, "gateId": "GATE_01"}
+        payload = {"token": token, "gateId": SLIB_GATE_ID}
         
         headers = {
             "Content-Type": "application/json",
-            "X-API-KEY": "SLIB_SECRET_GATE_FPT_123" 
+            "X-API-KEY": SLIB_API_KEY
         }
         
         response = requests.post(API_URL, json=payload, headers=headers, timeout=5)
         
         if response.status_code == 200:
-            return True, response.json()
-        return False, {"message": "Server Error"}
-    except Exception:
+            data = response.json()
+            print(f"[Backend] Response: type={data.get('type')}, message={data.get('message')}")
+            return True, data
+        
+        # Parse error response for station-specific messages
+        try:
+            err_data = response.json()
+            print(f"[Backend] Error {response.status_code}: {err_data.get('message')}")
+            return False, err_data
+        except Exception:
+            return False, {"message": "Server Error"}
+    except Exception as e:
+        print(f"[Backend] Connection failed: {e}")
         return False, {"message": "Mất kết nối"}
 
 def main():
     print("--- SLIB GATEWAY UI UPGRADED ---")
+    print(f"Gate ID: {SLIB_GATE_ID}")
+    print(f"API URL: {API_URL}")
+    print(f"Heartbeat URL: {HEARTBEAT_URL}")
+    print(f"Heartbeat Interval: {SLIB_HEARTBEAT_INTERVAL}s")
+    
+    # Start heartbeat thread (daemon=True so it dies with main process)
+    hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
+    hb_thread.start()
+    print("[Heartbeat] Thread started")
     
     beep(0.1)
     set_led('BLUE')
@@ -249,6 +312,19 @@ def main():
                     token = bytes(response).decode('utf-8', errors='ignore').strip().replace('\x00', '')
                     
                     if token:
+                        # Cooldown check: skip if same token was scanned recently
+                        global last_scanned_token, last_scanned_time
+                        now = time.time()
+                        if token == last_scanned_token and (now - last_scanned_time) < COOLDOWN_SECONDS:
+                            remaining = int(COOLDOWN_SECONDS - (now - last_scanned_time))
+                            print(f"[Cooldown] Same token skipped, wait {remaining}s")
+                            show_status_screen('error', "VUI LÒNG CHỜ", f"Thẻ đã quét, chờ {remaining} giây")
+                            beep(0.3)
+                            time.sleep(3)
+                            set_led('BLUE')
+                            show_standby_screen()
+                            continue
+                        
                         success, data = send_to_backend(token)
                         
                         if success:
@@ -265,6 +341,10 @@ def main():
                             beep(0.1) 
                             time.sleep(0.1)
                             beep(0.2)
+                            
+                            # Update cooldown tracker on successful scan
+                            last_scanned_token = token
+                            last_scanned_time = time.time()
                         else:
                             set_led('RED')
                             err_msg = data.get("message", "Lỗi xác thực")
@@ -275,7 +355,9 @@ def main():
                         show_status_screen('error', "LỖI", "Token rỗng")
                         beep(0.5)
 
-                    time.sleep(3)
+                    # Display result for 5 seconds (enough time for user to remove phone)
+                    time.sleep(5)
+                    
                     set_led('BLUE')
                     show_standby_screen()
 

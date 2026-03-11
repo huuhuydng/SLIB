@@ -59,9 +59,13 @@ public class SeatEntity {
     private SeatStatus seatStatus = SeatStatus.AVAILABLE;
 
     // NFC Tag UID for seat verification (UID Mapping Strategy)
-    // Format: Uppercase HEX string without separators (e.g., "04A23C91")
+    // Stored as SHA-256 hash of the raw UID
     @Column(name = "nfc_tag_uid", unique = true)
     private String nfcTagUid;
+
+    // Timestamp of last NFC UID assignment/change
+    @Column(name = "nfc_tag_uid_updated_at")
+    private java.time.LocalDateTime nfcTagUidUpdatedAt;
 
     @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.EAGER)
     @com.fasterxml.jackson.annotation.JsonIgnore

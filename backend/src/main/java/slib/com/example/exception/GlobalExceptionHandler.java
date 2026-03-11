@@ -3,6 +3,7 @@ package slib.com.example.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -22,6 +23,21 @@ import java.util.NoSuchElementException;
  */
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+        /**
+         * Handle AccessDeniedException (403)
+         */
+        @ExceptionHandler(AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleAccessDenied(
+                        AccessDeniedException ex,
+                        HttpServletRequest request) {
+                ErrorResponse error = new ErrorResponse(
+                                HttpStatus.FORBIDDEN.value(),
+                                "Forbidden",
+                                ex.getMessage(),
+                                request.getRequestURI());
+                return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        }
 
         /**
          * Handle ResourceNotFoundException (404)
