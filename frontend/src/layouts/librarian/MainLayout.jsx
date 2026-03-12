@@ -5,6 +5,7 @@ import {
   LifeBuoy,
   MessageCircle,
   Star,
+  ClipboardCheck,
   MessageSquare,
   AlertTriangle,
   CheckCircle2,
@@ -23,6 +24,7 @@ const NOTIF_ICON_MAP = {
   SUPPORT_REQUEST: { icon: LifeBuoy, cls: "support", label: "Yêu cầu hỗ trợ" },
   COMPLAINT: { icon: MessageCircle, cls: "complaint", label: "Khiếu nại" },
   FEEDBACK: { icon: Star, cls: "feedback", label: "Phản hồi" },
+  SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: "seat-status", label: "Tình trạng ghế" },
   CHAT: { icon: MessageSquare, cls: "chat", label: "Trò chuyện" },
   VIOLATION: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
 };
@@ -46,6 +48,7 @@ const NOTIF_ROUTE_MAP = {
   SUPPORT_REQUEST: "/librarian/support-requests?tab=PENDING",
   COMPLAINT: "/librarian/complaints?tab=PENDING",
   FEEDBACK: "/librarian/feedback?tab=NEW",
+  SEAT_STATUS_REPORT: "/librarian/seat-status-reports?status=PENDING",
   CHAT: "/librarian/chat",
   VIOLATION: "/librarian/violation?tab=PENDING",
 };
@@ -55,6 +58,7 @@ const COUNT_KEY_MAP = {
   SUPPORT_REQUEST: "supportRequests",
   COMPLAINT: "complaints",
   FEEDBACK: "feedbacks",
+  SEAT_STATUS_REPORT: "seatStatusReports",
   CHAT: "chats",
   VIOLATION: "violations",
 };
@@ -82,6 +86,13 @@ function getItemDisplayInfo(category, item) {
         desc: item.content ? item.content.substring(0, 60) + (item.content.length > 60 ? "..." : "") : `Đánh giá ${item.rating || ""} sao`,
         time: item.createdAt,
         route: NOTIF_ROUTE_MAP.FEEDBACK,
+      };
+    case "SEAT_STATUS_REPORT":
+      return {
+        name: item.reporterName || "Sinh viên",
+        desc: item.issueTypeLabel || item.description?.substring(0, 60) || "Báo cáo tình trạng ghế",
+        time: item.createdAt,
+        route: NOTIF_ROUTE_MAP.SEAT_STATUS_REPORT,
       };
     case "CHAT":
       return {
@@ -414,6 +425,13 @@ const TOAST_DETAIL_MAP = {
     CREATED: { title: "Phản hồi mới", desc: "Sinh viên vừa gửi đánh giá/phản hồi mới về thư viện." },
     STATUS_CHANGED: { title: "Phản hồi đã cập nhật", desc: "Trạng thái phản hồi đã thay đổi." },
   },
+  SEAT_STATUS_REPORT: {
+    CREATED: { title: "Báo cáo tình trạng ghế mới", desc: "Có báo cáo mới về ghế hỏng, bẩn hoặc thiếu thiết bị cần được kiểm tra." },
+    VERIFIED: { title: "Báo cáo ghế đã xác minh", desc: "Một báo cáo tình trạng ghế đã được xác minh và chờ xử lý hoàn tất." },
+    REJECTED: { title: "Báo cáo ghế bị từ chối", desc: "Một báo cáo tình trạng ghế đã được từ chối sau khi kiểm tra." },
+    RESOLVED: { title: "Báo cáo ghế đã xử lý", desc: "Một báo cáo tình trạng ghế đã được xử lý xong." },
+    STATUS_CHANGED: { title: "Tình trạng ghế đã cập nhật", desc: "Trạng thái báo cáo tình trạng ghế vừa được cập nhật." },
+  },
   CHAT: {
     CREATED: { title: "Tin nhắn mới", desc: "Có sinh viên đang chờ được hỗ trợ qua trò chuyện." },
     ESCALATED: { title: "Yêu cầu trò chuyện", desc: "Sinh viên yêu cầu nói chuyện trực tiếp với thủ thư." },
@@ -593,4 +611,3 @@ function MainLayout() {
 }
 
 export default MainLayout;
-

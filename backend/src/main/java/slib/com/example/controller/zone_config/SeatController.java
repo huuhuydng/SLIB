@@ -149,9 +149,13 @@ public class SeatController {
     @PutMapping("/{seatId}/nfc-uid")
     public ResponseEntity<?> updateSeatNfcUid(
             @PathVariable Integer seatId,
-            @RequestBody java.util.Map<String, String> body) {
+            @RequestBody(required = false) java.util.Map<String, String> body,
+            @RequestParam(value = "nfcTagUid", required = false) String nfcTagUidParam) {
         try {
-            String nfcTagUid = body.get("nfcTagUid");
+            String nfcTagUid = nfcTagUidParam;
+            if ((nfcTagUid == null || nfcTagUid.isBlank()) && body != null) {
+                nfcTagUid = body.get("nfcTagUid");
+            }
             SeatResponse response = seatService.updateNfcTagUid(seatId, nfcTagUid);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {

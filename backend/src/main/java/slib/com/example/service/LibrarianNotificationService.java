@@ -6,10 +6,12 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus;
 import slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus;
+import slib.com.example.entity.feedback.SeatStatusReportEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity.ReportStatus;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.repository.ComplaintRepository;
 import slib.com.example.repository.FeedbackRepository;
+import slib.com.example.repository.SeatStatusReportRepository;
 import slib.com.example.repository.SeatViolationReportRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
@@ -31,6 +33,7 @@ public class LibrarianNotificationService {
     private final SupportRequestRepository supportRequestRepository;
     private final ComplaintRepository complaintRepository;
     private final FeedbackRepository feedbackRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
     private final ConversationRepository conversationRepository;
     private final SeatViolationReportRepository violationReportRepository;
     private final SimpMessagingTemplate messagingTemplate;
@@ -43,6 +46,7 @@ public class LibrarianNotificationService {
         long supportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.PENDING);
         long complaints = complaintRepository.countByStatus(ComplaintStatus.PENDING);
         long feedbacks = feedbackRepository.countByStatus(FeedbackStatus.NEW);
+        long seatStatusReports = seatStatusReportRepository.findByStatusOrderByCreatedAtDesc(SeatStatusReportEntity.ReportStatus.PENDING).size();
         long chats = conversationRepository.countByStatus(ConversationStatus.QUEUE_WAITING);
         long violations = violationReportRepository.countByStatus(ReportStatus.PENDING);
 
@@ -50,9 +54,10 @@ public class LibrarianNotificationService {
         counts.put("supportRequests", supportRequests);
         counts.put("complaints", complaints);
         counts.put("feedbacks", feedbacks);
+        counts.put("seatStatusReports", seatStatusReports);
         counts.put("chats", chats);
         counts.put("violations", violations);
-        counts.put("total", supportRequests + complaints + feedbacks + chats + violations);
+        counts.put("total", supportRequests + complaints + feedbacks + seatStatusReports + chats + violations);
         return counts;
     }
 

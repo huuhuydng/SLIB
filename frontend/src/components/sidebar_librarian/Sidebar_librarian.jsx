@@ -62,6 +62,7 @@ const Sidebar = () => {
     "/librarian/support-requests": pendingCounts.supportRequests,
     "/librarian/complaints": pendingCounts.complaints,
     "/librarian/feedback": pendingCounts.feedbacks,
+    "/librarian/seat-status-reports": pendingCounts.seatStatusReports,
     "/librarian/chat": unreadChatCount || pendingCounts.chats,
     "/librarian/violation": pendingCounts.violations,
   };
@@ -132,6 +133,11 @@ const Sidebar = () => {
           icon: MessageCircle,
           label: "Khiếu nại",
           path: "/librarian/complaints",
+        },
+        {
+          icon: FileText,
+          label: "Tình trạng ghế",
+          path: "/librarian/seat-status-reports",
         },
         {
           icon: Star,

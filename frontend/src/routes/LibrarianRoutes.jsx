@@ -21,6 +21,7 @@ import SupportRequestManage from "../pages/librarian/SupportRequest/SupportReque
 import BookingManage from "../pages/librarian/BookingManage/BookingManage";
 import FeedbackManage from "../pages/librarian/FeedbackManage/FeedbackManage";
 import ComplaintManage from "../pages/librarian/ComplaintManage/ComplaintManage";
+import SeatStatusReportManage from "../pages/librarian/SeatStatusReportManage/SeatStatusReportManage";
 import Attendance from "../pages/AttendanceWaitingScreen";
 import SlideshowManagement from "../components/admin/kiosk_managements/SlideshowManagement";
 import SlideshowPreview from "../components/admin/kiosk_managements/SlideshowPreview";
@@ -47,6 +48,7 @@ function LibrarianRoutes() {
         <Route path="violation" element={<ViolationManage />} />
         <Route path="support-requests" element={<SupportRequestManage />} />
         <Route path="complaints" element={<ComplaintManage />} />
+        <Route path="seat-status-reports" element={<SeatStatusReportManage />} />
         <Route path="feedback" element={<FeedbackManage />} />
 
         {/* Trò chuyện */}

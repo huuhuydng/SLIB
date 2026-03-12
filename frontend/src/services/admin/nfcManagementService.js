@@ -53,8 +53,9 @@ const nfcManagementService = {
      */
     assignNfcUid: async (seatId, nfcUid) => {
         try {
-            const res = await axios.put(`${API_BASE}/slib/seats/${seatId}/nfc-uid`, null, {
-                params: { nfcTagUid: nfcUid },
+            const res = await axios.put(`${API_BASE}/slib/seats/${seatId}/nfc-uid`, {
+                nfcTagUid: nfcUid,
+            }, {
                 headers: getAuthHeaders()
             });
             return res.data;

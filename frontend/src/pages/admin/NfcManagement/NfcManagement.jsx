@@ -119,7 +119,13 @@ const NfcManagement = () => {
       try {
         const mappings = await nfcManagementService.getNfcMappings();
         const map = {};
-        (mappings || []).forEach(m => { map[m.seatId] = m; });
+        (mappings || []).forEach(m => {
+          map[m.seatId] = {
+            ...m,
+            nfcUpdatedAt: m.updatedAt ?? m.nfcUpdatedAt ?? null,
+            lastUpdated: m.updatedAt ?? m.lastUpdated ?? m.nfcUpdatedAt ?? null,
+          };
+        });
         setNfcMap(map);
       } catch (e) { console.error("Load NFC mappings failed", e); }
 
@@ -216,7 +222,8 @@ const NfcManagement = () => {
         zoneName: mapping?.zoneName || "—",
         nfcMapped: mapping?.hasNfcTag || false,
         nfcUidMasked: mapping?.maskedNfcUid || null,
-        nfcUpdatedAt: mapping?.nfcUpdatedAt || null,
+        updatedAt: mapping?.updatedAt || mapping?.nfcUpdatedAt || null,
+        lastUpdated: mapping?.lastUpdated || mapping?.updatedAt || mapping?.nfcUpdatedAt || null,
       });
     } finally {
       setInfoLoading(false);
@@ -511,11 +518,11 @@ const NfcManagement = () => {
                     </span>
                   </div>
                 )}
-                {seatNfcInfo.nfcUpdatedAt && (
+                {(seatNfcInfo.lastUpdated || seatNfcInfo.updatedAt || seatNfcInfo.nfcUpdatedAt) && (
                   <div className="nfc-detail-row">
                     <span className="nfc-detail-row__label">Cập nhật</span>
                     <span className="nfc-detail-row__value">
-                      {new Date(seatNfcInfo.nfcUpdatedAt).toLocaleString("vi-VN")}
+                      {new Date(seatNfcInfo.lastUpdated || seatNfcInfo.updatedAt || seatNfcInfo.nfcUpdatedAt).toLocaleString("vi-VN")}
                     </span>
                   </div>
                 )}
