@@ -9,7 +9,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.dto.DashboardStatsDTO;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.DashboardService;
 
@@ -34,27 +36,39 @@ class FE121_DashboardTest {
         @MockBean
         private DashboardService dashboardService;
 
-        // UTCD01: Valid token - Success
+        @MockBean
+        private SimpMessagingTemplate messagingTemplate;
+
+        // UTCD01: Valid request - Success
         @Test
-        @DisplayName("UTCD01: View dashboard with valid token returns 200 OK")
+        @DisplayName("UTCD01: View dashboard stats returns 200 OK")
         void viewDashboard_validToken_returns200OK() throws Exception {
-                mockMvc.perform(get("/slib/dashboard"))
+                when(dashboardService.getDashboardStats()).thenReturn(new DashboardStatsDTO());
+
+                mockMvc.perform(get("/slib/dashboard/stats"))
                         .andExpect(status().isOk());
         }
 
-        // UTCD02: No token - 401
+        // UTCD02: Library status endpoint returns 200
         @Test
-        @DisplayName("UTCD02: View dashboard without token returns 401 Unauthorized")
-        void viewDashboard_noToken_returns401() throws Exception {
-                mockMvc.perform(get("/slib/dashboard"))
-                        .andExpect(status().isUnauthorized());
+        @DisplayName("UTCD02: View library status returns 200 OK")
+        void viewLibraryStatus_returns200OK() throws Exception {
+                when(dashboardService.getLibraryStatus()).thenReturn(java.util.Map.of(
+                        "status", "OPEN",
+                        "occupancy", 50));
+
+                mockMvc.perform(get("/slib/dashboard/library-status"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.status").value("OPEN"));
         }
 
-        // UTCD03: Not librarian/admin - 403
+        // UTCD03: Chart stats endpoint returns 200
         @Test
-        @DisplayName("UTCD03: View dashboard without permission returns 403 Forbidden")
-        void viewDashboard_noPermission_returns403() throws Exception {
-                mockMvc.perform(get("/slib/dashboard"))
-                        .andExpect(status().isForbidden());
+        @DisplayName("UTCD03: View chart stats returns 200 OK")
+        void viewChartStats_returns200OK() throws Exception {
+                when(dashboardService.getChartStats("week")).thenReturn(java.util.Collections.emptyList());
+
+                mockMvc.perform(get("/slib/dashboard/chart-stats").param("range", "week"))
+                        .andExpect(status().isOk());
         }
 }

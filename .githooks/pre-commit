@@ -1,55 +1,57 @@
 #!/bin/bash
 
-# Pre-commit hook: Kiểm tra nếu có thay đổi Controller thì phải có UnitTest tương ứng
+# Pre-commit hook: Kiem tra neu co thay doi Controller thi phai co FE UnitTest tuong ung
 
-echo "🔍 Checking Controller changes for unit tests..."
+echo "Checking Controller changes for FE unit tests..."
 
-# Lấy danh sách các file đã staged
+# Lay danh sach cac file da staged
 STAGED_FILES=$(git diff --cached --name-only)
 
-# Tìm các file Controller thay đổi
+# Tim cac file Controller thay doi
 CONTROLLER_CHANGES=""
 for file in $STAGED_FILES; do
-    if [[ $file == *"Controller.java" ]]; then
+    if [[ $file == *"Controller.java" && $file == *"src/main/"* ]]; then
         CONTROLLER_CHANGES="$CONTROLLER_CHANGES $file"
     fi
 done
 
-# Nếu không có Controller thay đổi, cho phép commit
+# Neu khong co Controller thay doi, cho phep commit
 if [ -z "$CONTROLLER_CHANGES" ]; then
-    echo "✅ No Controller changes detected. Proceeding with commit."
+    echo "No Controller changes detected. Proceeding with commit."
     exit 0
 fi
 
-# Kiểm tra từng Controller
+TEST_DIR="backend/src/test/java/slib/com/example/controller"
+
+# Kiem tra tung Controller co duoc cover boi it nhat 1 FE test khong
 MISSING_TESTS=""
 for controller in $CONTROLLER_CHANGES; do
-    # Lấy tên Controller (không có path và .java)
     CONTROLLER_NAME=$(basename "$controller" .java)
 
-    # Tìm file test tương ứng (match cả *Test.java và *UnitTest.java)
-    TEST_FILE=$(find backend/src/test -name "${CONTROLLER_NAME}*Test.java" 2>/dev/null)
+    # Tim FE test files co import hoac reference den Controller nay
+    FOUND=$(grep -rl "$CONTROLLER_NAME" "$TEST_DIR"/FE*Test.java 2>/dev/null)
 
-    if [ -z "$TEST_FILE" ]; then
+    if [ -z "$FOUND" ]; then
         MISSING_TESTS="$MISSING_TESTS $CONTROLLER_NAME"
     fi
 done
 
-# Nếu có Controller thiếu test
+# Neu co Controller thieu test
 if [ -n "$MISSING_TESTS" ]; then
     echo ""
-    echo "❌ ERROR: Missing unit tests for Controller changes!"
+    echo "ERROR: Missing FE unit tests for Controller changes!"
     echo ""
-    echo "The following Controllers are modified but have no corresponding test:"
+    echo "The following Controllers are modified but not covered by any FE test:"
     for controller in $MISSING_TESTS; do
         echo "   - $controller"
     done
     echo ""
-    echo "Please create/update unit tests before committing."
-    echo "Expected test location: backend/src/test/java/slib/com/example/"
+    echo "Please create/update FE unit tests (FE{xx}_{Name}Test.java) before committing."
+    echo "Test location: backend/src/test/java/slib/com/example/controller/"
+    echo "Test naming: FE{xx}_{Name}Test.java (matching doc/Report/UnitTestReport/)"
     echo ""
     exit 1
 fi
 
-echo "✅ All Controller changes have corresponding unit tests. Proceeding with commit."
+echo "All Controller changes are covered by FE unit tests. Proceeding with commit."
 exit 0

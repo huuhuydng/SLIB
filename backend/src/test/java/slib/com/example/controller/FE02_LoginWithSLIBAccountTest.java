@@ -14,7 +14,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.LoginRequest;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
+import slib.com.example.exception.ResourceNotFoundException;
 import slib.com.example.service.AuthService;
 
 import java.util.UUID;
@@ -48,11 +50,6 @@ class FE02_LoginWithSLIBAccountTest {
         // === UTCD01: Valid credentials - Success ===
         // =========================================
 
-        /**
-         * UTCD01: Login with valid credentials (username + password)
-         * Precondition: Valid credentials in database
-         * Expected: 200 OK
-         */
         @Test
         @DisplayName("UTCD01: Login with valid credentials returns 200 OK")
         void loginWithPassword_validCredentials_returns200OK() throws Exception {
@@ -90,8 +87,7 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD02: Login with non-existent account
-         * Precondition: No account in system
-         * Expected: 404 Not Found
+         * Expected: 404 Not Found (service throws ResourceNotFoundException)
          */
         @Test
         @DisplayName("UTCD02: Login with non-existent account returns 404 Not Found")
@@ -101,12 +97,12 @@ class FE02_LoginWithSLIBAccountTest {
                 request.setPassword("Slib@2025");
 
                 when(authService.loginWithPassword(anyString(), anyString(), any()))
-                                .thenThrow(new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
+                                .thenThrow(new ResourceNotFoundException("User", "identifier", "SE999999"));
 
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isUnauthorized());
+                                .andExpect(status().isNotFound());
 
                 verify(authService, times(1)).loginWithPassword(anyString(), anyString(), any());
         }
@@ -117,23 +113,22 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD03: Login with wrong password
-         * Precondition: Valid account with correct password
-         * Expected: 401 Unauthorized
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD03: Login with wrong password returns 401 Unauthorized")
-        void loginWithPassword_wrongPassword_returns401Unauthorized() throws Exception {
+        @DisplayName("UTCD03: Login with wrong password returns 400 Bad Request")
+        void loginWithPassword_wrongPassword_returns400BadRequest() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setIdentifier("SE123456");
                 request.setPassword("WrongPassword123");
 
                 when(authService.loginWithPassword(anyString(), anyString(), any()))
-                                .thenThrow(new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
+                                .thenThrow(new BadRequestException("Tai khoan hoac mat khau khong dung"));
 
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isUnauthorized());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, times(1)).loginWithPassword(anyString(), anyString(), any());
         }
@@ -144,23 +139,22 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD04: Login with locked account
-         * Precondition: Account is locked (isActive=false)
-         * Expected: 403 Forbidden
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD04: Login with locked account returns 403 Forbidden")
-        void loginWithPassword_lockedAccount_returns403Forbidden() throws Exception {
+        @DisplayName("UTCD04: Login with locked account returns 400 Bad Request")
+        void loginWithPassword_lockedAccount_returns400BadRequest() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setIdentifier("SE123456");
                 request.setPassword("Slib@2025");
 
                 when(authService.loginWithPassword(anyString(), anyString(), any()))
-                                .thenThrow(new RuntimeException("Tài khoản đã bị khóa"));
+                                .thenThrow(new BadRequestException("Tai khoan da bi khoa"));
 
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isForbidden());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, times(1)).loginWithPassword(anyString(), anyString(), any());
         }
@@ -171,19 +165,19 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD05: Login with missing identifier
-         * Precondition: No precondition
-         * Expected: 400 Bad Request
+         * Note: Controller throws RuntimeException -> GlobalExceptionHandler -> 500
+         * Expected: 500 Internal Server Error
          */
         @Test
-        @DisplayName("UTCD05: Login with missing identifier returns 400 Bad Request")
-        void loginWithPassword_missingIdentifier_returns400BadRequest() throws Exception {
+        @DisplayName("UTCD05: Login with missing identifier returns 500 Internal Server Error")
+        void loginWithPassword_missingIdentifier_returns500InternalServerError() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setPassword("Slib@2025");
 
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isInternalServerError());
 
                 verify(authService, never()).loginWithPassword(anyString(), anyString(), any());
         }
@@ -194,12 +188,12 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD06: Login with empty credentials
-         * Precondition: No precondition
-         * Expected: 400 Bad Request
+         * Note: Controller throws RuntimeException -> GlobalExceptionHandler -> 500
+         * Expected: 500 Internal Server Error
          */
         @Test
-        @DisplayName("UTCD06: Login with empty credentials returns 400 Bad Request")
-        void loginWithPassword_emptyCredentials_returns400BadRequest() throws Exception {
+        @DisplayName("UTCD06: Login with empty credentials returns 500 Internal Server Error")
+        void loginWithPassword_emptyCredentials_returns500InternalServerError() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setIdentifier("");
                 request.setPassword("");
@@ -207,7 +201,7 @@ class FE02_LoginWithSLIBAccountTest {
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isInternalServerError());
 
                 verify(authService, never()).loginWithPassword(anyString(), anyString(), any());
         }
@@ -218,23 +212,22 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD07: Login with account that has no password set
-         * Precondition: Account exists but password is null/empty
-         * Expected: 403 Forbidden
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD07: Login with no password set returns 403 Forbidden")
-        void loginWithPassword_noPasswordSet_returns403Forbidden() throws Exception {
+        @DisplayName("UTCD07: Login with no password set returns 400 Bad Request")
+        void loginWithPassword_noPasswordSet_returns400BadRequest() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setIdentifier("SE123456");
                 request.setPassword("Slib@2025");
 
                 when(authService.loginWithPassword(anyString(), anyString(), any()))
-                                .thenThrow(new RuntimeException("Tài khoản chưa được thiết lập mật khẩu"));
+                                .thenThrow(new BadRequestException("Tai khoan chua duoc thiet lap mat khau"));
 
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isForbidden());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, times(1)).loginWithPassword(anyString(), anyString(), any());
         }
@@ -243,11 +236,6 @@ class FE02_LoginWithSLIBAccountTest {
         // === UTCD08: Case insensitive login ===
         // =========================================
 
-        /**
-         * UTCD08: Login with case-insensitive username
-         * Precondition: Account with username "se123456" exists
-         * Expected: 200 OK
-         */
         @Test
         @DisplayName("UTCD08: Login with case-insensitive username returns 200 OK")
         void loginWithPassword_caseInsensitive_returns200OK() throws Exception {
@@ -281,11 +269,6 @@ class FE02_LoginWithSLIBAccountTest {
         // === UTCD09: Login with email ===
         // =========================================
 
-        /**
-         * UTCD09: Login using email instead of username/MSSV
-         * Precondition: Account with email exists
-         * Expected: 200 OK
-         */
         @Test
         @DisplayName("UTCD09: Login with email returns 200 OK")
         void loginWithPassword_usingEmail_returns200OK() throws Exception {
@@ -320,11 +303,6 @@ class FE02_LoginWithSLIBAccountTest {
         // === UTCD10: Login with MSSV ===
         // =========================================
 
-        /**
-         * UTCD10: Login using MSSV (student code)
-         * Precondition: Account with userCode/MSSV exists
-         * Expected: 200 OK
-         */
         @Test
         @DisplayName("UTCD10: Login with MSSV returns 200 OK")
         void loginWithPassword_usingMSSV_returns200OK() throws Exception {

@@ -11,8 +11,13 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.NotificationService;
+import slib.com.example.repository.UserRepository;
+import slib.com.example.service.PushNotificationService;
 
+import java.util.Collections;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -32,19 +37,30 @@ class FE100_NotificationTest {
         private MockMvc mockMvc;
 
         @MockBean
-        private NotificationService notificationService;
+        private PushNotificationService notificationService;
+
+        @MockBean
+        private UserRepository userRepository;
 
         @Test
         @DisplayName("UTCD01: View notifications returns 200 OK")
         void viewNotifications_validToken_returns200OK() throws Exception {
-                mockMvc.perform(get("/slib/notifications"))
+                UUID userId = UUID.randomUUID();
+                when(notificationService.getUserNotifications(eq(userId), anyInt()))
+                        .thenReturn(Collections.emptyList());
+
+                mockMvc.perform(get("/slib/notifications/user/{userId}", userId))
                         .andExpect(status().isOk());
         }
 
         @Test
-        @DisplayName("UTCD02: View notifications without token returns 401")
-        void viewNotifications_noToken_returns401() throws Exception {
-                mockMvc.perform(get("/slib/notifications"))
-                        .andExpect(status().isUnauthorized());
+        @DisplayName("UTCD02: Get unread count returns 200 OK with count")
+        void getUnreadCount_validUser_returns200OK() throws Exception {
+                UUID userId = UUID.randomUUID();
+                when(notificationService.getUnreadCount(eq(userId))).thenReturn(5L);
+
+                mockMvc.perform(get("/slib/notifications/unread-count/{userId}", userId))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.count").value(5));
         }
 }

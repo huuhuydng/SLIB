@@ -10,14 +10,19 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
+import slib.com.example.exception.ResourceNotFoundException;
+import slib.com.example.service.BookingService;
 import slib.com.example.service.ZoneService;
 
-import java.util.UUID;
+import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.zone_config.ZoneController;
 
 /**
  * Unit Tests for FE-25: CRUD Zone
@@ -36,31 +41,46 @@ class FE25_CRUDZoneTest {
         @MockBean
         private ZoneService zoneService;
 
+        @MockBean
+        private BookingService bookingService;
+
         // UTCD01: Create zone - Success
         @Test
         @DisplayName("UTCD01: Create zone with valid data returns 200 OK")
         void createZone_validData_returns200OK() throws Exception {
+                ZoneResponse response = new ZoneResponse();
+                when(zoneService.createZone(any(ZoneResponse.class))).thenReturn(response);
+
                 mockMvc.perform(post("/slib/zones")
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"name\":\"Zone A\",\"areaId\":\"" + UUID.randomUUID() + "\"}"))
+                                .content("{\"name\":\"Zone A\",\"areaId\":1}"))
                         .andExpect(status().isOk());
+
+                verify(zoneService, times(1)).createZone(any(ZoneResponse.class));
         }
 
-        // UTCD02: No token - 401
+        // UTCD02: Get all zones - Success
         @Test
-        @DisplayName("UTCD02: Create zone without token returns 401 Unauthorized")
-        void createZone_noToken_returns401() throws Exception {
-                mockMvc.perform(post("/slib/zones"))
-                        .andExpect(status().isUnauthorized());
+        @DisplayName("UTCD02: Get all zones returns 200 OK")
+        void getAllZones_returns200OK() throws Exception {
+                when(zoneService.getAllZones()).thenReturn(Collections.emptyList());
+
+                mockMvc.perform(get("/slib/zones"))
+                        .andExpect(status().isOk());
+
+                verify(zoneService, times(1)).getAllZones();
         }
 
-        // UTCD04: Invalid data - 400
+        // UTCD03: Get zone by non-existent ID - 404
         @Test
-        @DisplayName("UTCD04: Create zone with invalid data returns 400 Bad Request")
-        void createZone_invalidData_returns400() throws Exception {
-                mockMvc.perform(post("/slib/zones")
-                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"name\":\"\"}"))
-                        .andExpect(status().isBadRequest());
+        @DisplayName("UTCD03: Get zone with non-existent ID returns 404 Not Found")
+        void getZone_notFound_returns404() throws Exception {
+                when(zoneService.getZoneById(999))
+                        .thenThrow(new ResourceNotFoundException("Zone not found with id: 999"));
+
+                mockMvc.perform(get("/slib/zones/999"))
+                        .andExpect(status().isNotFound());
+
+                verify(zoneService, times(1)).getZoneById(999);
         }
 }

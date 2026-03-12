@@ -58,7 +58,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/slib
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: Slib@123
-        run: mvn test -Dtest="*ControllerUnitTest"
+        run: mvn test -Dtest="FE*Test"
       
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4

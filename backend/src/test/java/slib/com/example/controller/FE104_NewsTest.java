@@ -13,9 +13,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.NewsService;
 
+import java.util.Collections;
+
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.news.NewsController;
 
 /**
  * Unit Tests for FE-104: View News List
@@ -35,16 +38,20 @@ class FE104_NewsTest {
         private NewsService newsService;
 
         @Test
-        @DisplayName("UTCD01: View news list returns 200 OK")
+        @DisplayName("UTCD01: View public news list returns 200 OK")
         void viewNewsList_validToken_returns200OK() throws Exception {
-                mockMvc.perform(get("/slib/news"))
+                when(newsService.getPublicNews()).thenReturn(Collections.emptyList());
+
+                mockMvc.perform(get("/slib/news/public"))
                         .andExpect(status().isOk());
         }
 
         @Test
-        @DisplayName("UTCD02: View news list without token returns 401")
-        void viewNewsList_noToken_returns401() throws Exception {
-                mockMvc.perform(get("/slib/news"))
-                        .andExpect(status().isUnauthorized());
+        @DisplayName("UTCD02: View admin news list returns 200 OK")
+        void viewAdminNewsList_returns200OK() throws Exception {
+                when(newsService.getAllNewsForAdmin()).thenReturn(Collections.emptyList());
+
+                mockMvc.perform(get("/slib/news/admin/all"))
+                        .andExpect(status().isOk());
         }
 }

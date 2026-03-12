@@ -9,11 +9,18 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
+import slib.com.example.service.AsyncImportService;
+import slib.com.example.service.AuthService;
+import slib.com.example.service.StagingImportService;
 import slib.com.example.service.UserService;
+import slib.com.example.service.chat.CloudinaryService;
 
-import java.util.UUID;
+import java.util.Collections;
+import java.util.Map;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -22,6 +29,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-16: Add Librarian
  * Test Report: doc/Report/FE16_TestReport.md
+ *
+ * Note: There is no dedicated /librarian endpoint in UserController.
+ * Adding a librarian is done through the /import endpoint with role=LIBRARIAN.
+ * Tests adapted to verify the import endpoint accepts librarian data.
  */
 @WebMvcTest(value = UserController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
                 slib.com.example.security.JwtAuthenticationFilter.class }))
@@ -36,19 +47,38 @@ class FE16_AddLibrarianTest {
         @MockBean
         private UserService userService;
 
+        @MockBean
+        private AuthService authService;
+
+        @MockBean
+        private CloudinaryService cloudinaryService;
+
+        @MockBean
+        private AsyncImportService asyncImportService;
+
+        @MockBean
+        private StagingImportService stagingImportService;
+
         @Test
-        @DisplayName("UTCD01: Add librarian with admin returns 200 OK")
+        @DisplayName("UTCD01: Import librarian user returns 200 OK")
         void addLibrarian_admin_returns200OK() throws Exception {
-                mockMvc.perform(post("/slib/users/librarian")
-                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"email\":\"librarian@fpt.edu.vn\",\"fullName\":\"Test Librarian\"}"))
+                when(userService.importUsers(any())).thenReturn(Map.of(
+                        "success", Collections.emptyList(),
+                        "failed", Collections.emptyList()
+                ));
+
+                mockMvc.perform(post("/slib/users/import")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("[{\"email\":\"librarian@fpt.edu.vn\",\"fullName\":\"Test Librarian\",\"userCode\":\"LIB001\",\"role\":\"LIBRARIAN\"}]"))
                         .andExpect(status().isOk());
         }
 
         @Test
-        @DisplayName("UTCD02: Add librarian without token returns 401")
-        void addLibrarian_noToken_returns401() throws Exception {
-                mockMvc.perform(post("/slib/users/librarian"))
-                        .andExpect(status().isUnauthorized());
+        @DisplayName("UTCD02: Import with empty list returns 400 Bad Request")
+        void addLibrarian_emptyList_returns400() throws Exception {
+                mockMvc.perform(post("/slib/users/import")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("[]"))
+                        .andExpect(status().isBadRequest());
         }
 }

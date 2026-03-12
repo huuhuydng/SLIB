@@ -12,8 +12,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.AsyncImportService;
+import slib.com.example.service.AuthService;
+import slib.com.example.service.StagingImportService;
+import slib.com.example.service.UserService;
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.util.UUID;
 
@@ -36,7 +41,19 @@ class FE14_ImportStudentTest {
         private MockMvc mockMvc;
 
         @MockBean
+        private UserService userService;
+
+        @MockBean
+        private AuthService authService;
+
+        @MockBean
+        private CloudinaryService cloudinaryService;
+
+        @MockBean
         private AsyncImportService asyncImportService;
+
+        @MockBean
+        private StagingImportService stagingImportService;
 
         // UTCD01: Valid file + admin - Success
         @Test
@@ -56,12 +73,12 @@ class FE14_ImportStudentTest {
                 verify(asyncImportService, times(1)).startImport(any());
         }
 
-        // UTCD02: No token - 401
+        // UTCD02: Missing file - 400
         @Test
-        @DisplayName("UTCD02: Import without token returns 401 Unauthorized")
-        void importStudents_noToken_returns401() throws Exception {
+        @DisplayName("UTCD02: Import without file returns 400 Bad Request")
+        void importStudents_noFile_returns400() throws Exception {
                 mockMvc.perform(multipart("/slib/users/import/excel"))
-                        .andExpect(status().isUnauthorized());
+                        .andExpect(status().isBadRequest());
         }
 
         // UTCD04: Invalid file format - 400

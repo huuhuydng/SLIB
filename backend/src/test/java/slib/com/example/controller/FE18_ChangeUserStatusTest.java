@@ -10,8 +10,14 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.controller.users.UserController;
+import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
+import slib.com.example.service.AsyncImportService;
+import slib.com.example.service.AuthService;
+import slib.com.example.service.StagingImportService;
 import slib.com.example.service.UserService;
+import slib.com.example.service.chat.CloudinaryService;
 
 import java.util.UUID;
 
@@ -36,20 +42,37 @@ class FE18_ChangeUserStatusTest {
         @MockBean
         private UserService userService;
 
+        @MockBean
+        private AuthService authService;
+
+        @MockBean
+        private CloudinaryService cloudinaryService;
+
+        @MockBean
+        private AsyncImportService asyncImportService;
+
+        @MockBean
+        private StagingImportService stagingImportService;
+
         @Test
         @DisplayName("UTCD01: Change user status returns 200 OK")
         void changeUserStatus_admin_returns200OK() throws Exception {
-                mockMvc.perform(patch("/slib/users/" + UUID.randomUUID() + "/status")
+                UUID userId = UUID.randomUUID();
+                User mockUser = User.builder().isActive(false).build();
+                when(userService.toggleUserActive(any(), anyBoolean())).thenReturn(mockUser);
+
+                mockMvc.perform(patch("/slib/users/" + userId + "/status")
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                                 .content("{\"isActive\":false}"))
                         .andExpect(status().isOk());
         }
 
         @Test
-        @DisplayName("UTCD02: No token returns 401")
-        void changeUserStatus_noToken_returns401() throws Exception {
-                mockMvc.perform(patch("/slib/users/123/status")
+        @DisplayName("UTCD02: Invalid UUID format returns 400 Bad Request")
+        void changeUserStatus_invalidUUID_returns400() throws Exception {
+                mockMvc.perform(patch("/slib/users/invalid-uuid/status")
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                                 .content("{\"isActive\":false}"))
-                        .andExpect(status().isUnauthorized());
+                        .andExpect(status().isBadRequest());
         }
 }

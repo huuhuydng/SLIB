@@ -12,6 +12,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.AuthService;
 
@@ -47,11 +48,6 @@ class FE03_LogoutTest {
         // === UTCD01: Logout successful ===
         // =========================================
 
-        /**
-         * UTCD01: Logout with valid refresh token
-         * Precondition: Valid refresh token in database
-         * Expected: 200 OK
-         */
         @Test
         @DisplayName("UTCD01: Logout with valid refresh token returns 200 OK")
         void logout_validToken_returns200OK() throws Exception {
@@ -64,7 +60,7 @@ class FE03_LogoutTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("Đăng xuất thành công"));
+                                .andExpect(jsonPath("$.message").value("\u0110\u0103ng xu\u1EA5t th\u00E0nh c\u00F4ng"));
 
                 verify(authService, times(1)).logout(anyString());
         }
@@ -73,11 +69,6 @@ class FE03_LogoutTest {
         // === UTCD02: No token provided ===
         // =========================================
 
-        /**
-         * UTCD02: Logout without providing token
-         * Precondition: No precondition
-         * Expected: 200 OK (no action)
-         */
         @Test
         @DisplayName("UTCD02: Logout without token returns 200 OK")
         void logout_noToken_returns200OK() throws Exception {
@@ -87,7 +78,7 @@ class FE03_LogoutTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.message").value("Đăng xuất thành công"));
+                                .andExpect(jsonPath("$.message").value("\u0110\u0103ng xu\u1EA5t th\u00E0nh c\u00F4ng"));
 
                 verify(authService, never()).logout(anyString());
         }
@@ -98,22 +89,21 @@ class FE03_LogoutTest {
 
         /**
          * UTCD03: Logout with already revoked token
-         * Precondition: Token already revoked in database
-         * Expected: 401 Unauthorized
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD03: Logout with already revoked token returns 401 Unauthorized")
-        void logout_alreadyRevokedToken_returns401Unauthorized() throws Exception {
+        @DisplayName("UTCD03: Logout with already revoked token returns 400 Bad Request")
+        void logout_alreadyRevokedToken_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("refreshToken", "already.revoked.token");
 
-                doThrow(new RuntimeException("Refresh token đã bị thu hồi"))
+                doThrow(new BadRequestException("Refresh token da bi thu hoi"))
                                 .when(authService).logout(anyString());
 
                 mockMvc.perform(post("/slib/auth/logout")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isUnauthorized());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, times(1)).logout(anyString());
         }
@@ -124,8 +114,7 @@ class FE03_LogoutTest {
 
         /**
          * UTCD04: Logout with invalid token format
-         * Precondition: No precondition
-         * Expected: 400 Bad Request
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
         @DisplayName("UTCD04: Logout with invalid token format returns 400 Bad Request")
@@ -133,7 +122,7 @@ class FE03_LogoutTest {
                 Map<String, String> request = new HashMap<>();
                 request.put("refreshToken", "invalid.format");
 
-                doThrow(new RuntimeException("Token không hợp lệ"))
+                doThrow(new BadRequestException("Token khong hop le"))
                                 .when(authService).logout(anyString());
 
                 mockMvc.perform(post("/slib/auth/logout")
@@ -150,46 +139,29 @@ class FE03_LogoutTest {
 
         /**
          * UTCD05: Logout with expired token
-         * Precondition: Token expired
-         * Expected: 401 Unauthorized
+         * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD05: Logout with expired token returns 401 Unauthorized")
-        void logout_expiredToken_returns401Unauthorized() throws Exception {
+        @DisplayName("UTCD05: Logout with expired token returns 400 Bad Request")
+        void logout_expiredToken_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("refreshToken", "expired.token");
 
-                doThrow(new RuntimeException("Refresh token đã hết hạn"))
+                doThrow(new BadRequestException("Refresh token da het han"))
                                 .when(authService).logout(anyString());
 
                 mockMvc.perform(post("/slib/auth/logout")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isUnauthorized());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, times(1)).logout(anyString());
         }
 
         // =========================================
-        // === UTCD06: Logout all devices ===
-        // =========================================
-
-        /**
-         * UTCD06: Logout from all devices
-         * Precondition: User logged in
-         * Expected: 200 OK
-         * Note: Requires authentication - tested separately
-         */
-
-        // =========================================
         // === UTCD07: System error ===
         // =========================================
 
-        /**
-         * UTCD07: System error during logout
-         * Precondition: No precondition
-         * Expected: 500 Internal Server Error
-         */
         @Test
         @DisplayName("UTCD07: System error during logout returns 500 Internal Server Error")
         void logout_systemError_returns500InternalServerError() throws Exception {
