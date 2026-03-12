@@ -114,7 +114,7 @@ export default function IdleSlideshow({ children, idleTimeMs = 5000, forceActive
               </div>
             </>
           ) : (
-            <div className="slideshowEmpty">No images available</div>
+            <div className="slideshowEmpty">Không có hình ảnh</div>
           )}
         </div>
       )}

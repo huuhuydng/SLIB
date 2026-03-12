@@ -93,7 +93,8 @@ public class BookingController {
         }
     }
 
-    // --- CONFIRM SEAT WITH NFC ---
+    // --- CONFIRM SEAT WITH NFC (legacy — deprecated) ---
+    @Deprecated
     @PostMapping("/confirm-nfc/{reservationId}")
     public ResponseEntity<?> confirmSeatWithNfc(
             @PathVariable UUID reservationId,
@@ -104,6 +105,23 @@ public class BookingController {
                 return ResponseEntity.badRequest().body("Thiếu dữ liệu NFC");
             }
             ReservationEntity reservation = bookingService.confirmSeatWithNfc(reservationId, nfcData);
+            return ResponseEntity.ok(reservation);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- CONFIRM SEAT WITH NFC UID (new — UID Mapping Strategy) ---
+    @PostMapping("/confirm-nfc-uid/{reservationId}")
+    public ResponseEntity<?> confirmSeatWithNfcUid(
+            @PathVariable UUID reservationId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String nfcUid = request.get("nfc_uid");
+            if (nfcUid == null || nfcUid.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Thiếu NFC UID");
+            }
+            ReservationEntity reservation = bookingService.confirmSeatWithNfcUid(reservationId, nfcUid);
             return ResponseEntity.ok(reservation);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

@@ -133,9 +133,29 @@ public class StagingImportService {
                                 .build())
                         .collect(Collectors.toList());
                 userSettingRepository.saveAll(userSettings);
+                userSettingRepository.flush();
             } catch (Exception e) {
-                // Ignore if DB trigger already created settings
-                log.debug("[Staging] UserSettings may already exist (from DB trigger): {}", e.getMessage());
+                log.warn("[Staging] UserSettings creation error: {}. Retrying individually...", e.getMessage());
+                // Retry individually for users that don't have settings
+                for (User user : savedUsers) {
+                    try {
+                        if (!userSettingRepository.existsById(user.getId())) {
+                            UserSetting setting = UserSetting.builder()
+                                    .userId(user.getId())
+                                    .user(user)
+                                    .isHceEnabled(true)
+                                    .isAiRecommendEnabled(true)
+                                    .isBookingRemindEnabled(true)
+                                    .themeMode("light")
+                                    .languageCode("vi")
+                                    .build();
+                            userSettingRepository.saveAndFlush(setting);
+                        }
+                    } catch (Exception ex) {
+                        log.error("[Staging] Failed to create UserSetting for user {}: {}", user.getId(),
+                                ex.getMessage());
+                    }
+                }
             }
 
             processedCount += batch.size();

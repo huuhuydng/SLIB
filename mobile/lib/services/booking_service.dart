@@ -296,7 +296,7 @@ class BookingService {
     }
   }
 
-  /// Confirm seat with NFC tag data
+  /// @Deprecated — Use confirmSeatWithNfcUid instead
   Future<Map<String, dynamic>> confirmSeatWithNfc(String reservationId, String nfcData) async {
     final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc/$reservationId");
     
@@ -318,17 +318,13 @@ class BookingService {
 
   /// Get seat by NFC tag UID (UID Mapping Strategy)
   /// 
-  /// This is used for check-in flow where the student scans an NFC tag
-  /// and the app looks up which seat it corresponds to.
+  /// Sends raw UID to backend — backend handles hashing.
   /// 
   /// [nfcUid] - NFC tag UID in uppercase HEX format (e.g., "04A23C91")
   /// Returns the seat information if found, throws exception otherwise.
   Future<Seat> getSeatByNfcUid(String nfcUid) async {
-    // Hash the UID before sending to backend (must match backend's hash)
-    final hashedUid = NfcUidHasher.hashUid(nfcUid);
-    debugPrint('BookingService: Raw UID: $nfcUid');
-    debugPrint('BookingService: Hashed UID: $hashedUid');
-    final url = Uri.parse("${ApiConstants.seatUrl}/by-nfc-uid/$hashedUid");
+    debugPrint('BookingService: Looking up seat by raw UID: $nfcUid');
+    final url = Uri.parse("${ApiConstants.seatUrl}/by-nfc-uid/$nfcUid");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -343,34 +339,33 @@ class BookingService {
     }
   }
 
-  /// Confirm seat check-in using NFC UID
+  /// Confirm seat check-in using NFC UID (UID Mapping Strategy)
   /// 
-  /// This method:
-  /// 1. Looks up the seat by NFC UID
-  /// 2. Validates that it matches the reservation's seat
-  /// 3. Confirms the booking
+  /// Sends raw UID directly to backend's new confirm-nfc-uid endpoint.
+  /// Backend resolves seat, validates, and confirms.
   /// 
   /// [reservationId] - The booking reservation ID
   /// [nfcUid] - NFC tag UID in uppercase HEX format
-  /// [expectedSeatId] - The expected seat ID from the reservation
+  /// [expectedSeatId] - The expected seat ID from the reservation (for local pre-check)
   Future<Map<String, dynamic>> confirmSeatWithNfcUid(
     String reservationId, 
     String nfcUid,
     int expectedSeatId,
   ) async {
-    // Step 1: Look up seat by NFC UID
-    final seat = await getSeatByNfcUid(nfcUid);
+    // Call the new backend endpoint directly with raw UID
+    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc-uid/$reservationId");
     
-    // Step 2: Validate seat matches reservation
-    if (seat.seatId != expectedSeatId) {
-      throw Exception(
-        "Ghế không khớp! Bạn đang đặt ghế ID: $expectedSeatId nhưng thẻ NFC là ghế ID: ${seat.seatId} (${seat.seatCode})"
-      );
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"nfc_uid": nfcUid}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorMsg = utf8.decode(response.bodyBytes);
+      throw Exception(errorMsg);
     }
-    
-    // Step 3: Confirm the booking (use existing confirm endpoint)
-    // Create NFC data in legacy format for backward compatibility
-    final nfcData = "SEAT_ID:${seat.seatCode}_ZONE:${seat.zoneId}";
-    return confirmSeatWithNfc(reservationId, nfcData);
   }
 }

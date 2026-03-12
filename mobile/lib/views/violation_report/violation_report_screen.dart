@@ -11,6 +11,7 @@ import '../../models/zone_occupancy.dart';
 import '../../models/zones.dart';
 import '../../services/auth_service.dart';
 import '../../services/booking_service.dart';
+import '../../services/seat_status_report_service.dart';
 import '../../services/violation_report_service.dart';
 import 'violation_report_history_screen.dart';
 
@@ -24,6 +25,7 @@ class ViolationReportScreen extends StatefulWidget {
 class _ViolationReportScreenState extends State<ViolationReportScreen> {
   final _bookingService = BookingService();
   final _violationReportService = ViolationReportService();
+  final _seatStatusReportService = SeatStatusReportService();
   final _imagePicker = ImagePicker();
 
   // State
@@ -54,6 +56,19 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
   final int _maxImages = 3;
   bool _isSubmitting = false;
 
+  // Seat status report state
+  String? _selectedSeatStatusIssueType;
+  final _seatStatusDescriptionController = TextEditingController();
+  File? _seatStatusSelectedImage;
+  bool _isSeatStatusSubmitting = false;
+
+  final List<Map<String, String>> _seatStatusIssueTypes = const [
+    {'value': 'BROKEN', 'label': 'Ghế hỏng'},
+    {'value': 'DIRTY', 'label': 'Ghế bẩn'},
+    {'value': 'MISSING_EQUIPMENT', 'label': 'Thiếu thiết bị'},
+    {'value': 'OTHER', 'label': 'Khác'},
+  ];
+
   final List<Map<String, String>> _violationTypes = [
     {'value': 'NOISE', 'label': 'Gây ồn ào'},
     {'value': 'FEET_ON_SEAT', 'label': 'Gác chân lên ghế/bàn'},
@@ -73,6 +88,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _seatStatusDescriptionController.dispose();
     super.dispose();
   }
 
@@ -224,13 +240,9 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     }
 
     if (seat.seatId == _mySeatId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đây là ghế bạn đang ngồi'),
-          backgroundColor: AppColors.brandColor,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      // Tap ghế mình → mở bottom sheet báo cáo tình trạng ghế
+      setState(() => _selectedSeat = seat);
+      _showSeatStatusReportBottomSheet(seat);
       return;
     }
 
@@ -584,6 +596,260 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     });
   }
 
+  // ====== SEAT STATUS REPORT BOTTOM SHEET ======
+
+  void _showSeatStatusReportBottomSheet(Seat seat) {
+    _selectedSeatStatusIssueType = null;
+    _seatStatusDescriptionController.clear();
+    _seatStatusSelectedImage = null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.build_outlined, color: Colors.blue, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Báo cáo tình trạng ghế',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            const SizedBox(height: 2),
+                            Text('Ghế ${seat.seatCode} (ghế của bạn)',
+                              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Color(0xFF666666)),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 24),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Loại sự cố',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _selectedSeatStatusIssueType,
+                          decoration: _dropdownDecoration('Chọn loại sự cố'),
+                          items: _seatStatusIssueTypes.map((type) =>
+                            DropdownMenuItem<String>(
+                              value: type['value'],
+                              child: Text(type['label']!, style: const TextStyle(fontSize: 14)),
+                            ),
+                          ).toList(),
+                          onChanged: (value) {
+                            setSheetState(() => _selectedSeatStatusIssueType = value);
+                            setState(() => _selectedSeatStatusIssueType = value);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Mô tả chi tiết (không bắt buộc)',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _seatStatusDescriptionController,
+                          maxLines: 3,
+                          maxLength: 300,
+                          decoration: InputDecoration(
+                            hintText: 'Mô tả tình trạng ghế để thủ thư dễ xử lý hơn...',
+                            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.blue, width: 1.5)),
+                            contentPadding: const EdgeInsets.all(14),
+                            counterStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                          ),
+                          style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('Ảnh minh họa (không bắt buộc)',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const SizedBox(height: 12),
+                        if (_seatStatusSelectedImage != null)
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.file(_seatStatusSelectedImage!, width: 100, height: 100, fit: BoxFit.cover),
+                              ),
+                              Positioned(
+                                top: -2, right: -2,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() => _seatStatusSelectedImage = null);
+                                    setSheetState(() {});
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.85),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 1.5),
+                                    ),
+                                    child: const Icon(Icons.close, color: Colors.white, size: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await _imagePicker.pickImage(
+                                source: ImageSource.gallery,
+                                imageQuality: 80,
+                              );
+                              if (picked != null) {
+                                setState(() => _seatStatusSelectedImage = File(picked.path));
+                                setSheetState(() {});
+                              }
+                            },
+                            child: Container(
+                              width: 100, height: 100,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo_outlined, color: Colors.blue.withOpacity(0.7), size: 28),
+                                  const SizedBox(height: 4),
+                                  Text('Thêm ảnh', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity, height: 50,
+                          child: ElevatedButton(
+                            onPressed: (_selectedSeatStatusIssueType != null && !_isSeatStatusSubmitting)
+                                ? () => _submitSeatStatusReport(ctx) : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFFF5F5F5),
+                              disabledForegroundColor: Colors.grey[400],
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: _isSeatStatusSubmitting
+                                ? const SizedBox(width: 22, height: 22,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                                : const Text('Gửi báo cáo tình trạng',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                        SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _submitSeatStatusReport(BuildContext bottomSheetContext) async {
+    if (_selectedSeat == null || _selectedSeatStatusIssueType == null) return;
+
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final token = await authService.getToken();
+    if (token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chưa đăng nhập'), backgroundColor: AppColors.error),
+        );
+      }
+      return;
+    }
+
+    final seatId = _selectedSeat!.seatId;
+    final issueType = _selectedSeatStatusIssueType!;
+    final description = _seatStatusDescriptionController.text.trim().isNotEmpty
+        ? _seatStatusDescriptionController.text.trim()
+        : null;
+    final image = _seatStatusSelectedImage;
+
+    // Đóng bottom sheet + hiện thông báo ngay
+    if (mounted) {
+      Navigator.pop(bottomSheetContext);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã gửi báo cáo tình trạng ghế! Thủ thư sẽ xử lý sớm nhất'),
+          backgroundColor: AppColors.success,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
+    // Gửi request chạy ngầm (fire-and-forget)
+    _seatStatusReportService.createReport(
+      token: token,
+      seatId: seatId,
+      issueType: issueType,
+      description: description,
+      image: image,
+    ).then((_) {
+      debugPrint('[SeatStatusReport] Báo cáo tình trạng ghế đã gửi thành công');
+    }).catchError((e) {
+      debugPrint('[SeatStatusReport] Lỗi gửi báo cáo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi gửi báo cáo tình trạng: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    });
+  }
+
   // ====== BUILD UI ======
 
   @override
@@ -724,7 +990,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
-            'Chạm vào ghế đỏ (đã đặt) để báo cáo vi phạm. Ghế cam là ghế bạn đang ngồi.',
+            'Chạm vào ghế đỏ (đã đặt) để báo cáo vi phạm. Chạm vào ghế cam (ghế của bạn) để báo cáo tình trạng ghế.',
             style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),

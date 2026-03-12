@@ -24,7 +24,7 @@ class Reservation {
       seatId: json['seat_id'],
       startTime: DateTime.parse(json['start_time']),
       endTime: DateTime.parse(json['end_time']),
-      status: json['status'] ?? 'EXPIRED',
+      status: json['status'] ?? 'PROCESSING',
       createdAt: DateTime.parse(json['created_at']),
     );
   }

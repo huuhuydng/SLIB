@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import websocketService from '../services/websocketService';
+import { ClipboardCheck } from 'lucide-react';
 
 const LibrarianNotificationContext = createContext(null);
 
@@ -16,8 +17,18 @@ const PENDING_API_MAP = {
     SUPPORT_REQUEST: '/slib/support-requests?status=PENDING',
     COMPLAINT: '/slib/complaints?status=PENDING',
     FEEDBACK: '/slib/feedbacks?status=NEW',
+    SEAT_STATUS_REPORT: '/slib/seat-status-reports?status=PENDING',
     CHAT: '/slib/chat/conversations/waiting',
     VIOLATION: '/slib/violation-reports?status=PENDING',
+};
+
+const NOTIF_ICON_MAP = {
+    SUPPORT_REQUEST: { icon: null, cls: 'support', label: 'Yêu cầu hỗ trợ' },
+    COMPLAINT: { icon: null, cls: 'complaint', label: 'Khiếu nại' },
+    FEEDBACK: { icon: null, cls: 'feedback', label: 'Phản hồi' },
+    SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: 'feedback', label: 'Tình trạng ghế' },
+    CHAT: { icon: null, cls: 'chat', label: 'Trò chuyện' },
+    VIOLATION: { icon: null, cls: 'violation', label: 'Vi phạm' },
 };
 
 export function LibrarianNotificationProvider({ children }) {
@@ -25,6 +36,7 @@ export function LibrarianNotificationProvider({ children }) {
         supportRequests: 0,
         complaints: 0,
         feedbacks: 0,
+        seatStatusReports: 0,
         chats: 0,
         violations: 0,
         total: 0,
@@ -34,6 +46,7 @@ export function LibrarianNotificationProvider({ children }) {
         SUPPORT_REQUEST: null,
         COMPLAINT: null,
         FEEDBACK: null,
+        SEAT_STATUS_REPORT: null,
         CHAT: null,
         VIOLATION: null,
     });
@@ -121,6 +134,7 @@ export function LibrarianNotificationProvider({ children }) {
             SUPPORT_REQUEST: null,
             COMPLAINT: null,
             FEEDBACK: null,
+            SEAT_STATUS_REPORT: null,
             CHAT: null,
             VIOLATION: null,
         });
@@ -213,6 +227,7 @@ export function LibrarianNotificationProvider({ children }) {
         chatMessages,
         unreadChatCount,
         clearChatMessages,
+        refreshUnreadChatCount: fetchUnreadChatCount,
     };
 
     return (

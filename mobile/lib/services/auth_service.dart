@@ -307,6 +307,25 @@ class AuthService extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
+      // QUAN TRỌNG: Xóa FCM token trên server TRƯỚC khi xóa JWT
+      // Nếu không, user cũ vẫn giữ FCM token → nhận notification sai
+      try {
+        String? token = await getToken();
+        if (token != null) {
+          await http.patch(
+            Uri.parse('$baseUrl/me'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'notiDevice': null}),
+          );
+          print('✅ FCM token cleared on server');
+        }
+      } catch (e) {
+        print('⚠️ Could not clear FCM token on server: $e');
+      }
+
       // Xóa từng key riêng lẻ thay vì deleteAll()
       // để giữ lại credentials đã lưu cho "Ghi nhớ đăng nhập"
       await _storage.delete(key: 'jwt_token');

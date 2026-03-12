@@ -10,6 +10,7 @@ import {
   Unlock,
   Trash2,
   Eye,
+  Edit2,
   UserPlus,
   Download,
   CheckCircle,
@@ -19,17 +20,40 @@ import {
   FileSpreadsheet,
   Key,
   RefreshCw,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+  SlidersHorizontal
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+
 import userService from '../../../services/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
+import { useToast } from '../../../components/common/ToastProvider';
+import '../../../styles/librarian/librarian-shared.css';
+import '../../../styles/librarian/CheckInOut.css';
+import './UserManagement.css';
 
 const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'STUDENT'];
 const STATUSES = ['Tất cả', 'Hoạt động', 'Đã khóa'];
 
+const ROLE_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'ADMIN', label: 'Admin' },
+  { value: 'LIBRARIAN', label: 'Thủ thư' },
+  { value: 'STUDENT', label: 'Sinh viên' },
+];
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'active', label: 'Hoạt động' },
+  { value: 'locked', label: 'Đã khóa' },
+];
+
 const UserManagement = () => {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,6 +61,33 @@ const UserManagement = () => {
   const [searchText, setSearchText] = useState('');
   const [roleFilter, setRoleFilter] = useState('Tất cả');
   const [statusFilter, setStatusFilter] = useState('Tất cả');
+
+  // Sort
+  const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
+
+  // Column filters
+  const [columnFilters, setColumnFilters] = useState({
+    fullName: '',
+    email: '',
+    userCode: '',
+    role: '',
+    status: '',
+  });
+  const [activeFilterCol, setActiveFilterCol] = useState(null);
+  const filterRef = useRef(null);
+
+  // Column visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    fullName: true,
+    email: true,
+    userCode: true,
+    role: true,
+    status: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  // Items per page
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -47,6 +98,9 @@ const UserManagement = () => {
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', dob: '', role: '' });
+  const [editSaving, setEditSaving] = useState(false);
 
   // Import state
   const [importStep, setImportStep] = useState('upload'); // upload, processing, preview, uploading, result
@@ -93,34 +147,88 @@ const UserManagement = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setActiveFilterCol(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Get user value for a column (used for sort/filter)
+  const getUserValue = useCallback((user, column) => {
+    switch (column) {
+      case 'fullName': return user.fullName || '';
+      case 'email': return user.email || '';
+      case 'userCode': return user.userCode || '';
+      case 'role': return getRoleLabel(user.role);
+      case 'status': return user.isActive !== false ? 'Hoạt động' : 'Đã khóa';
+      default: return '';
+    }
+  }, []);
+
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      const matchSearch =
-        (user.fullName || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (user.email || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (user.userCode || '').toLowerCase().includes(searchText.toLowerCase());
-      const matchRole = roleFilter === 'Tất cả' || user.role === roleFilter;
-      const matchStatus = statusFilter === 'Tất cả' ||
-        (statusFilter === 'Hoạt động' && user.isActive !== false) ||
-        (statusFilter === 'Đã khóa' && user.isActive === false);
-      return matchSearch && matchRole && matchStatus;
+    let list = [...users];
+
+    // Global search
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      list = list.filter(user =>
+        (user.fullName || '').toLowerCase().includes(q) ||
+        (user.email || '').toLowerCase().includes(q) ||
+        (user.userCode || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Column filters
+    Object.entries(columnFilters).forEach(([col, filterVal]) => {
+      if (!filterVal) return;
+      const fq = filterVal.toLowerCase();
+
+      if (col === 'role') {
+        list = list.filter(u => u.role === filterVal);
+      } else if (col === 'status') {
+        if (filterVal === 'active') list = list.filter(u => u.isActive !== false);
+        else if (filterVal === 'locked') list = list.filter(u => u.isActive === false);
+      } else if (col === 'fullName') {
+        list = list.filter(u => (u.fullName || '').toLowerCase().includes(fq));
+      } else if (col === 'email') {
+        list = list.filter(u => (u.email || '').toLowerCase().includes(fq));
+      } else if (col === 'userCode') {
+        list = list.filter(u => (u.userCode || '').toLowerCase().includes(fq));
+      }
     });
-  }, [users, searchText, roleFilter, statusFilter]);
+
+    // Sort
+    if (sortConfig.column && sortConfig.direction) {
+      list.sort((a, b) => {
+        let valA = getUserValue(a, sortConfig.column).toLowerCase();
+        let valB = getUserValue(b, sortConfig.column).toLowerCase();
+        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [users, searchText, columnFilters, sortConfig, getUserValue]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const USERS_PER_PAGE = 50;
-  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchText, roleFilter, statusFilter]);
+  }, [searchText, columnFilters, sortConfig, itemsPerPage]);
 
   const paginatedUsers = useMemo(() => {
-    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
-    return filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
-  }, [filteredUsers, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredUsers, currentPage, itemsPerPage]);
 
   const stats = useMemo(() => ({
     total: users.length,
@@ -129,6 +237,127 @@ const UserManagement = () => {
     students: users.filter(u => u.role === 'STUDENT').length,
     locked: users.filter(u => u.isActive === false).length,
   }), [users]);
+
+  // Sort handler
+  const handleSort = (column) => {
+    setSortConfig(prev => {
+      if (prev.column !== column) return { column, direction: 'asc' };
+      if (prev.direction === 'asc') return { column, direction: 'desc' };
+      return { column: null, direction: null };
+    });
+  };
+
+  const handleFilterChange = (column, value) => {
+    setColumnFilters(prev => ({ ...prev, [column]: value }));
+  };
+
+  const clearColumnFilter = (column) => {
+    setColumnFilters(prev => ({ ...prev, [column]: '' }));
+    setActiveFilterCol(null);
+  };
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages = [];
+    if (currentPage <= 4) {
+      for (let i = 1; i <= 5; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(1);
+      pages.push('...');
+      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      pages.push('...');
+      for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+      pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  // Sort icon
+  const renderSortIcon = (column) => {
+    if (sortConfig.column === column) {
+      if (sortConfig.direction === 'asc') return <ArrowUp size={13} />;
+      if (sortConfig.direction === 'desc') return <ArrowDown size={13} />;
+    }
+    return <ArrowUpDown size={13} />;
+  };
+
+  // Column header with sort + filter  
+  const renderColumnHeader = (column, label) => {
+    const hasFilter = !!columnFilters[column];
+    return (
+      <th key={column}>
+        <div className="cio-th-content">
+          <span className="cio-th-label">{label}</span>
+          <div className="cio-th-actions">
+            <button
+              className={`cio-th-btn${sortConfig.column === column ? ' active' : ''}`}
+              onClick={(e) => { e.stopPropagation(); handleSort(column); }}
+              title="Sắp xếp"
+            >
+              {renderSortIcon(column)}
+            </button>
+            <button
+              className={`cio-th-btn${hasFilter ? ' active' : ''}${activeFilterCol === column ? ' open' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveFilterCol(prev => prev === column ? null : column);
+              }}
+              title="Lọc"
+            >
+              <Filter size={13} className={hasFilter ? 'cio-filter-active' : ''} />
+            </button>
+          </div>
+          {activeFilterCol === column && (
+            <div className="cio-filter-dropdown" ref={filterRef} onClick={e => e.stopPropagation()}>
+              {column === 'role' ? (
+                <select
+                  value={columnFilters.role}
+                  onChange={(e) => { handleFilterChange('role', e.target.value); setActiveFilterCol(null); }}
+                  autoFocus
+                  className="cio-filter-input"
+                >
+                  {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : column === 'status' ? (
+                <select
+                  value={columnFilters.status}
+                  onChange={(e) => { handleFilterChange('status', e.target.value); setActiveFilterCol(null); }}
+                  autoFocus
+                  className="cio-filter-input"
+                >
+                  {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="cio-filter-input"
+                    placeholder={`Lọc ${label.toLowerCase()}...`}
+                    value={columnFilters[column]}
+                    onChange={(e) => handleFilterChange(column, e.target.value)}
+                    autoFocus
+                  />
+                  {hasFilter && (
+                    <button className="cio-filter-clear" onClick={() => clearColumnFilter(column)}>
+                      <X size={12} /> Xóa lọc
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </th>
+    );
+  };
+
+  const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1; // +1 for actions
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -215,14 +444,14 @@ const UserManagement = () => {
         setImportStep('preview');
       } catch (err) {
         console.error('ZIP processing error:', err);
-        alert('Lỗi xử lý file ZIP: ' + err.message);
+        toast.error('Lỗi xử lý file ZIP: ' + err.message);
         setImportStep('upload');
       }
       return;
     }
 
     // Unsupported format
-    alert('Định dạng file không được hỗ trợ. Vui lòng sử dụng file Excel (.xlsx) hoặc ZIP.');
+    toast.warning('Định dạng file không được hỗ trợ. Vui lòng sử dụng file Excel (.xlsx) hoặc ZIP.');
     setImportStep('upload');
   };
 
@@ -414,7 +643,7 @@ const UserManagement = () => {
       // Refresh user list
       await fetchUsers();
     } catch (err) {
-      alert('Lỗi import: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi import: ' + (err.response?.data?.message || err.message));
       setImportStep('preview');
     } finally {
       setImporting(false);
@@ -497,7 +726,7 @@ const UserManagement = () => {
 
     } catch (err) {
       console.error('Server import error:', err);
-      alert('Lỗi import: ' + (err.response?.data?.error || err.message));
+      toast.error('Lỗi import: ' + (err.response?.data?.error || err.message));
       setImportStep('upload');
     } finally {
       setImporting(false);
@@ -514,9 +743,11 @@ const UserManagement = () => {
       await userService.updateUserStatus(selectedUser.id, newStatus);
       await fetchUsers();
       setShowLockModal(false);
+      const userName = selectedUser.fullName || selectedUser.email;
+      toast.success(newStatus ? `Đã mở khóa tài khoản ${userName}` : `Đã khóa tài khoản ${userName}`);
       setSelectedUser(null);
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -529,20 +760,66 @@ const UserManagement = () => {
     try {
       setActionLoading(true);
       await userService.resetPasswordToDefault(selectedUser.email);
-      alert('Đã reset mật khẩu về mặc định: Slib@2025');
+      toast.success('Đã reset mật khẩu về mặc định: Slib@2025');
       setShowResetPasswordModal(false);
       setSelectedUser(null);
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  // Open edit modal with user data
+  const openEditModal = (user) => {
+    setSelectedUser(user);
+    setEditForm({
+      fullName: user.fullName || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      dob: user.dob ? user.dob.substring(0, 10) : '',
+      role: user.role || 'STUDENT'
+    });
+    setShowEditModal(true);
+  };
+
+  // Handle edit user save
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    if (!editForm.fullName.trim()) {
+      toast.warning('Họ và tên không được để trống');
+      return;
+    }
+    if (!editForm.email.trim()) {
+      toast.warning('Email không được để trống');
+      return;
+    }
+
+    try {
+      setEditSaving(true);
+      await userService.adminUpdateUser(selectedUser.id, {
+        fullName: editForm.fullName.trim(),
+        email: editForm.email.trim(),
+        phone: editForm.phone.trim() || null,
+        dob: editForm.dob || null,
+        role: editForm.role
+      });
+      toast.success(`Đã cập nhật thông tin ${editForm.fullName}`);
+      setShowEditModal(false);
+      setSelectedUser(null);
+      await fetchUsers();
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      toast.error('Lỗi cập nhật: ' + errMsg);
+    } finally {
+      setEditSaving(false);
     }
   };
 
   // Handle add librarian
   const handleAddLibrarian = async () => {
     if (!newLibrarian.fullName || !newLibrarian.email) {
-      alert('Vui lòng nhập đầy đủ thông tin');
+      toast.warning('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
@@ -552,9 +829,14 @@ const UserManagement = () => {
       await fetchUsers();
       setShowAddModal(false);
       setNewLibrarian({ fullName: '', email: '' });
-      alert('Đã tạo tài khoản thủ thư với mật khẩu mặc định: Slib@2025');
+      toast.success('Đã tạo tài khoản thủ thư thành công!');
     } catch (err) {
-      alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      const errMsg = err.response?.data?.error
+        || err.response?.data?.message
+        || (typeof err.response?.data === 'string' ? err.response.data : null)
+        || err.message
+        || 'Không thể tạo tài khoản';
+      toast.error('Lỗi tạo thủ thư: ' + errMsg);
     } finally {
       setAddingLibrarian(false);
     }
@@ -588,582 +870,248 @@ const UserManagement = () => {
 
   return (
     <>
-      <Header
-        searchValue={searchText}
-        onSearchChange={(e) => setSearchText(e.target.value)}
-        searchPlaceholder="Tìm kiếm người dùng..."
-      />
-
-      <div style={{
-        padding: '0 24px 32px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        minHeight: 'calc(100vh - 120px)'
-      }}>
-        {/* Page Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <div>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: '700',
-              color: '#1A1A1A',
-              margin: '0 0 4px 0'
-            }}>Quản lý người dùng</h1>
-            <p style={{
-              fontSize: '14px',
-              color: '#A0AEC0',
-              margin: 0
-            }}>Quản lý tài khoản Admin, Thủ thư và Sinh viên</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={fetchUsers}
-              disabled={loading}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s ease',
-                opacity: loading ? 0.6 : 1
-              }}
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              Làm mới
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <Upload size={18} />
-              Import CSV
-            </button>
-            <button
-              onClick={() => setShowAddModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#FF751F',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#fff',
-                cursor: 'pointer',
-                boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <UserPlus size={18} />
-              Thêm Thủ thư
-            </button>
-          </div>
+      <div className="lib-container">
+        {/* Page Title */}
+        <div className="um-page-title" style={{ marginBottom: '20px' }}>
+          <h1>QUẢN LÝ NGƯỜI DÙNG</h1>
         </div>
 
-        {/* Stats Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          {[
-            { label: 'Tổng người dùng', value: stats.total, icon: Users, color: '#7C3AED', bg: '#F3E8FF' },
-            { label: 'Admin', value: stats.admins, icon: Shield, color: '#DC2626', bg: '#FEE2E2' },
-            { label: 'Thủ thư', value: stats.librarians, icon: Key, color: '#2563EB', bg: '#DBEAFE' },
-            { label: 'Sinh viên', value: stats.students, icon: Users, color: '#059669', bg: '#D1FAE5' },
-            { label: 'Đã khóa', value: stats.locked, icon: Lock, color: '#DC2626', bg: '#FEE2E2' },
-          ].map((stat, idx) => (
-            <div key={idx} style={{
-              background: '#fff',
-              borderRadius: '12px',
-              padding: '20px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px'
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: stat.bg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <stat.icon size={22} color={stat.color} />
-              </div>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A1A' }}>{stat.value}</div>
-                <div style={{ fontSize: '13px', color: '#A0AEC0', fontWeight: '500' }}>{stat.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
 
         {/* Error Message */}
         {error && (
-          <div style={{
-            padding: '16px 20px',
-            background: '#FEE2E2',
-            borderRadius: '12px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            color: '#DC2626'
-          }}>
-            <AlertTriangle size={20} />
+          <div className="um-error">
+            <AlertTriangle size={18} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Filters & Table */}
-        <div style={{
-          background: '#fff',
-          borderRadius: '16px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-          overflow: 'hidden'
-        }}>
-          {/* Filter Bar */}
-          <div style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid #E2E8F0',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px'
-          }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <div style={{ position: 'relative' }}>
-                <Search size={16} style={{
-                  position: 'absolute',
-                  left: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#A0AEC0'
-                }} />
-                <input
-                  type="text"
-                  placeholder="Tìm theo tên, email, mã..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  style={{
-                    padding: '10px 12px 10px 40px',
-                    border: '2px solid #E2E8F0',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    width: '280px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                />
-              </div>
-
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                style={{
-                  padding: '10px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  color: '#4A5568',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                {ROLES.map(role => (
-                  <option key={role} value={role}>
-                    {role === 'Tất cả' ? 'Tất cả vai trò' : getRoleLabel(role)}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  padding: '10px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  color: '#4A5568',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                {STATUSES.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'Tất cả' ? 'Tất cả trạng thái' : status}
-                  </option>
-                ))}
-              </select>
+        {/* Main Panel */}
+        <div className="lib-panel">
+          {/* Toolbar */}
+          <div className="cio-toolbar">
+            <div className="lib-search">
+              <Search size={16} className="lib-search-icon" />
+              <input
+                type="text"
+                placeholder="Tìm tên, email, mã..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
             </div>
 
-            <div style={{ fontSize: '14px', color: '#A0AEC0' }}>
-              Hiển thị {filteredUsers.length} / {users.length} người dùng
+            <div style={{ position: 'relative' }}>
+              <button
+                className="cio-column-toggle"
+                onClick={() => setShowColumnMenu(!showColumnMenu)}
+              >
+                <SlidersHorizontal size={14} />
+                Hiển thị cột
+              </button>
+              {showColumnMenu && (
+                <div className="cio-column-menu">
+                  {[
+                    { key: 'fullName', label: 'Người dùng' },
+                    { key: 'email', label: 'Email' },
+                    { key: 'userCode', label: 'Mã' },
+                    { key: 'role', label: 'Vai trò' },
+                    { key: 'status', label: 'Trạng thái' },
+                  ].map(col => (
+                    <label key={col.key} className="cio-column-menu-item">
+                      <input
+                        type="checkbox"
+                        checked={visibleColumns[col.key]}
+                        onChange={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                        style={{ accentColor: '#FF751F' }}
+                      />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
+
+            <span className="cio-result-count" style={{ marginLeft: '8px' }}>
+              {activeFilterCount > 0 && (
+                <span className="cio-active-filters">{activeFilterCount} bộ lọc |{' '}</span>
+              )}
+              Tổng số <strong>{filteredUsers.length}</strong> kết quả
+            </span>
+
+            <div className="cio-toolbar-right">
+              <button className="um-toolbar-btn" onClick={fetchUsers} disabled={loading}>
+                <RefreshCw size={14} className={loading ? 'sm-spinner' : ''} />
+                Làm mới
+              </button>
+              <button className="um-toolbar-btn" onClick={() => setShowImportModal(true)}>
+                <Upload size={14} />
+                Import
+              </button>
+              <button className="um-toolbar-btn primary" onClick={() => setShowAddModal(true)}>
+                <UserPlus size={14} />
+                Thêm Thủ thư
+              </button>
+            </div>
+
+
           </div>
 
-          {/* Table */}
-          <div style={{ overflowX: 'auto' }}>
-            {loading ? (
-              <div style={{
-                padding: '60px',
-                textAlign: 'center',
-                color: '#A0AEC0'
-              }}>
-                <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-                <p>Đang tải danh sách người dùng...</p>
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          {/* Content */}
+          {loading ? (
+            <div className="sm-loading" style={{ padding: '60px', textAlign: 'center' }}>
+              <Loader2 size={28} className="sm-spinner" />
+              <span style={{ display: 'block', marginTop: '12px', color: '#64748b' }}>Đang tải danh sách người dùng...</span>
+            </div>
+          ) : (
+            <div className="sr-table-wrapper">
+              <table className="sr-table">
                 <thead>
-                  <tr style={{ background: '#F7FAFC' }}>
-                    {['Người dùng', 'Email', 'Mã', 'Vai trò', 'Trạng thái', 'Thao tác'].map((header, idx) => (
-                      <th key={idx} style={{
-                        textAlign: idx === 5 ? 'center' : 'left',
-                        padding: '16px 24px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        color: '#A0AEC0',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>{header}</th>
-                    ))}
+                  <tr>
+                    {visibleColumns.fullName && renderColumnHeader('fullName', 'Người dùng')}
+                    {visibleColumns.email && renderColumnHeader('email', 'Email')}
+                    {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã')}
+                    {visibleColumns.role && renderColumnHeader('role', 'Vai trò')}
+                    {visibleColumns.status && renderColumnHeader('status', 'Trạng thái')}
+                    <th style={{ textAlign: 'center' }}>
+                      <div className="cio-th-content" style={{ justifyContent: 'center' }}>
+                        <span className="cio-th-label">Thao tác</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.length === 0 ? (
+                  {paginatedUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{
-                        padding: '60px',
-                        textAlign: 'center',
-                        color: '#A0AEC0'
-                      }}>
-                        Không tìm thấy người dùng phù hợp
+                      <td colSpan={visibleColumnCount} className="sr-table-empty-cell" style={{ padding: '60px', textAlign: 'center', color: '#64748b' }}>
+                        {searchText || activeFilterCount > 0 ? 'Không tìm thấy người dùng phù hợp.' : 'Chưa có người dùng nào.'}
                       </td>
                     </tr>
-                  ) : paginatedUsers.map((user, index) => {
-                    const roleColors = getRoleColor(user.role);
-                    const initials = (user.fullName || user.email || 'U')
-                      .split(' ')
-                      .map(n => n[0])
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase();
+                  ) : (
+                    paginatedUsers.map((user) => {
+                      const initials = (user.fullName || user.email || 'U')
+                        .split(' ')
+                        .map(n => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+                      const roleClass = (user.role || '').toLowerCase();
 
-                    return (
-                      <tr
-                        key={user.id}
-                        style={{
-                          borderBottom: index === paginatedUsers.length - 1 ? 'none' : '1px solid #E2E8F0',
-                          transition: 'background-color 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFF7F2'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >
-                        <td style={{ padding: '16px 24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{
-                              width: '40px',
-                              height: '40px',
-                              borderRadius: '10px',
-                              background: user.avtUrl
-                                ? `url(${user.avtUrl}) center/cover no-repeat`
-                                : 'linear-gradient(135deg, #FF751F, #FF9B5A)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#fff',
-                              fontSize: '13px',
-                              fontWeight: '600'
-                            }}>
-                              {!user.avtUrl && initials}
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>
-                                {user.fullName || 'Chưa có tên'}
+                      return (
+                        <tr key={user.id} className="sr-table-row">
+                          {visibleColumns.fullName && (
+                            <td>
+                              <div className="um-user-cell">
+                                {user.avtUrl ? (
+                                  <img src={user.avtUrl} alt="" className="um-avatar" />
+                                ) : (
+                                  <div className="um-avatar-placeholder">{initials}</div>
+                                )}
+                                <div>
+                                  <div className="um-user-name">{user.fullName || 'Chưa có tên'}</div>
+                                  {user.passwordChanged === false && (
+                                    <div className="um-user-warning">
+                                      <AlertTriangle size={10} />
+                                      Chưa đổi mật khẩu
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              {user.passwordChanged === false && (
-                                <div style={{
-                                  fontSize: '11px',
-                                  color: '#F59E0B',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}>
-                                  <AlertTriangle size={10} />
-                                  Chưa đổi mật khẩu
+                            </td>
+                          )}
+                          {visibleColumns.email && (
+                            <td style={{ fontSize: '13px', color: '#475569' }}>{user.email}</td>
+                          )}
+                          {visibleColumns.userCode && (
+                            <td>
+                              <span className="um-code">{user.userCode || '-'}</span>
+                            </td>
+                          )}
+                          {visibleColumns.role && (
+                            <td>
+                              <span className={`um-role-badge ${roleClass}`}>{getRoleLabel(user.role)}</span>
+                            </td>
+                          )}
+                          {visibleColumns.status && (
+                            <td>
+                              <div className={`um-status ${user.isActive !== false ? 'active' : 'locked'}`}>
+                                <span className="um-status-dot" />
+                                {user.isActive !== false ? 'Hoạt động' : 'Đã khóa'}
+                              </div>
+                            </td>
+                          )}
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                className="um-action-btn"
+                                onClick={() => setShowActionMenu(showActionMenu === user.id ? null : user.id)}
+                              >
+                                <MoreVertical size={16} color="#64748b" />
+                              </button>
+
+                              {showActionMenu === user.id && (
+                                <div className="um-action-menu">
+                                  <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}>
+                                    <Eye size={15} color="#2563EB" />
+                                    <span style={{ color: '#2563EB' }}>Xem chi tiết</span>
+                                  </button>
+                                  <button className="um-action-item" onClick={() => { openEditModal(user); setShowActionMenu(null); }}>
+                                    <Edit2 size={15} color="#e8600a" />
+                                    <span style={{ color: '#e8600a' }}>Chỉnh sửa</span>
+                                  </button>
+                                  <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}>
+                                    {user.isActive !== false ? (
+                                      <><Lock size={15} color="#F59E0B" /><span style={{ color: '#F59E0B' }}>Khóa tài khoản</span></>
+                                    ) : (
+                                      <><Unlock size={15} color="#059669" /><span style={{ color: '#059669' }}>Mở khóa</span></>
+                                    )}
+                                  </button>
+                                  <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowResetPasswordModal(true); setShowActionMenu(null); }}>
+                                    <Key size={15} color="#7C3AED" />
+                                    <span style={{ color: '#7C3AED' }}>Reset mật khẩu</span>
+                                  </button>
+                                  <button className="um-action-item danger" onClick={() => { setSelectedUser(user); setShowDeleteModal(true); setShowActionMenu(null); }}>
+                                    <Trash2 size={15} color="#DC2626" />
+                                    <span style={{ color: '#DC2626' }}>Xóa tài khoản</span>
+                                  </button>
                                 </div>
                               )}
                             </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{ fontSize: '14px', color: '#4A5568' }}>{user.email}</span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{
-                            fontSize: '13px',
-                            color: '#6B7280',
-                            fontFamily: 'monospace',
-                            background: '#F3F4F6',
-                            padding: '4px 8px',
-                            borderRadius: '6px'
-                          }}>
-                            {user.userCode || '-'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            background: roleColors.bg,
-                            color: roleColors.color
-                          }}>{getRoleLabel(user.role)}</span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {user.isActive !== false ? (
-                              <>
-                                <CheckCircle size={16} color="#059669" />
-                                <span style={{ fontSize: '13px', color: '#059669', fontWeight: '500' }}>Hoạt động</span>
-                              </>
-                            ) : (
-                              <>
-                                <Lock size={16} color="#DC2626" />
-                                <span style={{ fontSize: '13px', color: '#DC2626', fontWeight: '500' }}>Đã khóa</span>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                          <div style={{ position: 'relative', display: 'inline-block' }}>
-                            <button
-                              onClick={() => setShowActionMenu(showActionMenu === user.id ? null : user.id)}
-                              style={{
-                                padding: '8px',
-                                background: '#F7FAFC',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <MoreVertical size={18} color="#4A5568" />
-                            </button>
-
-                            {showActionMenu === user.id && (
-                              <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                right: 0,
-                                marginTop: '4px',
-                                background: '#fff',
-                                borderRadius: '12px',
-                                boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                                border: '1px solid #E2E8F0',
-                                minWidth: '200px',
-                                zIndex: 100,
-                                overflow: 'hidden'
-                              }}>
-                                <div
-                                  onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                  <Eye size={16} color="#2563EB" />
-                                  <span style={{ fontSize: '14px', color: '#2563EB' }}>Xem chi tiết</span>
-                                </div>
-                                <div
-                                  onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                  {user.isActive !== false ? (
-                                    <>
-                                      <Lock size={16} color="#F59E0B" />
-                                      <span style={{ fontSize: '14px', color: '#F59E0B' }}>Khóa tài khoản</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Unlock size={16} color="#059669" />
-                                      <span style={{ fontSize: '14px', color: '#059669' }}>Mở khóa</span>
-                                    </>
-                                  )}
-                                </div>
-                                <div
-                                  onClick={() => { setSelectedUser(user); setShowResetPasswordModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#F7FAFC'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                  <Key size={16} color="#7C3AED" />
-                                  <span style={{ fontSize: '14px', color: '#7C3AED' }}>Reset mật khẩu</span>
-                                </div>
-                                <div
-                                  onClick={() => { setSelectedUser(user); setShowDeleteModal(true); setShowActionMenu(null); }}
-                                  style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s',
-                                    borderTop: '1px solid #E2E8F0'
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#FEF2F2'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                >
-                                  <Trash2 size={16} color="#DC2626" />
-                                  <span style={{ fontSize: '14px', color: '#DC2626' }}>Xóa tài khoản</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
-            )}
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '16px 24px',
-              borderTop: '1px solid #E2E8F0',
-              background: '#F8FAFC'
-            }}>
-              <span style={{ fontSize: '14px', color: '#6B7280' }}>
-                Hiển thị {((currentPage - 1) * USERS_PER_PAGE) + 1} - {Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length)} / {filteredUsers.length} người dùng
-              </span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: '8px 16px',
-                    background: currentPage === 1 ? '#E2E8F0' : '#fff',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: currentPage === 1 ? '#A0AEC0' : '#4A5568',
-                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  Trước
-                </button>
-
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
-                  .map((page, idx, arr) => (
-                    <React.Fragment key={page}>
-                      {idx > 0 && arr[idx - 1] !== page - 1 && (
-                        <span style={{ color: '#A0AEC0' }}>...</span>
-                      )}
-                      <button
-                        onClick={() => setCurrentPage(page)}
-                        style={{
-                          padding: '8px 12px',
-                          background: currentPage === page ? '#FF751F' : '#fff',
-                          border: currentPage === page ? 'none' : '1px solid #E2E8F0',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontWeight: currentPage === page ? '600' : '400',
-                          color: currentPage === page ? '#fff' : '#4A5568',
-                          cursor: 'pointer',
-                          minWidth: '36px'
-                        }}
-                      >
-                        {page}
-                      </button>
-                    </React.Fragment>
-                  ))}
-
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  style={{
-                    padding: '8px 16px',
-                    background: currentPage === totalPages ? '#E2E8F0' : '#fff',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: currentPage === totalPages ? '#A0AEC0' : '#4A5568',
-                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  Sau
-                </button>
-              </div>
             </div>
           )}
+
+          {/* Pagination */}
+          <div className="cio-pagination">
+            <div className="cio-page-size">
+              <span>Số hàng mỗi trang:</span>
+              <select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))}>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            {totalPages > 1 && (
+              <div className="cio-pagination-right">
+                <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className="cio-page-btn">&lt;</button>
+                <div className="cio-page-numbers">
+                  {getPageNumbers().map((page, idx) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="cio-page-ellipsis">...</span>
+                    ) : (
+                      <button key={page} onClick={() => setCurrentPage(page)} className={`cio-page-btn ${currentPage === page ? 'active' : ''}`}>{page}</button>
+                    )
+                  ))}
+                </div>
+                <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className="cio-page-btn">&gt;</button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1927,6 +1875,237 @@ const UserManagement = () => {
         </div>
       )}
 
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            width: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '24px 28px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: '#FFF7ED',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Edit2 size={20} color="#e8600a" />
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+                  Chỉnh sửa người dùng
+                </h3>
+              </div>
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} color="#9CA3AF" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div style={{ padding: '24px 28px' }}>
+              {/* Họ và tên */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Họ và tên <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  placeholder="Nhập họ và tên"
+                />
+              </div>
+
+              {/* Email */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Email <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  placeholder="Nhập email"
+                />
+              </div>
+
+              {/* Phone & DOB row */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                    onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                    placeholder="0901234567"
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Ngày sinh
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.dob}
+                    onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '10px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                    onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                  />
+                </div>
+              </div>
+
+              {/* Role */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Vai trò
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#e8600a'}
+                  onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+                >
+                  <option value="STUDENT">Sinh viên</option>
+                  <option value="LIBRARIAN">Thủ thư</option>
+                  <option value="ADMIN">Quản trị viên</option>
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => { setShowEditModal(false); setSelectedUser(null); }}
+                  disabled={editSaving}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#F7FAFC',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#4A5568',
+                    cursor: editSaving ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleEditUser}
+                  disabled={editSaving}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#e8600a',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#fff',
+                    cursor: editSaving ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: editSaving ? 0.7 : 1
+                  }}
+                >
+                  {editSaving && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  Lưu thay đổi
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reset Password Modal */}
       {showResetPasswordModal && selectedUser && (
         <div style={{
@@ -2030,8 +2209,7 @@ const UserManagement = () => {
         onClose={() => { setShowUserDetailsModal(false); setSelectedUser(null); }}
         onEdit={(user) => {
           setShowUserDetailsModal(false);
-          // TODO: Open edit modal
-          alert('Tính năng chỉnh sửa đang phát triển');
+          openEditModal(user);
         }}
         onLock={(user) => {
           setShowUserDetailsModal(false);

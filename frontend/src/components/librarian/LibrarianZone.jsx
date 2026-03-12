@@ -8,7 +8,10 @@ const getOccupancyInfo = (zoneSeats) => {
   const total = zoneSeats.length;
   if (total === 0) return { percent: 0, booked: 0, total: 0, level: 'empty', text: 'Trống', bgColor: '#E5E7EB', borderColor: '#9CA3AF', badgeColor: '#6B7280', textColor: '#06361a' };
 
-  const booked = zoneSeats.filter(s => (s.seatStatus || '').toUpperCase() === 'BOOKED').length;
+  const booked = zoneSeats.filter(s => {
+    const st = (s.seatStatus || '').toUpperCase();
+    return st === 'BOOKED' || st === 'CONFIRMED';
+  }).length;
   const percent = Math.round((booked / total) * 100);
 
   if (percent >= 90) {

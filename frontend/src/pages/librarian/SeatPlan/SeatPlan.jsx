@@ -1,7 +1,7 @@
 ﻿// Librarian SeatPlan - Quản lý ghế thư viện
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import axios from "axios";
-import Header from "../../../components/shared/Header";
+
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import { seatPlanService } from "../../../services/seatPlanService";
 import { seatService } from "../../../services/seatService";
@@ -339,7 +339,7 @@ function SeatPlanContent() {
 
   return (
     <>
-      <Header searchPlaceholder="Tìm ghế hoặc khu vực" onLogout={handleLogout} />
+
       <main className="sp-page">
         <div className="sp-topbar">
           <div className="sp-topbar__group">

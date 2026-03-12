@@ -13,7 +13,7 @@ const STATUS_LABELS = {
     CONFIRMED: "Đã xác nhận",
     CANCELLED: "Đã huỷ",
     CANCEL: "Đã huỷ",
-    EXPIRED: "Hết hạn",
+    EXPIRED: "Không đến",
     COMPLETED: "Hoàn thành",
 };
 
@@ -32,7 +32,7 @@ const STATUS_OPTIONS = [
     { value: "BOOKED", label: "Đã đặt" },
     { value: "CONFIRMED", label: "Đã xác nhận" },
     { value: "CANCELLED", label: "Đã huỷ" },
-    { value: "EXPIRED", label: "Hết hạn" },
+    { value: "EXPIRED", label: "Không đến" },
     { value: "COMPLETED", label: "Hoàn thành" },
 ];
 

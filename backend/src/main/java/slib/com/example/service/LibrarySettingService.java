@@ -51,6 +51,17 @@ public class LibrarySettingService {
                 .workingDays(settings.getWorkingDays())
                 .maxBookingsPerDay(settings.getMaxBookingsPerDay())
                 .maxHoursPerDay(settings.getMaxHoursPerDay())
+                .autoCancelMinutes(settings.getAutoCancelMinutes())
+                .autoCancelOnLeaveMinutes(settings.getAutoCancelOnLeaveMinutes())
+                .minReputation(settings.getMinReputation())
+                .libraryClosed(settings.getLibraryClosed())
+                .closedReason(settings.getClosedReason())
+                .notifyBookingSuccess(settings.getNotifyBookingSuccess())
+                .notifyCheckinReminder(settings.getNotifyCheckinReminder())
+                .notifyTimeExpiry(settings.getNotifyTimeExpiry())
+                .notifyViolation(settings.getNotifyViolation())
+                .notifyWeeklyReport(settings.getNotifyWeeklyReport())
+                .notifyDeviceAlert(settings.getNotifyDeviceAlert())
                 .build();
     }
 
@@ -81,7 +92,52 @@ public class LibrarySettingService {
         if (dto.getMaxHoursPerDay() != null) {
             settings.setMaxHoursPerDay(dto.getMaxHoursPerDay());
         }
+        if (dto.getAutoCancelMinutes() != null) {
+            settings.setAutoCancelMinutes(dto.getAutoCancelMinutes());
+        }
+        if (dto.getAutoCancelOnLeaveMinutes() != null) {
+            settings.setAutoCancelOnLeaveMinutes(dto.getAutoCancelOnLeaveMinutes());
+        }
+        if (dto.getMinReputation() != null) {
+            settings.setMinReputation(dto.getMinReputation());
+        }
+        if (dto.getLibraryClosed() != null) {
+            settings.setLibraryClosed(dto.getLibraryClosed());
+        }
+        if (dto.getClosedReason() != null) {
+            settings.setClosedReason(dto.getClosedReason());
+        }
+        // Notification settings
+        if (dto.getNotifyBookingSuccess() != null) {
+            settings.setNotifyBookingSuccess(dto.getNotifyBookingSuccess());
+        }
+        if (dto.getNotifyCheckinReminder() != null) {
+            settings.setNotifyCheckinReminder(dto.getNotifyCheckinReminder());
+        }
+        if (dto.getNotifyTimeExpiry() != null) {
+            settings.setNotifyTimeExpiry(dto.getNotifyTimeExpiry());
+        }
+        if (dto.getNotifyViolation() != null) {
+            settings.setNotifyViolation(dto.getNotifyViolation());
+        }
+        if (dto.getNotifyWeeklyReport() != null) {
+            settings.setNotifyWeeklyReport(dto.getNotifyWeeklyReport());
+        }
+        if (dto.getNotifyDeviceAlert() != null) {
+            settings.setNotifyDeviceAlert(dto.getNotifyDeviceAlert());
+        }
 
+        repository.save(settings);
+        return getSettingsDTO();
+    }
+
+    /**
+     * Toggle trạng thái đóng/mở thư viện
+     */
+    public LibrarySettingDTO toggleLibraryClosed(Boolean closed, String reason) {
+        LibrarySetting settings = getSettings();
+        settings.setLibraryClosed(closed != null ? closed : false);
+        settings.setClosedReason(Boolean.TRUE.equals(closed) ? reason : null);
         repository.save(settings);
         return getSettingsDTO();
     }

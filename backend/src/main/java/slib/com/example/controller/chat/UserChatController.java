@@ -247,6 +247,26 @@ public class UserChatController {
         return ResponseEntity.ok(result);
     }
 
+    // 15b. Sinh viên kết thúc cuộc trò chuyện với thủ thư
+    @PostMapping("/conversations/{conversationId}/student-resolve")
+    public ResponseEntity<ConversationDTO> studentResolve(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.studentResolveConversation(conversationId, userId);
+        return ResponseEntity.ok(result);
+    }
+
+    // 15c. Đánh dấu đã đọc tin nhắn trong conversation
+    @PostMapping("/conversations/{conversationId}/mark-read")
+    public ResponseEntity<Map<String, Object>> markConversationAsRead(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        int updated = conversationService.markConversationAsRead(conversationId, userId);
+        return ResponseEntity.ok(Map.of("updated", updated));
+    }
+
     // 16. User yêu cầu gặp thủ thư (tạo conversation mới và escalate)
     @PostMapping("/conversations/request-librarian")
     public ResponseEntity<Map<String, Object>> requestLibrarian(

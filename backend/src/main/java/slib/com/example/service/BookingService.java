@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -22,8 +23,10 @@ import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
+import slib.com.example.repository.StudentProfileRepository;
 import slib.com.example.repository.UserRepository;
 import slib.com.example.repository.ZoneRepository;
+import slib.com.example.service.ReputationService;
 
 @Service
 public class BookingService {
@@ -37,6 +40,9 @@ public class BookingService {
         private final PushNotificationService pushNotificationService;
         private final ActivityService activityService;
         private final SimpMessagingTemplate messagingTemplate;
+        private final StudentProfileRepository studentProfileRepository;
+        private final ReputationService reputationService;
+        private final SeatService seatService;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
@@ -44,7 +50,10 @@ public class BookingService {
                         SeatAvailabilityService seatAvailabilityService,
                         PushNotificationService pushNotificationService,
                         ActivityService activityService,
-                        SimpMessagingTemplate messagingTemplate) {
+                        SimpMessagingTemplate messagingTemplate,
+                        StudentProfileRepository studentProfileRepository,
+                        ReputationService reputationService,
+                        SeatService seatService) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -55,6 +64,9 @@ public class BookingService {
                 this.pushNotificationService = pushNotificationService;
                 this.activityService = activityService;
                 this.messagingTemplate = messagingTemplate;
+                this.studentProfileRepository = studentProfileRepository;
+                this.reputationService = reputationService;
+                this.seatService = seatService;
         }
 
         public ReservationEntity createBooking(UUID userId, Integer seatId,
@@ -66,6 +78,30 @@ public class BookingService {
 
                 // Lấy cấu hình giới hạn đặt chỗ
                 LibrarySetting settings = librarySettingService.getSettings();
+
+                // Kiểm tra thư viện có đang tạm đóng không
+                if (Boolean.TRUE.equals(settings.getLibraryClosed())) {
+                        String reason = settings.getClosedReason() != null
+                                        ? settings.getClosedReason()
+                                        : "Thư viện hiện đang tạm đóng";
+                        throw new RuntimeException("Thư viện hiện đang tạm đóng. Lý do: " + reason);
+                }
+
+                // Kiểm tra điểm uy tín tối thiểu
+                int minReputation = settings.getMinReputation() != null ? settings.getMinReputation() : 0;
+                if (minReputation > 0) {
+                        StudentProfile profile = studentProfileRepository.findByUserId(userId).orElse(null);
+                        int currentReputation = (profile != null && profile.getReputationScore() != null)
+                                        ? profile.getReputationScore()
+                                        : 100;
+                        if (currentReputation < minReputation) {
+                                throw new RuntimeException(
+                                                "Điểm uy tín của bạn (" + currentReputation
+                                                                + ") thấp hơn mức tối thiểu ("
+                                                                + minReputation + ") để đặt chỗ.");
+                        }
+                }
+
                 LocalDate bookingDate = startTime.toLocalDate();
 
                 // Đếm số lượt đặt của user trong ngày này (chỉ tính BOOKED và PROCESSING)
@@ -153,6 +189,18 @@ public class BookingService {
                                         .build());
                 } catch (Exception e) {
                         System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // Send push notification ngay khi tạo booking (PROCESSING)
+                try {
+                        String notifTitle = "Đặt chỗ đang chờ xác nhận";
+                        String notifBody = String.format(
+                                        "Ghế %s tại %s (%s) đang chờ bạn xác nhận. Vui lòng xác nhận trong 5 phút!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(userId, notifTitle, notifBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send booking notification: " + e.getMessage());
                 }
 
                 // Broadcast dashboard update
@@ -340,9 +388,11 @@ public class BookingService {
         }
 
         /**
-         * Confirm seat with NFC tag data
-         * Format: SEAT_ID:A01_ZONE:B
+         * @deprecated Use {@link #confirmSeatWithNfcUid} instead.
+         *             Confirm seat with NFC tag data (legacy format:
+         *             SEAT_ID:A01_ZONE:B)
          */
+        @Deprecated
         public ReservationEntity confirmSeatWithNfc(UUID reservationId, String nfcData) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
@@ -380,8 +430,8 @@ public class BookingService {
                         throw new RuntimeException("Đã hết thời gian check-in");
                 }
 
-                // Update status to BOOKED (confirmed)
-                reservation.setStatus("BOOKED");
+                // Update status to CONFIRMED (NFC check-in thực tế)
+                reservation.setStatus("CONFIRMED");
                 ReservationEntity saved = reservationRepository.save(reservation);
 
                 // Log activity for NFC_CONFIRM
@@ -402,8 +452,19 @@ public class BookingService {
                         System.err.println("Failed to log activity: " + e.getMessage());
                 }
 
+                // Thưởng điểm uy tín khi check-in đúng giờ
+                try {
+                        reputationService.applyCheckInBonus(
+                                        reservation.getUser().getId(),
+                                        seat.getSeatCode(),
+                                        zoneName,
+                                        saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to apply check-in bonus: " + e.getMessage());
+                }
+
                 // Broadcast status to WebSocket clients
-                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "BOOKED",
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "CONFIRMED",
                                 reservation.getStartTime(), reservation.getEndTime());
 
                 // Send push notification khi check-in NFC thành công
@@ -422,6 +483,101 @@ public class BookingService {
                 }
 
                 // Broadcast dashboard update
+                broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");
+
+                return saved;
+        }
+
+        /**
+         * Confirm seat check-in using NFC tag UID (UID Mapping Strategy).
+         * Flow: raw UID → backend hashes → resolves seat → validates against
+         * reservation → confirms.
+         *
+         * @param reservationId The booking reservation ID
+         * @param rawNfcUid     Raw NFC tag UID from mobile app (uppercase HEX)
+         * @return Updated reservation with CONFIRMED status
+         */
+        public ReservationEntity confirmSeatWithNfcUid(UUID reservationId, String rawNfcUid) {
+                ReservationEntity reservation = reservationRepository.findById(reservationId)
+                                .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+
+                // Step 1: Resolve seat from NFC UID (backend hashes internally)
+                SeatEntity nfcSeat = seatService.findSeatEntityByNfcUid(rawNfcUid);
+
+                // Step 2: Validate that NFC tag seat matches reservation seat
+                SeatEntity expectedSeat = reservation.getSeat();
+                if (!nfcSeat.getSeatId().equals(expectedSeat.getSeatId())) {
+                        throw new RuntimeException(
+                                        "Ghế không khớp! Bạn đang đặt ghế " + expectedSeat.getSeatCode() +
+                                                        " nhưng thẻ NFC là ghế " + nfcSeat.getSeatCode());
+                }
+
+                // Step 3: Check time window (start_time - 15 mins to end_time)
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                LocalDateTime checkInEnd = reservation.getEndTime();
+
+                if (now.isBefore(checkInStart)) {
+                        throw new RuntimeException("Chưa đến giờ check-in. Bạn có thể check-in từ " +
+                                        checkInStart.toLocalTime().toString());
+                }
+                if (now.isAfter(checkInEnd)) {
+                        throw new RuntimeException("Đã hết thời gian check-in");
+                }
+
+                // Step 4: Update status to CONFIRMED
+                reservation.setStatus("CONFIRMED");
+                ReservationEntity saved = reservationRepository.save(reservation);
+
+                // Step 5: Log activity
+                SeatEntity seat = reservation.getSeat();
+                String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(reservation.getUser().getId())
+                                        .activityType(ActivityLogEntity.TYPE_NFC_CONFIRM)
+                                        .title("Xác nhận ghế thành công")
+                                        .description("Đã xác nhận ghế " + seat.getSeatCode() + " tại " + zoneName
+                                                        + " bằng NFC UID")
+                                        .seatCode(seat.getSeatCode())
+                                        .zoneName(zoneName)
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        System.err.println("Failed to log activity: " + e.getMessage());
+                }
+
+                // Step 6: Apply reputation bonus
+                try {
+                        reputationService.applyCheckInBonus(
+                                        reservation.getUser().getId(),
+                                        seat.getSeatCode(),
+                                        zoneName,
+                                        saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to apply check-in bonus: " + e.getMessage());
+                }
+
+                // Step 7: Broadcast WebSocket
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(reservation.getSeat(), "CONFIRMED",
+                                reservation.getStartTime(), reservation.getEndTime());
+
+                // Step 8: Send push notification
+                try {
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                        reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                        reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String notiTitle = "Check-in thành công";
+                        String notiBody = String.format(
+                                        "Ghế %s tại %s (%s) đã check-in bằng NFC. Chúc bạn học tập hiệu quả!",
+                                        seat.getSeatCode(), zoneName, timeStr);
+                        pushNotificationService.sendToUser(reservation.getUser().getId(), notiTitle, notiBody,
+                                        NotificationType.BOOKING, saved.getReservationId());
+                } catch (Exception e) {
+                        System.err.println("Failed to send NFC confirmation notification: " + e.getMessage());
+                }
+
+                // Step 9: Broadcast dashboard update
                 broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");
 
                 return saved;
@@ -451,10 +607,14 @@ public class BookingService {
                                 String body = String.format(
                                                 "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến sớm để check-in!",
                                                 seat.getSeatCode(), zoneName, timeStr);
+                                System.out.println("[DEBUG-BOOKING] Sending notification to user="
+                                                + reserv.getUser().getId());
                                 pushNotificationService.sendToUser(reserv.getUser().getId(), title, body,
                                                 NotificationType.BOOKING, saved.getReservationId());
+                                System.out.println("[DEBUG-BOOKING] Notification sent OK");
                         } catch (Exception e) {
-                                System.err.println("Failed to send booking notification: " + e.getMessage());
+                                System.out.println("[DEBUG-BOOKING] ERROR: " + e.getMessage());
+                                e.printStackTrace();
                         }
                 }
 

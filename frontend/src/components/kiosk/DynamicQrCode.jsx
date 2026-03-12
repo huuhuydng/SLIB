@@ -5,18 +5,18 @@ import kioskService from '../../services/kioskService';
 import slibLogo from '../../assets/logo.png';
 import './DynamicQrCode.css';
 
-const KIOSK_CODE = 'KIOSK_001'; // Default kiosk code
-
 /**
  * DynamicQrCode Component
- * Displays a QR code that auto-refreshes every 10 minutes
+ * Hiển thị QR code và tự động làm mới mỗi 10 phút
  */
 const DynamicQrCode = ({
   onSessionUpdate,
   onError,
-  kioskCode = KIOSK_CODE,
-  refreshIntervalMs = 600000 // 10 minutes default
+  kioskCode,
+  refreshIntervalMs = 600000 // 10 phút mặc định
 }) => {
+  // Lấy kiosk code từ props hoặc localStorage nếu không được truyền
+  const resolvedKioskCode = kioskCode || kioskService.getKioskCode();
   const [qrData, setQrData] = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -36,22 +36,19 @@ const DynamicQrCode = ({
       setRefreshing(true);
       setError(null);
 
-      const response = await kioskService.generateQr(kioskCode);
+      const response = await kioskService.generateQr(resolvedKioskCode);
 
       setQrData(response.qrPayload);
       setExpiresAt(new Date(response.expiresAt));
       setLoading(false);
-
-      console.log('Generated QR, expires at:', response.expiresAt);
     } catch (err) {
-      console.error('Failed to generate QR:', err);
-      setError(err.message || 'Failed to generate QR code');
+      setError(err.message || 'Không thể tải mã QR');
       setLoading(false);
       if (onErrorRef.current) onErrorRef.current(err);
     } finally {
       setRefreshing(false);
     }
-  }, [kioskCode]);
+  }, [resolvedKioskCode]);
 
   // Timer to countdown and refresh
   useEffect(() => {

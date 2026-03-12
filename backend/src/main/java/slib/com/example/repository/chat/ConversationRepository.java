@@ -60,4 +60,18 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * Tìm tất cả conversations của student
      */
     List<Conversation> findByStudentId(UUID studentId);
+
+    /**
+     * Xóa tất cả conversations của student (cho cascade delete user)
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM Conversation c WHERE c.student.id = :userId")
+    void deleteByStudentId(@Param("userId") UUID userId);
+
+    /**
+     * Set librarian = null cho conversations mà librarian bị xóa
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE Conversation c SET c.librarian = null WHERE c.librarian.id = :userId")
+    void clearLibrarianByUserId(@Param("userId") UUID userId);
 }

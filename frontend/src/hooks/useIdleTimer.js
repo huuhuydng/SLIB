@@ -14,7 +14,7 @@ export const useIdleTimer = (idleTime = 5000) => { // Thời gian mặc định 
   }, [idleTime]);
 
   useEffect(() => {
-    // Các sự kiện để detect tương tác
+    // Các sự kiện để phát hiện tương tác
     const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
 
     // Set up initial timeout

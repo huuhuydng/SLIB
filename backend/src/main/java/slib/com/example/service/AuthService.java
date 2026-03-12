@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.AuthResponse;
@@ -63,7 +64,7 @@ public class AuthService {
         }
 
         if (!email.endsWith("@fpt.edu.vn") && !isWhitelisted) {
-            throw new RuntimeException("Chỉ chấp nhận email @fpt.edu.vn hoặc email trong whitelist");
+            throw new AccessDeniedException("Only @fpt.edu.vn accounts or whitelisted emails are allowed");
         }
 
         // Extract user code from email (or use email prefix for non-FPT emails)
@@ -71,31 +72,19 @@ public class AuthService {
                 ? extractUserCode(email)
                 : email.split("@")[0].toUpperCase();
 
-        // Get or create user
-        User user = userRepository.findByEmail(email).orElse(null);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AccessDeniedException("Account does not have permission to access the system"));
 
-        if (user == null) {
-            String fullName = (fullNameFromClient != null && !fullNameFromClient.isEmpty())
-                    ? fullNameFromClient
-                    : googleName;
+        // Check if account is locked
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new AccessDeniedException("Account is locked. Please contact an administrator for support.");
+        }
 
-            user = User.builder()
-                    .email(email)
-                    .userCode(userCode)
-                    .username(userCode)
-                    .fullName(fullName != null ? fullName : userCode)
-                    .role(Role.STUDENT)
-                    .isActive(true)
-                    .passwordChanged(true) // Google users don't need password change
-                    .notiDevice(fcmToken)
-                    .build();
+        // Update FCM token if provided
+        if (fcmToken != null && !fcmToken.isEmpty()) {
+            userRepository.clearNotiDeviceForOtherUsers(fcmToken, user.getId());
+            user.setNotiDevice(fcmToken);
             user = userRepository.save(user);
-        } else {
-            // Update FCM token if provided
-            if (fcmToken != null && !fcmToken.isEmpty()) {
-                user.setNotiDevice(fcmToken);
-                user = userRepository.save(user);
-            }
         }
 
         // Generate tokens

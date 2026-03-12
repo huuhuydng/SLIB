@@ -5,6 +5,7 @@ import {
   LifeBuoy,
   MessageCircle,
   Star,
+  ClipboardCheck,
   MessageSquare,
   AlertTriangle,
   CheckCircle2,
@@ -23,6 +24,7 @@ const NOTIF_ICON_MAP = {
   SUPPORT_REQUEST: { icon: LifeBuoy, cls: "support", label: "Yêu cầu hỗ trợ" },
   COMPLAINT: { icon: MessageCircle, cls: "complaint", label: "Khiếu nại" },
   FEEDBACK: { icon: Star, cls: "feedback", label: "Phản hồi" },
+  SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: "seat-status", label: "Tình trạng ghế" },
   CHAT: { icon: MessageSquare, cls: "chat", label: "Trò chuyện" },
   VIOLATION: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
 };
@@ -46,6 +48,7 @@ const NOTIF_ROUTE_MAP = {
   SUPPORT_REQUEST: "/librarian/support-requests?tab=PENDING",
   COMPLAINT: "/librarian/complaints?tab=PENDING",
   FEEDBACK: "/librarian/feedback?tab=NEW",
+  SEAT_STATUS_REPORT: "/librarian/seat-status-reports?status=PENDING",
   CHAT: "/librarian/chat",
   VIOLATION: "/librarian/violation?tab=PENDING",
 };
@@ -55,6 +58,7 @@ const COUNT_KEY_MAP = {
   SUPPORT_REQUEST: "supportRequests",
   COMPLAINT: "complaints",
   FEEDBACK: "feedbacks",
+  SEAT_STATUS_REPORT: "seatStatusReports",
   CHAT: "chats",
   VIOLATION: "violations",
 };
@@ -83,6 +87,13 @@ function getItemDisplayInfo(category, item) {
         time: item.createdAt,
         route: NOTIF_ROUTE_MAP.FEEDBACK,
       };
+    case "SEAT_STATUS_REPORT":
+      return {
+        name: item.reporterName || "Sinh viên",
+        desc: item.issueTypeLabel || item.description?.substring(0, 60) || "Báo cáo tình trạng ghế",
+        time: item.createdAt,
+        route: NOTIF_ROUTE_MAP.SEAT_STATUS_REPORT,
+      };
     case "CHAT":
       return {
         name: item.studentName || "Sinh viên",
@@ -103,12 +114,16 @@ function getItemDisplayInfo(category, item) {
 }
 
 function HeaderBar() {
-  const { pendingCounts, notifications, pendingItems, fetchPendingItems } = useLibrarianNotification();
+  const { pendingCounts, notifications, pendingItems, fetchPendingItems, chatMessages, unreadChatCount } = useLibrarianNotification();
   const [showDropdown, setShowDropdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [loadingCategory, setLoadingCategory] = useState(null);
   const bellRef = useRef(null);
   const navigate = useNavigate();
+
+  // Replace chats count in total with unreadChatCount to avoid double-counting
+  const chatBadge = unreadChatCount || pendingCounts.chats || 0;
+  const bellTotal = (pendingCounts.total - (pendingCounts.chats || 0)) + chatBadge;
 
   // Dong dropdown khi click ra ngoai
   useEffect(() => {
@@ -171,9 +186,9 @@ function HeaderBar() {
             title="Thông báo"
           >
             <Bell className="notif-bell__icon" />
-            {pendingCounts.total > 0 && (
+            {bellTotal > 0 && (
               <span className="notif-bell__badge">
-                {pendingCounts.total > 99 ? "99+" : pendingCounts.total}
+                {bellTotal > 99 ? "99+" : bellTotal}
               </span>
             )}
           </button>
@@ -183,11 +198,73 @@ function HeaderBar() {
               <div className="notif-dropdown__header">
                 <h3 className="notif-dropdown__title">Thông báo</h3>
                 <span className="notif-dropdown__count">
-                  {pendingCounts.total} cần xử lý
+                  {bellTotal} cần xử lý
                 </span>
               </div>
 
               <div className="notif-dropdown__list">
+                {/* Tin nhắn mới từ sinh viên */}
+                {(unreadChatCount > 0 || chatMessages.length > 0) && (
+                  <div className="notif-category">
+                    <div
+                      className="notif-item notif-item--expandable notif-item--clickable"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        setExpandedCategory(null);
+                        navigate('/librarian/chat');
+                      }}
+                    >
+                      <div className="notif-item__icon notif-item__icon--chat">
+                        <MessageSquare size={18} />
+                      </div>
+                      <div className="notif-item__body">
+                        <p className="notif-item__title">Tin nhắn</p>
+                        <p className="notif-item__desc">{unreadChatCount || chatMessages.length} tin nhắn mới</p>
+                      </div>
+                      {(unreadChatCount > 0 || chatMessages.length > 0) && (
+                        <span className="notif-item__badge">{unreadChatCount || chatMessages.length}</span>
+                      )}
+                    </div>
+                    {chatMessages.length > 0 && (
+                      <div className="notif-detail-list" style={{ display: 'block' }}>
+                        {chatMessages.slice(0, 5).map((msg) => (
+                          <div
+                            key={msg.id}
+                            className="notif-detail-item"
+                            onClick={() => {
+                              setShowDropdown(false);
+                              setExpandedCategory(null);
+                              navigate(`/librarian/chat?conversationId=${msg.conversationId}`);
+                            }}
+                          >
+                            <div className="notif-detail-item__body">
+                              <p className="notif-detail-item__name">{msg.senderName || 'Sinh viên'}</p>
+                              <p className="notif-detail-item__desc">
+                                {msg.content?.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content}
+                              </p>
+                            </div>
+                            {msg.timestamp && (
+                              <span className="notif-detail-item__time">
+                                {getTimeAgo(msg.timestamp)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        <div
+                          className="notif-detail-viewall"
+                          onClick={() => {
+                            setShowDropdown(false);
+                            setExpandedCategory(null);
+                            navigate('/librarian/chat');
+                          }}
+                        >
+                          Xem tất cả tin nhắn
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Hiển thị summary counts với expand */}
                 {Object.entries(NOTIF_ICON_MAP).map(([key, config]) => {
                   const countKey = COUNT_KEY_MAP[key];
@@ -303,7 +380,7 @@ function HeaderBar() {
                   </>
                 )}
 
-                {pendingCounts.total === 0 && notifications.length === 0 && (
+                {pendingCounts.total === 0 && notifications.length === 0 && chatMessages.length === 0 && (
                   <div className="notif-dropdown__empty">
                     <CheckCircle2 size={40} />
                     <p>Không có thông báo mới</p>
@@ -347,6 +424,13 @@ const TOAST_DETAIL_MAP = {
   FEEDBACK: {
     CREATED: { title: "Phản hồi mới", desc: "Sinh viên vừa gửi đánh giá/phản hồi mới về thư viện." },
     STATUS_CHANGED: { title: "Phản hồi đã cập nhật", desc: "Trạng thái phản hồi đã thay đổi." },
+  },
+  SEAT_STATUS_REPORT: {
+    CREATED: { title: "Báo cáo tình trạng ghế mới", desc: "Có báo cáo mới về ghế hỏng, bẩn hoặc thiếu thiết bị cần được kiểm tra." },
+    VERIFIED: { title: "Báo cáo ghế đã xác minh", desc: "Một báo cáo tình trạng ghế đã được xác minh và chờ xử lý hoàn tất." },
+    REJECTED: { title: "Báo cáo ghế bị từ chối", desc: "Một báo cáo tình trạng ghế đã được từ chối sau khi kiểm tra." },
+    RESOLVED: { title: "Báo cáo ghế đã xử lý", desc: "Một báo cáo tình trạng ghế đã được xử lý xong." },
+    STATUS_CHANGED: { title: "Tình trạng ghế đã cập nhật", desc: "Trạng thái báo cáo tình trạng ghế vừa được cập nhật." },
   },
   CHAT: {
     CREATED: { title: "Tin nhắn mới", desc: "Có sinh viên đang chờ được hỗ trợ qua trò chuyện." },
@@ -461,11 +545,14 @@ function ToastNotifications() {
 }
 
 // Chat toast notification — hiện khi có tin nhắn chat mới từ student
+// Không hiện khi đang ở trang chat (ChatManage đã có toast riêng)
 function ChatToastNotification() {
   const { chatToast, setChatToast } = useLibrarianNotification();
   const navigate = useNavigate();
 
-  if (!chatToast) return null;
+  // Suppress khi đang ở trang chat
+  const isOnChatPage = window.location.pathname.includes('/librarian/chat');
+  if (!chatToast || isOnChatPage) return null;
 
   return (
     <div
@@ -524,4 +611,3 @@ function MainLayout() {
 }
 
 export default MainLayout;
-

@@ -9,23 +9,63 @@ const kioskApi = axios.create({
   },
 });
 
-// Add auth token if available
+// Sử dụng kiosk device token thay vì librarian token
 kioskApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('librarian_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const kioskToken = localStorage.getItem('kiosk_device_token');
+  if (kioskToken) {
+    config.headers.Authorization = `Bearer ${kioskToken}`;
   }
   return config;
 });
 
+// Xử lý lỗi 401 - token hết hạn hoặc không hợp lệ
+kioskApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Xóa token kiosk và chuyển về màn hình khóa
+      localStorage.removeItem('kiosk_device_token');
+      localStorage.removeItem('kiosk_config');
+      window.location.href = '/kiosk/';
+    }
+    if (error.response?.status === 403) {
+      // Kiosk bị từ chối truy cập
+      window.dispatchEvent(new CustomEvent('kiosk-auth-error', {
+        detail: error.response.data
+      }));
+    }
+    return Promise.reject(error);
+  }
+);
+
+/**
+ * Lấy kiosk code từ localStorage (fallback an toàn)
+ */
+const getKioskCode = () => {
+  const config = localStorage.getItem('kiosk_config');
+  if (config) {
+    try {
+      return JSON.parse(config).kioskCode || 'KIOSK_001';
+    } catch {
+      // ignore
+    }
+  }
+  return 'KIOSK_001';
+};
+
 /**
  * Kiosk Service
- * Handles all kiosk-related API calls
+ * Xử lý tất cả API calls liên quan đến kiosk
  */
 const kioskService = {
   /**
-   * Generate QR code for kiosk
-   * @param {string} kioskCode - Kiosk code (e.g., 'KIOSK_001')
+   * Lấy kiosk code hiện tại
+   */
+  getKioskCode,
+
+  /**
+   * Tạo QR code cho kiosk
+   * @param {string} kioskCode - Kiosk code
    */
   generateQr: async (kioskCode) => {
     const response = await kioskApi.get(`/qr/generate/${kioskCode}`);
@@ -33,8 +73,8 @@ const kioskService = {
   },
 
   /**
-   * Validate QR code from mobile app
-   * @param {string} qrPayload - The QR payload string
+   * Xác thực QR code từ mobile app
+   * @param {string} qrPayload - Chuỗi QR payload
    * @param {string} kioskCode - Kiosk code
    */
   validateQr: async (qrPayload, kioskCode) => {
@@ -46,7 +86,7 @@ const kioskService = {
   },
 
   /**
-   * Complete session after mobile authentication
+   * Hoàn tất phiên sau khi xác thực mobile
    * @param {string} sessionToken - Session token
    * @param {string} userId - User ID
    */
@@ -59,7 +99,7 @@ const kioskService = {
   },
 
   /**
-   * Get current active session for kiosk
+   * Lấy phiên hoạt động hiện tại của kiosk
    * @param {string} kioskCode - Kiosk code
    */
   getActiveSession: async (kioskCode) => {
@@ -68,7 +108,7 @@ const kioskService = {
   },
 
   /**
-   * Check out and close session
+   * Check-out và đóng phiên
    * @param {string} sessionToken - Session token
    */
   checkOut: async (sessionToken) => {
@@ -101,7 +141,7 @@ const kioskService = {
   },
 
   /**
-   * Get today's statistics
+   * Lấy thống kê trong ngày
    */
   getTodayStats: async () => {
     const response = await kioskApi.get('/monitor/stats');
@@ -109,8 +149,8 @@ const kioskService = {
   },
 
   /**
-   * Get recent entry logs
-   * @param {number} limit - Number of records to fetch
+   * Lấy nhật ký ra/vào gần đây
+   * @param {number} limit - Số bản ghi cần lấy
    */
   getRecentLogs: async (limit = 10) => {
     const response = await kioskApi.get(`/monitor/logs?limit=${limit}`);

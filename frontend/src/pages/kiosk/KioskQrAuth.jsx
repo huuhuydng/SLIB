@@ -4,9 +4,8 @@ import DynamicQrCode from '../../components/kiosk/DynamicQrCode';
 import { ArrowLeft, Wifi, WifiOff } from 'lucide-react';
 import websocketService from '../../services/websocketService';
 import kioskService from '../../services/kioskService';
+import { useKiosk } from '../../context/KioskContext';
 import './KioskQrAuth.css';
-
-const KIOSK_CODE = 'KIOSK_001';
 
 /**
  * KioskQrAuth - Màn hình QR Authentication cho Kiosk
@@ -14,6 +13,8 @@ const KIOSK_CODE = 'KIOSK_001';
  */
 const KioskQrAuth = () => {
   const navigate = useNavigate();
+  const { getKioskCode } = useKiosk();
+  const KIOSK_CODE = getKioskCode();
   const [connected, setConnected] = useState(false);
   const [sessionData, setSessionData] = useState(null);
   const [error, setError] = useState(null);

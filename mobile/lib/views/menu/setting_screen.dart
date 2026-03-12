@@ -9,6 +9,7 @@ import 'package:slib/views/profile/profile_info_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:slib/views/support/support_request_history_screen.dart';
 import 'package:slib/views/violation_report/violation_report_screen.dart';
+import 'package:slib/views/seat_status_report/seat_status_report_screen.dart';
 // import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
@@ -27,8 +28,9 @@ class _SettingScreenState extends State<SettingScreen> {
   Widget build(BuildContext context) {
     // 1. LẮNG NGHE DỮ LIỆU TỪ PROVIDER (Tự động cập nhật khi Cache/API thay đổi)
     final authService = context.watch<AuthService>();
-    final currentUser = authService.currentUser ?? widget.user; // Ưu tiên lấy từ Provider
-    final settings = authService.currentSetting; 
+    final currentUser =
+        authService.currentUser ?? widget.user; // Ưu tiên lấy từ Provider
+    final settings = authService.currentSetting;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -59,7 +61,7 @@ class _SettingScreenState extends State<SettingScreen> {
             _buildSectionTitle("Cấu hình Thư viện"),
             const SizedBox(height: 10),
 
-            // CHECK NULL: 
+            // CHECK NULL:
             // - Nếu settings đã có (từ Cache hoặc API): Hiện luôn.
             // - Nếu null (lần đầu cài app chưa có cache): Hiện Loading nhỏ.
             if (settings != null)
@@ -69,7 +71,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   iconColor: Colors.deepOrange,
                   title: "Check-in NFC (HCE)",
                   subtitle: "Chạm điện thoại để vào cửa",
-                  value: settings.isHceEnabled, 
+                  value: settings.isHceEnabled,
                   onChanged: (val) {
                     // GỌI HÀM UPDATE CỦA AUTH SERVICE
                     context.read<AuthService>().updateSetting(
@@ -123,10 +125,13 @@ class _SettingScreenState extends State<SettingScreen> {
                 iconColor: Colors.blue,
                 title: "Thông tin sinh viên",
                 onTap: () {
-                   if (currentUser != null) {
+                  if (currentUser != null) {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => ProfileInfoScreen(user: currentUser)),
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfileInfoScreen(user: currentUser),
+                      ),
                     );
                   }
                 },
@@ -138,9 +143,11 @@ class _SettingScreenState extends State<SettingScreen> {
                 title: "Lịch sử đặt chỗ",
                 onTap: () {
                   Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const BookingHistoryScreen()),
-                    );
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BookingHistoryScreen(),
+                    ),
+                  );
                 },
               ),
               _buildDivider(),
@@ -152,7 +159,23 @@ class _SettingScreenState extends State<SettingScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ViolationHistoryScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const ViolationHistoryScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.chair_outlined,
+                iconColor: Colors.orange,
+                title: "Báo cáo tình trạng ghế",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SeatStatusReportScreen(),
+                    ),
                   );
                 },
               ),
@@ -164,7 +187,9 @@ class _SettingScreenState extends State<SettingScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ViolationReportScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const ViolationReportScreen(),
+                    ),
                   );
                 },
               ),
@@ -176,7 +201,9 @@ class _SettingScreenState extends State<SettingScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SupportRequestHistoryScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const SupportRequestHistoryScreen(),
+                    ),
                   );
                 },
               ),
@@ -233,7 +260,7 @@ class _SettingScreenState extends State<SettingScreen> {
     String firstLetter = (user?.fullName.isNotEmpty ?? false)
         ? user!.fullName[0].toUpperCase()
         : "S";
-    
+
     final hasAvatar = user?.avtUrl != null && user!.avtUrl!.isNotEmpty;
 
     return Container(

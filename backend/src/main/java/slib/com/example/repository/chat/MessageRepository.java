@@ -183,4 +183,24 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                      "AND m.senderType = 'STUDENT' " +
                      "AND m.isRead = false")
        long countUnreadStudentMessagesForLibrarian(@Param("librarianId") UUID librarianId);
+
+       // 19. Đánh dấu tất cả tin nhắn student trong conversation đã đọc (cho thủ thư)
+       @Modifying
+       @Transactional
+       @Query("UPDATE Message m SET m.isRead = true WHERE m.conversation.id = :conversationId " +
+                     "AND m.senderType = 'STUDENT' AND m.isRead = false")
+       int markConversationStudentMessagesAsRead(@Param("conversationId") UUID conversationId);
+
+       // 20. Đánh dấu tất cả tin nhắn librarian trong conversation đã đọc (cho
+       // student)
+       @Modifying
+       @Transactional
+       @Query("UPDATE Message m SET m.isRead = true WHERE m.conversation.id = :conversationId " +
+                     "AND m.senderType = 'LIBRARIAN' AND m.isRead = false")
+       int markConversationLibrarianMessagesAsRead(@Param("conversationId") UUID conversationId);
+
+       // 21. Đếm tin nhắn chưa đọc từ librarian cho student trong conversation
+       @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :conversationId " +
+                     "AND m.senderType = 'LIBRARIAN' AND m.isRead = false")
+       long countUnreadLibrarianMessagesInConversation(@Param("conversationId") UUID conversationId);
 }

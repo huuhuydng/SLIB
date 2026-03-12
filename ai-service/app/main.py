@@ -26,7 +26,7 @@ from app.models.schemas import (
     AIConfig,
     ActionType
 )
-from app.routers import chat, ingestion
+from app.routers import chat, ingestion, analytics
 from app.services.java_backend_client import get_java_client
 from app.services.knowledge_base import knowledge_base_service
 from app.services.analytics_service import analytics_ai_service
@@ -102,6 +102,7 @@ app.add_middleware(
 # Include routers
 app.include_router(chat.router)
 app.include_router(ingestion.router)
+app.include_router(analytics.router)
 
 # In-memory session storage (use Redis in production)
 chat_sessions: Dict[str, list] = {}

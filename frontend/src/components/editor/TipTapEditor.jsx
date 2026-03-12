@@ -220,7 +220,7 @@ const TipTapEditor = ({ content, onChange, onImageUpload, placeholder = 'Nhập 
                         }
                     } catch (error) {
                         console.error('Error uploading image:', error);
-                        alert('Không thể upload ảnh: ' + error.message);
+                        console.error('Upload error:', error.message);
                     }
                 }
             };

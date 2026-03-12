@@ -49,12 +49,19 @@ public class SecurityConfig {
                         // User management endpoints (Admin only)
                         .requestMatchers("/slib/users/import").hasRole("ADMIN")
                         .requestMatchers("/slib/users/*/status").hasRole("ADMIN")
+                        // Area management endpoints (Admin only)
+                        .requestMatchers("/slib/areas/{id}/locked").hasRole("ADMIN")
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()
 
-                        // Các endpoint khác
-                        .anyRequest().permitAll()) // Tạm để permitAll để test, sau này nên đổi thành authenticated()
+                        // Kiosk admin endpoints - yeu cau ADMIN hoac LIBRARIAN
+                        .requestMatchers("/slib/kiosk/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        // Kiosk activation - public (token duoc xac thuc trong endpoint)
+                        .requestMatchers("/slib/kiosk/session/activate").permitAll()
+                        .requestMatchers("/slib/kiosk/session/activate-code").permitAll()
+                        // Cac endpoint khac
+                        .anyRequest().permitAll()) // Tam de permitAll de test, sau nay nen doi thanh authenticated()
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

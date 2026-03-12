@@ -23,6 +23,7 @@ import java.util.Map;
  * POST http://localhost:8080/slib/seed/support-requests?count=8
  * POST http://localhost:8080/slib/seed/complaints?count=5
  * POST http://localhost:8080/slib/seed/feedbacks?count=8
+ * POST http://localhost:8080/slib/seed/seat-status-reports?count=8
  * 
  * 3. Xoá dữ liệu seed:
  * DELETE http://localhost:8080/slib/seed/clear
@@ -108,6 +109,12 @@ public class SeedDataController {
     public ResponseEntity<Map<String, Object>> seedFeedbacks(
             @RequestParam(defaultValue = "8") int count) {
         return ResponseEntity.ok(seedDataService.seedFeedbacks(count));
+    }
+
+    @PostMapping("/seat-status-reports")
+    public ResponseEntity<Map<String, Object>> seedSeatStatusReports(
+            @RequestParam(defaultValue = "8") int count) {
+        return ResponseEntity.ok(seedDataService.seedSeatStatusReports(count));
     }
 
     /**

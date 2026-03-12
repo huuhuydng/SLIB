@@ -1,8 +1,10 @@
 import { useState, useRef } from "react";
+import { useToast } from "../../components/common/ToastProvider";
 import librarianService from "../../services/librarianService";
 import "../../styles/Auth.css";
 
 function ForgotPassword({ onSwitch }) {
+  const toast = useToast();
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -37,12 +39,12 @@ function ForgotPassword({ onSwitch }) {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !email.trim()) {
-      alert("Vui lòng nhập email!");
+      toast.warning("Vui lòng nhập email!");
       return;
     }
 
     if (!emailRegex.test(email)) {
-      alert("Email không đúng định dạng!");
+      toast.warning("Email không đúng định dạng!");
       return;
     }
 
@@ -55,7 +57,7 @@ function ForgotPassword({ onSwitch }) {
       const response = await librarianService.forgotPassword(cleanEmail);
 
       console.log('✅ [ForgotPassword] Response:', response);
-      alert(`${response.message || 'Mã OTP đã được gửi đến email của bạn!'}`);
+      toast.success(`${response.message || 'Mã OTP đã được gửi đến email của bạn!'}`);
       setStep(2);
 
     } catch (err) {
@@ -82,7 +84,7 @@ function ForgotPassword({ onSwitch }) {
         errorMessage = "Không kết nối được server. Vui lòng kiểm tra kết nối.";
       }
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,7 +97,7 @@ function ForgotPassword({ onSwitch }) {
     const otpCode = otp.join("");
 
     if (otpCode.length !== 6) {
-      alert("Vui lòng nhập đủ 6 số OTP!");
+      toast.warning("Vui lòng nhập đủ 6 số OTP!");
       return;
     }
 
@@ -110,7 +112,7 @@ function ForgotPassword({ onSwitch }) {
       );
 
       console.log('✅ [ForgotPassword] Verify response:', response);
-      alert("Xác thực thành công! Vui lòng đặt mật khẩu mới.");
+      toast.success("Xác thực thành công! Vui lòng đặt mật khẩu mới.");
       setStep(3);
 
     } catch (err) {
@@ -120,7 +122,7 @@ function ForgotPassword({ onSwitch }) {
         err.response?.data ||
         "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại.";
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ function ForgotPassword({ onSwitch }) {
       );
 
       console.log('✅ [ForgotPassword] Resend response:', response);
-      alert(response.message || "Mã OTP mới đã được gửi!");
+      toast.success(response.message || "Mã OTP mới đã được gửi!");
 
     } catch (err) {
       console.error('❌ [ForgotPassword] Resend error:', err);
@@ -149,7 +151,7 @@ function ForgotPassword({ onSwitch }) {
         err.response?.data ||
         "Không thể gửi lại OTP. Vui lòng thử lại.";
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -160,12 +162,12 @@ function ForgotPassword({ onSwitch }) {
     e.preventDefault();
 
     if (newPassword !== confirmPassword) {
-      alert("Mật khẩu xác nhận không khớp!");
+      toast.warning("Mật khẩu xác nhận không khớp!");
       return;
     }
 
     if (newPassword.length < 6) {
-      alert("Mật khẩu phải có ít nhất 6 ký tự!");
+      toast.warning("Mật khẩu phải có ít nhất 6 ký tự!");
       return;
     }
 
@@ -176,7 +178,7 @@ function ForgotPassword({ onSwitch }) {
       const response = await librarianService.updatePassword(newPassword);
 
       console.log('✅ [ForgotPassword] Reset response:', response);
-      alert("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.");
+      toast.success("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.");
       onSwitch();
 
     } catch (err) {
@@ -187,7 +189,7 @@ function ForgotPassword({ onSwitch }) {
         err.message ||
         "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
 
-      alert(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

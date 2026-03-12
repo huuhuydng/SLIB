@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
@@ -7,6 +8,7 @@ import { clearAllPositionCache } from "../../../utils/positionCache";
 import "../../../styles/admin/canvas.css";
 
 function CanvasBoard() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const { areas, zones, seats, factories, canvas, selectedAreaId, selectedItem, selectedItems, hasUnsavedChanges, isSaving, isPreviewMode } = state;
 
@@ -595,7 +597,7 @@ function CanvasBoard() {
       console.log('All changes saved successfully');
     } catch (error) {
       console.error('Failed to save:', error);
-      alert('Lưu thất bại: ' + (error.response?.data?.message || error.message));
+      toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));
       dispatch({ type: actions.SET_SAVING, payload: false });
     }
   };

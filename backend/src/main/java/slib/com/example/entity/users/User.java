@@ -83,6 +83,10 @@ public class User implements UserDetails {
     @Builder.Default
     private Boolean notifyNews = true;
 
+    @Column(name = "reputation_score")
+    @Builder.Default
+    private Integer reputationScore = 100;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

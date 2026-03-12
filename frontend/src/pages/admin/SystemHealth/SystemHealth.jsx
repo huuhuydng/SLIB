@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Activity,
   Database,
@@ -28,96 +28,188 @@ import {
   Save,
   History,
   Play,
-  Pause
+  Pause,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
+import systemHealthService from '../../../services/admin/systemHealthService';
 
-// Mock Data
-const SYSTEM_METRICS = {
-  cpu: 45,
-  memory: 62,
-  disk: 38,
-  network: 99.8,
-  uptime: '15 ngày 7 giờ 23 phút',
-  lastBackup: '2025-01-16T03:00:00'
-};
-
-const API_ENDPOINTS = [
-  { name: '/api/auth', status: 'healthy', responseTime: 45, requests: 1250 },
-  { name: '/api/bookings', status: 'healthy', responseTime: 78, requests: 3420 },
-  { name: '/api/users', status: 'healthy', responseTime: 52, requests: 890 },
-  { name: '/api/seats', status: 'warning', responseTime: 234, requests: 5680 },
-  { name: '/api/devices', status: 'healthy', responseTime: 38, requests: 420 },
-  { name: '/api/notifications', status: 'error', responseTime: 0, requests: 156 },
-];
-
-const SYSTEM_LOGS = [
-  { id: 1, timestamp: '2025-01-16T17:30:15', level: 'error', service: 'NotificationService', message: 'Failed to send push notification: Connection timeout', user: null },
-  { id: 2, timestamp: '2025-01-16T17:28:42', level: 'warning', service: 'SeatService', message: 'High response time detected (>200ms)', user: null },
-  { id: 3, timestamp: '2025-01-16T17:25:10', level: 'info', service: 'AuthService', message: 'User logged in successfully', user: 'phucnh@fpt.edu.vn' },
-  { id: 4, timestamp: '2025-01-16T17:22:33', level: 'info', service: 'BookingService', message: 'New booking created', user: 'antv@fpt.edu.vn' },
-  { id: 5, timestamp: '2025-01-16T17:18:55', level: 'debug', service: 'NFCService', message: 'Device NFC-004 disconnected', user: null },
-  { id: 6, timestamp: '2025-01-16T17:15:20', level: 'warning', service: 'DatabaseService', message: 'Slow query detected (>1000ms)', user: null },
-  { id: 7, timestamp: '2025-01-16T17:10:45', level: 'info', service: 'BackupService', message: 'Scheduled backup completed successfully', user: null },
-  { id: 8, timestamp: '2025-01-16T17:05:12', level: 'error', service: 'NotificationService', message: 'Firebase Cloud Messaging error', user: null },
-];
-
-const BACKUP_HISTORY = [
-  { id: 1, date: '2025-01-16T03:00:00', size: '2.4 GB', status: 'success', duration: '4 phút 32 giây' },
-  { id: 2, date: '2025-01-15T03:00:00', size: '2.3 GB', status: 'success', duration: '4 phút 18 giây' },
-  { id: 3, date: '2025-01-14T03:00:00', size: '2.3 GB', status: 'success', duration: '4 phút 25 giây' },
-  { id: 4, date: '2025-01-13T03:00:00', size: '2.2 GB', status: 'failed', duration: '-- phút' },
-  { id: 5, date: '2025-01-12T03:00:00', size: '2.2 GB', status: 'success', duration: '4 phút 10 giây' },
-];
 
 const SystemHealth = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [logFilter, setLogFilter] = useState('all');
-  const [searchLog, setSearchLog] = useState('');
-  const [isBackingUp, setIsBackingUp] = useState(false);
 
-  const filteredLogs = useMemo(() => {
-    return SYSTEM_LOGS.filter(log => {
-      const matchSearch = log.message.toLowerCase().includes(searchLog.toLowerCase()) ||
-        log.service.toLowerCase().includes(searchLog.toLowerCase());
-      const matchFilter = logFilter === 'all' || log.level === logFilter;
-      return matchSearch && matchFilter;
-    });
-  }, [searchLog, logFilter]);
+  // === SYSTEM INFO STATE (FE-55) ===
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [loadingInfo, setLoadingInfo] = useState(true);
+
+  // === SYSTEM LOGS STATE (FE-56) ===
+  const [logs, setLogs] = useState([]);
+  const [logStats, setLogStats] = useState({});
+  const [logFilter, setLogFilter] = useState('all');
+  const [logCategory, setLogCategory] = useState('all');
+  const [searchLog, setSearchLog] = useState('');
+  const [logPage, setLogPage] = useState(0);
+  const [logTotalPages, setLogTotalPages] = useState(0);
+  const [loadingLogs, setLoadingLogs] = useState(false);
+
+  // === BACKUP STATE (FE-57/58) ===
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [backupHistory, setBackupHistory] = useState([]);
+  const [backupSchedule, setBackupSchedule] = useState(null);
+  const [scheduleTime, setScheduleTime] = useState('03:00');
+  const [scheduleRetainDays, setScheduleRetainDays] = useState(30);
+  const [scheduleActive, setScheduleActive] = useState(false);
+  const [loadingBackup, setLoadingBackup] = useState(false);
+
+  // =========================================
+  // === DATA FETCHING ===
+  // =========================================
+
+  const fetchSystemInfo = useCallback(async () => {
+    try {
+      setLoadingInfo(true);
+      const data = await systemHealthService.getSystemInfo();
+      setSystemInfo(data);
+    } catch (e) {
+      console.error('Error fetching system info:', e);
+    } finally {
+      setLoadingInfo(false);
+    }
+  }, []);
+
+  const fetchLogs = useCallback(async () => {
+    try {
+      setLoadingLogs(true);
+      const params = { page: logPage, size: 20 };
+      if (logFilter !== 'all') params.level = logFilter.toUpperCase();
+      if (logCategory !== 'all') params.category = logCategory.toUpperCase();
+      if (searchLog) params.search = searchLog;
+
+      const data = await systemHealthService.getLogs(params);
+      setLogs(data.content || []);
+      setLogTotalPages(data.totalPages || 0);
+
+      const stats = await systemHealthService.getLogStats();
+      setLogStats(stats);
+    } catch (e) {
+      console.error('Error fetching logs:', e);
+    } finally {
+      setLoadingLogs(false);
+    }
+  }, [logFilter, logCategory, searchLog, logPage]);
+
+  const fetchBackupData = useCallback(async () => {
+    try {
+      setLoadingBackup(true);
+      const [history, schedule] = await Promise.all([
+        systemHealthService.getBackupHistory(),
+        systemHealthService.getBackupSchedule()
+      ]);
+      setBackupHistory(history || []);
+      setBackupSchedule(schedule);
+      if (schedule) {
+        setScheduleTime(schedule.time || '03:00');
+        setScheduleRetainDays(schedule.retainDays || 30);
+        setScheduleActive(schedule.isActive || false);
+      }
+    } catch (e) {
+      console.error('Error fetching backup data:', e);
+    } finally {
+      setLoadingBackup(false);
+    }
+  }, []);
+
+  // Auto-fetch on tab change
+  useEffect(() => {
+    if (activeTab === 'overview') fetchSystemInfo();
+    if (activeTab === 'logs') fetchLogs();
+    if (activeTab === 'backup') fetchBackupData();
+  }, [activeTab, fetchSystemInfo, fetchLogs, fetchBackupData]);
+
+  // Auto-refresh system info every 30s
+  useEffect(() => {
+    if (activeTab !== 'overview') return;
+    const interval = setInterval(fetchSystemInfo, 30000);
+    return () => clearInterval(interval);
+  }, [activeTab, fetchSystemInfo]);
+
+  // =========================================
+  // === HANDLERS ===
+  // =========================================
+
+  const handleManualBackup = async () => {
+    setIsBackingUp(true);
+    try {
+      await systemHealthService.triggerBackup();
+      await fetchBackupData();
+    } catch (e) {
+      console.error('Backup failed:', e);
+      alert('Sao lưu thất bại: ' + (e.response?.data?.message || e.message));
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    try {
+      await systemHealthService.updateBackupSchedule({
+        time: scheduleTime,
+        retainDays: scheduleRetainDays,
+        isActive: scheduleActive
+      });
+      await fetchBackupData();
+    } catch (e) {
+      console.error('Failed to save schedule:', e);
+    }
+  };
+
+  const handleDownloadBackup = (backupId) => {
+    systemHealthService.downloadBackup(backupId);
+  };
+
+  // =========================================
+  // === HELPERS ===
+  // =========================================
 
   const getLogLevelStyle = (level) => {
     switch (level) {
-      case 'error': return { bg: '#FEE2E2', color: '#DC2626', icon: XCircle };
-      case 'warning': return { bg: '#FEF3C7', color: '#F59E0B', icon: AlertTriangle };
-      case 'info': return { bg: '#DBEAFE', color: '#2563EB', icon: Info };
-      case 'debug': return { bg: '#F3E8FF', color: '#7C3AED', icon: Bug };
+      case 'ERROR': return { bg: '#FEE2E2', color: '#DC2626', icon: XCircle };
+      case 'WARN': return { bg: '#FEF3C7', color: '#F59E0B', icon: AlertTriangle };
+      case 'INFO': return { bg: '#DBEAFE', color: '#2563EB', icon: Info };
+      case 'DEBUG': return { bg: '#F3E8FF', color: '#7C3AED', icon: Bug };
       default: return { bg: '#F3F4F6', color: '#6B7280', icon: Info };
     }
   };
 
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'healthy': return { bg: '#D1FAE5', color: '#059669' };
-      case 'warning': return { bg: '#FEF3C7', color: '#F59E0B' };
-      case 'error': return { bg: '#FEE2E2', color: '#DC2626' };
-      default: return { bg: '#F3F4F6', color: '#6B7280' };
+  const getCategoryLabel = (cat) => {
+    switch (cat) {
+      case 'SYSTEM_ERROR': return 'Lỗi hệ thống';
+      case 'PERFORMANCE': return 'Hiệu năng';
+      case 'BACKGROUND_JOB': return 'Tác vụ nền';
+      case 'INTEGRATION': return 'Tích hợp';
+      case 'AUDIT': return 'Quản trị';
+      default: return cat;
     }
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     return date.toLocaleString('vi-VN');
   };
 
-  const handleManualBackup = () => {
-    setIsBackingUp(true);
-    setTimeout(() => setIsBackingUp(false), 3000);
+  const getMetricColor = (value, thresholds = { warn: 70, danger: 90 }) => {
+    if (value >= thresholds.danger) return '#DC2626';
+    if (value >= thresholds.warn) return '#F59E0B';
+    return '#059669';
   };
+
+  // =========================================
+  // === RENDER ===
+  // =========================================
 
   return (
     <>
-      <Header searchPlaceholder="Tìm kiếm..." />
-
       <div style={{
         padding: '0 24px 32px',
         maxWidth: '1440px',
@@ -140,38 +232,27 @@ const SystemHealth = () => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: '#F7FAFC',
-              border: '2px solid #E2E8F0',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#4A5568',
-              cursor: 'pointer'
-            }}>
+            <button
+              onClick={() => {
+                if (activeTab === 'overview') fetchSystemInfo();
+                if (activeTab === 'logs') fetchLogs();
+                if (activeTab === 'backup') fetchBackupData();
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: '#F7FAFC',
+                border: '2px solid #E2E8F0',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#4A5568',
+                cursor: 'pointer'
+              }}>
               <RefreshCw size={18} />
               Làm mới
-            </button>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 20px',
-              background: '#e8600a',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#fff',
-              cursor: 'pointer',
-              boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
-            }}>
-              <Download size={18} />
-              Xuất báo cáo
             </button>
           </div>
         </div>
@@ -216,193 +297,105 @@ const SystemHealth = () => {
           ))}
         </div>
 
-        {/* Overview Tab */}
+        {/* ========== OVERVIEW TAB (FE-55) ========== */}
         {activeTab === 'overview' && (
           <>
-            {/* System Metrics */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '16px',
-              marginBottom: '24px'
-            }}>
-              {[
-                { label: 'CPU Usage', value: `${SYSTEM_METRICS.cpu}%`, icon: Cpu, color: SYSTEM_METRICS.cpu > 80 ? '#DC2626' : '#059669', trend: '+2%' },
-                { label: 'Memory Usage', value: `${SYSTEM_METRICS.memory}%`, icon: MemoryStick, color: SYSTEM_METRICS.memory > 80 ? '#DC2626' : '#F59E0B', trend: '+5%' },
-                { label: 'Disk Usage', value: `${SYSTEM_METRICS.disk}%`, icon: HardDrive, color: '#059669', trend: '+1%' },
-                { label: 'Network Uptime', value: `${SYSTEM_METRICS.network}%`, icon: Wifi, color: '#059669', trend: '0%' },
-              ].map((metric, idx) => (
-                <div key={idx} style={{
-                  background: '#fff',
-                  borderRadius: '10px',
-                  padding: '24px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            {loadingInfo && !systemInfo ? (
+              <div style={{ textAlign: 'center', padding: '60px', color: '#A0AEC0' }}>Đang tải...</div>
+            ) : systemInfo ? (
+              <>
+                {/* System Metrics */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '16px',
+                  marginBottom: '24px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
-                      background: metric.color === '#059669' ? '#D1FAE5' : metric.color === '#F59E0B' ? '#FEF3C7' : '#FEE2E2',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <metric.icon size={24} color={metric.color} />
-                    </div>
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: metric.trend.startsWith('+') && metric.trend !== '+0%' ? '#DC2626' : '#059669',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '2px'
-                    }}>
-                      {metric.trend.startsWith('+') && metric.trend !== '+0%' ? <ArrowUpRight size={14} /> : null}
-                      {metric.trend}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{metric.value}</div>
-                  <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{metric.label}</div>
-                  {/* Progress bar */}
-                  <div style={{ marginTop: '12px', height: '6px', background: '#E2E8F0', borderRadius: '100px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      width: metric.value,
-                      background: metric.color,
-                      borderRadius: '100px',
-                      transition: 'width 0.5s ease'
-                    }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* System Info & API Status */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '24px' }}>
-              {/* System Info */}
-              <div style={{
-                background: '#fff',
-                borderRadius: '10px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                overflow: 'hidden'
-              }}>
-                <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Thông tin hệ thống</h3>
-                </div>
-                <div style={{ padding: '24px' }}>
                   {[
-                    { label: 'Thời gian hoạt động', value: SYSTEM_METRICS.uptime, icon: Clock },
-                    { label: 'Database', value: 'PostgreSQL 15.2', icon: Database },
-                    { label: 'Server', value: 'Ubuntu 22.04 LTS', icon: Server },
-                    { label: 'Java Runtime', value: 'OpenJDK 17.0.2', icon: Zap },
-                    { label: 'Sao lưu gần nhất', value: formatDate(SYSTEM_METRICS.lastBackup), icon: Shield },
-                  ].map((item, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 0',
-                      borderBottom: idx < 4 ? '1px solid #E2E8F0' : 'none'
-                    }}>
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
+                    { label: 'CPU Usage', value: systemInfo.cpu, unit: '%', icon: Cpu },
+                    { label: 'Memory Usage', value: systemInfo.memory, unit: '%', icon: MemoryStick, sub: `${systemInfo.memoryUsedMB} / ${systemInfo.memoryMaxMB} MB` },
+                    { label: 'Disk Usage', value: systemInfo.disk, unit: '%', icon: HardDrive, sub: `${systemInfo.diskUsedGB} / ${systemInfo.diskTotalGB} GB` },
+                    { label: 'Processors', value: systemInfo.availableProcessors, unit: ' cores', icon: Zap },
+                  ].map((metric, idx) => {
+                    const color = getMetricColor(typeof metric.value === 'number' && metric.unit === '%' ? metric.value : 0);
+                    return (
+                      <div key={idx} style={{
+                        background: '#fff',
                         borderRadius: '10px',
-                        background: '#F7FAFC',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
+                        padding: '24px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                       }}>
-                        <item.icon size={18} color="#4A5568" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                          <div style={{
+                            width: '48px', height: '48px', borderRadius: '12px',
+                            background: color === '#059669' ? '#D1FAE5' : color === '#F59E0B' ? '#FEF3C7' : '#FEE2E2',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <metric.icon size={24} color={color} />
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>
+                          {typeof metric.value === 'number' ? metric.value.toFixed(1) : metric.value}{metric.unit}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{metric.label}</div>
+                        {metric.sub && <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>{metric.sub}</div>}
+                        {metric.unit === '%' && (
+                          <div style={{ marginTop: '12px', height: '6px', background: '#E2E8F0', borderRadius: '100px', overflow: 'hidden' }}>
+                            <div style={{
+                              height: '100%', width: `${metric.value}%`,
+                              background: color, borderRadius: '100px', transition: 'width 0.5s ease'
+                            }} />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{item.label}</div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.value}</div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </div>
 
-              {/* API Status */}
-              <div style={{
-                background: '#fff',
-                borderRadius: '10px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                overflow: 'hidden'
-              }}>
-                <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Trạng thái API</h3>
-                  <span style={{ fontSize: '12px', color: '#A0AEC0' }}>Cập nhật: Vừa xong</span>
+                {/* System Info Panel */}
+                <div style={{
+                  background: '#fff', borderRadius: '10px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
+                }}>
+                  <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Thông tin hệ thống</h3>
+                  </div>
+                  <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                    {[
+                      { label: 'Thời gian hoạt động', value: systemInfo.uptime, icon: Clock },
+                      { label: 'Hệ điều hành', value: `${systemInfo.osName} ${systemInfo.osVersion}`, icon: Server },
+                      { label: 'Kiến trúc', value: systemInfo.osArch, icon: Cpu },
+                      { label: 'Java Version', value: systemInfo.javaVersion, icon: Zap },
+                      { label: 'Java Vendor', value: systemInfo.javaVendor, icon: Shield },
+                      { label: 'Database', value: 'PostgreSQL', icon: Database },
+                    ].map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#F7FAFC', borderRadius: '10px' }}>
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '10px', background: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          <item.icon size={18} color="#4A5568" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{item.label}</div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.value}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ padding: '16px 24px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        {['Endpoint', 'Trạng thái', 'Response Time', 'Requests/h'].map((header, idx) => (
-                          <th key={idx} style={{
-                            textAlign: idx === 0 ? 'left' : 'center',
-                            padding: '12px 8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            color: '#A0AEC0',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}>{header}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {API_ENDPOINTS.map((endpoint, idx) => {
-                        const statusStyle = getStatusStyle(endpoint.status);
-                        return (
-                          <tr key={idx}>
-                            <td style={{ padding: '12px 8px' }}>
-                              <span style={{ fontSize: '14px', fontWeight: '500', color: '#1A1A1A', fontFamily: 'monospace' }}>{endpoint.name}</span>
-                            </td>
-                            <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '10px',
-                                fontSize: '12px',
-                                fontWeight: '600',
-                                background: statusStyle.bg,
-                                color: statusStyle.color
-                              }}>
-                                {endpoint.status === 'healthy' ? 'Tốt' : endpoint.status === 'warning' ? 'Chậm' : 'Lỗi'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                              <span style={{
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: endpoint.responseTime > 200 ? '#F59E0B' : endpoint.responseTime === 0 ? '#DC2626' : '#059669'
-                              }}>
-                                {endpoint.responseTime > 0 ? `${endpoint.responseTime}ms` : 'N/A'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                              <span style={{ fontSize: '14px', color: '#4A5568' }}>{endpoint.requests.toLocaleString()}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px', color: '#A0AEC0' }}>Không thể tải thông tin hệ thống</div>
+            )}
           </>
         )}
 
-        {/* Logs Tab */}
+        {/* ========== LOGS TAB (FE-56) ========== */}
         {activeTab === 'logs' && (
           <div style={{
-            background: '#fff',
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-            overflow: 'hidden'
+            background: '#fff', borderRadius: '10px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
           }}>
             {/* Filter Bar */}
             <div style={{
@@ -410,145 +403,178 @@ const SystemHealth = () => {
               borderBottom: '1px solid #E2E8F0',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
             }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative' }}>
                   <Search size={16} style={{
-                    position: 'absolute',
-                    left: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#A0AEC0'
+                    position: 'absolute', left: '12px', top: '50%',
+                    transform: 'translateY(-50%)', color: '#A0AEC0'
                   }} />
                   <input
                     type="text"
                     placeholder="Tìm kiếm log..."
                     value={searchLog}
-                    onChange={(e) => setSearchLog(e.target.value)}
+                    onChange={(e) => { setSearchLog(e.target.value); setLogPage(0); }}
                     style={{
                       padding: '10px 12px 10px 40px',
                       border: '2px solid #E2E8F0',
                       borderRadius: '10px',
                       fontSize: '14px',
-                      width: '300px',
+                      width: '250px',
                       outline: 'none'
                     }}
                   />
                 </div>
                 <select
                   value={logFilter}
-                  onChange={(e) => setLogFilter(e.target.value)}
+                  onChange={(e) => { setLogFilter(e.target.value); setLogPage(0); }}
                   style={{
-                    padding: '10px 16px',
-                    border: '2px solid #E2E8F0',
-                    borderRadius: '10px',
-                    fontSize: '14px',
-                    color: '#4A5568',
-                    background: '#fff',
-                    cursor: 'pointer'
+                    padding: '10px 16px', border: '2px solid #E2E8F0', borderRadius: '10px',
+                    fontSize: '14px', color: '#4A5568', background: '#fff', cursor: 'pointer'
                   }}
                 >
                   <option value="all">Tất cả mức độ</option>
-                  <option value="error">Error</option>
-                  <option value="warning">Warning</option>
-                  <option value="info">Info</option>
-                  <option value="debug">Debug</option>
+                  <option value="ERROR">Error</option>
+                  <option value="WARN">Warning</option>
+                  <option value="INFO">Info</option>
+                  <option value="DEBUG">Debug</option>
+                </select>
+                <select
+                  value={logCategory}
+                  onChange={(e) => { setLogCategory(e.target.value); setLogPage(0); }}
+                  style={{
+                    padding: '10px 16px', border: '2px solid #E2E8F0', borderRadius: '10px',
+                    fontSize: '14px', color: '#4A5568', background: '#fff', cursor: 'pointer'
+                  }}
+                >
+                  <option value="all">Tất cả loại</option>
+                  <option value="SYSTEM_ERROR">Lỗi hệ thống</option>
+                  <option value="PERFORMANCE">Hiệu năng</option>
+                  <option value="BACKGROUND_JOB">Tác vụ nền</option>
+                  <option value="INTEGRATION">Tích hợp</option>
+                  <option value="AUDIT">Quản trị</option>
                 </select>
               </div>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 16px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '10px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: 'pointer'
-              }}>
-                <Download size={16} />
-                Xuất logs
-              </button>
+              {/* Stats badges */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {logStats.errorsLast24h != null && (
+                  <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', background: '#FEE2E2', color: '#DC2626' }}>
+                    {logStats.errorsLast24h} lỗi (24h)
+                  </span>
+                )}
+                {logStats.warningsLast24h != null && (
+                  <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', background: '#FEF3C7', color: '#F59E0B' }}>
+                    {logStats.warningsLast24h} cảnh báo (24h)
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Logs List */}
             <div style={{ padding: '16px 24px' }}>
-              {filteredLogs.map((log) => {
-                const levelStyle = getLogLevelStyle(log.level);
-                const LevelIcon = levelStyle.icon;
-                return (
-                  <div key={log.id} style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '16px',
-                    padding: '16px',
-                    background: '#F7FAFC',
-                    borderRadius: '12px',
-                    marginBottom: '12px',
-                    border: `1px solid ${levelStyle.bg}`
-                  }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: levelStyle.bg,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0
-                    }}>
-                      <LevelIcon size={16} color={levelStyle.color} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
-                        <span style={{
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          textTransform: 'uppercase',
-                          background: levelStyle.bg,
-                          color: levelStyle.color
-                        }}>{log.level}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '600', color: '#4A5568' }}>{log.service}</span>
-                        <span style={{ fontSize: '12px', color: '#A0AEC0' }}>{formatDate(log.timestamp)}</span>
+              {loadingLogs ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
+              ) : logs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Chưa có nhật ký nào</div>
+              ) : (
+                <>
+                  {logs.map((logItem, idx) => {
+                    const levelStyle = getLogLevelStyle(logItem.level);
+                    const LevelIcon = levelStyle.icon;
+                    return (
+                      <div key={logItem.id || idx} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '16px',
+                        padding: '16px', background: '#F7FAFC', borderRadius: '12px',
+                        marginBottom: '12px', border: `1px solid ${levelStyle.bg}`
+                      }}>
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '8px', background: levelStyle.bg,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                        }}>
+                          <LevelIcon size={16} color={levelStyle.color} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                            <span style={{
+                              padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                              textTransform: 'uppercase', background: levelStyle.bg, color: levelStyle.color
+                            }}>{logItem.level}</span>
+                            {logItem.category && (
+                              <span style={{
+                                padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600',
+                                background: '#E2E8F0', color: '#4A5568'
+                              }}>{getCategoryLabel(logItem.category)}</span>
+                            )}
+                            {logItem.service && (
+                              <span style={{ fontSize: '12px', fontWeight: '600', color: '#4A5568' }}>{logItem.service}</span>
+                            )}
+                            <span style={{ fontSize: '12px', color: '#A0AEC0' }}>{formatDate(logItem.createdAt)}</span>
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#1A1A1A' }}>{logItem.message}</div>
+                          {logItem.details?.info && (
+                            <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px', fontFamily: 'monospace' }}>
+                              {logItem.details.info}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '14px', color: '#1A1A1A' }}>{log.message}</div>
-                      {log.user && (
-                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '6px' }}>User: {log.user}</div>
-                      )}
+                    );
+                  })}
+
+                  {/* Pagination */}
+                  {logTotalPages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px' }}>
+                      <button
+                        disabled={logPage === 0}
+                        onClick={() => setLogPage(p => Math.max(0, p - 1))}
+                        style={{
+                          padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px',
+                          background: '#fff', cursor: logPage === 0 ? 'not-allowed' : 'pointer',
+                          opacity: logPage === 0 ? 0.5 : 1, display: 'flex', alignItems: 'center'
+                        }}
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span style={{ padding: '8px 16px', fontSize: '14px', color: '#4A5568' }}>
+                        Trang {logPage + 1} / {logTotalPages}
+                      </span>
+                      <button
+                        disabled={logPage >= logTotalPages - 1}
+                        onClick={() => setLogPage(p => Math.min(logTotalPages - 1, p + 1))}
+                        style={{
+                          padding: '8px 12px', border: '1px solid #E2E8F0', borderRadius: '8px',
+                          background: '#fff', cursor: logPage >= logTotalPages - 1 ? 'not-allowed' : 'pointer',
+                          opacity: logPage >= logTotalPages - 1 ? 0.5 : 1, display: 'flex', alignItems: 'center'
+                        }}
+                      >
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}
 
-        {/* Backup Tab */}
+        {/* ========== BACKUP TAB (FE-57/58) ========== */}
         {activeTab === 'backup' && (
           <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '24px' }}>
             {/* Backup Actions */}
             <div style={{
-              background: '#fff',
-              borderRadius: '10px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              overflow: 'hidden',
-              height: 'fit-content'
+              background: '#fff', borderRadius: '10px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden', height: 'fit-content'
             }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Sao lưu thủ công</h3>
               </div>
               <div style={{ padding: '24px' }}>
                 <div style={{
-                  padding: '24px',
-                  background: '#F7FAFC',
-                  borderRadius: '12px',
-                  textAlign: 'center',
-                  marginBottom: '20px'
+                  padding: '24px', background: '#F7FAFC', borderRadius: '12px',
+                  textAlign: 'center', marginBottom: '20px'
                 }}>
                   <HardDrive size={48} color="#e8600a" style={{ marginBottom: '12px' }} />
                   <p style={{ fontSize: '14px', color: '#4A5568', margin: '0 0 16px' }}>
@@ -558,19 +584,11 @@ const SystemHealth = () => {
                     onClick={handleManualBackup}
                     disabled={isBackingUp}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      width: '100%',
-                      padding: '14px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      gap: '8px', width: '100%', padding: '14px',
                       background: isBackingUp ? '#A0AEC0' : '#e8600a',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#fff',
-                      cursor: isBackingUp ? 'not-allowed' : 'pointer'
+                      border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: '600',
+                      color: '#fff', cursor: isBackingUp ? 'not-allowed' : 'pointer'
                     }}
                   >
                     {isBackingUp ? (
@@ -589,132 +607,145 @@ const SystemHealth = () => {
 
                 <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '12px' }}>Lịch sao lưu tự động</h4>
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  background: '#D1FAE5',
-                  borderRadius: '12px',
-                  border: '1px solid #A7F3D0',
-                  marginBottom: '16px'
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '16px', borderRadius: '12px', marginBottom: '16px',
+                  background: scheduleActive ? '#D1FAE5' : '#FEE2E2',
+                  border: `1px solid ${scheduleActive ? '#A7F3D0' : '#FECACA'}`
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <CheckCircle size={18} color="#059669" />
-                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#059669' }}>Đã kích hoạt</span>
+                    {scheduleActive ? <CheckCircle size={18} color="#059669" /> : <XCircle size={18} color="#DC2626" />}
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: scheduleActive ? '#059669' : '#DC2626' }}>
+                      {scheduleActive ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '13px', color: '#059669' }}>Hàng ngày lúc 03:00</span>
+                  <button
+                    onClick={() => setScheduleActive(!scheduleActive)}
+                    style={{
+                      padding: '4px 12px', borderRadius: '6px', border: '1px solid #E2E8F0',
+                      background: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+                      color: '#4A5568'
+                    }}
+                  >
+                    {scheduleActive ? 'Tắt' : 'Bật'}
+                  </button>
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
                     Thời gian sao lưu
                   </label>
-                  <input type="time" defaultValue="03:00" style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '2px solid #E2E8F0',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }} />
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 16px', border: '2px solid #E2E8F0',
+                      borderRadius: '12px', fontSize: '14px', outline: 'none'
+                    }}
+                  />
                 </div>
 
-                <div>
+                <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
                     Giữ lại số bản sao lưu
                   </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '2px solid #E2E8F0',
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    color: '#4A5568',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}>
+                  <select
+                    value={scheduleRetainDays}
+                    onChange={(e) => setScheduleRetainDays(parseInt(e.target.value))}
+                    style={{
+                      width: '100%', padding: '12px 16px', border: '2px solid #E2E8F0',
+                      borderRadius: '12px', fontSize: '14px', color: '#4A5568', background: '#fff', cursor: 'pointer'
+                    }}
+                  >
                     <option value="7">7 ngày gần nhất</option>
                     <option value="14">14 ngày gần nhất</option>
                     <option value="30">30 ngày gần nhất</option>
+                    <option value="60">60 ngày gần nhất</option>
                   </select>
                 </div>
+
+                <button
+                  onClick={handleSaveSchedule}
+                  style={{
+                    width: '100%', padding: '12px', background: '#e8600a', border: 'none',
+                    borderRadius: '12px', fontSize: '14px', fontWeight: '600', color: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Lưu cấu hình
+                </button>
               </div>
             </div>
 
             {/* Backup History */}
             <div style={{
-              background: '#fff',
-              borderRadius: '10px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-              overflow: 'hidden'
+              background: '#fff', borderRadius: '10px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
             }}>
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
               </div>
               <div style={{ padding: '16px 24px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['Thời gian', 'Kích thước', 'Thời lượng', 'Trạng thái', 'Thao tác'].map((header, idx) => (
-                        <th key={idx} style={{
-                          textAlign: idx === 4 ? 'center' : 'left',
-                          padding: '12px 16px',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: '#A0AEC0',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px',
-                          borderBottom: '2px solid #E2E8F0'
-                        }}>{header}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {BACKUP_HISTORY.map((backup, idx) => (
-                      <tr key={backup.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                        <td style={{ padding: '16px' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '500', color: '#1A1A1A' }}>{formatDate(backup.date)}</div>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <span style={{ fontSize: '14px', color: '#4A5568' }}>{backup.size}</span>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <span style={{ fontSize: '14px', color: '#4A5568' }}>{backup.duration}</span>
-                        </td>
-                        <td style={{ padding: '16px' }}>
-                          <span style={{
-                            padding: '4px 12px',
-                            borderRadius: '10px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            background: backup.status === 'success' ? '#D1FAE5' : '#FEE2E2',
-                            color: backup.status === 'success' ? '#059669' : '#DC2626'
-                          }}>
-                            {backup.status === 'success' ? 'Thành công' : 'Thất bại'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '16px', textAlign: 'center' }}>
-                          <button style={{
-                            padding: '8px 12px',
-                            background: '#F7FAFC',
-                            border: '1px solid #E2E8F0',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            color: '#4A5568',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}>
-                            <Download size={14} />
-                            Tải xuống
-                          </button>
-                        </td>
+                {loadingBackup ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
+                ) : backupHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Chưa có lịch sử sao lưu</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        {['Thời gian', 'Kích thước', 'Thời lượng', 'Trạng thái', 'Thao tác'].map((header, idx) => (
+                          <th key={idx} style={{
+                            textAlign: idx === 4 ? 'center' : 'left',
+                            padding: '12px 16px', fontSize: '12px', fontWeight: '600', color: '#A0AEC0',
+                            textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #E2E8F0'
+                          }}>{header}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {backupHistory.map((backup) => (
+                        <tr key={backup.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                          <td style={{ padding: '16px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: '500', color: '#1A1A1A' }}>{formatDate(backup.startedAt)}</div>
+                          </td>
+                          <td style={{ padding: '16px' }}>
+                            <span style={{ fontSize: '14px', color: '#4A5568' }}>{backup.fileSizeFormatted || 'N/A'}</span>
+                          </td>
+                          <td style={{ padding: '16px' }}>
+                            <span style={{ fontSize: '14px', color: '#4A5568' }}>{backup.duration || 'N/A'}</span>
+                          </td>
+                          <td style={{ padding: '16px' }}>
+                            <span style={{
+                              padding: '4px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: '600',
+                              background: backup.status === 'SUCCESS' ? '#D1FAE5' : '#FEE2E2',
+                              color: backup.status === 'SUCCESS' ? '#059669' : '#DC2626'
+                            }}>
+                              {backup.status === 'SUCCESS' ? 'Thành công' : 'Thất bại'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px', textAlign: 'center' }}>
+                            {backup.status === 'SUCCESS' && (
+                              <button
+                                onClick={() => handleDownloadBackup(backup.id)}
+                                style={{
+                                  padding: '8px 12px', background: '#F7FAFC', border: '1px solid #E2E8F0',
+                                  borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: '#4A5568',
+                                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                                }}>
+                                <Download size={14} />
+                                Tải xuống
+                              </button>
+                            )}
+                            {backup.status === 'FAILED' && backup.errorMessage && (
+                              <span style={{ fontSize: '12px', color: '#DC2626' }} title={backup.errorMessage}>Xem lỗi</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>

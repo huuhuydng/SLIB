@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
@@ -8,6 +9,7 @@ import websocketService from "../../../services/websocketService";
 
 
 const CheckInOut = () => {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
 
   // State for real data
@@ -29,6 +31,10 @@ const CheckInOut = () => {
 
   // Sort state: { column: string, direction: 'asc' | 'desc' | null }
   const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
+
+  // Date filter state for export
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Column filter state: { columnKey: filterValue }
   const [columnFilters, setColumnFilters] = useState({
@@ -265,13 +271,20 @@ const CheckInOut = () => {
 
   const handleExportToExcel = async () => {
     try {
+      const token = localStorage.getItem('librarian_token');
       let url = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/hce/access-logs/export`;
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       if (params.toString()) url += '?' + params.toString();
 
-      const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Không thể xuất báo cáo');
 
       const blob = await response.blob();
@@ -292,7 +305,7 @@ const CheckInOut = () => {
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Lỗi khi xuất báo cáo:', error);
-      alert('Không thể xuất báo cáo. Vui lòng thử lại.');
+      toast.error('Không thể xuất báo cáo. Vui lòng thử lại.');
     }
   };
 
@@ -471,7 +484,22 @@ const CheckInOut = () => {
             )}
             Tổng số <strong>{displayedLogs.length}</strong> kết quả
           </span>
-          <div style={{ marginLeft: 'auto' }}>
+          <div className="cio-export-controls">
+            <input
+              type="date"
+              className="cio-date-input"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              placeholder="Từ ngày"
+            />
+            <span style={{ color: '#666' }}>-</span>
+            <input
+              type="date"
+              className="cio-date-input"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              placeholder="Đến ngày"
+            />
             <button className="lib-btn primary" onClick={handleExportToExcel}>
               In báo cáo Excel
             </button>

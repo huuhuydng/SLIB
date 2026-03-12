@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,7 +14,7 @@ import {
   EyeOff,
   Check
 } from 'lucide-react';
-import Header from "../../../components/shared/Header";
+
 import TipTapEditor from "../../../components/editor/TipTapEditor";
 import '../../../styles/librarian/NewsCreate.css';
 import { handleLogout } from "../../../utils/auth";
@@ -29,6 +30,7 @@ import {
 } from '../../../services/newsService';
 
 const NewCreate = () => {
+  const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -268,7 +270,7 @@ const NewCreate = () => {
       setNewCategoryName('');
       setShowAddCategory(false);
     } catch (err) {
-      alert('Không thể thêm danh mục: ' + (err.response?.data?.error || err.message));
+      toast.error('Không thể thêm danh mục: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -282,7 +284,7 @@ const NewCreate = () => {
         setFormData(prev => ({ ...prev, categoryId: '' }));
       }
     } catch (err) {
-      alert('Không thể xoá danh mục: ' + (err.response?.data?.error || err.message));
+      toast.error('Không thể xoá danh mục: ' + (err.response?.data?.error || err.message));
     }
   };
 
@@ -295,7 +297,7 @@ const NewCreate = () => {
       setImagePreview(url);
       return url;
     } catch (err) {
-      alert('Lỗi upload ảnh: ' + err.message);
+      toast.error('Lỗi upload ảnh: ' + err.message);
       return null;
     } finally {
       setUploading(false);
@@ -452,7 +454,6 @@ const NewCreate = () => {
 
   return (
     <div className="news-create-container">
-      <Header searchPlaceholder="Search for anything..." onLogout={handleLogout} />
 
       <div className="news-card">
         {error && (

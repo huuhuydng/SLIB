@@ -8,10 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.complaint.ComplaintEntity;
 import slib.com.example.entity.feedback.FeedbackEntity;
+import slib.com.example.entity.feedback.SeatStatusReportEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.entity.news.News;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.support.SupportRequest;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
@@ -24,7 +26,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Service tạo dữ liệu mẫu cho hệ thống SLIB.
@@ -39,6 +40,7 @@ public class SeedDataService {
     private final ReservationRepository reservationRepository;
     private final SeatRepository seatRepository;
     private final SeatViolationReportRepository violationReportRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
     private final SupportRequestRepository supportRequestRepository;
     private final AccessLogRepository accessLogRepository;
     private final ComplaintRepository complaintRepository;
@@ -48,6 +50,48 @@ public class SeedDataService {
 
     // Marker để nhận diện dữ liệu seed (dùng để xoá)
     private static final String SEED_MARKER = "[SEED]";
+    private static final int MIN_SEAT_STATUS_REPORTS = 8;
+    private static final List<SeatStatusReportSeedTemplate> SEAT_STATUS_REPORT_SEED_TEMPLATES = List.of(
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.BROKEN,
+                    SeatStatusReportEntity.ReportStatus.PENDING,
+                    SEED_MARKER + " Ghế %s bị lỏng chân, sinh viên ngồi không vững và cần kiểm tra sớm",
+                    "https://placehold.co/1200x800/png?text=SLIB+Broken+Seat"),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.DIRTY,
+                    SeatStatusReportEntity.ReportStatus.PENDING,
+                    SEED_MARKER + " Ghế %s có nhiều vết bẩn và bụi trên mặt ngồi, cần vệ sinh trước ca tiếp theo",
+                    null),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.MISSING_EQUIPMENT,
+                    SeatStatusReportEntity.ReportStatus.PENDING,
+                    SEED_MARKER + " Vị trí %s thiếu ổ cắm điện bên cạnh, ảnh hưởng đến việc học nhóm",
+                    "https://placehold.co/1200x800/png?text=SLIB+Missing+Equipment"),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.OTHER,
+                    SeatStatusReportEntity.ReportStatus.PENDING,
+                    SEED_MARKER + " Khu vực quanh ghế %s có tiếng kêu lớn từ bàn đi kèm khi sử dụng",
+                    null),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.BROKEN,
+                    SeatStatusReportEntity.ReportStatus.VERIFIED,
+                    SEED_MARKER + " Ghế %s bị nứt tay vịn, thủ thư đã xác minh và chờ bộ phận kỹ thuật xử lý",
+                    null),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.DIRTY,
+                    SeatStatusReportEntity.ReportStatus.VERIFIED,
+                    SEED_MARKER + " Ghế %s bám mực và bụi lâu ngày, đã xác minh để lên lịch vệ sinh",
+                    "https://placehold.co/1200x800/png?text=SLIB+Dirty+Seat"),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.MISSING_EQUIPMENT,
+                    SeatStatusReportEntity.ReportStatus.RESOLVED,
+                    SEED_MARKER + " Ghế %s từng thiếu đèn đọc sách, thư viện đã bổ sung đầy đủ",
+                    null),
+            new SeatStatusReportSeedTemplate(
+                    SeatStatusReportEntity.IssueType.OTHER,
+                    SeatStatusReportEntity.ReportStatus.REJECTED,
+                    SEED_MARKER + " Sinh viên phản ánh ghế %s khó ngồi, nhưng kiểm tra thực tế không phát hiện bất thường",
+                    null));
 
     /**
      * Tạo dữ liệu mẫu booking (đặt chỗ) - trải đều 7 ngày
@@ -62,7 +106,7 @@ public class SeedDataService {
         }
 
         // Trạng thái cho booking quá khứ (đã kết thúc) - scheduler sẽ không đổi
-        String[] pastStatuses = { "EXPIRED", "CANCEL" };
+        String[] pastStatuses = { "COMPLETED", "EXPIRED", "CANCEL" };
         // Trạng thái cho booking tương lai (chưa kết thúc) - scheduler sẽ không đổi
         String[] futureStatuses = { "BOOKED", "CONFIRMED" };
 
@@ -71,7 +115,7 @@ public class SeedDataService {
         Random rng = new Random();
 
         // Đảm bảo ít nhất 1 booking cho mỗi trạng thái
-        String[] guaranteedStatuses = { "PROCESSING", "BOOKED", "CONFIRMED", "CANCEL", "EXPIRED" };
+        String[] guaranteedStatuses = { "PROCESSING", "BOOKED", "CONFIRMED", "CANCEL", "EXPIRED", "COMPLETED" };
         int guaranteed = Math.min(guaranteedStatuses.length, count);
 
         for (int i = 0; i < count; i++) {
@@ -122,6 +166,7 @@ public class SeedDataService {
 
                 case "CANCEL":
                 case "EXPIRED":
+                case "COMPLETED":
                 default:
                     // Booking quá khứ - an toàn, scheduler không đổi
                     int daysAgo = 1 + rng.nextInt(6);
@@ -399,6 +444,122 @@ public class SeedDataService {
                 "ids", createdIds);
     }
 
+    @Transactional
+    public Map<String, Object> seedSeatStatusReports(int count) {
+        List<User> users = userRepository.findAll().stream()
+                .sorted(Comparator.comparing(User::getUserCode, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+        List<SeatEntity> seats = seatRepository.findAll().stream()
+                .sorted(Comparator.comparing(SeatEntity::getSeatCode, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+                .toList();
+
+        if (users.isEmpty() || seats.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Cần có users và seats trước khi seed seat status reports");
+        }
+
+        List<User> reporters = users.stream()
+                .filter(this::isActiveUser)
+                .filter(user -> user.getRole() == Role.STUDENT)
+                .toList();
+        if (reporters.isEmpty()) {
+            reporters = users.stream().filter(this::isActiveUser).toList();
+        }
+
+        List<User> librarians = users.stream()
+                .filter(this::isActiveUser)
+                .filter(user -> user.getRole() == Role.LIBRARIAN || user.getRole() == Role.ADMIN)
+                .toList();
+        if (librarians.isEmpty()) {
+            return Map.of(
+                    "status", "ERROR",
+                    "message", "Cần có ít nhất 1 tài khoản LIBRARIAN hoặc ADMIN để seed seat status reports đã xử lý");
+        }
+
+        int actualCount = Math.max(count, MIN_SEAT_STATUS_REPORTS);
+        List<UUID> createdIds = new ArrayList<>();
+        EnumSet<SeatStatusReportEntity.IssueType> seededIssueTypes = EnumSet.noneOf(SeatStatusReportEntity.IssueType.class);
+        EnumSet<SeatStatusReportEntity.ReportStatus> seededStatuses = EnumSet.noneOf(SeatStatusReportEntity.ReportStatus.class);
+
+        for (int i = 0; i < actualCount; i++) {
+            User reporter = reporters.get(i % reporters.size());
+            User librarian = librarians.get(i % librarians.size());
+            SeatEntity seat = seats.get(i % seats.size());
+            SeatStatusReportSeedTemplate template = SEAT_STATUS_REPORT_SEED_TEMPLATES
+                    .get(i % SEAT_STATUS_REPORT_SEED_TEMPLATES.size());
+
+            SeatStatusReportEntity report = SeatStatusReportEntity.builder()
+                    .user(reporter)
+                    .seat(seat)
+                    .issueType(template.issueType())
+                    .description(buildSeatStatusReportDescription(template.descriptionTemplate(), seat.getSeatCode(), i))
+                    .imageUrl(template.imageUrl())
+                    .status(SeatStatusReportEntity.ReportStatus.PENDING)
+                    .build();
+
+            SeatStatusReportEntity savedReport = seatStatusReportRepository.save(report);
+            applySeatStatusReportState(savedReport, template.status(), librarian);
+
+            seededIssueTypes.add(savedReport.getIssueType());
+            seededStatuses.add(savedReport.getStatus());
+            createdIds.add(savedReport.getId());
+        }
+
+        log.info(
+                "[SeedData] Đã tạo {} seat status reports mẫu (issueTypes={}, statuses={})",
+                actualCount,
+                seededIssueTypes,
+                seededStatuses);
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã tạo " + actualCount + " báo cáo tình trạng ghế mẫu với đủ trạng thái xử lý",
+                "count", actualCount,
+                "ids", createdIds);
+    }
+
+    private boolean isActiveUser(User user) {
+        return user.getIsActive() == null || Boolean.TRUE.equals(user.getIsActive());
+    }
+
+    private String buildSeatStatusReportDescription(String descriptionTemplate, String seatCode, int index) {
+        String description = String.format(descriptionTemplate, seatCode);
+        int batchNumber = index / SEAT_STATUS_REPORT_SEED_TEMPLATES.size();
+        if (batchNumber == 0) {
+            return description;
+        }
+        return description + " (đợt mẫu " + (batchNumber + 1) + ")";
+    }
+
+    private void applySeatStatusReportState(
+            SeatStatusReportEntity report,
+            SeatStatusReportEntity.ReportStatus targetStatus,
+            User librarian) {
+        if (targetStatus == SeatStatusReportEntity.ReportStatus.PENDING) {
+            return;
+        }
+
+        LocalDateTime baseTime = report.getCreatedAt() != null ? report.getCreatedAt() : LocalDateTime.now();
+        LocalDateTime verifiedAt = baseTime.plusMinutes(15);
+        report.setStatus(targetStatus);
+        report.setVerifiedBy(librarian);
+        report.setVerifiedAt(verifiedAt);
+
+        if (targetStatus == SeatStatusReportEntity.ReportStatus.RESOLVED) {
+            report.setResolvedAt(verifiedAt.plusHours(2));
+        } else {
+            report.setResolvedAt(null);
+        }
+
+        seatStatusReportRepository.save(report);
+    }
+
+    private record SeatStatusReportSeedTemplate(
+            SeatStatusReportEntity.IssueType issueType,
+            SeatStatusReportEntity.ReportStatus status,
+            String descriptionTemplate,
+            String imageUrl) {
+    }
+
     /**
      * Tạo tất cả dữ liệu mẫu cùng lúc (bao gồm dashboard data)
      */
@@ -411,9 +572,10 @@ public class SeedDataService {
         result.put("supportRequests", seedSupportRequests(supportCount));
         result.put("complaints", seedComplaints(5)); // 5 khiếu nại
         result.put("feedbacks", seedFeedbacks(8)); // 8 phản hồi
+        result.put("seatStatusReports", seedSeatStatusReports(8));
         result.put("status", "SUCCESS");
         result.put("message", String.format(
-                "Đã tạo 50 access logs, %d bookings, %d violations, %d supports, 5 complaints, 8 feedbacks",
+                "Đã tạo 50 access logs, %d bookings, %d violations, %d supports, 5 complaints, 8 feedbacks, 8 seat status reports",
                 bookingCount, violationCount, supportCount));
         return result;
     }
@@ -428,6 +590,7 @@ public class SeedDataService {
         long supportDeleted = 0;
         long complaintsDeleted = 0;
         long feedbacksDeleted = 0;
+        long seatStatusReportsDeleted = 0;
         long accessLogsDeleted = 0;
 
         // Xoá violations có marker
@@ -466,6 +629,14 @@ public class SeedDataService {
             }
         }
 
+        List<SeatStatusReportEntity> seatStatusReports = seatStatusReportRepository.findAllByOrderByCreatedAtDesc();
+        for (SeatStatusReportEntity report : seatStatusReports) {
+            if (report.getDescription() != null && report.getDescription().startsWith(SEED_MARKER)) {
+                seatStatusReportRepository.delete(report);
+                seatStatusReportsDeleted++;
+            }
+        }
+
         // Xoá access logs có marker
         List<AccessLog> allLogs = accessLogRepository.findAllOrderByCheckInTimeDesc();
         for (AccessLog al : allLogs) {
@@ -475,13 +646,13 @@ public class SeedDataService {
             }
         }
 
-        log.info("[SeedData] Đã xoá {} violations, {} supports, {} complaints, {} feedbacks, {} access logs",
-                violationsDeleted, supportDeleted, complaintsDeleted, feedbacksDeleted, accessLogsDeleted);
+        log.info("[SeedData] Đã xoá {} violations, {} supports, {} complaints, {} feedbacks, {} seat-status reports, {} access logs",
+                violationsDeleted, supportDeleted, complaintsDeleted, feedbacksDeleted, seatStatusReportsDeleted, accessLogsDeleted);
         return Map.of(
                 "status", "SUCCESS",
                 "message", String.format(
-                        "Đã xoá %d violations, %d supports, %d complaints, %d feedbacks, %d access logs",
-                        violationsDeleted, supportDeleted, complaintsDeleted, feedbacksDeleted, accessLogsDeleted));
+                        "Đã xoá %d violations, %d supports, %d complaints, %d feedbacks, %d seat status reports, %d access logs",
+                        violationsDeleted, supportDeleted, complaintsDeleted, feedbacksDeleted, seatStatusReportsDeleted, accessLogsDeleted));
     }
 
     /**

@@ -86,4 +86,30 @@ public class EmailService {
             log.error("Lỗi gửi email đến {}: {}", to, e.getMessage());
         }
     }
+
+    /**
+     * Gửi email chào mừng khi tạo tài khoản mới (thủ thư/sinh viên)
+     */
+    @Async
+    public void sendWelcomeEmail(String toEmail, String fullName, String defaultPassword, String role) {
+        try {
+            String htmlContent = loadEmailTemplate("templates/welcome-email.html");
+
+            String roleLabel = "LIBRARIAN".equalsIgnoreCase(role) ? "Thủ thư" : "Sinh viên";
+            String loginUrl = "LIBRARIAN".equalsIgnoreCase(role)
+                    ? "http://localhost:5173/login"
+                    : "https://slib.edu.vn";
+
+            htmlContent = htmlContent.replace("{{fullName}}", fullName != null ? fullName : toEmail);
+            htmlContent = htmlContent.replace("{{email}}", toEmail);
+            htmlContent = htmlContent.replace("{{password}}", defaultPassword);
+            htmlContent = htmlContent.replace("{{role}}", roleLabel);
+            htmlContent = htmlContent.replace("{{loginUrl}}", loginUrl);
+
+            sendHtmlEmail(toEmail, "🎉 Chào mừng bạn đến với SLib - Thông tin đăng nhập", htmlContent);
+            log.info("Đã gửi welcome email đến: {} (role: {})", toEmail, role);
+        } catch (Exception e) {
+            log.error("Lỗi gửi welcome email đến {}: {}", toEmail, e.getMessage());
+        }
+    }
 }

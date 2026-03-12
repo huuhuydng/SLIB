@@ -37,7 +37,7 @@ public class ActivityService {
     }
 
     /**
-     * Get total study hours for user (from reservations EXPIRED only)
+     * Get total study hours for user (from reservations COMPLETED only)
      */
     public double getTotalStudyHours(UUID userId) {
         long totalMinutes = reservationRepository.getTotalStudyMinutesByUser(userId);

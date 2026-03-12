@@ -1,6 +1,8 @@
 package slib.com.example.controller.users;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -8,10 +10,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.servlet.http.HttpServletResponse;
 import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.ImportJob;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserImportStaging;
 import slib.com.example.service.AsyncImportService;
@@ -20,6 +24,7 @@ import slib.com.example.service.StagingImportService;
 import slib.com.example.service.UserService;
 import slib.com.example.service.chat.CloudinaryService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -109,6 +114,7 @@ public class UserController {
      */
     @PostMapping("/import")
     @PreAuthorize("hasRole('ADMIN')")
+    @SuppressWarnings("unchecked")
     public ResponseEntity<?> importUsers(@RequestBody List<ImportUserRequest> requests) {
         try {
             if (requests == null || requests.isEmpty()) {
@@ -116,10 +122,75 @@ public class UserController {
             }
 
             Map<String, Object> result = userService.importUsers(requests);
+
+            // Gửi welcome email SAU KHI transaction commit thành công
+            List<Map<String, Object>> successList = (List<Map<String, Object>>) result.get("success");
+            if (successList != null && !successList.isEmpty()) {
+                userService.sendWelcomeEmails(successList);
+            }
+
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Lỗi import: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Admin edit user profile (Admin only)
+     * Allows editing: fullName, phone, email, dob, role
+     */
+    @PatchMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> adminUpdateUser(
+            @PathVariable java.util.UUID userId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            User existingUser = userService.getUserById(userId);
+            if (existingUser == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            if (request.containsKey("fullName")) {
+                String fullName = (String) request.get("fullName");
+                if (fullName != null && !fullName.trim().isEmpty()) {
+                    existingUser.setFullName(fullName.trim());
+                }
+            }
+            if (request.containsKey("phone")) {
+                String phone = (String) request.get("phone");
+                existingUser.setPhone(phone);
+            }
+            if (request.containsKey("email")) {
+                String email = (String) request.get("email");
+                if (email != null && !email.trim().isEmpty()) {
+                    existingUser.setEmail(email.trim());
+                }
+            }
+            if (request.containsKey("dob")) {
+                String dobStr = (String) request.get("dob");
+                if (dobStr != null && !dobStr.isEmpty()) {
+                    existingUser.setDob(java.time.LocalDate.parse(dobStr));
+                } else {
+                    existingUser.setDob(null);
+                }
+            }
+            if (request.containsKey("role")) {
+                String role = (String) request.get("role");
+                if (role != null && !role.isEmpty()) {
+                    existingUser.setRole(Role.valueOf(role));
+                }
+            }
+
+            User saved = userService.saveUser(existingUser);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã cập nhật thông tin người dùng",
+                    "userId", userId,
+                    "fullName", saved.getFullName() != null ? saved.getFullName() : "",
+                    "email", saved.getEmail() != null ? saved.getEmail() : ""));
+
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -149,11 +220,11 @@ public class UserController {
     }
 
     /**
-     * Delete user by ID (Admin/Librarian only)
+     * Delete user by ID (Admin only)
      * This will delete all related data (reservations, access logs, chat sessions,
      * etc.)
      */
-    @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{userId}")
     public ResponseEntity<?> deleteUser(@PathVariable java.util.UUID userId,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -417,6 +488,140 @@ public class UserController {
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid batchId format"));
+        }
+    }
+
+    /**
+     * Download XLSX template for user import.
+     * Generates a template file with correct column headers and sample data rows.
+     */
+    @GetMapping("/import/template")
+    @PreAuthorize("hasRole('ADMIN')")
+    public void downloadImportTemplate(HttpServletResponse response) throws IOException {
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=slib_user_import_template.xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Import Users");
+
+            // ===== Header style =====
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setFontHeightInPoints((short) 12);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            // ===== Note style (for sample rows) =====
+            CellStyle sampleStyle = workbook.createCellStyle();
+            Font sampleFont = workbook.createFont();
+            sampleFont.setItalic(true);
+            sampleFont.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+            sampleStyle.setFont(sampleFont);
+
+            // ===== Date style =====
+            CellStyle dateStyle = workbook.createCellStyle();
+            dateStyle.cloneStyleFrom(sampleStyle);
+            CreationHelper createHelper = workbook.getCreationHelper();
+            dateStyle.setDataFormat(createHelper.createDataFormat().getFormat("dd/MM/yyyy"));
+
+            // ===== Column definitions matching AsyncImportService parser =====
+            String[] headers = {
+                    "Mã sinh viên (userCode)", // A
+                    "Họ và tên (fullName)", // B
+                    "Email", // C
+                    "Số điện thoại (phone)", // D
+                    "Ngày sinh (dd/MM/yyyy)", // E
+                    "Vai trò (role)" // F
+            };
+
+            // Header row
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Sample row 1
+            Row sample1 = sheet.createRow(1);
+            String[] data1 = { "SE123456", "Nguyễn Văn A", "nguyenvana@gmail.com", "0901234567", "15/03/2003",
+                    "STUDENT" };
+            for (int i = 0; i < data1.length; i++) {
+                Cell cell = sample1.createCell(i);
+                cell.setCellValue(data1[i]);
+                cell.setCellStyle(sampleStyle);
+            }
+
+            // Sample row 2
+            Row sample2 = sheet.createRow(2);
+            String[] data2 = { "SE789012", "Trần Thị B", "tranthib@gmail.com", "0912345678", "20/08/2002", "STUDENT" };
+            for (int i = 0; i < data2.length; i++) {
+                Cell cell = sample2.createCell(i);
+                cell.setCellValue(data2[i]);
+                cell.setCellStyle(sampleStyle);
+            }
+
+            // ===== Column widths =====
+            sheet.setColumnWidth(0, 20 * 256); // userCode
+            sheet.setColumnWidth(1, 25 * 256); // fullName
+            sheet.setColumnWidth(2, 30 * 256); // email
+            sheet.setColumnWidth(3, 20 * 256); // phone
+            sheet.setColumnWidth(4, 22 * 256); // dob
+            sheet.setColumnWidth(5, 18 * 256); // role
+
+            // ===== Notes sheet (hướng dẫn) =====
+            Sheet notesSheet = workbook.createSheet("Hướng dẫn");
+
+            CellStyle noteHeaderStyle = workbook.createCellStyle();
+            Font noteHeaderFont = workbook.createFont();
+            noteHeaderFont.setBold(true);
+            noteHeaderFont.setFontHeightInPoints((short) 14);
+            noteHeaderStyle.setFont(noteHeaderFont);
+
+            CellStyle noteStyle = workbook.createCellStyle();
+            noteStyle.setWrapText(true);
+
+            int r = 0;
+            Row nr = notesSheet.createRow(r++);
+            Cell nc = nr.createCell(0);
+            nc.setCellValue("HƯỚNG DẪN IMPORT SINH VIÊN - SLIB");
+            nc.setCellStyle(noteHeaderStyle);
+
+            r++;
+            String[] notes = {
+                    "1. Điền thông tin sinh viên vào sheet \"Import Users\"",
+                    "2. Xóa 2 dòng dữ liệu mẫu trước khi import",
+                    "3. Cột A - Mã sinh viên: Bắt buộc, duy nhất (VD: SE123456)",
+                    "4. Cột B - Họ và tên: Bắt buộc",
+                    "5. Cột C - Email: Bắt buộc, phải là email hợp lệ, duy nhất",
+                    "6. Cột D - Số điện thoại: Không bắt buộc, 10 chữ số",
+                    "7. Cột E - Ngày sinh: Không bắt buộc, định dạng dd/MM/yyyy",
+                    "8. Cột F - Vai trò: STUDENT hoặc LIBRARIAN (mặc định: STUDENT)",
+                    "",
+                    "NHẬP KÈM AVATAR:",
+                    "- Đặt tên file ảnh trùng với mã sinh viên (VD: SE123456.jpg)",
+                    "- Nén file template + tất cả ảnh vào 1 file .zip rồi upload"
+            };
+
+            for (String note : notes) {
+                Row noteRow = notesSheet.createRow(r++);
+                Cell noteCell = noteRow.createCell(0);
+                noteCell.setCellValue(note);
+                if (note.startsWith("NHẬP") || note.startsWith("1.")) {
+                    noteCell.setCellStyle(noteHeaderStyle);
+                }
+            }
+            notesSheet.setColumnWidth(0, 60 * 256);
+
+            workbook.write(response.getOutputStream());
         }
     }
 }

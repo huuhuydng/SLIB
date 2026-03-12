@@ -117,7 +117,8 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     }
   }
 
-  /// Handle NFC UID found - lookup seat from backend using hashed UID
+  /// Handle NFC UID found — confirm booking via backend using raw UID.
+  /// Backend hashes UID, resolves seat, validates, and confirms booking atomically.
   Future<void> _handleUidFound(String uid) async {
     if (!mounted) return;
 
@@ -130,44 +131,37 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     });
 
     try {
-      // Lookup seat from backend (hash is done in BookingService)
-      final seat = await _bookingService.getSeatByNfcUid(uid);
-      
-      debugPrint('NfcVerification: Found seat: ${seat.seatCode} (ID: ${seat.seatId})');
+      // Call backend to confirm booking with raw NFC UID
+      // Backend handles: hash UID → find seat → validate match → confirm booking
+      await _bookingService.confirmSeatWithNfcUid(
+        widget.reservationId,
+        uid,
+        widget.expectedSeatId,
+      );
+
+      debugPrint('NfcVerification: Booking confirmed successfully');
 
       if (!mounted) return;
 
-      // Compare seat ID from backend with expected seat ID
-      if (seat.seatId == widget.expectedSeatId) {
-        setState(() {
-          _isLookingUp = false;
-          _verificationSuccess = true;
-        });
-        _pulseController.stop();
-      } else {
-        setState(() {
-          _isLookingUp = false;
-          _errorMessage =
-              'Ghế quét (${seat.seatCode}) không khớp với ghế đã đặt (${widget.expectedSeatCode}).\nVui lòng quét đúng ghế.';
-        });
-
-        // Allow retry on Android
-        if (Platform.isAndroid) {
-          Future.delayed(const Duration(seconds: 2), () {
-            if (mounted && !_verificationSuccess) {
-              _startNfcScan();
-            }
-          });
-        }
-      }
+      setState(() {
+        _isLookingUp = false;
+        _verificationSuccess = true;
+      });
+      _pulseController.stop();
     } catch (e) {
-      debugPrint('NfcVerification: Error looking up seat: $e');
+      debugPrint('NfcVerification: Error confirming booking: $e');
       
       if (!mounted) return;
 
-      String errorMsg = 'Không tìm thấy ghế với thẻ NFC này';
-      if (e.toString().contains('404') || e.toString().contains('không tìm thấy')) {
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+      
+      // Provide user-friendly messages
+      if (errorMsg.contains('không tìm thấy') || errorMsg.contains('404')) {
         errorMsg = 'Thẻ NFC này chưa được gán cho ghế nào.\nVui lòng liên hệ quản trị viên.';
+      } else if (errorMsg.contains('không khớp')) {
+        // Seat mismatch — message already good from backend
+      } else if (errorMsg.contains('check-in')) {
+        // Time window error — message already good from backend
       }
 
       setState(() {

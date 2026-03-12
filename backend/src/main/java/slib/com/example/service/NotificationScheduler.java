@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.system.SystemLogEntity.LogLevel;
 import slib.com.example.repository.ReservationRepository;
 
 import java.time.LocalDateTime;
@@ -25,6 +26,7 @@ public class NotificationScheduler {
 
     private final ReservationRepository reservationRepository;
     private final PushNotificationService pushNotificationService;
+    private final SystemLogService systemLogService;
 
     // Track sent reminders to avoid duplicates (in memory - will reset on restart)
     private final Set<UUID> sentReminders = ConcurrentHashMap.newKeySet();
@@ -59,6 +61,8 @@ public class NotificationScheduler {
             } catch (Exception e) {
                 log.error("Failed to send reminder for reservation {}: {}", reservation.getReservationId(),
                         e.getMessage());
+                systemLogService.logJobEvent(LogLevel.ERROR, "NotificationScheduler",
+                        "Failed to send booking reminder: " + e.getMessage());
             }
         }
 

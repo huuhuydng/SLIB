@@ -8,8 +8,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * Utility class for hashing NFC Tag UIDs before storing in database.
- * This prevents UID theft if database is compromised.
+ * Utility class for normalizing, validating, and hashing NFC Tag UIDs.
+ * 
+ * All UID hashing is centralized here — clients (mobile, admin bridge)
+ * must send raw UIDs, and only the backend hashes before storing/comparing.
  */
 @Component
 public class NfcUidHasher {
@@ -18,24 +20,75 @@ public class NfcUidHasher {
     private String salt;
 
     /**
-     * Hash the NFC UID using SHA-256 with salt.
-     * This creates a one-way hash that cannot be reversed.
+     * Normalize a raw NFC UID: strip separators (: - space), convert to uppercase.
      *
-     * @param rawUid The raw NFC UID in uppercase HEX format (e.g., "04A23C91")
+     * @param rawUid The raw NFC UID (e.g., "04:a2:3c:91" or "04A23C91")
+     * @return Normalized UID (e.g., "04A23C91"), or null if input is null/empty
+     */
+    public String normalizeUid(String rawUid) {
+        if (rawUid == null || rawUid.trim().isEmpty()) {
+            return null;
+        }
+        return rawUid.replaceAll("[:\\-\\s]", "").toUpperCase().trim();
+    }
+
+    /**
+     * Validate UID format: must be uppercase HEX with valid NFC tag UID length.
+     *
+     * Valid lengths:
+     * - 4 bytes (8 chars): Standard MIFARE Classic
+     * - 7 bytes (14 chars): MIFARE Ultralight, NTAG
+     * - 10 bytes (20 chars): Double-size UID
+     *
+     * @param uid The normalized UID to validate
+     * @return true if format is valid
+     */
+    public boolean isValidUidFormat(String uid) {
+        if (uid == null || uid.isEmpty()) {
+            return false;
+        }
+        if (!uid.matches("[0-9A-F]+")) {
+            return false;
+        }
+        int len = uid.length();
+        return len == 8 || len == 14 || len == 20;
+    }
+
+    /**
+     * Create a masked version of a UID for safe display (e.g., "04A2****").
+     *
+     * @param rawUid The raw UID
+     * @return Masked UID showing first 4 chars + asterisks
+     */
+    public String maskUid(String rawUid) {
+        if (rawUid == null || rawUid.length() <= 4) {
+            return "****";
+        }
+        String normalized = normalizeUid(rawUid);
+        if (normalized == null || normalized.length() <= 4) {
+            return "****";
+        }
+        return normalized.substring(0, 4) + "*".repeat(normalized.length() - 4);
+    }
+
+    /**
+     * Hash the NFC UID using SHA-256 with salt.
+     * Normalizes the UID before hashing.
+     *
+     * @param rawUid The raw NFC UID (any format — will be normalized)
      * @return Hashed UID as uppercase HEX string
      */
     public String hashUid(String rawUid) {
-        if (rawUid == null || rawUid.isEmpty()) {
+        String normalized = normalizeUid(rawUid);
+        if (normalized == null) {
             return null;
         }
 
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            // Combine UID with salt before hashing
-            String saltedUid = rawUid.toUpperCase() + salt;
+            String saltedUid = normalized + salt;
             byte[] hashBytes = digest.digest(saltedUid.getBytes(StandardCharsets.UTF_8));
 
-            // Convert bytes to HEX string
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {
                 String hex = Integer.toHexString(0xff & b);

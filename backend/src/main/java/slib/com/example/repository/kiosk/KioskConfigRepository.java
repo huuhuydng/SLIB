@@ -18,4 +18,6 @@ public interface KioskConfigRepository extends JpaRepository<KioskConfigEntity, 
     List<KioskConfigEntity> findByIsActive(Boolean isActive);
 
     boolean existsByKioskCode(String kioskCode);
+
+    Optional<KioskConfigEntity> findByDeviceToken(String deviceToken);
 }

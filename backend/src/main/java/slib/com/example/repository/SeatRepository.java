@@ -27,6 +27,13 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     // Find seat by NFC tag UID (for UID Mapping Strategy)
     Optional<SeatEntity> findByNfcTagUid(String nfcTagUid);
 
+    // Find all seats that have NFC tag UID assigned
+    List<SeatEntity> findByNfcTagUidIsNotNull();
+
+    // Find seats by area (via zone relationship)
+    @Query("SELECT s FROM SeatEntity s WHERE s.zone.area.areaId = :areaId")
+    List<SeatEntity> findByAreaId(@Param("areaId") Integer areaId);
+
     // Delete all seats by zone ID
     void deleteByZone_ZoneId(Integer zoneId);
 }

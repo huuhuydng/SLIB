@@ -8,6 +8,7 @@ import slib.com.example.dto.TimeSlotDTO;
 import slib.com.example.service.LibrarySettingService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/settings")
@@ -33,6 +34,18 @@ public class LibrarySettingController {
     @PutMapping("/library")
     public ResponseEntity<LibrarySettingDTO> updateSettings(@RequestBody LibrarySettingDTO dto) {
         return ResponseEntity.ok(librarySettingService.updateSettings(dto));
+    }
+
+    /**
+     * Toggle đóng/mở thư viện (Admin only)
+     * POST /slib/settings/library/toggle-lock
+     * Body: { "closed": true/false, "reason": "Lý do đóng" }
+     */
+    @PostMapping("/library/toggle-lock")
+    public ResponseEntity<LibrarySettingDTO> toggleLock(@RequestBody Map<String, Object> body) {
+        Boolean closed = (Boolean) body.get("closed");
+        String reason = (String) body.get("reason");
+        return ResponseEntity.ok(librarySettingService.toggleLibraryClosed(closed, reason));
     }
 
     /**

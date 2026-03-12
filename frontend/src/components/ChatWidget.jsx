@@ -396,7 +396,7 @@ const ChatWidget = () => {
             } else {
                 console.error("Message:", error.message);
             }
-            alert("Upload thất bại! Vui lòng kiểm tra lại kết nối Server.");
+            console.error("Upload thất bại! Vui lòng kiểm tra lại kết nối Server.");
         } finally {
             setIsUploading(false);
             e.target.value = ""; // Reset input

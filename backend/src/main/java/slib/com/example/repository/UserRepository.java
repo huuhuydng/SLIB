@@ -27,6 +27,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Boolean existsByUsername(String username);
 
+    Boolean existsByPhone(String phone);
+
     /**
      * Tìm user bằng email hoặc username hoặc userCode (MSSV)
      */
@@ -36,6 +38,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * Tìm user bằng email hoặc username
      */
     Optional<User> findByEmailOrUsername(String email, String username);
+
+    /**
+     * Xóa notiDevice (FCM token) khỏi tất cả user khác khi user mới sync token
+     * → đảm bảo 1 device chỉ nhận notification cho 1 user
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.notiDevice = null WHERE u.notiDevice = :token AND u.id != :userId")
+    void clearNotiDeviceForOtherUsers(@Param("token") String token, @Param("userId") UUID userId);
 
     /**
      * Update avatar URL by userCode

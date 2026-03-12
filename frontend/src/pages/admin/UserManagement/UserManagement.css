@@ -1,0 +1,319 @@
+/* =================== USER MANAGEMENT - Admin Page =================== */
+/* Extends librarian-shared.css + CheckInOut.css */
+
+/* ---------- Page Title ---------- */
+.um-page-title h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    color: var(--lib-text, #0f172a);
+    margin: 0;
+    text-transform: uppercase;
+}
+
+/* ---------- Stats Grid ---------- */
+.um-stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.um-stat-card {
+    background: var(--lib-panel, #fff);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border: 1px solid var(--lib-border, #e2e8f0);
+    border-left: 3px solid #e2e8f0;
+    transition: var(--lib-transition);
+}
+
+.um-stat-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.um-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--lib-text, #0f172a);
+    line-height: 1.2;
+}
+
+.um-stat-label {
+    font-size: 12px;
+    color: var(--lib-muted, #64748b);
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+/* ---------- Toolbar Buttons ---------- */
+.um-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--lib-border, #e2e8f0);
+    border-radius: var(--lib-r-xs, 8px);
+    background: var(--lib-panel, #fff);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lib-text-secondary, #475569);
+    cursor: pointer;
+    font-family: inherit;
+    transition: var(--lib-transition);
+    white-space: nowrap;
+}
+
+.um-toolbar-btn:hover {
+    border-color: var(--lib-primary, #FF751F);
+    background: var(--lib-hover-bg, #f8fafc);
+}
+
+.um-toolbar-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.um-toolbar-btn.primary {
+    background: var(--lib-primary, #FF751F);
+    border-color: var(--lib-primary, #FF751F);
+    color: #fff;
+}
+
+.um-toolbar-btn.primary:hover {
+    background: var(--lib-primary-dark, #e5651a);
+    box-shadow: 0 4px 12px rgba(255, 117, 31, 0.3);
+}
+
+/* ---------- Table Cells ---------- */
+.um-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.um-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--lib-r-sm, 10px);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.um-avatar-placeholder {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--lib-r-sm, 10px);
+    background: linear-gradient(135deg, #FF751F, #ff9a56);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.um-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lib-text, #0f172a);
+}
+
+.um-user-warning {
+    font-size: 11px;
+    color: #f59e0b;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 1px;
+}
+
+.um-code {
+    font-size: 12px;
+    color: var(--lib-muted, #64748b);
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: #f3f4f6;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.um-role-badge {
+    display: inline-flex;
+    padding: 4px 12px;
+    border-radius: var(--lib-r-pill, 999px);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.um-role-badge.admin {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.um-role-badge.librarian {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.um-role-badge.student {
+    background: #d1fae5;
+    color: #059669;
+}
+
+/* ---------- Status ---------- */
+.um-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.um-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.um-status.active {
+    color: #059669;
+}
+
+.um-status.active .um-status-dot {
+    background: #059669;
+}
+
+.um-status.locked {
+    color: #dc2626;
+}
+
+.um-status.locked .um-status-dot {
+    background: #dc2626;
+}
+
+/* ---------- Actions ---------- */
+.um-action-btn {
+    padding: 6px;
+    background: #f8fafc;
+    border: 1px solid var(--lib-border, #e2e8f0);
+    border-radius: var(--lib-r-xs, 8px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--lib-transition);
+}
+
+.um-action-btn:hover {
+    background: #f1f5f9;
+    border-color: var(--lib-primary, #FF751F);
+}
+
+.um-action-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: #fff;
+    border-radius: var(--lib-r-md, 12px);
+    box-shadow: 0 10px 40px rgba(15, 23, 42, 0.15);
+    border: 1px solid var(--lib-border, #e2e8f0);
+    min-width: 190px;
+    z-index: 100;
+    overflow: hidden;
+    animation: cio-dropdown-in 0.12s ease;
+}
+
+.um-action-item {
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.15s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    font-family: inherit;
+    text-align: left;
+}
+
+.um-action-item:hover {
+    background: var(--lib-hover-bg, #f8fafc);
+}
+
+.um-action-item.danger {
+    border-top: 1px solid var(--lib-border-light, #f1f5f9);
+}
+
+.um-action-item.danger:hover {
+    background: #fef2f2;
+}
+
+/* ---------- Error ---------- */
+.um-error {
+    padding: 14px 18px;
+    background: #fee2e2;
+    border-radius: var(--lib-r-md, 12px);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ---------- View toggle (reuse from violation) ---------- */
+.um-view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #f1f5f9;
+    border-radius: var(--lib-r-xs, 8px);
+    padding: 3px;
+}
+
+/* ---------- Delete batch button ---------- */
+.um-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: var(--lib-r-xs, 8px);
+    background: var(--lib-red, #ef4444);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: var(--lib-transition);
+}
+
+.um-delete-btn:hover {
+    background: #dc2626;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.um-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1200px) {
+    .um-stats {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .um-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

@@ -6,7 +6,7 @@ import websocketService from "../../services/websocketService";
 import { LayoutProvider, useLayout, ACTIONS } from "../../context/admin/area_management/LayoutContext";
 import { seatPlanService } from "../../services/seatPlanService";
 import LibrarianArea from "../../components/librarian/LibrarianArea";
-import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle, Lock, AlertTriangle } from "lucide-react";
 import "../../styles/librarian/SeatPlan.css";
 import "../../styles/admin/layout.css";
 import "../../styles/admin/canvas.css";
@@ -57,8 +57,7 @@ function KioskCanvas({ onSeatClick }) {
     const { areas } = state;
     const containerRef = useRef(null);
 
-    const [zoom, setZoom] = useState(1);
-    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const [view, setView] = useState({ zoom: 1, panX: 0, panY: 0 });
 
     // Touch gesture refs
     const touchRef = useRef({
@@ -126,15 +125,13 @@ function KioskCanvas({ onSeatClick }) {
         const viewH = rect.height - pad * 2;
 
         const scale = Math.min(viewW / contentW, viewH / contentH, MAX_ZOOM);
-
-        // Center content in viewport
         const scaledW = contentW * scale;
         const scaledH = contentH * scale;
 
-        setZoom(scale);
-        setPan({
-            x: (rect.width - scaledW) / 2 - minX * scale,
-            y: (rect.height - scaledH) / 2 - minY * scale,
+        setView({
+            zoom: scale,
+            panX: (rect.width - scaledW) / 2 - minX * scale,
+            panY: (rect.height - scaledH) / 2 - minY * scale,
         });
     }, [areas]);
 
@@ -142,18 +139,9 @@ function KioskCanvas({ onSeatClick }) {
 
     // Sync zoom/pan to LayoutContext
     useEffect(() => {
-        dispatch({ type: actions.SET_ZOOM, payload: zoom });
-        dispatch({ type: actions.SET_PAN, payload: pan });
-    }, [zoom, pan]);
-
-    // Zoom helper: zoom towards a specific point in the viewport
-    const zoomTowards = useCallback((cx, cy, newZoom, oldZoom) => {
-        // cx, cy = point in container coords
-        setPan(pp => ({
-            x: cx - (cx - pp.x) * (newZoom / oldZoom),
-            y: cy - (cy - pp.y) * (newZoom / oldZoom),
-        }));
-    }, []);
+        dispatch({ type: actions.SET_ZOOM, payload: view.zoom });
+        dispatch({ type: actions.SET_PAN, payload: { x: view.panX, y: view.panY } });
+    }, [view]);
 
     // === MOUSE DRAG ===
     const handleMouseDown = useCallback((e) => {
@@ -169,7 +157,7 @@ function KioskCanvas({ onSeatClick }) {
         e.preventDefault();
         const dx = e.clientX - mouseRef.current.lastX;
         const dy = e.clientY - mouseRef.current.lastY;
-        setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+        setView(prev => ({ ...prev, panX: prev.panX + dx, panY: prev.panY + dy }));
         mouseRef.current.lastX = e.clientX;
         mouseRef.current.lastY = e.clientY;
     }, []);
@@ -207,12 +195,16 @@ function KioskCanvas({ onSeatClick }) {
             const newCenter = getCenter(e.touches[0], e.touches[1]);
             if (touchRef.current.lastDistance > 0) {
                 const scaleDelta = newDist / touchRef.current.lastDistance;
-                setZoom(prev => {
-                    const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * scaleDelta));
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const cx = newCenter.x - rect.left, cy = newCenter.y - rect.top;
-                    zoomTowards(cx, cy, nz, prev);
-                    return nz;
+                const rect = containerRef.current.getBoundingClientRect();
+                const cx = newCenter.x - rect.left, cy = newCenter.y - rect.top;
+                setView(prev => {
+                    const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * scaleDelta));
+                    const ratio = nz / prev.zoom;
+                    return {
+                        zoom: nz,
+                        panX: cx - (cx - prev.panX) * ratio,
+                        panY: cy - (cy - prev.panY) * ratio,
+                    };
                 });
             }
             touchRef.current.lastDistance = newDist;
@@ -222,10 +214,10 @@ function KioskCanvas({ onSeatClick }) {
             const t = e.touches[0];
             const dx = t.clientX - touchRef.current.lastSingleTouch.x;
             const dy = t.clientY - touchRef.current.lastSingleTouch.y;
-            setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+            setView(prev => ({ ...prev, panX: prev.panX + dx, panY: prev.panY + dy }));
             touchRef.current.lastSingleTouch = { x: t.clientX, y: t.clientY };
         }
-    }, [zoomTowards]);
+    }, []);
 
     const handleTouchEnd = useCallback(() => {
         touchRef.current.lastDistance = 0;
@@ -239,35 +231,47 @@ function KioskCanvas({ onSeatClick }) {
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-        setZoom(prev => {
-            const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * delta));
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev.zoom * delta));
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     // Zoom buttons: zoom towards CENTER of viewport
     const handleZoomIn = useCallback(() => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = rect.width / 2, cy = rect.height / 2;
-        setZoom(prev => {
-            const nz = Math.min(MAX_ZOOM, prev * 1.3);
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.min(MAX_ZOOM, prev.zoom * 1.3);
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     const handleZoomOut = useCallback(() => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
         const cx = rect.width / 2, cy = rect.height / 2;
-        setZoom(prev => {
-            const nz = Math.max(MIN_ZOOM, prev / 1.3);
-            zoomTowards(cx, cy, nz, prev);
-            return nz;
+        setView(prev => {
+            const nz = Math.max(MIN_ZOOM, prev.zoom / 1.3);
+            const ratio = nz / prev.zoom;
+            return {
+                zoom: nz,
+                panX: cx - (cx - prev.panX) * ratio,
+                panY: cy - (cy - prev.panY) * ratio,
+            };
         });
-    }, [zoomTowards]);
+    }, []);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -291,7 +295,7 @@ function KioskCanvas({ onSeatClick }) {
             <div
                 className="canvas-board"
                 style={{
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transform: `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`,
                     transformOrigin: "0 0",
                     position: "absolute",
                     inset: 0,
@@ -299,18 +303,53 @@ function KioskCanvas({ onSeatClick }) {
                 }}
             >
                 {areas.map((area) => (
-                    <LibrarianArea
-                        key={area.areaId}
-                        area={area}
-                        onSeatClick={onSeatClick}
-                    />
+                    <div key={area.areaId} style={{ position: 'relative' }}>
+                        <LibrarianArea
+                            area={area}
+                            onSeatClick={(seat) => {
+                                if (area.locked || !area.isActive) return;
+                                onSeatClick(seat);
+                            }}
+                        />
+                        {/* Locked/Inactive overlay */}
+                        {(area.locked || !area.isActive) && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    left: area.positionX || 0,
+                                    top: area.positionY || 0,
+                                    width: area.width || 300,
+                                    height: area.height || 250,
+                                    background: 'rgba(0,0,0,0.45)',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    zIndex: 10,
+                                    pointerEvents: 'none',
+                                }}
+                            >
+                                <Lock size={32} color="#fff" />
+                                <span style={{
+                                    color: '#fff',
+                                    fontSize: '16px',
+                                    fontWeight: '700',
+                                    textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                                }}>
+                                    {area.locked ? 'Phòng đang bị khóa' : 'Phòng đã đóng cửa'}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 ))}
             </div>
 
             {/* Zoom controls */}
             <div className="ksb__zoom-controls">
                 <button className="ksb__zoom-btn" onClick={handleZoomIn} title="Phóng to">+</button>
-                <span className="ksb__zoom-level">{Math.round(zoom * 100)}%</span>
+                <span className="ksb__zoom-level">{Math.round(view.zoom * 100)}%</span>
                 <button className="ksb__zoom-btn" onClick={handleZoomOut} title="Thu nhỏ">-</button>
                 <button className="ksb__zoom-btn ksb__zoom-btn--reset" onClick={fitToView} title="Vừa khung hình">Vừa</button>
             </div>
@@ -321,7 +360,7 @@ function KioskCanvas({ onSeatClick }) {
 // Component chính
 function KioskSeatBookingContent() {
     const { state, dispatch } = useLayout();
-    const { selectedAreaId, seats, zones } = state;
+    const { selectedAreaId, seats, zones, areas } = state;
     const navigate = useNavigate();
 
     const [selectedSeat, setSelectedSeat] = useState(null);
@@ -330,6 +369,10 @@ function KioskSeatBookingContent() {
     const [timeSlots, setTimeSlots] = useState([]); // filtered list of labels
     const [bookingLoading, setBookingLoading] = useState(false);
     const [toast, setToast] = useState(null);
+
+    // Library closed state (from library_settings)
+    const [libraryClosed, setLibraryClosed] = useState(false);
+    const [closedReason, setClosedReason] = useState('');
 
     const selectedAreaIdRef = useRef(selectedAreaId);
     const selectedSlotRef = useRef(selectedSlot);
@@ -372,6 +415,24 @@ function KioskSeatBookingContent() {
     useEffect(() => { selectedAreaIdRef.current = selectedAreaId; }, [selectedAreaId]);
     useEffect(() => { selectedSlotRef.current = selectedSlot; }, [selectedSlot]);
 
+    // Fetch library settings to check if library is closed
+    useEffect(() => {
+        const checkLibraryStatus = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/slib/settings/library`);
+                const data = await res.json();
+                setLibraryClosed(data.libraryClosed || false);
+                setClosedReason(data.closedReason || '');
+            } catch (err) {
+                console.error('Failed to check library status:', err);
+            }
+        };
+        checkLibraryStatus();
+        // Re-check every 30s
+        const interval = setInterval(checkLibraryStatus, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Fetch time slots từ library_settings và filter bỏ slots đã qua
     useEffect(() => {
         const fetchTimeSlots = async () => {
@@ -394,8 +455,13 @@ function KioskSeatBookingContent() {
     }, []);
 
     const handleSeatClick = (seat) => {
-        // Tìm tên khu vực (zone) từ zoneId
+        // Tìm zone và area, kiểm tra locked
         const zone = zones.find(z => z.zoneId === seat.zoneId);
+        const area = areas.find(a => {
+            const areaZones = zones.filter(z => z.areaId === a.areaId);
+            return areaZones.some(z => z.zoneId === seat.zoneId);
+        });
+        if (area?.locked || area?.isActive === false) return;
         setSelectedSeat({ ...seat, zoneName: zone?.zoneName || '' });
     };
 
@@ -516,7 +582,7 @@ function KioskSeatBookingContent() {
         <div className="ksb">
             {/* Header */}
             <div className="ksb__header">
-                <button className="ksb__back" onClick={() => navigate(-1)}>
+                <button className="ksb__back" onClick={() => navigate('/kiosk')}>
                     <ArrowLeft size={20} />
                 </button>
                 <h1 className="ksb__title">Sơ đồ chỗ ngồi</h1>
@@ -552,6 +618,34 @@ function KioskSeatBookingContent() {
                     <span>Hạn chế: <strong>{stats.restricted}</strong></span>
                 </div>
             </div>
+
+            {/* Full-page locked message when library is closed (from settings) */}
+            {libraryClosed && (
+                <div className="ksb__locked-overlay">
+                    <div className="ksb__locked-card">
+                        <Lock size={48} color="#DC2626" />
+                        <h2>Thư viện hiện đang tạm đóng</h2>
+                        <p>{closedReason || 'Thư viện đang tạm ngưng hoạt động. Vui lòng quay lại sau.'}</p>
+                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                            <ArrowLeft size={18} /> Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Full-page locked message when ALL areas are locked/inactive */}
+            {!libraryClosed && areas.length > 0 && areas.every(a => a.locked || !a.isActive) && (
+                <div className="ksb__locked-overlay">
+                    <div className="ksb__locked-card">
+                        <Lock size={48} color="#DC2626" />
+                        <h2>Thư viện hiện đang đóng cửa</h2>
+                        <p>Tất cả phòng đọc đang bị khóa hoặc tạm ngưng hoạt động. Vui lòng quay lại sau.</p>
+                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                            <ArrowLeft size={18} /> Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Canvas */}
             <div className="ksb__map">

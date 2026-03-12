@@ -42,7 +42,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   }
 
   /// Connect STOMP WebSocket → subscribe /topic/dashboard
-  /// Khi reservation EXPIRED → ReservationScheduler gửi event AUTO_EXPIRED
+  /// Khi reservation COMPLETED/EXPIRED → ReservationScheduler gửi event AUTO_STATUS_CHANGE
   /// → reload giờ học realtime
   void _connectWebSocket() {
     if (_wsConnected) return;
@@ -70,8 +70,8 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                 if (frame.body != null) {
                   try {
                     final data = jsonDecode(frame.body!);
-                    if (data['action'] == 'AUTO_EXPIRED') {
-                      debugPrint('[LiveStatus] Reservation expired → reloading study hours');
+                    if (data['action'] == 'AUTO_STATUS_CHANGE' || data['action'] == 'AUTO_EXPIRED') {
+                      debugPrint('[LiveStatus] Reservation status changed → reloading study hours');
                       _loadStudentProfile();
                     }
                   } catch (e) {
@@ -117,7 +117,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     
     final profile = await profileService.getMyProfile();
     
-    // Lấy totalStudyHours realtime từ Activity API (tính từ reservation EXPIRED)
+    // Lấy totalStudyHours realtime từ Activity API (tính từ reservation COMPLETED)
     double realHours = profile?.totalStudyHours ?? 0.0;
     try {
       final token = await authService.getToken();

@@ -426,13 +426,13 @@ function Zone({ zone, areaBounds }) {
                         })()}
                       </>
                     ) : (
-                      <div style={{ padding: '20px', color: '#999' }}>No seats</div>
+                      <div style={{ padding: '20px', color: '#999' }}>Không có ghế</div>
                     )}
                   </div>
 
                   {zoneSeats.length === 0 && (
                     <div className="zone-empty">
-                      <small>No seats</small>
+                      <small>Không có ghế</small>
                     </div>
                   )}
                 </>

@@ -247,7 +247,7 @@ const SlideshowPreview = () => {
         </div>
       ) : (
         <div className="slideshowPreview__empty">
-          No images available
+          Không có hình ảnh
         </div>
       )}
     </div>

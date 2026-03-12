@@ -3,10 +3,17 @@ package slib.com.example.controller.kiosk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.entity.kiosk.KioskActivationCodeEntity;
+import slib.com.example.entity.kiosk.KioskConfigEntity;
+import slib.com.example.repository.kiosk.KioskActivationCodeRepository;
 import slib.com.example.service.kiosk.KioskQrAuthService;
 import slib.com.example.service.kiosk.KioskQrDTO;
+import slib.com.example.service.kiosk.KioskTokenService;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -20,6 +27,99 @@ import java.util.Map;
 public class KioskAuthController {
 
     private final KioskQrAuthService kioskQrAuthService;
+    private final KioskTokenService kioskTokenService;
+    private final KioskActivationCodeRepository kioskActivationCodeRepository;
+
+    /**
+     * Kich hoat kiosk bang device token.
+     * POST /slib/kiosk/session/activate
+     * Body: { "token": "eyJ..." }
+     *
+     * Endpoint nay la permitAll - kiosk goi khi khoi dong de xac thuc.
+     */
+    @PostMapping("/session/activate")
+    public ResponseEntity<?> activateDevice(@RequestBody Map<String, String> request) {
+        String token = request.get("token");
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.status(401).body(Map.of("error", "Token khong duoc de trong"));
+        }
+
+        KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(token);
+        if (kiosk == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Token khong hop le, da het han hoac da bi thu hoi"));
+        }
+
+        // Cap nhat thoi gian hoat dong cuoi
+        kioskTokenService.updateLastActive(kiosk.getId());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("kioskId", kiosk.getId());
+        response.put("kioskCode", kiosk.getKioskCode());
+        response.put("kioskName", kiosk.getKioskName());
+        response.put("kioskType", kiosk.getKioskType());
+        response.put("location", kiosk.getLocation());
+        response.put("isActive", kiosk.getIsActive());
+        response.put("message", "Kich hoat kiosk thanh cong");
+
+        log.info("Kiosk {} da kich hoat thanh cong", kiosk.getKioskCode());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Kich hoat kiosk bang ma kich hoat ngan (6 ky tu).
+     * POST /slib/kiosk/session/activate-code
+     * Body: { "code": "A3F9K2" }
+     *
+     * Endpoint nay la permitAll - kiosk goi khi nhap ma kich hoat tren man hinh khoa.
+     */
+    @PostMapping("/session/activate-code")
+    @Transactional
+    public ResponseEntity<?> activateByCode(@RequestBody Map<String, String> request) {
+        String code = request.get("code");
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Ma kich hoat khong duoc de trong"));
+        }
+
+        // Tim ma kich hoat chua su dung
+        KioskActivationCodeEntity activationCode = kioskActivationCodeRepository
+                .findByCodeAndUsedFalse(code.toUpperCase().trim())
+                .orElse(null);
+
+        if (activationCode == null || activationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Ma kich hoat khong hop le hoac da het han"
+            ));
+        }
+
+        // Danh dau da su dung
+        activationCode.setUsed(true);
+        kioskActivationCodeRepository.save(activationCode);
+
+        // Xac thuc bang device token (cung logic nhu /session/activate)
+        String deviceToken = activationCode.getDeviceToken();
+        KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(deviceToken);
+        if (kiosk == null) {
+            return ResponseEntity.status(401).body(Map.of(
+                    "error", "Token khong hop le, da het han hoac da bi thu hoi"
+            ));
+        }
+
+        // Cap nhat thoi gian hoat dong cuoi
+        kioskTokenService.updateLastActive(kiosk.getId());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("deviceToken", deviceToken);
+        response.put("kioskId", kiosk.getId());
+        response.put("kioskCode", kiosk.getKioskCode());
+        response.put("kioskName", kiosk.getKioskName());
+        response.put("kioskType", kiosk.getKioskType());
+        response.put("location", kiosk.getLocation());
+        response.put("isActive", kiosk.getIsActive());
+        response.put("message", "Kich hoat kiosk thanh cong");
+
+        log.info("Kiosk {} da kich hoat thanh cong bang ma kich hoat {}", kiosk.getKioskCode(), code);
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * Generate QR code for kiosk

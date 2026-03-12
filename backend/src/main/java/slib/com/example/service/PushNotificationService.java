@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
@@ -29,6 +30,8 @@ public class PushNotificationService {
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SystemLogService systemLogService;
+    private final LibrarySettingService librarySettingService;
 
     /**
      * Send push notification to a specific device
@@ -86,6 +89,56 @@ public class PushNotificationService {
             return response;
         } catch (FirebaseMessagingException e) {
             log.error("Failed to send notification to device: {}", e.getMessage());
+            systemLogService.logIntegrationError("PushNotificationService", "Failed to send push notification", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Send data-only push notification (no notification payload)
+     * Mobile app controls notification display entirely
+     * Used for CHAT_MESSAGE to avoid Android auto-displaying duplicate
+     * notifications
+     */
+    public String sendDataOnly(String fcmToken, String title, String body, Map<String, String> data,
+            int badgeCount) {
+        if (firebaseMessaging == null) {
+            log.warn("Firebase Messaging not initialized, skipping notification");
+            return null;
+        }
+
+        if (fcmToken == null || fcmToken.isEmpty()) {
+            log.warn("FCM token is null or empty, skipping notification");
+            return null;
+        }
+
+        try {
+            // Include title and body in data so mobile can show notification
+            Map<String, String> fullData = new HashMap<>(data != null ? data : new HashMap<>());
+            fullData.put("title", title);
+            fullData.put("body", body);
+
+            Message message = Message.builder()
+                    .setToken(fcmToken)
+                    .putAllData(fullData)
+                    .setAndroidConfig(AndroidConfig.builder()
+                            .setPriority(AndroidConfig.Priority.HIGH)
+                            .build())
+                    .setApnsConfig(ApnsConfig.builder()
+                            .setAps(Aps.builder()
+                                    .setContentAvailable(true)
+                                    .setSound("default")
+                                    .setBadge(badgeCount)
+                                    .build())
+                            .build())
+                    .build();
+
+            String response = firebaseMessaging.send(message);
+            log.info("Data-only notification sent successfully: {}", response);
+            return response;
+        } catch (FirebaseMessagingException e) {
+            log.error("Failed to send data-only notification: {}", e.getMessage());
+            systemLogService.logIntegrationError("PushNotificationService", "Failed to send data-only push", e.getMessage());
             return null;
         }
     }
@@ -99,6 +152,12 @@ public class PushNotificationService {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             log.warn("User not found: {}", userId);
+            return;
+        }
+
+        // Check global notification settings (admin config)
+        if (!isNotificationEnabledGlobally(type)) {
+            log.info("Loai thong bao {} da bi tat boi admin trong cau hinh he thong", type);
             return;
         }
 
@@ -132,7 +191,13 @@ public class PushNotificationService {
             data.put("referenceId", referenceId.toString());
         }
 
-        sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+        // CHAT_MESSAGE: gửi data-only để tránh Android tự hiện notification (duplicate)
+        // Các loại khác: gửi có notification payload để Android hiện tự động
+        if (type == NotificationType.CHAT_MESSAGE) {
+            sendDataOnly(user.getNotiDevice(), title, body, data, badgeCount);
+        } else {
+            sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+        }
 
         // Broadcast qua WebSocket → mobile nhận real-time (0ms delay)
         Map<String, Object> wsPayload = new HashMap<>();
@@ -190,6 +255,25 @@ public class PushNotificationService {
             case NEWS -> user.getNotifyNews() == null || user.getNotifyNews();
             case VIOLATION, SYSTEM, SUPPORT_REQUEST, CHAT_MESSAGE -> true;
         };
+    }
+
+    /**
+     * Kiem tra loai thong bao co duoc bat o cap do he thong (admin config) hay khong.
+     * Cac loai SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST luon duoc gui.
+     */
+    private boolean isNotificationEnabledGlobally(NotificationType type) {
+        try {
+            LibrarySetting settings = librarySettingService.getSettings();
+            return switch (type) {
+                case BOOKING -> Boolean.TRUE.equals(settings.getNotifyBookingSuccess());
+                case REMINDER -> Boolean.TRUE.equals(settings.getNotifyCheckinReminder());
+                case VIOLATION -> Boolean.TRUE.equals(settings.getNotifyViolation());
+                case SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST -> true;
+            };
+        } catch (Exception e) {
+            log.warn("Khong the kiem tra cau hinh thong bao he thong, cho phep gui mac dinh: {}", e.getMessage());
+            return true;
+        }
     }
 
     /**

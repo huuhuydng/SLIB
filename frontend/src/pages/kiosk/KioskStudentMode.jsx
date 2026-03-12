@@ -5,12 +5,11 @@ import DynamicQrCode from '../../components/kiosk/DynamicQrCode';
 import { HelpCircle, X, CheckCircle2 } from 'lucide-react';
 import websocketService from '../../services/websocketService';
 import kioskService from '../../services/kioskService';
+import { useKiosk } from '../../context/KioskContext';
 import logo from '../../assets/logo.png';
 import fptLogo from '../../assets/fpt_logo.png';
 import '../../styles/kiosk/Kiosk.css';
 import './KioskStudentMode.css';
-
-const KIOSK_CODE = 'KIOSK_001';
 
 /**
  * KioskStudentMode - Chế độ Kiosk Sinh viên
@@ -18,6 +17,8 @@ const KIOSK_CODE = 'KIOSK_001';
  */
 const KioskStudentMode = () => {
   const navigate = useNavigate();
+  const { getKioskCode } = useKiosk();
+  const KIOSK_CODE = getKioskCode();
   const [sessionData, setSessionData] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -239,32 +240,24 @@ const KioskStudentMode = () => {
                 <div className="ksm__help-step">
                   <div className="ksm__step-num">1</div>
                   <div>
-                    <h3>Đăng nhập bằng QR</h3>
-                    <p>Quét mã QR trên màn hình bằng ứng dụng SLIB trên điện thoại để đăng nhập.</p>
+                    <h3>Mở ứng dụng SLIB trên điện thoại</h3>
+                    <p>Mở ứng dụng <strong>SLIB</strong> trên điện thoại, nhấn vào biểu tượng <strong>Quét QR</strong> trên trang chủ.</p>
                   </div>
                 </div>
 
                 <div className="ksm__help-step">
                   <div className="ksm__step-num">2</div>
                   <div>
-                    <h3>Check-in</h3>
-                    <p>Sau khi đăng nhập, nhấn nút "Check-in" để xác nhận có mặt tại thư viện.</p>
+                    <h3>Quét mã QR trên màn hình Kiosk</h3>
+                    <p>Hướng camera điện thoại vào mã QR đang hiển thị. Hệ thống sẽ tự động <strong>check-in</strong> và chuyển bạn tới trang quản lý.</p>
                   </div>
                 </div>
 
                 <div className="ksm__help-step">
                   <div className="ksm__step-num">3</div>
                   <div>
-                    <h3>Đặt chỗ</h3>
-                    <p>Nhấn nút "Đặt chỗ" để xem sơ đồ và chọn ghế ngồi theo nhu cầu.</p>
-                  </div>
-                </div>
-
-                <div className="ksm__help-step">
-                  <div className="ksm__step-num">4</div>
-                  <div>
-                    <h3>Check-out</h3>
-                    <p>Khi rời khỏi thư viện, nhấn nút "Check-out" để kết thúc phiên làm việc.</p>
+                    <h3>Đặt chỗ ngồi hoặc Check-out</h3>
+                    <p>Tại trang quản lý, bạn có thể chọn <strong>"Đặt chỗ"</strong> để xem sơ đồ và chọn ghế trống, hoặc nhấn <strong>"Check-out"</strong> trước khi rời khỏi thư viện.</p>
                   </div>
                 </div>
               </div>
@@ -272,17 +265,10 @@ const KioskStudentMode = () => {
               <div className="ksm__help-notes">
                 <h3>Lưu ý</h3>
                 <ul>
-                  <li>Mã QR sẽ tự động làm mới sau 10 phút</li>
-                  <li>Hệ thống sẽ tự đăng xuất sau 30 giây không tương tác</li>
-                  <li>Vui lòng giữ thẻ sinh viên bên mình khi sử dụng thư viện</li>
-                  <li>Liên hệ thủ thư nếu cần hỗ trợ</li>
+                  <li>Mã QR được tự động làm mới định kỳ để đảm bảo an toàn</li>
+                  <li>Sau khi check-in, Kiosk sẽ tự đăng xuất nếu không thao tác trong 30 giây</li>
+                  <li>Nếu gặp sự cố, vui lòng liên hệ thủ thư để được hỗ trợ</li>
                 </ul>
-              </div>
-
-              <div className="ksm__help-hours">
-                <h3>Giờ mở cửa</h3>
-                <p><strong>Thứ 2 - Thứ 7:</strong> 07:00 - 22:00</p>
-                <p><strong>Chủ nhật:</strong> 08:00 - 17:00</p>
               </div>
             </div>
           </div>

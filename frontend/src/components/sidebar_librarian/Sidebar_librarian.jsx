@@ -33,7 +33,7 @@ const Sidebar = () => {
   const location = useLocation();
 
   const [expandedGroups, setExpandedGroups] = useState({});
-  const { pendingCounts } = useLibrarianNotification();
+  const { pendingCounts, unreadChatCount } = useLibrarianNotification();
 
   const handleLogout = () => {
     localStorage.removeItem('librarian_token');
@@ -62,7 +62,8 @@ const Sidebar = () => {
     "/librarian/support-requests": pendingCounts.supportRequests,
     "/librarian/complaints": pendingCounts.complaints,
     "/librarian/feedback": pendingCounts.feedbacks,
-    "/librarian/chat": pendingCounts.chats,
+    "/librarian/seat-status-reports": pendingCounts.seatStatusReports,
+    "/librarian/chat": unreadChatCount || pendingCounts.chats,
     "/librarian/violation": pendingCounts.violations,
   };
 
@@ -134,6 +135,11 @@ const Sidebar = () => {
           path: "/librarian/complaints",
         },
         {
+          icon: FileText,
+          label: "Tình trạng ghế",
+          path: "/librarian/seat-status-reports",
+        },
+        {
           icon: Star,
           label: "Phản hồi",
           path: "/librarian/feedback",
@@ -149,6 +155,11 @@ const Sidebar = () => {
           icon: Newspaper,
           label: "Tin tức",
           path: "/librarian/news",
+        },
+        {
+          icon: Monitor,
+          label: "Quản lý Kiosk",
+          path: "/librarian/slideshow-management",
         },
       ],
     },

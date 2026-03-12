@@ -200,6 +200,11 @@
   color: #e8a817;
 }
 
+.notif-item__icon--seat-status {
+  background: #e8f0fe;
+  color: #2563eb;
+}
+
 .notif-item__icon--chat {
   background: #e6f4ea;
   color: #1e8e3e;
