@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * Kiosk Config Entity
@@ -51,4 +52,19 @@ public class KioskConfigEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "device_token", columnDefinition = "TEXT")
+    private String deviceToken;
+
+    @Column(name = "device_token_issued_at")
+    private LocalDateTime deviceTokenIssuedAt;
+
+    @Column(name = "device_token_expires_at")
+    private LocalDateTime deviceTokenExpiresAt;
+
+    @Column(name = "device_token_issued_by")
+    private UUID deviceTokenIssuedBy;
+
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
 }

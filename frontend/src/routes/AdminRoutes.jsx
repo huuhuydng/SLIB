@@ -15,6 +15,7 @@ import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
 import AccountSettings from "../components/AccountSettings";
 import NfcManagement from "../pages/admin/NfcManagement/NfcManagement";
+import KioskManagement from "../pages/admin/KioskManagement/KioskManagement";
 
 function AdminRoutes() {
   return (
@@ -36,6 +37,9 @@ function AdminRoutes() {
 
         {/* Quản lý NFC Tag */}
         <Route path="nfc-management" element={<NfcManagement />} />
+
+        {/* Quản lý Kiosk */}
+        <Route path="kiosk" element={<KioskManagement />} />
 
         {/* Hệ thống */}
         <Route path="config" element={<SystemConfig />} />

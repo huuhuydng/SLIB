@@ -5,12 +5,11 @@ import DynamicQrCode from '../../components/kiosk/DynamicQrCode';
 import { HelpCircle, X, CheckCircle2 } from 'lucide-react';
 import websocketService from '../../services/websocketService';
 import kioskService from '../../services/kioskService';
+import { useKiosk } from '../../context/KioskContext';
 import logo from '../../assets/logo.png';
 import fptLogo from '../../assets/fpt_logo.png';
 import '../../styles/kiosk/Kiosk.css';
 import './KioskStudentMode.css';
-
-const KIOSK_CODE = 'KIOSK_001';
 
 /**
  * KioskStudentMode - Chế độ Kiosk Sinh viên
@@ -18,6 +17,8 @@ const KIOSK_CODE = 'KIOSK_001';
  */
 const KioskStudentMode = () => {
   const navigate = useNavigate();
+  const { getKioskCode } = useKiosk();
+  const KIOSK_CODE = getKioskCode();
   const [sessionData, setSessionData] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);

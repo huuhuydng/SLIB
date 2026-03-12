@@ -6,6 +6,7 @@ import {
   Users,
   Router,
   Nfc,
+  Monitor,
   Settings,
   Activity,
   Sparkles,
@@ -26,6 +27,7 @@ const Sidebar = () => {
     { icon: Users, label: "Quản lý người dùng", path: "/admin/users" },
     { icon: Router, label: "Trạm quét HCE", path: "/admin/devices" },
     { icon: Nfc, label: "Quản lý NFC Tag", path: "/admin/nfc-management" },
+    { icon: Monitor, label: "Quản lý Kiosk", path: "/admin/kiosk" },
   ];
 
   const systemMenuItems = [
