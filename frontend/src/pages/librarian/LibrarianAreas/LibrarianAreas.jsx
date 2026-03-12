@@ -123,15 +123,18 @@ function LibrarianAreasContent() {
   const stats = useMemo(() => {
     const total = seats.length;
     let booked = 0;
+    let confirmed = 0;
     let restricted = 0;
     seats.forEach((s) => {
       const status = (s.seatStatus || '').toUpperCase();
       if (status === "BOOKED") booked += 1;
-      if (status === "UNAVAILABLE") restricted += 1;
+      else if (status === "CONFIRMED") confirmed += 1;
+      else if (status === "UNAVAILABLE") restricted += 1;
     });
-    const available = Math.max(0, total - booked - restricted);
-    const occupancy = total ? Math.round((booked / total) * 100) : 0;
-    return { total, booked, restricted, available, occupancy };
+    const used = booked + confirmed;
+    const available = Math.max(0, total - used - restricted);
+    const occupancy = total ? Math.round((used / total) * 100) : 0;
+    return { total, booked, confirmed, used, restricted, available, occupancy };
   }, [seats]);
 
   // Load seats — với request counter chống race condition
@@ -195,7 +198,7 @@ function LibrarianAreasContent() {
     let nearestMs = Infinity;
 
     seats.forEach(s => {
-      if (s.reservationEndTime && (s.seatStatus === "BOOKED" || s.seatStatus === "HOLDING")) {
+      if (s.reservationEndTime && (s.seatStatus === "BOOKED" || s.seatStatus === "CONFIRMED" || s.seatStatus === "HOLDING")) {
         const endMs = new Date(s.reservationEndTime).getTime();
         const diff = endMs - now;
         if (diff > 0 && diff < nearestMs) {
@@ -394,22 +397,26 @@ function LibrarianAreasContent() {
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
             <span className="lib-inline-stat">
-              <span className="dot orange"></span>
-              Đang dùng <strong>{stats.booked}/{stats.total}</strong>
+              <span className="dot" style={{ background: '#ff9b4a' }}></span>
+              Đã đặt <strong>{stats.booked}</strong>
             </span>
             <span className="lib-inline-stat">
-              <span className="dot blue"></span>
-              Lấp đầy <strong>{stats.occupancy}%</strong>
+              <span className="dot" style={{ background: '#22c55e' }}></span>
+              Đang ngồi <strong>{stats.confirmed}</strong>
             </span>
             <span className="lib-inline-stat">
-              <span className="dot green"></span>
+              <span className="dot" style={{ background: '#93c5fd' }}></span>
               Trống <strong>{stats.available}</strong>
             </span>
             <span className="lib-inline-stat">
               <span className="dot gray"></span>
               Hạn chế <strong>{stats.restricted}</strong>
+            </span>
+            <span className="lib-inline-stat">
+              <span className="dot blue"></span>
+              Lấp đầy <strong>{stats.occupancy}%</strong>
             </span>
           </div>
         </div>
@@ -472,16 +479,21 @@ function LibrarianAreasContent() {
                   return area?.areaName || 'Không xác định';
                 })()}</div>
                 <div className="librarian-seat-info">
-                  Trạng thái: <strong>{
+                  Trạng thái: <strong style={{
+                    color: selectedSeat.seatStatus === 'CONFIRMED' ? '#22c55e' :
+                      selectedSeat.seatStatus === 'BOOKED' ? '#ff9b4a' :
+                        selectedSeat.seatStatus === 'UNAVAILABLE' ? '#9ca3af' : '#93c5fd'
+                  }}>{
                     selectedSeat.seatStatus === 'AVAILABLE' ? 'Trống' :
-                      selectedSeat.seatStatus === 'BOOKED' ? 'Đã đặt' :
-                        selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bị hạn chế' :
-                          selectedSeat.seatStatus
+                      selectedSeat.seatStatus === 'BOOKED' ? 'Đã đặt - Chưa xác nhận' :
+                        selectedSeat.seatStatus === 'CONFIRMED' ? 'Đang ngồi' :
+                          selectedSeat.seatStatus === 'UNAVAILABLE' ? 'Bị hạn chế' :
+                            selectedSeat.seatStatus
                   }</strong>
                 </div>
 
-                {/* Thông tin sinh viên khi ghế BOOKED */}
-                {selectedSeat.seatStatus === 'BOOKED' && selectedSeat.bookedByUserName && (
+                {/* Thông tin sinh viên khi ghế BOOKED hoặc CONFIRMED */}
+                {(selectedSeat.seatStatus === 'BOOKED' || selectedSeat.seatStatus === 'CONFIRMED') && selectedSeat.bookedByUserName && (
                   <div className="librarian-booker-section">
                     <div className="librarian-booker-info">
                       <div className="librarian-booker-avatar">
@@ -533,15 +545,19 @@ function LibrarianAreasContent() {
           <div className="librarian-legend">
             <div className="librarian-legend-title">Chú thích</div>
             <div className="librarian-legend-item">
-              <span className="librarian-legend-dot librarian-legend-dot--green" />
+              <span className="librarian-legend-dot" style={{ backgroundColor: '#93c5fd' }} />
               <span>Trống (Available)</span>
             </div>
             <div className="librarian-legend-item">
-              <span className="librarian-legend-dot librarian-legend-dot--orange" />
+              <span className="librarian-legend-dot" style={{ backgroundColor: '#ff9b4a' }} />
               <span>Đã đặt (Booked)</span>
             </div>
             <div className="librarian-legend-item">
-              <span className="librarian-legend-dot librarian-legend-dot--gray" />
+              <span className="librarian-legend-dot" style={{ backgroundColor: '#22c55e' }} />
+              <span>Đang ngồi (Confirmed)</span>
+            </div>
+            <div className="librarian-legend-item">
+              <span className="librarian-legend-dot" style={{ backgroundColor: '#9ca3af' }} />
               <span>Bị hạn chế (Unavailable)</span>
             </div>
 

@@ -168,7 +168,11 @@ public class SeatService {
 
                     if (matchingReservation.isPresent()) {
                         var reservation = matchingReservation.get();
-                        response.setSeatStatus(SeatStatus.BOOKED);
+                        if ("CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
+                            response.setSeatStatus(SeatStatus.CONFIRMED);
+                        } else {
+                            response.setSeatStatus(SeatStatus.BOOKED);
+                        }
                         response.setReservationEndTime(reservation.getEndTime().toString());
                         response.setReservationStartTime(reservation.getStartTime().toString());
 

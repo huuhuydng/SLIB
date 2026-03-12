@@ -22,4 +22,12 @@ public class LibrarySettingDTO {
     private Integer minReputation; // 0 (điểm uy tín tối thiểu, 0 = không giới hạn)
     private Boolean libraryClosed; // true = thư viện đang tạm đóng
     private String closedReason; // Lý do đóng thư viện
+
+    // Notification Settings (FE-51)
+    private Boolean notifyBookingSuccess;
+    private Boolean notifyCheckinReminder;
+    private Boolean notifyTimeExpiry;
+    private Boolean notifyViolation;
+    private Boolean notifyWeeklyReport;
+    private Boolean notifyDeviceAlert;
 }

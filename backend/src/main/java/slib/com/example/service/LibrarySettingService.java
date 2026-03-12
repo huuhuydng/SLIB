@@ -56,6 +56,12 @@ public class LibrarySettingService {
                 .minReputation(settings.getMinReputation())
                 .libraryClosed(settings.getLibraryClosed())
                 .closedReason(settings.getClosedReason())
+                .notifyBookingSuccess(settings.getNotifyBookingSuccess())
+                .notifyCheckinReminder(settings.getNotifyCheckinReminder())
+                .notifyTimeExpiry(settings.getNotifyTimeExpiry())
+                .notifyViolation(settings.getNotifyViolation())
+                .notifyWeeklyReport(settings.getNotifyWeeklyReport())
+                .notifyDeviceAlert(settings.getNotifyDeviceAlert())
                 .build();
     }
 
@@ -100,6 +106,25 @@ public class LibrarySettingService {
         }
         if (dto.getClosedReason() != null) {
             settings.setClosedReason(dto.getClosedReason());
+        }
+        // Notification settings
+        if (dto.getNotifyBookingSuccess() != null) {
+            settings.setNotifyBookingSuccess(dto.getNotifyBookingSuccess());
+        }
+        if (dto.getNotifyCheckinReminder() != null) {
+            settings.setNotifyCheckinReminder(dto.getNotifyCheckinReminder());
+        }
+        if (dto.getNotifyTimeExpiry() != null) {
+            settings.setNotifyTimeExpiry(dto.getNotifyTimeExpiry());
+        }
+        if (dto.getNotifyViolation() != null) {
+            settings.setNotifyViolation(dto.getNotifyViolation());
+        }
+        if (dto.getNotifyWeeklyReport() != null) {
+            settings.setNotifyWeeklyReport(dto.getNotifyWeeklyReport());
+        }
+        if (dto.getNotifyDeviceAlert() != null) {
+            settings.setNotifyDeviceAlert(dto.getNotifyDeviceAlert());
         }
 
         repository.save(settings);

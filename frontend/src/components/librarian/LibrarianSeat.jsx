@@ -7,17 +7,21 @@ function LibrarianSeat({ seat, onSeatClick }) {
     }
   };
 
-  // Màu sắc theo trạng thái (phù hợp với legend):
-  // AVAILABLE (trống) = xanh lá #22c55e
-  // BOOKED (đã đặt) = cam #f97316
+  // Màu sắc theo trạng thái (phù hợp với SeatManage scheme):
+  // AVAILABLE (trống) = xanh dương #93c5fd
+  // BOOKED (đã đặt chưa xác nhận) = cam #ff9b4a
+  // CONFIRMED (đang ngồi) = xanh lá #22c55e
   // UNAVAILABLE (bị hạn chế) = xám #9ca3af
-  let statusColor = '#22c55e'; // AVAILABLE = xanh lá
+  let statusColor = '#93c5fd'; // AVAILABLE = xanh dương
   let statusText = 'Trống';
 
   const status = (seat.seatStatus || 'AVAILABLE').toUpperCase();
 
-  if (status === 'BOOKED') {
-    statusColor = '#f97316'; // BOOKED = cam
+  if (status === 'CONFIRMED') {
+    statusColor = '#22c55e'; // CONFIRMED = xanh lá (đang ngồi)
+    statusText = 'Đang ngồi';
+  } else if (status === 'BOOKED') {
+    statusColor = '#ff9b4a'; // BOOKED = cam (chưa xác nhận)
     statusText = 'Đã đặt';
   } else if (status === 'UNAVAILABLE') {
     statusColor = '#9ca3af'; // UNAVAILABLE = xám

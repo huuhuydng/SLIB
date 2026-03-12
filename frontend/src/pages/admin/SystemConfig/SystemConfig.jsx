@@ -81,6 +81,12 @@ const SystemConfig = () => {
             autoCancelMinutes: data.autoCancelMinutes ?? 15,
             autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? 30,
             minReputation: data.minReputation ?? 0,
+            notifyBookingSuccess: data.notifyBookingSuccess ?? true,
+            notifyCheckinReminder: data.notifyCheckinReminder ?? true,
+            notifyTimeExpiry: data.notifyTimeExpiry ?? true,
+            notifyViolation: data.notifyViolation ?? true,
+            notifyWeeklyReport: data.notifyWeeklyReport ?? false,
+            notifyDeviceAlert: data.notifyDeviceAlert ?? true,
           });
         }
       } catch (error) {
@@ -971,54 +977,62 @@ const SystemConfig = () => {
                 </div>
                 <div style={{ padding: '24px' }}>
                   {[
-                    { label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công', enabled: true },
-                    { label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt', enabled: true },
-                    { label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt', enabled: true },
-                    { label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm', enabled: true },
-                    { label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin', enabled: false },
-                    { label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố', enabled: true },
-                  ].map((item, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px',
-                      background: '#F7FAFC',
-                      borderRadius: '12px',
-                      marginBottom: '12px'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.label}</div>
-                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{item.description}</div>
-                      </div>
-                      <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
-                        <input type="checkbox" defaultChecked={item.enabled} style={{ opacity: 0, width: 0, height: 0 }} />
-                        <span style={{
-                          position: 'absolute',
-                          cursor: 'pointer',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          background: item.enabled ? '#e8600a' : '#E2E8F0',
-                          borderRadius: '14px',
-                          transition: 'all 0.3s'
-                        }}>
+                    { key: 'notifyBookingSuccess', label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công' },
+                    { key: 'notifyCheckinReminder', label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt' },
+                    { key: 'notifyTimeExpiry', label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt' },
+                    { key: 'notifyViolation', label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm' },
+                    { key: 'notifyWeeklyReport', label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin' },
+                    { key: 'notifyDeviceAlert', label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố' },
+                  ].map((item) => {
+                    const isEnabled = libraryConfig[item.key] !== false;
+                    return (
+                      <div key={item.key} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '16px',
+                        background: '#F7FAFC',
+                        borderRadius: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.label}</div>
+                          <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{item.description}</div>
+                        </div>
+                        <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => handleConfigChange(item.key, e.target.checked)}
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                          />
                           <span style={{
                             position: 'absolute',
-                            height: '22px',
-                            width: '22px',
-                            left: item.enabled ? '25px' : '3px',
-                            bottom: '3px',
-                            background: '#fff',
-                            borderRadius: '50%',
-                            transition: 'all 0.3s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }} />
-                        </span>
-                      </label>
-                    </div>
-                  ))}
+                            cursor: 'pointer',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: isEnabled ? '#e8600a' : '#E2E8F0',
+                            borderRadius: '14px',
+                            transition: 'all 0.3s'
+                          }}>
+                            <span style={{
+                              position: 'absolute',
+                              height: '22px',
+                              width: '22px',
+                              left: isEnabled ? '25px' : '3px',
+                              bottom: '3px',
+                              background: '#fff',
+                              borderRadius: '50%',
+                              transition: 'all 0.3s',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }} />
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

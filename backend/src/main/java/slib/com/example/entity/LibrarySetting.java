@@ -51,4 +51,30 @@ public class LibrarySetting {
 
     @Column(name = "closed_reason", length = 500)
     private String closedReason; // Lý do đóng thư viện (VD: "Sự kiện đặc biệt", "Bảo trì")
+
+    // === Notification Settings (FE-51) ===
+
+    @Builder.Default
+    @Column(name = "notify_booking_success", nullable = false)
+    private Boolean notifyBookingSuccess = true; // Thông báo đặt chỗ thành công
+
+    @Builder.Default
+    @Column(name = "notify_checkin_reminder", nullable = false)
+    private Boolean notifyCheckinReminder = true; // Nhắc nhở check-in
+
+    @Builder.Default
+    @Column(name = "notify_time_expiry", nullable = false)
+    private Boolean notifyTimeExpiry = true; // Cảnh báo hết giờ
+
+    @Builder.Default
+    @Column(name = "notify_violation", nullable = false)
+    private Boolean notifyViolation = true; // Thông báo vi phạm
+
+    @Builder.Default
+    @Column(name = "notify_weekly_report", nullable = false)
+    private Boolean notifyWeeklyReport = false; // Báo cáo tuần cho admin
+
+    @Builder.Default
+    @Column(name = "notify_device_alert", nullable = false)
+    private Boolean notifyDeviceAlert = true; // Cảnh báo thiết bị NFC
 }
