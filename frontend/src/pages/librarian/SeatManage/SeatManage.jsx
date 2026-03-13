@@ -205,18 +205,6 @@ const SeatManage = () => {
   };
 
   useEffect(() => {
-    loadSeatDataForTimeSlot(0);
-
-    const interval = setInterval(() => {
-      if (currentSlotIndex === 0) {
-        loadSeatDataForTimeSlot(0);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [currentSlotIndex]);
-
-  useEffect(() => {
     loadSeatDataForTimeSlot(currentSlotIndex);
   }, [currentSlotIndex]);
 

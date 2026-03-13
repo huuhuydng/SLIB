@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-105 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-105: View news & announcement details</h1>
+<table class="report-meta">
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-105</td>  <td class="label">Function Name</td>  <td class="value link">View news & announcement details</td></tr>
+  <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
+  <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~10</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>NewsService.getNewsDetailAndIncrementView(Long newsId)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify news-detail lookup and view-count increment side effect.</td></tr>
+  <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
+  <tr>  <td class="value center">5</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 4 / 0</td>  <td class="value center">5</td></tr>
+</table>
+
+<table class="matrix-table">
+  <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th></tr>
+  <tr><td class="section-cell" rowspan="7">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">News id is provided</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Detail lookup depends on news repository findById</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="2">Mock State (Dependencies)</td><td class="item-cell">News exists for detail retrieval</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">News lookup fails or save fails after view increment</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">GET</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/news/public/detail/{id}</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">Detail request targets existing or missing news</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="6">Confirm</td><td class="category-cell" rowspan="1">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="5">Log message</td><td class="item-cell">Successfully retrieved News Details for Detail request targets existing or missing news</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved News Details for Detail request targets existing or missing news (UTCID02)</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved News Details for Detail request targets existing or missing news (UTCID03)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved News Details for Detail request targets existing or missing news (UTCID04)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Successfully retrieved News Details for Detail request targets existing or missing news (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+</table>
+  </div>
+</body>
+</html>

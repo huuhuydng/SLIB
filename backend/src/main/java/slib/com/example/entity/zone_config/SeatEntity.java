@@ -67,7 +67,7 @@ public class SeatEntity {
     @Column(name = "nfc_tag_uid_updated_at")
     private java.time.LocalDateTime nfcTagUidUpdatedAt;
 
-    @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.EAGER)
+    @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.LAZY)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ReservationEntity> reservation;
 }

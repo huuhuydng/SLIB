@@ -75,4 +75,9 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
 
         // Statistic: tổng check-in trong range
         long countByCheckInTimeAfter(LocalDateTime startDate);
+
+        // Performance: query trực tiếp thay cho findAll + stream filter
+        List<AccessLog> findByCheckOutTimeIsNullAndCheckInTimeBefore(LocalDateTime threshold);
+
+        List<AccessLog> findByCheckOutTimeIsNull();
 }

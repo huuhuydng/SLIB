@@ -292,13 +292,10 @@ public class CheckInService {
      * Tự động check-out lúc 21:00 cho những người chưa check-out
      */
     private void autoCheckOutAfter5PM() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
 
         // Tìm tất cả logs chưa checkout
-        List<AccessLog> uncheckedOutLogs = accessLogRepository.findAllOrderByCheckInTimeDesc()
-                .stream()
-                .filter(log -> log.getCheckOutTime() == null)
-                .collect(Collectors.toList());
+        List<AccessLog> uncheckedOutLogs = accessLogRepository.findByCheckOutTimeIsNull();
 
         for (AccessLog log : uncheckedOutLogs) {
             LocalDateTime checkInTime = log.getCheckInTime();

@@ -69,6 +69,30 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * Generate purpose-limited token for password reset (15 minutes)
+     */
+    public String generatePasswordResetToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("email", user.getEmail());
+        claims.put("purpose", "password_reset");
+        claims.put("type", "password_reset");
+
+        return buildToken(claims, user.getEmail(), 15 * 60 * 1000); // 15 phut
+    }
+
+    /**
+     * Check if the token is a password reset token
+     */
+    public boolean isPasswordResetToken(String token) {
+        try {
+            String purpose = extractClaim(token, claims -> claims.get("purpose", String.class));
+            return "password_reset".equals(purpose);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ==========================================
     // === TOKEN PARSING ===
     // ==========================================

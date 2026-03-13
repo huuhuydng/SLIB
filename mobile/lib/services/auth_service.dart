@@ -413,7 +413,7 @@ class AuthService extends ChangeNotifier {
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/api/librarian/forgot-password'),
+        Uri.parse('${ApiConstants.domain}/slib/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email.trim().toLowerCase()}),
       );
@@ -439,7 +439,7 @@ class AuthService extends ChangeNotifier {
   Future<String> verifyOtp(String email, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/api/librarian/verify-otp'),
+        Uri.parse('${ApiConstants.domain}/slib/auth/verify-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
@@ -472,7 +472,7 @@ class AuthService extends ChangeNotifier {
   Future<void> resendOtp(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/api/librarian/resend-otp'),
+        Uri.parse('${ApiConstants.domain}/slib/auth/resend-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
@@ -498,7 +498,7 @@ class AuthService extends ChangeNotifier {
   Future<void> resetPassword(String token, String newPassword) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/api/librarian/update-password'),
+        Uri.parse('${ApiConstants.domain}/slib/auth/update-password'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

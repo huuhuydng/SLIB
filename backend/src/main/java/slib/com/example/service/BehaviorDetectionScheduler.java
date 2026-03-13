@@ -45,11 +45,8 @@ public class BehaviorDetectionScheduler {
             LocalDateTime threshold = now.minusMinutes(SEAT_HOLDING_THRESHOLD_MINUTES);
 
             // Tìm tất cả logs chưa checkout và đã check-in quá lâu
-            List<AccessLog> uncheckedLogs = accessLogRepository.findAllOrderByCheckInTimeDesc()
-                    .stream()
-                    .filter(log -> log.getCheckOutTime() == null)
-                    .filter(log -> log.getCheckInTime().isBefore(threshold))
-                    .toList();
+            List<AccessLog> uncheckedLogs = accessLogRepository
+                    .findByCheckOutTimeIsNullAndCheckInTimeBefore(threshold);
 
             for (AccessLog log : uncheckedLogs) {
                 try {

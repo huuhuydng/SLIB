@@ -120,4 +120,11 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         "GROUP BY s.zone_id, z.zone_name, a.area_name " +
                         "ORDER BY booking_count DESC", nativeQuery = true)
         List<Object[]> countBookingsByZone(@Param("startDate") LocalDateTime startDate);
+
+        // Performance: query methods thay cho findAll + stream filter
+        List<ReservationEntity> findByStatusAndStartTimeBetween(String status, LocalDateTime start, LocalDateTime end);
+
+        List<ReservationEntity> findByStatusIn(List<String> statuses);
+
+        long countByUserIdAndStartTimeBetweenAndStatusIn(UUID userId, LocalDateTime start, LocalDateTime end, List<String> statuses);
 }

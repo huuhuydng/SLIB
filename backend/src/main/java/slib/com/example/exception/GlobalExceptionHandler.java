@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -201,6 +203,21 @@ public class GlobalExceptionHandler {
                                 "The requested endpoint does not exist",
                                 request.getRequestURI());
                 return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
+
+        /**
+         * Handle DataIntegrityViolationException (409)
+         */
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+                        DataIntegrityViolationException ex,
+                        HttpServletRequest request) {
+                ErrorResponse error = new ErrorResponse(
+                                HttpStatus.CONFLICT.value(),
+                                "Conflict",
+                                "Dữ liệu bị trùng lặp hoặc vi phạm ràng buộc",
+                                request.getRequestURI());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
         }
 
         /**

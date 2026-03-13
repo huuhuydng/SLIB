@@ -3,6 +3,7 @@ package slib.com.example.service;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -77,6 +78,7 @@ public class ReservationScheduler {
             // - Đặt trong slot (createdAt > startTime): đếm từ createdAt
             // =========================================================
             List<ReservationEntity> bookedList = reservationRepository.findByStatus("BOOKED");
+            List<ReservationEntity> expiredBookings = new ArrayList<>();
             for (ReservationEntity r : bookedList) {
                 LocalDateTime baseTime = r.getStartTime().isAfter(r.getCreatedAt())
                         ? r.getStartTime()
@@ -100,7 +102,7 @@ public class ReservationScheduler {
 
                     // Set EXPIRED và giải phóng ghế
                     r.setStatus("EXPIRED");
-                    reservationRepository.save(r);
+                    expiredBookings.add(r);
                     seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
                             r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
 
@@ -124,6 +126,9 @@ public class ReservationScheduler {
                     }
                 }
             }
+            if (!expiredBookings.isEmpty()) {
+                reservationRepository.saveAll(expiredBookings);
+            }
 
             // =========================================================
             // 2. CONFIRMED đã hết hạn (endTime < now) → COMPLETED
@@ -133,9 +138,11 @@ public class ReservationScheduler {
                     "CONFIRMED");
             for (ReservationEntity r : completedConfirmed) {
                 r.setStatus("COMPLETED");
-                reservationRepository.save(r);
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
                         r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
+            }
+            if (!completedConfirmed.isEmpty()) {
+                reservationRepository.saveAll(completedConfirmed);
             }
 
             // =========================================================
@@ -146,9 +153,11 @@ public class ReservationScheduler {
                     processingCutoff, "PROCESSING");
             for (ReservationEntity r : processingExpired) {
                 r.setStatus("CANCEL");
-                reservationRepository.save(r);
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
                         r.getSeat(), "AVAILABLE", r.getStartTime(), r.getEndTime());
+            }
+            if (!processingExpired.isEmpty()) {
+                reservationRepository.saveAll(processingExpired);
             }
 
             // Broadcast dashboard update nếu có thay đổi

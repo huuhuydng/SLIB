@@ -34,7 +34,7 @@ public class News {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl; 
 
-    @ManyToOne(fetch = FetchType.EAGER) 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     @ToString.Exclude 
     @EqualsAndHashCode.Exclude 
