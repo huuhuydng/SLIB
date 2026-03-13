@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS ai_config (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_ai_config_updated_at ON ai_config;
 CREATE TRIGGER update_ai_config_updated_at
     BEFORE UPDATE ON ai_config
     FOR EACH ROW
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS ai_knowledge_stores (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_ai_knowledge_stores_updated_at ON ai_knowledge_stores;
 CREATE TRIGGER update_ai_knowledge_stores_updated_at
     BEFORE UPDATE ON ai_knowledge_stores
     FOR EACH ROW
@@ -68,6 +70,7 @@ CREATE TABLE IF NOT EXISTS ai_materials (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_ai_materials_updated_at ON ai_materials;
 CREATE TRIGGER update_ai_materials_updated_at
     BEFORE UPDATE ON ai_materials
     FOR EACH ROW
@@ -102,6 +105,7 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_knowledge_base_updated_at ON knowledge_base;
 CREATE TRIGGER update_knowledge_base_updated_at
     BEFORE UPDATE ON knowledge_base
     FOR EACH ROW
@@ -119,6 +123,7 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_chat_sessions_updated_at ON chat_sessions;
 CREATE TRIGGER update_chat_sessions_updated_at
     BEFORE UPDATE ON chat_sessions
     FOR EACH ROW
@@ -153,6 +158,7 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_prompt_templates_updated_at ON prompt_templates;
 CREATE TRIGGER update_prompt_templates_updated_at
     BEFORE UPDATE ON prompt_templates
     FOR EACH ROW
@@ -175,6 +181,7 @@ CREATE TABLE IF NOT EXISTS student_behaviors (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_student_behaviors_updated_at ON student_behaviors;
 CREATE TRIGGER update_student_behaviors_updated_at
     BEFORE UPDATE ON student_behaviors
     FOR EACH ROW

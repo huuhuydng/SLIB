@@ -36,8 +36,12 @@ UPDATE users SET username = user_code WHERE username IS NULL;
 -- ========================================
 -- Add unique constraint on username
 -- ========================================
-ALTER TABLE users
-ADD CONSTRAINT users_username_unique UNIQUE (username);
+DO $$
+BEGIN
+    ALTER TABLE users ADD CONSTRAINT users_username_unique UNIQUE (username);
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END $$;
 
 -- ========================================
 -- Add index for faster username lookup

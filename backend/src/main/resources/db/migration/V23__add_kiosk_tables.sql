@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS zone_maps (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure public_id column exists (V11 created kiosk_images without it)
+ALTER TABLE kiosk_images ADD COLUMN IF NOT EXISTS public_id VARCHAR(255);
+ALTER TABLE library_maps ADD COLUMN IF NOT EXISTS public_id VARCHAR(255);
+
 -- Index cho performance
 CREATE INDEX IF NOT EXISTS idx_kiosk_images_active ON kiosk_images (is_active);
 
