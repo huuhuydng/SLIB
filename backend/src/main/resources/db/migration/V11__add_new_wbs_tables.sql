@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS reputation_rules (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_reputation_rules_updated_at ON reputation_rules;
 CREATE TRIGGER update_reputation_rules_updated_at
     BEFORE UPDATE ON reputation_rules
     FOR EACH ROW
@@ -126,6 +127,7 @@ CREATE TABLE IF NOT EXISTS hce_devices (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_hce_devices_updated_at ON hce_devices;
 CREATE TRIGGER update_hce_devices_updated_at
     BEFORE UPDATE ON hce_devices
     FOR EACH ROW
@@ -145,6 +147,7 @@ CREATE TABLE IF NOT EXISTS kiosk_images (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_kiosk_images_updated_at ON kiosk_images;
 CREATE TRIGGER update_kiosk_images_updated_at
     BEFORE UPDATE ON kiosk_images
     FOR EACH ROW
@@ -173,9 +176,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_complaints_user ON complaints (user_id);
+CREATE INDEX IF NOT EXISTS idx_complaints_user ON complaints (user_id);
 
-CREATE INDEX idx_complaints_status ON complaints (status);
+CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints (status);
 
 -- ========================================
 -- Feedbacks Table (WBS 8.1) - New structure
@@ -199,9 +202,9 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     reviewed_at TIMESTAMP
 );
 
-CREATE INDEX idx_feedbacks_user ON feedbacks (user_id);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_user ON feedbacks (user_id);
 
-CREATE INDEX idx_feedbacks_status ON feedbacks (status);
+CREATE INDEX IF NOT EXISTS idx_feedbacks_status ON feedbacks (status);
 
 -- ========================================
 -- Seat Status Reports Table (WBS 8.2)
@@ -234,9 +237,9 @@ CREATE TABLE IF NOT EXISTS seat_status_reports (
     resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_seat_status_reports_seat ON seat_status_reports (seat_id);
+CREATE INDEX IF NOT EXISTS idx_seat_status_reports_seat ON seat_status_reports (seat_id);
 
-CREATE INDEX idx_seat_status_reports_status ON seat_status_reports (status);
+CREATE INDEX IF NOT EXISTS idx_seat_status_reports_status ON seat_status_reports (status);
 
 -- ========================================
 -- Seat Violation Reports Table (WBS 8.3)
@@ -271,9 +274,9 @@ CREATE TABLE IF NOT EXISTS seat_violation_reports (
     verified_at TIMESTAMP
 );
 
-CREATE INDEX idx_seat_violation_reports_reporter ON seat_violation_reports (reporter_id);
+CREATE INDEX IF NOT EXISTS idx_seat_violation_reports_reporter ON seat_violation_reports (reporter_id);
 
-CREATE INDEX idx_seat_violation_reports_status ON seat_violation_reports (status);
+CREATE INDEX IF NOT EXISTS idx_seat_violation_reports_status ON seat_violation_reports (status);
 
 -- ========================================
 -- Notifications Table (WBS 9) - New structure
@@ -298,7 +301,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_user_read ON notifications (user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications (user_id, is_read);
 
 -- ========================================
 -- New Books Table (WBS 10.4-10.6)
@@ -319,6 +322,7 @@ CREATE TABLE IF NOT EXISTS new_books (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_new_books_updated_at ON new_books;
 CREATE TRIGGER update_new_books_updated_at
     BEFORE UPDATE ON new_books
     FOR EACH ROW
@@ -339,11 +343,11 @@ CREATE TABLE IF NOT EXISTS system_logs (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX idx_system_logs_created ON system_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_system_logs_created ON system_logs (created_at DESC);
 
-CREATE INDEX idx_system_logs_user ON system_logs (user_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_user ON system_logs (user_id);
 
-CREATE INDEX idx_system_logs_action ON system_logs (action);
+CREATE INDEX IF NOT EXISTS idx_system_logs_action ON system_logs (action);
 
 -- ========================================
 -- Backup Schedules Table (WBS 4.9.4-4.9.5)
@@ -363,6 +367,7 @@ CREATE TABLE IF NOT EXISTS backup_schedules (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS update_backup_schedules_updated_at ON backup_schedules;
 CREATE TRIGGER update_backup_schedules_updated_at
     BEFORE UPDATE ON backup_schedules
     FOR EACH ROW
@@ -407,6 +412,6 @@ CREATE TABLE IF NOT EXISTS backup_history (
     created_by UUID REFERENCES users (id)
 );
 
-CREATE INDEX idx_backup_history_schedule ON backup_history (schedule_id);
+CREATE INDEX IF NOT EXISTS idx_backup_history_schedule ON backup_history (schedule_id);
 
-CREATE INDEX idx_backup_history_status ON backup_history (status);
+CREATE INDEX IF NOT EXISTS idx_backup_history_status ON backup_history (status);

@@ -3,7 +3,7 @@
 -- =============================================
 
 -- 1. Ensure library_settings has default data
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'library_settings') THEN
         INSERT INTO library_settings (id, open_time, close_time, working_days, slot_duration, max_booking_days, max_bookings_per_day, max_hours_per_day)
@@ -17,10 +17,10 @@ BEGIN
             max_bookings_per_day = EXCLUDED.max_bookings_per_day,
             max_hours_per_day = EXCLUDED.max_hours_per_day;
     END IF;
-END $;
+END $$;
 
 -- 2. Add updated_at triggers for kiosk tables (if tables exist)
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'kiosk_configs') THEN
         DROP TRIGGER IF EXISTS update_kiosk_configs_updated_at ON kiosk_configs;
@@ -61,10 +61,10 @@ BEGIN
             FOR EACH ROW
             EXECUTE PROCEDURE update_updated_at_column();
     END IF;
-END $;
+END $$;
 
 -- 3. Add updated_at trigger for student_behaviors (if table exists)
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'student_behaviors') THEN
         DROP TRIGGER IF EXISTS update_student_behaviors_updated_at ON student_behaviors;
@@ -73,10 +73,10 @@ BEGIN
             FOR EACH ROW
             EXECUTE PROCEDURE update_updated_at_column();
     END IF;
-END $;
+END $$;
 
 -- 4. Ensure seed categories exist
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'news_categories') THEN
         INSERT INTO news_categories (name, color_code) VALUES
@@ -93,7 +93,7 @@ BEGIN
             ('Hướng dẫn', '#9C27B0')
         ON CONFLICT (name) DO NOTHING;
     END IF;
-END $;
+END $$;
 
 -- 5. Ensure seed users exist (password: admin123 / librarian123)
 INSERT INTO users (id, user_code, email, full_name, role, is_active, username, password)
@@ -107,17 +107,17 @@ VALUES
 ON CONFLICT (user_code) DO NOTHING;
 
 -- 6. Ensure access_logs has required columns
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'access_logs') THEN
         ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP WITH TIME ZONE;
         ALTER TABLE access_logs ADD COLUMN IF NOT EXISTS check_out_time TIMESTAMP WITH TIME ZONE;
     END IF;
-END $;
+END $$;
 
 -- 7. Ensure is_staff() function exists (required for RLS)
 CREATE OR REPLACE FUNCTION is_staff()
-RETURNS BOOLEAN AS $
+RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM users
@@ -125,20 +125,20 @@ BEGIN
         AND users.role IN ('LIBRARIAN', 'ADMIN')
     );
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 8. Ensure get_current_user_id() function exists
 CREATE OR REPLACE FUNCTION get_current_user_id()
-RETURNS UUID AS $
+RETURNS UUID AS $$
 DECLARE
     ret_uuid UUID;
 BEGIN
     RETURN NULL;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 9. Grant permissions for new tables (if they exist)
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'kiosk_configs') THEN
         GRANT SELECT, INSERT, UPDATE, DELETE ON kiosk_configs TO PUBLIC;
@@ -158,6 +158,6 @@ BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'student_behaviors') THEN
         GRANT SELECT, INSERT, UPDATE, DELETE ON student_behaviors TO PUBLIC;
     END IF;
-END $;
+END $$;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
