@@ -316,8 +316,6 @@ public class UserService {
         }
 
         // 9. Other FK tables - use native SQL for tables without repositories
-        entityManager.createNativeQuery("DELETE FROM chat_logs WHERE user_id = :uid")
-                .setParameter("uid", userId).executeUpdate();
         entityManager.createNativeQuery("DELETE FROM complaints WHERE user_id = :uid")
                 .setParameter("uid", userId).executeUpdate();
         entityManager.createNativeQuery("UPDATE complaints SET resolved_by = NULL WHERE resolved_by = :uid")
@@ -329,10 +327,6 @@ public class UserService {
         entityManager.createNativeQuery("DELETE FROM kiosk_qr_sessions WHERE student_id = :uid")
                 .setParameter("uid", userId).executeUpdate();
         entityManager.createNativeQuery("DELETE FROM notifications WHERE user_id = :uid")
-                .setParameter("uid", userId).executeUpdate();
-        entityManager.createNativeQuery("DELETE FROM reputation_history WHERE user_id = :uid")
-                .setParameter("uid", userId).executeUpdate();
-        entityManager.createNativeQuery("DELETE FROM student_schedules WHERE user_id = :uid")
                 .setParameter("uid", userId).executeUpdate();
         entityManager.createNativeQuery("UPDATE seat_status_reports SET verified_by = NULL WHERE verified_by = :uid")
                 .setParameter("uid", userId).executeUpdate();
