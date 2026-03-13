@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS student_behaviors (
     user_id UUID NOT NULL,
     behavior_type VARCHAR(50) NOT NULL,
     description TEXT,
-    related_booking_id INTEGER,
+    related_booking_id UUID,
     related_seat_id INTEGER,
     related_zone_id INTEGER,
     points_impact INTEGER,

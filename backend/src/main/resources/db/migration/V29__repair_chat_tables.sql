@@ -2,7 +2,7 @@
 -- V29: Repair chat tables schema to match JPA entities (UUID based)
 -- =============================================
 
-DO $
+DO $$
 DECLARE
     conversations_needs_rebuild BOOLEAN := FALSE;
     messages_needs_rebuild BOOLEAN := FALSE;
@@ -68,7 +68,7 @@ BEGIN
         DROP TABLE IF EXISTS messages CASCADE;
         DROP TABLE IF EXISTS conversations CASCADE;
     END IF;
-END $;
+END $$;
 
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
