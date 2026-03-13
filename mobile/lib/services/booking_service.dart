@@ -10,13 +10,23 @@ import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:slib/utils/nfc_uid_hasher.dart';
 
 class BookingService {
+  final _storage = const FlutterSecureStorage();
+
+  Future<Map<String, String>> _authHeaders({bool json = false}) async {
+    final token = await _storage.read(key: 'jwt_token');
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+      if (json) 'Content-Type': 'application/json',
+    };
+  }
   // ================= AREAS =================
   Future<List<Area>> getAllAreas() async {
     final url = Uri.parse(ApiConstants.areaUrl);
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -29,7 +39,7 @@ class BookingService {
   // ================= FACTORIES (Obstacles) =================
   Future<List<AreaFactory>> getFactoriesByArea(int areaId) async {
     final url = Uri.parse("${ApiConstants.factoriesUrl}?areaId=$areaId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -42,7 +52,7 @@ class BookingService {
   // ================= ZONES =================
   Future<List<Zone>> getZonesByArea(int areaId) async {
     final url = Uri.parse("${ApiConstants.zoneUrl}?areaId=$areaId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -54,7 +64,7 @@ class BookingService {
 
   Future<List<Zones>> getAllZones() async {
     final url = Uri.parse("${ApiConstants.zoneUrl}/getAllZones");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -67,7 +77,7 @@ class BookingService {
   /// Get zone occupancy (mật độ sử dụng) for all zones in an area
   Future<List<ZoneOccupancy>> getZoneOccupancy(int areaId) async {
     final url = Uri.parse("${ApiConstants.zoneUrl}/occupancy/$areaId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -81,7 +91,7 @@ class BookingService {
   /// Get amenities (tiện ích) for a specific zone
   Future<List<Amenity>> getAmenities(int zoneId) async {
     final url = Uri.parse("${ApiConstants.amenitiesUrl}?zoneId=$zoneId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -95,7 +105,7 @@ class BookingService {
   /// Get library settings (cấu hình thư viện)
   Future<LibrarySetting> getLibrarySettings() async {
     final url = Uri.parse("${ApiConstants.settingUrl}/library");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
@@ -108,7 +118,7 @@ class BookingService {
   /// Get time slots (khung giờ đã được generate từ cấu hình)
   Future<List<TimeSlot>> getTimeSlots() async {
     final url = Uri.parse("${ApiConstants.settingUrl}/time-slots");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -121,7 +131,7 @@ class BookingService {
   // ================= SEATS =================
   Future<int> getAvailableSeat(int zoneId) async {
     final url = Uri.parse("${ApiConstants.seatUrl}/getAvailableSeat/$zoneId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final int count = int.parse(response.body);
@@ -134,7 +144,7 @@ class BookingService {
 
   Future<List<Seat>> getSeats(int zoneId) async {
     final url = Uri.parse("${ApiConstants.seatUrl}/getAllSeat/$zoneId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     // debugPrint("Status: ${response.statusCode}");
     // debugPrint("Body: ${response.body}");
@@ -159,9 +169,7 @@ class BookingService {
     final url = Uri.parse(
       "${ApiConstants.seatUrl}/getSeatsByTime/$zoneId?date=$dateStr&start=$start&end=$end",
     );
-    final response = await http.get(url);
-    // debugPrint("Status: ${response.statusCode}");
-    // debugPrint("Body: ${response.body}");
+    final response = await http.get(url, headers: await _authHeaders());
     if (response.statusCode == 200) {
       final List<dynamic> jsonData = jsonDecode(response.body);
       return jsonData.map((e) => Seat.fromJson(e)).toList();
@@ -182,8 +190,8 @@ class BookingService {
     final url = Uri.parse(
       "${ApiConstants.seatUrl}/area/$areaId/all-seats?date=$dateStr&start=$start&end=$end",
     );
-    final response = await http.get(url);
-    
+    final response = await http.get(url, headers: await _authHeaders());
+
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);
       Map<int, List<Seat>> result = {};
@@ -203,7 +211,7 @@ class BookingService {
     final url = Uri.parse(
       "${ApiConstants.seatUrl}/getSeatsByDate/$zoneId?date=$dateStr",
     );
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
@@ -232,7 +240,7 @@ class BookingService {
 
     final response = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: await _authHeaders(json: true),
       body: body,
     );
 
@@ -261,7 +269,7 @@ class BookingService {
 
   Future<void> cancelReservation(String reservationId) async {
     final url = Uri.parse("${ApiConstants.bookingUrl}/cancel/$reservationId");
-    final response = await http.put(url);
+    final response = await http.put(url, headers: await _authHeaders());
 
     if (response.statusCode != 200) {
       throw Exception("Failed to cancel reservation: ${response.body}");
@@ -272,7 +280,7 @@ class BookingService {
   /// Returns null if no upcoming booking
   Future<dynamic> getUpcomingBooking(String userId) async {
     final url = Uri.parse("${ApiConstants.bookingUrl}/upcoming/$userId");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
@@ -289,7 +297,7 @@ class BookingService {
     final url = Uri.parse(
       "${ApiConstants.bookingUrl}/updateStatusReserv/$reservationId?status=$status",
     );
-    final response = await http.put(url);
+    final response = await http.put(url, headers: await _authHeaders());
 
     if (response.statusCode != 200) {
       throw Exception("Failed to update status: ${response.body}");
@@ -299,10 +307,10 @@ class BookingService {
   /// @Deprecated — Use confirmSeatWithNfcUid instead
   Future<Map<String, dynamic>> confirmSeatWithNfc(String reservationId, String nfcData) async {
     final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc/$reservationId");
-    
+
     final response = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: await _authHeaders(json: true),
       body: jsonEncode({"nfc_data": nfcData}),
     );
 
@@ -325,7 +333,7 @@ class BookingService {
   Future<Seat> getSeatByNfcUid(String nfcUid) async {
     debugPrint('BookingService: Looking up seat by raw UID: $nfcUid');
     final url = Uri.parse("${ApiConstants.seatUrl}/by-nfc-uid/$nfcUid");
-    final response = await http.get(url);
+    final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -357,7 +365,7 @@ class BookingService {
     
     final response = await http.post(
       url,
-      headers: {"Content-Type": "application/json"},
+      headers: await _authHeaders(json: true),
       body: jsonEncode({"nfc_uid": nfcUid}),
     );
 

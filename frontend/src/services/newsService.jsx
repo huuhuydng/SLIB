@@ -2,10 +2,15 @@ import axios from 'axios';
 
 const API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news`;
 
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // Lấy danh sách tất cả news cho admin/librarian
 export const getAllNewsForAdmin = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/all`);
+    const response = await axios.get(`${API_URL}/admin/all`, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error fetching news:', error);
@@ -16,7 +21,7 @@ export const getAllNewsForAdmin = async () => {
 // Lấy detail cho admin (không có imageUrl)
 export const getNewsDetailForAdmin = async (id) => {
   try {
-    const response = await axios.get(`${API_URL}/admin/detail/${id}`);
+    const response = await axios.get(`${API_URL}/admin/detail/${id}`, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error fetching news detail:', error);
@@ -27,7 +32,7 @@ export const getNewsDetailForAdmin = async (id) => {
 // Lấy image URL riêng
 export const getNewsImage = async (id) => {
   try {
-    const response = await axios.get(`${API_URL}/admin/image/${id}`);
+    const response = await axios.get(`${API_URL}/admin/image/${id}`, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error fetching news image:', error);
@@ -39,8 +44,8 @@ export const getNewsImage = async (id) => {
 export const createNews = async (newsData) => {
   try {
     console.log('📤 Sending to backend:', JSON.stringify(newsData, null, 2));
-    const response = await axios.post(`${API_URL}/admin`, newsData);
-    console.log('✅ Success:', response.data);
+    const response = await axios.post(`${API_URL}/admin`, newsData, { headers: getAuthHeaders() });
+    console.log('Success:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Error creating news:', error);
@@ -54,7 +59,7 @@ export const createNews = async (newsData) => {
 // Cập nhật news
 export const updateNews = async (id, newsData) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/${id}`, newsData);
+    const response = await axios.put(`${API_URL}/admin/${id}`, newsData, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error updating news:', error);
@@ -65,7 +70,7 @@ export const updateNews = async (id, newsData) => {
 // Xóa news
 export const deleteNews = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}/admin/${id}`);
+    const response = await axios.delete(`${API_URL}/admin/${id}`, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error deleting news:', error);
@@ -98,7 +103,7 @@ export const getNewsDetail = async (id) => {
 // Toggle pin status của news
 export const togglePinNews = async (id) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`);
+    const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`, null, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error toggling pin status:', error);
@@ -124,7 +129,7 @@ export const getAllCategories = async () => {
 // Tao category moi
 export const createCategory = async (name, colorCode = '#3b82f6') => {
   try {
-    const response = await axios.post(`${CATEGORY_URL}`, { name, colorCode });
+    const response = await axios.post(`${CATEGORY_URL}`, { name, colorCode }, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error creating category:', error);
@@ -135,7 +140,7 @@ export const createCategory = async (name, colorCode = '#3b82f6') => {
 // Xoa category
 export const deleteCategory = async (id) => {
   try {
-    const response = await axios.delete(`${CATEGORY_URL}/${id}`);
+    const response = await axios.delete(`${CATEGORY_URL}/${id}`, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error deleting category:', error);
@@ -149,7 +154,7 @@ export const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/files/upload_news_image`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
     });
     return response.data.url;
   } catch (error) {

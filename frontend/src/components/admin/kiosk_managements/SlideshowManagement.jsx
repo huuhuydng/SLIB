@@ -21,6 +21,12 @@ import '../../../styles/admin/SlideshowManagement.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+const getToken = () => sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+const authHeaders = () => {
+  const token = getToken();
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
 const SlideshowManagement = () => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -41,7 +47,9 @@ const SlideshowManagement = () => {
       setLoading(true);
       setError(null);
       console.log('Fetching images from:', `${API_BASE_URL}/api/slideshow/images`);
-      const response = await fetch(`${API_BASE_URL}/api/slideshow/images`);
+      const response = await fetch(`${API_BASE_URL}/api/slideshow/images`, {
+        headers: authHeaders(),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -75,6 +83,7 @@ const SlideshowManagement = () => {
       // Gọi API xóa theo ID
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images/${imageObj.id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
 
       if (!response.ok) {
@@ -129,6 +138,7 @@ const SlideshowManagement = () => {
 
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images`, {
         method: 'POST',
+        headers: { ...authHeaders() },
         body: formData,
       });
 
@@ -182,7 +192,7 @@ const SlideshowManagement = () => {
       // Gọi API đổi tên theo ID
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images/${editingImage}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           newName: editName
         }),
@@ -215,7 +225,7 @@ const SlideshowManagement = () => {
       // Gọi API PATCH để update status, backend sẽ kiểm tra giới hạn 5 ảnh
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images/${targetImage.id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ isActive: newStatus }),
       });
       const data = await response.json();
@@ -265,7 +275,7 @@ const SlideshowManagement = () => {
 
     try {
       const deletePromises = Array.from(selectedIds).map(id =>
-        fetch(`${API_BASE_URL}/api/slideshow/images/${id}`, { method: 'DELETE' })
+        fetch(`${API_BASE_URL}/api/slideshow/images/${id}`, { method: 'DELETE', headers: { ...authHeaders() } })
       );
 
       const results = await Promise.allSettled(deletePromises);
@@ -294,7 +304,7 @@ const SlideshowManagement = () => {
       const updatePromises = Array.from(selectedIds).map(id =>
         fetch(`${API_BASE_URL}/api/slideshow/images/${id}/status`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({ isActive: activateStatus }),
         })
       );
@@ -347,7 +357,7 @@ const SlideshowManagement = () => {
     try {
       await fetch(`${API_BASE_URL}/api/slideshow/reorder`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(newImages.map(img => img.id)),
       });
     } catch (err) {

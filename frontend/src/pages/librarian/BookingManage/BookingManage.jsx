@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from "lucide-react";
+import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, Armchair, MapPin, Clock, CalendarDays, User } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/BookingManage.css";
@@ -594,89 +594,109 @@ function BookingManage() {
                 </div>
             </div>
 
-            {/* Slide Panel - Detail */}
+            {/* Modal - Detail */}
             {selectedBooking && (
                 <>
-                    <div className="lib-slide-overlay" onClick={() => setSelectedBooking(null)} />
-                    <div className="lib-slide-panel">
-                        <div className="lib-slide-header">
+                    <div className="bm-modal-overlay" onClick={() => setSelectedBooking(null)} />
+                    <div className="bm-modal">
+                        <div className="bm-modal-header">
                             <h2>Chi tiết đặt chỗ</h2>
                             <button
-                                className="lib-slide-close"
+                                className="bm-modal-close"
                                 onClick={() => setSelectedBooking(null)}
                             >
-                                &times;
+                                <X size={20} />
                             </button>
                         </div>
-                        <div className="lib-slide-body">
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Sinh viên</div>
-                                <div className="lib-user-info">
+                        <div className="bm-modal-body">
+                            {/* User card */}
+                            <div className="bm-modal-user-card">
+                                <div className="bm-modal-user">
                                     {selectedBooking.user?.avtUrl ? (
-                                        <img src={selectedBooking.user.avtUrl} alt="" className="lib-avatar" />
+                                        <img src={selectedBooking.user.avtUrl} alt="" className="bm-modal-avatar" />
                                     ) : (
-                                        <div className="lib-avatar-placeholder">
+                                        <div className="bm-modal-avatar-placeholder">
                                             {getInitial(selectedBooking.user?.fullName)}
                                         </div>
                                     )}
-                                    <div>
-                                        <h3>{selectedBooking.user?.fullName || "Sinh viên"}</h3>
-                                        <div className="lib-user-code">{selectedBooking.user?.userCode}</div>
+                                    <div className="bm-modal-user-info">
+                                        <h3 className="bm-modal-user-name">{selectedBooking.user?.fullName || "Sinh viên"}</h3>
+                                        <div className="bm-modal-user-code">
+                                            <User size={13} />
+                                            {selectedBooking.user?.userCode}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Trạng thái</div>
-                                <span className={`bm-status-badge ${STATUS_CLASSES[selectedBooking.status] || ''}`}>
+                                <span className={`bm-status-badge-lg ${STATUS_CLASSES[selectedBooking.status] || ''}`}>
                                     {STATUS_LABELS[selectedBooking.status] || selectedBooking.status}
                                 </span>
                             </div>
 
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Chỗ ngồi</div>
-                                <div className="lib-slide-value">
-                                    Ghế {selectedBooking.seat?.seatCode || "N/A"}
+                            {/* Info cards */}
+                            <div className="bm-modal-cards">
+                                <div className="bm-modal-info-card">
+                                    <div className="bm-modal-info-icon seat">
+                                        <Armchair size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="bm-modal-info-label">Chỗ ngồi</div>
+                                        <div className="bm-modal-info-value">{selectedBooking.seat?.seatCode || "N/A"}</div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Khu vực</div>
-                                <div className="lib-slide-value">
-                                    {selectedBooking.seat?.zone?.zoneName || "N/A"}
-                                    {selectedBooking.seat?.zone?.area?.areaName && ` - ${selectedBooking.seat.zone.area.areaName}`}
+                                <div className="bm-modal-info-card">
+                                    <div className="bm-modal-info-icon zone">
+                                        <MapPin size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="bm-modal-info-label">Khu vực</div>
+                                        <div className="bm-modal-info-value">
+                                            {selectedBooking.seat?.zone?.zoneName || "N/A"}
+                                            {selectedBooking.seat?.zone?.area?.areaName &&
+                                                <span className="bm-modal-info-sub"> {selectedBooking.seat.zone.area.areaName}</span>
+                                            }
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Thời gian</div>
-                                <div className="lib-slide-value">
-                                    {formatDateTime(selectedBooking.startTime)} - {formatDateTime(selectedBooking.endTime)}
+                                <div className="bm-modal-info-card">
+                                    <div className="bm-modal-info-icon time">
+                                        <Clock size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="bm-modal-info-label">Thời gian sử dụng</div>
+                                        <div className="bm-modal-info-value">
+                                            {formatTime(selectedBooking.startTime)} - {formatTime(selectedBooking.endTime)}
+                                        </div>
+                                        <div className="bm-modal-info-sub">{formatDate(selectedBooking.startTime)}</div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div className="lib-slide-section">
-                                <div className="lib-slide-label">Ngày đặt</div>
-                                <div className="lib-slide-value">{formatDateTime(selectedBooking.createdAt)}</div>
+                                <div className="bm-modal-info-card">
+                                    <div className="bm-modal-info-icon date">
+                                        <CalendarDays size={18} />
+                                    </div>
+                                    <div>
+                                        <div className="bm-modal-info-label">Ngày tạo đặt chỗ</div>
+                                        <div className="bm-modal-info-value">{formatDateTime(selectedBooking.createdAt)}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="lib-slide-footer">
+                        <div className="bm-modal-footer">
+                            <button
+                                className="bm-modal-btn close"
+                                onClick={() => setSelectedBooking(null)}
+                            >
+                                Đóng
+                            </button>
                             {(selectedBooking.status === "BOOKED" || selectedBooking.status === "PROCESSING") && (
                                 <button
-                                    className="lib-btn ghost danger"
+                                    className="bm-modal-btn cancel"
                                     onClick={() => handleCancelBooking(selectedBooking.reservationId)}
                                     disabled={submitting}
                                 >
                                     {submitting ? "Đang xử lý..." : "Huỷ đặt chỗ"}
                                 </button>
                             )}
-                            <button
-                                className="lib-btn ghost"
-                                onClick={() => setSelectedBooking(null)}
-                            >
-                                Đóng
-                            </button>
                         </div>
                     </div>
                 </>

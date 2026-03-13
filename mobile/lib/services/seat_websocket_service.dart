@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 /// Service xử lý WebSocket real-time cho seat updates
@@ -144,11 +145,12 @@ class SeatWebSocketService {
   /// Hold a seat temporarily (5 minutes)
   Future<Map<String, dynamic>> holdSeat(int seatId, String userId) async {
     final url = Uri.parse('${ApiConstants.seatUrl}/$seatId/hold');
+    final token = await const FlutterSecureStorage().read(key: 'jwt_token');
     final response = await http.post(
       url,
       headers: {
         'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
       },
       body: jsonEncode({'userId': userId}),
     );
@@ -164,9 +166,10 @@ class SeatWebSocketService {
   /// Release a held seat
   Future<Map<String, dynamic>> releaseSeat(int seatId, String userId) async {
     final url = Uri.parse('${ApiConstants.seatUrl}/$seatId/hold');
+    final token = await const FlutterSecureStorage().read(key: 'jwt_token');
     final request = http.Request('DELETE', url);
     request.headers['Content-Type'] = 'application/json';
-    request.headers['ngrok-skip-browser-warning'] = 'true';
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
     request.body = jsonEncode({'userId': userId});
     
     final streamedResponse = await request.send();

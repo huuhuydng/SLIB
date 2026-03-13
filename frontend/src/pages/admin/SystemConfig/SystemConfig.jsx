@@ -28,6 +28,11 @@ import {
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
 const REPUTATION_API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/admin/reputation-rules`;
 
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 const SystemConfig = () => {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('library');
@@ -65,7 +70,7 @@ const SystemConfig = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/library`);
+        const response = await fetch(`${API_BASE_URL}/library`, { headers: getAuthHeaders() });
         if (response.ok) {
           const data = await response.json();
           setLibraryClosed(data.libraryClosed || false);
@@ -102,7 +107,7 @@ const SystemConfig = () => {
   const fetchReputationRules = async () => {
     setRulesLoading(true);
     try {
-      const response = await fetch(REPUTATION_API_URL);
+      const response = await fetch(REPUTATION_API_URL, { headers: getAuthHeaders() });
       if (response.ok) {
         const data = await response.json();
         setReputationRules(data);
@@ -151,7 +156,7 @@ const SystemConfig = () => {
       const method = editingRule ? 'PUT' : 'POST';
       const response = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
       if (response.ok) {
@@ -168,7 +173,7 @@ const SystemConfig = () => {
 
   const handleToggleRule = async (ruleId) => {
     try {
-      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}/toggle`, { method: 'PATCH' });
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}/toggle`, { method: 'PATCH', headers: getAuthHeaders() });
       if (response.ok) fetchReputationRules();
     } catch (error) {
       console.error('Error toggling rule:', error);
@@ -178,7 +183,7 @@ const SystemConfig = () => {
   const handleDeleteRule = async (ruleId) => {
     if (!window.confirm('Bạn có chắc muốn xóa quy tắc này?')) return;
     try {
-      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}`, { method: 'DELETE' });
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) fetchReputationRules();
     } catch (error) {
       console.error('Error deleting rule:', error);
@@ -191,7 +196,7 @@ const SystemConfig = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/library`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(libraryConfig),
       });
       if (response.ok) {
@@ -228,7 +233,7 @@ const SystemConfig = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/library/toggle-lock`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ closed: newClosed, reason: newClosed ? closedReason.trim() : null }),
       });
       if (response.ok) {

@@ -14,8 +14,12 @@ const aiConfigApi = axios.create({
     },
 });
 
-// Request interceptor
+// Request interceptor - add auth token
 aiConfigApi.interceptors.request.use((config) => {
+    const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log("[AI Config API][Request]", config.method?.toUpperCase(), config.baseURL + config.url);
     return config;
 });
