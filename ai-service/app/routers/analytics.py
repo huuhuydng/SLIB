@@ -142,6 +142,115 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
     }
 
 
+@router.get("/behavior-issues")
+async def get_behavior_issues() -> Dict[str, Any]:
+    """
+    Lấy danh sách sinh viên có vấn đề hành vi (bỏ chỗ nhiều, điểm uy tín thấp, vi phạm)
+    Được gọi bởi Librarian Dashboard.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+
+        with engine.connect() as conn:
+            # Lấy sinh viên cùng thống kê đặt chỗ 30 ngày gần nhất
+            result = conn.execute(text("""
+                WITH reservation_stats AS (
+                    SELECT
+                        r.user_id,
+                        COUNT(*) AS total_reservations,
+                        SUM(CASE WHEN r.status = 'EXPIRED' THEN 1 ELSE 0 END) AS expired_count,
+                        SUM(CASE WHEN r.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count,
+                        SUM(CASE WHEN r.status IN ('COMPLETED', 'CONFIRMED') THEN 1 ELSE 0 END) AS completed_count
+                    FROM reservations r
+                    WHERE r.created_time >= NOW() - INTERVAL '30 days'
+                    GROUP BY r.user_id
+                )
+                SELECT
+                    u.full_name,
+                    sp.student_code,
+                    sp.reputation_score,
+                    COALESCE(rs.total_reservations, 0) AS total_reservations,
+                    COALESCE(rs.expired_count, 0) AS expired_count,
+                    COALESCE(rs.cancelled_count, 0) AS cancelled_count,
+                    COALESCE(rs.completed_count, 0) AS completed_count
+                FROM student_profiles sp
+                JOIN users u ON u.id = sp.user_id
+                LEFT JOIN reservation_stats rs ON rs.user_id = u.id
+                WHERE sp.reputation_score < 80
+                   OR (rs.total_reservations > 0
+                       AND (rs.expired_count::float / rs.total_reservations) > 0.3)
+                ORDER BY sp.reputation_score ASC,
+                         COALESCE(rs.expired_count, 0) DESC
+                LIMIT 10
+            """))
+
+            students = []
+            for row in result:
+                full_name = row[0]
+                user_code = row[1]
+                reputation_score = row[2] if row[2] is not None else 100
+                total = row[3] or 0
+                expired = row[4] or 0
+                cancelled = row[5] or 0
+
+                no_show_rate = (expired / total) if total > 0 else 0
+                cancel_rate = (cancelled / total) if total > 0 else 0
+
+                # Xác định severity
+                if reputation_score < 60 or no_show_rate > 0.5:
+                    severity = "critical"
+                elif reputation_score < 80 or no_show_rate > 0.3:
+                    severity = "warning"
+                else:
+                    severity = "info"
+
+                # Xác định vấn đề chính
+                issues = []
+                if no_show_rate > 0.3:
+                    issues.append(("Bỏ chỗ nhiều", f"Tỷ lệ bỏ chỗ {int(no_show_rate * 100)}% ({expired}/{total} lượt)"))
+                if cancel_rate > 0.3:
+                    issues.append(("Huỷ chỗ thường xuyên", f"Tỷ lệ huỷ {int(cancel_rate * 100)}% ({cancelled}/{total} lượt)"))
+                if reputation_score < 60:
+                    issues.append(("Vi phạm nội quy", f"Điểm uy tín rất thấp: {reputation_score}/100"))
+                elif reputation_score < 80:
+                    issues.append(("Điểm uy tín thấp", f"Điểm uy tín: {reputation_score}/100"))
+
+                if not issues:
+                    continue
+
+                primary_issue = issues[0][0]
+                detail = "; ".join(i[1] for i in issues)
+
+                # Gợi ý hành động
+                if severity == "critical":
+                    suggestion = "Cần nhắc nhở trực tiếp hoặc tạm khoá đặt chỗ"
+                elif severity == "warning":
+                    suggestion = "Nên gửi cảnh báo qua thông báo"
+                else:
+                    suggestion = "Theo dõi thêm"
+
+                students.append({
+                    "full_name": full_name,
+                    "user_code": user_code,
+                    "reputation_score": reputation_score,
+                    "severity": severity,
+                    "primary_issue": primary_issue,
+                    "detail": detail,
+                    "suggestion": suggestion,
+                })
+
+            return {"students": students}
+
+    except Exception as e:
+        logger.error(f"Lỗi khi truy vấn behavior-issues: {e}")
+        # Fallback: trả về danh sách rỗng thay vì lỗi 500
+        return {"students": []}
+
+
 @router.get("/density-prediction")
 async def get_density_prediction(zone_id: Optional[str] = None) -> Dict[str, Any]:
     """

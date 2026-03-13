@@ -30,48 +30,28 @@ public class NewsService {
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
 
-    public List<News> getPublicNews() {
-        return newsRepository.getAllPublishedNews();
-    }
-
-    public List<News> getPublicNewsByCategory(Long categoryId) {
-        return newsRepository.getPublishedNewsByCategory(categoryId);
-    }
-
-    @Transactional
-    public News getNewsDetailAndIncrementView(Long newsId) {
-        News news = newsRepository.findById(newsId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức với ID: " + newsId));
-        news.setViewCount(news.getViewCount() + 1);
-        return newsRepository.save(news);
-    }
-
-    // --- ADMIN/LIBRARIAN (WEB PORTAL) ---
-
-    public List<NewsListDTO> getAllNewsForAdmin() {
-        return newsRepository
-                .findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
-                        "createdAt"))
-                .stream()
-                .map(news -> NewsListDTO.builder()
-                        .id(news.getId())
-                        .title(news.getTitle())
-                        .summary(news.getSummary())
-                        .categoryId(news.getCategory() != null ? news.getCategory().getId() : null)
-                        .categoryName(news.getCategory() != null ? news.getCategory().getName() : null)
-                        .isPublished(news.getIsPublished())
-                        .isPinned(news.getIsPinned())
-                        .viewCount(news.getViewCount())
-                        .createdAt(news.getCreatedAt())
-                        .publishedAt(news.getPublishedAt())
-                        .imageUrl(news.getImageUrl())
-                        .build())
+    public List<NewsListDTO> getPublicNews() {
+        return newsRepository.getAllPublishedNews().stream()
+                .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
-    public NewsListDTO getNewsDetailForAdmin(Long id) {
-        News news = newsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
+    public List<NewsListDTO> getPublicNewsByCategory(Long categoryId) {
+        return newsRepository.getPublishedNewsByCategory(categoryId).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public NewsListDTO getNewsDetailAndIncrementView(Long newsId) {
+        News news = newsRepository.findById(newsId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức với ID: " + newsId));
+        news.setViewCount(news.getViewCount() + 1);
+        News saved = newsRepository.save(news);
+        return toDTO(saved);
+    }
+
+    public NewsListDTO toDTO(News news) {
         return NewsListDTO.builder()
                 .id(news.getId())
                 .title(news.getTitle())
@@ -86,6 +66,23 @@ public class NewsService {
                 .publishedAt(news.getPublishedAt())
                 .imageUrl(news.getImageUrl())
                 .build();
+    }
+
+    // --- ADMIN/LIBRARIAN (WEB PORTAL) ---
+
+    public List<NewsListDTO> getAllNewsForAdmin() {
+        return newsRepository
+                .findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
+                        "createdAt"))
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    public NewsListDTO getNewsDetailForAdmin(Long id) {
+        News news = newsRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
+        return toDTO(news);
     }
 
     public String getNewsImage(Long id) {

@@ -124,6 +124,7 @@ public class UserChatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<Message> searchConversation(UUID myId, UUID partnerId, String keyword) {
         return messageRepository.searchMessages(myId, partnerId, keyword);
     }

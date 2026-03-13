@@ -14,39 +14,51 @@ public class LibrarySetting {
 
     @Id
     @Column(name = "id")
+    @Builder.Default
     private Integer id = 1; // Singleton - chỉ có 1 record cấu hình
 
     @Column(name = "open_time", nullable = false)
+    @Builder.Default
     private String openTime = "07:00"; // Giờ mở cửa
 
     @Column(name = "close_time", nullable = false)
+    @Builder.Default
     private String closeTime = "21:00"; // Giờ đóng cửa
 
     @Column(name = "slot_duration", nullable = false)
+    @Builder.Default
     private Integer slotDuration = 60; // Thời lượng mỗi ca (phút)
 
     @Column(name = "max_booking_days", nullable = false)
+    @Builder.Default
     private Integer maxBookingDays = 14; // Số ngày tối đa có thể đặt trước
 
     @Column(name = "working_days", nullable = false)
+    @Builder.Default
     private String workingDays = "2,3,4,5,6"; // Ngày làm việc (1=CN, 2=T2, ..., 7=T7)
 
     @Column(name = "max_bookings_per_day", nullable = false)
+    @Builder.Default
     private Integer maxBookingsPerDay = 3; // Số lần đặt tối đa mỗi ngày cho 1 user
 
     @Column(name = "max_hours_per_day", nullable = false)
+    @Builder.Default
     private Integer maxHoursPerDay = 4; // Số giờ tối đa được đặt trong 1 ngày
 
     @Column(name = "auto_cancel_minutes", nullable = false)
+    @Builder.Default
     private Integer autoCancelMinutes = 15; // Phút tự hủy booking không check-in
 
     @Column(name = "auto_cancel_on_leave_minutes", nullable = false)
+    @Builder.Default
     private Integer autoCancelOnLeaveMinutes = 30; // Phút tự hủy sau khi rời chỗ
 
     @Column(name = "min_reputation", nullable = false)
+    @Builder.Default
     private Integer minReputation = 0; // Điểm uy tín tối thiểu để đặt chỗ (0 = không giới hạn)
 
     @Column(name = "library_closed", nullable = false)
+    @Builder.Default
     private Boolean libraryClosed = false; // true = thư viện đang tạm đóng, sinh viên không thể đặt chỗ
 
     @Column(name = "closed_reason", length = 500)

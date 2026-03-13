@@ -43,17 +43,22 @@ class NfcUidService {
     Function(String errorMessage)? onError,
     Function()? onNfcUnavailable,
   }) async {
-    // Check NFC availability first
-    final isAvailable = await isNfcAvailable();
-    if (!isAvailable) {
-      debugPrint('NfcUidService: NFC is not available on this device');
-      onNfcUnavailable?.call();
-      return false;
+    // On iOS, skip pre-check and try starting session directly.
+    // iOS will show native "Ready to Scan" dialog if NFC is supported.
+    // Pre-check can return false on free dev accounts even when NFC works.
+    if (!Platform.isIOS) {
+      final isAvailable = await isNfcAvailable();
+      if (!isAvailable) {
+        debugPrint('NfcUidService: NFC is not available on this device');
+        onNfcUnavailable?.call();
+        return false;
+      }
     }
 
     try {
       // Start NFC session
       await NfcManager.instance.startSession(
+        alertMessageIos: 'Chạm iPhone vào nhãn NFC trên ghế',
         pollingOptions: {
           NfcPollingOption.iso14443,
           NfcPollingOption.iso15693,

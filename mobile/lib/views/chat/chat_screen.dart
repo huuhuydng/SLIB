@@ -90,7 +90,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final token = await authService.getToken();
 
       if (token == null) {
-        print('[PERSIST] No auth token, skipping state restoration');
+        print('[PERSIST] No auth token, loading local messages only');
+        await _loadLocalMessages();
         return;
       }
 
@@ -115,9 +116,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           isFromBackend = false;
           print('[PERSIST] No active backend conversation, using saved AI session (userId=$savedUserId): $activeConversationId');
         } else {
-          // Không có savedUserId → data cũ, không tin tưởng → clear hết
-          print('[PERSIST] No savedUserId found, clearing untrusted saved state');
-          await _clearSavedState();
+          // Không có savedUserId → data cũ, không tin tưởng → clear conversation state nhưng giữ messages
+          print('[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)');
+          final prefs2 = await SharedPreferences.getInstance();
+          await prefs2.remove(_keyConversationId);
+          await prefs2.remove(_keyIsEscalated);
+          await prefs2.remove(_keyLibrarianName);
+          await prefs2.remove(_keyIsWaitingInQueue);
+          // KHÔNG xóa _keyMessages — giữ lại tin nhắn cũ
         }
       } else {
         print('[PERSIST] No active conversation found');
@@ -209,6 +215,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       print('[PERSIST] Error loading state: $e');
+      // Fallback: luôn thử load local messages khi có lỗi
+      await _loadLocalMessages();
     } finally {
       if (mounted) {
         setState(() {
@@ -1240,6 +1248,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _messages.add(ChatMessage(text: text, isUser: true, time: DateTime.now()));
       _isTyping = !_isEscalated; // Chỉ hiện typing khi chat với AI
     });
+
+    // Save ngay sau khi thêm tin nhắn user (tránh mất nếu app đóng trước khi AI response)
+    _saveMessages();
 
     // Cuon xuong cuoi
     _scrollToBottom();

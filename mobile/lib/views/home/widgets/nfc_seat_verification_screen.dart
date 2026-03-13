@@ -80,13 +80,17 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
   }
 
   Future<void> _checkNfcAndStartScan() async {
-    final isAvailable = await _nfcUidService.isNfcAvailable();
-    if (!isAvailable) {
-      setState(() {
-        _isNfcAvailable = false;
-        _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
-      });
-      return;
+    // On iOS, skip pre-check — go straight to scan.
+    // iOS native dialog will appear if NFC is supported.
+    if (!Platform.isIOS) {
+      final isAvailable = await _nfcUidService.isNfcAvailable();
+      if (!isAvailable) {
+        setState(() {
+          _isNfcAvailable = false;
+          _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
+        });
+        return;
+      }
     }
 
     await _startNfcScan();
@@ -113,7 +117,14 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     );
 
     if (!success && mounted) {
-      setState(() => _isScanning = false);
+      setState(() {
+        _isScanning = false;
+        // If start failed on iOS, NFC is truly unavailable
+        if (Platform.isIOS) {
+          _isNfcAvailable = false;
+          _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
+        }
+      });
     }
   }
 

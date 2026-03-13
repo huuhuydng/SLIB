@@ -23,6 +23,7 @@ import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.ZoneEntity;
+import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.ReservationRepository;
@@ -660,8 +661,44 @@ public class BookingService {
         }
 
         @Transactional(readOnly = true)
-        public List<ReservationEntity> getAllBookings() {
-                return reservationRepository.findAll();
+        public List<BookingResponse> getAllBookings() {
+                return reservationRepository.findAll().stream()
+                                .map(this::toBookingResponse)
+                                .toList();
+        }
+
+        private BookingResponse toBookingResponse(ReservationEntity reservation) {
+                var user = reservation.getUser();
+                var seat = reservation.getSeat();
+                var zone = seat.getZone();
+                var area = zone != null ? zone.getArea() : null;
+
+                return BookingResponse.builder()
+                                .reservationId(reservation.getReservationId())
+                                .user(BookingResponse.UserInfo.builder()
+                                                .id(user.getId())
+                                                .userCode(user.getUserCode())
+                                                .fullName(user.getFullName())
+                                                .email(user.getEmail())
+                                                .avtUrl(user.getAvtUrl())
+                                                .build())
+                                .seat(BookingResponse.SeatInfo.builder()
+                                                .id(seat.getSeatId())
+                                                .seatCode(seat.getSeatCode())
+                                                .zone(zone != null ? BookingResponse.ZoneInfo.builder()
+                                                                .id(zone.getZoneId())
+                                                                .zoneName(zone.getZoneName())
+                                                                .area(area != null ? BookingResponse.AreaInfo.builder()
+                                                                                .id(area.getAreaId())
+                                                                                .areaName(area.getAreaName())
+                                                                                .build() : null)
+                                                                .build() : null)
+                                                .build())
+                                .startTime(reservation.getStartTime())
+                                .endTime(reservation.getEndTime())
+                                .status(reservation.getStatus())
+                                .createdAt(reservation.getCreatedAt())
+                                .build();
         }
 
         @Transactional(readOnly = true)

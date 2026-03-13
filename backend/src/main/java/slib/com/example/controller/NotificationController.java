@@ -3,6 +3,7 @@ package slib.com.example.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.notification.NotificationDTO;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
@@ -12,6 +13,7 @@ import slib.com.example.service.PushNotificationService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Controller for managing user notifications
@@ -29,11 +31,24 @@ public class NotificationController {
      * Get notifications for a user
      */
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<NotificationEntity>> getUserNotifications(
+    public ResponseEntity<List<NotificationDTO>> getUserNotifications(
             @PathVariable UUID userId,
             @RequestParam(defaultValue = "50") int limit) {
         List<NotificationEntity> notifications = pushNotificationService.getUserNotifications(userId, limit);
-        return ResponseEntity.ok(notifications);
+        List<NotificationDTO> dtos = notifications.stream()
+                .map(n -> NotificationDTO.builder()
+                        .id(n.getId())
+                        .userId(n.getUser() != null ? n.getUser().getId() : null)
+                        .title(n.getTitle())
+                        .content(n.getContent())
+                        .notificationType(n.getNotificationType() != null ? n.getNotificationType().name() : null)
+                        .referenceType(n.getReferenceType())
+                        .referenceId(n.getReferenceId())
+                        .isRead(n.getIsRead())
+                        .createdAt(n.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     /**

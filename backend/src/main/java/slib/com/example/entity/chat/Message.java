@@ -47,6 +47,7 @@ public class Message {
         return this.attachmentUrl != null && !this.attachmentUrl.isEmpty();
     }
 
+    @Builder.Default
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
