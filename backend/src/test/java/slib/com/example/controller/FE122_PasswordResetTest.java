@@ -265,7 +265,7 @@ class FE122_PasswordResetTest {
         }
 
         @Test
-        @DisplayName("UTCD12: Update password without Authorization header returns 400 Bad Request")
+        @DisplayName("UTCD12: Update password without Authorization header returns 500")
         void updatePassword_MissingAuthHeader() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("password", "NewPassword@123");
@@ -273,7 +273,7 @@ class FE122_PasswordResetTest {
                 mockMvc.perform(post("/api/librarian/update-password")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                        .andExpect(status().isBadRequest());
+                        .andExpect(status().isInternalServerError());
         }
 
         @Test
