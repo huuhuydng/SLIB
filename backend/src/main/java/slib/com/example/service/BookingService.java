@@ -6,11 +6,15 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.entity.LibrarySetting;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
@@ -30,6 +34,8 @@ import slib.com.example.service.ReputationService;
 
 @Service
 public class BookingService {
+        private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
         private final ReservationRepository reservationRepository;
         private final UserRepository userRepository;
         private final SeatRepository seatRepository;
@@ -69,6 +75,7 @@ public class BookingService {
                 this.seatService = seatService;
         }
 
+        @Transactional
         public ReservationEntity createBooking(UUID userId, Integer seatId,
                         LocalDateTime startTime, LocalDateTime endTime) {
                 User user = userRepository.findById(userId)
@@ -209,14 +216,17 @@ public class BookingService {
                 return saved;
         }
 
+        @Transactional(readOnly = true)
         public List<ZoneEntity> getAllZones() {
                 return zoneRepository.findAll();
         }
 
+        @Transactional(readOnly = true)
         public List<SeatEntity> getAllSeats(Integer zoneId) {
                 return seatRepository.findByZone_ZoneId(zoneId);
         }
 
+        @Transactional(readOnly = true)
         public long countAvailableSeats(Integer zoneId) {
                 LocalDate today = LocalDate.now();
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
@@ -229,6 +239,7 @@ public class BookingService {
                                 .count();
         }
 
+        @Transactional(readOnly = true)
         public List<ReservationEntity> getBookingsByUser(UUID userId) {
                 return reservationRepository.findByUserId(userId);
         }
@@ -236,6 +247,7 @@ public class BookingService {
         /**
          * Get booking history with full zone/area info for mobile display
          */
+        @Transactional(readOnly = true)
         public List<slib.com.example.dto.booking.BookingHistoryResponse> getBookingHistory(UUID userId) {
                 return reservationRepository.findByUserId(userId).stream()
                                 .map(this::mapToBookingHistoryResponse)
@@ -266,6 +278,7 @@ public class BookingService {
          * Get the upcoming or current active booking for a user
          * Returns the first BOOKED or PROCESSING reservation that hasn't ended yet
          */
+        @Transactional(readOnly = true)
         public java.util.Optional<slib.com.example.dto.booking.UpcomingBookingResponse> getUpcomingBooking(
                         UUID userId) {
                 // Use Vietnam timezone explicitly to ensure consistent time comparison
@@ -323,6 +336,7 @@ public class BookingService {
          * Cancel booking with 12-hour rule validation
          * User must cancel at least 12 hours before start time
          */
+        @Transactional
         public ReservationEntity cancelBooking(UUID reservationId) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
@@ -341,7 +355,7 @@ public class BookingService {
                 // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
                 if (!"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
                         // Check 12-hour rule for confirmed bookings
-                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                         LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
                         if (now.isAfter(cancelDeadline)) {
@@ -393,6 +407,7 @@ public class BookingService {
          *             SEAT_ID:A01_ZONE:B)
          */
         @Deprecated
+        @Transactional
         public ReservationEntity confirmSeatWithNfc(UUID reservationId, String nfcData) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
@@ -418,7 +433,7 @@ public class BookingService {
                 }
 
                 // Check if within valid time window (start_time - 15 mins to end_time)
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                 LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
                 LocalDateTime checkInEnd = reservation.getEndTime();
 
@@ -497,6 +512,7 @@ public class BookingService {
          * @param rawNfcUid     Raw NFC tag UID from mobile app (uppercase HEX)
          * @return Updated reservation with CONFIRMED status
          */
+        @Transactional
         public ReservationEntity confirmSeatWithNfcUid(UUID reservationId, String rawNfcUid) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
@@ -513,7 +529,7 @@ public class BookingService {
                 }
 
                 // Step 3: Check time window (start_time - 15 mins to end_time)
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                 LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
                 LocalDateTime checkInEnd = reservation.getEndTime();
 
@@ -583,9 +599,28 @@ public class BookingService {
                 return saved;
         }
 
+        private static final Map<String, Set<String>> VALID_STATUS_TRANSITIONS = Map.of(
+                "PROCESSING", Set.of("BOOKED", "CANCELLED"),
+                "BOOKED", Set.of("CONFIRMED", "CANCELLED", "EXPIRED"),
+                "CONFIRMED", Set.of("COMPLETED", "CANCELLED"),
+                "COMPLETED", Set.of(),
+                "CANCELLED", Set.of(),
+                "EXPIRED", Set.of()
+        );
+
+        @Transactional
         public ReservationEntity updateStatus(UUID reservationId, String status) {
                 ReservationEntity reserv = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
+
+                String currentStatus = reserv.getStatus().toUpperCase();
+                String newStatus = status.toUpperCase();
+                Set<String> allowedTransitions = VALID_STATUS_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+                if (!allowedTransitions.contains(newStatus)) {
+                        throw new BadRequestException(
+                                "Không thể chuyển trạng thái từ " + currentStatus + " sang " + newStatus);
+                }
+
                 reserv.setStatus(status);
                 ReservationEntity saved = reservationRepository.save(reserv);
 
@@ -624,10 +659,12 @@ public class BookingService {
                 return saved;
         }
 
+        @Transactional(readOnly = true)
         public List<ReservationEntity> getAllBookings() {
                 return reservationRepository.findAll();
         }
 
+        @Transactional(readOnly = true)
         public List<SeatDTO> getAllSeatsDTO(Integer zoneId) {
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
                 return seats.stream().map(this::mapToDTO).toList();
@@ -647,6 +684,7 @@ public class BookingService {
                                 null);
         }
 
+        @Transactional(readOnly = true)
         public List<SeatDTO> getSeatsByTime(Integer zoneId, LocalDate date, LocalTime start, LocalTime end) {
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
@@ -704,6 +742,7 @@ public class BookingService {
                 }).toList();
         }
 
+        @Transactional(readOnly = true)
         public List<SeatDTO> getSeatsByDate(Integer zoneId, LocalDate date) {
                 List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zoneId);
 
@@ -760,6 +799,7 @@ public class BookingService {
          * Lấy tất cả seats của 1 area theo time slot
          * Trả về Map<zoneId, List<SeatDTO>> - tối ưu từ N query thành 1 batch
          */
+        @Transactional(readOnly = true)
         public java.util.Map<Integer, List<SeatDTO>> getAllSeatsByArea(Integer areaId, LocalDate date, LocalTime start,
                         LocalTime end) {
                 // Lấy tất cả zones thuộc area

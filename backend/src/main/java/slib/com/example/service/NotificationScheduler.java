@@ -43,9 +43,9 @@ public class NotificationScheduler {
 
         // Find reservations starting in the next 15-16 minutes that haven't been
         // reminded
-        List<ReservationEntity> upcomingReservations = reservationRepository.findAll().stream()
+        List<ReservationEntity> upcomingReservations = reservationRepository
+                .findByStatusIn(List.of("BOOKED", "CONFIRMED")).stream()
                 .filter(r -> r.getStartTime() != null)
-                .filter(r -> "BOOKED".equals(r.getStatus()) || "CONFIRMED".equals(r.getStatus()))
                 .filter(r -> {
                     LocalDateTime startTime = r.getStartTime();
                     return startTime.isAfter(now) && startTime.isBefore(reminderTime.plusMinutes(1));

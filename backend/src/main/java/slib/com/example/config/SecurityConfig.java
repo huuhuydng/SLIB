@@ -37,12 +37,12 @@ public class SecurityConfig {
                         .requestMatchers("/slib/auth/**").permitAll()
                         .requestMatchers("/slib/users/login-google").permitAll()
                         .requestMatchers("/slib/users/getall").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // Open WebSocket endpoints (important for realtime)
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cho thủ thư)
-                        .requestMatchers("/slib/ai/admin/**").permitAll()
+                        .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI Chat endpoints (cho sinh viên - cần authenticated)
                         .requestMatchers("/slib/ai/chat/**").authenticated()
                         .requestMatchers("/slib/files/**").permitAll()
@@ -61,7 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/slib/kiosk/session/activate").permitAll()
                         .requestMatchers("/slib/kiosk/session/activate-code").permitAll()
                         // Cac endpoint khac
-                        .anyRequest().permitAll()) // Tam de permitAll de test, sau nay nen doi thanh authenticated()
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

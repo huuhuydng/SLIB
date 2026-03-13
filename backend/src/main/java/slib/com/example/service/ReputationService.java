@@ -89,7 +89,7 @@ public class ReputationService {
 
         // Update reputation score
         int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-        int newScore = Math.max(0, currentScore + rule.getPoints()); // Points: negative = penalty, positive = reward
+        int newScore = Math.min(200, Math.max(0, currentScore + rule.getPoints())); // Points: negative = penalty, positive = reward
         profile.setReputationScore(newScore);
         studentProfileRepository.save(profile);
 

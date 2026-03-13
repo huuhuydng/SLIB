@@ -90,7 +90,7 @@ public class PasswordResetController {
                     "message", "Không tìm thấy người dùng"));
         }
 
-        String resetToken = jwtService.generateAccessToken(userOpt.get());
+        String resetToken = jwtService.generatePasswordResetToken(userOpt.get());
 
         return ResponseEntity.ok(Map.of(
                 "success", true,
@@ -147,6 +147,11 @@ public class PasswordResetController {
         }
 
         String token = authHeader.substring(7);
+
+        if (!jwtService.isPasswordResetToken(token)) {
+            return ResponseEntity.status(403).body(Map.of(
+                    "message", "Token khong hop le cho viec dat lai mat khau"));
+        }
 
         try {
             String email = jwtService.extractEmail(token);
