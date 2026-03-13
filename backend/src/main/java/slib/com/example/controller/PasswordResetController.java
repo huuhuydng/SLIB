@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/librarian")
+@RequestMapping("/slib/auth")
 @RequiredArgsConstructor
 @Slf4j
 public class PasswordResetController {
@@ -26,7 +26,7 @@ public class PasswordResetController {
 
     /**
      * Bước 1: Gửi OTP đến email
-     * POST /api/librarian/forgot-password
+     * POST /slib/auth/forgot-password
      * Body: { "email": "user@example.com" }
      */
     @PostMapping("/forgot-password")
@@ -58,7 +58,7 @@ public class PasswordResetController {
 
     /**
      * Bước 2: Xác thực OTP
-     * POST /api/librarian/verify-otp
+     * POST /slib/auth/verify-otp
      * Body: { "email": "...", "token": "123456", "type": "recovery" }
      */
     @PostMapping("/verify-otp")
@@ -100,7 +100,7 @@ public class PasswordResetController {
 
     /**
      * Gửi lại OTP
-     * POST /api/librarian/resend-otp
+     * POST /slib/auth/resend-otp
      * Body: { "email": "...", "type": "recovery" }
      */
     @PostMapping("/resend-otp")
@@ -125,7 +125,7 @@ public class PasswordResetController {
 
     /**
      * Bước 3: Đặt mật khẩu mới
-     * POST /api/librarian/update-password
+     * POST /slib/auth/update-password
      * Header: Authorization: Bearer <reset_token>
      * Body: { "password": "newPassword123" }
      */
