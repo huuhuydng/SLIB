@@ -762,26 +762,33 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               children: [
                 ListView.builder(
                   controller: _scrollController,
+                  reverse: true,
                   padding: const EdgeInsets.all(16),
                   itemCount: _messages.length + (_isTyping ? 1 : 0) + (_isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    // Loading indicator khi đang load thêm messages cũ
-                    if (_isLoadingMore && index == 0) {
+                    // reverse=true: index 0 = bottom (newest)
+                    // Typing indicator at bottom (index 0 when typing)
+                    if (_isTyping && index == 0) {
+                      return _buildTypingIndicator();
+                    }
+                    final adjustedIndex = _isTyping ? index - 1 : index;
+                    // Loading indicator at top (last index)
+                    final totalMessages = _messages.length;
+                    if (_isLoadingMore && adjustedIndex == totalMessages) {
                       return const Padding(
                         padding: EdgeInsets.all(16.0),
                         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                       );
                     }
-                    final adjustedIndex = _isLoadingMore ? index - 1 : index;
-                    if (adjustedIndex == _messages.length && _isTyping) {
-                      return _buildTypingIndicator();
-                    }
-                    final message = _messages[adjustedIndex];
+                    // Reverse: map index to message (newest first → oldest last)
+                    final msgIndex = totalMessages - 1 - adjustedIndex;
+                    if (msgIndex < 0 || msgIndex >= totalMessages) return const SizedBox.shrink();
+                    final message = _messages[msgIndex];
                     Widget? timeSeparator;
-                    if (adjustedIndex == 0) {
+                    if (msgIndex == 0) {
                       timeSeparator = _buildTimeSeparator(message.time);
                     } else {
-                      final prevMessage = _messages[adjustedIndex - 1];
+                      final prevMessage = _messages[msgIndex - 1];
                       final diff = message.time.difference(prevMessage.time);
                       if (diff.inMinutes.abs() >= 60) {
                         timeSeparator = _buildTimeSeparator(message.time);
@@ -1552,9 +1559,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Scroll listener: hiện/ẩn nút scroll-to-bottom
   void _onScrollChanged() {
     if (!_scrollController.hasClients) return;
-    final maxScroll = _scrollController.position.maxScrollExtent;
+    // reverse: true → offset 0 = bottom, offset > 0 = scrolled up
     final currentScroll = _scrollController.offset;
-    final shouldShow = (maxScroll - currentScroll) > 300;
+    final shouldShow = currentScroll > 300;
     if (shouldShow != _showScrollToBottom) {
       setState(() {
         _showScrollToBottom = shouldShow;
@@ -1562,10 +1569,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Khi scroll lên đầu → load thêm messages cũ hơn
+  /// Khi scroll lên đầu (top = maxScrollExtent with reverse) → load thêm messages cũ hơn
   void _onScrollUp() {
     if (!_scrollController.hasClients) return;
-    if (_scrollController.position.pixels <= 50 &&
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    if (_scrollController.position.pixels >= maxScroll - 50 &&
         !_isLoadingMore &&
         _hasMorePages &&
         _conversationId != null) {
@@ -1667,7 +1675,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0.0, // reverse: true → 0 is bottom
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
