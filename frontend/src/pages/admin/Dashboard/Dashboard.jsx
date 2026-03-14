@@ -23,7 +23,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import StatCard from "./StatCard";
-import dashboardService from "../../../services/dashboardService";
+import dashboardService from "../../../services/librarian/dashboardService";
 import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
 import "../../../styles/Dashboard.css";
 

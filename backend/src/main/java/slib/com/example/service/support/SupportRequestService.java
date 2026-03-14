@@ -15,10 +15,10 @@ import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.support.SupportRequest;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
-import slib.com.example.service.LibrarianNotificationService;
-import slib.com.example.service.PushNotificationService;
+import slib.com.example.service.notification.LibrarianNotificationService;
+import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.chat.ConversationService;
 

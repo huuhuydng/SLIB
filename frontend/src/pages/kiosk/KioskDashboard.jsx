@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, CalendarDays, Clock, CheckCircle, XCircle, BookOpen } from 'lucide-react';
 import { useIdleTimer } from '../../hooks/useIdleTimer';
-import kioskService from '../../services/kioskService';
+import kioskService from '../../services/kiosk/kioskService';
 import './KioskDashboard.css';
 
 const IDLE_TIMEOUT_MS = 30000;

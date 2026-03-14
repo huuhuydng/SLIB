@@ -10,10 +10,11 @@ import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/booking_service.dart';
-import 'package:slib/services/seat_websocket_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/seat/seat_websocket_service.dart';
 import 'package:slib/views/home/widgets/booking_confirm_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 import 'package:intl/intl.dart';
 
 /// Màn hình sơ đồ mặt bằng thư viện
@@ -215,7 +216,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Không thể tải dữ liệu: $e';
+        _errorMessage = ErrorDisplayWidget.toVietnamese(e);
       });
     }
   }
@@ -2218,7 +2219,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _seats.isEmpty
-                    ? const Center(child: Text('Không có ghế'))
+                    ? ErrorDisplayWidget.empty(message: 'Không có ghế')
                     : _buildSeatGrid(),
           ),
 

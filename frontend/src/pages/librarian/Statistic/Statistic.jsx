@@ -5,13 +5,14 @@ import {
   ArrowUpRight, ArrowDownRight, FileWarning,
   MapPin, CalendarCheck
 } from 'lucide-react';
-import statisticService from '../../../services/statisticService';
-import dashboardService from '../../../services/dashboardService';
+import statisticService from '../../../services/librarian/statisticService';
+import dashboardService from '../../../services/librarian/dashboardService';
 import AIAnalyticsPanel from './AIAnalyticsPanel';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/Statistic.css';
 
 const RANGE_OPTIONS = [
+  { value: 'day', label: 'Hôm nay' },
   { value: 'week', label: 'Tuần này' },
   { value: 'month', label: 'Tháng này' },
   { value: 'year', label: 'Năm nay' },
@@ -445,7 +446,7 @@ const Statistic = () => {
 
       {/* Row 4: AI Analytics */}
       <div className="lib-panel" style={{ marginBottom: '14px' }}>
-        <AIAnalyticsPanel period={range === 'year' ? 'month' : range} onPeriodChange={(p) => setRange(p)} />
+        <AIAnalyticsPanel period={range === 'year' ? 'month' : range} />
       </div>
     </div>
   );

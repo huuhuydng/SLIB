@@ -6,6 +6,8 @@ import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import slib.com.example.dto.ai.ChatMessageResponseDTO;
+import slib.com.example.dto.ai.ChatSessionDTO;
 import slib.com.example.entity.ai.ChatMessageEntity;
 import slib.com.example.entity.ai.ChatSessionEntity;
 import slib.com.example.entity.users.User;
@@ -13,6 +15,7 @@ import slib.com.example.service.ai.ChatService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Chat endpoints for students and librarians
@@ -104,8 +107,9 @@ public class ChatController {
      * Get user's chat sessions
      */
     @GetMapping("/chat/sessions")
-    public ResponseEntity<List<ChatSessionEntity>> getUserSessions(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(chatService.getUserSessions(user.getId()));
+    public ResponseEntity<List<ChatSessionDTO>> getUserSessions(@AuthenticationPrincipal User user) {
+        List<ChatSessionEntity> sessions = chatService.getUserSessions(user.getId());
+        return ResponseEntity.ok(sessions.stream().map(this::toSessionDTO).collect(Collectors.toList()));
     }
 
     /**
@@ -114,7 +118,13 @@ public class ChatController {
     @GetMapping("/chat/session/{sessionId}")
     public ResponseEntity<?> getSessionDetail(@PathVariable Long sessionId) {
         try {
-            return ResponseEntity.ok(chatService.getSessionDetail(sessionId));
+            Map<String, Object> detail = chatService.getSessionDetail(sessionId);
+            ChatSessionEntity session = (ChatSessionEntity) detail.get("session");
+            @SuppressWarnings("unchecked")
+            List<ChatMessageEntity> messages = (List<ChatMessageEntity>) detail.get("messages");
+            return ResponseEntity.ok(Map.of(
+                    "session", toSessionDTO(session),
+                    "messages", messages.stream().map(this::toMessageDTO).collect(Collectors.toList())));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
@@ -132,7 +142,7 @@ public class ChatController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã đóng phiên chat",
-                    "session", session));
+                    "session", toSessionDTO(session)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
@@ -148,8 +158,9 @@ public class ChatController {
      * Get escalated sessions (needs librarian)
      */
     @GetMapping("/admin/escalated")
-    public ResponseEntity<List<ChatSessionEntity>> getEscalatedSessions() {
-        return ResponseEntity.ok(chatService.getEscalatedSessions());
+    public ResponseEntity<List<ChatSessionDTO>> getEscalatedSessions() {
+        List<ChatSessionEntity> sessions = chatService.getEscalatedSessions();
+        return ResponseEntity.ok(sessions.stream().map(this::toSessionDTO).collect(Collectors.toList()));
     }
 
     /**
@@ -171,7 +182,7 @@ public class ChatController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã gửi phản hồi",
-                    "data", msg));
+                    "data", toMessageDTO(msg)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
@@ -189,7 +200,7 @@ public class ChatController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã xử lý xong phiên chat",
-                    "session", session));
+                    "session", toSessionDTO(session)));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
@@ -203,11 +214,45 @@ public class ChatController {
     @GetMapping("/admin/session/{sessionId}")
     public ResponseEntity<?> getSessionForAdmin(@PathVariable Long sessionId) {
         try {
-            return ResponseEntity.ok(chatService.getSessionDetail(sessionId));
+            Map<String, Object> detail = chatService.getSessionDetail(sessionId);
+            ChatSessionEntity session = (ChatSessionEntity) detail.get("session");
+            @SuppressWarnings("unchecked")
+            List<ChatMessageEntity> messages = (List<ChatMessageEntity>) detail.get("messages");
+            return ResponseEntity.ok(Map.of(
+                    "session", toSessionDTO(session),
+                    "messages", messages.stream().map(this::toMessageDTO).collect(Collectors.toList())));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", e.getMessage()));
         }
+    }
+
+    // ========================================
+    // DTO CONVERTERS
+    // ========================================
+
+    private ChatSessionDTO toSessionDTO(ChatSessionEntity entity) {
+        return ChatSessionDTO.builder()
+                .id(entity.getId())
+                .userId(entity.getUser() != null ? entity.getUser().getId() : null)
+                .userName(entity.getUser() != null ? entity.getUser().getFullName() : null)
+                .status(entity.getStatus() != null ? entity.getStatus().name() : null)
+                .title(entity.getTitle())
+                .createdAt(entity.getCreatedAt())
+                .closedAt(entity.getClosedAt())
+                .build();
+    }
+
+    private ChatMessageResponseDTO toMessageDTO(ChatMessageEntity entity) {
+        return ChatMessageResponseDTO.builder()
+                .id(entity.getId())
+                .sessionId(entity.getSession() != null ? entity.getSession().getId() : null)
+                .role(entity.getRole() != null ? entity.getRole().name() : null)
+                .content(entity.getContent())
+                .needsReview(entity.getNeedsReview())
+                .confidenceScore(entity.getConfidenceScore())
+                .createdAt(entity.getCreatedAt())
+                .build();
     }
 }

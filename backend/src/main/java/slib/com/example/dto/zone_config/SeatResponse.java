@@ -21,6 +21,7 @@ public class SeatResponse {
     private String reservationEndTime; // ISO datetime string, null if AVAILABLE
 
     // Booker info - populated when seat is BOOKED
+    private String reservationId; // UUID as string, for librarian manual confirm
     private String bookedByUserName;
     private String bookedByUserCode;
     private String bookedByAvatarUrl;

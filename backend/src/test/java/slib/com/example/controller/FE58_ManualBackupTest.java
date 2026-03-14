@@ -13,8 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.system.BackupController;
 import slib.com.example.entity.system.BackupHistoryEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.BackupScheduleRepository;
-import slib.com.example.service.BackupService;
+import slib.com.example.repository.system.BackupScheduleRepository;
+import slib.com.example.service.system.BackupService;
 
 import java.io.File;
 import java.time.LocalDateTime;

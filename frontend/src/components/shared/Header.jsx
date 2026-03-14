@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
-import { useLibrarianNotification } from '../../contexts/LibrarianNotificationContext';
+import { useLibrarianNotification } from '../../context/LibrarianNotificationContext';
 import '../../styles/librarian/header.css';
 
 const Header = ({

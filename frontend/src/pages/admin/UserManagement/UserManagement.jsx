@@ -28,10 +28,11 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 
-import userService from '../../../services/userService';
+import userService from '../../../services/auth/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
 import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import './UserManagement.css';
@@ -54,6 +55,7 @@ const STATUS_OPTIONS = [
 
 const UserManagement = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -462,8 +464,13 @@ const UserManagement = () => {
     // Check for validation errors
     const hasErrors = Object.keys(validationErrors).length > 0;
     if (hasErrors) {
-      const confirm = window.confirm('Có một số lỗi trong dữ liệu. Bạn có muốn tiếp tục import những người dùng hợp lệ không?');
-      if (!confirm) return;
+      const confirmed = await confirm({
+        title: 'Dữ liệu có lỗi',
+        message: 'Có một số lỗi trong dữ liệu. Bạn có muốn tiếp tục import những người dùng hợp lệ không?',
+        variant: 'warning',
+        confirmText: 'Tiếp tục',
+      });
+      if (!confirmed) return;
     }
 
     try {

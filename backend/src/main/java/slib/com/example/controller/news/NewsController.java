@@ -3,11 +3,12 @@ package slib.com.example.controller.news;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import slib.com.example.dto.NewsListDTO;
+import slib.com.example.dto.news.NewsListDTO;
 import slib.com.example.entity.news.News;
-import slib.com.example.service.NewsService;
+import slib.com.example.service.news.NewsService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/news")
@@ -19,18 +20,17 @@ public class NewsController {
 
     // 1. Dành cho Sinh viên - Mobile App
     @GetMapping("/public")
-    public ResponseEntity<List<News>> getPublicNews() {
-        List<News> newsList = newsService.getPublicNews();
-        return ResponseEntity.ok(newsList);
+    public ResponseEntity<List<NewsListDTO>> getPublicNews() {
+        return ResponseEntity.ok(newsService.getPublicNews());
     }
 
     @GetMapping("/public/category/{categoryId}")
-    public ResponseEntity<List<News>> getPublicNewsByCategory(@PathVariable Long categoryId) {
+    public ResponseEntity<List<NewsListDTO>> getPublicNewsByCategory(@PathVariable Long categoryId) {
         return ResponseEntity.ok(newsService.getPublicNewsByCategory(categoryId));
     }
 
     @GetMapping("/public/detail/{id}")
-    public ResponseEntity<News> getNewsDetail(@PathVariable Long id) {
+    public ResponseEntity<NewsListDTO> getNewsDetail(@PathVariable Long id) {
         return ResponseEntity.ok(newsService.getNewsDetailAndIncrementView(id));
     }
 
@@ -51,15 +51,15 @@ public class NewsController {
     }
 
     @PostMapping("/admin")
-    public ResponseEntity<News> createNews(@RequestBody News news) {
+    public ResponseEntity<NewsListDTO> createNews(@RequestBody News news) {
         News createdNews = newsService.createNews(news);
-        return ResponseEntity.ok(createdNews);
+        return ResponseEntity.ok(newsService.toDTO(createdNews));
     }
 
     @PutMapping("/admin/{id}")
-    public ResponseEntity<News> updateNews(@PathVariable Long id, @RequestBody News newsDetails) {
+    public ResponseEntity<NewsListDTO> updateNews(@PathVariable Long id, @RequestBody News newsDetails) {
         News updatedNews = newsService.updateNews(id, newsDetails);
-        return ResponseEntity.ok(updatedNews);
+        return ResponseEntity.ok(newsService.toDTO(updatedNews));
     }
 
     @DeleteMapping("/admin/{id}")

@@ -1,6 +1,6 @@
 -- V16_1: Seed initial users (LIBRARIAN and ADMIN)
 
--- Insert Nguyễn Hoàng Phúc - LIBRARIAN
+-- Insert LIBRARIAN
 
 INSERT INTO
     users (

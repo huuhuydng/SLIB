@@ -6,7 +6,7 @@ import logo from '../../../assets/logonencam.png';
 import '../../../styles/admin/KioskHome.css';
 
 // Import các trang chức năng con của Kiosk
-import SeatManage from '../../../pages/librarian/SeatManage/SeatManage';
+import KioskSeatManage from '../../../pages/librarian/KioskSeatManage/KioskSeatManage';
 import CheckInOut from '../../../pages/librarian/CheckInOut/CheckInOut';
 import HeatMap from '../../../pages/librarian/HeatMap/HeatMap';
 
@@ -19,7 +19,7 @@ const KioskHome = () => {
       {/* Các trang chức năng con */}
       <Route path="seat-manage" element={
         <IdleSlideshow idleTimeMs={30000}>
-          <SeatManage isKiosk={true} />
+          <KioskSeatManage isKiosk={true} />
         </IdleSlideshow>
       } />
       
@@ -76,7 +76,7 @@ const KioskMenu = () => {
           <h2 className="kioskHome__welcome">Bạn muốn làm gì hôm nay?</h2>
           
           <div className="kioskHome__grid">
-            {/* Nút Đặt chỗ - Dẫn tới SeatManage */}
+            {/* Nút Đặt chỗ - Dẫn tới KioskSeatManage */}
             <button 
               className="kioskHome__card kioskHome__card--primary"
               onClick={() => navigate('/kiosk/seat-manage')}

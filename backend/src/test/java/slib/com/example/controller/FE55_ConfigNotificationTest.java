@@ -14,8 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.UserRepository;
-import slib.com.example.service.PushNotificationService;
+import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.notification.PushNotificationService;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.notification.NotificationController;
 
 /**
  * Unit Tests for FE-55: Config Notification

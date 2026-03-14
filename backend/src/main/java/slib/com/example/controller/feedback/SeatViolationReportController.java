@@ -12,8 +12,8 @@ import slib.com.example.dto.feedback.CreateViolationReportRequest;
 import slib.com.example.dto.feedback.ViolationReportResponse;
 import slib.com.example.entity.feedback.SeatViolationReportEntity.ReportStatus;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
-import slib.com.example.service.SeatViolationReportService;
+import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.feedback.SeatViolationReportService;
 
 import java.util.List;
 import java.util.Map;

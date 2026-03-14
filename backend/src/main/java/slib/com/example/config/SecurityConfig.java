@@ -14,6 +14,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import slib.com.example.security.JwtAuthenticationFilter;
+import org.springframework.http.HttpMethod;
 import java.util.List;
 
 @Configuration
@@ -43,9 +44,18 @@ public class SecurityConfig {
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cho thủ thư)
                         .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
-                        // AI Chat endpoints (cho sinh viên - cần authenticated)
-                        .requestMatchers("/slib/ai/chat/**").authenticated()
+                        // AI endpoints (proxy-chat + chat) - cần authenticated
+                        .requestMatchers("/slib/ai/**").authenticated()
                         .requestMatchers("/slib/files/**").permitAll()
+                        // News public endpoints (cho mobile/student)
+                        .requestMatchers("/slib/news/public/**").permitAll()
+                        .requestMatchers("/slib/news-categories").permitAll()
+                        // Settings public endpoints
+                        .requestMatchers("/slib/settings/library").permitAll()
+                        .requestMatchers("/slib/settings/time-slots").permitAll()
+                        // Slideshow public endpoints (cho kiosk)
+                        .requestMatchers("/api/slideshow/config").permitAll()
+                        .requestMatchers("/api/slideshow/images").permitAll()
                         // User management endpoints (Admin only)
                         .requestMatchers("/slib/users/import").hasRole("ADMIN")
                         .requestMatchers("/slib/users/*/status").hasRole("ADMIN")
@@ -60,6 +70,16 @@ public class SecurityConfig {
                         // Kiosk activation - public (token duoc xac thuc trong endpoint)
                         .requestMatchers("/slib/kiosk/session/activate").permitAll()
                         .requestMatchers("/slib/kiosk/session/activate-code").permitAll()
+                        // Kiosk booking flow - cho phep KIOSK device token truy cap
+                        .requestMatchers(HttpMethod.GET, "/slib/areas/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/zones/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/seats/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/area_factories/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
+                        .requestMatchers("/slib/bookings/create").hasAnyRole("STUDENT", "KIOSK")
+                        .requestMatchers("/slib/bookings/cancel/**").hasAnyRole("STUDENT", "KIOSK")
+                        .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole("STUDENT", "KIOSK")
+                        .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole("STUDENT", "KIOSK")
                         // Cac endpoint khac
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

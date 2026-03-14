@@ -15,14 +15,14 @@ import Statistic from "../pages/librarian/Statistic/Statistic";
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
-import AccountSettings from "../components/AccountSettings";
+import AccountSettings from "../components/settings/AccountSettings";
 import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
 import BookingManage from "../pages/librarian/BookingManage/BookingManage";
 import FeedbackManage from "../pages/librarian/FeedbackManage/FeedbackManage";
 import ComplaintManage from "../pages/librarian/ComplaintManage/ComplaintManage";
 import SeatStatusReportManage from "../pages/librarian/SeatStatusReportManage/SeatStatusReportManage";
-import Attendance from "../pages/AttendanceWaitingScreen";
+import Attendance from "../pages/kiosk/AttendanceWaitingScreen";
 import SlideshowManagement from "../components/admin/kiosk_managements/SlideshowManagement";
 import SlideshowPreview from "../components/admin/kiosk_managements/SlideshowPreview";
 

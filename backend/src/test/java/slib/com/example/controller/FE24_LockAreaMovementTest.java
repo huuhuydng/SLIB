@@ -16,7 +16,7 @@ import slib.com.example.controller.zone_config.AreaController;
 import slib.com.example.dto.zone_config.AreaResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.service.AreaService;
+import slib.com.example.service.zone_config.AreaService;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;

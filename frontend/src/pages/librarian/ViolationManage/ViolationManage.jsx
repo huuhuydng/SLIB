@@ -3,6 +3,8 @@ import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHor
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ViolationManage.css";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/violation-reports`;
 
@@ -31,6 +33,8 @@ const VIOLATION_TYPE_LABELS = {
 };
 
 function ViolationManage() {
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -117,11 +121,15 @@ function ViolationManage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
+                toast.success('Đã xác minh báo cáo vi phạm thành công.');
                 setSelectedReport(null);
                 fetchReports();
+            } else {
+                toast.error('Không thể xác minh báo cáo. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Error verifying report:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -136,11 +144,15 @@ function ViolationManage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
+                toast.success('Đã từ chối báo cáo vi phạm.');
                 setSelectedReport(null);
                 fetchReports();
+            } else {
+                toast.error('Không thể từ chối báo cáo. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Error rejecting report:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -148,7 +160,14 @@ function ViolationManage() {
 
     const handleDeleteBatch = async () => {
         if (selectedIds.size === 0) return;
-        if (!window.confirm(`Bạn có chắc muốn xoá ${selectedIds.size} báo cáo đã chọn?`)) return;
+        const confirmed = await confirm({
+            title: 'Xoá báo cáo vi phạm',
+            message: `Bạn có chắc muốn xoá ${selectedIds.size} báo cáo đã chọn?`,
+            variant: 'danger',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
         setDeleting(true);
         try {
             const token = getToken();
@@ -161,11 +180,15 @@ function ViolationManage() {
                 body: JSON.stringify({ ids: Array.from(selectedIds) }),
             });
             if (res.ok) {
+                toast.success(`Đã xoá ${selectedIds.size} báo cáo vi phạm thành công.`);
                 setSelectedIds(new Set());
                 fetchReports();
+            } else {
+                toast.error('Không thể xoá báo cáo. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Error deleting:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setDeleting(false);
         }

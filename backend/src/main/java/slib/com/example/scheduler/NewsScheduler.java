@@ -7,7 +7,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.news.News;
-import slib.com.example.repository.NewsRepository;
+import slib.com.example.repository.news.NewsRepository;
 
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;

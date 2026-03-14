@@ -6,8 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import slib.com.example.dto.KioskLibraryMapDTO;
-import slib.com.example.dto.KioskZoneMapDTO;
+import slib.com.example.dto.kiosk.KioskLibraryMapDTO;
+import slib.com.example.dto.kiosk.KioskZoneMapDTO;
 import slib.com.example.service.kiosk.KioskLibraryMapService;
 
 import java.util.HashMap;

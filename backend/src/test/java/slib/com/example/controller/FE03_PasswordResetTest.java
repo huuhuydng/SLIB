@@ -14,10 +14,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.security.JwtService;
-import slib.com.example.service.AuthService;
-import slib.com.example.service.OtpService;
+import slib.com.example.service.auth.AuthService;
+import slib.com.example.service.auth.OtpService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.auth.PasswordResetController;
 
 /**
  * Unit Tests for FE-03: Password Reset (Forgot Password)

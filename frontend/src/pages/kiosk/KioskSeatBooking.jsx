@@ -2,9 +2,9 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import websocketService from "../../services/websocketService";
+import websocketService from "../../services/shared/websocketService";
 import { LayoutProvider, useLayout, ACTIONS } from "../../context/admin/area_management/LayoutContext";
-import { seatPlanService } from "../../services/seatPlanService";
+import { seatPlanService } from "../../services/librarian/seatPlanService";
 import LibrarianArea from "../../components/librarian/LibrarianArea";
 import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle, Lock, AlertTriangle } from "lucide-react";
 import "../../styles/librarian/SeatPlan.css";
@@ -13,6 +13,11 @@ import "../../styles/admin/canvas.css";
 import "./KioskSeatBooking.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+const getKioskHeaders = () => {
+    const token = localStorage.getItem('kiosk_device_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 // Parse slot label ("HH:mm - HH:mm") thành startTime/endTime dạng ISO cho ngày hôm nay
 const parseTimeSlot = (slotLabel) => {
@@ -419,7 +424,7 @@ function KioskSeatBookingContent() {
     useEffect(() => {
         const checkLibraryStatus = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/slib/settings/library`);
+                const res = await fetch(`${API_BASE_URL}/slib/settings/library`, { headers: getKioskHeaders() });
                 const data = await res.json();
                 setLibraryClosed(data.libraryClosed || false);
                 setClosedReason(data.closedReason || '');
@@ -437,7 +442,7 @@ function KioskSeatBookingContent() {
     useEffect(() => {
         const fetchTimeSlots = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/slib/settings/time-slots`);
+                const res = await fetch(`${API_BASE_URL}/slib/settings/time-slots`, { headers: getKioskHeaders() });
                 const data = await res.json();
                 const allSlots = (data || []).map((s) => s.label || `${s.startTime} - ${s.endTime}`);
                 const validSlots = filterPastSlots(allSlots);
@@ -515,7 +520,7 @@ function KioskSeatBookingContent() {
                 seat_id: String(selectedSeat.seatId),
                 start_time: timeParams.startTime,
                 end_time: timeParams.endTime,
-            });
+            }, { headers: getKioskHeaders() });
 
             setToast({ type: 'success', message: `Đặt chỗ ${selectedSeat.seatCode} thành công!` });
             setSelectedSeat(null);

@@ -16,7 +16,8 @@ import Sidebar from "../../components/sidebar_librarian/Sidebar_librarian";
 import {
   LibrarianNotificationProvider,
   useLibrarianNotification,
-} from "../../contexts/LibrarianNotificationContext";
+} from "../../context/LibrarianNotificationContext";
+import { useToast } from "../../components/common/ToastProvider";
 import "../../styles/librarian/MainLayout.css";
 import "../../styles/librarian/LibrarianNotification.css";
 
@@ -39,6 +40,8 @@ const ACTION_LABELS = {
   REVIEWED: "đã xem",
   TAKEN_OVER: "đã tiếp nhận",
   RESOLVED: "đã kết thúc",
+  STUDENT_RESOLVED: "sinh viên ngắt kết nối",
+  CANCELLED: "đã huỷ",
   VERIFIED: "đã xác minh",
   REJECTED: "đã từ chối",
 };
@@ -435,6 +438,10 @@ const TOAST_DETAIL_MAP = {
   CHAT: {
     CREATED: { title: "Tin nhắn mới", desc: "Có sinh viên đang chờ được hỗ trợ qua trò chuyện." },
     ESCALATED: { title: "Yêu cầu trò chuyện", desc: "Sinh viên yêu cầu nói chuyện trực tiếp với thủ thư." },
+    STUDENT_RESOLVED: { title: "Sinh viên đã ngắt kết nối", desc: "Sinh viên đã tự kết thúc cuộc trò chuyện." },
+    TAKEN_OVER: { title: "Đã tiếp nhận trò chuyện", desc: "Thủ thư đã tiếp nhận cuộc trò chuyện với sinh viên." },
+    RESOLVED: { title: "Trò chuyện đã kết thúc", desc: "Cuộc trò chuyện đã được kết thúc." },
+    CANCELLED: { title: "Trò chuyện đã huỷ", desc: "Cuộc trò chuyện đã bị huỷ." },
   },
   VIOLATION: {
     CREATED: { title: "Báo cáo vi phạm mới", desc: "Có báo cáo vi phạm mới cần được xác minh và xử lý." },
@@ -445,153 +452,74 @@ const TOAST_DETAIL_MAP = {
 // Toast notification component — hiển thị ở góc phải trên khi có notification mới
 function ToastNotifications() {
   const { notifications, pendingCounts } = useLibrarianNotification();
-  const [toasts, setToasts] = useState([]);
   const prevCountRef = useRef(0);
+  const toast = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Chỉ hiển thị toast khi có notification MỚI (không phải lần đầu mount)
     if (notifications.length > prevCountRef.current && prevCountRef.current > 0) {
-      // Kiểm tra user có bật thông báo không
       const enabled = localStorage.getItem('slib_notifications_enabled');
       if (enabled === 'false') {
         prevCountRef.current = notifications.length;
         return;
       }
 
-      const newNotif = notifications[0]; // notification mới nhất
+      const newNotif = notifications[0];
       const config = NOTIF_ICON_MAP[newNotif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
       const route = NOTIF_ROUTE_MAP[newNotif.source] || '/librarian/dashboard';
 
-      // Lấy thông tin chi tiết
       const detailMap = TOAST_DETAIL_MAP[newNotif.source] || {};
       const detail = detailMap[newNotif.action] || {
         title: `${config.label} - ${ACTION_LABELS[newNotif.action] || newNotif.action}`,
         desc: `Có hoạt động mới liên quan đến ${config.label.toLowerCase()}.`,
       };
 
-      // Đếm pending cho category này
-      const countKey = COUNT_KEY_MAP[newNotif.source];
-      const categoryCount = pendingCounts[countKey] || 0;
-
-      const toast = {
-        id: newNotif.id,
-        icon: config.icon,
-        cls: config.cls,
+      toast.info(detail.desc, {
         title: detail.title,
-        desc: detail.desc,
-        count: categoryCount,
-        route,
-        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-      };
-
-      setToasts(prev => [toast, ...prev].slice(0, 3)); // Tối đa 3 toast
-
-      // Tự xóa toast sau 8 giây
-      setTimeout(() => {
-        setToasts(prev => prev.filter(t => t.id !== toast.id));
-      }, 8000);
+        actionText: 'Xem chi tiết',
+        onClick: () => navigate(route),
+      });
     }
     prevCountRef.current = notifications.length;
   }, [notifications, pendingCounts]);
 
-  if (toasts.length === 0) return null;
-
-  return (
-    <div className="toast-container">
-      {toasts.map((toast) => {
-        const Icon = toast.icon;
-        return (
-          <div
-            key={toast.id}
-            className={`toast-item toast-item--${toast.cls}`}
-            onClick={() => {
-              setToasts(prev => prev.filter(t => t.id !== toast.id));
-              navigate(toast.route);
-            }}
-          >
-            <div className={`toast-item__icon toast-item__icon--${toast.cls}`}>
-              <Icon size={20} />
-            </div>
-            <div className="toast-item__body">
-              <div className="toast-item__header">
-                <p className="toast-item__title">{toast.title}</p>
-                <span className="toast-item__time">{toast.time}</span>
-              </div>
-              <p className="toast-item__desc">{toast.desc}</p>
-              <div className="toast-item__footer">
-                {toast.count > 0 && (
-                  <span className={`toast-item__count toast-item__count--${toast.cls}`}>
-                    {toast.count} mục cần xử lý
-                  </span>
-                )}
-                <span className="toast-item__cta">Xem chi tiết →</span>
-              </div>
-            </div>
-            <button
-              className="toast-item__close"
-              onClick={(e) => {
-                e.stopPropagation();
-                setToasts(prev => prev.filter(t => t.id !== toast.id));
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return null;
 }
 
 // Chat toast notification — hiện khi có tin nhắn chat mới từ student
-// Không hiện khi đang ở trang chat (ChatManage đã có toast riêng)
+// Suppress khi đang ở trang chat
 function ChatToastNotification() {
   const { chatToast, setChatToast } = useLibrarianNotification();
+  const toast = useToast();
   const navigate = useNavigate();
+  const shownRef = useRef(null);
 
-  // Suppress khi đang ở trang chat
-  const isOnChatPage = window.location.pathname.includes('/librarian/chat');
-  if (!chatToast || isOnChatPage) return null;
+  useEffect(() => {
+    if (!chatToast) {
+      shownRef.current = null;
+      return;
+    }
 
-  return (
-    <div
-      className="toast-container"
-      style={{ top: '80px' }}
-    >
-      <div
-        className="toast-item toast-item--chat"
-        onClick={() => {
-          setChatToast(null);
-          navigate(`/librarian/chat?conversationId=${chatToast.conversationId}`);
-        }}
-      >
-        <div className="toast-item__icon toast-item__icon--chat">
-          <MessageSquare size={20} />
-        </div>
-        <div className="toast-item__body">
-          <div className="toast-item__header">
-            <p className="toast-item__title">Tin nhắn mới</p>
-          </div>
-          <p className="toast-item__desc">
-            <strong>{chatToast.senderName}</strong>: {chatToast.content}
-          </p>
-          <div className="toast-item__footer">
-            <span className="toast-item__cta">Xem tin nhắn →</span>
-          </div>
-        </div>
-        <button
-          className="toast-item__close"
-          onClick={(e) => {
-            e.stopPropagation();
-            setChatToast(null);
-          }}
-        >
-          <X size={14} />
-        </button>
-      </div>
-    </div>
-  );
+    const isOnChatPage = window.location.pathname.includes('/librarian/chat');
+    if (isOnChatPage) {
+      setChatToast(null);
+      return;
+    }
+
+    const key = `${chatToast.conversationId}-${chatToast.content}`;
+    if (shownRef.current === key) return;
+    shownRef.current = key;
+
+    const convId = chatToast.conversationId;
+    toast.info(`${chatToast.senderName}: ${chatToast.content}`, {
+      title: 'Tin nhắn mới',
+      actionText: 'Xem tin nhắn',
+      onClick: () => navigate(`/librarian/chat?conversationId=${convId}`),
+    });
+    setChatToast(null);
+  }, [chatToast]);
+
+  return null;
 }
 
 function MainLayout() {

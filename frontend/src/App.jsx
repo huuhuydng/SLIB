@@ -6,7 +6,8 @@ import LibrarianRoutes from "./routes/LibrarianRoutes";
 import KioskRoutes from "./routes/KioskRoutes";
 import { ModalProvider } from "./components/shared/ModalContext";
 import { ToastProvider } from "./components/common/ToastProvider";
-import ChatWidget from "./components/ChatWidget";
+import { ConfirmProvider } from "./components/common/ConfirmDialog";
+import ChatWidget from "./components/chat/ChatWidget";
 import { isTokenExpired } from "./utils/auth";
 import { SessionExpired, TokenExpired, NotFound, ServerError, Forbidden, SessionTimeout } from "./pages/errors/ErrorPages";
 
@@ -120,6 +121,7 @@ function App() {
 
     return (
         <ToastProvider>
+            <ConfirmProvider>
             <ModalProvider>
                 <BrowserRouter>
                     <Routes>
@@ -166,6 +168,7 @@ function App() {
                     </Routes>
                 </BrowserRouter>
             </ModalProvider>
+            </ConfirmProvider>
         </ToastProvider>
     );
 }

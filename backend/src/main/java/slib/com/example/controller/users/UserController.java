@@ -18,10 +18,10 @@ import slib.com.example.entity.users.ImportJob;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserImportStaging;
-import slib.com.example.service.AsyncImportService;
-import slib.com.example.service.AuthService;
-import slib.com.example.service.StagingImportService;
-import slib.com.example.service.UserService;
+import slib.com.example.service.users.AsyncImportService;
+import slib.com.example.service.auth.AuthService;
+import slib.com.example.service.users.StagingImportService;
+import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
 
 import java.io.IOException;

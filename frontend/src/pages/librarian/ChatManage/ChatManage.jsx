@@ -7,7 +7,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/ChatManage.css';
 
 import { handleLogout } from "../../../utils/auth";
-import { useLibrarianNotification } from "../../../contexts/LibrarianNotificationContext";
+import { useLibrarianNotification } from "../../../context/LibrarianNotificationContext";
 import {
   Image as ImageIcon,
   Send,
@@ -47,7 +47,6 @@ const ChatManage = () => {
 
   // Notification context for badge updates & chat toast
   const { refreshUnreadChatCount, chatToast, setChatToast } = useLibrarianNotification();
-
   // Keep ref in sync with state
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -251,21 +250,6 @@ const ChatManage = () => {
   useEffect(() => {
     if (selectedConversationId) {
       fetchMessages(selectedConversationId);
-      // Mark messages as read when opening conversation
-      const token = localStorage.getItem('librarian_token');
-      if (token) {
-        fetch(`${API_BASE}/slib/librarian/chat/${selectedConversationId}/mark-read`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }).then(() => {
-          if (refreshUnreadChatCount) {
-            refreshUnreadChatCount();
-          }
-        }).catch(err => console.warn('[Chat] Mark read error:', err));
-      }
       const interval = setInterval(() => {
         fetchMessages(selectedConversationId);
       }, 10000);
@@ -324,7 +308,10 @@ const ChatManage = () => {
     });
 
     client.activate();
-    return () => { if (client) client.deactivate(); };
+    return () => {
+      stompClientRef.current = null;
+      if (client) client.deactivate();
+    };
   }, []);
 
   // Subscribe to conversation topic
@@ -340,10 +327,14 @@ const ChatManage = () => {
       `/topic/conversation/${conversationId}`,
       (message) => {
         const newMessage = JSON.parse(message.body);
+
+        if (newMessage.type === 'TYPING' || newMessage.type === 'MESSAGES_READ') return;
+
         newMessage.isMine = newMessage.senderType === 'LIBRARIAN';
         if (!newMessage.createdAt) {
           newMessage.createdAt = new Date().toISOString();
         }
+
         setMessages(prev => {
           if (prev.some(m => m.id === newMessage.id && !m._optimistic)) return prev;
           const hasOptimistic = prev.some(m =>
@@ -800,16 +791,7 @@ const ChatManage = () => {
           </div>
         </div>
       )}
-      {/* Chat Toast Notification */}
-      {chatToast && (
-        <div className="cm-chat-toast" onClick={() => {
-          setSelectedConversationId(chatToast.conversationId);
-          setChatToast(null);
-        }}>
-          <strong>{chatToast.senderName}</strong>
-          <span>{chatToast.content}</span>
-        </div>
-      )}
+      {/* Chat Toast Notification - suppressed on chat page, messages already visible */}
     </>
   );
 };

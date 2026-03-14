@@ -15,8 +15,8 @@ import slib.com.example.controller.zone_config.SeatController;
 import slib.com.example.dto.zone_config.SeatResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.service.BookingService;
-import slib.com.example.service.SeatService;
+import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.zone_config.SeatService;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;

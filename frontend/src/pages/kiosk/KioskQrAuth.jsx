@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DynamicQrCode from '../../components/kiosk/DynamicQrCode';
 import { ArrowLeft, Wifi, WifiOff } from 'lucide-react';
-import websocketService from '../../services/websocketService';
-import kioskService from '../../services/kioskService';
+import websocketService from '../../services/shared/websocketService';
+import kioskService from '../../services/kiosk/kioskService';
 import { useKiosk } from '../../context/KioskContext';
 import './KioskQrAuth.css';
 

@@ -23,7 +23,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { useLibrarianNotification } from "../../contexts/LibrarianNotificationContext";
+import { useLibrarianNotification } from "../../context/LibrarianNotificationContext";
 
 import "../../styles/librarian/sidebar_default.css";
 import "../../styles/librarian/LibrarianNotification.css";

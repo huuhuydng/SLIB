@@ -14,8 +14,8 @@ import slib.com.example.controller.zone_config.SeatController;
 import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.BookingService;
-import slib.com.example.service.SeatService;
+import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.zone_config.SeatService;
 
 import java.time.LocalDate;
 import java.time.LocalTime;

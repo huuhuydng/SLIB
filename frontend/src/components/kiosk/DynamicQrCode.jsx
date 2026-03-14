@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { RefreshCw, Clock, AlertCircle } from 'lucide-react';
-import kioskService from '../../services/kioskService';
+import kioskService from '../../services/kiosk/kioskService';
 import slibLogo from '../../assets/logo.png';
 import './DynamicQrCode.css';
 

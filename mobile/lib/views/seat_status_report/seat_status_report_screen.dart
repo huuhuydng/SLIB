@@ -2,9 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../services/booking_service.dart';
-import '../../services/seat_status_report_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/booking/booking_service.dart';
+import '../../services/report/seat_status_report_service.dart';
+import '../../views/widgets/error_display_widget.dart';
 import 'seat_status_report_history_screen.dart';
 
 class SeatStatusReportScreen extends StatefulWidget {
@@ -69,7 +70,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -148,12 +149,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(_errorMessage!, textAlign: TextAlign.center),
-              ),
-            )
+          ? ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadCurrentSeat)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(

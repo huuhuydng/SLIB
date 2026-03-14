@@ -13,8 +13,8 @@ import slib.com.example.dto.feedback.SeatStatusReportResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.repository.UserRepository;
-import slib.com.example.service.SeatStatusReportService;
+import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.feedback.SeatStatusReportService;
 
 import java.util.List;
 import java.util.UUID;

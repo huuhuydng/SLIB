@@ -3,10 +3,11 @@ package slib.com.example.controller.booking;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.dto.booking.ReservationDTO;
 import slib.com.example.entity.booking.ReservationEntity;
-import slib.com.example.repository.ReservationRepository;
-import slib.com.example.service.BookingService;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.service.booking.BookingService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -52,11 +53,11 @@ public class BookingController {
     }
 
     @PutMapping("/updateStatusReserv/{reservationId}")
-    public ResponseEntity<ReservationEntity> updateStatus(
+    public ResponseEntity<ReservationDTO> updateStatus(
             @PathVariable UUID reservationId,
             @RequestParam String status) {
         ReservationEntity reserv = bookingService.updateStatus(reservationId, status);
-        return ResponseEntity.ok(reserv);
+        return ResponseEntity.ok(toDTO(reserv));
     }
 
     // --- GET BOOKINGS BY USER (with zone/area info) ---
@@ -87,7 +88,7 @@ public class BookingController {
     public ResponseEntity<?> cancelBooking(@PathVariable UUID reservationId) {
         try {
             ReservationEntity reservation = bookingService.cancelBooking(reservationId);
-            return ResponseEntity.ok(reservation);
+            return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -105,7 +106,7 @@ public class BookingController {
                 return ResponseEntity.badRequest().body("Thiếu dữ liệu NFC");
             }
             ReservationEntity reservation = bookingService.confirmSeatWithNfc(reservationId, nfcData);
-            return ResponseEntity.ok(reservation);
+            return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -122,7 +123,7 @@ public class BookingController {
                 return ResponseEntity.badRequest().body("Thiếu NFC UID");
             }
             ReservationEntity reservation = bookingService.confirmSeatWithNfcUid(reservationId, nfcUid);
-            return ResponseEntity.ok(reservation);
+            return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -130,7 +131,18 @@ public class BookingController {
 
     // --- GET ALL BOOKINGS ---
     @GetMapping("/getall")
-    public List<ReservationEntity> getAllBookings() {
-        return bookingService.getAllBookings();
+    public ResponseEntity<List<BookingResponse>> getAllBookings() {
+        return ResponseEntity.ok(bookingService.getAllBookings());
+    }
+
+    private ReservationDTO toDTO(ReservationEntity entity) {
+        ReservationDTO dto = new ReservationDTO();
+        dto.setReservationId(entity.getReservationId());
+        dto.setStatus(entity.getStatus());
+        dto.setUserId(entity.getUser() != null ? entity.getUser().getId() : null);
+        dto.setSeatId(entity.getSeat() != null ? entity.getSeat().getSeatId() : null);
+        dto.setStartTime(entity.getStartTime());
+        dto.setEndTime(entity.getEndTime());
+        return dto;
     }
 }

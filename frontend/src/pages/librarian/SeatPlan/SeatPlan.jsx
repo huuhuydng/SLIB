@@ -3,9 +3,9 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import axios from "axios";
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
-import { seatPlanService } from "../../../services/seatPlanService";
-import { seatService } from "../../../services/seatService";
-import websocketService from "../../../services/websocketService";
+import { seatPlanService } from "../../../services/librarian/seatPlanService";
+import { seatService } from "../../../services/librarian/seatService";
+import websocketService from "../../../services/shared/websocketService";
 import { handleLogout } from "../../../utils/auth";
 import "../../../styles/librarian/SeatPlan.css";
 import "../../../styles/admin/layout.css";

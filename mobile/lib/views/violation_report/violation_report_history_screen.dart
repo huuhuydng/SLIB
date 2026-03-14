@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../services/violation_report_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/report/violation_report_service.dart';
 import '../../models/violation_report.dart';
+import '../../views/widgets/error_display_widget.dart';
 
 class ViolationReportHistoryScreen extends StatefulWidget {
   const ViolationReportHistoryScreen({Key? key}) : super(key: key);
@@ -32,7 +33,13 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
-      if (token == null) throw Exception('Chưa đăng nhập');
+      if (token == null) {
+        setState(() {
+          _error = 'auth';
+          _isLoading = false;
+        });
+        return;
+      }
 
       final data = await _violationReportService.getMyReports(token);
       setState(() {
@@ -41,7 +48,7 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -117,52 +124,16 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.report_off_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
-          Text(
-            'Chưa có báo cáo nào',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Báo cáo của bạn sẽ hiển thị ở đây',
-            style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-          ),
-        ],
-      ),
-    );
+    return ErrorDisplayWidget.empty(message: 'Chưa có báo cáo nào');
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Text(
-            'Không thể tải dữ liệu',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadReports,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD32F2F),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    if (_error == 'auth') {
+      return ErrorDisplayWidget.auth(onRetry: _loadReports);
+    }
+    return ErrorDisplayWidget(
+      message: _error ?? 'Không thể tải dữ liệu',
+      onRetry: _loadReports,
     );
   }
 

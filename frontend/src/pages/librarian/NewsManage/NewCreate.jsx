@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -27,10 +28,11 @@ import {
   createCategory,
   deleteCategory,
   uploadImage
-} from '../../../services/newsService';
+} from '../../../services/librarian/newsService';
 
 const NewCreate = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -80,32 +82,40 @@ const NewCreate = () => {
 
   // Load categories on mount
   useEffect(() => {
-    loadCategories();
-    if (isEditMode) {
-      loadNewsData();
-    } else {
-      // Load draft from localStorage for new posts
-      const savedDraft = localStorage.getItem('news_draft');
-      if (savedDraft) {
-        try {
-          const draft = JSON.parse(savedDraft);
-          if (draft && draft.title) {
-            const useDraft = window.confirm('Pát hiện bản nháp chưa lưu. Bạn có muốn khôi phục?');
-            if (useDraft) {
-              setFormData(draft.formData || {});
-              setPublishStatus(draft.publishStatus || 'publish');
-              setScheduleDate(draft.scheduleDate || '');
-              setScheduleTime(draft.scheduleTime || '');
-              if (draft.imagePreview) setImagePreview(draft.imagePreview);
-            } else {
-              localStorage.removeItem('news_draft');
+    const init = async () => {
+      loadCategories();
+      if (isEditMode) {
+        loadNewsData();
+      } else {
+        // Load draft from localStorage for new posts
+        const savedDraft = localStorage.getItem('news_draft');
+        if (savedDraft) {
+          try {
+            const draft = JSON.parse(savedDraft);
+            if (draft && draft.title) {
+              const useDraft = await confirm({
+                title: 'Khôi phục bản nháp',
+                message: 'Phát hiện bản nháp chưa lưu. Bạn có muốn khôi phục?',
+                variant: 'warning',
+                confirmText: 'Khôi phục',
+              });
+              if (useDraft) {
+                setFormData(draft.formData || {});
+                setPublishStatus(draft.publishStatus || 'publish');
+                setScheduleDate(draft.scheduleDate || '');
+                setScheduleTime(draft.scheduleTime || '');
+                if (draft.imagePreview) setImagePreview(draft.imagePreview);
+              } else {
+                localStorage.removeItem('news_draft');
+              }
             }
+          } catch (e) {
+            localStorage.removeItem('news_draft');
           }
-        } catch (e) {
-          localStorage.removeItem('news_draft');
         }
       }
-    }
+    };
+    init();
   }, [id]);
 
   // Track unsaved changes - only after initial data is set
@@ -276,7 +286,13 @@ const NewCreate = () => {
 
   // Handle category delete
   const handleDeleteCategory = async (categoryId) => {
-    if (!confirm('Bạn có chắc muốn xoá danh mục này?')) return;
+    const ok = await confirm({
+      title: 'Xoá danh mục',
+      message: 'Bạn có chắc muốn xoá danh mục này? Hành động này không thể hoàn tác.',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!ok) return;
     try {
       await deleteCategory(categoryId);
       await loadCategories();
@@ -701,9 +717,14 @@ const NewCreate = () => {
             <button
               type="button"
               className="news-btn news-btn-secondary"
-              onClick={() => {
+              onClick={async () => {
                 if (hasUnsavedChanges) {
-                  const leave = window.confirm('Bạn có thay đổi chưa lưu. Bạn có chắc muốn thoát?');
+                  const leave = await confirm({
+                    title: 'Thoát không lưu',
+                    message: 'Bạn có thay đổi chưa lưu. Bạn có chắc muốn thoát?',
+                    variant: 'warning',
+                    confirmText: 'Thoát',
+                  });
                   if (!leave) return;
                 }
                 clearDraft();

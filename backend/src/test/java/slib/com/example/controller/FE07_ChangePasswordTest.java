@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.AuthService;
+import slib.com.example.service.auth.AuthService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.auth.AuthController;
 
 /**
  * Unit Tests for FE-07: Change Password

@@ -7,8 +7,12 @@ const api = axios.create({
     headers: { "Content-Type": "application/json" }
 });
 
-// Request/Response interceptors
+// Request interceptor - add auth token
 api.interceptors.request.use(config => {
+    const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log("[Materials API]", config.method?.toUpperCase(), config.url);
     return config;
 });
@@ -31,8 +35,12 @@ export const addFileItem = (materialId, file, name) => {
     const formData = new FormData();
     formData.append("file", file);
     if (name) formData.append("name", name);
+    const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
     return axios.post(`${BASE_URL}/materials/${materialId}/items/file`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: {
+            "Content-Type": "multipart/form-data",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
     });
 };
 

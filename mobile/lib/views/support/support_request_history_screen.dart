@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../assets/colors.dart';
-import '../../services/auth_service.dart';
-import '../../services/support_request_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/support/support_request_service.dart';
+import '../widgets/error_display_widget.dart';
 
 class SupportRequestHistoryScreen extends StatefulWidget {
   const SupportRequestHistoryScreen({Key? key}) : super(key: key);
@@ -50,7 +51,7 @@ class _SupportRequestHistoryScreenState
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Không thể tải dữ liệu: ${e.toString()}';
+        _errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -132,64 +133,13 @@ class _SupportRequestHistoryScreenState
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppColors.brandColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.support_agent_rounded,
-                size: 56, color: AppColors.brandColor.withOpacity(0.5)),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Chưa có yêu cầu hỗ trợ nào',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF666666),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Các yêu cầu bạn gửi sẽ xuất hiện tại đây',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
+    return ErrorDisplayWidget.empty(message: 'Chưa có yêu cầu hỗ trợ nào');
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Text(
-            _errorMessage ?? '',
-            style: TextStyle(color: Colors.grey[600], fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _loadRequests,
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Thử lại'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brandColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-            ),
-          ),
-        ],
-      ),
+    return ErrorDisplayWidget(
+      message: _errorMessage ?? 'Đã xảy ra lỗi',
+      onRetry: _loadRequests,
     );
   }
 

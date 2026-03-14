@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.system.SystemLogController;
 import slib.com.example.entity.system.SystemLogEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.SystemLogService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.Collections;

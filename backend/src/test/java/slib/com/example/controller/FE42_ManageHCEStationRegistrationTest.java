@@ -17,7 +17,7 @@ import slib.com.example.dto.hce.HceStationRequest;
 import slib.com.example.dto.hce.HceStationResponse;
 import slib.com.example.dto.hce.HceStationStatusRequest;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.HceStationService;
+import slib.com.example.service.hce.HceStationService;
 
 import java.time.LocalDateTime;
 

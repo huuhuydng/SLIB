@@ -4,7 +4,7 @@ import {
     BookOpen, LogIn, LogOut, AlertTriangle, Phone, Building,
     GraduationCap, Star, Activity, CheckCircle, Loader2
 } from 'lucide-react';
-import librarianService from '../../services/librarianService';
+import librarianService from '../../services/librarian/librarianService';
 import '../../styles/librarian/librarian-shared.css';
 
 /**

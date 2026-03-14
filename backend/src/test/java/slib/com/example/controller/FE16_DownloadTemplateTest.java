@@ -12,10 +12,10 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.AsyncImportService;
-import slib.com.example.service.AuthService;
-import slib.com.example.service.StagingImportService;
-import slib.com.example.service.UserService;
+import slib.com.example.service.users.AsyncImportService;
+import slib.com.example.service.auth.AuthService;
+import slib.com.example.service.users.StagingImportService;
+import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;

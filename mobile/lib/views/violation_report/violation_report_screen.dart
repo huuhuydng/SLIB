@@ -9,10 +9,11 @@ import '../../models/area_factory.dart';
 import '../../models/seat.dart';
 import '../../models/zone_occupancy.dart';
 import '../../models/zones.dart';
-import '../../services/auth_service.dart';
-import '../../services/booking_service.dart';
-import '../../services/seat_status_report_service.dart';
-import '../../services/violation_report_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/booking/booking_service.dart';
+import '../../services/report/seat_status_report_service.dart';
+import '../../services/report/violation_report_service.dart';
+import '../../views/widgets/error_display_widget.dart';
 import 'violation_report_history_screen.dart';
 
 class ViolationReportScreen extends StatefulWidget {
@@ -103,7 +104,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
       final user = authService.currentUser;
       if (user == null) {
         setState(() {
-          _errorMessage = 'Vui lòng đăng nhập để sử dụng tính năng này';
+          _errorMessage = 'auth';
           _isLoading = false;
         });
         return;
@@ -145,7 +146,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Không thể tải thông tin: ${e.toString()}';
+        _errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -956,28 +957,12 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(_errorMessage ?? 'Đã xảy ra lỗi',
-              style: TextStyle(fontSize: 15, color: Colors.grey[600]), textAlign: TextAlign.center),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _checkReservation,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.brandColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+    if (_errorMessage == 'auth') {
+      return ErrorDisplayWidget.auth(onRetry: _checkReservation);
+    }
+    return ErrorDisplayWidget(
+      message: _errorMessage ?? 'Đã xảy ra lỗi',
+      onRetry: _checkReservation,
     );
   }
 

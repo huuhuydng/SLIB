@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/news_model.dart';
-import 'package:slib/services/news_service.dart';
+import 'package:slib/services/news/news_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/views/home/widgets/home_appbar.dart';
 import 'package:slib/views/home/widgets/live_status_dashboard.dart';
@@ -13,6 +13,7 @@ import 'package:slib/views/home/widgets/news_slider.dart';
 import 'package:slib/views/home/widgets/compact_header.dart';
 import 'package:slib/views/home/widgets/section_title.dart';
 import 'package:slib/views/news/news_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserProfile? user;
@@ -244,37 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const SectionTitle("Tin tức thư viện"),
                               const SizedBox(height: 12),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.grey[200]!),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Icon(Icons.article_outlined, size: 48, color: Colors.grey[400]),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      'Chưa có thông tin',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tin tức mới sẽ xuất hiện tại đây',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[400],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              ErrorDisplayWidget.empty(message: 'Chưa có tin tức nào'),
                             ],
                           ),
                         // --------------------

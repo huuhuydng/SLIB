@@ -11,10 +11,10 @@ import slib.com.example.entity.kiosk.KioskQrSessionEntity;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.repository.AccessLogRepository;
+import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.kiosk.KioskConfigRepository;
 import slib.com.example.repository.kiosk.KioskQrSessionRepository;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;

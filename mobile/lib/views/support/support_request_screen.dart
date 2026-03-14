@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
-import '../../services/support_request_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/support/support_request_service.dart';
+import '../widgets/error_display_widget.dart';
 import 'support_request_history_screen.dart';
 
 class SupportRequestScreen extends StatefulWidget {
@@ -164,7 +165,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gửi thất bại: ${e.toString()}'),
+            content: Text('Gửi thất bại: ${ErrorDisplayWidget.toVietnamese(e)}'),
             backgroundColor: Colors.red,
           ),
         );

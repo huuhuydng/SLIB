@@ -7,57 +7,28 @@ import {
   getSeatRecommendation,
 } from '../../../services/admin/ai/analyticsService';
 
-const RANGE_OPTIONS = [
-  { value: 'day', label: 'Hôm nay' },
-  { value: 'week', label: 'Tuần này' },
-  { value: 'month', label: 'Tháng này' },
-];
-
-function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
+function AIAnalyticsPanel({ period = 'week' }) {
   const [activeTab, setActiveTab] = useState('density');
   const [densityData, setDensityData] = useState(null);
   const [usageData, setUsageData] = useState(null);
   const [behaviorData, setBehaviorData] = useState(null);
   const [seatRecommendation, setSeatRecommendation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState(initialPeriod);
 
   useEffect(() => {
     fetchData();
   }, [period]);
 
-  useEffect(() => {
-    if (initialPeriod) {
-      setPeriod(initialPeriod);
-    }
-  }, [initialPeriod]);
-
-  const handlePeriodChange = (newPeriod) => {
-    setPeriod(newPeriod);
-    if (onPeriodChange) {
-      onPeriodChange(newPeriod);
-    }
-  };
-
   const fetchData = async () => {
     setLoading(true);
-    try {
-      const periodDays = period === 'day' ? 1 : period === 'week' ? 7 : 30;
-      const [density, usage, behavior, seatRec] = await Promise.all([
-        getDensityPrediction(),
-        getUsageStatistics(period),
-        getBehaviorSummary(periodDays),
-        getSeatRecommendation(),
-      ]);
-      setDensityData(density);
-      setUsageData(usage);
-      setBehaviorData(behavior);
-      setSeatRecommendation(seatRec);
-    } catch (error) {
-      console.error('Error fetching AI analytics:', error);
-    } finally {
-      setLoading(false);
-    }
+    const periodDays = period === 'day' ? 1 : period === 'week' ? 7 : 30;
+
+    try { setDensityData(await getDensityPrediction(null, periodDays)); } catch (e) { console.warn('density error:', e); }
+    try { setUsageData(await getUsageStatistics(period)); } catch (e) { console.warn('usage error:', e); }
+    try { setBehaviorData(await getBehaviorSummary(periodDays)); } catch (e) { console.warn('behavior error:', e); }
+    try { setSeatRecommendation(await getSeatRecommendation('summary')); } catch (e) { console.warn('seat error:', e); }
+
+    setLoading(false);
   };
 
   const tabs = [
@@ -85,31 +56,9 @@ function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
   return (
     <div style={{ padding: '20px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Brain size={24} color="#e8600a" />
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>AI Analytics</h2>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {RANGE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => handlePeriodChange(opt.value)}
-              style={{
-                padding: '8px 16px',
-                background: period === opt.value ? '#e8600a' : '#f1f5f9',
-                color: period === opt.value ? '#fff' : '#475569',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                fontSize: '13px',
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+        <Brain size={24} color="#e8600a" />
+        <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Thống kê bằng AI</h2>
       </div>
 
       {/* Tabs */}
@@ -159,7 +108,7 @@ function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
                   }}
                 >
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#dc2626' }}>{hour.label}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{Math.round(hour.occupancy * 100)}%</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>{Math.round(hour.avg_occupancy * 100)}%</div>
                 </div>
               ))}
             </div>
@@ -184,7 +133,7 @@ function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
                   }}
                 >
                   <div style={{ fontSize: '16px', fontWeight: '600', color: '#16a34a' }}>{hour.label}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>{Math.round(hour.occupancy * 100)}%</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>{Math.round(hour.avg_occupancy * 100)}%</div>
                 </div>
               ))}
             </div>
@@ -334,7 +283,7 @@ function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontWeight: '600', color: '#dc2626' }}>#{idx + 1}</span>
                       <span style={{ fontFamily: 'monospace', fontSize: '13px' }}>
-                        {student.userId?.substring(0, 8)}...
+                        {student.fullName || student.userCode || student.userId?.substring(0, 8)}
                       </span>
                     </div>
                     <span style={{ fontWeight: '600', color: '#dc2626' }}>{student.noShowCount} lần bỏ</span>
@@ -373,10 +322,10 @@ function AIAnalyticsPanel({ period: initialPeriod = 'week', onPeriodChange }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span style={{ fontWeight: '600', color: '#16a34a' }}>#{idx + 1}</span>
                       <span style={{ fontFamily: 'monospace', fontSize: '13px' }}>
-                        {student.userId?.substring(0, 8)}...
+                        {student.fullName || student.userCode || student.userId?.substring(0, 8)}
                       </span>
                     </div>
-                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{student.behaviorCount} hành vi</span>
+                    <span style={{ fontWeight: '600', color: '#16a34a' }}>{student.behaviorCount} lần học</span>
                   </div>
                 ))}
               </div>

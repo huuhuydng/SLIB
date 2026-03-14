@@ -92,25 +92,19 @@
 }
 
 .ssr-status-text {
-  padding: 6px 10px;
-  border-radius: 999px;
   font-weight: 600;
 }
 
 .ssr-status-text--pending {
-  background: rgba(245, 158, 11, 0.12);
 }
 
 .ssr-status-text--verified {
-  background: rgba(37, 99, 235, 0.12);
 }
 
 .ssr-status-text--resolved {
-  background: rgba(22, 163, 74, 0.12);
 }
 
 .ssr-status-text--rejected {
-  background: rgba(239, 68, 68, 0.12);
 }
 
 .ssr-empty-state {

@@ -15,8 +15,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.booking.BookingController;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.ReservationRepository;
-import slib.com.example.service.BookingService;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.service.booking.BookingService;
 
 import java.util.HashMap;
 import java.util.Map;

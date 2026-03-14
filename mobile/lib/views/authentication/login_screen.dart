@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/main_screen.dart';
 import 'package:slib/views/authentication/change_password_screen.dart';
 import 'package:slib/views/authentication/forgot_password_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -75,9 +76,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       String errorMessage = e.toString().replaceAll("Exception: ", "");
-      
+
       if (errorMessage.contains("fpt.edu.vn")) {
         errorMessage = "Truy cập bị từ chối: Vui lòng dùng mail @fpt.edu.vn";
+      } else {
+        errorMessage = ErrorDisplayWidget.toVietnamese(e);
       }
 
       _showErrorSnackBar(errorMessage);
@@ -116,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      String errorMessage = e.toString().replaceAll("Exception: ", "");
+      String errorMessage = ErrorDisplayWidget.toVietnamese(e);
       _showErrorSnackBar(errorMessage);
     }
   }
