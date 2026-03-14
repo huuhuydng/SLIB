@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.users.UserSettingDTO;
 import slib.com.example.entity.users.UserSetting;
-import slib.com.example.service.UserSettingService;
+import slib.com.example.service.users.UserSettingService;
 
 import java.util.UUID;
 

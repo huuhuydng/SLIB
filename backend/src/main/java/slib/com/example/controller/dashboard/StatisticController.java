@@ -1,11 +1,11 @@
-package slib.com.example.controller;
+package slib.com.example.controller.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import slib.com.example.dto.StatisticDTO;
-import slib.com.example.service.StatisticService;
+import slib.com.example.dto.dashboard.StatisticDTO;
+import slib.com.example.service.dashboard.StatisticService;
 
 @RestController
 @RequestMapping("/slib/statistics")

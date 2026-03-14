@@ -1,10 +1,10 @@
-package slib.com.example.controller;
+package slib.com.example.controller.system;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import slib.com.example.service.SeedDataService;
+import slib.com.example.service.system.SeedDataService;
 
 import java.util.Map;
 
