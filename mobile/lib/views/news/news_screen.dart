@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/news_model.dart';
-import 'package:slib/services/news_service.dart';
+import 'package:slib/services/news/news_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 import 'news_detail_screen.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -138,7 +139,7 @@ class _NewsScreenState extends State<NewsScreen> {
               child: _isLoading && _allNews.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : _displayNews.isEmpty
-                      ? ListView(children: const [SizedBox(height: 100), Center(child: Text("Chưa có tin tức nào", style: TextStyle(color: Colors.grey)))])
+                      ? ErrorDisplayWidget.empty(message: 'Chưa có tin tức nào')
                       : ListView.builder(
                           padding: const EdgeInsets.all(16),
                           itemCount: _displayNews.length,

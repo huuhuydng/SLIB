@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';

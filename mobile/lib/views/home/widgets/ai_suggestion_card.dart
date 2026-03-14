@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/ai_analytics_service.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/ai/ai_analytics_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 
 class AICard extends StatefulWidget {
   const AICard({super.key});

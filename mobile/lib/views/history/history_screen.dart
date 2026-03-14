@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -66,7 +67,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     if (user == null) {
       if (!silent && mounted) {
         setState(() {
-          _errorMessage = "Vui lòng đăng nhập";
+          _errorMessage = 'auth';
           _isLoading = false;
         });
       }
@@ -100,13 +101,21 @@ class _HistoryScreenState extends State<HistoryScreen>
             _errorMessage = null;
           });
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        if (!silent && mounted) {
+          setState(() {
+            _errorMessage = 'auth';
+            _isLoading = false;
+          });
+        }
+        return;
       } else {
-        throw Exception("Không thể tải lịch sử hoạt động");
+        throw Exception('status ${response.statusCode}');
       }
     } catch (e) {
       if (!silent && mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorDisplayWidget.toVietnamese(e);
           _isLoading = false;
         });
       }
@@ -138,32 +147,9 @@ class _HistoryScreenState extends State<HistoryScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 12),
-                      Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text("Thử lại",
-                            style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                )
+              ? _errorMessage == 'auth'
+                  ? ErrorDisplayWidget.auth(onRetry: _loadData)
+                  : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadData)
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -366,23 +352,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     return RefreshIndicator(
       onRefresh: _loadData,
       child: _pointTransactions.isEmpty
-          ? ListView(
-              children: const [
-                SizedBox(height: 120),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.stars_outlined,
-                          size: 60, color: Colors.grey),
-                      SizedBox(height: 10),
-                      Text("Chưa có biến động điểm",
-                          style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
-              ],
-            )
+          ? ErrorDisplayWidget.empty(message: 'Chưa có biến động điểm')
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pointTransactions.length + 1, // +1 cho header thống kê

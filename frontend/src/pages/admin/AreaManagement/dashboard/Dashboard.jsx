@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import StatCard from "./StatCard";
 import Header from "./Header";
-import { getLibraryInsights } from "../../../../services/geminiService";
+import { getLibraryInsights } from "../../../../services/ai/geminiService";
 import "../../../../styles/Dashboard.css";
 
 // Mock Data

@@ -18,7 +18,7 @@ import slib.com.example.entity.chat.Message;
 import slib.com.example.service.chat.UserChatService;
 import slib.com.example.service.chat.ConversationService;
 import slib.com.example.service.chat.CloudinaryService;
-import slib.com.example.service.UserService;
+import slib.com.example.service.users.UserService;
 
 import java.util.List;
 import java.util.Map; // Nhớ import Map
@@ -54,6 +54,20 @@ public class UserChatController {
         messagingTemplate.convertAndSend(
                 "/topic/chat/" + savedMsg.getSenderId(),
                 savedMsg);
+    }
+
+    // Typing indicator - client gửi tới /app/typing/{conversationId}
+    @MessageMapping("/typing/{conversationId}")
+    public void handleTypingIndicator(
+            @org.springframework.messaging.handler.annotation.DestinationVariable UUID conversationId,
+            @Payload Map<String, Object> payload) {
+        // Broadcast trạng thái đang gõ tới tất cả subscriber của conversation
+        Map<String, Object> typingEvent = Map.of(
+                "type", "TYPING",
+                "userId", payload.get("userId"),
+                "isTyping", payload.getOrDefault("isTyping", true));
+        messagingTemplate.convertAndSend(
+                "/topic/conversation/" + conversationId, typingEvent);
     }
 
     // ==========================================
@@ -267,6 +281,20 @@ public class UserChatController {
         return ResponseEntity.ok(Map.of("updated", updated));
     }
 
+    // 15d. Gửi typing indicator qua REST (cho mobile app không dùng STOMP send)
+    @PostMapping("/conversations/{conversationId}/typing")
+    public ResponseEntity<Void> sendTypingIndicator(
+            @PathVariable UUID conversationId,
+            @RequestBody Map<String, Object> payload,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        boolean isTyping = Boolean.TRUE.equals(payload.get("isTyping"));
+        messagingTemplate.convertAndSend(
+                "/topic/conversation/" + conversationId,
+                Map.of("type", "TYPING", "userId", userId.toString(), "isTyping", isTyping));
+        return ResponseEntity.ok().build();
+    }
+
     // 16. User yêu cầu gặp thủ thư (tạo conversation mới và escalate)
     @PostMapping("/conversations/request-librarian")
     public ResponseEntity<Map<String, Object>> requestLibrarian(
@@ -291,12 +319,21 @@ public class UserChatController {
                 "totalWaiting", totalWaiting));
     }
 
-    // 17. Lấy tất cả messages của conversation
+    // 17. Lấy messages của conversation (hỗ trợ phân trang)
     @GetMapping("/conversations/{conversationId}/messages")
-    public ResponseEntity<List<ChatMessageDTO>> getConversationMessages(
+    public ResponseEntity<?> getConversationMessages(
             @PathVariable UUID conversationId,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size,
             @AuthenticationPrincipal UserDetails userDetails) {
         getCurrentUserId(userDetails);
+        if (page != null) {
+            // Paginated mode - cho mobile lazy loading
+            org.springframework.data.domain.Page<ChatMessageDTO> messages =
+                conversationService.getConversationMessagesPaginated(conversationId, page, size);
+            return ResponseEntity.ok(messages);
+        }
+        // Non-paginated (backward compat cho frontend web)
         List<ChatMessageDTO> messages = conversationService.getConversationMessages(conversationId);
         return ResponseEntity.ok(messages);
     }
@@ -392,6 +429,17 @@ public class UserChatController {
         UUID studentId = getCurrentUserId(userDetails);
         conversationService.cancelQueue(conversationId, studentId);
         return ResponseEntity.ok(Map.of("success", true, "message", "Đã hủy chờ"));
+    }
+
+    // 22. Mobile: Lấy hoặc tạo conversation cho AI chat (để lưu messages vào DB)
+    @PostMapping("/conversations/get-or-create")
+    public ResponseEntity<Map<String, Object>> getOrCreateConversation(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        slib.com.example.entity.chat.Conversation conv = conversationService.getOrCreateConversation(userId);
+        return ResponseEntity.ok(Map.of(
+                "conversationId", conv.getId().toString(),
+                "status", conv.getStatus().toString()));
     }
 
     // ==========================================

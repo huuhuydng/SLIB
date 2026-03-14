@@ -5,7 +5,7 @@ import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { getAreas } from "../../../services/admin/area_management/api";
-import { seatService } from "../../../services/seatService";
+import { seatService } from "../../../services/librarian/seatService";
 import { handleLogout } from "../../../utils/auth";
 import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate, User, Clock, X, Check } from "lucide-react";
 import LibrarianArea from "../../../components/librarian/LibrarianArea";

@@ -17,7 +17,7 @@ import slib.com.example.dto.users.LoginRequest;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.service.AuthService;
+import slib.com.example.service.auth.AuthService;
 
 import java.util.UUID;
 
@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.auth.AuthController;
 
 /**
  * Unit Tests for FE-02: Login with SLIB Account

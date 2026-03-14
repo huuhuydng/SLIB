@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 import 'package:slib/views/home/widgets/booking_action_dialog.dart';
 
 class UpcomingBookingCard extends StatefulWidget {

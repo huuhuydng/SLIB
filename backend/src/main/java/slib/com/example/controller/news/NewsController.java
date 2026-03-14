@@ -3,9 +3,9 @@ package slib.com.example.controller.news;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import slib.com.example.dto.NewsListDTO;
+import slib.com.example.dto.news.NewsListDTO;
 import slib.com.example.entity.news.News;
-import slib.com.example.service.NewsService;
+import slib.com.example.service.news.NewsService;
 
 import java.util.List;
 import java.util.Map;

@@ -11,10 +11,10 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.booking.BookingController;
-import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.ReservationRepository;
-import slib.com.example.service.BookingService;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.service.booking.BookingService;
 
 import java.util.Collections;
 import java.util.List;
@@ -50,8 +50,8 @@ class FE70_SearchFilterBookingsTest {
         @Test
         @DisplayName("UTCID01: Get all bookings returns 200 OK with booking list")
         void getAllBookings_withData_returns200OK() throws Exception {
-                ReservationEntity reservation1 = new ReservationEntity();
-                ReservationEntity reservation2 = new ReservationEntity();
+                BookingResponse reservation1 = new BookingResponse();
+                BookingResponse reservation2 = new BookingResponse();
 
                 when(bookingService.getAllBookings()).thenReturn(List.of(reservation1, reservation2));
 
@@ -70,7 +70,7 @@ class FE70_SearchFilterBookingsTest {
         @Test
         @DisplayName("UTCID02: Get all bookings with single record returns 200 OK")
         void getAllBookings_singleRecord_returns200OK() throws Exception {
-                ReservationEntity reservation = new ReservationEntity();
+                BookingResponse reservation = new BookingResponse();
 
                 when(bookingService.getAllBookings()).thenReturn(List.of(reservation));
 
@@ -89,9 +89,9 @@ class FE70_SearchFilterBookingsTest {
         @Test
         @DisplayName("UTCID03: Get all bookings with multiple records returns 200 OK")
         void getAllBookings_multipleRecords_returns200OK() throws Exception {
-                ReservationEntity r1 = new ReservationEntity();
-                ReservationEntity r2 = new ReservationEntity();
-                ReservationEntity r3 = new ReservationEntity();
+                BookingResponse r1 = new BookingResponse();
+                BookingResponse r2 = new BookingResponse();
+                BookingResponse r3 = new BookingResponse();
 
                 when(bookingService.getAllBookings()).thenReturn(List.of(r1, r2, r3));
 

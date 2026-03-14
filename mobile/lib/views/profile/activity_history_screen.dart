@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -62,7 +63,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
     if (user == null) {
       if (!silent) {
         setState(() {
-          _errorMessage = "Vui lòng đăng nhập";
+          _errorMessage = 'auth';
           _isLoading = false;
         });
       }
@@ -94,13 +95,21 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
             _errorMessage = null;
           });
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        if (!silent && mounted) {
+          setState(() {
+            _errorMessage = 'auth';
+            _isLoading = false;
+          });
+        }
+        return;
       } else {
-        throw Exception("Failed to load activity history");
+        throw Exception('status ${response.statusCode}');
       }
     } catch (e) {
       if (!silent && mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorDisplayWidget.toVietnamese(e);
           _isLoading = false;
         });
       }
@@ -137,7 +146,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+                ? _errorMessage == 'auth'
+                    ? ErrorDisplayWidget.auth(onRetry: _loadData)
+                    : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadData)
                 : TabBarView(
                     children: [
                       _buildActivityTab(),
@@ -194,17 +205,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
           
           // Activity list
           if (_activities.isEmpty)
-            const SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.history_toggle_off, size: 60, color: Colors.grey),
-                    SizedBox(height: 10),
-                    Text("Chưa có hoạt động nào", style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
+            SliverFillRemaining(
+              child: ErrorDisplayWidget.empty(message: 'Chưa có hoạt động nào'),
             )
           else
             SliverPadding(
@@ -365,16 +367,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
     return RefreshIndicator(
       onRefresh: _loadData,
       child: _pointTransactions.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.stars_outlined, size: 60, color: Colors.grey),
-                  SizedBox(height: 10),
-                  Text("Chưa có biến động điểm", style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            )
+          ? ErrorDisplayWidget.empty(message: 'Chưa có biến động điểm')
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pointTransactions.length,

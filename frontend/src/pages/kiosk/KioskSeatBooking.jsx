@@ -2,9 +2,9 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import websocketService from "../../services/websocketService";
+import websocketService from "../../services/shared/websocketService";
 import { LayoutProvider, useLayout, ACTIONS } from "../../context/admin/area_management/LayoutContext";
-import { seatPlanService } from "../../services/seatPlanService";
+import { seatPlanService } from "../../services/librarian/seatPlanService";
 import LibrarianArea from "../../components/librarian/LibrarianArea";
 import { ArrowLeft, Armchair, Clock, MapPin, CheckCircle, XCircle, Lock, AlertTriangle } from "lucide-react";
 import "../../styles/librarian/SeatPlan.css";

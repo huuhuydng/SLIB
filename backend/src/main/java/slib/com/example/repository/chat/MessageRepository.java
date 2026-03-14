@@ -112,6 +112,12 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
        // 12. Lấy tất cả messages của một conversation theo thứ tự thời gian
        List<Message> findByConversationIdOrderByCreatedAtAsc(UUID conversationId);
 
+       // 12b. Paginated: lấy messages theo conversationId, mới nhất trước (cho mobile lazy loading)
+       @Query("SELECT m FROM Message m WHERE m.conversation.id = :conversationId ORDER BY m.createdAt DESC")
+       Page<Message> findByConversationIdPaginated(
+              @Param("conversationId") UUID conversationId,
+              Pageable pageable);
+
        // 13. Lấy messages của conversation với filter theo humanSessionId
        // Quy tắc:
        // - CHỈ load messages có humanSessionId = current session

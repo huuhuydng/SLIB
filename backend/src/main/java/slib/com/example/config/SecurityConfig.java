@@ -44,8 +44,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cho thủ thư)
                         .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
-                        // AI Chat endpoints (cho sinh viên - cần authenticated)
-                        .requestMatchers("/slib/ai/chat/**").authenticated()
+                        // AI endpoints (proxy-chat + chat) - cần authenticated
+                        .requestMatchers("/slib/ai/**").authenticated()
                         .requestMatchers("/slib/files/**").permitAll()
                         // News public endpoints (cho mobile/student)
                         .requestMatchers("/slib/news/public/**").permitAll()

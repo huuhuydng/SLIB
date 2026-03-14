@@ -8,11 +8,11 @@ import {
   ThumbsUp, FileText, Eye, BarChart3,
   MapPin, Layers, X, ExternalLink
 } from "lucide-react";
-import { getLibraryInsights } from "../../../services/geminiService.jsx";
-import librarianService from "../../../services/librarianService";
-import dashboardService from "../../../services/dashboardService";
+import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
+import librarianService from "../../../services/librarian/librarianService";
+import dashboardService from "../../../services/librarian/dashboardService";
 import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
-import websocketService from "../../../services/websocketService";
+import websocketService from "../../../services/shared/websocketService";
 
 import "../../../styles/librarian/Dashboard.css";
 

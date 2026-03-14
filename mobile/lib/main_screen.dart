@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Nhớ import Provider
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/zones.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/booking_service.dart';
-import 'package:slib/services/notification_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
 import 'package:slib/views/booking/floor_plan_screen.dart';

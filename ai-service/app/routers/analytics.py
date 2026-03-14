@@ -470,80 +470,177 @@ async def get_seat_recommendation(
     time_slot: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Gợi ý chỗ ngồi dựa trên AI
+    Gợi ý chỗ ngồi thông minh — scoring system kết hợp nhiều yếu tố:
+
+    Mỗi ghế trống được chấm điểm dựa trên:
+      - Quen thuộc (40%): user đã ngồi ghế/khu vực này bao nhiêu lần
+      - Yên tĩnh  (30%): khu vực ít người đặt trong tuần qua
+      - Trống     (20%): không bị đặt trong 2h tới
+      - Thời gian (10%): khớp với giờ user hay đến
+
+    Trả về top 5 ghế điểm cao nhất + lý do tổng hợp.
     """
-    from app.services.analytics_service import analytics_ai_service
+    from app.core.database import engine
+    from sqlalchemy import text
 
-    # Get seat recommendations
+    user_favorite_zone = None
+    user_favorite_seat = None
+    user_favorite_time = None
+    user_booking_count = 0
+
     try:
-        from app.core.database import engine
-        from sqlalchemy import text
-
         with engine.connect() as conn:
-            # Find seats that are available and in popular zones
-            result = conn.execute(text("""
+            # === DATA 1: Lịch sử user (30 ngày) ===
+            user_seat_history = {}   # seat_code -> times_booked
+            user_zone_history = {}   # zone_name -> times_booked
+
+            user_rows = conn.execute(text("""
+                SELECT
+                    s.seat_code,
+                    z.zone_name,
+                    COUNT(*) as times_booked,
+                    EXTRACT(HOUR FROM MODE() WITHIN GROUP (ORDER BY r.start_time)) as fav_hour
+                FROM reservations r
+                JOIN seats s ON s.seat_id = r.seat_id
+                JOIN zones z ON z.zone_id = s.zone_id
+                WHERE r.user_id = CAST(:user_id AS UUID)
+                  AND r.status IN ('COMPLETED', 'CONFIRMED', 'BOOKED')
+                  AND r.start_time >= NOW() - INTERVAL '30 days'
+                GROUP BY s.seat_code, z.zone_name
+                ORDER BY times_booked DESC
+            """), {"user_id": user_id}).fetchall()
+
+            for row in user_rows:
+                seat_code, zone_name, times, fav_hour = row
+                user_seat_history[seat_code] = times
+                user_zone_history[zone_name] = user_zone_history.get(zone_name, 0) + times
+                if not user_favorite_seat:
+                    user_favorite_seat = seat_code
+                    user_favorite_zone = zone_name
+                    user_favorite_time = int(fav_hour) if fav_hour else None
+
+            user_booking_count = sum(user_seat_history.values())
+            max_seat_visits = max(user_seat_history.values()) if user_seat_history else 1
+            max_zone_visits = max(user_zone_history.values()) if user_zone_history else 1
+
+            # === DATA 2: Ghế trống + mật độ khu vực (tuần qua) ===
+            seats_data = conn.execute(text("""
                 SELECT
                     s.seat_id,
                     s.seat_code,
                     z.zone_name,
                     z.zone_id,
-                    COUNT(r.reservation_id) as recent_bookings
+                    COUNT(r.reservation_id) as zone_bookings_7d
                 FROM seats s
                 JOIN zones z ON z.zone_id = s.zone_id
                 LEFT JOIN reservations r ON r.seat_id = s.seat_id
                     AND r.start_time >= NOW() - INTERVAL '7 days'
                 WHERE s.is_active = true
+                  AND NOT EXISTS (
+                    SELECT 1 FROM reservations r2
+                    WHERE r2.seat_id = s.seat_id
+                      AND r2.status IN ('BOOKED', 'CONFIRMED', 'PROCESSING')
+                      AND r2.start_time <= NOW() + INTERVAL '2 hours'
+                      AND r2.end_time >= NOW()
+                  )
                 GROUP BY s.seat_id, s.seat_code, z.zone_name, z.zone_id
-                ORDER BY recent_bookings ASC
-                LIMIT 5
-            """))
+            """)).fetchall()
 
-            recommendations = []
-            for row in result:
-                recommendations.append({
-                    "seat_code": row[1],
-                    "zone": row[2],
-                    "availability": 0.9,
-                    "reason": f"Khu vực {row[2]} có lượng đặt ít trong tuần qua"
+            if not seats_data:
+                raise Exception("No available seats")
+
+            max_zone_bookings = max(row[4] for row in seats_data) or 1
+            current_hour = datetime.now().hour
+
+            # === SCORING: Tính điểm cho mỗi ghế ===
+            scored_seats = []
+            for row in seats_data:
+                seat_id, seat_code, zone_name, zone_id, zone_bookings = row
+
+                # Điểm quen thuộc (0-1): ghế user hay ngồi
+                seat_familiarity = user_seat_history.get(seat_code, 0) / max_seat_visits
+                zone_familiarity = user_zone_history.get(zone_name, 0) / max_zone_visits
+                familiarity_score = seat_familiarity * 0.6 + zone_familiarity * 0.4
+
+                # Điểm yên tĩnh (0-1): khu vực ít booking = yên tĩnh hơn
+                quietness_score = 1.0 - (zone_bookings / max_zone_bookings) if max_zone_bookings > 0 else 1.0
+
+                # Điểm trống (luôn = 1 vì đã filter ở SQL)
+                availability_score = 1.0
+
+                # Điểm thời gian (0-1): khớp giờ hay đến
+                time_score = 0.5  # mặc định
+                if user_favorite_time is not None:
+                    hour_diff = abs(current_hour - user_favorite_time)
+                    time_score = max(0, 1.0 - hour_diff / 12.0)
+
+                # Tổng điểm = weighted sum
+                total_score = (
+                    familiarity_score * 0.40 +
+                    quietness_score * 0.30 +
+                    availability_score * 0.20 +
+                    time_score * 0.10
+                )
+
+                # Tạo reason tổng hợp
+                reasons = []
+                if user_seat_history.get(seat_code, 0) > 0:
+                    reasons.append(f"bạn đã ngồi {user_seat_history[seat_code]} lần")
+                if user_zone_history.get(zone_name, 0) > 0 and not reasons:
+                    reasons.append(f"khu vực bạn hay ngồi")
+                if zone_bookings == 0:
+                    reasons.append("rất vắng tuần qua")
+                elif zone_bookings <= 3:
+                    reasons.append("khá yên tĩnh")
+                if user_favorite_time is not None and abs(current_hour - user_favorite_time) <= 2:
+                    reasons.append("đúng giờ bạn hay học")
+
+                if not reasons:
+                    reasons.append("đang trống, phù hợp lúc này")
+
+                scored_seats.append({
+                    "seat_code": seat_code,
+                    "zone": zone_name,
+                    "zone_id": zone_id,
+                    "seat_id": seat_id,
+                    "score": round(total_score, 3),
+                    "availability": round(total_score, 2),
+                    "reason": reason_to_text(seat_code, zone_name, reasons)
                 })
 
-            if not recommendations:
-                raise Exception("No available seats")
+            # Sắp xếp theo điểm giảm dần, lấy top 5
+            scored_seats.sort(key=lambda x: x["score"], reverse=True)
+            recommendations = scored_seats[:5]
 
     except Exception as e:
         print(f"Error getting seat recommendations: {e}")
-        # Fallback to mock
         recommendations = [
-            {
-                "seat_code": "A1",
-                "zone": "Khu yên tĩnh A",
-                "availability": 0.85,
-                "reason": "Khu yên tĩnh, ít người vào buổi sáng"
-            },
-            {
-                "seat_code": "B3",
-                "zone": "Khu học nhóm B",
-                "availability": 0.70,
-                "reason": "Gần cửa ra vào, thuận tiện"
-            },
-            {
-                "seat_code": "C5",
-                "zone": "Khu máy tính C",
-                "availability": 0.90,
-                "reason": "Có ổ cắm điện, thoáng mát"
-            }
+            {"seat_code": "N/A", "zone": "N/A", "availability": 0,
+             "reason": "Không thể tải gợi ý lúc này"}
         ]
 
     return {
         "user_id": user_id,
         "preferences": {
-            "zone_preference": zone_preference,
-            "time_slot": time_slot
+            "zone_preference": zone_preference or user_favorite_zone,
+            "time_slot": time_slot,
+            "user_favorite_seat": user_favorite_seat,
+            "user_favorite_zone": user_favorite_zone,
+            "user_favorite_time": user_favorite_time,
+            "user_booking_count": user_booking_count
         },
         "recommendations": recommendations,
-        "based_on": "Lịch sử đặt chỗ, thời gian trong ngày, mật độ hiện tại",
+        "based_on": "Lịch sử cá nhân (40%), mật độ khu vực (30%), trạng thái trống (20%), thời gian (10%)",
         "generated_at": datetime.now().isoformat()
     }
+
+
+def reason_to_text(seat_code: str, zone_name: str, reasons: list) -> str:
+    """Ghép các reason thành câu tự nhiên"""
+    text = f"{seat_code} tại {zone_name}"
+    if reasons:
+        text += " — " + ", ".join(reasons)
+    return text
 
 
 @router.get("/usage-statistics")

@@ -8,7 +8,7 @@ import {
     Calendar,
     CheckCircle2
 } from 'lucide-react';
-import userService from '../../services/userService';
+import userService from '../../services/auth/userService';
 
 /**
  * Modal xác nhận xóa người dùng với type-to-confirm

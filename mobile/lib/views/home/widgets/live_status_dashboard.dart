@@ -5,9 +5,9 @@ import 'package:provider/provider.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/student_profile.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/library_status_service.dart';
-import 'package:slib/services/student_profile_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/library/library_status_service.dart';
+import 'package:slib/services/user/student_profile_service.dart';
 
 class LiveStatusDashboard extends StatefulWidget {
   const LiveStatusDashboard({super.key});

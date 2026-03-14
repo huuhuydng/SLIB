@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/seat.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 
 class BookingConfirmScreen extends StatefulWidget {
   final Seat seat;

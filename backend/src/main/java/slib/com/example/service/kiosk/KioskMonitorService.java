@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.hce.AccessLog;
-import slib.com.example.repository.AccessLogRepository;
+import slib.com.example.repository.hce.AccessLogRepository;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;

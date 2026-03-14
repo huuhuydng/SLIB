@@ -9,7 +9,7 @@ import slib.com.example.dto.chat.ChatMessageDTO;
 import slib.com.example.dto.chat.ChatPartnerDTO; // Nhớ import cái này
 import slib.com.example.entity.chat.Message;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.chat.MessageRepository;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.chat.MessageType;

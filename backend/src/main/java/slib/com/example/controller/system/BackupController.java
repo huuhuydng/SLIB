@@ -9,8 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.system.BackupHistoryEntity;
 import slib.com.example.entity.system.BackupScheduleEntity;
-import slib.com.example.repository.BackupScheduleRepository;
-import slib.com.example.service.BackupService;
+import slib.com.example.repository.system.BackupScheduleRepository;
+import slib.com.example.service.system.BackupService;
 
 import java.io.File;
 import java.time.LocalDateTime;

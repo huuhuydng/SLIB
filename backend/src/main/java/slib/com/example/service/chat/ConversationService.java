@@ -13,11 +13,11 @@ import slib.com.example.entity.chat.ConversationStatus;
 import slib.com.example.entity.chat.Message;
 import slib.com.example.entity.chat.MessageType;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.chat.MessageRepository;
-import slib.com.example.service.LibrarianNotificationService;
-import slib.com.example.service.PushNotificationService;
+import slib.com.example.service.notification.LibrarianNotificationService;
+import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
 import java.time.LocalDateTime;
@@ -31,6 +31,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
 
@@ -635,6 +639,16 @@ public class ConversationService {
         }
 
         /**
+         * Lấy messages của conversation với phân trang (cho mobile lazy loading)
+         * Trả về page mới nhất trước (DESC), client reverse lại để hiển thị ASC
+         */
+        public Page<ChatMessageDTO> getConversationMessagesPaginated(UUID conversationId, int page, int size) {
+                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                Page<Message> messagePage = messageRepository.findByConversationIdPaginated(conversationId, pageable);
+                return messagePage.map(this::convertMessageToDTO);
+        }
+
+        /**
          * Gọi AI service API để lấy chat history từ MongoDB
          */
         @SuppressWarnings("unchecked")
@@ -786,6 +800,9 @@ public class ConversationService {
                                                 conversationId);
                                 log.info("[Chat] Sent push notification to student {} for conv {}", studentId,
                                                 conversationId);
+                        } else if ("AI".equals(senderType)) {
+                                // AI messages don't need notifications
+                                log.debug("[Chat] Skipping notification for AI message in conv {}", conversationId);
                         } else {
                                 log.warn("[Chat] Unknown senderType for notification: {}", senderType);
                         }

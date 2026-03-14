@@ -18,8 +18,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import slib.com.example.controller.feedback.SeatViolationReportController;
 import slib.com.example.dto.feedback.ViolationReportResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.UserRepository;
-import slib.com.example.service.SeatViolationReportService;
+import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.feedback.SeatViolationReportService;
 
 import java.util.UUID;
 

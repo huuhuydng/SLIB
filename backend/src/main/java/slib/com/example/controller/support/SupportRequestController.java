@@ -11,7 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.support.SupportRequestDTO;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.support.SupportRequestService;
 
 import java.util.List;

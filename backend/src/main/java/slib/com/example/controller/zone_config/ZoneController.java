@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import slib.com.example.dto.zone_config.ZoneOccupancyDTO;
 import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.entity.zone_config.ZoneEntity;
-import slib.com.example.service.BookingService;
-import slib.com.example.service.ZoneService;
+import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.zone_config.ZoneService;
 
 @RestController
 @RequestMapping("/slib/zones")

@@ -13,9 +13,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.ai.ChatController;
+import slib.com.example.entity.ai.ChatSessionEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.ai.ChatService;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,8 +57,6 @@ class FE47_TestAIChatTest {
                 request.put("message", "Xin chao");
                 request.put("sessionId", 1);
 
-                // Without @AuthenticationPrincipal user, the controller receives null user
-                // and the endpoint catches exception returning 400
                 mockMvc.perform(post("/slib/ai/chat/message")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
@@ -74,8 +74,6 @@ class FE47_TestAIChatTest {
                 request.put("message", "Xin chao AI");
                 request.put("session_id", "test-session");
 
-                // proxy-chat uses RestTemplate internally (new RestTemplate()), which is not mocked in WebMvcTest
-                // The call will fail with connection error, returning SERVICE_UNAVAILABLE
                 mockMvc.perform(post("/slib/ai/proxy-chat")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
@@ -90,9 +88,14 @@ class FE47_TestAIChatTest {
         @Test
         @DisplayName("UTCID03: Get session detail with valid sessionId returns 200 OK")
         void getSessionDetail_validId_returns200OK() throws Exception {
+                ChatSessionEntity session = ChatSessionEntity.builder()
+                        .id(1L)
+                        .title("Test session")
+                        .build();
+
                 Map<String, Object> mockDetail = new HashMap<>();
-                mockDetail.put("session", Map.of("id", 1, "title", "Test session"));
-                mockDetail.put("messages", java.util.Collections.emptyList());
+                mockDetail.put("session", session);
+                mockDetail.put("messages", Collections.emptyList());
 
                 when(chatService.getSessionDetail(1L)).thenReturn(mockDetail);
 
@@ -114,7 +117,6 @@ class FE47_TestAIChatTest {
                 request.put("message", "");
                 request.put("sessionId", 1);
 
-                // Without authenticated user, endpoint returns bad request
                 mockMvc.perform(post("/slib/ai/chat/message")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))

@@ -11,7 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import slib.com.example.dto.hce.AccessLogDTO;
 import slib.com.example.dto.hce.AccessLogStatsDTO;
 import slib.com.example.dto.hce.CheckInRequest;
-import slib.com.example.service.CheckInService;
+import slib.com.example.service.hce.CheckInService;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;

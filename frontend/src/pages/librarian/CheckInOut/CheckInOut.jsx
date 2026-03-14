@@ -3,9 +3,9 @@ import { useToast } from '../../../components/common/ToastProvider';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
-import librarianService from "../../../services/librarianService";
+import librarianService from "../../../services/librarian/librarianService";
 import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
-import websocketService from "../../../services/websocketService";
+import websocketService from "../../../services/shared/websocketService";
 
 
 const CheckInOut = () => {

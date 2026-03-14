@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/kiosk_service.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/kiosk/kiosk_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
@@ -235,7 +236,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
         setState(() => _isCheckingOut = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Lỗi check-out: ${e.toString()}"),
+            content: Text(ErrorDisplayWidget.toVietnamese(e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -307,7 +308,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Lỗi xác thực: ${e.toString()}"),
+            content: Text(ErrorDisplayWidget.toVietnamese(e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -490,7 +491,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Lỗi: ${e.toString()}"),
+            content: Text(ErrorDisplayWidget.toVietnamese(e)),
             backgroundColor: Colors.red,
           ),
         );

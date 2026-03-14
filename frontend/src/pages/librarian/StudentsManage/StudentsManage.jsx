@@ -3,8 +3,8 @@ import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHor
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/librarian/StudentsManage.css';
-import userService from '../../../services/userService';
-import librarianService from '../../../services/librarianService';
+import userService from '../../../services/auth/userService';
+import librarianService from '../../../services/librarian/librarianService';
 import StudentDetailModal from '../../../components/librarian/StudentDetailModal';
 
 const STATUS_OPTIONS = [

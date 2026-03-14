@@ -16,7 +16,7 @@ import Sidebar from "../../components/sidebar_librarian/Sidebar_librarian";
 import {
   LibrarianNotificationProvider,
   useLibrarianNotification,
-} from "../../contexts/LibrarianNotificationContext";
+} from "../../context/LibrarianNotificationContext";
 import { useToast } from "../../components/common/ToastProvider";
 import "../../styles/librarian/MainLayout.css";
 import "../../styles/librarian/LibrarianNotification.css";
@@ -40,6 +40,8 @@ const ACTION_LABELS = {
   REVIEWED: "đã xem",
   TAKEN_OVER: "đã tiếp nhận",
   RESOLVED: "đã kết thúc",
+  STUDENT_RESOLVED: "sinh viên ngắt kết nối",
+  CANCELLED: "đã huỷ",
   VERIFIED: "đã xác minh",
   REJECTED: "đã từ chối",
 };
@@ -436,6 +438,10 @@ const TOAST_DETAIL_MAP = {
   CHAT: {
     CREATED: { title: "Tin nhắn mới", desc: "Có sinh viên đang chờ được hỗ trợ qua trò chuyện." },
     ESCALATED: { title: "Yêu cầu trò chuyện", desc: "Sinh viên yêu cầu nói chuyện trực tiếp với thủ thư." },
+    STUDENT_RESOLVED: { title: "Sinh viên đã ngắt kết nối", desc: "Sinh viên đã tự kết thúc cuộc trò chuyện." },
+    TAKEN_OVER: { title: "Đã tiếp nhận trò chuyện", desc: "Thủ thư đã tiếp nhận cuộc trò chuyện với sinh viên." },
+    RESOLVED: { title: "Trò chuyện đã kết thúc", desc: "Cuộc trò chuyện đã được kết thúc." },
+    CANCELLED: { title: "Trò chuyện đã huỷ", desc: "Cuộc trò chuyện đã bị huỷ." },
   },
   VIOLATION: {
     CREATED: { title: "Báo cáo vi phạm mới", desc: "Có báo cáo vi phạm mới cần được xác minh và xử lý." },

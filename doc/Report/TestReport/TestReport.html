@@ -1542,30 +1542,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view booking details successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Booking Details screen<br>3. Apply the test input for case: Target booking id or user scope is valid/invalid</td><td>The requested information is displayed successfully</td><td>Booking detail request is made<br>Details depend on reservation repository lookup and mapping</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view booking details when the input is invalid</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Booking Details screen<br>3. Apply the test input for case: Target booking id or user scope is valid/invalid</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Booking detail request is made<br>Details depend on reservation repository lookup and mapping</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-72 - Cancel invalid booking</h2>
+<h2>FE-72 - Check-in/Check-out library via HCE</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-72_Cancel invalid booking</td></tr>
-<tr><td class="meta-label">Test</td><td>Cancel invalid booking</td></tr>
-<tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
-</table>
-<table class="round-summary">
-<tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
-<tr><td>Round 1</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
-<tr><td>Round 2</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
-<tr><td>Round 3</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
-</table>
-<table class="case-table">
-<tr><th>Test Case ID</th><th>Test Case Description</th><th>Test Case Procedure</th><th>Expected Results</th><th>Pre-conditions</th><th>Round 1</th><th>Test date</th><th>Tester</th><th>Round 2</th><th>Test date</th><th>Tester</th><th>Round 3</th><th>Test date</th><th>Tester</th><th>Note</th></tr>
-<tr><td class="group-row" colspan="15">Cancel Invalid Booking</td></tr>
-<tr><td>TC-01</td><td>Test cancel invalid booking successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Reservation violates timing or status conditions<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is created successfully</td><td>Reservation id is provided<br>Cancellation logic depends on reservation status and timing</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
-<tr><td>TC-02</td><td>Test cancel invalid booking when Reservation violates timing or status conditions</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Reservation violates timing or status conditions<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Reservation id is provided<br>Cancellation logic depends on reservation status and timing</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
-<tr><td>TC-03</td><td>Test cancel invalid booking when Reservation violates timing or status conditions</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Reservation violates timing or status conditions<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Reservation id is provided<br>Cancellation logic depends on reservation status and timing</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
-<tr><td>TC-04</td><td>Test cancel invalid booking when Reservation violates timing or status conditions</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Reservation violates timing or status conditions<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Reservation id is provided<br>Cancellation logic depends on reservation status and timing</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
-<tr><td>TC-05</td><td>Test cancel invalid booking when Reservation violates timing or status conditions</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Reservation violates timing or status conditions<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Reservation id is provided<br>Cancellation logic depends on reservation status and timing</td><td>Passed</td><td>18/01/2025</td><td>ThangTVB</td><td>Passed</td><td>18/02/2025</td><td>BaoPG</td><td>Passed</td><td>13/03/2025</td><td>QuangTVD</td><td></td></tr>
-</table>
-<h2>FE-73 - Check-in/Check-out library via HCE</h2>
-<table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-73_Check-in/Check-out library via HCE</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-72_Check-in/Check-out library via HCE</td></tr>
 <tr><td class="meta-label">Test</td><td>Check-in/Check-out library via HCE</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>7</td></tr>
 </table>
@@ -1586,9 +1565,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-06</td><td>Test check-in/out via hce when the input is invalid</td><td>1. Start the HCE station and ensure the gate screen is ready<br>2. Send or scan the test data: Token/user is invalid<br>3. Observe the station response and backend result</td><td>Failed to process HCE check-in: Invalid token or unknown user</td><td>The Raspberry Pi sends a token and gateId for a registered HCE station</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-07</td><td>Test check-in/out via hce when Unexpected runtime failure occurs</td><td>1. Start the HCE station and ensure the gate screen is ready<br>2. Send or scan the test data: Unexpected runtime failure occurs<br>3. Observe the station response and backend result</td><td>Failed to process HCE check-in: Unexpected system error</td><td>The Raspberry Pi sends a token and gateId for a registered HCE station</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-74 - Check-in/Check-out library via QR code</h2>
+<h2>FE-73 - Check-in/Check-out library via QR code</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-74_Check-in/Check-out library via QR code</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-73_Check-in/Check-out library via QR code</td></tr>
 <tr><td class="meta-label">Test</td><td>Check-in/Check-out library via QR code</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -1608,9 +1587,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test check-in/out via qr when QR payload matches or mismatches kiosk/session context</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: QR payload matches or mismatches kiosk/session context<br>3. Perform the action for this feature</td><td>Failed to retrieve via QR: Invalid request parameters for QR payload matches or mismatches kiosk/session context (UTCID05)</td><td>QR payload and kiosk/session identifiers are provided<br>QR flow depends on kiosk session repository and signature validation</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test check-in/out via qr when QR payload matches or mismatches kiosk/session context</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: QR payload matches or mismatches kiosk/session context<br>3. Perform the action for this feature</td><td>Failed to retrieve via QR: Invalid request parameters for QR payload matches or mismatches kiosk/session context (UTCID06)</td><td>QR payload and kiosk/session identifiers are provided<br>QR flow depends on kiosk session repository and signature validation</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-75 - View history of check-ins/check-outs</h2>
+<h2>FE-74 - View history of check-ins/check-outs</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-75_View history of check-ins/check-outs</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-74_View history of check-ins/check-outs</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of check-ins/check-outs</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1629,9 +1608,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view history successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History screen<br>3. Apply the test input for case: Start/end date may be both present, partial, or absent</td><td>The requested information is displayed successfully</td><td>Access-history request is made<br>History depends on access-log repository lookup</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view history when Start/end date may be both present, partial, or absent</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History screen<br>3. Apply the test input for case: Start/end date may be both present, partial, or absent</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Access-history request is made<br>History depends on access-log repository lookup</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-76 - View list of Students access to library</h2>
+<h2>FE-75 - View list of Students access to library</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-76_View list of Students access to library</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-75_View list of Students access to library</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of Students access to library</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1650,9 +1629,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view students list successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Students List screen<br>3. Apply the test input for case: List request targets recent or complete access data</td><td>The requested information is displayed successfully</td><td>Student access-list request is made<br>Current closest list source is latest/all access-log retrieval</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view students list when List request targets recent or complete access data</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Students List screen<br>3. Apply the test input for case: List request targets recent or complete access data</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Student access-list request is made<br>Current closest list source is latest/all access-log retrieval</td><td>Passed</td><td>19/01/2025</td><td>ThangTVB</td><td>Passed</td><td>19/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-77 - View reputation score</h2>
+<h2>FE-76 - View reputation score</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-77_View reputation score</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-76_View reputation score</td></tr>
 <tr><td class="meta-label">Test</td><td>View reputation score</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1671,9 +1650,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view reputation score when User has default or updated reputation</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Reputation Score screen<br>3. Apply the test input for case: User has default or updated reputation</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id is provided<br>Reputation score is read from student profile repository</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view reputation score when User has default or updated reputation</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Reputation Score screen<br>3. Apply the test input for case: User has default or updated reputation</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id is provided<br>Reputation score is read from student profile repository</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-78 - View history of changed reputation points</h2>
+<h2>FE-77 - View history of changed reputation points</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-78_View history of changed reputation points</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-77_View history of changed reputation points</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of changed reputation points</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1692,9 +1671,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view history points successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History Points screen<br>3. Apply the test input for case: User has transaction-driven reputation changes</td><td>The requested information is displayed successfully</td><td>User id is provided<br>Point history is indirectly reflected through profile score and transactions</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view history points successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History Points screen<br>3. Apply the test input for case: User has transaction-driven reputation changes</td><td>The requested information is displayed successfully</td><td>User id is provided<br>Point history is indirectly reflected through profile score and transactions</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-79 - View detailed reason for deducting point</h2>
+<h2>FE-78 - View detailed reason for deducting point</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-79_View detailed reason for deducting point</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-78_View detailed reason for deducting point</td></tr>
 <tr><td class="meta-label">Test</td><td>View detailed reason for deducting point</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1713,9 +1692,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view deduct reason successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Deduct Reason screen<br>3. Apply the test input for case: User has or does not have verified violations</td><td>The requested information is displayed successfully</td><td>User id is provided<br>Deduct reasons come from verified violation reports</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view deduct reason when User has or does not have verified violations</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Deduct Reason screen<br>3. Apply the test input for case: User has or does not have verified violations</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id is provided<br>Deduct reasons come from verified violation reports</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-80 - View list of Students violation</h2>
+<h2>FE-79 - View list of Students violation</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-80_View list of Students violation</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-79_View list of Students violation</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of Students violation</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1734,9 +1713,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view violation list successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation List screen<br>3. Apply the test input for case: User is reporter or violator</td><td>The requested information is displayed successfully</td><td>User id is provided<br>Violation lists depend on violation-report repository queries</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view violation list when User is reporter or violator</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation List screen<br>3. Apply the test input for case: User is reporter or violator</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id is provided<br>Violation lists depend on violation-report repository queries</td><td>Passed</td><td>20/01/2025</td><td>ThangTVB</td><td>Passed</td><td>20/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-81 - View Student violation details</h2>
+<h2>FE-80 - View Student violation details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-81_View Student violation details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-80_View Student violation details</td></tr>
 <tr><td class="meta-label">Test</td><td>View Student violation details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1755,9 +1734,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view violation details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Details screen<br>3. Apply the test input for case: Detail request targets existing or missing report</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation detail request is made<br>Detail data comes from violation-report repository mapping</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view violation details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Details screen<br>3. Apply the test input for case: Detail request targets existing or missing report</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation detail request is made<br>Detail data comes from violation-report repository mapping</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-82 - Create complaint</h2>
+<h2>FE-81 - Create complaint</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-82_Create complaint</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-81_Create complaint</td></tr>
 <tr><td class="meta-label">Test</td><td>Create complaint</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -1777,9 +1756,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test create complaint when Subject/content are valid</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Subject/content are valid<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Student id and complaint data are provided<br>Complaint creation depends on user and complaint repositories</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test create complaint when Subject/content are valid</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Subject/content are valid<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Student id and complaint data are provided<br>Complaint creation depends on user and complaint repositories</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-83 - View history of sending complaint</h2>
+<h2>FE-82 - View history of sending complaint</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-83_View history of sending complaint</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-82_View history of sending complaint</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of sending complaint</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1798,9 +1777,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view complaint history successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Student has or does not have complaints<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information is displayed successfully</td><td>Student id is provided<br>Complaint history depends on complaint repository query by student id</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view complaint history when Student has or does not have complaints</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Student has or does not have complaints<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Student id is provided<br>Complaint history depends on complaint repository query by student id</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-84 - View list of complaints</h2>
+<h2>FE-83 - View list of complaints</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-84_View list of complaints</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-83_View list of complaints</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of complaints</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1819,9 +1798,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view complaints list when Status filter is present or absent</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Status filter is present or absent<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Complaint list request is made<br>Complaint list depends on all/status repository queries</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view complaints list when Status filter is present or absent</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Status filter is present or absent<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Complaint list request is made<br>Complaint list depends on all/status repository queries</td><td>Passed</td><td>21/01/2025</td><td>ThangTVB</td><td>Passed</td><td>21/02/2025</td><td>BaoPG</td><td>Passed</td><td>15/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-85 - View complaint details</h2>
+<h2>FE-84 - View complaint details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-85_View complaint details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-84_View complaint details</td></tr>
 <tr><td class="meta-label">Test</td><td>View complaint details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1840,9 +1819,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view complaint details when required data is missing</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Request targets existing or missing complaint<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Complaint detail request is made<br>Current complaint detail comes from mapped repository results</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view complaint details when required data is missing</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Request targets existing or missing complaint<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Complaint detail request is made<br>Current complaint detail comes from mapped repository results</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-86 - Verify complaint</h2>
+<h2>FE-85 - Verify complaint</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-86_Verify complaint</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-85_Verify complaint</td></tr>
 <tr><td class="meta-label">Test</td><td>Verify complaint</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -1862,9 +1841,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test verify complaint successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Action is accept or deny with optional note<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is created successfully</td><td>Complaint id and librarian id are provided<br>Verification depends on complaint and user repositories</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test verify complaint successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Action is accept or deny with optional note<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is created successfully</td><td>Complaint id and librarian id are provided<br>Verification depends on complaint and user repositories</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-87 - Create feedback after check-out</h2>
+<h2>FE-86 - Create feedback after check-out</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-87_Create feedback after check-out</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-86_Create feedback after check-out</td></tr>
 <tr><td class="meta-label">Test</td><td>Create feedback after check-out</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1883,9 +1862,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test create feedback when required data is missing</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Authenticated user details are missing<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Feedback request contains invalid rating or invalid authenticated-user context</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test create feedback when the input is invalid</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Authenticated student record cannot be found<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Feedback request contains invalid rating or invalid authenticated-user context</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-88 - View list of feedbacks</h2>
+<h2>FE-87 - View list of feedbacks</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-88_View list of feedbacks</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-87_View list of feedbacks</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of feedbacks</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1904,9 +1883,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view feedbacks when Status filter is present or absent</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Status filter is present or absent<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Feedback list request is made<br>Feedback list depends on all/status repository queries</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view feedbacks when Status filter is present or absent</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Status filter is present or absent<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Feedback list request is made<br>Feedback list depends on all/status repository queries</td><td>Passed</td><td>22/01/2025</td><td>ThangTVB</td><td>Passed</td><td>22/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-89 - View feedback details</h2>
+<h2>FE-88 - View feedback details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-89_View feedback details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-88_View feedback details</td></tr>
 <tr><td class="meta-label">Test</td><td>View feedback details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1925,9 +1904,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view feedback details when required data is missing</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Request targets existing or missing feedback<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Feedback detail request is made<br>Current feedback detail comes from mapped repository results</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view feedback details when required data is missing</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Request targets existing or missing feedback<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Feedback detail request is made<br>Current feedback detail comes from mapped repository results</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-90 - Create seat status report</h2>
+<h2>FE-89 - Create seat status report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-90_Create seat status report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-89_Create seat status report</td></tr>
 <tr><td class="meta-label">Test</td><td>Create seat status report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1946,9 +1925,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test create seat status report when Submit unknown seatId</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Submit unknown seatId<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Student has a confirmed seat and is authenticated</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test create seat status report when Unexpected upload or persistence failure</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Unexpected upload or persistence failure<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is not created and the system shows the corresponding error</td><td>Student has a confirmed seat and is authenticated</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>16/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-91 - View history of sending seat status report</h2>
+<h2>FE-90 - View history of sending seat status report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-91_View history of sending seat status report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-90_View history of sending seat status report</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of sending seat status report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>4</td></tr>
 </table>
@@ -1966,9 +1945,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-03</td><td>Test view history of sending seat status report when Session expired or user is unauthenticated</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History of Sending Seat Status Report screen<br>3. Apply the test input for case: Session expired or user is unauthenticated</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Authenticated student opens the seat status report history screen</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-04</td><td>Test view history of sending seat status report when Unexpected repository failure</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View History of Sending Seat Status Report screen<br>3. Apply the test input for case: Unexpected repository failure</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Authenticated student opens the seat status report history screen</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-92 - View list of seat status reports</h2>
+<h2>FE-91 - View list of seat status reports</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-92_View list of seat status reports</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-91_View list of seat status reports</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of seat status reports</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -1987,9 +1966,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view list of seat status reports successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View List of Seat Status Reports screen<br>3. Apply the test input for case: No report matches the selected filter</td><td>The requested information is displayed successfully</td><td>Librarian or admin opens the seat status report management page</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view list of seat status reports when the input is invalid</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View List of Seat Status Reports screen<br>3. Apply the test input for case: Invalid status filter</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Librarian or admin opens the seat status report management page</td><td>Passed</td><td>23/01/2025</td><td>ThangTVB</td><td>Passed</td><td>23/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-93 - View seat status report details</h2>
+<h2>FE-92 - View seat status report details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-93_View seat status report details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-92_View seat status report details</td></tr>
 <tr><td class="meta-label">Test</td><td>View seat status report details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2008,9 +1987,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view seat status report details when Unknown report id</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Seat Status Report Details screen<br>3. Apply the test input for case: Unknown report id</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Authorized user requests a specific seat status report detail</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view seat status report details when Unexpected lookup failure</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Seat Status Report Details screen<br>3. Apply the test input for case: Unexpected lookup failure</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Authorized user requests a specific seat status report detail</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-94 - Verify seat status report</h2>
+<h2>FE-93 - Verify seat status report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-94_Verify seat status report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-93_Verify seat status report</td></tr>
 <tr><td class="meta-label">Test</td><td>Verify seat status report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -2030,9 +2009,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test verify seat status report when Resolve a rejected report</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Resolve a rejected report<br>3. Perform the action for this feature</td><td>Failed to update Verify Seat Status Report: Invalid request parameters for Resolve a rejected report</td><td>Librarian/admin opens a seat status report in processing view</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test verify seat status report when Process unknown report id</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Process unknown report id<br>3. Perform the action for this feature</td><td>Failed to update Verify Seat Status Report: Requested resource not found for Process unknown report id</td><td>Librarian/admin opens a seat status report in processing view</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-95 - Create report seat violation</h2>
+<h2>FE-94 - Create report seat violation</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-95_Create report seat violation</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-94_Create report seat violation</td></tr>
 <tr><td class="meta-label">Test</td><td>Create report seat violation</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2051,9 +2030,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test create violation report successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Violation request contains valid seat and description/images<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is created successfully</td><td>Reporter id, seat id, and violation request are provided<br>Violation creation depends on user, seat, file/image, and report repositories</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test create violation report successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Violation request contains valid seat and description/images<br>3. Click &quot;Lưu&quot; or &quot;Xác nhận&quot; button</td><td>The record is created successfully</td><td>Reporter id, seat id, and violation request are provided<br>Violation creation depends on user, seat, file/image, and report repositories</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-96 - View history of sending report seat violation</h2>
+<h2>FE-95 - View history of sending report seat violation</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-96_View history of sending report seat violation</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-95_View history of sending report seat violation</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of sending report seat violation</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2072,9 +2051,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view violation report history successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Report History screen<br>3. Apply the test input for case: Reporter has or does not have prior reports</td><td>The requested information is displayed successfully</td><td>Reporter id is provided<br>History depends on violation-report repository query by reporter</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view violation report history when Reporter has or does not have prior reports</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Report History screen<br>3. Apply the test input for case: Reporter has or does not have prior reports</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Reporter id is provided<br>History depends on violation-report repository query by reporter</td><td>Passed</td><td>24/01/2025</td><td>ThangTVB</td><td>Passed</td><td>24/02/2025</td><td>BaoPG</td><td>Passed</td><td>17/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-97 - View list of seat violation reports</h2>
+<h2>FE-96 - View list of seat violation reports</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-97_View list of seat violation reports</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-96_View list of seat violation reports</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of seat violation reports</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2093,9 +2072,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view violation reports list when Status filter is present or absent</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Reports List screen<br>3. Apply the test input for case: Status filter is present or absent</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation-report list request is made<br>List depends on all/status repository queries</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view violation reports list when Status filter is present or absent</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Reports List screen<br>3. Apply the test input for case: Status filter is present or absent</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation-report list request is made<br>List depends on all/status repository queries</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-98 - View report seat violation details</h2>
+<h2>FE-97 - View report seat violation details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-98_View report seat violation details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-97_View report seat violation details</td></tr>
 <tr><td class="meta-label">Test</td><td>View report seat violation details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2114,9 +2093,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view violation report details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Report Details screen<br>3. Apply the test input for case: Request targets existing or missing report</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation-report detail request is made<br>Current detail data comes from mapped violation-report results</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view violation report details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Violation Report Details screen<br>3. Apply the test input for case: Request targets existing or missing report</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Violation-report detail request is made<br>Current detail data comes from mapped violation-report results</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-99 - Verify seat violation report</h2>
+<h2>FE-98 - Verify seat violation report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-99_Verify seat violation report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-98_Verify seat violation report</td></tr>
 <tr><td class="meta-label">Test</td><td>Verify seat violation report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2135,9 +2114,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test verify violation report successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Action is verify or reject<br>3. Perform the action for this feature</td><td>Successfully updated Verify Violation Report for Action is verify or reject (UTCID04)</td><td>Report id and librarian id are provided<br>Verification depends on report, librarian, reservation, and profile services</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test verify violation report successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Action is verify or reject<br>3. Perform the action for this feature</td><td>Successfully updated Verify Violation Report for Action is verify or reject (UTCID05)</td><td>Report id and librarian id are provided<br>Verification depends on report, librarian, reservation, and profile services</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-100 - View and delete list of notifications</h2>
+<h2>FE-99 - View and delete list of notifications</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-100_View and delete list of notifications</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-99_View and delete list of notifications</td></tr>
 <tr><td class="meta-label">Test</td><td>View and delete list of notifications</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2156,9 +2135,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view/delete notifications when the input is invalid</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View/Delete Notifications screen<br>3. Apply the test input for case: Invalid userId for notification list</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>The request contains an invalid or unsupported identifier</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view/delete notifications when the input is invalid</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View/Delete Notifications screen<br>3. Apply the test input for case: Invalid notificationId for mark-as-read</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>The request contains an invalid or unsupported identifier</td><td>Passed</td><td>25/01/2025</td><td>ThangTVB</td><td>Passed</td><td>25/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-101 - View notification details</h2>
+<h2>FE-100 - View notification details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-101_View notification details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-100_View notification details</td></tr>
 <tr><td class="meta-label">Test</td><td>View notification details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2177,9 +2156,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view notification details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Notification Details screen<br>3. Apply the test input for case: Notification detail request targets existing/missing id</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id and notification context are provided<br>Current detail source is user notification list retrieval</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view notification details when required data is missing</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Notification Details screen<br>3. Apply the test input for case: Notification detail request targets existing/missing id</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>User id and notification context are provided<br>Current detail source is user notification list retrieval</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-102 - Filter notification</h2>
+<h2>FE-101 - Filter notification</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-102_Filter notification</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-101_Filter notification</td></tr>
 <tr><td class="meta-label">Test</td><td>Filter notification</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2198,9 +2177,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test filter notifications when Limit is positive, default, or all-like request</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Limit is positive, default, or all-like request<br>3. Perform the action for this feature</td><td>Failed to retrieve Filter Notifications: Invalid request parameters for Limit is positive, default, or all-like request</td><td>User id and optional limit are provided<br>Filtering depends on notification query with or without limit</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test filter notifications when Limit is positive, default, or all-like request</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Limit is positive, default, or all-like request<br>3. Perform the action for this feature</td><td>Failed to retrieve Filter Notifications: Invalid request parameters for Limit is positive, default, or all-like request (UTCID05)</td><td>User id and optional limit are provided<br>Filtering depends on notification query with or without limit</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>18/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-103 - Mark notification as read</h2>
+<h2>FE-102 - Mark notification as read</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-103_Mark notification as read</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-102_Mark notification as read</td></tr>
 <tr><td class="meta-label">Test</td><td>Mark notification as read</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2219,9 +2198,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test mark as read successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Single-read or mark-all-read operation is requested<br>3. Click &quot;Cập nhật&quot; or &quot;Lưu thay đổi&quot; button</td><td>The record is updated successfully</td><td>Notification id or user id is provided<br>Mark-read depends on notification repository update paths</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test mark as read successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Single-read or mark-all-read operation is requested<br>3. Click &quot;Cập nhật&quot; or &quot;Lưu thay đổi&quot; button</td><td>The record is updated successfully</td><td>Notification id or user id is provided<br>Mark-read depends on notification repository update paths</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-104 - View list of news & announcements</h2>
+<h2>FE-103 - View list of news & announcements</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-104_View list of news & announcements</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-103_View list of news & announcements</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of news & announcements</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2240,9 +2219,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view news list successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News List screen<br>3. Apply the test input for case: Public list includes published news only</td><td>The requested information is displayed successfully</td><td>Public news request is made<br>News list depends on news repository published query</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view news list when Public list includes published news only</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News List screen<br>3. Apply the test input for case: Public list includes published news only</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Public news request is made<br>News list depends on news repository published query</td><td>Passed</td><td>26/01/2025</td><td>ThangTVB</td><td>Passed</td><td>26/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-105 - View news & announcement details</h2>
+<h2>FE-104 - View news & announcement details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-105_View news & announcement details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-104_View news & announcement details</td></tr>
 <tr><td class="meta-label">Test</td><td>View news & announcement details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2261,9 +2240,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view news details successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News Details screen<br>3. Apply the test input for case: Detail request targets existing or missing news</td><td>The requested information is displayed successfully</td><td>News id is provided<br>Detail lookup depends on news repository findById</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view news details successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News Details screen<br>3. Apply the test input for case: Detail request targets existing or missing news</td><td>The requested information is displayed successfully</td><td>News id is provided<br>Detail lookup depends on news repository findById</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-106 - View list of news & announcement categories</h2>
+<h2>FE-105 - View list of news & announcement categories</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-106_View list of news & announcement categories</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-105_View list of news & announcement categories</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of news & announcement categories</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2282,9 +2261,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view news categories successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News Categories screen<br>3. Apply the test input for case: Categories include name and colorCode</td><td>The requested information is displayed successfully</td><td>Category list request is made<br>Categories depend on category repository findAll</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view news categories when Categories include name and colorCode</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View News Categories screen<br>3. Apply the test input for case: Categories include name and colorCode</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Category list request is made<br>Categories depend on category repository findAll</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-107 - View list of new books</h2>
+<h2>FE-106 - View list of new books</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-107_View list of new books</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-106_View list of new books</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of new books</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2303,9 +2282,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view new books successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View New Books screen<br>3. Apply the test input for case: View new-book list request is assumed</td><td>The requested information is displayed successfully</td><td>New-book list feature is expected<br>No dedicated new-book controller/service exists</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view new books successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View New Books screen<br>3. Apply the test input for case: View new-book list request is assumed</td><td>The requested information is displayed successfully</td><td>New-book list feature is expected<br>No dedicated new-book controller/service exists</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-108 - View basic information of new book</h2>
+<h2>FE-107 - View basic information of new book</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-108_View basic information of new book</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-107_View basic information of new book</td></tr>
 <tr><td class="meta-label">Test</td><td>View basic information of new book</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2324,9 +2303,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view new book details successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View New Book Details screen<br>3. Apply the test input for case: View new-book detail request is assumed</td><td>The requested information is displayed successfully</td><td>New-book detail feature is expected<br>No dedicated detail endpoint/service exists</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view new book details successfully</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View New Book Details screen<br>3. Apply the test input for case: View new-book detail request is assumed</td><td>The requested information is displayed successfully</td><td>New-book detail feature is expected<br>No dedicated detail endpoint/service exists</td><td>Passed</td><td>27/01/2025</td><td>ThangTVB</td><td>Passed</td><td>27/02/2025</td><td>BaoPG</td><td>Passed</td><td>19/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-109 - CRUD new book</h2>
+<h2>FE-108 - CRUD new book</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-109_CRUD new book</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-108_CRUD new book</td></tr>
 <tr><td class="meta-label">Test</td><td>CRUD new book</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>7</td></tr>
 </table>
@@ -2347,9 +2326,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-06</td><td>Test crud new book successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: CRUD new-book requests are assumed<br>3. Perform the action for this feature</td><td>Successfully retrieved CRUD New Book for CRUD new-book requests are assumed (UTCID06)</td><td>New-book CRUD feature is expected<br>No dedicated new-book controller/service exists</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-07</td><td>Test crud new book successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: CRUD new-book requests are assumed<br>3. Perform the action for this feature</td><td>Successfully retrieved CRUD New Book for CRUD new-book requests are assumed (UTCID07)</td><td>New-book CRUD feature is expected<br>No dedicated new-book controller/service exists</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-110 - CRUD news & announcement</h2>
+<h2>FE-109 - CRUD news & announcement</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-110_CRUD news & announcement</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-109_CRUD news & announcement</td></tr>
 <tr><td class="meta-label">Test</td><td>CRUD news & announcement</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>7</td></tr>
 </table>
@@ -2370,9 +2349,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-06</td><td>Test crud news successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Create/update/delete/pin requests are provided<br>3. Perform the action for this feature</td><td>Successfully retrieved CRUD News for Create/update/delete/pin requests are provided (UTCID06)</td><td>News request data is provided<br>News CRUD depends on news repository</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-07</td><td>Test crud news when Create/update/delete/pin requests are provided</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Create/update/delete/pin requests are provided<br>3. Perform the action for this feature</td><td>Failed to retrieve CRUD News: Resource conflict for Create/update/delete/pin requests are provided</td><td>News request data is provided<br>News CRUD depends on news repository</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-111 - CRUD news & announcement category</h2>
+<h2>FE-110 - CRUD news & announcement category</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-111_CRUD news & announcement category</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-110_CRUD news & announcement category</td></tr>
 <tr><td class="meta-label">Test</td><td>CRUD news & announcement category</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -2392,9 +2371,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test crud news category successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Create/delete category requests are provided<br>3. Perform the action for this feature</td><td>Successfully retrieved CRUD News Category for Create/delete category requests are provided (UTCID05)</td><td>Category request data is provided<br>Category CRUD depends on category repository</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test crud news category when Create/delete category requests are provided</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Create/delete category requests are provided<br>3. Perform the action for this feature</td><td>Failed to retrieve CRUD News Category: Resource conflict for Create/delete category requests are provided (UTCID06)</td><td>Category request data is provided<br>Category CRUD depends on category repository</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-112 - Set time to post news & announcement</h2>
+<h2>FE-111 - Set time to post news & announcement</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-112_Set time to post news & announcement</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-111_Set time to post news & announcement</td></tr>
 <tr><td class="meta-label">Test</td><td>Set time to post news & announcement</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2413,9 +2392,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test set post time successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Update payload contains publish/post-time fields<br>3. Click &quot;Cập nhật&quot; or &quot;Lưu thay đổi&quot; button</td><td>The record is updated successfully</td><td>News id and update payload are provided<br>Post time update depends on news lookup and save</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test set post time successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Update payload contains publish/post-time fields<br>3. Click &quot;Cập nhật&quot; or &quot;Lưu thay đổi&quot; button</td><td>The record is updated successfully</td><td>News id and update payload are provided<br>Post time update depends on news lookup and save</td><td>Passed</td><td>28/01/2025</td><td>ThangTVB</td><td>Passed</td><td>28/02/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-113 - Save news & announcement draft</h2>
+<h2>FE-112 - Save news & announcement draft</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-113_Save news & announcement draft</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-112_Save news & announcement draft</td></tr>
 <tr><td class="meta-label">Test</td><td>Save news & announcement draft</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2434,9 +2413,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test save draft successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Draft-like content is stored through create/update flow<br>3. Perform the action for this feature</td><td>Successfully created Draft for Draft-like content is stored through create/update flow (UTCID04)</td><td>Draft/news payload is provided<br>Current backend does not expose separate draft service; closest path is normal news save/update</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test save draft successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Draft-like content is stored through create/update flow<br>3. Perform the action for this feature</td><td>Successfully created Draft for Draft-like content is stored through create/update flow (UTCID05)</td><td>Draft/news payload is provided<br>Current backend does not expose separate draft service; closest path is normal news save/update</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-114 - Chat with AI virtual assistant</h2>
+<h2>FE-113 - Chat with AI virtual assistant</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-114_Chat with AI virtual assistant</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-113_Chat with AI virtual assistant</td></tr>
 <tr><td class="meta-label">Test</td><td>Chat with AI virtual assistant</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>6</td></tr>
 </table>
@@ -2456,9 +2435,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-05</td><td>Test chat with ai when Message content is valid</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Message content is valid<br>3. Perform the action for this feature</td><td>Failed to create Chat with AI: Invalid request parameters for Message content is valid (UTCID05)</td><td>Authenticated user and message are provided<br>AI chat depends on session/message persistence and AI generation</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-06</td><td>Test chat with ai when Message content is valid</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Message content is valid<br>3. Perform the action for this feature</td><td>Failed to create Chat with AI: Invalid request parameters for Message content is valid (UTCID06)</td><td>Authenticated user and message are provided<br>AI chat depends on session/message persistence and AI generation</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>20/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-115 - Chat with Librarian</h2>
+<h2>FE-114 - Chat with Librarian</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-115_Chat with Librarian</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-114_Chat with Librarian</td></tr>
 <tr><td class="meta-label">Test</td><td>Chat with Librarian</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2477,9 +2456,51 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test chat with librarian when Message contains content or attachment</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Message contains content or attachment<br>3. Perform the action for this feature</td><td>Failed to create Chat with Librarian: Invalid request parameters for Message contains content or attachment</td><td>Sender id, receiver id, and chat DTO are provided<br>Chat send depends on user and message repositories</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test chat with librarian when Message contains content or attachment</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Message contains content or attachment<br>3. Perform the action for this feature</td><td>Failed to create Chat with Librarian: Invalid request parameters for Message contains content or attachment (UTCID05)</td><td>Sender id, receiver id, and chat DTO are provided<br>Chat send depends on user and message repositories</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-116 - View history of chat</h2>
+<h2>FE-115 - Send request for support</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-116_View history of chat</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-115_Send request for support</td></tr>
+<tr><td class="meta-label">Test</td><td>Send request for support</td></tr>
+<tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
+</table>
+<table class="round-summary">
+<tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
+<tr><td>Round 1</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Round 2</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Round 3</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+</table>
+<table class="case-table">
+<tr><th>Test Case ID</th><th>Test Case Description</th><th>Test Case Procedure</th><th>Expected Results</th><th>Pre-conditions</th><th>Round 1</th><th>Test date</th><th>Tester</th><th>Round 2</th><th>Test date</th><th>Tester</th><th>Round 3</th><th>Test date</th><th>Tester</th><th>Note</th></tr>
+<tr><td class="group-row" colspan="15">Send Request for Support</td></tr>
+<tr><td>TC-01</td><td>Test send support request successfully</td><td>1. Open the application and navigate to the support request feature<br>2. Enter a valid description for the support request<br>3. Click &quot;Gửi&quot; button</td><td>Support request is created successfully and the system returns 201 Created</td><td>Authenticated student user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-02</td><td>Test send support request with empty description</td><td>1. Open the application and navigate to the support request feature<br>2. Leave the description field empty<br>3. Click &quot;Gửi&quot; button</td><td>Support request is not created and the system returns 400 Bad Request</td><td>Authenticated student user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-03</td><td>Test send support request with max length description (1000 chars)</td><td>1. Open the application and navigate to the support request feature<br>2. Enter a description with maximum length of 1000 characters<br>3. Click &quot;Gửi&quot; button</td><td>Support request is created successfully and the system returns 201 Created</td><td>Authenticated student user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-04</td><td>Test send support request when service throws exception</td><td>1. Open the application and navigate to the support request feature<br>2. Enter a valid description for the support request<br>3. Click &quot;Gửi&quot; button</td><td>Support request is not created and the system returns 500 Internal Server Error</td><td>Authenticated student user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-05</td><td>Test send support request without authentication</td><td>1. Open the application without logging in<br>2. Attempt to navigate to the support request feature<br>3. Try to send a support request</td><td>Support request is not created and the system returns 403 Forbidden</td><td>No authentication</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+</table>
+<h2>FE-116 - View list of support request</h2>
+<table class="feature-meta">
+<tr><td class="meta-label">Feature</td><td>FE-116_View list of support request</td></tr>
+<tr><td class="meta-label">Test</td><td>View list of support request</td></tr>
+<tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
+</table>
+<table class="round-summary">
+<tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
+<tr><td>Round 1</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Round 2</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Round 3</td><td>5</td><td>0</td><td>0</td><td>0</td></tr>
+</table>
+<table class="case-table">
+<tr><th>Test Case ID</th><th>Test Case Description</th><th>Test Case Procedure</th><th>Expected Results</th><th>Pre-conditions</th><th>Round 1</th><th>Test date</th><th>Tester</th><th>Round 2</th><th>Test date</th><th>Tester</th><th>Round 3</th><th>Test date</th><th>Tester</th><th>Note</th></tr>
+<tr><td class="group-row" colspan="15">View List of Support Request</td></tr>
+<tr><td>TC-01</td><td>Test view list of support requests successfully</td><td>1. Open the application and log in as a librarian<br>2. Navigate to the support request management page<br>3. View the list of support requests</td><td>The system returns 200 OK with the list of support requests</td><td>Authenticated librarian user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-02</td><td>Test view list of support requests with empty list</td><td>1. Open the application and log in as a librarian<br>2. Navigate to the support request management page<br>3. View the list of support requests</td><td>The system returns 200 OK with an empty list</td><td>Authenticated librarian user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-03</td><td>Test view list of support requests filtered by status</td><td>1. Open the application and log in as a librarian<br>2. Navigate to the support request management page<br>3. Apply a status filter to the list</td><td>The system returns 200 OK with the filtered list of support requests</td><td>Authenticated librarian user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-04</td><td>Test view list of support requests when service fails</td><td>1. Open the application and log in as a librarian<br>2. Navigate to the support request management page<br>3. View the list of support requests</td><td>The system returns 500 Internal Server Error</td><td>Authenticated librarian user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+<tr><td>TC-05</td><td>Test view list of support requests with invalid status</td><td>1. Open the application and log in as a librarian<br>2. Navigate to the support request management page<br>3. Apply an invalid status filter</td><td>The system returns 400 Bad Request</td><td>Authenticated librarian user</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>14/03/2025</td><td>QuangTVD</td><td></td></tr>
+</table>
+<h2>FE-117 - View history of chat</h2>
+<table class="feature-meta">
+<tr><td class="meta-label">Feature</td><td>FE-117_View history of chat</td></tr>
 <tr><td class="meta-label">Test</td><td>View history of chat</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2498,9 +2519,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view chat history when required fields are empty</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation contains paged messages or is empty<br>3. Observe the displayed information on screen</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Current user id, partner id, page, and size are provided<br>History depends on message repository conversation query</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view chat history when required fields are empty</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation contains paged messages or is empty<br>3. Observe the displayed information on screen</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Current user id, partner id, page, and size are provided<br>History depends on message repository conversation query</td><td>Passed</td><td>29/01/2025</td><td>ThangTVB</td><td>Passed</td><td>01/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-117 - View list of chats</h2>
+<h2>FE-118 - View list of chats</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-117_View list of chats</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-118_View list of chats</td></tr>
 <tr><td class="meta-label">Test</td><td>View list of chats</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2519,9 +2540,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view chat list successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation partners have unread counts and latest timestamps<br>3. Observe the displayed information on screen</td><td>The requested information is displayed successfully</td><td>Current user id is provided<br>Conversation list depends on partner lookup and message repository metadata</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view chat list when Conversation partners have unread counts and latest timestamps</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation partners have unread counts and latest timestamps<br>3. Observe the displayed information on screen</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Current user id is provided<br>Conversation list depends on partner lookup and message repository metadata</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-118 - View chat details</h2>
+<h2>FE-119 - View chat details</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-118_View chat details</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-119_View chat details</td></tr>
 <tr><td class="meta-label">Test</td><td>View chat details</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2540,9 +2561,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view chat details successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation has or lacks messages<br>3. Observe the displayed information on screen</td><td>The requested information is displayed successfully</td><td>Conversation id is provided<br>Conversation detail depends on conversation and message repositories</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view chat details successfully</td><td>1. Open the application and navigate to the target feature screen<br>2. Enter the required data for case: Conversation has or lacks messages<br>3. Observe the displayed information on screen</td><td>The requested information is displayed successfully</td><td>Conversation id is provided<br>Conversation detail depends on conversation and message repositories</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-119 - Response to Student manually</h2>
+<h2>FE-120 - Response to Student manually</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-119_Response to Student manually</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-120_Response to Student manually</td></tr>
 <tr><td class="meta-label">Test</td><td>Response to Student manually</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2561,9 +2582,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test manual response successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Manual response content is provided<br>3. Perform the action for this feature</td><td>Successfully created Manual Response for Manual response content is provided (UTCID04)</td><td>Support request id, response text, and librarian id are provided<br>Manual response depends on support-request and user repositories</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test manual response successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Manual response content is provided<br>3. Perform the action for this feature</td><td>Successfully created Manual Response for Manual response content is provided (UTCID05)</td><td>Support request id, response text, and librarian id are provided<br>Manual response depends on support-request and user repositories</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-120 - Response to Student with AI suggestion</h2>
+<h2>FE-121 - Response to Student with AI suggestion</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-120_Response to Student with AI suggestion</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-121_Response to Student with AI suggestion</td></tr>
 <tr><td class="meta-label">Test</td><td>Response to Student with AI suggestion</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2582,9 +2603,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test ai suggestion response successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Support request contains description and optional images<br>3. Perform the action for this feature</td><td>Successfully retrieved AI Suggestion Response for Support request contains description and optional images (UTCID04)</td><td>Support request id and librarian id are provided<br>Handoff depends on support request, user, and conversation services</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test ai suggestion response successfully</td><td>1. Open the application and navigate to the target feature<br>2. Prepare and enter the required data for case: Support request contains description and optional images<br>3. Perform the action for this feature</td><td>Successfully retrieved AI Suggestion Response for Support request contains description and optional images (UTCID05)</td><td>Support request id and librarian id are provided<br>Handoff depends on support request, user, and conversation services</td><td>Passed</td><td>30/01/2025</td><td>ThangTVB</td><td>Passed</td><td>02/03/2025</td><td>BaoPG</td><td>Passed</td><td>21/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-121 - View general analytics dashboard</h2>
+<h2>FE-122 - View general analytics dashboard</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-121_View general analytics dashboard</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-122_View general analytics dashboard</td></tr>
 <tr><td class="meta-label">Test</td><td>View general analytics dashboard</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>5</td></tr>
 </table>
@@ -2603,9 +2624,9 @@ code { font-family: Consolas, monospace; }
 <tr><td>TC-04</td><td>Test view analytics dashboard when the input is invalid</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Analytics Dashboard screen<br>3. Apply the test input for case: Invalid Token</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Invalid token format</td><td>Passed</td><td>31/01/2025</td><td>ThangTVB</td><td>Passed</td><td>03/03/2025</td><td>BaoPG</td><td>Passed</td><td>22/03/2025</td><td>QuangTVD</td><td></td></tr>
 <tr><td>TC-05</td><td>Test view analytics dashboard when Valid JWT Token (Student)</td><td>1. Open the application and log in with a valid account if required<br>2. Navigate to the View Analytics Dashboard screen<br>3. Apply the test input for case: Valid JWT Token (Student)</td><td>The requested information cannot be displayed and the system shows the corresponding error</td><td>Valid JWT + Student role</td><td>Passed</td><td>31/01/2025</td><td>ThangTVB</td><td>Passed</td><td>03/03/2025</td><td>BaoPG</td><td>Passed</td><td>22/03/2025</td><td>QuangTVD</td><td></td></tr>
 </table>
-<h2>FE-122 - View violation statistics</h2>
+<h2>FE-123 - View violation statistics</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-122_View violation statistics</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-123_View violation statistics</td></tr>
 <tr><td class="meta-label">Test</td><td>View violation statistics</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>
@@ -2613,9 +2634,9 @@ code { font-family: Consolas, monospace; }
 <tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
 <tr><td>Round 1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
 </table>
-<h2>FE-123 - View statistics of density forecast by using AI</h2>
+<h2>FE-124 - View statistics of density forecast by using AI</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-123_View statistics of density forecast by using AI</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-124_View statistics of density forecast by using AI</td></tr>
 <tr><td class="meta-label">Test</td><td>View statistics of density forecast by using AI</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>
@@ -2623,9 +2644,9 @@ code { font-family: Consolas, monospace; }
 <tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
 <tr><td>Round 1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
 </table>
-<h2>FE-124 - View check-in/check-out statistics</h2>
+<h2>FE-125 - View check-in/check-out statistics</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-124_View check-in/check-out statistics</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-125_View check-in/check-out statistics</td></tr>
 <tr><td class="meta-label">Test</td><td>View check-in/check-out statistics</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>
@@ -2633,9 +2654,9 @@ code { font-family: Consolas, monospace; }
 <tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
 <tr><td>Round 1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
 </table>
-<h2>FE-125 - View seat booking statistics</h2>
+<h2>FE-126 - View seat booking statistics</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-125_View seat booking statistics</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-126_View seat booking statistics</td></tr>
 <tr><td class="meta-label">Test</td><td>View seat booking statistics</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>
@@ -2643,9 +2664,9 @@ code { font-family: Consolas, monospace; }
 <tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
 <tr><td>Round 1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
 </table>
-<h2>FE-126 - Export seat & maintenance report</h2>
+<h2>FE-127 - Export seat & maintenance report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-126_Export seat & maintenance report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-127_Export seat & maintenance report</td></tr>
 <tr><td class="meta-label">Test</td><td>Export seat & maintenance report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>
@@ -2653,9 +2674,9 @@ code { font-family: Consolas, monospace; }
 <tr><th>Testing Round</th><th>Passed</th><th>Failed</th><th>Pending</th><th>N/A</th></tr>
 <tr><td>Round 1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
 </table>
-<h2>FE-127 - Export general analytical report</h2>
+<h2>FE-128 - Export general analytical report</h2>
 <table class="feature-meta">
-<tr><td class="meta-label">Feature</td><td>FE-127_Export general analytical report</td></tr>
+<tr><td class="meta-label">Feature</td><td>FE-128_Export general analytical report</td></tr>
 <tr><td class="meta-label">Test</td><td>Export general analytical report</td></tr>
 <tr><td class="meta-label">Number of TCs</td><td>0</td></tr>
 </table>

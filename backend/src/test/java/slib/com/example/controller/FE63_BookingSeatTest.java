@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.repository.ReservationRepository;
-import slib.com.example.service.BookingService;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.service.booking.BookingService;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

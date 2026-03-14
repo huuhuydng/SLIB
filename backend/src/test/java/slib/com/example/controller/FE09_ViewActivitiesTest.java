@@ -11,7 +11,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.ActivityService;
+import slib.com.example.service.activity.ActivityService;
 
 import java.util.Collections;
 import java.util.UUID;
@@ -19,6 +19,7 @@ import java.util.UUID;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.activity.ActivityController;
 
 /**
  * Unit Tests for FE-09: View History of Activities

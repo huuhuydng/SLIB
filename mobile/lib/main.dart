@@ -3,14 +3,14 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:slib/services/booking_service.dart';
-import 'package:slib/services/library_status_service.dart';
-import 'package:slib/services/notification_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/library/library_status_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 
 // Import cac file cua ban
-import 'services/auth_service.dart';
+import 'services/auth/auth_service.dart';
 import 'main_screen.dart'; 
 import 'views/authentication/on_boarding_screen.dart';
 

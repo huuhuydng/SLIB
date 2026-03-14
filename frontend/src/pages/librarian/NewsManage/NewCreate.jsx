@@ -28,7 +28,7 @@ import {
   createCategory,
   deleteCategory,
   uploadImage
-} from '../../../services/newsService';
+} from '../../../services/librarian/newsService';
 
 const NewCreate = () => {
   const toast = useToast();

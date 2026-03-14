@@ -22,7 +22,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/librarian/BookingManage.css';
 import '../../../styles/librarian/NotificationManage.css';
-import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
+import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/librarian/newsService';
 import axios from 'axios';
 
 const STATUS_OPTIONS = [

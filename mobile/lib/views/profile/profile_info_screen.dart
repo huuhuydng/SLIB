@@ -8,9 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/student_profile.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/student_profile_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/user/student_profile_service.dart';
 import 'package:slib/views/authentication/change_password_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ProfileInfoScreen extends StatefulWidget {
   final UserProfile user;
@@ -168,7 +169,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $e'),
+            content: Text(ErrorDisplayWidget.toVietnamese(e)),
             backgroundColor: Colors.red,
           ),
         );

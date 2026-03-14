@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import librarianService from "../../services/librarianService";
+import librarianService from "../../services/librarian/librarianService";
 import logo from "../../assets/logo.png";
 import "../../styles/Auth.css";
 

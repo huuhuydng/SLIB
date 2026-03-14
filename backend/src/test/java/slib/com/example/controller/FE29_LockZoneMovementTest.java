@@ -16,8 +16,8 @@ import slib.com.example.controller.zone_config.ZoneController;
 import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.service.BookingService;
-import slib.com.example.service.ZoneService;
+import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.zone_config.ZoneService;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;

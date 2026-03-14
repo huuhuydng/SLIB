@@ -170,13 +170,27 @@ async def chat(request: ChatRequest):
                 action=ActionType.ESCALATE_TO_LIBRARIAN
             )
         
-        # Use RAG service for query
+        # Load recent chat history for context
+        mongo_service = get_mongo_service()
+        raw_history = mongo_service.get_session_history(session_id, limit=6)
+        chat_history = [
+            {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+            for msg in raw_history
+        ] if raw_history else None
+
+        # Save user message BEFORE query (so next call sees it in history)
+        mongo_service.save_message(session_id, "user", request.message)
+
+        # Use RAG service for query with history
         rag_service = get_rag_chat_service()
-        result = rag_service.query(request.message)
-        
+        result = rag_service.query(request.message, chat_history=chat_history)
+
+        # Save AI reply
+        mongo_service.save_message(session_id, "assistant", result["reply"])
+
         # Determine if needs review based on action
         needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
-        
+
         # Add escalation hint if needed
         reply = result["reply"]
         if needs_review:

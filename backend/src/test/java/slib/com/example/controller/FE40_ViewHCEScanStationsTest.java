@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.hce.HceStationController;
 import slib.com.example.dto.hce.HceStationResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.HceStationService;
+import slib.com.example.service.hce.HceStationService;
 
 import java.time.LocalDateTime;
 import java.util.Collections;

@@ -28,7 +28,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 
-import userService from '../../../services/userService';
+import userService from '../../../services/auth/userService';
 import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
 import { useToast } from '../../../components/common/ToastProvider';

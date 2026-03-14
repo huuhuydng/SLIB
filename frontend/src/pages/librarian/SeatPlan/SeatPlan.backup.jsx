@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import CanvasBoard from "../../../components/admin/area_managements/CanvasBoard";
-import { seatPlanService } from "../../../services/seatPlanService";
-import { seatService } from "../../../services/seatService";
+import { seatPlanService } from "../../../services/librarian/seatPlanService";
+import { seatService } from "../../../services/librarian/seatService";
 import { handleLogout } from "../../../utils/auth";
 import "../../../styles/librarian/SeatPlan.css";
 import "../../../styles/admin/layout.css";

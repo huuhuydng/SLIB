@@ -17,7 +17,7 @@ import slib.com.example.dto.zone_config.AmenityResponse;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.exception.ResourceNotFoundException;
-import slib.com.example.service.AmenityService;
+import slib.com.example.service.zone_config.AmenityService;
 
 import java.util.Collections;
 

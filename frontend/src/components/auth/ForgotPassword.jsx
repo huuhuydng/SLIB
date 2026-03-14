@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useToast } from "../../components/common/ToastProvider";
-import librarianService from "../../services/librarianService";
+import librarianService from "../../services/librarian/librarianService";
 import "../../styles/Auth.css";
 
 function ForgotPassword({ onSwitch }) {

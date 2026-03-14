@@ -13,7 +13,7 @@ import DeviceManagement from "../pages/admin/DeviceManagement/DeviceManagement";
 import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
-import AccountSettings from "../components/AccountSettings";
+import AccountSettings from "../components/settings/AccountSettings";
 import NfcManagement from "../pages/admin/NfcManagement/NfcManagement";
 import KioskManagement from "../pages/admin/KioskManagement/KioskManagement";
 

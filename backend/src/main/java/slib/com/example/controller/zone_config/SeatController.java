@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.dto.zone_config.SeatResponse;
-import slib.com.example.service.BookingService;
-import slib.com.example.service.SeatService;
+import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.zone_config.SeatService;
 
 @RestController
 @RequestMapping("/slib/seats")

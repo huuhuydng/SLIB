@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.system.SystemLogEntity;
-import slib.com.example.service.SystemLogService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;

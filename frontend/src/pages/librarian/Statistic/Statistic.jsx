@@ -5,8 +5,8 @@ import {
   ArrowUpRight, ArrowDownRight, FileWarning,
   MapPin, CalendarCheck
 } from 'lucide-react';
-import statisticService from '../../../services/statisticService';
-import dashboardService from '../../../services/dashboardService';
+import statisticService from '../../../services/librarian/statisticService';
+import dashboardService from '../../../services/librarian/dashboardService';
 import AIAnalyticsPanel from './AIAnalyticsPanel';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/Statistic.css';

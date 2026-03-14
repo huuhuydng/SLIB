@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/nfc_uid_service.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/nfc/nfc_uid_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 
 /// Screen for verifying seat reservation via NFC scanning.
 ///

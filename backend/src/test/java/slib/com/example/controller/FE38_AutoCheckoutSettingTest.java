@@ -12,14 +12,15 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import slib.com.example.dto.LibrarySettingDTO;
+import slib.com.example.dto.system.LibrarySettingDTO;
 import slib.com.example.exception.GlobalExceptionHandler;
-import slib.com.example.service.LibrarySettingService;
+import slib.com.example.service.system.LibrarySettingService;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import slib.com.example.controller.system.LibrarySettingController;
 
 /**
  * Unit Tests for FE-38: Auto Checkout Setting

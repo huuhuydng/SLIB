@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ViolationHistoryScreen extends StatefulWidget {
   const ViolationHistoryScreen({super.key});
@@ -34,7 +35,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen> {
     if (token == null) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Vui lòng đăng nhập";
+          _errorMessage = 'auth';
           _isLoading = false;
         });
       }
@@ -72,13 +73,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen> {
             _errorMessage = null;
           });
         }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'auth';
+            _isLoading = false;
+          });
+        }
+        return;
       } else {
-        throw Exception("Không thể tải lịch sử vi phạm");
+        throw Exception('status ${response.statusCode}');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = ErrorDisplayWidget.toVietnamese(e);
           _isLoading = false;
         });
       }
@@ -103,25 +112,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.brandColor))
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
-                      const SizedBox(height: 12),
-                      Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadViolations,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text("Thử lại", style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                )
+              ? _errorMessage == 'auth'
+                  ? ErrorDisplayWidget.auth(onRetry: _loadViolations)
+                  : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadViolations)
               : RefreshIndicator(
                   onRefresh: _loadViolations,
                   child: CustomScrollView(

@@ -5,7 +5,7 @@ import { AuthProvider } from "../context/AuthContext";
 
 // Components
 import ProtectedRoute from "../components/ProtectedRoute";
-import LoginPage from "../pages/LoginPage";
+import LoginPage from "../pages/auth/LoginPage";
 
 // Layout
 import MainLayout from "../layouts/admin/area_management/MainLayOut";
@@ -22,7 +22,7 @@ import SystemHealth from "../components/SystemHealth";
 import AIConfig from "../components/AIConfig";
 
 //chat
-import ChatManagement from "../components/ChatManagement";
+import ChatManagement from "../components/chat/ChatManagement";
 
 function AppRoutes() {
   return (

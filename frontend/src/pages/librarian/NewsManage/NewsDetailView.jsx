@@ -3,7 +3,7 @@ import { useToast } from '../../../components/common/ToastProvider';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
 import '../../../styles/librarian/NewsDetailView.css';
-import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } from '../../../services/newsService';
+import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } from '../../../services/librarian/newsService';
 
 const NewsDetailView = () => {
   const toast = useToast();

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/seat_status_report.dart';
-import '../../services/auth_service.dart';
-import '../../services/seat_status_report_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/report/seat_status_report_service.dart';
+import '../../views/widgets/error_display_widget.dart';
 
 class SeatStatusReportHistoryScreen extends StatefulWidget {
   const SeatStatusReportHistoryScreen({super.key});
@@ -33,7 +34,13 @@ class _SeatStatusReportHistoryScreenState
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
-      if (token == null) throw Exception('Chưa đăng nhập');
+      if (token == null) {
+        setState(() {
+          _error = 'auth';
+          _isLoading = false;
+        });
+        return;
+      }
       final data = await _service.getMyReports(token);
       setState(() {
         _reports = data.map((json) => SeatStatusReport.fromJson(json)).toList();
@@ -41,7 +48,7 @@ class _SeatStatusReportHistoryScreenState
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -67,9 +74,11 @@ class _SeatStatusReportHistoryScreenState
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? Center(child: Text(_error!))
+          ? _error == 'auth'
+              ? ErrorDisplayWidget.auth(onRetry: _loadReports)
+              : ErrorDisplayWidget(message: _error!, onRetry: _loadReports)
           : _reports.isEmpty
-          ? const Center(child: Text('Chưa có báo cáo tình trạng ghế nào'))
+          ? ErrorDisplayWidget.empty(message: 'Chưa có báo cáo tình trạng ghế nào')
           : RefreshIndicator(
               onRefresh: _loadReports,
               child: ListView.builder(

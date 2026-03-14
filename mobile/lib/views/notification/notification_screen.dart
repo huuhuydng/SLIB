@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/notification_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -64,35 +65,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           }
 
           if (service.notifications.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.notifications_none_rounded,
-                    size: 80,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Chưa có thông báo nào',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Thông báo mới sẽ xuất hiện ở đây',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[400],
-                    ),
-                  ),
-                ],
-              ),
-            );
+            return ErrorDisplayWidget.empty(message: 'Chưa có thông báo nào');
           }
 
           return RefreshIndicator(

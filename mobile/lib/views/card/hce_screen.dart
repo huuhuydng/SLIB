@@ -1,7 +1,7 @@
 import 'package:barcode_widget/barcode_widget.dart'; // Import thư viện Barcode
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 
 class HceCardScreen extends StatelessWidget {
   const HceCardScreen({super.key});

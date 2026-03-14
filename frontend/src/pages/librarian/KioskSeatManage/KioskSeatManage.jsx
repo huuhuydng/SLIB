@@ -14,7 +14,7 @@ import {
   X,
   Users,
 } from "lucide-react";
-import { seatService } from '../../../services/seatService';
+import { seatService } from '../../../services/librarian/seatService';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatManage.css";

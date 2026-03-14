@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -94,7 +95,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _showMessage(errorMessage, isError: true);
       }
     } finally {
@@ -131,7 +132,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _showMessage(errorMessage, isError: true);
       }
     } finally {
@@ -163,7 +164,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _showMessage(errorMessage, isError: true);
       }
     } finally {
@@ -208,7 +209,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        String errorMessage = e.toString().replaceAll('Exception: ', '');
+        String errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _showMessage(errorMessage, isError: true);
       }
     } finally {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
-import 'package:slib/services/notification_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/notification/notification_screen.dart';
 
 class HomeAppBar extends StatelessWidget {

@@ -7,7 +7,7 @@ import KioskStudentMode from '../pages/kiosk/KioskStudentMode';
 import KioskQrAuth from '../pages/kiosk/KioskQrAuth';
 import KioskDashboard from '../pages/kiosk/KioskDashboard';
 import KioskHelp from '../pages/kiosk/KioskHelp';
-import Attendance from '../pages/AttendanceWaitingScreen';
+import Attendance from '../pages/kiosk/AttendanceWaitingScreen';
 import KioskSeatBooking from '../pages/kiosk/KioskSeatBooking';
 import KioskAccessDenied from '../pages/kiosk/KioskAccessDenied';
 import KioskLockScreen from '../pages/kiosk/KioskLockScreen';
