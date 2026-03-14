@@ -356,7 +356,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               isUser: senderType == 'STUDENT',
               isFromLibrarian: senderType == 'LIBRARIAN',
               time: msgTime,
-              isRead: msg['isRead'] == true,
               imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
             ));
           }
@@ -425,7 +424,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               isUser: senderType == 'STUDENT',
               isFromLibrarian: senderType == 'LIBRARIAN',
               time: msgTime,
-              isRead: msg['isRead'] == true,
               imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
             ));
           }
@@ -611,40 +609,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Cập nhật read status cho student messages từ backend data
-  void _updateReadStatus(List<dynamic> backendMessages) {
-    if (!mounted) return;
-    bool changed = false;
-    for (final msg in backendMessages) {
-      final content = msg['content'] as String? ?? '';
-      final senderType = msg['senderType'] as String? ?? '';
-      final isRead = msg['isRead'] == true;
-      if (senderType == 'STUDENT' && isRead && content.isNotEmpty) {
-        // Tìm message local tương ứng và cập nhật isRead
-        for (int i = 0; i < _messages.length; i++) {
-          if (_messages[i].isUser && _messages[i].text == content && !_messages[i].isRead) {
-            _messages[i] = ChatMessage(
-              text: _messages[i].text,
-              isUser: true,
-              time: _messages[i].time,
-              isEscalation: _messages[i].isEscalation,
-              isFromLibrarian: false,
-              isRead: true,
-              type: _messages[i].type,
-              actions: _messages[i].actions,
-              queuePosition: _messages[i].queuePosition,
-              imageUrls: _messages[i].imageUrls,
-            );
-            changed = true;
-          }
-        }
-      }
-    }
-    if (changed && mounted) {
-      setState(() {});
-      _saveMessages();
-    }
-  }
 
   @override
   void dispose() {
@@ -1675,7 +1639,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             isUser: senderType == 'STUDENT',
             isFromLibrarian: senderType == 'LIBRARIAN',
             time: msgTime,
-            isRead: msg['isRead'] == true,
             imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
           );
         }).toList();
@@ -2043,8 +2006,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _saveMessages(); // Lưu local khi có tin mới
           }
 
-          // Cập nhật isRead realtime cho student messages
-          _updateReadStatus(backendMessages);
         }
       } catch (e) {
         consecutiveErrors++;
@@ -2297,7 +2258,6 @@ class ChatMessage {
   final DateTime time;
   final bool isEscalation;
   final bool isFromLibrarian;
-  final bool isRead;
   final ChatMessageType type;
   final List<ChatAction>? actions;
   final int? queuePosition;
@@ -2309,7 +2269,6 @@ class ChatMessage {
     required this.time,
     this.isEscalation = false,
     this.isFromLibrarian = false,
-    this.isRead = false,
     this.type = ChatMessageType.text,
     this.actions,
     this.queuePosition,
@@ -2322,7 +2281,6 @@ class ChatMessage {
     'time': time.toIso8601String(),
     'isEscalation': isEscalation,
     'isFromLibrarian': isFromLibrarian,
-    'isRead': isRead,
     'type': type.index,
     'queuePosition': queuePosition,
     'imageUrls': imageUrls,
@@ -2334,7 +2292,6 @@ class ChatMessage {
     time: DateTime.tryParse(json['time'] ?? '') ?? DateTime.now(),
     isEscalation: json['isEscalation'] ?? false,
     isFromLibrarian: json['isFromLibrarian'] ?? false,
-    isRead: json['isRead'] ?? false,
     type: ChatMessageType.values[json['type'] ?? 0],
     queuePosition: json['queuePosition'],
     imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : null,

@@ -354,21 +354,7 @@ class ChatService {
     }
   }
 
-  /// Đánh dấu đã đọc tin nhắn trong conversation
-  Future<void> markConversationAsRead(String conversationId, String authToken) async {
-    try {
-      await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/mark-read'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
-      );
-    } catch (e) {
-      print('Mark Read Error: $e');
-    }
-  }
-
-  /// Gửi typing indicator cho đối phương
+  /// Gửi typing indicator cho đối phương (deprecated - kept for backward compat)
   Future<void> sendTypingIndicator(String conversationId, bool isTyping) async {
     try {
       await http.post(
