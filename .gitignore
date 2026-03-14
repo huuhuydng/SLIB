@@ -223,8 +223,14 @@ docker-compose.yml
 .gemini/
 .claude/
 CLAUDE.md
+.agents
 
 # Large files
 slib_user_import_with_avatars.zip
-
+.doc
 .factorypath
+
+# Documentation artifacts
+doc/Report/ScreenCapture/
+doc/Report/ScreenCapture.zip
+skills-lock.json
