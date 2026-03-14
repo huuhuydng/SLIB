@@ -19,9 +19,12 @@ import slib.com.example.service.chat.UserChatService;
 import slib.com.example.service.chat.ConversationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.users.UserService;
+import slib.com.example.entity.users.Role;
+import slib.com.example.exception.BadRequestException;
 
 import java.util.List;
-import java.util.Map; // Nhớ import Map
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.web.multipart.MultipartFile;
@@ -184,56 +187,55 @@ public class UserChatController {
     // CONVERSATION MANAGEMENT (AI-to-Human Escalation)
     // ==========================================
 
-    // 8. Lấy danh sách conversation đang chờ xử lý (QUEUE_WAITING)
+    // 8. Lấy danh sách conversation đang chờ xử lý (QUEUE_WAITING) - LIBRARIAN only
     @GetMapping("/conversations/waiting")
     public ResponseEntity<List<ConversationDTO>> getWaitingConversations(
             @AuthenticationPrincipal UserDetails userDetails) {
-        // Chỉ Librarian mới có quyền xem
-        getCurrentUserId(userDetails);
+        requireLibrarianRole(userDetails);
         return ResponseEntity.ok(conversationService.getWaitingConversations());
     }
 
-    // 9. Lấy danh sách conversation đang chat (HUMAN_CHATTING) của librarian
+    // 9. Lấy danh sách conversation đang chat (HUMAN_CHATTING) của librarian - LIBRARIAN only
     @GetMapping("/conversations/active")
     public ResponseEntity<List<ConversationDTO>> getActiveConversations(
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID myId = getCurrentUserId(userDetails);
+        UUID myId = requireLibrarianRole(userDetails);
         return ResponseEntity.ok(conversationService.getActiveConversations(myId));
     }
 
-    // 10. Lấy tất cả conversations (waiting + active)
+    // 10. Lấy tất cả conversations (waiting + active) - LIBRARIAN only
     @GetMapping("/conversations/all")
     public ResponseEntity<List<ConversationDTO>> getAllConversations(
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID myId = getCurrentUserId(userDetails);
+        UUID myId = requireLibrarianRole(userDetails);
         return ResponseEntity.ok(conversationService.getAllConversationsForLibrarian(myId));
     }
 
-    // 11. Librarian tiếp nhận conversation
+    // 11. Librarian tiếp nhận conversation - LIBRARIAN only
     @PostMapping("/conversations/{conversationId}/take-over")
     public ResponseEntity<ConversationDTO> takeOverConversation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID librarianId = getCurrentUserId(userDetails);
+        UUID librarianId = requireLibrarianRole(userDetails);
         ConversationDTO result = conversationService.takeOverConversation(conversationId, librarianId);
         return ResponseEntity.ok(result);
     }
 
-    // 12. Đánh dấu conversation đã hoàn thành
+    // 12. Đánh dấu conversation đã hoàn thành - LIBRARIAN only
     @PostMapping("/conversations/{conversationId}/resolve")
     public ResponseEntity<ConversationDTO> resolveConversation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
+        requireLibrarianRole(userDetails);
         ConversationDTO result = conversationService.resolveConversation(conversationId);
         return ResponseEntity.ok(result);
     }
 
-    // 13. Đếm số conversation đang chờ
+    // 13. Đếm số conversation đang chờ - LIBRARIAN only
     @GetMapping("/conversations/waiting/count")
     public ResponseEntity<Long> countWaitingConversations(
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
+        requireLibrarianRole(userDetails);
         return ResponseEntity.ok(conversationService.countWaitingConversations());
     }
 
@@ -326,7 +328,8 @@ public class UserChatController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
+        UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationAccess(conversationId, userId);
         if (page != null) {
             // Paginated mode - cho mobile lazy loading
             org.springframework.data.domain.Page<ChatMessageDTO> messages =
@@ -345,6 +348,7 @@ public class UserChatController {
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID senderId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationAccess(conversationId, senderId);
         String content = request.get("content");
         String senderType = request.getOrDefault("senderType", "STUDENT"); // STUDENT, LIBRARIAN, AI
 
@@ -363,10 +367,17 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             UUID senderId = getCurrentUserId(userDetails);
+            conversationService.verifyConversationAccess(conversationId, senderId);
 
             // Validate file size (5MB max)
             if (file.getSize() > 5 * 1024 * 1024) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File quá lớn. Tối đa: 5MB"));
+            }
+
+            // Validate file type (images only)
+            String contentType = file.getContentType();
+            if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ file ảnh (JPEG, PNG, GIF, WebP)"));
             }
 
             // Upload ảnh lên Cloudinary
@@ -452,4 +463,19 @@ public class UserChatController {
         String email = userDetails.getUsername();
         return userService.getUserByEmail(email).getId();
     }
+
+    private UUID requireLibrarianRole(UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new RuntimeException("Vui lòng đăng nhập để sử dụng tính năng chat!");
+        }
+        String email = userDetails.getUsername();
+        var user = userService.getUserByEmail(email);
+        if (user.getRole() != Role.LIBRARIAN && user.getRole() != Role.ADMIN) {
+            throw new BadRequestException("Chỉ thủ thư mới có quyền thực hiện thao tác này");
+        }
+        return user.getId();
+    }
+
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/gif", "image/webp");
 }

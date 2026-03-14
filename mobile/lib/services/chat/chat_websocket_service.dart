@@ -168,6 +168,10 @@ class ChatWebSocketService {
   void disconnect() {
     unsubscribeFromConversation();
     unsubscribeFromStudentTopic();
+    _onMessageReceived = null;
+    _onStudentTopicMessage = null;
+    _onConnected = null;
+    _onError = null;
     _stompClient?.deactivate();
     _stompClient = null;
     print('[WS] Disconnected and cleaned up');

@@ -70,6 +70,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   bool _hasMorePages = true; // Còn trang nào chưa load
   static const int _pageSize = 20; // Số tin nhắn mỗi trang
 
+  // Polling guards - prevent overlapping loops
+  bool _isAIPollingActive = false;
+  bool _isStatusPollingActive = false;
+  bool _isMessagePollingActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -445,9 +450,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   /// Polling check status mỗi 2 giây khi ở AI mode
   void _startAIModeStatusPolling() async {
+    if (_isAIPollingActive) {
+      print('[AI-POLL] Already active, skipping');
+      return;
+    }
+    _isAIPollingActive = true;
     print('[AI-POLL] === STARTED === _isEscalated=$_isEscalated, _isWaitingInQueue=$_isWaitingInQueue');
     int pollCount = 0;
-    
+
     while (mounted && !_isEscalated && !_isWaitingInQueue) {
       await Future.delayed(const Duration(seconds: 2));
       pollCount++;
@@ -485,6 +495,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         print('[AI-POLL] #$pollCount: Error: $e');
       }
     }
+    _isAIPollingActive = false;
     print('[AI-POLL] === ENDED === pollCount=$pollCount');
   }
 
@@ -637,6 +648,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // Stop all polling loops by resetting guards
+    _isAIPollingActive = false;
+    _isStatusPollingActive = false;
+    _isMessagePollingActive = false;
     _dotAnimController?.dispose();
     _textController.dispose();
     _scrollController.dispose();
@@ -1899,6 +1914,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   // Fallback: Polling de check conversation status (khi WebSocket khong ket noi duoc)
   void _startStatusPolling(String token) async {
+    if (_isStatusPollingActive) {
+      print('[STATUS-POLL] Already active, skipping');
+      return;
+    }
+    _isStatusPollingActive = true;
     while (_isWaitingInQueue && mounted && _conversationId != null) {
       await Future.delayed(const Duration(seconds: 2));
       
@@ -1921,10 +1941,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         break;
       }
     }
+    _isStatusPollingActive = false;
   }
 
   // HTTP Polling để nhận tin nhắn mới từ librarian (WebSocket bị lỗi SSL với ngrok)
   void _startMessagePolling(String token) async {
+    if (_isMessagePollingActive) {
+      debugPrint('[POLLING] Already active, skipping');
+      return;
+    }
+    _isMessagePollingActive = true;
     debugPrint('[POLLING] Started for: $_conversationId');
     
     if (_conversationId == null) {
@@ -2036,6 +2062,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       }
     }
+    _isMessagePollingActive = false;
     debugPrint('[POLLING] Ended');
   }
 
@@ -2043,7 +2070,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _handleCancelQueue() async {
     // QUAN TRỌNG: Set guard TRƯỚC, stop polling VÀ WebSocket
     _userCancelledQueue = true;
-    
+    _isAIPollingActive = false;
+    _isStatusPollingActive = false;
+    _isMessagePollingActive = false;
+
     setState(() {
       _isWaitingInQueue = false;
       _isEscalated = false;
@@ -2159,6 +2189,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       print('[CHAT] Skipping _handleChatEnded because user cancelled queue');
       return;
     }
+
+    // Stop all polling loops
+    _isAIPollingActive = false;
+    _isStatusPollingActive = false;
+    _isMessagePollingActive = false;
 
     // Disconnect WebSocket
     _chatWsService.disconnect();

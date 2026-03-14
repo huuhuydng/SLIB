@@ -308,7 +308,10 @@ const ChatManage = () => {
     });
 
     client.activate();
-    return () => { if (client) client.deactivate(); };
+    return () => {
+      stompClientRef.current = null;
+      if (client) client.deactivate();
+    };
   }, []);
 
   // Subscribe to conversation topic

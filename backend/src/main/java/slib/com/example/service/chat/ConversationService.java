@@ -367,6 +367,24 @@ public class ConversationService {
         }
 
         /**
+         * Kiểm tra user có quyền truy cập conversation không (student hoặc librarian của conversation)
+         */
+        public void verifyConversationAccess(UUID conversationId, UUID userId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                        .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
+                boolean isStudent = conv.getStudent() != null && conv.getStudent().getId().equals(userId);
+                boolean isLibrarian = conv.getLibrarian() != null && conv.getLibrarian().getId().equals(userId);
+                // Also allow LIBRARIAN/ADMIN roles to access any conversation
+                User user = userRepository.findById(userId).orElse(null);
+                boolean isLibrarianRole = user != null &&
+                        (user.getRole() == slib.com.example.entity.users.Role.LIBRARIAN
+                                || user.getRole() == slib.com.example.entity.users.Role.ADMIN);
+                if (!isStudent && !isLibrarian && !isLibrarianRole) {
+                        throw new slib.com.example.exception.BadRequestException("Bạn không có quyền truy cập cuộc hội thoại này");
+                }
+        }
+
+        /**
          * Đếm số conversation đang chờ
          */
         public long countWaitingConversations() {
