@@ -10,7 +10,7 @@ import axios from "axios";
  * - /api/v1/ingest/* - Document Ingestion
  */
 const pythonAiApi = axios.create({
-    baseURL: "http://localhost:8001",
+    baseURL: "",
     headers: {
         "Content-Type": "application/json",
     },
@@ -18,7 +18,7 @@ const pythonAiApi = axios.create({
 
 // File upload API (multipart/form-data)
 const uploadApi = axios.create({
-    baseURL: "http://localhost:8001",
+    baseURL: "",
 });
 
 // Request interceptor
@@ -44,7 +44,7 @@ pythonAiApi.interceptors.response.use(
 /**
  * HEALTH CHECK
  */
-export const healthCheck = () => axios.get("http://localhost:8001/health");
+export const healthCheck = () => axios.get("/health");
 
 /* ========================== AI CONFIG ========================= */
 

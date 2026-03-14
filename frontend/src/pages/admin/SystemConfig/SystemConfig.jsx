@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import {
   Settings,
   Clock,
@@ -35,6 +36,7 @@ const getAuthHeaders = () => {
 
 const SystemConfig = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('library');
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
@@ -181,7 +183,13 @@ const SystemConfig = () => {
   };
 
   const handleDeleteRule = async (ruleId) => {
-    if (!window.confirm('Bạn có chắc muốn xóa quy tắc này?')) return;
+    const confirmed = await confirm({
+      title: 'Xóa quy tắc',
+      message: 'Bạn có chắc muốn xóa quy tắc này?',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!confirmed) return;
     try {
       const response = await fetch(`${REPUTATION_API_URL}/${ruleId}`, { method: 'DELETE', headers: getAuthHeaders() });
       if (response.ok) fetchReputationRules();

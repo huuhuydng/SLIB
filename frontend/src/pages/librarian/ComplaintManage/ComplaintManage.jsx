@@ -3,6 +3,8 @@ import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHor
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ComplaintManage.css";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/complaints`;
 
@@ -20,6 +22,8 @@ const STATUS_OPTIONS = [
 ];
 
 function ComplaintManage() {
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedComplaint, setSelectedComplaint] = useState(null);
@@ -113,11 +117,15 @@ function ComplaintManage() {
                 body: JSON.stringify({ note: "Chấp nhận khiếu nại" }),
             });
             if (res.ok) {
+                toast.success('Đã chấp nhận khiếu nại thành công');
                 fetchComplaints();
                 setSelectedComplaint(null);
+            } else {
+                toast.error('Không thể chấp nhận khiếu nại. Vui lòng thử lại');
             }
         } catch (err) {
             console.error("Lỗi chấp nhận khiếu nại:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -133,11 +141,15 @@ function ComplaintManage() {
                 body: JSON.stringify({ note: "Từ chối khiếu nại" }),
             });
             if (res.ok) {
+                toast.success('Đã từ chối khiếu nại');
                 fetchComplaints();
                 setSelectedComplaint(null);
+            } else {
+                toast.error('Không thể từ chối khiếu nại. Vui lòng thử lại');
             }
         } catch (err) {
             console.error("Lỗi từ chối khiếu nại:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -145,7 +157,14 @@ function ComplaintManage() {
 
     const handleBatchDelete = async () => {
         if (selectedIds.size === 0) return;
-        if (!window.confirm(`Xoá ${selectedIds.size} khiếu nại đã chọn?`)) return;
+        const confirmed = await confirm({
+            title: 'Xoá khiếu nại',
+            message: `Xoá ${selectedIds.size} khiếu nại đã chọn?`,
+            variant: 'danger',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
         setDeleting(true);
         try {
             const token = getToken();
@@ -155,11 +174,15 @@ function ComplaintManage() {
                 body: JSON.stringify({ ids: [...selectedIds] }),
             });
             if (res.ok) {
+                toast.success(`Đã xoá ${selectedIds.size} khiếu nại thành công`);
                 setSelectedIds(new Set());
                 fetchComplaints();
+            } else {
+                toast.error('Không thể xoá khiếu nại. Vui lòng thử lại');
             }
         } catch (err) {
             console.error("Lỗi xoá hàng loạt:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setDeleting(false);
         }

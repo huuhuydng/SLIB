@@ -4,6 +4,8 @@ import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/BookingManage.css";
 import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/bookings`;
 
@@ -37,6 +39,8 @@ const STATUS_OPTIONS = [
 ];
 
 function BookingManage() {
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedBooking, setSelectedBooking] = useState(null);
@@ -114,7 +118,14 @@ function BookingManage() {
     }, []);
 
     const handleCancelBooking = async (reservationId) => {
-        if (!window.confirm("Bạn có chắc muốn huỷ đặt chỗ này?")) return;
+        const confirmed = await confirm({
+            title: 'Huỷ đặt chỗ',
+            message: 'Bạn có chắc muốn huỷ đặt chỗ này?',
+            variant: 'danger',
+            confirmText: 'Huỷ đặt chỗ',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
         setSubmitting(true);
         try {
             const token = getToken();
@@ -123,11 +134,17 @@ function BookingManage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
+                toast.success("Huỷ đặt chỗ thành công.");
                 fetchBookings();
                 setSelectedBooking(null);
+            } else {
+                const errData = await res.json().catch(() => null);
+                const errMsg = errData?.message || `Lỗi máy chủ (${res.status})`;
+                toast.error("Huỷ đặt chỗ thất bại: " + errMsg);
             }
         } catch (err) {
             console.error("Lỗi huỷ đặt chỗ:", err);
+            toast.error("Huỷ đặt chỗ thất bại: " + err.message);
         } finally {
             setSubmitting(false);
         }

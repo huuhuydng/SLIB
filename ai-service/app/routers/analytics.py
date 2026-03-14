@@ -40,6 +40,7 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
 
         with engine.connect() as conn:
             # Get user's booking history
+            days = request.days or 30
             result = conn.execute(text("""
                 SELECT
                     COUNT(*) as total_bookings,
@@ -48,8 +49,8 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
                     SUM(CASE WHEN status = 'EXPIRED' THEN 1 ELSE 0 END) as expired
                 FROM reservations
                 WHERE user_id = :user_id
-                  AND created_time >= NOW() - INTERVAL '30 days'
-            """), {"user_id": request.user_id})
+                  AND created_at >= NOW() - MAKE_INTERVAL(days => :days)
+            """), {"user_id": request.user_id, "days": days})
 
             row = result.fetchone()
             if row:
@@ -66,8 +67,8 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
                     SELECT COUNT(*) as noshow_count
                     FROM student_behaviors
                     WHERE user_id = :user_id AND behavior_type = 'NO_SHOW'
-                      AND created_at >= NOW() - INTERVAL '30 days'
-                """), {"user_id": request.user_id})
+                      AND created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                """), {"user_id": request.user_id, "days": days})
                 noshow_row = noshow_result.fetchone()
                 no_shows = noshow_row[0] if noshow_row else 0
             except:
@@ -166,26 +167,28 @@ async def get_behavior_issues() -> Dict[str, Any]:
                         SUM(CASE WHEN r.status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled_count,
                         SUM(CASE WHEN r.status IN ('COMPLETED', 'CONFIRMED') THEN 1 ELSE 0 END) AS completed_count
                     FROM reservations r
-                    WHERE r.created_time >= NOW() - INTERVAL '30 days'
+                    WHERE r.created_at >= NOW() - INTERVAL '30 days'
                     GROUP BY r.user_id
                 )
                 SELECT
                     u.full_name,
-                    sp.student_code,
+                    u.user_code,
                     sp.reputation_score,
                     COALESCE(rs.total_reservations, 0) AS total_reservations,
                     COALESCE(rs.expired_count, 0) AS expired_count,
                     COALESCE(rs.cancelled_count, 0) AS cancelled_count,
-                    COALESCE(rs.completed_count, 0) AS completed_count
+                    COALESCE(rs.completed_count, 0) AS completed_count,
+                    sp.violation_count
                 FROM student_profiles sp
                 JOIN users u ON u.id = sp.user_id
                 LEFT JOIN reservation_stats rs ON rs.user_id = u.id
-                WHERE sp.reputation_score < 80
-                   OR (rs.total_reservations > 0
+                WHERE sp.reputation_score <= 80
+                   OR sp.violation_count > 0
+                   OR (rs.total_reservations >= 3
                        AND (rs.expired_count::float / rs.total_reservations) > 0.3)
                 ORDER BY sp.reputation_score ASC,
                          COALESCE(rs.expired_count, 0) DESC
-                LIMIT 10
+                LIMIT 20
             """))
 
             students = []
@@ -196,28 +199,31 @@ async def get_behavior_issues() -> Dict[str, Any]:
                 total = row[3] or 0
                 expired = row[4] or 0
                 cancelled = row[5] or 0
+                violation_count = row[7] or 0
 
-                no_show_rate = (expired / total) if total > 0 else 0
-                cancel_rate = (cancelled / total) if total > 0 else 0
+                no_show_rate = (expired / total) if total >= 3 else 0
+                cancel_rate = (cancelled / total) if total >= 3 else 0
 
                 # Xác định severity
-                if reputation_score < 60 or no_show_rate > 0.5:
+                if reputation_score < 60 or (no_show_rate > 0.5 and total >= 3):
                     severity = "critical"
-                elif reputation_score < 80 or no_show_rate > 0.3:
+                elif reputation_score < 80 or (no_show_rate > 0.3 and total >= 3):
                     severity = "warning"
                 else:
                     severity = "info"
 
                 # Xác định vấn đề chính
                 issues = []
-                if no_show_rate > 0.3:
+                if no_show_rate > 0.3 and total >= 3:
                     issues.append(("Bỏ chỗ nhiều", f"Tỷ lệ bỏ chỗ {int(no_show_rate * 100)}% ({expired}/{total} lượt)"))
-                if cancel_rate > 0.3:
+                if cancel_rate > 0.3 and total >= 3:
                     issues.append(("Huỷ chỗ thường xuyên", f"Tỷ lệ huỷ {int(cancel_rate * 100)}% ({cancelled}/{total} lượt)"))
                 if reputation_score < 60:
                     issues.append(("Vi phạm nội quy", f"Điểm uy tín rất thấp: {reputation_score}/100"))
-                elif reputation_score < 80:
+                elif reputation_score <= 80:
                     issues.append(("Điểm uy tín thấp", f"Điểm uy tín: {reputation_score}/100"))
+                if violation_count > 0:
+                    issues.append(("Có vi phạm", f"Đã vi phạm {violation_count} lần"))
 
                 if not issues:
                     continue
@@ -243,6 +249,11 @@ async def get_behavior_issues() -> Dict[str, Any]:
                     "suggestion": suggestion,
                 })
 
+            # Random 3 sinh viên để dashboard không quá nhiều
+            import random
+            if len(students) > 3:
+                students = random.sample(students, 3)
+
             return {"students": students}
 
     except Exception as e:
@@ -251,15 +262,130 @@ async def get_behavior_issues() -> Dict[str, Any]:
         return {"students": []}
 
 
+@router.get("/behavior-summary")
+async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
+    """
+    Tổng hợp hành vi sinh viên trong khoảng thời gian (thay thế endpoint Java backend).
+    Trả về thống kê no-show, cancellation, top students.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        from app.core.database import engine
+        from sqlalchemy import text
+
+        with engine.connect() as conn:
+            # --- Aggregate reservation stats ---
+            agg_result = conn.execute(text("""
+                SELECT
+                    COUNT(DISTINCT user_id) AS total_students,
+                    COUNT(*) AS total_behaviors,
+                    SUM(CASE WHEN status = 'EXPIRED' THEN 1 ELSE 0 END) AS total_no_shows,
+                    SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS total_cancellations
+                FROM reservations
+                WHERE created_at >= NOW() - MAKE_INTERVAL(days => :days)
+            """), {"days": days})
+            agg_row = agg_result.fetchone()
+
+            total_students = agg_row[0] or 0
+            total_behaviors = agg_row[1] or 0
+            total_no_shows_reservations = agg_row[2] or 0
+            total_cancellations = agg_row[3] or 0
+
+            # --- Check student_behaviors table for NO_SHOW records ---
+            try:
+                sb_result = conn.execute(text("""
+                    SELECT COUNT(*) FROM student_behaviors
+                    WHERE behavior_type = 'NO_SHOW'
+                      AND created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                """), {"days": days})
+                sb_no_shows = sb_result.fetchone()[0] or 0
+            except Exception:
+                sb_no_shows = 0
+
+            total_no_shows = max(total_no_shows_reservations, sb_no_shows)
+
+            avg_no_show_rate = round(total_no_shows / max(total_behaviors, 1), 4)
+            avg_cancellation_rate = round(total_cancellations / max(total_behaviors, 1), 4)
+
+            # --- Top no-show students ---
+            top_noshow_result = conn.execute(text("""
+                SELECT
+                    r.user_id,
+                    u.full_name,
+                    u.user_code,
+                    COUNT(*) AS no_show_count
+                FROM reservations r
+                JOIN users u ON u.id = r.user_id
+                WHERE r.status = 'EXPIRED'
+                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                GROUP BY r.user_id, u.full_name, u.user_code
+                ORDER BY no_show_count DESC
+                LIMIT 10
+            """), {"days": days})
+
+            top_no_show_students = []
+            for row in top_noshow_result:
+                top_no_show_students.append({
+                    "userId": str(row[0]),
+                    "fullName": row[1],
+                    "userCode": row[2],
+                    "noShowCount": row[3],
+                })
+
+            # --- Top active students (chỉ đếm lần sử dụng thực sự: COMPLETED, CONFIRMED) ---
+            top_active_result = conn.execute(text("""
+                SELECT
+                    r.user_id,
+                    u.full_name,
+                    u.user_code,
+                    COUNT(*) AS usage_count
+                FROM reservations r
+                JOIN users u ON u.id = r.user_id
+                WHERE r.status IN ('COMPLETED', 'CONFIRMED')
+                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                GROUP BY r.user_id, u.full_name, u.user_code
+                ORDER BY usage_count DESC
+                LIMIT 10
+            """), {"days": days})
+
+            top_active_students = []
+            for row in top_active_result:
+                top_active_students.append({
+                    "userId": str(row[0]),
+                    "fullName": row[1],
+                    "userCode": row[2],
+                    "behaviorCount": row[3],
+                })
+
+        return {
+            "totalStudents": total_students,
+            "totalBehaviors": total_behaviors,
+            "totalNoShows": total_no_shows,
+            "totalCancellations": total_cancellations,
+            "avgNoShowRate": avg_no_show_rate,
+            "avgCancellationRate": avg_cancellation_rate,
+            "topNoShowStudents": top_no_show_students,
+            "topActiveStudents": top_active_students,
+            "analyzedPeriod": f"{days} ngày gần nhất",
+            "analyzedAt": datetime.now().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Lỗi khi truy vấn behavior-summary: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi phân tích hành vi: {str(e)}")
+
+
 @router.get("/density-prediction")
-async def get_density_prediction(zone_id: Optional[str] = None) -> Dict[str, Any]:
+async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -> Dict[str, Any]:
     """
     Dự đoán mật độ sử dụng theo giờ/ngày
     """
     from app.services.analytics_service import analytics_ai_service
 
     # Use real analytics service
-    result = analytics_ai_service.analyze_peak_hours(zone_id)
+    result = analytics_ai_service.analyze_peak_hours(zone_id, days)
 
     # Get hourly predictions from usage data
     try:
@@ -267,22 +393,30 @@ async def get_density_prediction(zone_id: Optional[str] = None) -> Dict[str, Any
         from sqlalchemy import text
 
         with engine.connect() as conn:
-            # Get hourly distribution for the week
+            # Get total seats for normalization
+            seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
+            total_seats = seats_result.fetchone()[0] or 1
+
+            # Get hourly distribution
             hourly_result = conn.execute(text("""
                 SELECT
                     EXTRACT(HOUR FROM check_in_time) as hour,
-                    COUNT(*) as count
+                    COUNT(*) as count,
+                    COUNT(DISTINCT DATE(check_in_time)) as num_days
                 FROM access_logs
-                WHERE check_in_time >= NOW() - INTERVAL '7 days'
+                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY EXTRACT(HOUR FROM check_in_time)
                 ORDER BY hour
-            """))
+            """), {"days": days})
 
             hourly_predictions = []
             for row in hourly_result:
+                num_days = row[2] or 1
+                avg_per_day = row[1] / num_days
+                occ = min(avg_per_day / total_seats, 1.0)
                 hourly_predictions.append({
                     "hour": int(row[0]),
-                    "predicted_occupancy": round(row[1] / 100, 2),  # Normalize
+                    "predicted_occupancy": round(occ, 2),
                     "confidence": 0.8
                 })
 
@@ -290,21 +424,25 @@ async def get_density_prediction(zone_id: Optional[str] = None) -> Dict[str, Any
             daily_result = conn.execute(text("""
                 SELECT
                     EXTRACT(DOW FROM check_in_time) as day,
-                    COUNT(*) as count
+                    COUNT(*) as count,
+                    COUNT(DISTINCT DATE(check_in_time)) as num_days
                 FROM access_logs
-                WHERE check_in_time >= NOW() - INTERVAL '30 days'
+                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY EXTRACT(DOW FROM check_in_time)
                 ORDER BY day
-            """))
+            """), {"days": days})
 
-            days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
+            day_names = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
             weekly_predictions = []
             for row in daily_result:
                 day_idx = int(row[0])
+                num_days = row[2] or 1
+                avg_per_day = row[1] / num_days
+                occ = min(avg_per_day / total_seats, 1.0)
                 weekly_predictions.append({
-                    "day": days[day_idx],
-                    "predicted_occupancy": round(row[1] / 500, 2),
-                    "recommendation": "Nên đến sớm" if row[1] > 300 else "Thư viện thoáng"
+                    "day": day_names[day_idx],
+                    "predicted_occupancy": round(occ, 2),
+                    "recommendation": "Nên đến sớm" if occ >= 0.7 else "Thư viện thoáng"
                 })
 
             result["hourly_predictions"] = hourly_predictions
@@ -354,7 +492,7 @@ async def get_seat_recommendation(
                 JOIN zones z ON z.zone_id = s.zone_id
                 LEFT JOIN reservations r ON r.seat_id = s.seat_id
                     AND r.start_time >= NOW() - INTERVAL '7 days'
-                WHERE s.status = 'AVAILABLE'
+                WHERE s.is_active = true
                 GROUP BY s.seat_id, s.seat_code, z.zone_name, z.zone_id
                 ORDER BY recent_bookings ASC
                 LIMIT 5

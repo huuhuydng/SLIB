@@ -4,6 +4,8 @@ import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHor
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SupportRequestManage.css";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/support-requests`;
 
@@ -23,6 +25,8 @@ const STATUS_OPTIONS = [
 
 function SupportRequestManage() {
     const navigate = useNavigate();
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -113,12 +117,17 @@ function SupportRequestManage() {
                 body: JSON.stringify({ response: responseText }),
             });
             if (res.ok) {
+                toast.success('Đã gửi phản hồi cho sinh viên thành công.');
                 setSelectedRequest(null);
                 setResponseText("");
                 fetchRequests();
+            } else {
+                const errorData = await res.json().catch(() => ({}));
+                toast.error('Gửi phản hồi thất bại: ' + (errorData.message || res.statusText));
             }
         } catch (err) {
             console.error("Error responding:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -143,10 +152,15 @@ function SupportRequestManage() {
             });
             if (res.ok) {
                 const data = await res.json();
+                toast.success('Đã mở cuộc trò chuyện với sinh viên.');
                 navigate(`/librarian/chat?conversationId=${data.conversationId}`);
+            } else {
+                const errorData = await res.json().catch(() => ({}));
+                toast.error('Không thể mở cuộc trò chuyện: ' + (errorData.message || res.statusText));
             }
         } catch (err) {
             console.error("Error starting chat:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setChatLoading(false);
         }
@@ -154,7 +168,14 @@ function SupportRequestManage() {
 
     const handleDeleteBatch = async () => {
         if (selectedIds.size === 0) return;
-        if (!window.confirm(`Bạn có chắc muốn xoá ${selectedIds.size} yêu cầu đã chọn?`)) return;
+        const confirmed = await confirm({
+            title: 'Xoá yêu cầu hỗ trợ',
+            message: `Bạn có chắc muốn xoá ${selectedIds.size} yêu cầu đã chọn?`,
+            variant: 'danger',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
         setDeleting(true);
         try {
             const token = getToken();
@@ -167,11 +188,16 @@ function SupportRequestManage() {
                 body: JSON.stringify({ ids: Array.from(selectedIds) }),
             });
             if (res.ok) {
+                toast.success(`Đã xoá ${selectedIds.size} yêu cầu hỗ trợ thành công.`);
                 setSelectedIds(new Set());
                 fetchRequests();
+            } else {
+                const errorData = await res.json().catch(() => ({}));
+                toast.error('Xoá yêu cầu thất bại: ' + (errorData.message || res.statusText));
             }
         } catch (err) {
             console.error("Error deleting:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setDeleting(false);
         }

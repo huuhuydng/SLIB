@@ -39,24 +39,30 @@ const TOAST_CONFIG = {
 const Toast = ({ toast, onClose }) => {
     const config = TOAST_CONFIG[toast.type] || TOAST_CONFIG.info;
     const Icon = config.icon;
+    const clickable = !!toast.onClick;
 
     return (
         <div
             style={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: '12px',
-                padding: '16px 20px',
+                gap: '14px',
+                padding: '24px 28px',
                 background: '#fff',
-                borderRadius: '14px',
+                borderRadius: '16px',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08)',
                 borderLeft: `4px solid ${config.border}`,
-                minWidth: '340px',
-                maxWidth: '420px',
-                animation: 'toastSlideIn 0.35s cubic-bezier(0.21, 1.02, 0.73, 1)',
+                minWidth: '460px',
+                maxWidth: '540px',
+                animation: 'toastSlideInRight 0.35s cubic-bezier(0.21, 1.02, 0.73, 1)',
                 position: 'relative',
                 overflow: 'hidden',
+                cursor: clickable ? 'pointer' : 'default',
+                transition: clickable ? 'transform 0.15s' : 'none',
             }}
+            onClick={clickable ? () => { toast.onClick(); onClose(toast.id); } : undefined}
+            onMouseEnter={clickable ? (e) => (e.currentTarget.style.transform = 'scale(1.01)') : undefined}
+            onMouseLeave={clickable ? (e) => (e.currentTarget.style.transform = 'scale(1)') : undefined}
         >
             {/* Progress bar */}
             <div
@@ -67,7 +73,7 @@ const Toast = ({ toast, onClose }) => {
                     height: '3px',
                     background: config.border,
                     borderRadius: '0 2px 2px 0',
-                    animation: `toastProgress ${toast.duration || 4000}ms linear forwards`,
+                    animation: `toastProgress ${toast.duration || 10000}ms linear forwards`,
                     opacity: 0.6,
                 }}
             />
@@ -75,9 +81,9 @@ const Toast = ({ toast, onClose }) => {
             {/* Icon */}
             <div
                 style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
                     background: config.bg,
                     display: 'flex',
                     alignItems: 'center',
@@ -85,7 +91,7 @@ const Toast = ({ toast, onClose }) => {
                     flexShrink: 0,
                 }}
             >
-                <Icon size={20} color="#fff" />
+                <Icon size={24} color="#fff" />
             </div>
 
             {/* Content */}
@@ -93,7 +99,7 @@ const Toast = ({ toast, onClose }) => {
                 {toast.title && (
                     <div
                         style={{
-                            fontSize: '14px',
+                            fontSize: '16px',
                             fontWeight: '700',
                             color: '#1A1A1A',
                             marginBottom: '2px',
@@ -104,19 +110,31 @@ const Toast = ({ toast, onClose }) => {
                 )}
                 <div
                     style={{
-                        fontSize: '13px',
+                        fontSize: '15px',
                         color: '#6B7280',
-                        lineHeight: '1.4',
+                        lineHeight: '1.5',
                         wordBreak: 'break-word',
                     }}
                 >
                     {toast.message}
                 </div>
+                {toast.actionText && (
+                    <div
+                        style={{
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            color: config.border,
+                            marginTop: '6px',
+                        }}
+                    >
+                        {toast.actionText}
+                    </div>
+                )}
             </div>
 
             {/* Close */}
             <button
-                onClick={() => onClose(toast.id)}
+                onClick={(e) => { e.stopPropagation(); onClose(toast.id); }}
                 style={{
                     background: 'none',
                     border: 'none',
@@ -131,7 +149,7 @@ const Toast = ({ toast, onClose }) => {
                 onMouseEnter={(e) => (e.target.style.color = '#374151')}
                 onMouseLeave={(e) => (e.target.style.color = '#9CA3AF')}
             >
-                <X size={16} />
+                <X size={18} />
             </button>
         </div>
     );
@@ -152,13 +170,15 @@ export const ToastProvider = ({ children }) => {
     const addToast = useCallback(
         (type, message, options = {}) => {
             const id = ++toastIdCounter;
-            const duration = options.duration || 4000;
+            const duration = options.duration || 10000;
             const toast = {
                 id,
                 type,
                 message,
                 title: options.title,
                 duration,
+                onClick: options.onClick || null,
+                actionText: options.actionText || null,
             };
 
             setToasts((prev) => [...prev, toast]);
@@ -191,7 +211,7 @@ export const ToastProvider = ({ children }) => {
                 <div
                     style={{
                         position: 'fixed',
-                        top: '24px',
+                        bottom: '24px',
                         right: '24px',
                         zIndex: 99999,
                         display: 'flex',
@@ -210,7 +230,7 @@ export const ToastProvider = ({ children }) => {
 
             {/* Animations */}
             <style>{`
-        @keyframes toastSlideIn {
+        @keyframes toastSlideInRight {
           from {
             opacity: 0;
             transform: translateX(100%);

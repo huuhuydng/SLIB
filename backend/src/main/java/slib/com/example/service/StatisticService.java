@@ -55,6 +55,8 @@ public class StatisticService {
             return now.minusYears(1);
         } else if ("month".equalsIgnoreCase(range)) {
             return now.minusDays(30);
+        } else if ("day".equalsIgnoreCase(range)) {
+            return now.toLocalDate().atStartOfDay();
         } else {
             return now.minusDays(7);
         }

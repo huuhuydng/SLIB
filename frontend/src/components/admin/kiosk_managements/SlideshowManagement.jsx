@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import {
   Film,
   Upload,
@@ -28,6 +29,8 @@ const authHeaders = () => {
 };
 
 const SlideshowManagement = () => {
+  const { confirm } = useConfirm();
+
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -77,7 +80,13 @@ const SlideshowManagement = () => {
 
   // Xóa ảnh
   const handleDeleteImage = async (imageObj) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa ảnh này?')) return;
+    const confirmed = await confirm({
+      title: 'Xóa ảnh',
+      message: 'Bạn có chắc chắn muốn xóa ảnh này?',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!confirmed) return;
 
     try {
       // Gọi API xóa theo ID
@@ -271,7 +280,13 @@ const SlideshowManagement = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.size} ảnh này?`)) return;
+    const confirmed = await confirm({
+      title: 'Xóa ảnh đã chọn',
+      message: `Bạn có chắc chắn muốn xóa ${selectedIds.size} ảnh này?`,
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!confirmed) return;
 
     try {
       const deletePromises = Array.from(selectedIds).map(id =>

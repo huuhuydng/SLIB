@@ -3,6 +3,8 @@ import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHor
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/FeedbackManage.css";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/feedbacks`;
 
@@ -20,6 +22,8 @@ const STATUS_OPTIONS = [
 ];
 
 function FeedbackManage() {
+    const toast = useToast();
+    const { confirm } = useConfirm();
     const [feedbacks, setFeedbacks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedFeedback, setSelectedFeedback] = useState(null);
@@ -113,11 +117,15 @@ function FeedbackManage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
+                toast.success('Đã đánh dấu phản hồi là đã xem');
                 fetchFeedbacks();
                 setSelectedFeedback(null);
+            } else {
+                toast.error('Không thể đánh dấu phản hồi. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Lỗi đánh dấu đã xem:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setSubmitting(false);
         }
@@ -125,7 +133,14 @@ function FeedbackManage() {
 
     const handleBatchDelete = async () => {
         if (selectedIds.size === 0) return;
-        if (!window.confirm(`Xoá ${selectedIds.size} phản hồi đã chọn?`)) return;
+        const confirmed = await confirm({
+            title: 'Xoá phản hồi',
+            message: `Xoá ${selectedIds.size} phản hồi đã chọn?`,
+            variant: 'danger',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
         setDeleting(true);
         try {
             const token = getToken();
@@ -135,11 +150,15 @@ function FeedbackManage() {
                 body: JSON.stringify({ ids: [...selectedIds] }),
             });
             if (res.ok) {
+                toast.success(`Đã xoá ${selectedIds.size} phản hồi thành công`);
                 setSelectedIds(new Set());
                 fetchFeedbacks();
+            } else {
+                toast.error('Không thể xoá phản hồi. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Lỗi xoá hàng loạt:", err);
+            toast.error('Lỗi: ' + err.message);
         } finally {
             setDeleting(false);
         }

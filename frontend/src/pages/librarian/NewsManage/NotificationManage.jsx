@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus,
@@ -33,6 +34,7 @@ const STATUS_OPTIONS = [
 
 const NotificationManage = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = '/librarian/news';
@@ -122,7 +124,13 @@ const NotificationManage = () => {
 
   const handleDelete = async (id, event) => {
     event.stopPropagation();
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tin tức này?')) return;
+    const ok = await confirm({
+      title: 'Xoá tin tức',
+      message: 'Bạn có chắc chắn muốn xoá tin tức này? Hành động này không thể hoàn tác.',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!ok) return;
     try {
       await deleteNews(id);
       loadNotifications();

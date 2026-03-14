@@ -1,12 +1,17 @@
 package slib.com.example.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.dto.zone_config.SeatResponse;
+import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.ZoneEntity;
+import slib.com.example.repository.ReservationRepository;
 import slib.com.example.repository.SeatRepository;
 import slib.com.example.repository.ZoneRepository;
 
@@ -16,11 +21,15 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SeatService {
 
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
+    private final ReservationRepository reservationRepository;
     private final SeatAvailabilityService seatAvailabilityService;
+    private final PushNotificationService pushNotificationService;
+    private final SeatStatusSyncService seatStatusSyncService;
     private final slib.com.example.util.NfcUidHasher nfcUidHasher;
 
     // ================= GET =================
@@ -173,6 +182,7 @@ public class SeatService {
                         } else {
                             response.setSeatStatus(SeatStatus.BOOKED);
                         }
+                        response.setReservationId(reservation.getReservationId().toString());
                         response.setReservationEndTime(reservation.getEndTime().toString());
                         response.setReservationStartTime(reservation.getStartTime().toString());
 
@@ -192,16 +202,54 @@ public class SeatService {
     }
 
     /**
-     * Han che ghe theo seatId (unique ID)
+     * Han che ghe theo seatId (unique ID).
+     * Huy tat ca dat cho dang hoat dong (BOOKED, CONFIRMED) va thong bao cho sinh vien.
      */
+    @Transactional
     public SeatResponse restrictSeatById(Integer seatId) {
         SeatEntity seat = seatRepository.findById(seatId)
                 .orElseThrow(() -> new RuntimeException("Seat not found with id: " + seatId));
 
+        String seatCode = seat.getSeatCode();
+        String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+
+        // Tim va huy tat ca dat cho dang hoat dong cho ghe nay
+        List<ReservationEntity> activeReservations = reservationRepository.findBySeat_SeatId(seatId)
+                .stream()
+                .filter(r -> "BOOKED".equalsIgnoreCase(r.getStatus())
+                        || "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                .toList();
+
+        for (ReservationEntity reservation : activeReservations) {
+            reservation.setStatus("CANCEL");
+            reservationRepository.save(reservation);
+
+            // Gui thong bao cho sinh vien bi anh huong
+            if (reservation.getUser() != null) {
+                try {
+                    pushNotificationService.sendToUser(
+                            reservation.getUser().getId(),
+                            "Ghế đã bị hạn chế",
+                            "Ghế " + seatCode + " tại " + zoneName
+                                    + " đã bị hạn chế bởi thủ thư do cần bảo trì. Đặt chỗ của bạn đã được hủy tự động.",
+                            NotificationType.BOOKING,
+                            reservation.getReservationId());
+                } catch (Exception e) {
+                    log.error("Khong the gui thong bao cho user {} khi han che ghe {}: {}",
+                            reservation.getUser().getId(), seatId, e.getMessage());
+                }
+            }
+        }
+
         // Set isActive = false so calculateStatus returns UNAVAILABLE
         seat.setIsActive(false);
         seat.setSeatStatus(SeatStatus.UNAVAILABLE);
-        return toResponse(seatRepository.save(seat));
+        SeatEntity savedSeat = seatRepository.save(seat);
+
+        // Broadcast thay doi trang thai ghe qua WebSocket
+        seatStatusSyncService.broadcastSeatUpdate(savedSeat, "UNAVAILABLE");
+
+        return toResponse(savedSeat);
     }
 
     /**
@@ -214,7 +262,10 @@ public class SeatService {
         // Set isActive = true so calculateStatus returns AVAILABLE
         seat.setIsActive(true);
         seat.setSeatStatus(SeatStatus.AVAILABLE);
-        seatRepository.save(seat);
+        SeatEntity savedSeat = seatRepository.save(seat);
+
+        // Broadcast thay doi trang thai ghe qua WebSocket
+        seatStatusSyncService.broadcastSeatUpdate(savedSeat, "AVAILABLE");
     }
 
     /**

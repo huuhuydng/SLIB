@@ -171,23 +171,22 @@ const Dashboard = () => {
         console.warn('Could not fetch realtime capacity:', e);
       }
 
-      // Fetch AI Analytics data
-      const AI_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8001';
+      // Fetch AI Analytics data (qua Vite proxy /api/ai -> localhost:8001)
       try {
-        const peakRes = await fetch(`${AI_URL}/api/ai/analytics/peak-hours`);
+        const peakRes = await fetch('/api/ai/analytics/peak-hours');
         const peakData = await peakRes.json();
         if (peakData.peak_hours) setPeakHours(peakData.peak_hours.slice(0, 3));
         if (peakData.quiet_hours) setQuietHours(peakData.quiet_hours);
       } catch (e) { console.warn('Could not fetch peak hours:', e); }
 
       try {
-        const densityRes = await fetch(`${AI_URL}/api/ai/analytics/density-prediction`);
+        const densityRes = await fetch('/api/ai/analytics/density-prediction');
         const densityData = await densityRes.json();
         if (densityData.hourly_predictions) setDensityHours(densityData.hourly_predictions);
       } catch (e) { console.warn('Could not fetch density:', e); }
 
       try {
-        const behaviorRes = await fetch(`${AI_URL}/api/ai/analytics/behavior-issues`);
+        const behaviorRes = await fetch('/api/ai/analytics/behavior-issues');
         const behaviorData = await behaviorRes.json();
         if (behaviorData.students) setBehaviorIssues(behaviorData.students);
       } catch (e) { console.warn('Could not fetch behavior issues:', e); }
@@ -575,7 +574,7 @@ const Dashboard = () => {
           {/* AI Analytics */}
           <section className="dashboard-panel panel-elevated ai-panel">
             <div className="panel-header">
-              <h3 className="panel-title">AI Analytics</h3>
+              <h3 className="panel-title">Thống kê bằng AI</h3>
             </div>
 
             {/* Peak hours horizontal bars */}
@@ -588,12 +587,12 @@ const Dashboard = () => {
                       <div
                         className="area-bar-fill"
                         style={{
-                          width: `${Math.round(h.occupancy * 100)}%`,
-                          background: h.occupancy >= 0.8 ? '#ef4444' : h.occupancy >= 0.5 ? '#f59e0b' : '#22c55e'
+                          width: `${Math.round(h.avg_occupancy * 100)}%`,
+                          background: h.avg_occupancy >= 0.8 ? '#ef4444' : h.avg_occupancy >= 0.5 ? '#f59e0b' : '#22c55e'
                         }}
                       />
                     </div>
-                    <span className="peak-hour-pct">{Math.round(h.occupancy * 100)}%</span>
+                    <span className="peak-hour-pct">{Math.round(h.avg_occupancy * 100)}%</span>
                   </div>
                 ))}
               </div>
@@ -616,18 +615,22 @@ const Dashboard = () => {
                   <span className="density-mini-sub">7 ngày</span>
                 </div>
                 <div className="density-mini-bars">
-                  {densityHours.map((h, i) => {
-                    const occ = h.predicted_occupancy || 0;
-                    const barColor = occ >= 0.8 ? '#ef4444' : occ >= 0.5 ? '#f59e0b' : '#22c55e';
-                    return (
-                      <div key={i} className="density-mini-bar-col" title={`${h.hour}:00 — ${Math.round(occ * 100)}%`}>
-                        <div className="density-mini-bar-bg">
-                          <div className="density-mini-bar-fill" style={{ height: `${Math.max(occ * 100, 4)}%`, background: barColor }} />
+                  {(() => {
+                    const maxOcc = Math.max(...densityHours.map(h => h.predicted_occupancy || 0), 0.01);
+                    return densityHours.map((h, i) => {
+                      const occ = h.predicted_occupancy || 0;
+                      const relativeHeight = (occ / maxOcc) * 100;
+                      const barColor = occ >= 0.8 ? '#ef4444' : occ >= 0.5 ? '#f59e0b' : '#22c55e';
+                      return (
+                        <div key={i} className="density-mini-bar-col" title={`${h.hour}:00 — ${Math.round(occ * 100)}%`}>
+                          <div className="density-mini-bar-bg">
+                            <div className="density-mini-bar-fill" style={{ height: `${Math.max(relativeHeight, 8)}%`, background: barColor }} />
+                          </div>
+                          <span className="density-mini-label">{h.hour}</span>
                         </div>
-                        <span className="density-mini-label">{h.hour}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
             )}

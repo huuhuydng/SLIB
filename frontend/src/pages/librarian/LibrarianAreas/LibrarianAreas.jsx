@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Client } from '@stomp/stompjs';
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { getAreas } from "../../../services/admin/area_management/api";
 import { seatService } from "../../../services/seatService";
 import { handleLogout } from "../../../utils/auth";
-import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate, User, Clock, X } from "lucide-react";
+import { Armchair, AlertCircle, ShieldOff, ShieldCheck, Clock4, LayoutTemplate, User, Clock, X, Check } from "lucide-react";
 import LibrarianArea from "../../../components/librarian/LibrarianArea";
 import "../../../styles/librarian/librarian-shared.css";
 import "./LibrarianAreas.css";
@@ -50,6 +52,8 @@ const buildTimeParams = (slotValue, dateOverride, timeSlots) => {
 function LibrarianAreasContent() {
   const { state, dispatch } = useLayout();
   const { areas, seats, canvas } = state;
+  const toast = useToast();
+  const { confirm } = useConfirm();
 
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [slotValue, setSlotValue] = useState("now");
@@ -160,6 +164,7 @@ function LibrarianAreasContent() {
         bookedByUserName: s.bookedByUserName ?? null,
         bookedByUserCode: s.bookedByUserCode ?? null,
         bookedByAvatarUrl: s.bookedByAvatarUrl ?? null,
+        reservationId: s.reservationId ?? null,
       }));
 
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
@@ -332,17 +337,57 @@ function LibrarianAreasContent() {
     return () => window.removeEventListener('resize', handleResize);
   }, [areas.length]);
 
+  // Confirm reservation (librarian manual confirm)
+  const confirmReservation = async (seat) => {
+    if (!seat?.reservationId) return;
+    try {
+      const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const res = await fetch(
+        `${API_BASE}/slib/bookings/updateStatusReserv/${seat.reservationId}?status=CONFIRMED`,
+        { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error('Lỗi xác nhận');
+      toast.success('Đã xác nhận chỗ ngồi thành công');
+      setSelectedSeat(null);
+      await loadSeatsForTimeSlot(slotValue);
+    } catch (error) {
+      console.error('Error confirming reservation:', error);
+      toast.error('Lỗi xác nhận chỗ ngồi: ' + error.message);
+    }
+  };
+
   // Toggle seat restriction
   const toggleRestriction = async (seat) => {
     if (!seat) return;
     try {
       const isRestricted = seat.seatStatus === "UNAVAILABLE";
-      if (isRestricted) {
-        await seatService.removeRestriction(seat.seatId);
-        setMessage(`✓ Đã bỏ hạn chế ghế ${seat.seatCode}`);
-      } else {
+      if (!isRestricted) {
+        // Hiển thị xác nhận nếu ghế đang được đặt hoặc đang có người ngồi
+        if (seat.seatStatus === "BOOKED") {
+          const confirmed = await confirm({
+            title: 'Xác nhận hạn chế ghế',
+            message: `Ghế ${seat.seatCode} đang có người đặt (${seat.bookedByUserName}). Nếu hạn chế, đặt chỗ sẽ bị huỷ tự động và sinh viên sẽ được thông báo. Bạn có chắc chắn?`,
+            variant: 'danger',
+            confirmText: 'Hạn chế',
+            cancelText: 'Huỷ',
+          });
+          if (!confirmed) return;
+        } else if (seat.seatStatus === "CONFIRMED") {
+          const confirmed = await confirm({
+            title: 'Xác nhận hạn chế ghế',
+            message: `Ghế ${seat.seatCode} đang có người ngồi (${seat.bookedByUserName}). Nếu hạn chế, đặt chỗ sẽ bị huỷ tự động và sinh viên sẽ được thông báo. Bạn có chắc chắn?`,
+            variant: 'danger',
+            confirmText: 'Hạn chế',
+            cancelText: 'Huỷ',
+          });
+          if (!confirmed) return;
+        }
         await seatService.addRestriction(seat.seatId);
-        setMessage(`✓ Đã hạn chế ghế ${seat.seatCode}`);
+        toast.success('Đã hạn chế ghế thành công');
+      } else {
+        await seatService.removeRestriction(seat.seatId);
+        toast.success('Đã bỏ hạn chế ghế thành công');
       }
       await loadSeatsForTimeSlot(slotValue);
       setSelectedSeat((prev) =>
@@ -352,7 +397,7 @@ function LibrarianAreasContent() {
       );
     } catch (err) {
       console.error("Failed to update seat restriction", err);
-      setMessage("❌ Cập nhật hạn chế thất bại");
+      toast.error('Lỗi cập nhật hạn chế: ' + err.message);
     }
   };
 
@@ -525,6 +570,15 @@ function LibrarianAreasContent() {
                   </div>
                 )}
 
+                {selectedSeat.seatStatus === 'BOOKED' && selectedSeat.reservationId && (
+                  <button
+                    className="librarian-btn"
+                    onClick={() => confirmReservation(selectedSeat)}
+                    style={{ backgroundColor: '#22c55e', cursor: 'pointer', marginBottom: 8 }}
+                  >
+                    Xác nhận chỗ ngồi
+                  </button>
+                )}
                 <button
                   className="librarian-btn"
                   onClick={() => toggleRestriction(selectedSeat)}

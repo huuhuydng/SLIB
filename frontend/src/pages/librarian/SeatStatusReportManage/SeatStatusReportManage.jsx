@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Filter, LayoutGrid, LayoutList, Loader2, RefreshCw, Search, SlidersHorizontal, Wrench, X, XCircle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { useToast } from '../../../components/common/ToastProvider';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatStatusReportManage.css";
@@ -49,6 +50,7 @@ const VALID_STATUS = new Set(Object.keys(STATUS_LABELS));
 const normalizeStatus = (value) => (value && VALID_STATUS.has(value) ? value : "");
 
 function SeatStatusReportManage() {
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -467,6 +469,12 @@ function SeatStatusReportManage() {
     );
   };
 
+  const ACTION_SUCCESS_MESSAGES = {
+    verify: "Đã xác minh báo cáo tình trạng ghế thành công.",
+    reject: "Đã từ chối báo cáo tình trạng ghế.",
+    resolve: "Đã đánh dấu báo cáo là đã xử lý xong.",
+  };
+
   const runAction = async (reportId, action) => {
     setSubmittingAction(`${reportId}:${action}`);
     setErrorMessage("");
@@ -485,10 +493,12 @@ function SeatStatusReportManage() {
       const updatedReport = await res.json();
       setReports((previous) => previous.map((report) => (report.id === updatedReport.id ? updatedReport : report)));
       setSelectedReport(updatedReport);
+      toast.success(ACTION_SUCCESS_MESSAGES[action] || "Cập nhật trạng thái báo cáo thành công.");
       await fetchReports();
     } catch (error) {
       console.error(`Error running ${action}:`, error);
       setErrorMessage(error.message || "Không thể cập nhật trạng thái báo cáo.");
+      toast.error("Lỗi: " + (error.message || "Không thể cập nhật trạng thái báo cáo."));
     } finally {
       setSubmittingAction("");
     }

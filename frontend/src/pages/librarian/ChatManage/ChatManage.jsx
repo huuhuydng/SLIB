@@ -800,16 +800,7 @@ const ChatManage = () => {
           </div>
         </div>
       )}
-      {/* Chat Toast Notification */}
-      {chatToast && (
-        <div className="cm-chat-toast" onClick={() => {
-          setSelectedConversationId(chatToast.conversationId);
-          setChatToast(null);
-        }}>
-          <strong>{chatToast.senderName}</strong>
-          <span>{chatToast.content}</span>
-        </div>
-      )}
+      {/* Chat Toast Notification - suppressed on chat page, messages already visible */}
     </>
   );
 };

@@ -3,12 +3,15 @@ import {
   Nfc, RefreshCw, CheckCircle, XCircle, Plus, Trash2, Wifi,
   ZoomIn, ZoomOut, Maximize2, Info, X
 } from "lucide-react";
+import { useConfirm } from "../../../components/common/ConfirmDialog";
 import { getAreas, getZonesByArea, getSeats, getAreaFactoriesByArea, getSeatByNfcUid } from "../../../services/admin/area_management/api";
 import { calculateDynamicSeatLayout } from "../../../utils/admin/seatLayout";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
 import "./NfcManagement.css";
 
 const NfcManagement = () => {
+  const { confirm } = useConfirm();
+
   // ===== DATA STATE =====
   const [areas, setAreas] = useState([]);
   const [zones, setZones] = useState([]);
@@ -257,7 +260,13 @@ const NfcManagement = () => {
   };
 
   const handleClearNfc = async (seatId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa NFC UID khỏi ghế này?")) return;
+    const confirmed = await confirm({
+      title: 'Xóa NFC UID',
+      message: 'Bạn có chắc muốn xóa NFC UID khỏi ghế này?',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!confirmed) return;
     setActionLoading(true);
     try {
       await nfcManagementService.clearNfcUid(seatId);
