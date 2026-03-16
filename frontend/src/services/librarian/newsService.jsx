@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/apiConfig';
 
-const API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news`;
+const API_URL = `${API_BASE_URL}/slib/news`;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
@@ -113,7 +114,7 @@ export const togglePinNews = async (id) => {
 
 // ============== CATEGORY APIs ==============
 
-const CATEGORY_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news-categories`;
+const CATEGORY_URL = `${API_BASE_URL}/slib/news-categories`;
 
 // Lay danh sach tat ca categories
 export const getAllCategories = async () => {
@@ -153,7 +154,7 @@ export const uploadImage = async (file) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/files/upload_news_image`, formData, {
+    const response = await axios.post(`${API_BASE_URL}/slib/files/upload_news_image`, formData, {
       headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
     });
     return response.data.url;

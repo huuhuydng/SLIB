@@ -45,6 +45,10 @@ public class ViolationReportResponse {
     private LocalDateTime createdAt;
     private LocalDateTime verifiedAt;
 
+    // Appeal/complaint info (populated separately)
+    private String appealStatus;
+    private String appealResolutionNote;
+
     public static ViolationReportResponse fromEntity(SeatViolationReportEntity entity) {
         ViolationReportResponseBuilder builder = ViolationReportResponse.builder()
                 .id(entity.getId())

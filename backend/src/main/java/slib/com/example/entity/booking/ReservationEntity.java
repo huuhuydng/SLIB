@@ -50,6 +50,9 @@ public class ReservationEntity {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     @Column(name = "status", nullable = false)
     private String status;
 

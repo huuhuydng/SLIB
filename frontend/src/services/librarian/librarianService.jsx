@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL as BASE } from '../../config/apiConfig';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/librarian`;
+const API_BASE_URL = `${BASE}/api/librarian`;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -62,7 +63,7 @@ class LibrarianService {
     try {
       console.log('[Service] Calling loginWithPassword with identifier:', identifier);
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/login`, {
+      const response = await axios.post(`${BASE}/slib/auth/login`, {
         identifier: identifier,
         password: password
       }, {
@@ -109,7 +110,7 @@ class LibrarianService {
     try {
       console.log('🟡 [Service] Calling googleLogin with ID Token');
 
-      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/auth/google`, {
+      const response = await axios.post(`${BASE}/slib/auth/google`, {
         idToken: idToken,
         fullName: "",
         fcmToken: "",
@@ -264,7 +265,7 @@ class LibrarianService {
   }
 
   get _hceBaseUrl() {
-    return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce`;
+    return `${BASE}/slib/hce`;
   }
 
   async getStudentDetail(userId) {

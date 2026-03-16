@@ -20,6 +20,10 @@ public interface ComplaintRepository extends JpaRepository<ComplaintEntity, UUID
 
     long countByStatus(ComplaintStatus status);
 
+    List<ComplaintEntity> findByViolationReportIdOrderByCreatedAtDesc(UUID violationReportId);
+
+    List<ComplaintEntity> findByPointTransactionIdOrderByCreatedAtDesc(UUID pointTransactionId);
+
     // Dashboard: lấy 5 khiếu nại gần đây nhất
     List<ComplaintEntity> findTop5ByOrderByCreatedAtDesc();
 

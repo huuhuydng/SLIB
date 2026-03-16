@@ -189,6 +189,7 @@ public class SeedDataService {
                     .seat(seat)
                     .startTime(startTime)
                     .endTime(endTime)
+                    .confirmedAt(("CONFIRMED".equals(status) || "COMPLETED".equals(status)) ? startTime : null)
                     .status(status)
                     .build();
 
@@ -757,6 +758,7 @@ public class SeedDataService {
                 .seat(mainSeat)
                 .startTime(startTime)
                 .endTime(endTime)
+                .confirmedAt(startTime)
                 .status("CONFIRMED")
                 .build();
         reservationRepository.save(mainBooking);
@@ -820,6 +822,7 @@ public class SeedDataService {
                     .seat(neighborSeat)
                     .startTime(nStart)
                     .endTime(nEnd)
+                    .confirmedAt(nStart)
                     .status("CONFIRMED")
                     .build();
             reservationRepository.save(neighborBooking);
@@ -913,6 +916,7 @@ public class SeedDataService {
                 .seat(seat)
                 .startTime(startTime)
                 .endTime(endTime)
+                .confirmedAt(startTime)
                 .status("CONFIRMED")
                 .build();
         reservationRepository.save(booking);

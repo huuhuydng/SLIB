@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../config/apiConfig';
 import '../../styles/ChatWidget.css';
 import { getChatHistory, getConversations, uploadFile, uploadDocument, getUnreadCount, markMessagesAsRead } from '../../services/admin/apiChat';
 import { formatTime, getDateLabel, isDifferentDay } from '../../utils/dateUtils';
@@ -205,7 +206,7 @@ const ChatWidget = () => {
     const setupWebSocket = () => {
         if (stompClientRef.current && stompClientRef.current.connected) return;
         const client = new Client({
-            webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`),
+            webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
             connectHeaders: { Authorization: `Bearer ${TOKEN}` },
             onConnect: () => {
                 client.subscribe(`/topic/chat/${MY_ID}`, (message) => {

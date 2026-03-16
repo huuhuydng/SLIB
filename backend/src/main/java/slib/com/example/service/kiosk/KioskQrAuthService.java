@@ -3,6 +3,7 @@ package slib.com.example.service.kiosk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.hce.AccessLog;
@@ -21,8 +22,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,6 +42,7 @@ public class KioskQrAuthService {
     private final UserRepository userRepository;
     private final AccessLogRepository accessLogRepository;
     private final KioskWebSocketService kioskWebSocketService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${kiosk.qr.ttl-seconds:600}") // 10 minutes default
     private int qrTtlSeconds;
@@ -48,7 +51,6 @@ public class KioskQrAuthService {
     private String hmacAlgorithm;
 
     private static final String ALGORITHM = "HmacSHA256";
-
     /**
      * Generate a new QR code for kiosk
      */
@@ -220,6 +222,7 @@ public class KioskQrAuthService {
             accessLogId = newLog.getLogId();
             checkInTime = newLog.getCheckInTime();
             log.info("Auto check-in for user {} via kiosk", user.getUserCode());
+            broadcastAccessLog(newLog, "CHECK_IN");
         }
 
         // Update session
@@ -289,6 +292,7 @@ public class KioskQrAuthService {
         qrSessionRepository.save(session);
 
         log.info("Check-in for user {} via kiosk", session.getStudent().getUserCode());
+        broadcastAccessLog(accessLog, "CHECK_IN");
     }
 
     /**
@@ -307,6 +311,7 @@ public class KioskQrAuthService {
                 accessLog.setCheckOutTime(LocalDateTime.now());
                 accessLogRepository.save(accessLog);
                 log.info("Checked out user {}", session.getStudent().getUserCode());
+                broadcastAccessLog(accessLog, "CHECK_OUT");
             }
         }
 
@@ -326,13 +331,14 @@ public class KioskQrAuthService {
             throw new BadRequestException("Không tìm thấy phiên check-in đang hoạt động");
         }
 
-        AccessLog log = activeLog.get();
-        log.setCheckOutTime(LocalDateTime.now());
-        accessLogRepository.save(log);
+        AccessLog accessLog = activeLog.get();
+        accessLog.setCheckOutTime(LocalDateTime.now());
+        accessLogRepository.save(accessLog);
 
         User user = userRepository.findById(userId).orElse(null);
         String userCode = user != null ? user.getUserCode() : userId.toString();
         KioskQrAuthService.log.info("Mobile check-out for user {}", userCode);
+        broadcastAccessLog(accessLog, "CHECK_OUT");
     }
 
     /**
@@ -407,6 +413,35 @@ public class KioskQrAuthService {
 
     private String buildQrPayload(String kioskCode, long timestamp, String nonce) {
         return String.format("%s:%d:%d:%s", kioskCode, timestamp, qrTtlSeconds, nonce);
+    }
+
+    private void broadcastAccessLog(AccessLog accessLog, String type) {
+        try {
+            Map<String, Object> wsMessage = new HashMap<>();
+            wsMessage.put("type", type);
+            wsMessage.put("studentCode", accessLog.getUser().getUserCode());
+            wsMessage.put("studentName", accessLog.getUser().getFullName());
+            wsMessage.put("userCode", accessLog.getUser().getUserCode());
+            wsMessage.put("fullName", accessLog.getUser().getFullName());
+            wsMessage.put("userName", accessLog.getUser().getFullName());
+            wsMessage.put("deviceId", accessLog.getDeviceId());
+            wsMessage.put("time", LocalDateTime.now().toString());
+
+            if ("CHECK_IN".equals(type)) {
+                wsMessage.put("checkInTime", accessLog.getCheckInTime().toString());
+            } else {
+                wsMessage.put("checkOutTime",
+                        accessLog.getCheckOutTime() != null ? accessLog.getCheckOutTime().toString()
+                                : LocalDateTime.now().toString());
+            }
+
+            messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
+            messagingTemplate.convertAndSend("/topic/dashboard",
+                    Map.of("type", "CHECKIN_UPDATE", "action", type, "timestamp",
+                            java.time.Instant.now().toString()));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast access log: {}", e.getMessage());
+        }
     }
 
     private String signPayload(String payload, String secret) {

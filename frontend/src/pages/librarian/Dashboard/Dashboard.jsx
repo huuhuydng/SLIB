@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { API_BASE_URL } from '../../../config/apiConfig';
 import {
   Users, Armchair, AlertCircle, AlertTriangle, Sparkles, Clock,
   Bell, Calendar, ChevronRight, BookOpen,
@@ -149,9 +150,9 @@ const Dashboard = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       try {
         const [fbRes, cmpRes, supRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/feedbacks/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/complaints/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/support-requests/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${API_BASE_URL}/slib/feedbacks/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${API_BASE_URL}/slib/complaints/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${API_BASE_URL}/slib/support-requests/count`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
         setPendingCounts({
           feedbackNew: fbRes?.new || 0,

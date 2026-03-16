@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { API_BASE_URL } from '../../../config/apiConfig';
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -143,7 +144,7 @@ const NotificationManage = () => {
   const handleTogglePin = async (id, event) => {
     event.stopPropagation();
     try {
-      await axios.patch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/news/admin/${id}/pin`);
+      await axios.patch(`${API_BASE_URL}/slib/news/admin/${id}/pin`);
       loadNotifications();
     } catch (error) {
       console.error('Error toggling pin:', error);

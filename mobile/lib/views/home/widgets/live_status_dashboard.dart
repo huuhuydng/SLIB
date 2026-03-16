@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -120,15 +119,12 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     // Lấy totalStudyHours realtime từ Activity API (tính từ reservation COMPLETED)
     double realHours = profile?.totalStudyHours ?? 0.0;
     try {
-      final token = await authService.getToken();
       final user = authService.currentUser;
-      if (token != null && user != null) {
-        final response = await http.get(
+      if (user != null) {
+        final response = await authService.authenticatedRequest(
+          'GET',
           Uri.parse('${ApiConstants.activityUrl}/user/${user.id}'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
+          headers: {'Content-Type': 'application/json'},
         );
         if (response.statusCode == 200) {
           final data = jsonDecode(utf8.decode(response.bodyBytes));

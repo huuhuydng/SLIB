@@ -11,6 +11,7 @@ import Attendance from '../pages/kiosk/AttendanceWaitingScreen';
 import KioskSeatBooking from '../pages/kiosk/KioskSeatBooking';
 import KioskAccessDenied from '../pages/kiosk/KioskAccessDenied';
 import KioskLockScreen from '../pages/kiosk/KioskLockScreen';
+import { API_BASE_URL } from '../config/apiConfig';
 
 /**
  * KioskTokenActivator - Xử lý token kích hoạt từ query param ?token=xxx
@@ -29,8 +30,7 @@ const KioskTokenActivator = ({ children }) => {
       return;
     }
 
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-    fetch(`${API_BASE}/slib/kiosk/session/activate`, {
+    fetch(`${API_BASE_URL}/slib/kiosk/session/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),

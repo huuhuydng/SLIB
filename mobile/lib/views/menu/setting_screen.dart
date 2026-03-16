@@ -1,16 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import Provider
+import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
-import 'package:slib/views/support/support_request_history_screen.dart';
+import 'package:slib/views/support/support_request_screen.dart';
 import 'package:slib/views/violation_report/violation_report_screen.dart';
-import 'package:slib/views/seat_status_report/seat_status_report_screen.dart';
-// import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
 
 class SettingScreen extends StatefulWidget {
   final UserProfile? user;
@@ -21,8 +21,40 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
-  // Không cần khai báo Service hay biến State cục bộ nữa!
-  // Tất cả đã nằm trong AuthService.
+  int _violationCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadViolationCount();
+  }
+
+  Future<void> _loadViolationCount() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    if (user == null) return;
+
+    int count = 0;
+    try {
+      final penaltyUrl = Uri.parse("${ApiConstants.activityUrl}/penalties/${user.id}");
+      final penaltyRes = await authService.authenticatedRequest('GET', penaltyUrl);
+      if (penaltyRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(penaltyRes.bodyBytes));
+        count += data.length;
+      }
+    } catch (_) {}
+
+    try {
+      final violationUrl = Uri.parse("${ApiConstants.violationReportUrl}/against-me");
+      final violationRes = await authService.authenticatedRequest('GET', violationUrl);
+      if (violationRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(violationRes.bodyBytes));
+        count += data.where((v) => v['status'] == 'VERIFIED').length;
+      }
+    } catch (_) {}
+
+    if (mounted) setState(() => _violationCount = count);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +187,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.warning_amber_rounded,
                 iconColor: Colors.redAccent,
                 title: "Lịch sử vi phạm",
-                trailingText: "0 vi phạm",
+                trailingText: "$_violationCount vi phạm",
                 onTap: () {
                   Navigator.push(
                     context,
@@ -167,23 +199,9 @@ class _SettingScreenState extends State<SettingScreen> {
               ),
               _buildDivider(),
               _buildNavTile(
-                icon: Icons.chair_outlined,
-                iconColor: Colors.orange,
-                title: "Báo cáo tình trạng ghế",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SeatStatusReportScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildDivider(),
-              _buildNavTile(
                 icon: Icons.report_outlined,
-                iconColor: const Color(0xFFD32F2F),
-                title: "Báo cáo vi phạm ghế ngồi",
+                iconColor: Colors.orange,
+                title: "Báo cáo",
                 onTap: () {
                   Navigator.push(
                     context,
@@ -202,7 +220,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SupportRequestHistoryScreen(),
+                      builder: (context) => const SupportRequestScreen(),
                     ),
                   );
                 },

@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { ShieldOff, KeyRound, Loader2, Hash } from 'lucide-react';
 import { useKiosk } from '../../context/KioskContext';
+import { API_BASE_URL } from '../../config/apiConfig';
 import logo from '../../assets/logo.png';
 import './KioskLockScreen.css';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const KioskLockScreen = () => {
   const { activate } = useKiosk();
@@ -26,7 +25,7 @@ const KioskLockScreen = () => {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/slib/kiosk/session/activate-code`, {
+      const res = await fetch(`${API_BASE_URL}/slib/kiosk/session/activate-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: trimmed }),
@@ -60,7 +59,7 @@ const KioskLockScreen = () => {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/slib/kiosk/session/activate`, {
+      const res = await fetch(`${API_BASE_URL}/slib/kiosk/session/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: trimmed }),

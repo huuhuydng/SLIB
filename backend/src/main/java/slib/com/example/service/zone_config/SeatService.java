@@ -178,7 +178,9 @@ public class SeatService {
 
                     if (matchingReservation.isPresent()) {
                         var reservation = matchingReservation.get();
-                        if ("CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
+                        if ("PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                            response.setSeatStatus(SeatStatus.HOLDING);
+                        } else if ("CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
                             response.setSeatStatus(SeatStatus.CONFIRMED);
                         } else {
                             response.setSeatStatus(SeatStatus.BOOKED);

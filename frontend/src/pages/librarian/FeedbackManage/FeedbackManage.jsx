@@ -6,7 +6,9 @@ import "../../../styles/librarian/FeedbackManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/feedbacks`;
+import { API_BASE_URL } from '../../../config/apiConfig';
+
+const API_BASE = `${API_BASE_URL}/slib/feedbacks`;
 
 const STATUS_LABELS = {
     NEW: "Mới",
@@ -19,6 +21,21 @@ const STATUS_OPTIONS = [
     { value: "NEW", label: "Mới" },
     { value: "REVIEWED", label: "Đã xem" },
     { value: "ACTED", label: "Đã xử lý" },
+];
+
+const CATEGORY_LABELS = {
+    FACILITY: "Cơ sở vật chất",
+    SERVICE: "Dịch vụ",
+    GENERAL: "Chung",
+    MESSAGE: "Tin nhắn hỗ trợ",
+};
+
+const CATEGORY_OPTIONS = [
+    { value: "", label: "Tất cả" },
+    { value: "FACILITY", label: "Cơ sở vật chất" },
+    { value: "SERVICE", label: "Dịch vụ" },
+    { value: "GENERAL", label: "Chung" },
+    { value: "MESSAGE", label: "Tin nhắn hỗ trợ" },
 ];
 
 function FeedbackManage() {
@@ -50,6 +67,7 @@ function FeedbackManage() {
     const [columnFilters, setColumnFilters] = useState({
         student: "",
         rating: "",
+        category: "",
         status: "",
         createdAt: "",
     });
@@ -258,6 +276,12 @@ function FeedbackManage() {
                 if (col === "rating") {
                     return String(f.rating || 0).includes(v);
                 }
+                if (col === "category") {
+                    return (f.category || "") === val;
+                }
+                if (col === "status") {
+                    return (f.status || "") === val;
+                }
                 return String(getFeedbackValue(f, col)).toLowerCase().includes(v);
             });
         });
@@ -438,6 +462,14 @@ function FeedbackManage() {
                                                                         >
                                                                             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                                                                         </select>
+                                                                    ) : col.key === "category" ? (
+                                                                        <select
+                                                                            value={columnFilters.category || ""}
+                                                                            onChange={(e) => setColumnFilters(prev => ({ ...prev, category: e.target.value }))}
+                                                                            autoFocus
+                                                                        >
+                                                                            {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                                                        </select>
                                                                     ) : (
                                                                         <input
                                                                             type="text"
@@ -490,7 +522,7 @@ function FeedbackManage() {
                                             {visibleColumns.category && (
                                                 <td>
                                                     {fb.category ? (
-                                                        <span className="fm-seat-tag">{fb.category}</span>
+                                                        <span className="fm-seat-tag">{CATEGORY_LABELS[fb.category] || fb.category}</span>
                                                     ) : "-"}
                                                 </td>
                                             )}
@@ -554,7 +586,7 @@ function FeedbackManage() {
 
                                 {fb.category && (
                                     <div style={{ marginTop: 6 }}>
-                                        <span className="fm-seat-tag">{fb.category}</span>
+                                        <span className="fm-seat-tag">{CATEGORY_LABELS[fb.category] || fb.category}</span>
                                     </div>
                                 )}
 
@@ -612,7 +644,7 @@ function FeedbackManage() {
                             {selectedFeedback.category && (
                                 <div className="sr-modal-section">
                                     <div className="sr-modal-label">Danh mục</div>
-                                    <div className="sr-modal-value">{selectedFeedback.category}</div>
+                                    <div className="sr-modal-value">{CATEGORY_LABELS[selectedFeedback.category] || selectedFeedback.category}</div>
                                 </div>
                             )}
 

@@ -47,7 +47,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string></string>
+	<string>Bạn cần cấp quyền camera để hoạt động</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -92,6 +92,18 @@ public class ActivityController {
     }
 
     /**
+     * Get penalty point transactions for a user (auto penalties: no-show, late check-in, late check-out, violations)
+     */
+    @GetMapping("/penalties/{userId}")
+    public ResponseEntity<?> getPenalties(@PathVariable UUID userId) {
+        try {
+            return ResponseEntity.ok(activityService.getPenaltyTransactions(userId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+    }
+
+    /**
      * Seed sample data for testing (call this once to populate sample data)
      */
     @PostMapping("/seed/{userId}")

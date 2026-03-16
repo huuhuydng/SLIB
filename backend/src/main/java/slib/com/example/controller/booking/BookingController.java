@@ -45,6 +45,7 @@ public class BookingController {
             dto.setSeatId(reservation.getSeat().getSeatId());
             dto.setStartTime(reservation.getStartTime());
             dto.setEndTime(reservation.getEndTime());
+            dto.setConfirmedAt(reservation.getConfirmedAt());
 
             return ResponseEntity.ok(dto);
         } catch (Exception e) {
@@ -143,6 +144,7 @@ public class BookingController {
         dto.setSeatId(entity.getSeat() != null ? entity.getSeat().getSeatId() : null);
         dto.setStartTime(entity.getStartTime());
         dto.setEndTime(entity.getEndTime());
+        dto.setConfirmedAt(entity.getConfirmedAt());
         return dto;
     }
 }

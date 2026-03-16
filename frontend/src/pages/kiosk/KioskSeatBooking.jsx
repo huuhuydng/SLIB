@@ -11,8 +11,7 @@ import "../../styles/librarian/SeatPlan.css";
 import "../../styles/admin/layout.css";
 import "../../styles/admin/canvas.css";
 import "./KioskSeatBooking.css";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const getKioskHeaders = () => {
     const token = localStorage.getItem('kiosk_device_token');
@@ -417,6 +416,8 @@ function KioskSeatBookingContent() {
         return null;
     }, [location]);
 
+    const backTarget = sessionData?.studentId ? '/kiosk/student-mode' : '/kiosk';
+
     useEffect(() => { selectedAreaIdRef.current = selectedAreaId; }, [selectedAreaId]);
     useEffect(() => { selectedSlotRef.current = selectedSlot; }, [selectedSlot]);
 
@@ -515,12 +516,23 @@ function KioskSeatBookingContent() {
         try {
             const timeParams = parseTimeSlot(selectedSlot);
 
-            await axios.post(`${API_BASE_URL}/slib/bookings/create`, {
+            const createRes = await axios.post(`${API_BASE_URL}/slib/bookings/create`, {
                 user_id: sessionData.studentId,
                 seat_id: String(selectedSeat.seatId),
                 start_time: timeParams.startTime,
                 end_time: timeParams.endTime,
             }, { headers: getKioskHeaders() });
+
+            const reservationId = createRes?.data?.reservationId;
+            if (!reservationId) {
+                throw new Error('Không nhận được mã đặt chỗ');
+            }
+
+            await axios.put(
+                `${API_BASE_URL}/slib/bookings/updateStatusReserv/${reservationId}?status=BOOKED`,
+                null,
+                { headers: getKioskHeaders() }
+            );
 
             setToast({ type: 'success', message: `Đặt chỗ ${selectedSeat.seatCode} thành công!` });
             setSelectedSeat(null);
@@ -529,8 +541,13 @@ function KioskSeatBookingContent() {
             setLoading(true);
             loadSeatsForSlot(selectedSlot);
         } catch (err) {
-            const msg = err.response?.data || err.message || 'Lỗi không xác định';
-            setToast({ type: 'error', message: `Đặt chỗ thất bại: ${msg}` });
+            let msg = err.response?.data || err.message || 'Lỗi không xác định';
+            if (typeof msg === 'string') {
+                msg = msg.replace(/^Error:\s*/i, '');
+            }
+            setToast({ type: 'error', message: msg });
+            setSelectedSeat(null);
+            loadSeatsForSlot(selectedSlot);
         } finally {
             setBookingLoading(false);
         }
@@ -587,7 +604,7 @@ function KioskSeatBookingContent() {
         <div className="ksb">
             {/* Header */}
             <div className="ksb__header">
-                <button className="ksb__back" onClick={() => navigate('/kiosk')}>
+                <button className="ksb__back" onClick={() => navigate(backTarget)}>
                     <ArrowLeft size={20} />
                 </button>
                 <h1 className="ksb__title">Sơ đồ chỗ ngồi</h1>
@@ -631,7 +648,7 @@ function KioskSeatBookingContent() {
                         <Lock size={48} color="#DC2626" />
                         <h2>Thư viện hiện đang tạm đóng</h2>
                         <p>{closedReason || 'Thư viện đang tạm ngưng hoạt động. Vui lòng quay lại sau.'}</p>
-                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                        <button onClick={() => navigate(backTarget)} className="ksb__locked-back">
                             <ArrowLeft size={18} /> Quay lại
                         </button>
                     </div>
@@ -645,7 +662,7 @@ function KioskSeatBookingContent() {
                         <Lock size={48} color="#DC2626" />
                         <h2>Thư viện hiện đang đóng cửa</h2>
                         <p>Tất cả phòng đọc đang bị khóa hoặc tạm ngưng hoạt động. Vui lòng quay lại sau.</p>
-                        <button onClick={() => navigate('/kiosk/dashboard')} className="ksb__locked-back">
+                        <button onClick={() => navigate(backTarget)} className="ksb__locked-back">
                             <ArrowLeft size={18} /> Quay lại
                         </button>
                     </div>

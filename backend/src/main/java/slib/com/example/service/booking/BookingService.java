@@ -87,7 +87,7 @@ public class BookingService {
                         LocalDateTime startTime, LocalDateTime endTime) {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
-                SeatEntity seat = seatRepository.findById(seatId)
+                SeatEntity seat = seatRepository.findByIdForUpdate(seatId)
                                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
                 // Lấy cấu hình giới hạn đặt chỗ
@@ -203,18 +203,6 @@ public class BookingService {
                                         .build());
                 } catch (Exception e) {
                         System.err.println("Failed to log activity: " + e.getMessage());
-                }
-
-                // Send push notification ngay khi tạo booking (PROCESSING)
-                try {
-                        String notifTitle = "Đặt chỗ đang chờ xác nhận";
-                        String notifBody = String.format(
-                                        "Ghế %s tại %s (%s) đang chờ bạn xác nhận. Vui lòng xác nhận trong 5 phút!",
-                                        seat.getSeatCode(), zoneName, timeStr);
-                        pushNotificationService.sendToUser(userId, notifTitle, notifBody,
-                                        NotificationType.BOOKING, saved.getReservationId());
-                } catch (Exception e) {
-                        System.err.println("Failed to send booking notification: " + e.getMessage());
                 }
 
                 // Broadcast dashboard update
@@ -454,6 +442,7 @@ public class BookingService {
 
                 // Update status to CONFIRMED (NFC check-in thực tế)
                 reservation.setStatus("CONFIRMED");
+                reservation.setConfirmedAt(now);
                 ReservationEntity saved = reservationRepository.save(reservation);
 
                 // Log activity for NFC_CONFIRM
@@ -550,6 +539,7 @@ public class BookingService {
 
                 // Step 4: Update status to CONFIRMED
                 reservation.setStatus("CONFIRMED");
+                reservation.setConfirmedAt(now);
                 ReservationEntity saved = reservationRepository.save(reservation);
 
                 // Step 5: Log activity
@@ -629,6 +619,9 @@ public class BookingService {
                 }
 
                 reserv.setStatus(status);
+                if ("CONFIRMED".equalsIgnoreCase(newStatus) && reserv.getConfirmedAt() == null) {
+                        reserv.setConfirmedAt(LocalDateTime.now(VIETNAM_ZONE));
+                }
                 ReservationEntity saved = reservationRepository.save(reserv);
 
                 // Broadcast status to WebSocket clients
@@ -702,6 +695,7 @@ public class BookingService {
                                                 .build())
                                 .startTime(reservation.getStartTime())
                                 .endTime(reservation.getEndTime())
+                                .confirmedAt(reservation.getConfirmedAt())
                                 .status(reservation.getStatus())
                                 .createdAt(reservation.getCreatedAt())
                                 .build();

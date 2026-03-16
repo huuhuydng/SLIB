@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from '../../../config/apiConfig';
 
-const BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/ai/admin`;
+const BASE_URL = `${API_BASE_URL}/slib/ai/admin`;
 
 const api = axios.create({
     baseURL: BASE_URL,

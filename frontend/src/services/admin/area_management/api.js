@@ -10,7 +10,7 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('librarian_token');
+  const token = localStorage.getItem('librarian_token') || localStorage.getItem('kiosk_device_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

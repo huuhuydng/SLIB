@@ -571,6 +571,7 @@ public class ConversationService {
                                 .studentName(conv.getStudent().getFullName())
                                 .studentCode(conv.getStudent().getUserCode())
                                 .studentEmail(conv.getStudent().getEmail())
+                                .studentAvatarUrl(conv.getStudent().getAvtUrl())
                                 .librarianId(conv.getLibrarian() != null ? conv.getLibrarian().getId() : null)
                                 .librarianName(conv.getLibrarian() != null ? conv.getLibrarian().getFullName() : null)
                                 .status(conv.getStatus())

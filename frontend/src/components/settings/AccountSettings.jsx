@@ -20,8 +20,9 @@ import {
     LogOut,
 } from 'lucide-react';
 import '../../styles/AccountSettings.css';
+import { API_BASE_URL as BASE } from '../../config/apiConfig';
 
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib`;
+const API_BASE_URL = `${BASE}/slib`;
 
 const AccountSettings = () => {
     const navigate = useNavigate();

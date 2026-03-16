@@ -17,11 +17,8 @@ permissions:
   checks: write
 
 jobs:
-  # ====================================================
-  # JOB 1: TEST & BUILD
-  # ====================================================
   test-and-build:
-    name: 🐍 Test & 🐳 Build AI Service
+    name: Test & Build AI Service
     runs-on: ubuntu-latest
     
     services:

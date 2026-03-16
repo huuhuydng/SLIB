@@ -4,14 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.activity.PointTransactionEntity;
+import slib.com.example.entity.complaint.ComplaintEntity;
 import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
+import slib.com.example.repository.complaint.ComplaintRepository;
 
 import java.time.ZonedDateTime;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class ActivityService {
     private final PointTransactionRepository pointTransactionRepository;
     private final AccessLogRepository accessLogRepository;
     private final ReservationRepository reservationRepository;
+    private final ComplaintRepository complaintRepository;
 
     // ========== Activity Logs ==========
 
@@ -71,6 +73,39 @@ public class ActivityService {
 
     public int getTotalLostPoints(UUID userId) {
         return Math.abs(pointTransactionRepository.getTotalLostPoints(userId));
+    }
+
+    /**
+     * Get all penalty transactions (points < 0) for a user, enriched with appeal status.
+     */
+    public List<Map<String, Object>> getPenaltyTransactions(UUID userId) {
+        List<PointTransactionEntity> penalties =
+                pointTransactionRepository.findByUserIdAndPointsLessThanOrderByCreatedAtDesc(userId, 0);
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (PointTransactionEntity p : penalties) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", p.getId());
+            item.put("userId", p.getUserId());
+            item.put("points", p.getPoints());
+            item.put("transactionType", p.getTransactionType());
+            item.put("title", p.getTitle());
+            item.put("description", p.getDescription());
+            item.put("balanceAfter", p.getBalanceAfter());
+            item.put("activityLogId", p.getActivityLogId());
+            item.put("createdAt", p.getCreatedAt());
+
+            List<ComplaintEntity> complaints =
+                    complaintRepository.findByPointTransactionIdOrderByCreatedAtDesc(p.getId());
+            if (!complaints.isEmpty()) {
+                ComplaintEntity latest = complaints.get(0);
+                item.put("appealStatus", latest.getStatus().name());
+                item.put("appealResolutionNote", latest.getResolutionNote());
+            }
+
+            result.add(item);
+        }
+        return result;
     }
 
     // ========== Seed Sample Data ==========

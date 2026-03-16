@@ -33,6 +33,9 @@ public class ComplaintEntity {
     @Column(name = "point_transaction_id")
     private UUID pointTransactionId;
 
+    @Column(name = "violation_report_id")
+    private UUID violationReportId;
+
     @Column(name = "subject", length = 200, nullable = false)
     private String subject;
 

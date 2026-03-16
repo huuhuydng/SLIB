@@ -35,7 +35,7 @@ class _SupportRequestHistoryScreenState
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final token = await authService.getToken();
+      final token = await authService.getValidToken();
       if (token == null) throw Exception('Chưa đăng nhập');
 
       final data = await _service.getMyRequests(token);

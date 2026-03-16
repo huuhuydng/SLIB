@@ -1,6 +1,6 @@
 # --- Giai đoạn 1: Build ---
-# Dùng Maven bản mới nhất chạy trên Amazon Corretto 21 (Hỗ trợ Java 21)
-FROM maven:3.9.9-amazoncorretto-21 AS build
+# Dùng Maven 3.9.9 chạy trên Eclipse Temurin 21 để build ổn định hơn
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 # Copy file cấu hình maven

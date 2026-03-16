@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -44,13 +45,31 @@ class AuthService extends ChangeNotifier {
     String? token = await getToken();
     if (token == null) return false;
     try {
-      final response = await http.get(
+      var response = await http.get(
         Uri.parse('$baseUrl/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
       );
+
+      // Auto-refresh: nếu access token hết hạn, thử refresh trước khi logout
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          token = await getToken();
+          response = await http.get(
+            Uri.parse('$baseUrl/me'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          );
+        } else {
+          await logout();
+          return false;
+        }
+      }
 
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
@@ -64,18 +83,12 @@ class AuthService extends ChangeNotifier {
         }
         notifyListeners();
         return true;
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        // Only logout on auth errors, not on 404 or other errors
-        await logout();
-        return false;
       } else {
-        // Network/server error - don't logout, just return false
         print("Check login failed with status: ${response.statusCode}");
         return false;
       }
     } catch (e) {
       print("Check login error: $e");
-      // Network error - don't logout, token might still be valid
       return false;
     }
   }
@@ -385,9 +398,19 @@ class AuthService extends ChangeNotifier {
 
   /// Refresh access token using refresh token
   Future<bool> refreshAccessToken() async {
+    // Tránh nhiều request refresh đồng thời (race condition)
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+    _refreshCompleter = Completer<bool>();
+
     try {
       final refreshToken = await getRefreshToken();
-      if (refreshToken == null) return false;
+      if (refreshToken == null) {
+        _refreshCompleter!.complete(false);
+        _refreshCompleter = null;
+        return false;
+      }
 
       final response = await http.post(
         Uri.parse('${ApiConstants.authBaseUrl}/refresh'),
@@ -398,12 +421,100 @@ class AuthService extends ChangeNotifier {
       if (response.statusCode == 200) {
         final jsonMap = jsonDecode(utf8.decode(response.bodyBytes));
         await _saveToken(jsonMap['accessToken']);
+        _refreshCompleter!.complete(true);
+        _refreshCompleter = null;
         return true;
       }
+      _refreshCompleter!.complete(false);
+      _refreshCompleter = null;
       return false;
     } catch (e) {
       print("❌ Token refresh error: $e");
+      _refreshCompleter?.complete(false);
+      _refreshCompleter = null;
       return false;
+    }
+  }
+  Completer<bool>? _refreshCompleter;
+
+  /// Lấy token hợp lệ, tự động refresh nếu cần.
+  /// Trả về null nếu không thể lấy token (cần đăng nhập lại).
+  Future<String?> getValidToken() async {
+    final token = await getToken();
+    if (token == null) return null;
+
+    // Thử gọi /me để check token còn sống không
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) return token;
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) return await getToken();
+        return null;
+      }
+
+      // Lỗi khác (500, network) - trả token hiện tại, để caller xử lý
+      return token;
+    } catch (_) {
+      return token;
+    }
+  }
+
+  /// HTTP request tự động kèm auth token và auto-refresh khi 401.
+  /// Dùng cho tất cả API call cần xác thực trong app.
+  Future<http.Response> authenticatedRequest(
+    String method,
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) async {
+    var token = await getToken();
+    final mergedHeaders = {
+      if (token != null) 'Authorization': 'Bearer $token',
+      ...?headers,
+    };
+
+    var response = await _sendRequest(method, url, mergedHeaders, body);
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      final refreshed = await refreshAccessToken();
+      if (refreshed) {
+        token = await getToken();
+        mergedHeaders['Authorization'] = 'Bearer $token';
+        response = await _sendRequest(method, url, mergedHeaders, body);
+      }
+    }
+
+    return response;
+  }
+
+  Future<http.Response> _sendRequest(
+    String method,
+    Uri url,
+    Map<String, String> headers,
+    Object? body,
+  ) async {
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return http.get(url, headers: headers);
+      case 'POST':
+        return http.post(url, headers: headers, body: body);
+      case 'PUT':
+        return http.put(url, headers: headers, body: body);
+      case 'PATCH':
+        return http.patch(url, headers: headers, body: body);
+      case 'DELETE':
+        return http.delete(url, headers: headers, body: body);
+      default:
+        return http.get(url, headers: headers);
     }
   }
 

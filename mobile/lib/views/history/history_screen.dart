@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
@@ -82,7 +81,7 @@ class _HistoryScreenState extends State<HistoryScreen>
 
     try {
       final url = Uri.parse("${ApiConstants.activityUrl}/history/${user.id}");
-      final response = await http.get(url);
+      final response = await authService.authenticatedRequest('GET', url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));

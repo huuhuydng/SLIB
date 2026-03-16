@@ -32,7 +32,7 @@ import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
 const getAdminToken = () =>
   localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');

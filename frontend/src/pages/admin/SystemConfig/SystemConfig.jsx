@@ -26,8 +26,10 @@ import {
 } from 'lucide-react';
 
 
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings`;
-const REPUTATION_API_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/admin/reputation-rules`;
+import { API_BASE_URL as BASE } from '../../../config/apiConfig';
+
+const API_BASE_URL = `${BASE}/slib/settings`;
+const REPUTATION_API_URL = `${BASE}/slib/admin/reputation-rules`;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');

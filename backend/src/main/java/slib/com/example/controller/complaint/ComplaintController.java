@@ -78,14 +78,16 @@ public class ComplaintController {
         String content = body.get("content");
         String evidenceUrl = body.get("evidenceUrl");
         String txnId = body.get("pointTransactionId");
+        String vrId = body.get("violationReportId");
 
         if (subject == null || subject.isBlank() || content == null || content.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
         UUID pointTransactionId = txnId != null ? UUID.fromString(txnId) : null;
+        UUID violationReportId = vrId != null ? UUID.fromString(vrId) : null;
         ComplaintDTO result = complaintService.create(studentId, subject, content, evidenceUrl,
-                pointTransactionId);
+                pointTransactionId, violationReportId);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 

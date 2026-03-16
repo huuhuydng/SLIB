@@ -25,6 +25,7 @@ public class BookingResponse {
     // Booking info
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private LocalDateTime confirmedAt;
     private String status;
     private LocalDateTime createdAt;
 

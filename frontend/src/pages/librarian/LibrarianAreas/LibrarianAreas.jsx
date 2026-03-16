@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Client } from '@stomp/stompjs';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import { useToast } from '../../../components/common/ToastProvider';
@@ -81,7 +82,7 @@ function LibrarianAreasContent() {
   useEffect(() => {
     (async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings/time-slots`);
+        const response = await fetch(`${API_BASE_URL}/slib/settings/time-slots`);
         if (response.ok) {
           const slots = await response.json();
           setTimeSlots(slots);
@@ -342,18 +343,22 @@ function LibrarianAreasContent() {
     if (!seat?.reservationId) return;
     try {
       const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const API_BASE = API_BASE_URL;
       const res = await fetch(
         `${API_BASE}/slib/bookings/updateStatusReserv/${seat.reservationId}?status=CONFIRMED`,
         { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!res.ok) throw new Error('Lỗi xác nhận');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Lỗi xác nhận');
+      }
       toast.success('Đã xác nhận chỗ ngồi thành công');
       setSelectedSeat(null);
       await loadSeatsForTimeSlot(slotValue);
     } catch (error) {
       console.error('Error confirming reservation:', error);
-      toast.error('Lỗi xác nhận chỗ ngồi: ' + error.message);
+      const errorMessage = error.message?.replace(/^Error:\s*/i, '') || 'Lỗi xác nhận';
+      toast.error('Lỗi xác nhận chỗ ngồi: ' + errorMessage);
     }
   };
 

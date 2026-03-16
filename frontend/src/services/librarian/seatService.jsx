@@ -1,4 +1,6 @@
-const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api`;
+import { API_BASE_URL as BASE } from '../../config/apiConfig';
+
+const API_BASE_URL = `${BASE}/api`;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('librarian_token');
@@ -33,8 +35,8 @@ export const seatService = {
 
       const queryString = queryParams.toString();
       const url = queryString
-        ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats?${queryString}`
-        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats`;
+        ? `${BASE}/slib/seats?${queryString}`
+        : `${BASE}/slib/seats`;
 
       console.log('📡 API URL:', url);
 
@@ -61,7 +63,7 @@ export const seatService = {
    */
   async addRestriction(seatId) {
     try {
-      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats/${seatId}/restrict`;
+      const url = `${BASE}/slib/seats/${seatId}/restrict`;
 
       console.log('🔒 Adding restriction for seatId:', seatId);
 
@@ -89,7 +91,7 @@ export const seatService = {
    */
   async removeRestriction(seatId) {
     try {
-      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/seats/${seatId}/restrict`;
+      const url = `${BASE}/slib/seats/${seatId}/restrict`;
 
       console.log('Removing restriction for seatId:', seatId);
 
@@ -116,7 +118,7 @@ export const seatService = {
    */
   async getZones() {
     try {
-      const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/zones`;
+      const url = `${BASE}/slib/zones`;
       const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders()

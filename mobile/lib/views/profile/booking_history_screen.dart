@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
@@ -26,19 +24,10 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  final _storage = const FlutterSecureStorage();
-
   @override
   void initState() {
     super.initState();
     _loadBookings();
-  }
-
-  Future<Map<String, String>> _authHeaders() async {
-    final token = await _storage.read(key: 'jwt_token');
-    return {
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
   }
 
   Future<void> _loadBookings() async {
@@ -60,7 +49,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
     try {
       final url = Uri.parse("${ApiConstants.bookingUrl}/user/${user.id}");
-      final response = await http.get(url, headers: await _authHeaders());
+      final response = await authService.authenticatedRequest('GET', url);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));

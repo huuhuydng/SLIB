@@ -141,7 +141,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final token = await authService.getToken();
+      final token = await authService.getValidToken();
       if (token == null) throw Exception('Chưa đăng nhập');
 
       await _supportRequestService.createRequest(
@@ -158,8 +158,8 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-        // Quay về và mở màn hình lịch sử
-        Navigator.pop(context, true);
+        _descriptionController.clear();
+        setState(() => _selectedImages.clear());
       }
     } catch (e) {
       if (mounted) {
@@ -233,8 +233,12 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.home_outlined, color: Color(0xFF333333), size: 24),
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                icon: const Icon(Icons.history_rounded, color: Color(0xFF333333), size: 24),
+                tooltip: 'Lịch sử yêu cầu',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
+                ),
               ),
             ],
           ),

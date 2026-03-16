@@ -10,11 +10,15 @@ import slib.com.example.dto.feedback.FeedbackDTO;
 import slib.com.example.entity.feedback.FeedbackEntity;
 import slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.users.UserRepository;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,6 +28,7 @@ import java.util.stream.Collectors;
 public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
+    private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
     private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -65,14 +70,26 @@ public class FeedbackService {
      * Sinh viên tạo phản hồi
      */
     @Transactional
-    public FeedbackDTO create(UUID studentId, Integer rating, String content) {
+    public FeedbackDTO create(UUID studentId, Integer rating, String content, String category, String conversationId, UUID reservationId) {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
+
+        String resolvedCategory = category;
+        if (resolvedCategory == null || resolvedCategory.isBlank()) {
+            if (conversationId != null && !conversationId.isBlank()) {
+                resolvedCategory = "MESSAGE";
+            } else if (reservationId != null) {
+                resolvedCategory = "GENERAL";
+            }
+        }
 
         FeedbackEntity feedback = FeedbackEntity.builder()
                 .user(student)
                 .rating(rating)
                 .content(content)
+                .category(resolvedCategory)
+                .conversationId(conversationId)
+                .reservationId(reservationId)
                 .status(FeedbackStatus.NEW)
                 .build();
 
@@ -128,6 +145,38 @@ public class FeedbackService {
         log.info("[Feedback] Deleted {} feedbacks", ids.size());
         broadcastDashboardUpdate("FEEDBACK_UPDATE", "DELETED");
         librarianNotificationService.broadcastPendingCounts("FEEDBACK", "DELETED");
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> checkPendingFeedback(UUID userId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<ReservationEntity> eligibleReservations = reservationRepository
+                .findByUserIdAndConfirmedAtIsNotNullAndEndTimeBeforeAndStatusInOrderByEndTimeDesc(
+                        userId,
+                        now,
+                        List.of("CONFIRMED", "COMPLETED"));
+
+        if (eligibleReservations.isEmpty()) {
+            return Map.of("hasPending", false);
+        }
+
+        ReservationEntity reservation = eligibleReservations.stream()
+                .filter(item -> !feedbackRepository.existsByReservationId(item.getReservationId()))
+                .findFirst()
+                .orElse(null);
+
+        if (reservation == null) {
+            return Map.of("hasPending", false);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("hasPending", true);
+        result.put("reservationId", reservation.getReservationId().toString());
+        result.put("zoneName", reservation.getSeat().getZone().getZoneName());
+        result.put("seatCode", reservation.getSeat().getSeatCode());
+        result.put("confirmedAt", reservation.getConfirmedAt() != null ? reservation.getConfirmedAt().toString() : null);
+        result.put("endedAt", reservation.getEndTime().toString());
+        return result;
     }
 
     private void broadcastDashboardUpdate(String type, String action) {

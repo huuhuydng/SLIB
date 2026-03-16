@@ -34,8 +34,11 @@ import slib.com.example.service.chat.CloudinaryService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import slib.com.example.entity.complaint.ComplaintEntity;
+import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.notification.LibrarianNotificationService;
 
@@ -54,6 +57,7 @@ public class SeatViolationReportService {
     private final PointTransactionRepository pointTransactionRepository;
     private final StudentProfileRepository studentProfileRepository;
     private final CloudinaryService cloudinaryService;
+    private final ComplaintRepository complaintRepository;
     private final PushNotificationService pushNotificationService;
     private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -128,13 +132,26 @@ public class SeatViolationReportService {
     }
 
     /**
-     * Sinh viên xem danh sách vi phạm bị gán cho mình
+     * Sinh viên xem danh sách vi phạm bị gán cho mình (kèm trạng thái kháng cáo)
      */
     public List<ViolationReportResponse> getViolationsAgainstMe(UUID violatorId) {
-        return violationReportRepository.findByViolator_IdOrderByCreatedAtDesc(violatorId)
+        List<ViolationReportResponse> responses = violationReportRepository
+                .findByViolator_IdOrderByCreatedAtDesc(violatorId)
                 .stream()
                 .map(ViolationReportResponse::fromEntity)
                 .collect(Collectors.toList());
+
+        for (ViolationReportResponse resp : responses) {
+            List<ComplaintEntity> complaints = complaintRepository
+                    .findByViolationReportIdOrderByCreatedAtDesc(resp.getId());
+            if (!complaints.isEmpty()) {
+                ComplaintEntity latest = complaints.get(0);
+                resp.setAppealStatus(latest.getStatus().name());
+                resp.setAppealResolutionNote(latest.getResolutionNote());
+            }
+        }
+
+        return responses;
     }
 
     /**

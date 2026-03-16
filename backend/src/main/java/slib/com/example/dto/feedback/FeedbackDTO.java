@@ -17,6 +17,7 @@ public class FeedbackDTO {
     private String studentCode;
     private String studentAvatar;
     private UUID reservationId;
+    private String conversationId;
     private Integer rating;
     private String content;
     private String category;
@@ -33,6 +34,7 @@ public class FeedbackDTO {
                 .studentCode(entity.getUser().getUserCode())
                 .studentAvatar(entity.getUser().getAvtUrl())
                 .reservationId(entity.getReservationId())
+                .conversationId(entity.getConversationId())
                 .rating(entity.getRating())
                 .content(entity.getContent())
                 .category(entity.getCategory())

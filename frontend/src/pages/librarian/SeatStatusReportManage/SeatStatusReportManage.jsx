@@ -6,7 +6,9 @@ import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatStatusReportManage.css";
 
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/seat-status-reports`;
+import { API_BASE_URL } from '../../../config/apiConfig';
+
+const API_BASE = `${API_BASE_URL}/slib/seat-status-reports`;
 
 const STATUS_LABELS = {
   PENDING: "Chờ xử lý",

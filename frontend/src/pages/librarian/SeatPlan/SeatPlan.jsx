@@ -1,6 +1,7 @@
-﻿// Librarian SeatPlan - Quản lý ghế thư viện
+// Librarian SeatPlan - Quản lý ghế thư viện
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
 import { seatPlanService } from "../../../services/librarian/seatPlanService";
@@ -187,7 +188,7 @@ function SeatPlanContent() {
   useEffect(() => {
     const fetchTimeSlots = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/settings/time-slots`);
+        const res = await axios.get(`${API_BASE_URL}/slib/settings/time-slots`);
         const apiSlots = (res.data || []).map((s) => ({
           label: s.label || `${s.startTime} - ${s.endTime}`,
           value: `${s.startTime}-${s.endTime}`,
