@@ -9,18 +9,16 @@ class CompactHeader extends StatelessWidget {
   final UserProfile? user;
   final bool show;
 
-  const CompactHeader({
-    super.key,
-    required this.user,
-    required this.show,
-  });
+  const CompactHeader({super.key, required this.user, required this.show});
 
   @override
   Widget build(BuildContext context) {
+    final hiddenTop = -(MediaQuery.of(context).padding.top + 72);
+
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
-      top: show ? 0 : -100,
+      top: show ? 0 : hiddenTop,
       left: 0,
       right: 0,
       child: Container(
@@ -28,18 +26,17 @@ class CompactHeader extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.brandColor,
-              const Color(0xFFFF9052),
-            ],
+            colors: [AppColors.brandColor, const Color(0xFFFF9052)],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: show
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : const [],
         ),
         child: SafeArea(
           bottom: false,
@@ -76,14 +73,14 @@ class CompactHeader extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Stack(
                           children: [
                             const Icon(
                               Icons.notifications_outlined,
-                              size: 24, 
+                              size: 24,
                               color: Colors.white,
                             ),
                             if (unreadCount > 0)
@@ -95,10 +92,15 @@ class CompactHeader extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: AppColors.error,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                   ),
-                                  constraints:
-                                      const BoxConstraints(minWidth: 14, minHeight: 14),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 14,
+                                    minHeight: 14,
+                                  ),
                                   child: Text(
                                     unreadCount > 99 ? '99+' : '$unreadCount',
                                     style: const TextStyle(

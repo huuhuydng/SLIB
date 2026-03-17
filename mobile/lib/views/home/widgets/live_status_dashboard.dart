@@ -18,6 +18,7 @@ class LiveStatusDashboard extends StatefulWidget {
 class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   StudentProfile? _studentProfile;
   double _realStudyHours = 0.0;
+  int _violationCount = 0;
   bool _isLoading = true;
   StompClient? _stompClient;
   bool _wsConnected = false;
@@ -57,9 +58,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
       _stompClient = StompClient(
         config: StompConfig(
           url: stompUrl,
-          webSocketConnectHeaders: {
-            'ngrok-skip-browser-warning': 'true',
-          },
+          webSocketConnectHeaders: {'ngrok-skip-browser-warning': 'true'},
           onConnect: (StompFrame frame) {
             debugPrint('[LiveStatus] WebSocket connected');
             _wsConnected = true;
@@ -69,8 +68,11 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                 if (frame.body != null) {
                   try {
                     final data = jsonDecode(frame.body!);
-                    if (data['action'] == 'AUTO_STATUS_CHANGE' || data['action'] == 'AUTO_EXPIRED') {
-                      debugPrint('[LiveStatus] Reservation status changed → reloading study hours');
+                    if (data['action'] == 'AUTO_STATUS_CHANGE' ||
+                        data['action'] == 'AUTO_EXPIRED') {
+                      debugPrint(
+                        '[LiveStatus] Reservation status changed → reloading study hours',
+                      );
                       _loadStudentProfile();
                     }
                   } catch (e) {
@@ -106,39 +108,72 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     setState(() => _isLoading = true);
     await Future.wait([
       _loadStudentProfile(),
-      Provider.of<LibraryStatusService>(context, listen: false).fetchLibraryStatus(),
+      Provider.of<LibraryStatusService>(
+        context,
+        listen: false,
+      ).fetchLibraryStatus(),
     ]);
   }
 
   Future<void> _loadStudentProfile() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final profileService = StudentProfileService(authService);
-    
+
     final profile = await profileService.getMyProfile();
-    
+
     // Lấy totalStudyHours realtime từ Activity API (tính từ reservation COMPLETED)
     double realHours = profile?.totalStudyHours ?? 0.0;
+    int violationCount = 0;
     try {
       final user = authService.currentUser;
       if (user != null) {
-        final response = await authService.authenticatedRequest(
-          'GET',
-          Uri.parse('${ApiConstants.activityUrl}/user/${user.id}'),
-          headers: {'Content-Type': 'application/json'},
-        );
-        if (response.statusCode == 200) {
-          final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final responses = await Future.wait([
+          authService.authenticatedRequest(
+            'GET',
+            Uri.parse('${ApiConstants.activityUrl}/user/${user.id}'),
+            headers: {'Content-Type': 'application/json'},
+          ),
+          authService.authenticatedRequest(
+            'GET',
+            Uri.parse('${ApiConstants.activityUrl}/penalties/${user.id}'),
+          ),
+          authService.authenticatedRequest(
+            'GET',
+            Uri.parse('${ApiConstants.violationReportUrl}/against-me'),
+          ),
+        ]);
+
+        final activityResponse = responses[0];
+        if (activityResponse.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(activityResponse.bodyBytes));
           realHours = (data['totalStudyHours'] ?? 0).toDouble();
+        }
+
+        final penaltyResponse = responses[1];
+        if (penaltyResponse.statusCode == 200) {
+          final List<dynamic> data = jsonDecode(
+            utf8.decode(penaltyResponse.bodyBytes),
+          );
+          violationCount += data.length;
+        }
+
+        final violationResponse = responses[2];
+        if (violationResponse.statusCode == 200) {
+          final List<dynamic> data = jsonDecode(
+            utf8.decode(violationResponse.bodyBytes),
+          );
+          violationCount += data.where((v) => v['status'] == 'VERIFIED').length;
         }
       }
     } catch (e) {
-      debugPrint('[LiveStatus] Error loading study hours: $e');
+      debugPrint('[LiveStatus] Error loading dashboard stats: $e');
     }
-    
+
     if (mounted) {
       setState(() {
         _studentProfile = profile;
         _realStudyHours = realHours;
+        _violationCount = violationCount;
         _isLoading = false;
       });
     }
@@ -153,7 +188,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -169,10 +204,13 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: libraryStatus.statusColor.withOpacity(0.1),
+                      color: libraryStatus.statusColor.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.people_alt_rounded, color: libraryStatus.statusColor),
+                    child: Icon(
+                      Icons.people_alt_rounded,
+                      color: libraryStatus.statusColor,
+                    ),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
@@ -187,14 +225,21 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                         Row(
                           children: [
                             Text(
-                              libraryStatus.isLoading ? "Đang tải..." : libraryStatus.statusText,
+                              libraryStatus.isLoading
+                                  ? "Đang tải..."
+                                  : libraryStatus.statusText,
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.black87),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            Icon(Icons.circle, size: 8, color: libraryStatus.statusColor),
+                            Icon(
+                              Icons.circle,
+                              size: 8,
+                              color: libraryStatus.statusColor,
+                            ),
                           ],
                         ),
                       ],
@@ -202,7 +247,10 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                   ),
                   // % Đông đúc - dynamic
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: libraryStatus.badgeColor,
                       borderRadius: BorderRadius.circular(20),
@@ -212,11 +260,12 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                           ? "..."
                           : "${libraryStatus.occupancyRate.round()}% Full",
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
-                  )
+                  ),
                 ],
               );
             },
@@ -239,7 +288,9 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                     _buildStatItem(
                       label: "Điểm uy tín",
                       value: "${_studentProfile?.reputationScore ?? 100}",
-                      valueColor: _getReputationColor(_studentProfile?.reputationScore ?? 100),
+                      valueColor: _getReputationColor(
+                        _studentProfile?.reputationScore ?? 100,
+                      ),
                       icon: Icons.shield_outlined,
                     ),
                     Container(width: 1, height: 40, color: Colors.grey[200]),
@@ -252,12 +303,12 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                     Container(width: 1, height: 40, color: Colors.grey[200]),
                     _buildStatItem(
                       label: "Vi phạm",
-                      value: "${_studentProfile?.violationCount ?? 0}",
-                      valueColor: _getViolationColor(_studentProfile?.violationCount ?? 0),
+                      value: "$_violationCount",
+                      valueColor: _getViolationColor(_violationCount),
                       icon: Icons.warning_amber_rounded,
                     ),
                   ],
-                )
+                ),
         ],
       ),
     );
@@ -287,14 +338,20 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           children: [
             Icon(icon, size: 14, color: Colors.grey),
             const SizedBox(width: 4),
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 18, color: valueColor),
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: valueColor,
+          ),
         ),
       ],
     );

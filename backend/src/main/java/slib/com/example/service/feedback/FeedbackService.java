@@ -70,6 +70,14 @@ public class FeedbackService {
      * Sinh viên tạo phản hồi
      */
     @Transactional
+    public FeedbackDTO create(UUID studentId, Integer rating, String content) {
+        return create(studentId, rating, content, null, null, null);
+    }
+
+    /**
+     * Sinh viên tạo phản hồi
+     */
+    @Transactional
     public FeedbackDTO create(UUID studentId, Integer rating, String content, String category, String conversationId, UUID reservationId) {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));

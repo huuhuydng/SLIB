@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.entity.kiosk.KioskQrSessionEntity;
@@ -16,12 +17,14 @@ import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.kiosk.KioskConfigRepository;
 import slib.com.example.repository.kiosk.KioskQrSessionRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.activity.ActivityService;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +44,7 @@ public class KioskQrAuthService {
     private final KioskQrSessionRepository qrSessionRepository;
     private final UserRepository userRepository;
     private final AccessLogRepository accessLogRepository;
+    private final ActivityService activityService;
     private final KioskWebSocketService kioskWebSocketService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -221,6 +225,7 @@ public class KioskQrAuthService {
             newLog = accessLogRepository.save(newLog);
             accessLogId = newLog.getLogId();
             checkInTime = newLog.getCheckInTime();
+            logCheckInActivity(user, session.getKiosk().getKioskCode());
             log.info("Auto check-in for user {} via kiosk", user.getUserCode());
             broadcastAccessLog(newLog, "CHECK_IN");
         }
@@ -276,6 +281,7 @@ public class KioskQrAuthService {
             AccessLog oldLog = existing.get();
             oldLog.setCheckOutTime(LocalDateTime.now());
             accessLogRepository.save(oldLog);
+            logCheckOutActivity(session.getStudent(), oldLog, session.getKiosk().getKioskCode());
             log.info("Auto-closed old check-in for user {}", session.getStudent().getUserCode());
         }
 
@@ -286,6 +292,7 @@ public class KioskQrAuthService {
                 .checkInTime(LocalDateTime.now())
                 .build();
         accessLog = accessLogRepository.save(accessLog);
+        logCheckInActivity(session.getStudent(), session.getKiosk().getKioskCode());
 
         // Cập nhật session
         session.setAccessLogId(accessLog.getLogId());
@@ -310,6 +317,7 @@ public class KioskQrAuthService {
             if (accessLog != null && accessLog.getCheckOutTime() == null) {
                 accessLog.setCheckOutTime(LocalDateTime.now());
                 accessLogRepository.save(accessLog);
+                logCheckOutActivity(session.getStudent(), accessLog, session.getKiosk().getKioskCode());
                 log.info("Checked out user {}", session.getStudent().getUserCode());
                 broadcastAccessLog(accessLog, "CHECK_OUT");
             }
@@ -400,6 +408,51 @@ public class KioskQrAuthService {
     }
 
     // Helper methods
+
+    private void logCheckInActivity(User user, String kioskCode) {
+        try {
+            activityService.logActivity(ActivityLogEntity.builder()
+                    .userId(user.getId())
+                    .activityType(ActivityLogEntity.TYPE_CHECK_IN)
+                    .title("Check-in thành công")
+                    .description("Bạn đã vào thư viện qua kiosk " + kioskCode)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to log kiosk check-in activity: {}", e.getMessage());
+        }
+    }
+
+    private void logCheckOutActivity(User user, AccessLog accessLog, String kioskCode) {
+        try {
+            int durationMinutes = accessLog.getCheckInTime() != null && accessLog.getCheckOutTime() != null
+                    ? (int) ChronoUnit.MINUTES.between(accessLog.getCheckInTime(), accessLog.getCheckOutTime())
+                    : 0;
+
+            activityService.logActivity(ActivityLogEntity.builder()
+                    .userId(user.getId())
+                    .activityType(ActivityLogEntity.TYPE_CHECK_OUT)
+                    .title("Check-out thành công")
+                    .description("Bạn đã rời thư viện qua kiosk " + kioskCode
+                            + (durationMinutes > 0 ? " sau " + formatDuration(durationMinutes) : ""))
+                    .durationMinutes(durationMinutes > 0 ? durationMinutes : null)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to log kiosk check-out activity: {}", e.getMessage());
+        }
+    }
+
+    private String formatDuration(int minutes) {
+        int hours = minutes ~/ 60;
+        int remainingMinutes = minutes % 60;
+
+        if (hours > 0 && remainingMinutes > 0) {
+            return hours + " giờ " + remainingMinutes + " phút";
+        }
+        if (hours > 0) {
+            return hours + " giờ";
+        }
+        return remainingMinutes + " phút";
+    }
 
     private String generateNonce() {
         byte[] bytes = new byte[16];
