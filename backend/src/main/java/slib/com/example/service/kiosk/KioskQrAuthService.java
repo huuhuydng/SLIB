@@ -442,7 +442,7 @@ public class KioskQrAuthService {
     }
 
     private String formatDuration(int minutes) {
-        int hours = minutes ~/ 60;
+        int hours = minutes / 60;
         int remainingMinutes = minutes % 60;
 
         if (hours > 0 && remainingMinutes > 0) {

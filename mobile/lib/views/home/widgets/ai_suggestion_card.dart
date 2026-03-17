@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/main_screen.dart';
 import 'package:slib/services/ai/ai_analytics_service.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/booking/floor_plan_screen.dart';
 
 class AICard extends StatefulWidget {
   const AICard({super.key});
@@ -123,7 +125,9 @@ class _AICardState extends State<AICard> {
           style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 16),
-        _buildActionButton("Đặt chỗ ngay", () {}),
+        _buildActionButton("Đặt chỗ ngay", () {
+          _navigateToBooking();
+        }),
       ],
     );
   }
@@ -153,13 +157,27 @@ class _AICardState extends State<AICard> {
         ),
         const SizedBox(height: 16),
         _buildActionButton(data.actionText ?? "Đặt chỗ ngay", () {
-          // Navigate to booking if seat recommendation available
-          if (data.seatCode != null) {
-            // TODO: Navigate to specific seat booking
-          }
+          _navigateToBooking(zoneId: data.zoneId, seatId: data.seatId);
         }),
       ],
     );
+  }
+
+  void _navigateToBooking({int? zoneId, int? seatId}) {
+    if (zoneId != null) {
+      // Có gợi ý zone cụ thể -> mở FloorPlanScreen với zone + seat đó
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FloorPlanScreen(
+            initialZoneId: zoneId,
+            initialSeatId: seatId,
+          ),
+        ),
+      );
+    } else {
+      // Không có gợi ý cụ thể -> chuyển sang tab Đặt chỗ
+      MainScreen.globalKey.currentState?.switchToTab(1);
+    }
   }
 
   Widget _buildHeader() {
