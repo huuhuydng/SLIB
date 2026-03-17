@@ -1,7 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/news_model.dart';
+import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/news/news_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/views/home/widgets/home_appbar.dart';
@@ -14,17 +19,19 @@ import 'package:slib/views/home/widgets/compact_header.dart';
 import 'package:slib/views/home/widgets/section_title.dart';
 import 'package:slib/views/news/news_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
+import 'package:slib/views/widgets/feedback_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   final UserProfile? user;
+  final bool isActive;
 
-  const HomeScreen({super.key, this.user});
+  const HomeScreen({super.key, this.user, this.isActive = true});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
 
   // --- GLOBAL KEYS FOR REFRESH ---
@@ -41,12 +48,31 @@ class _HomeScreenState extends State<HomeScreen> {
   double _headerOpacity = 1.0;
   double _headerOffset = 0.0;
   bool _showCompactHeader = false;
+  bool _isCheckingFeedback = false;
+  bool _isFeedbackDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
-    _loadNewsData(); // Gọi hàm load 2 bước
+    _loadNewsData();
+    _schedulePendingFeedbackCheck(delay: const Duration(seconds: 2));
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isActive && widget.isActive) {
+      _schedulePendingFeedbackCheck();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive) {
+      _schedulePendingFeedbackCheck();
+    }
   }
 
   // Chiến thuật: Cache trước -> API sau
@@ -71,10 +97,83 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       await _localService.saveNewsList(freshNews);
     } catch (e) {
-      print("Lỗi tải tin mới: $e");
+      debugPrint("Lỗi tải tin mới: $e");
       if (mounted && _newsList.isEmpty) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  void _schedulePendingFeedbackCheck({Duration delay = Duration.zero}) {
+    if (!widget.isActive || _isCheckingFeedback || _isFeedbackDialogOpen) {
+      return;
+    }
+
+    Future<void>(() async {
+      if (delay > Duration.zero) {
+        await Future.delayed(delay);
+      }
+
+      if (!mounted ||
+          !widget.isActive ||
+          _isCheckingFeedback ||
+          _isFeedbackDialogOpen) {
+        return;
+      }
+
+      await _checkPendingFeedback();
+    });
+  }
+
+  Future<void> _checkPendingFeedback() async {
+    if (_isCheckingFeedback || _isFeedbackDialogOpen) return;
+    _isCheckingFeedback = true;
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final url = Uri.parse(
+        '${ApiConstants.domain}/slib/feedbacks/check-pending',
+      );
+      final response = await authService.authenticatedRequest('GET', url);
+
+      if (!mounted || response.statusCode != 200) return;
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (data['hasPending'] != true) return;
+
+      final reservationId = data['reservationId'] as String;
+      final zoneName = data['zoneName'] as String? ?? '';
+      final seatCode = data['seatCode'] as String? ?? '';
+
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('feedback_dismissed_$reservationId') == true) return;
+
+      if (!mounted) return;
+
+      _isFeedbackDialogOpen = true;
+      try {
+        await showFeedbackPopup(
+          context,
+          title: 'Đánh giá trải nghiệm',
+          subtitle:
+              'Bạn vừa học tại $zoneName - Ghế $seatCode.\nHãy chia sẻ cảm nhận của bạn!',
+          reservationId: reservationId,
+          onSubmitted: () async {
+            final p = await SharedPreferences.getInstance();
+            await p.setBool('feedback_dismissed_$reservationId', true);
+          },
+          onDismissed: () async {
+            final p = await SharedPreferences.getInstance();
+            await p.setBool('feedback_dismissed_$reservationId', true);
+          },
+        );
+      } finally {
+        _isFeedbackDialogOpen = false;
+      }
+    } catch (e) {
+      debugPrint('[HOME] Error checking pending feedback: $e');
+    } finally {
+      _isCheckingFeedback = false;
     }
   }
 
@@ -107,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -131,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_newsList.isNotEmpty) {
       // Ưu tiên tin ghim
       List<News> pinnedNews = _newsList.where((item) => item.isPinned).toList();
-      
+
       // Nếu ít tin ghim quá thì lấy thêm tin mới nhất cho đủ 5
       if (pinnedNews.length < 5) {
         var remaining = _newsList.where((item) => !item.isPinned).toList();
@@ -167,14 +267,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [AppColors.brandColor, const Color(0xFFFF9052)],
+                            colors: [
+                              AppColors.brandColor,
+                              const Color(0xFFFF9052),
+                            ],
                           ),
                           borderRadius: const BorderRadius.only(
                             bottomLeft: Radius.circular(30),
                             bottomRight: Radius.circular(30),
                           ),
                         ),
-                        padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 20),
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          topPadding + 10,
+                          20,
+                          20,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -211,12 +319,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         // --- NEWS SECTION ---
                         if (_isLoading && _newsList.isEmpty)
-                           const Center(child: CircularProgressIndicator())
+                          const Center(child: CircularProgressIndicator())
                         else if (displayNews.isNotEmpty)
                           Column(
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const SectionTitle("Tin tức thư viện"),
                                   TextButton(
@@ -224,7 +333,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => const NewsScreen(),
+                                          builder: (context) =>
+                                              const NewsScreen(),
                                         ),
                                       );
                                     },
@@ -245,7 +355,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const SectionTitle("Tin tức thư viện"),
                               const SizedBox(height: 12),
-                              ErrorDisplayWidget.empty(message: 'Chưa có tin tức nào'),
+                              ErrorDisplayWidget.empty(
+                                message: 'Chưa có tin tức nào',
+                              ),
                             ],
                           ),
                         // --------------------

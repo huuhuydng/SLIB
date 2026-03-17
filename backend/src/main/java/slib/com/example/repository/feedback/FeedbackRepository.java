@@ -40,4 +40,6 @@ public interface FeedbackRepository extends JpaRepository<FeedbackEntity, UUID> 
 
     // Statistic: feedback gần đây trong range (top 10)
     List<FeedbackEntity> findTop10ByCreatedAtAfterOrderByCreatedAtDesc(LocalDateTime startDate);
+
+    boolean existsByReservationId(UUID reservationId);
 }

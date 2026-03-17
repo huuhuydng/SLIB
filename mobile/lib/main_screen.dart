@@ -16,7 +16,8 @@ class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   // Static key to access MainScreen state from anywhere
-  static final GlobalKey<MainScreenState> globalKey = GlobalKey<MainScreenState>();
+  static final GlobalKey<MainScreenState> globalKey =
+      GlobalKey<MainScreenState>();
 
   @override
   State<MainScreen> createState() => MainScreenState();
@@ -66,11 +67,11 @@ class MainScreenState extends State<MainScreen> {
 
   // Danh sách màn hình
   List<Widget> get _screens => [
-    HomeScreen(user: _currentUser),
-    const FloorPlanScreen(),  // NEW: Sơ đồ mặt bằng
+    HomeScreen(user: _currentUser, isActive: _selectedIndex == 0),
+    const FloorPlanScreen(), // NEW: Sơ đồ mặt bằng
     const HceCardScreen(),
     const ChatScreen(),
-    SettingScreen(user: _currentUser), 
+    SettingScreen(user: _currentUser),
   ];
 
   void _onItemTapped(int index) {

@@ -66,6 +66,10 @@ class ErrorDisplayWidget extends StatelessWidget {
   static String toVietnamese(dynamic error) {
     final msg = error.toString().toLowerCase();
 
+    if (msg.contains('tài khoản hoặc mật khẩu không đúng')) {
+      return 'Tài khoản hoặc mật khẩu không đúng';
+    }
+
     if (msg.contains('socketexception') ||
         msg.contains('no internet') ||
         msg.contains('failed host lookup') ||
@@ -112,11 +116,7 @@ class ErrorDisplayWidget extends StatelessWidget {
                 color: AppColors.brandColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: AppColors.brandColor,
-              ),
+              child: Icon(icon, size: 40, color: AppColors.brandColor),
             ),
             const SizedBox(height: 20),
             Text(

@@ -19,7 +19,10 @@ import 'package:intl/intl.dart';
 
 /// Màn hình sơ đồ mặt bằng thư viện
 class FloorPlanScreen extends StatefulWidget {
-  const FloorPlanScreen({super.key});
+  final int? initialZoneId;
+  final int? initialSeatId;
+
+  const FloorPlanScreen({super.key, this.initialZoneId, this.initialSeatId});
 
   @override
   State<FloorPlanScreen> createState() => _FloorPlanScreenState();
@@ -58,6 +61,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   Timer? _debounceTimer;
   // Đang fetch seats?
   bool _isFetchingSeats = false;
+
+  // Auto-select seat from AI recommendation
+  bool _didAutoSelectSeat = false;
 
   // Non-working day check
   bool _isNonWorkingDay = false;
@@ -179,8 +185,16 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         newTimeSlot = _findCurrentSlot(filteredSlots);
       }
       
+      final activeAreas = areas.where((a) => a.isActive).toList();
+
+      // Nếu có initialZoneId, tìm area chứa zone đó
+      Area? targetArea;
+      if (widget.initialZoneId != null && activeAreas.isNotEmpty) {
+        targetArea = await _findAreaForZone(widget.initialZoneId!, activeAreas);
+      }
+
       setState(() {
-        _areas = areas.where((a) => a.isActive).toList();
+        _areas = activeAreas;
         _librarySettings = settings;
         _timeSlots = allTimeSlots; // Giữ tất cả slots gốc
         _selectedTimeSlot = newTimeSlot;
@@ -188,7 +202,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         _isNonWorkingDay = !isWorkingDay;
         _isLibraryClosed = settings.libraryClosed;
         _closedReason = settings.closedReason;
-        
+
         // Kiểm tra ngày làm việc trước
         if (!isWorkingDay) {
           _errorMessage = null; // Sẽ hiển thị màn hình thư viện đóng cửa riêng
@@ -197,10 +211,10 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         else if (filteredSlots.isEmpty && allTimeSlots.isNotEmpty) {
           _errorMessage = 'Thư viện đã đóng cửa hôm nay. Vui lòng chọn ngày khác phía trên.';
         }
-        
+
         // Vẫn load areas để user có thể chọn ngày khác
         if (_areas.isNotEmpty) {
-          _selectedArea = _areas.first;
+          _selectedArea = targetArea ?? _areas.first;
           // Chỉ load zones/seats nếu có time slot hợp lệ
           if (newTimeSlot != null) {
             _loadZonesAndFactories();
@@ -352,6 +366,19 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }
   }
 
+  /// Tìm area chứa zone theo zoneId
+  Future<Area?> _findAreaForZone(int zoneId, List<Area> areas) async {
+    for (final area in areas) {
+      try {
+        final zones = await _bookingService.getZonesByArea(area.areaId);
+        if (zones.any((z) => z.zoneId == zoneId)) {
+          return area;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
@@ -423,8 +450,32 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         _zoneOccupancy = occupancy;
         _zoneSeats = zoneSeats;
       });
+
+      // Auto-select seat từ AI recommendation
+      _tryAutoSelectSeat(zones, zoneSeats);
     } catch (e) {
       debugPrint('Error loading zones/factories: $e');
+    }
+  }
+
+  /// Tự động chọn ghế được AI gợi ý
+  void _tryAutoSelectSeat(List<Zone> zones, Map<int, List<Seat>> zoneSeats) {
+    if (_didAutoSelectSeat || widget.initialSeatId == null) return;
+    _didAutoSelectSeat = true;
+
+    for (final zone in zones) {
+      final seats = zoneSeats[zone.zoneId] ?? [];
+      final seat = seats.cast<Seat?>().firstWhere(
+        (s) => s!.seatId == widget.initialSeatId,
+        orElse: () => null,
+      );
+      if (seat != null) {
+        // Delay 1 frame để UI render xong rồi mới show popup
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _onSeatTap(seat, zone);
+        });
+        return;
+      }
     }
   }
 

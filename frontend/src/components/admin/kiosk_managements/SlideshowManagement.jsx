@@ -20,7 +20,7 @@ import {
 
 import '../../../styles/admin/SlideshowManagement.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 const getToken = () => sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
 const authHeaders = () => {

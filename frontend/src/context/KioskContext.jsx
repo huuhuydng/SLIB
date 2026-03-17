@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/apiConfig';
 
 const KioskContext = createContext(null);
 
@@ -25,8 +26,7 @@ export const KioskProvider = ({ children }) => {
       return;
     }
 
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
-    fetch(`${API_BASE}/slib/kiosk/session/activate`, {
+    fetch(`${API_BASE_URL}/slib/kiosk/session/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: kioskToken }),

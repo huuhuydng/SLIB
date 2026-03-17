@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers("/slib/auth/**").permitAll()
                         .requestMatchers("/slib/users/login-google").permitAll()
                         .requestMatchers("/slib/users/getall").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // Open WebSocket endpoints (important for realtime)
                         .requestMatchers("/ws/**").permitAll()
@@ -64,6 +65,10 @@ public class SecurityConfig {
                         // Protected endpoints
                         .requestMatchers("/slib/users/me").authenticated()
                         .requestMatchers("/slib/users/logout-all").authenticated()
+
+                        // HCE gate endpoints (Raspberry Pi uses X-API-KEY, not JWT)
+                        .requestMatchers(HttpMethod.POST, "/slib/hce/checkin").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/slib/hce/stations/*/heartbeat").permitAll()
 
                         // Kiosk admin endpoints - yeu cau ADMIN hoac LIBRARIAN
                         .requestMatchers("/slib/kiosk/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")

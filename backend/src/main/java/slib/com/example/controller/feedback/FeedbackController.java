@@ -76,13 +76,28 @@ public class FeedbackController {
         UUID studentId = getCurrentUserId(userDetails);
         Integer rating = (Integer) body.get("rating");
         String content = (String) body.get("content");
+        String category = (String) body.get("category");
+        String conversationId = (String) body.get("conversationId");
+        String reservationIdStr = (String) body.get("reservationId");
+        UUID reservationId = reservationIdStr != null ? UUID.fromString(reservationIdStr) : null;
 
         if (rating == null || rating < 1 || rating > 5) {
             return ResponseEntity.badRequest().build();
         }
 
-        FeedbackDTO result = feedbackService.create(studentId, rating, content);
+        FeedbackDTO result = feedbackService.create(studentId, rating, content, category, conversationId, reservationId);
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    /**
+     * GET /slib/feedbacks/check-pending
+     * Kiểm tra xem sinh viên có reservation đã xác nhận ghế và đã hết giờ chưa gửi phản hồi
+     */
+    @GetMapping("/check-pending")
+    public ResponseEntity<Map<String, Object>> checkPending(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID studentId = getCurrentUserId(userDetails);
+        return ResponseEntity.ok(feedbackService.checkPendingFeedback(studentId));
     }
 
     /**

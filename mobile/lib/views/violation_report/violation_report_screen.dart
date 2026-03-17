@@ -897,7 +897,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
               const Expanded(
-                child: Text('Báo cáo vi phạm',
+                child: Text('Báo cáo',
                   style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
               ),
               TextButton(

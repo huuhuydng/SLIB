@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
+import { API_BASE_URL } from '../../config/apiConfig';
 import "../../styles/Attendance.css";
 import logoFpt from '../../assets/fpt_logo.png';
 
@@ -28,7 +29,7 @@ const Attendance = () => {
 
     const fetchInitialLogs = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/hce/latest-logs`);
+        const response = await fetch(`${API_BASE_URL}/slib/hce/latest-logs`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const data = await response.json();
@@ -50,7 +51,7 @@ const Attendance = () => {
 
     const connect = () => {
       if (stompClient?.connected) stompClient.disconnect();
-      const Sock = new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`);
+      const Sock = new SockJS(`${API_BASE_URL}/ws`);
       stompClient = Stomp.over(Sock);
       stompClient.debug = null;
 

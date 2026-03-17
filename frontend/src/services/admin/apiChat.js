@@ -1,8 +1,8 @@
 import axios from "axios";
-
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const chatApi = axios.create({
-  baseURL: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib`,
+  baseURL: `${API_BASE_URL}/slib`,
   headers: {
     "Content-Type": "application/json",
   },

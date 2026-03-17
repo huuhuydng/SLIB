@@ -67,6 +67,15 @@ public class ComplaintService {
         @Transactional
         public ComplaintDTO create(UUID studentId, String subject, String content, String evidenceUrl,
                         UUID pointTransactionId) {
+                return create(studentId, subject, content, evidenceUrl, pointTransactionId, null);
+        }
+
+        /**
+         * Sinh viên tạo khiếu nại
+         */
+        @Transactional
+        public ComplaintDTO create(UUID studentId, String subject, String content, String evidenceUrl,
+                        UUID pointTransactionId, UUID violationReportId) {
                 User student = userRepository.findById(studentId)
                                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
 
@@ -76,6 +85,7 @@ public class ComplaintService {
                                 .content(content)
                                 .evidenceUrl(evidenceUrl)
                                 .pointTransactionId(pointTransactionId)
+                                .violationReportId(violationReportId)
                                 .status(ComplaintStatus.PENDING)
                                 .build();
 

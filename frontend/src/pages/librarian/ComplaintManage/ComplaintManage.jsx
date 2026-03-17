@@ -6,7 +6,9 @@ import "../../../styles/librarian/ComplaintManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 
-const API_BASE = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/complaints`;
+import { API_BASE_URL } from '../../../config/apiConfig';
+
+const API_BASE = `${API_BASE_URL}/slib/complaints`;
 
 const STATUS_LABELS = {
     PENDING: "Chờ xử lý",

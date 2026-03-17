@@ -98,7 +98,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
     setState(() => _isSubmitting = true);
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final token = await authService.getToken();
+      final token = await authService.getValidToken();
       if (token == null) throw Exception('Phiên đăng nhập không hợp lệ');
       await _seatStatusReportService.createReport(
         token: token,

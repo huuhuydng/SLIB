@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 /**
  * Java Backend API Client for AI Configuration
@@ -8,7 +9,7 @@ import axios from "axios";
  * Use pythonAiApi.js for: Chat, Test Connection, Health Check
  */
 const aiConfigApi = axios.create({
-    baseURL: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/slib/ai/admin`,
+    baseURL: `${API_BASE_URL}/slib/ai/admin`,
     headers: {
         "Content-Type": "application/json",
     },

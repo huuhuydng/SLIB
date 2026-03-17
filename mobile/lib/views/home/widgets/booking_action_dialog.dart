@@ -219,28 +219,15 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
       );
       
       if (result == true) {
-        // NFC verification successful - update booking status to CONFIRMED
-        try {
-          await bookingService.updateStatus(widget.booking.reservationId, "CONFIRMED");
-          
-          widget.onActionComplete();
-          if (rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              const SnackBar(
-                content: Text('Xác nhận thành công!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              SnackBar(
-                content: Text('Lỗi xác nhận: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        // NFC screen already confirmed via confirmSeatWithNfcUid — just refresh UI
+        widget.onActionComplete();
+        if (rootContext.mounted) {
+          ScaffoldMessenger.of(rootContext).showSnackBar(
+            const SnackBar(
+              content: Text('Xác nhận thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       }
     } catch (e) {

@@ -19,6 +19,7 @@ public class ConversationDTO {
     private String studentName;
     private String studentCode;
     private String studentEmail;
+    private String studentAvatarUrl;
     private UUID librarianId;
     private String librarianName;
     private ConversationStatus status;

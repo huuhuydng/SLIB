@@ -19,11 +19,8 @@ permissions:
   actions: read
 
 jobs:
-  # ====================================================
-  # JOB 1: TEST & BUILD
-  # ====================================================
   test-and-build:
-    name: 🧪 Test & 🐳 Build Docker
+    name: Test & Build Docker
     runs-on: ubuntu-latest
     
     services:

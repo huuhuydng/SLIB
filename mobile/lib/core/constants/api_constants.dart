@@ -7,13 +7,13 @@ class ApiConstants {
   // --- CHỌN 1 TRONG 2 CẤU HÌNH BÊN DƯỚI ---
 
   // [CẤU HÌNH 1 - PRODUCTION]: Dành cho máy thật, build APK, demo.
-  static const String domain = "https://api.slibsystem.site";
+  // static const String domain = "https://api.slibsystem.site";
 
   // [CẤU HÌNH 2 - DEVELOPMENT]: Dành cho máy ảo (Emulator Android) chạy chung với Backend trên cùng máy tính.
   // static const String domain = "http://10.0.2.2:8080";
 
   // [CẤU HÌNH 3 - LAN TESTING]: Dành cho máy thật test qua mạng LAN (cùng WiFi với máy tính).
-  // static const String domain = "http://192.168.17.162:8080";
+  static const String domain = "http://192.168.17.162:8080";
 
   // [CẤU HÌNH 4 - ADB REVERSE]: Dành cho máy thật qua USB (adb reverse tcp:8080 tcp:8080)
   // static const String domain = "http://localhost:8080";

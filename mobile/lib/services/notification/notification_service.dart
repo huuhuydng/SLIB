@@ -158,6 +158,9 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   bool _isLoading = false;
   bool _isInitialized = false;
 
+  /// Flag để suppress push notification khi user đang ở chat screen
+  bool isChatScreenActive = false;
+
   List<NotificationItem> get notifications => _notifications;
   int get unreadCount => _unreadCount;
   int get unreadChatCount => _unreadChatCount;
@@ -452,14 +455,20 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       
       if (notificationType == 'CHAT_MESSAGE') {
         // CHAT_MESSAGE: backend gửi data-only FCM (không có notification payload)
-        // → mobile tự hiện notification, tránh duplicate
+        _unreadChatCount++;
+        notifyListeners();
+
+        // Không hiện notification nếu user đang ở chat screen
+        if (isChatScreenActive) {
+          debugPrint('[FCM] CHAT_MESSAGE received but user is in chat screen, skipping notification');
+          return;
+        }
+
         debugPrint('[FCM] CHAT_MESSAGE received, showing local notification + badge');
         _showLocalNotificationFromData({
           'title': message.data['title'] ?? 'Tin nhắn mới từ Thủ thư',
           'content': message.data['body'] ?? '',
         });
-        _unreadChatCount++;
-        notifyListeners();
       } else {
         // Các loại khác: xử lý bình thường
         _handleIncomingNotification(message);

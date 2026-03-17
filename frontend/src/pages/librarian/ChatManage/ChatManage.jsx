@@ -20,7 +20,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
 const ChatManage = () => {
   const toast = useToast();
@@ -44,6 +44,7 @@ const ChatManage = () => {
   const subscriptionRef = useRef(null);
   const fileInputRef = useRef(null);
   const selectedConversationIdRef = useRef(selectedConversationId);
+  const fetchIdRef = useRef(0);
 
   // Notification context for badge updates & chat toast
   const { refreshUnreadChatCount, chatToast, setChatToast } = useLibrarianNotification();
@@ -85,6 +86,8 @@ const ChatManage = () => {
   const fetchMessages = useCallback(async (conversationId) => {
     if (!conversationId) return;
 
+    const myFetchId = ++fetchIdRef.current;
+
     try {
       const token = localStorage.getItem('librarian_token');
       const response = await fetch(`${API_BASE}/slib/chat/conversations/${conversationId}/messages`, {
@@ -93,6 +96,8 @@ const ChatManage = () => {
           'Content-Type': 'application/json'
         }
       });
+
+      if (myFetchId !== fetchIdRef.current) return;
 
       if (response.ok) {
         const data = await response.json();
@@ -110,6 +115,7 @@ const ChatManage = () => {
         });
       }
     } catch (err) {
+      if (myFetchId !== fetchIdRef.current) return;
       console.error('Error fetching messages:', err);
     }
   }, []);
@@ -249,6 +255,7 @@ const ChatManage = () => {
 
   useEffect(() => {
     if (selectedConversationId) {
+      setMessages([]);
       fetchMessages(selectedConversationId);
       const interval = setInterval(() => {
         fetchMessages(selectedConversationId);
@@ -259,7 +266,7 @@ const ChatManage = () => {
 
   // WebSocket connection
   useEffect(() => {
-    const backendUrl = API_BASE || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const backendUrl = API_BASE;
     const wsEndpoint = backendUrl + '/ws';
 
     const client = new Client({
@@ -326,6 +333,8 @@ const ChatManage = () => {
     subscriptionRef.current = stompClientRef.current.subscribe(
       `/topic/conversation/${conversationId}`,
       (message) => {
+        if (conversationId !== selectedConversationIdRef.current) return;
+
         const newMessage = JSON.parse(message.body);
 
         if (newMessage.type === 'TYPING' || newMessage.type === 'MESSAGES_READ') return;
@@ -451,7 +460,9 @@ const ChatManage = () => {
       className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
     >
       <div className="cm-conv-avatar">
-        {getInitial(conv.studentName)}
+        {conv.studentAvatarUrl
+          ? <img src={conv.studentAvatarUrl} alt="" className="cm-conv-avatar-img" />
+          : getInitial(conv.studentName)}
       </div>
       <div className="cm-conv-info">
         <div className="cm-conv-name-row">
@@ -577,7 +588,9 @@ const ChatManage = () => {
                   <div className="cm-chat-header">
                     <div className="cm-chat-header-left">
                       <div className="cm-chat-header-avatar">
-                        {getInitial(currentConversation.studentName)}
+                        {currentConversation.studentAvatarUrl
+                          ? <img src={currentConversation.studentAvatarUrl} alt="" className="cm-header-avatar-img" />
+                          : getInitial(currentConversation.studentName)}
                         {currentConversation.status === 'HUMAN_CHATTING' && (
                           <span className="cm-online-dot" />
                         )}
@@ -684,7 +697,10 @@ const ChatManage = () => {
                         >
                           {!isLibrarian && (
                             <div className={`cm-msg-avatar ${isAI ? 'ai' : 'student'}`}>
-                              {isAI ? <Bot size={14} /> : getInitial(currentConversation.studentName)}
+                              {isAI ? <Bot size={14} />
+                                : currentConversation.studentAvatarUrl
+                                  ? <img src={currentConversation.studentAvatarUrl} alt="" className="cm-msg-avatar-img" />
+                                  : getInitial(currentConversation.studentName)}
                             </div>
                           )}
 

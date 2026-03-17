@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useIdleTimer } from '../../hooks/useIdleTimer';
 import '../../styles/common/IdleSlideshow.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function IdleSlideshow({ children, idleTimeMs = 5000, forceActive = false }) {
   const isIdleByTimer = useIdleTimer(idleTimeMs);

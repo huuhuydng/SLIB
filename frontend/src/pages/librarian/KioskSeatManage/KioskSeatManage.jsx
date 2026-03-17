@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { API_BASE_URL } from '../../../config/apiConfig';
 import {
   Armchair,
   Sparkles,
@@ -248,7 +249,7 @@ const KioskSeatManage = () => {
     }
     try {
       const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const API_BASE = API_BASE_URL;
       const res = await fetch(
         `${API_BASE}/slib/bookings/updateStatusReserv/${seatData.reservationId}?status=CONFIRMED`,
         {
@@ -256,7 +257,10 @@ const KioskSeatManage = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      if (!res.ok) throw new Error('Lỗi xác nhận');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Lỗi xác nhận');
+      }
       showToast(`Đã xác nhận chỗ ngồi ${seatCode}`);
       await loadSeatDataForTimeSlot(currentSlotIndex);
       setSelectedSeatId(null);

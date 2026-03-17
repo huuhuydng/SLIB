@@ -1,5 +1,6 @@
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 class WebSocketService {
   constructor() {
@@ -18,7 +19,7 @@ class WebSocketService {
 
     try {
       // Create SockJS connection
-      const socket = new SockJS(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/ws`);
+      const socket = new SockJS(`${API_BASE_URL}/ws`);
 
       // Create STOMP client
       this.client = new Client({

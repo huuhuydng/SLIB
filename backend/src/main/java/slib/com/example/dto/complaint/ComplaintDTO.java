@@ -17,6 +17,7 @@ public class ComplaintDTO {
     private String studentCode;
     private String studentAvatar;
     private UUID pointTransactionId;
+    private UUID violationReportId;
     private String subject;
     private String content;
     private String evidenceUrl;
@@ -34,6 +35,7 @@ public class ComplaintDTO {
                 .studentCode(entity.getUser().getUserCode())
                 .studentAvatar(entity.getUser().getAvtUrl())
                 .pointTransactionId(entity.getPointTransactionId())
+                .violationReportId(entity.getViolationReportId())
                 .subject(entity.getSubject())
                 .content(entity.getContent())
                 .evidenceUrl(entity.getEvidenceUrl())

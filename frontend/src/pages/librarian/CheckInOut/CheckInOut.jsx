@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '../../../config/apiConfig';
 import { useToast } from '../../../components/common/ToastProvider';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
@@ -272,7 +273,7 @@ const CheckInOut = () => {
   const handleExportToExcel = async () => {
     try {
       const token = localStorage.getItem('librarian_token');
-      let url = `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/slib/hce/access-logs/export`;
+      let url = `${API_BASE_URL}/slib/hce/access-logs/export`;
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);

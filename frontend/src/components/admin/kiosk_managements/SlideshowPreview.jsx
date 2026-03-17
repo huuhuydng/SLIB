@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import '../../../styles/admin/SlideshowPreview.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 /**
  * Trang này dùng để admin xem trước slideshow sẽ hiển thị trên Kiosk.
