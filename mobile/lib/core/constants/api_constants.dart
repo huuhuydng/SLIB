@@ -13,10 +13,10 @@ class ApiConstants {
   // static const String domain = "http://10.0.2.2:8080";
 
   // [CẤU HÌNH 3 - LAN TESTING]: Dành cho máy thật test qua mạng LAN (cùng WiFi với máy tính).
-  static const String domain = "http://192.168.17.162:8080";
+  // static const String domain = "http://192.168.17.162:8080";
 
   // [CẤU HÌNH 4 - ADB REVERSE]: Dành cho máy thật qua USB (adb reverse tcp:8080 tcp:8080)
-  // static const String domain = "http://localhost:8080";
+  static const String domain = "http://localhost:8080";
 
   // Ghi chú: aiDomain không còn cần vì AI Chat đi qua backend proxy
 

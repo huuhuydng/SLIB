@@ -33,7 +33,8 @@ const Sidebar = () => {
   const location = useLocation();
 
   const [expandedGroups, setExpandedGroups] = useState({});
-  const { pendingCounts, unreadChatCount } = useLibrarianNotification();
+  const { pendingCounts, unreadChatConversationCount } = useLibrarianNotification();
+  const chatBadgeCount = (pendingCounts.chats || 0) + (unreadChatConversationCount || 0);
 
   const handleLogout = () => {
     localStorage.removeItem('librarian_token');
@@ -63,7 +64,7 @@ const Sidebar = () => {
     "/librarian/complaints": pendingCounts.complaints,
     "/librarian/feedback": pendingCounts.feedbacks,
     "/librarian/seat-status-reports": pendingCounts.seatStatusReports,
-    "/librarian/chat": unreadChatCount || pendingCounts.chats,
+    "/librarian/chat": chatBadgeCount,
     "/librarian/violation": pendingCounts.violations,
   };
 

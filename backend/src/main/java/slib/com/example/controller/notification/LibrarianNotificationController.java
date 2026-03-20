@@ -43,8 +43,12 @@ public class LibrarianNotificationController {
     public ResponseEntity<Map<String, Object>> getUnreadChatCount(
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = userService.getUserByEmail(userDetails.getUsername()).getId();
-        long count = librarianNotificationService.getUnreadChatCount(librarianId);
-        return ResponseEntity.ok(Map.of("count", count));
+        long unreadMessages = librarianNotificationService.getUnreadChatCount(librarianId);
+        long unreadConversations = librarianNotificationService.getUnreadChatConversationCount(librarianId);
+        return ResponseEntity.ok(Map.of(
+                "count", unreadMessages,
+                "unreadMessages", unreadMessages,
+                "unreadConversations", unreadConversations));
     }
 
     /**
@@ -57,7 +61,12 @@ public class LibrarianNotificationController {
             @AuthenticationPrincipal UserDetails userDetails) {
         int updated = librarianNotificationService.markConversationAsRead(conversationId);
         UUID librarianId = userService.getUserByEmail(userDetails.getUsername()).getId();
-        long remaining = librarianNotificationService.getUnreadChatCount(librarianId);
-        return ResponseEntity.ok(Map.of("updated", updated, "remainingUnread", remaining));
+        long remainingMessages = librarianNotificationService.getUnreadChatCount(librarianId);
+        long remainingConversations = librarianNotificationService.getUnreadChatConversationCount(librarianId);
+        return ResponseEntity.ok(Map.of(
+                "updated", updated,
+                "remainingUnread", remainingMessages,
+                "remainingUnreadMessages", remainingMessages,
+                "remainingUnreadConversations", remainingConversations));
     }
 }

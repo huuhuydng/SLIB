@@ -190,6 +190,15 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                      "AND m.isRead = false")
        long countUnreadStudentMessagesForLibrarian(@Param("librarianId") UUID librarianId);
 
+       // 18b. Đếm số conversation đang HUMAN_CHATTING có ít nhất 1 tin nhắn chưa đọc
+       // từ student
+       @Query("SELECT COUNT(DISTINCT m.conversation.id) FROM Message m WHERE m.conversation.status = slib.com.example.entity.chat.ConversationStatus.HUMAN_CHATTING "
+                     +
+                     "AND m.conversation.librarian.id = :librarianId " +
+                     "AND m.senderType = 'STUDENT' " +
+                     "AND m.isRead = false")
+       long countUnreadStudentConversationsForLibrarian(@Param("librarianId") UUID librarianId);
+
        // 19. Đánh dấu tất cả tin nhắn student trong conversation đã đọc (cho thủ thư)
        @Modifying
        @Transactional

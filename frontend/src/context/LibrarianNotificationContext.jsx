@@ -57,6 +57,7 @@ export function LibrarianNotificationProvider({ children }) {
     // Danh sach tin nhan moi tu student (cho Header notification)
     const [chatMessages, setChatMessages] = useState([]);
     const [unreadChatCount, setUnreadChatCount] = useState(0);
+    const [unreadChatConversationCount, setUnreadChatConversationCount] = useState(0);
 
     const getToken = useCallback(() => {
         return localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
@@ -96,7 +97,8 @@ export function LibrarianNotificationProvider({ children }) {
             });
             if (res.ok && mountedRef.current) {
                 const data = await res.json();
-                setUnreadChatCount(data.count || 0);
+                setUnreadChatCount(data.unreadMessages ?? data.count ?? 0);
+                setUnreadChatConversationCount(data.unreadConversations ?? 0);
             }
         } catch (err) {
             console.warn('[LibrarianNotification] Fetch unread chat error:', err);
@@ -144,6 +146,7 @@ export function LibrarianNotificationProvider({ children }) {
     const clearChatMessages = useCallback(() => {
         setChatMessages([]);
         setUnreadChatCount(0);
+        setUnreadChatConversationCount(0);
     }, []);
 
     // Fetch on mount
@@ -186,7 +189,7 @@ export function LibrarianNotificationProvider({ children }) {
                     conversationId: data.conversationId,
                     timestamp: data.timestamp || new Date().toISOString(),
                 }, ...prev].slice(0, 20));
-                setUnreadChatCount(prev => prev + 1);
+                fetchUnreadChatCount();
 
                 // Also refresh pending counts
                 fetchPendingCounts();
@@ -226,6 +229,7 @@ export function LibrarianNotificationProvider({ children }) {
         setChatToast,
         chatMessages,
         unreadChatCount,
+        unreadChatConversationCount,
         clearChatMessages,
         refreshUnreadChatCount: fetchUnreadChatCount,
     };

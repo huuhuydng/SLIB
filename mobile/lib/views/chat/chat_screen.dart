@@ -30,11 +30,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final ChatService _chatService = ChatService();
   final ChatWebSocketService _chatWsService = ChatWebSocketService();
   AnimationController? _dotAnimController;
-  
+
   bool _isTyping = false; // Trang thai Bot dang go
   bool _isEscalated = false; // Da chuyen sang thu thu
   bool _isWaitingInQueue = false; // Dang cho trong queue
-  bool _isHandlingChatEnd = false; // Guard against concurrent _handleChatEnded calls
+  bool _isHandlingChatEnd =
+      false; // Guard against concurrent _handleChatEnded calls
   int _queuePosition = 0; // Vi tri trong hang doi
   String? _conversationId; // ID conversation khi escalate
   String? _librarianName; // Ten thu thu khi tiep nhan
@@ -43,7 +44,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Dữ liệu tin nhắn
   final List<ChatMessage> _messages = [
     ChatMessage(
-      text: "Chào bạn! Mình là trợ lý ảo SLIB. Mình có thể giúp gì cho việc học tập của bạn hôm nay?",
+      text:
+          "Chào bạn! Mình là trợ lý ảo SLIB. Mình có thể giúp gì cho việc học tập của bạn hôm nay?",
       isUser: false,
       time: DateTime.now().subtract(const Duration(minutes: 1)),
     ),
@@ -67,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   bool _isLoadingState = true; // Loading indicator
   bool _userCancelledQueue = false; // Flag: user chủ động hủy queue
-  
+
   // Feedback after chat ends
   String? _feedbackConversationId;
   int _chatFeedbackRating = 0;
@@ -95,7 +97,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _scrollController.addListener(_onScrollUp);
     // Suppress push notification khi đang ở chat screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<NotificationService>(context, listen: false).isChatScreenActive = true;
+      Provider.of<NotificationService>(
+        context,
+        listen: false,
+      ).isChatScreenActive = true;
     });
     _loadSavedState();
   }
@@ -108,7 +113,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final savedLibrarianName = prefs.getString(_keyLibrarianName);
       final savedIsWaiting = prefs.getBool(_keyIsWaitingInQueue) ?? false;
 
-      print('[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting');
+      print(
+        '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting',
+      );
 
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
@@ -123,14 +130,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       // Backend filter theo JWT user → không bao giờ trả conversation của user khác
       String? activeConversationId;
       String? activeLibrarianName;
-      bool isFromBackend = false; // true = conversation xác nhận bởi backend, false = chỉ là AI session local
+      bool isFromBackend =
+          false; // true = conversation xác nhận bởi backend, false = chỉ là AI session local
 
       final activeConv = await _chatService.getMyActiveConversation(token);
       if (activeConv != null && activeConv['hasActive'] == true) {
         activeConversationId = activeConv['conversationId'];
         activeLibrarianName = activeConv['librarianName'] ?? '';
         isFromBackend = true;
-        print('[PERSIST] Backend returned active conversation: $activeConversationId, status: ${activeConv['status']}');
+        print(
+          '[PERSIST] Backend returned active conversation: $activeConversationId, status: ${activeConv['status']}',
+        );
       } else if (savedConversationId != null) {
         // Backend nói KHÔNG có active conversation → kiểm tra saved AI session
         // Chỉ dùng nếu _keyUserId đã lưu (code mới) — tránh dùng data user khác
@@ -138,10 +148,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         if (savedUserId != null) {
           activeConversationId = savedConversationId;
           isFromBackend = false;
-          print('[PERSIST] No active backend conversation, using saved AI session (userId=$savedUserId): $activeConversationId');
+          print(
+            '[PERSIST] No active backend conversation, using saved AI session (userId=$savedUserId): $activeConversationId',
+          );
         } else {
           // Không có savedUserId → data cũ, không tin tưởng → clear conversation state nhưng giữ messages
-          print('[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)');
+          print(
+            '[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)',
+          );
           final prefs2 = await SharedPreferences.getInstance();
           await prefs2.remove(_keyConversationId);
           await prefs2.remove(_keyIsEscalated);
@@ -155,8 +169,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       if (activeConversationId != null && isFromBackend) {
         // Conversation xác nhận bởi backend (thuộc về user hiện tại) → check status
-        final status = await _chatService.getConversationStatus(activeConversationId, token);
-        print('[PERSIST] Backend status: ${status.status}, isHumanChatting: ${status.isHumanChatting}');
+        final status = await _chatService.getConversationStatus(
+          activeConversationId,
+          token,
+        );
+        print(
+          '[PERSIST] Backend status: ${status.status}, isHumanChatting: ${status.isHumanChatting}',
+        );
 
         if (status.isHumanChatting) {
           // Database = HUMAN_CHATTING -> user PHẢI chat với thủ thư, KHÔNG với AI
@@ -183,22 +202,29 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
             final senderType = msgData['senderType'] as String? ?? '';
             if (senderType == 'LIBRARIAN') {
+              _dismissChatFeedbackCard();
               final msgContent = msgData['content'] ?? '';
               String textPart = msgContent;
               List<String>? imgUrls;
               if (msgContent.contains('[IMAGES]')) {
                 final parts = msgContent.split('[IMAGES]');
                 textPart = parts[0].trim();
-                imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+                imgUrls = parts[1]
+                    .trim()
+                    .split('\n')
+                    .where((u) => u.trim().startsWith('http'))
+                    .toList();
               }
               setState(() {
-                _messages.add(ChatMessage(
-                  text: textPart,
-                  isUser: false,
-                  time: DateTime.now(),
-                  isFromLibrarian: true,
-                  imageUrls: imgUrls,
-                ));
+                _messages.add(
+                  ChatMessage(
+                    text: textPart,
+                    isUser: false,
+                    time: DateTime.now(),
+                    isFromLibrarian: true,
+                    imageUrls: imgUrls,
+                  ),
+                );
               });
               _scrollToBottom();
               _saveMessages();
@@ -212,28 +238,32 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _conversationId = activeConversationId;
             _isEscalated = true;
             _isWaitingInQueue = true;
-            _queuePosition = status.queuePosition > 0 ? status.queuePosition : 1;
+            _queuePosition = status.queuePosition > 0
+                ? status.queuePosition
+                : 1;
           });
 
           await _loadMessagesFromBackend(activeConversationId!, token);
-          
+
           // Re-add queue waiting indicator message (UI-only, not stored in backend)
           setState(() {
             // Remove any existing waiting messages first
             _messages.removeWhere((m) => m.type == ChatMessageType.waiting);
-            _messages.add(ChatMessage(
-              text: "",
-              isUser: false,
-              time: DateTime.now(),
-              type: ChatMessageType.waiting,
-              queuePosition: _queuePosition,
-              actions: [
-                ChatAction(id: 'cancel_queue', label: 'Không chờ nữa'),
-              ],
-            ));
+            _messages.add(
+              ChatMessage(
+                text: "",
+                isUser: false,
+                time: DateTime.now(),
+                type: ChatMessageType.waiting,
+                queuePosition: _queuePosition,
+                actions: [
+                  ChatAction(id: 'cancel_queue', label: 'Không chờ nữa'),
+                ],
+              ),
+            );
           });
           _scrollToBottom();
-          
+
           await _saveState();
           _connectWebSocketForQueue(token);
         } else {
@@ -248,7 +278,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _librarianName = null;
             });
           }
-          print('[PERSIST] Session is in AI mode, keeping session ID: $activeConversationId');
+          print(
+            '[PERSIST] Session is in AI mode, keeping session ID: $activeConversationId',
+          );
         }
       } else if (activeConversationId != null && !isFromBackend) {
         // Saved AI session (không có active conversation trên backend)
@@ -310,10 +342,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Load messages từ backend và thêm vào list
   /// [keepExisting] = true: giữ messages local, chỉ thêm messages mới từ backend
   /// [keepExisting] = false: xóa tất cả, load lại từ đầu
-  Future<void> _loadMessagesFromBackend(String conversationId, String token, {bool keepExisting = false}) async {
+  Future<void> _loadMessagesFromBackend(
+    String conversationId,
+    String token, {
+    bool keepExisting = false,
+  }) async {
     try {
-      final backendMessages = await _chatService.getMessages(conversationId, token);
-      print('[PERSIST] Loaded ${backendMessages.length} messages from backend (keepExisting=$keepExisting)');
+      final backendMessages = await _chatService.getMessages(
+        conversationId,
+        token,
+      );
+      print(
+        '[PERSIST] Loaded ${backendMessages.length} messages from backend (keepExisting=$keepExisting)',
+      );
 
       if (mounted && backendMessages.isNotEmpty) {
         setState(() {
@@ -325,52 +366,29 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
           for (final msg in backendMessages) {
             final msgId = msg['id']?.toString() ?? '';
-            final content = msg['content'] as String? ?? '';
             final senderType = msg['senderType'] as String? ?? 'STUDENT';
+            final parsedMessage = _buildChatMessageFromBackend(msg);
 
-            if (msgId.isNotEmpty && !_messageIds.contains(msgId) && content.isNotEmpty) {
-            _messageIds.add(msgId);
-            // Khi keepExisting, skip student messages (đã có local)
-            if (keepExisting && senderType == 'STUDENT') continue;
-            // Khi keepExisting, skip AI/SYSTEM messages trùng nội dung với local messages
-            if (keepExisting && (senderType == 'AI' || senderType == 'SYSTEM')) {
-              final isDuplicate = _messages.any((m) => !m.isUser && m.text == content);
-              if (isDuplicate) continue;
-            }
-            
-            // Parse [IMAGES] tag từ SYSTEM messages
-            String displayText = content;
-            List<String> imageUrls = [];
-            if (content.contains('[IMAGES]')) {
-              final parts = content.split('[IMAGES]');
-              displayText = parts[0].trim();
-              if (parts.length > 1) {
-                imageUrls = parts[1]
-                    .trim()
-                    .split('\n')
-                    .where((url) => url.trim().isNotEmpty)
-                    .map((url) => url.trim())
-                    .toList();
+            if (msgId.isNotEmpty &&
+                !_messageIds.contains(msgId) &&
+                parsedMessage != null) {
+              _messageIds.add(msgId);
+              // Khi keepExisting, skip student messages (đã có local)
+              if (keepExisting && senderType == 'STUDENT') continue;
+              // Khi keepExisting, chỉ skip AI messages trùng nội dung với local
+              // SYSTEM support-request context cần hiện lại theo từng human session
+              if (keepExisting && senderType == 'AI') {
+                final isDuplicate = _messages.any(
+                  (m) =>
+                      !m.isUser &&
+                      m.text == parsedMessage.text &&
+                      m.type == parsedMessage.type,
+                );
+                if (isDuplicate) continue;
               }
-            }
-            
-            // Parse createdAt từ backend
-            DateTime msgTime = DateTime.now();
-            final createdAtStr = msg['createdAt']?.toString();
-            if (createdAtStr != null) {
-              try {
-                msgTime = DateTime.parse(createdAtStr);
-              } catch (_) {}
-            }
 
-            _messages.add(ChatMessage(
-              text: displayText,
-              isUser: senderType == 'STUDENT',
-              isFromLibrarian: senderType == 'LIBRARIAN',
-              time: msgTime,
-              imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
-            ));
-          }
+              _messages.add(parsedMessage);
+            }
           }
         });
         _scrollToBottom();
@@ -383,18 +401,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   /// Load messages từ backend với phân trang (page 0 = mới nhất)
-  Future<void> _loadMessagesFromBackendPaginated(String conversationId, String token) async {
+  Future<void> _loadMessagesFromBackendPaginated(
+    String conversationId,
+    String token,
+  ) async {
     try {
       _currentPage = 0;
       _hasMorePages = true;
 
       final result = await _chatService.getMessagesPaginated(
-        conversationId, token, page: 0, size: _pageSize);
+        conversationId,
+        token,
+        page: 0,
+        size: _pageSize,
+      );
 
       final List<dynamic> content = result['content'] ?? [];
       final bool isLast = result['last'] == true;
 
-      print('[PERSIST] Loaded ${content.length} messages from backend (paginated, isLast=$isLast)');
+      print(
+        '[PERSIST] Loaded ${content.length} messages from backend (paginated, isLast=$isLast)',
+      );
 
       if (mounted && content.isNotEmpty) {
         setState(() {
@@ -405,39 +432,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           // Content trả về DESC (mới nhất trước), cần reverse lại để hiển thị ASC
           for (final msg in content.reversed) {
             final msgId = msg['id']?.toString() ?? '';
-            final msgContent = msg['content'] as String? ?? '';
-            final senderType = msg['senderType'] as String? ?? 'STUDENT';
+            final parsedMessage = _buildChatMessageFromBackend(msg);
 
             if (msgId.isNotEmpty) _messageIds.add(msgId);
-            if (msgContent.isEmpty) continue;
+            if (parsedMessage == null) continue;
 
-            // Parse [IMAGES] tag
-            String displayText = msgContent;
-            List<String> imageUrls = [];
-            if (msgContent.contains('[IMAGES]')) {
-              final parts = msgContent.split('[IMAGES]');
-              displayText = parts[0].trim();
-              if (parts.length > 1) {
-                imageUrls = parts[1].trim().split('\n')
-                    .where((url) => url.trim().isNotEmpty)
-                    .map((url) => url.trim())
-                    .toList();
-              }
-            }
-
-            DateTime msgTime = DateTime.now();
-            final createdAtStr = msg['createdAt']?.toString();
-            if (createdAtStr != null) {
-              try { msgTime = DateTime.parse(createdAtStr); } catch (_) {}
-            }
-
-            _messages.add(ChatMessage(
-              text: displayText,
-              isUser: senderType == 'STUDENT',
-              isFromLibrarian: senderType == 'LIBRARIAN',
-              time: msgTime,
-              imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
-            ));
+            _messages.add(parsedMessage);
           }
         });
         _scrollToBottom();
@@ -465,18 +465,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       return;
     }
     _isAIPollingActive = true;
-    print('[AI-POLL] === STARTED === _isEscalated=$_isEscalated, _isWaitingInQueue=$_isWaitingInQueue');
+    print(
+      '[AI-POLL] === STARTED === _isEscalated=$_isEscalated, _isWaitingInQueue=$_isWaitingInQueue',
+    );
     int pollCount = 0;
 
     while (mounted && !_isEscalated && !_isWaitingInQueue) {
       await Future.delayed(const Duration(seconds: 2));
       pollCount++;
-      
+
       if (!mounted || _isEscalated || _isWaitingInQueue) {
-        print('[AI-POLL] Breaking - mounted=$mounted, escalated=$_isEscalated, waiting=$_isWaitingInQueue');
+        print(
+          '[AI-POLL] Breaking - mounted=$mounted, escalated=$_isEscalated, waiting=$_isWaitingInQueue',
+        );
         break;
       }
-      
+
       try {
         // Lấy token mới mỗi lần để tránh stale token
         final authService = Provider.of<AuthService>(context, listen: false);
@@ -485,19 +489,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           print('[AI-POLL] #$pollCount: No token, skipping');
           continue;
         }
-        
+
         final activeConv = await _chatService.getMyActiveConversation(token);
         final status = activeConv?['status'];
-        
-        print('[AI-POLL] #$pollCount: hasActive=${activeConv != null}, status=$status');
-        
+
+        print(
+          '[AI-POLL] #$pollCount: hasActive=${activeConv != null}, status=$status',
+        );
+
         if (activeConv != null && status == 'HUMAN_CHATTING') {
           final convId = activeConv['conversationId']?.toString();
           final libName = activeConv['librarianName'] as String? ?? '';
-          print('[AI-POLL] >>> DETECTED HUMAN_CHATTING! convId=$convId, libName=$libName');
-          
+          print(
+            '[AI-POLL] >>> DETECTED HUMAN_CHATTING! convId=$convId, libName=$libName',
+          );
+
           if (mounted && !_isEscalated) {
-            await _handleLibrarianJoinedFromSupportRequest(libName, convId, token);
+            await _handleLibrarianJoinedFromSupportRequest(
+              libName,
+              convId,
+              token,
+            );
           }
           break;
         }
@@ -511,8 +523,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   /// Xử lý khi thủ thư bắt đầu chat từ yêu cầu hỗ trợ (không qua queue)
   /// Giữ nguyên messages local, load messages từ backend
-  Future<void> _handleLibrarianJoinedFromSupportRequest(String librarianName, String? convId, String token) async {
+  Future<void> _handleLibrarianJoinedFromSupportRequest(
+    String librarianName,
+    String? convId,
+    String token,
+  ) async {
     if (!mounted) return;
+    _dismissChatFeedbackCard();
 
     // Cập nhật conversationId nếu có
     final targetConvId = convId ?? _conversationId;
@@ -540,11 +557,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Thêm notification message
     setState(() {
-      _messages.add(ChatMessage(
-        text: "Thủ thư ${librarianName.isNotEmpty ? librarianName : ''} đã tiếp nhận và bắt đầu trò chuyện. Bạn có thể chat trực tiếp ngay bây giờ!",
-        isUser: false,
-        time: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              "Thủ thư ${librarianName.isNotEmpty ? librarianName : ''} đang phản hồi yêu cầu hỗ trợ của bạn",
+          isUser: false,
+          time: DateTime.now(),
+        ),
+      );
     });
 
     // Load messages đã có từ backend (bao gồm messages librarian đã gửi trước)
@@ -574,7 +594,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         if (currentUserId != null) {
           await prefs.setString(_keyUserId, currentUserId);
         }
-        print('[PERSIST] State saved: convId=$_conversationId, escalated=$_isEscalated, userId=$currentUserId');
+        print(
+          '[PERSIST] State saved: convId=$_conversationId, escalated=$_isEscalated, userId=$currentUserId',
+        );
       }
     } catch (e) {
       print('[PERSIST] Error saving state: $e');
@@ -602,7 +624,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         if (mounted && decoded.isNotEmpty) {
           setState(() {
             _messages.clear();
-            _messages.addAll(decoded.map((m) => ChatMessage.fromJson(m)).toList());
+            _messages.addAll(
+              decoded.map((m) => ChatMessage.fromJson(m)).toList(),
+            );
           });
           _scrollToBottom();
           print('[PERSIST] Loaded ${_messages.length} local messages');
@@ -628,12 +652,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-
   @override
   void dispose() {
     // Bật lại push notification khi rời chat screen
     try {
-      Provider.of<NotificationService>(context, listen: false).isChatScreenActive = false;
+      Provider.of<NotificationService>(
+        context,
+        listen: false,
+      ).isChatScreenActive = false;
     } catch (_) {}
     // Stop all polling loops by resetting guards
     _isAIPollingActive = false;
@@ -662,42 +688,47 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.brandColor, 
-                  width: 2
-                ),
+                border: Border.all(color: AppColors.brandColor, width: 2),
               ),
               child: _isEscalated
-                ? const CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.brandColor,
-                    child: Icon(Icons.support_agent, color: Colors.white, size: 20),
-                  )
-                : const CircleAvatar(
-                    radius: 18,
-                    backgroundImage: AssetImage('assets/images/ai_ava.png'),
-                  ),
+                  ? const CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.brandColor,
+                      child: Icon(
+                        Icons.support_agent,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    )
+                  : const CircleAvatar(
+                      radius: 18,
+                      backgroundImage: AssetImage('assets/images/ai_ava.png'),
+                    ),
             ),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isEscalated ? "Thủ thư SLIB" : "Trợ thủ AI - SLIB", 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                  _isEscalated ? "Thủ thư SLIB" : "Trợ thủ AI - SLIB",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
-                  _isEscalated 
-                    ? (_isWaitingInQueue 
-                        ? "Đang chờ..." 
-                        : (_librarianName != null && _librarianName!.isNotEmpty 
-                            ? _librarianName! 
-                            : "Đang trực tuyến"))
-                    : "Trung tâm hỗ trợ", 
-                  style: const TextStyle(color: Colors.grey, fontSize: 12)
+                  _isEscalated
+                      ? (_isWaitingInQueue
+                            ? "Đang chờ..."
+                            : (_librarianName != null &&
+                                      _librarianName!.isNotEmpty
+                                  ? _librarianName!
+                                  : "Đang trực tuyến"))
+                      : "Trung tâm hỗ trợ",
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
-            )
+            ),
           ],
         ),
         actions: [
@@ -711,7 +742,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('Kết thúc trò chuyện'),
-                    content: const Text('Bạn có muốn kết thúc cuộc trò chuyện với thủ thư không?'),
+                    content: const Text(
+                      'Bạn có muốn kết thúc cuộc trò chuyện với thủ thư không?',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(ctx).pop(),
@@ -722,7 +755,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           Navigator.of(ctx).pop();
                           _handleStudentResolve();
                         },
-                        child: const Text('Kết thúc', style: TextStyle(color: Colors.red)),
+                        child: const Text(
+                          'Kết thúc',
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ),
                     ],
                   ),
@@ -737,7 +773,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('Xác nhận'),
-                  content: const Text('Bạn có muốn bắt đầu cuộc trò chuyện mới không? Toàn bộ tin nhắn hiện tại sẽ bị xóa.'),
+                  content: const Text(
+                    'Bạn có muốn bắt đầu cuộc trò chuyện mới không? Toàn bộ tin nhắn hiện tại sẽ bị xóa.',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
@@ -748,7 +786,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         Navigator.of(ctx).pop();
                         _resetConversation();
                       },
-                      child: const Text('Đồng ý', style: TextStyle(color: Colors.red)),
+                      child: const Text(
+                        'Đồng ý',
+                        style: TextStyle(color: Colors.red),
+                      ),
                     ),
                   ],
                 ),
@@ -778,7 +819,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ],
               ),
             ),
-          
+
           // 1. Danh sách tin nhắn + scroll-to-bottom button
           Expanded(
             child: Stack(
@@ -787,7 +828,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   controller: _scrollController,
                   reverse: true,
                   padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length + (_isTyping ? 1 : 0) + (_isLoadingMore ? 1 : 0),
+                  itemCount:
+                      _messages.length +
+                      (_isTyping ? 1 : 0) +
+                      (_isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
                     // reverse=true: index 0 = bottom (newest)
                     // Typing indicator at bottom (index 0 when typing)
@@ -800,13 +844,30 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     if (_isLoadingMore && adjustedIndex == totalMessages) {
                       return const Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
                     }
                     // Reverse: map index to message (newest first → oldest last)
                     final msgIndex = totalMessages - 1 - adjustedIndex;
-                    if (msgIndex < 0 || msgIndex >= totalMessages) return const SizedBox.shrink();
+                    if (msgIndex < 0 || msgIndex >= totalMessages)
+                      return const SizedBox.shrink();
                     final message = _messages[msgIndex];
+                    final supportContext =
+                        message.isFromLibrarian &&
+                            msgIndex > 0 &&
+                            _messages[msgIndex - 1].type ==
+                                ChatMessageType.supportRequestContext
+                        ? _messages[msgIndex - 1]
+                        : null;
+                    final shouldHideStandaloneContext =
+                        message.type == ChatMessageType.supportRequestContext &&
+                        msgIndex + 1 < totalMessages &&
+                        _messages[msgIndex + 1].isFromLibrarian;
+                    if (shouldHideStandaloneContext) {
+                      return const SizedBox.shrink();
+                    }
                     Widget? timeSeparator;
                     if (msgIndex == 0) {
                       timeSeparator = _buildTimeSeparator(message.time);
@@ -820,7 +881,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     return Column(
                       children: [
                         if (timeSeparator != null) timeSeparator,
-                        _buildMessageBubble(message),
+                        _buildMessageBubble(
+                          message,
+                          supportContext: supportContext,
+                        ),
                       ],
                     );
                   },
@@ -834,7 +898,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       heroTag: 'scroll_to_bottom',
                       onPressed: _scrollToBottom,
                       backgroundColor: AppColors.brandColor,
-                      child: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                      child: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
               ],
@@ -842,7 +909,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
 
           // 2. Khu vực Gợi ý (Suggestions)
-          if (_messages.length < 4 && !_isEscalated) // Chỉ hiện gợi ý khi hội thoại còn ngắn
+          if (_messages.length < 4 &&
+              !_isEscalated) // Chỉ hiện gợi ý khi hội thoại còn ngắn
             SizedBox(
               height: 50,
               child: ListView.builder(
@@ -854,12 +922,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     padding: const EdgeInsets.only(right: 8),
                     child: ActionChip(
                       label: Text(
-                        _suggestions[index], 
-                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)
+                        _suggestions[index],
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                       backgroundColor: Colors.grey[100],
                       side: BorderSide.none,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       onPressed: () => _handleSubmitted(_suggestions[index]),
                     ),
                   );
@@ -872,14 +945,26 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, -2), blurRadius: 10)],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  offset: const Offset(0, -2),
+                  blurRadius: 10,
+                ),
+              ],
             ),
             child: SafeArea(
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Colors.grey), 
-                    onPressed: _isEscalated && _conversationId != null && !_isWaitingInQueue
+                    icon: const Icon(
+                      Icons.add_circle_outline,
+                      color: Colors.grey,
+                    ),
+                    onPressed:
+                        _isEscalated &&
+                            _conversationId != null &&
+                            !_isWaitingInQueue
                         ? () => _handlePickImage()
                         : null,
                   ),
@@ -887,12 +972,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     child: TextField(
                       controller: _textController,
                       decoration: InputDecoration(
-                        hintText: _isEscalated ? "Nhắn tin cho thủ thư..." : "Nhập tin nhắn...",
+                        hintText: _isEscalated
+                            ? "Nhắn tin cho thủ thư..."
+                            : "Nhập tin nhắn...",
                         hintStyle: TextStyle(color: Colors.grey[400]),
                         filled: true,
                         fillColor: Colors.grey[100],
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                       onChanged: (text) {},
                       onSubmitted: _handleSubmitted,
@@ -901,18 +994,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppColors.brandColor, 
-                      shape: BoxShape.circle
+                      color: AppColors.brandColor,
+                      shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       onPressed: () => _handleSubmitted(_textController.text),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -937,117 +1034,228 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  ChatMessage? _buildChatMessageFromBackend(Map<String, dynamic> msg) {
+    final content = msg['content'] as String? ?? '';
+    if (content.isEmpty) return null;
+
+    final senderType = msg['senderType'] as String? ?? 'STUDENT';
+    final msgTime = _parseBackendMessageTime(msg['createdAt']?.toString());
+
+    if (_isSupportRequestContextMessage(content)) {
+      final parsed = _parseSupportRequestContext(content);
+      return ChatMessage(
+        text: parsed.description,
+        isUser: false,
+        isFromLibrarian: true,
+        time: msgTime,
+        type: ChatMessageType.supportRequestContext,
+        imageUrls: parsed.imageUrls.isNotEmpty ? parsed.imageUrls : null,
+      );
+    }
+
+    final parsedContent = _parseMessageContent(content);
+    return ChatMessage(
+      text: parsedContent.text,
+      isUser: senderType == 'STUDENT',
+      isFromLibrarian: senderType == 'LIBRARIAN',
+      time: msgTime,
+      imageUrls: parsedContent.imageUrls.isNotEmpty
+          ? parsedContent.imageUrls
+          : null,
+    );
+  }
+
+  DateTime _parseBackendMessageTime(String? createdAtStr) {
+    if (createdAtStr != null) {
+      try {
+        return DateTime.parse(createdAtStr);
+      } catch (_) {}
+    }
+    return DateTime.now();
+  }
+
+  bool _isSupportRequestContextMessage(String content) {
+    return content.trimLeft().startsWith('[YÊU CẦU HỖ TRỢ]');
+  }
+
+  ({String text, List<String> imageUrls}) _parseMessageContent(String content) {
+    if (!content.contains('[IMAGES]')) {
+      return (text: content.trim(), imageUrls: <String>[]);
+    }
+
+    final parts = content.split('[IMAGES]');
+    final text = parts.first.trim();
+    final imageUrls = parts.length > 1
+        ? parts[1]
+              .trim()
+              .split('\n')
+              .where((url) => url.trim().startsWith('http'))
+              .map((url) => url.trim())
+              .toList()
+        : <String>[];
+    return (text: text, imageUrls: imageUrls);
+  }
+
+  ({String description, List<String> imageUrls}) _parseSupportRequestContext(
+    String content,
+  ) {
+    final parsedContent = _parseMessageContent(content);
+    String description = parsedContent.text
+        .replaceFirst('[YÊU CẦU HỖ TRỢ]', '')
+        .trim();
+
+    if (description.startsWith('Nội dung:')) {
+      description = description.substring('Nội dung:'.length).trim();
+    }
+
+    return (description: description, imageUrls: parsedContent.imageUrls);
+  }
+
   // Widget: Bong bóng tin nhắn
-  Widget _buildMessageBubble(ChatMessage message) {
+  Widget _buildMessageBubble(
+    ChatMessage message, {
+    ChatMessage? supportContext,
+  }) {
     if (message.type == ChatMessageType.feedbackPrompt) {
       return _buildChatFeedbackCard();
+    }
+
+    if (message.type == ChatMessageType.supportRequestContext) {
+      return _buildSupportRequestContextBubble(message);
     }
 
     bool isUser = message.isUser;
     bool isWaitingType = message.type == ChatMessageType.waiting;
     bool hasText = message.text.isNotEmpty;
-    
+
     // Nội dung bubble + extra items
     Widget bubbleContent = IntrinsicWidth(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-        if (hasText)
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-            decoration: BoxDecoration(
-              color: isUser 
-                  ? AppColors.brandColor 
-                  : (message.isEscalation 
-                      ? Colors.orange[100] 
-                      : Colors.grey[100]),
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
-                bottomRight: isUser ? Radius.zero : const Radius.circular(16),
-              ),
+          if (supportContext != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 6),
+              child: _buildSupportRequestCard(supportContext),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (message.isEscalation)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.support_agent, size: 14, color: Colors.orange[700]),
-                        const SizedBox(width: 4),
-                        Text("Chuyển tiếp", style: TextStyle(fontSize: 11, color: Colors.orange[700], fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
-                Text(
-                  message.text,
-                  style: TextStyle(
-                    color: isUser ? Colors.white : AppColors.textPrimary,
-                    fontSize: 15,
-                    height: 1.4,
-                  ),
+          if (hasText)
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.7,
+              ),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? AppColors.brandColor
+                    : (message.isEscalation
+                          ? Colors.orange[100]
+                          : Colors.grey[100]),
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: isUser ? const Radius.circular(16) : Radius.zero,
+                  bottomRight: isUser ? Radius.zero : const Radius.circular(16),
                 ),
-                // Hiện ảnh nếu có
-                if (message.imageUrls != null && message.imageUrls!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: message.imageUrls!.map((url) => GestureDetector(
-                        onTap: () => _showFullImage(url),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            url,
-                            width: 120,
-                            height: 120,
-                            fit: BoxFit.cover,
-                            errorBuilder: (ctx, err, stack) => Container(
-                              width: 120,
-                              height: 120,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.broken_image, color: Colors.grey),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (message.isEscalation)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.support_agent,
+                            size: 14,
+                            color: Colors.orange[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "Chuyển tiếp",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange[700],
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                      )).toList(),
+                        ],
+                      ),
+                    ),
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isUser ? Colors.white : AppColors.textPrimary,
+                      fontSize: 15,
+                      height: 1.4,
                     ),
                   ),
-              ],
+                  // Hiện ảnh nếu có
+                  if (message.imageUrls != null &&
+                      message.imageUrls!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: message.imageUrls!
+                            .map(
+                              (url) => GestureDetector(
+                                onTap: () => _showFullImage(url),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    url,
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (ctx, err, stack) =>
+                                        Container(
+                                          width: 120,
+                                          height: 120,
+                                          color: Colors.grey[300],
+                                          child: const Icon(
+                                            Icons.broken_image,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        if (isWaitingType && message.queuePosition != null)
-          _buildQueueWaitingIndicator(message),
-        if (message.type == ChatMessageType.withActions && message.actions != null)
-          ...message.actions!.map((action) => Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: _buildActionButton(action, message),
-          )),
-      ],
+          if (isWaitingType && message.queuePosition != null)
+            _buildQueueWaitingIndicator(message),
+          if (message.type == ChatMessageType.withActions &&
+              message.actions != null)
+            ...message.actions!.map(
+              (action) => Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _buildActionButton(action, message),
+              ),
+            ),
+        ],
       ),
     );
-    
+
     // Tin nhắn user: không có avatar
     if (isUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: bubbleContent,
-      );
+      return Align(alignment: Alignment.centerRight, child: bubbleContent);
     }
-    
+
     // Tin nhắn bot/thủ thư: có avatar tròn bên trái
     // Waiting type (queue indicator) -> centered, không có avatar
     if (message.type == ChatMessageType.waiting) {
       return bubbleContent;
     }
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Row(
@@ -1055,17 +1263,141 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         children: [
           // Avatar tròn nhỏ
           message.isFromLibrarian
-            ? const CircleAvatar(
-                radius: 14,
-                backgroundColor: AppColors.brandColor,
-                child: Icon(Icons.support_agent, color: Colors.white, size: 14),
-              )
-            : const CircleAvatar(
-                radius: 14,
-                backgroundImage: AssetImage('assets/images/ai_ava.png'),
-              ),
+              ? const CircleAvatar(
+                  radius: 14,
+                  backgroundColor: AppColors.brandColor,
+                  child: Icon(
+                    Icons.support_agent,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                )
+              : const CircleAvatar(
+                  radius: 14,
+                  backgroundImage: AssetImage('assets/images/ai_ava.png'),
+                ),
           const SizedBox(width: 8),
           Flexible(child: bubbleContent),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupportRequestContextBubble(ChatMessage message) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(
+            radius: 14,
+            backgroundColor: AppColors.brandColor,
+            child: Icon(Icons.support_agent, color: Colors.white, size: 14),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: _buildSupportRequestCard(message),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupportRequestCard(ChatMessage message) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.74,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8F3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFB88A), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFE2CC),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.brandColor,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Yêu cầu hỗ trợ từ sinh viên',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Vấn đề cần hỗ trợ',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message.text,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (message.imageUrls != null && message.imageUrls!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: message.imageUrls!
+                  .map(
+                    (url) => GestureDetector(
+                      onTap: () => _showFullImage(url),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          url,
+                          width: 88,
+                          height: 88,
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stack) => Container(
+                            width: 88,
+                            height: 88,
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -1094,16 +1426,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             Text(
               "Vui lòng đợi trong giây lát để SLIB hỗ trợ bạn nhé",
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
             ),
             if (message.actions != null)
-              ...message.actions!.map((action) => Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _buildActionButton(action, message),
-              )),
+              ...message.actions!.map(
+                (action) => Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _buildActionButton(action, message),
+                ),
+              ),
           ],
         ),
       ),
@@ -1129,21 +1460,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Widget: Action Button - FPT Orange Style
   Widget _buildActionButton(ChatAction action, ChatMessage message) {
     const Color fptOrange = AppColors.brandColor; // FPT Orange
-    
+
     bool isPrimary = action.isPrimary;
     bool isCancel = action.id == 'cancel_queue' || action.id == 'contact_later';
-    
+
     if (isCancel) {
       // Cancel: chỉ text màu cam
       return TextButton(
         onPressed: () => _handleActionTap(action.id),
         child: Text(
           action.label,
-          style: const TextStyle(color: fptOrange, fontWeight: FontWeight.w600, fontSize: 14),
+          style: const TextStyle(
+            color: fptOrange,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
       );
     }
-    
+
     // Primary: filled orange, rounded rect
     return Material(
       color: isPrimary ? fptOrange : Colors.white,
@@ -1180,11 +1515,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
-        children: List.generate(3, (index) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: 8, height: 8,
-          decoration: BoxDecoration(color: fptOrange.withOpacity(1.0 - index * 0.25), shape: BoxShape.circle),
-        )),
+        children: List.generate(
+          3,
+          (index) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: fptOrange.withOpacity(1.0 - index * 0.25),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
       );
     }
     return Row(
@@ -1272,18 +1614,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _pickAndSendImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: source, maxWidth: 1200, imageQuality: 80);
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 80,
+      );
       if (pickedFile == null) return;
 
       final file = File(pickedFile.path);
+      _dismissChatFeedbackCard();
 
       // Thêm optimistic message
       setState(() {
-        _messages.add(ChatMessage(
-          text: 'Đang gửi ảnh...',
-          isUser: true,
-          time: DateTime.now(),
-        ));
+        _messages.add(
+          ChatMessage(
+            text: 'Đang gửi ảnh...',
+            isUser: true,
+            time: DateTime.now(),
+          ),
+        );
       });
       _scrollToBottom();
 
@@ -1296,12 +1645,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           senderType: 'STUDENT',
           authToken: token,
         );
-        
+
         // Xóa optimistic message
         setState(() {
           _messages.removeWhere((m) => m.text == 'Đang gửi ảnh...' && m.isUser);
         });
-        
+
         if (responseContent != null) {
           // Parse [IMAGES] tag và thêm message thật kèm ảnh
           String textPart = '';
@@ -1309,26 +1658,34 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (responseContent.contains('[IMAGES]')) {
             final parts = responseContent.split('[IMAGES]');
             textPart = parts[0].trim();
-            imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+            imgUrls = parts[1]
+                .trim()
+                .split('\n')
+                .where((u) => u.trim().startsWith('http'))
+                .toList();
           }
           setState(() {
-            _messages.add(ChatMessage(
-              text: textPart.isNotEmpty ? textPart : 'Đã gửi ảnh',
-              isUser: true,
-              time: DateTime.now(),
-              imageUrls: imgUrls,
-            ));
+            _messages.add(
+              ChatMessage(
+                text: textPart.isNotEmpty ? textPart : 'Đã gửi ảnh',
+                isUser: true,
+                time: DateTime.now(),
+                imageUrls: imgUrls,
+              ),
+            );
           });
           _scrollToBottom();
           _saveMessages();
           print('[CHAT] Image sent successfully, urls: $imgUrls');
         } else {
           setState(() {
-            _messages.add(ChatMessage(
-              text: 'Gửi ảnh thất bại. Vui lòng thử lại.',
-              isUser: false,
-              time: DateTime.now(),
-            ));
+            _messages.add(
+              ChatMessage(
+                text: 'Gửi ảnh thất bại. Vui lòng thử lại.',
+                isUser: false,
+                time: DateTime.now(),
+              ),
+            );
           });
         }
       }
@@ -1345,10 +1702,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     if (text.trim().isEmpty) return;
 
     _textController.clear();
+    _dismissChatFeedbackCard();
 
     // Hiển thị tin nhắn user LÊN UI NGAY LẬP TỨC (optimistic)
     setState(() {
-      _messages.add(ChatMessage(text: text, isUser: true, time: DateTime.now()));
+      _messages.add(
+        ChatMessage(text: text, isUser: true, time: DateTime.now()),
+      );
       _isTyping = !_isEscalated;
     });
     _saveMessages();
@@ -1365,60 +1725,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (activeConv != null && activeConv['status'] == 'HUMAN_CHATTING') {
             final convId = activeConv['conversationId']?.toString();
             final libName = activeConv['librarianName'] as String? ?? '';
-            print('[CHAT] Detected HUMAN_CHATTING before sending to AI! Switching mode...');
-            
+            print(
+              '[CHAT] Detected HUMAN_CHATTING before sending to AI! Switching mode...',
+            );
             setState(() {
-              _conversationId = convId;
-              _isEscalated = true;
-              _isWaitingInQueue = false;
-              _librarianName = libName;
               _isTyping = false;
-              _messages.add(ChatMessage(
-                text: "Thủ thư ${libName.isNotEmpty ? libName : ''} đã tiếp nhận và bắt đầu trò chuyện. Bạn có thể chat trực tiếp ngay bây giờ!",
-                isUser: false,
-                time: DateTime.now(),
-              ));
             });
-            
-            await _saveState();
-            
-            _chatWsService.setOnMessageReceived((msgData) {
-              if (!mounted) return;
-              final type = msgData['type'] as String?;
 
-              if (type == 'TYPING' || type == 'MESSAGES_READ') return;
-
-              final msgId = msgData['id']?.toString();
-              if (msgId != null && _messageIds.contains(msgId)) return;
-              if (msgId != null) _messageIds.add(msgId);
-
-              final senderType = msgData['senderType'] as String? ?? '';
-              if (senderType == 'LIBRARIAN') {
-                final msgContent = msgData['content'] ?? '';
-                String textPart = msgContent;
-                List<String>? imgUrls;
-                if (msgContent.contains('[IMAGES]')) {
-                  final parts = msgContent.split('[IMAGES]');
-                  textPart = parts[0].trim();
-                  imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
-                }
-                setState(() {
-                  _messages.add(ChatMessage(
-                    text: textPart,
-                    isUser: false,
-                    time: DateTime.now(),
-                    isFromLibrarian: true,
-                    imageUrls: imgUrls,
-                  ));
-                });
-                _scrollToBottom();
-                _saveMessages();
-              }
-            });
-            if (convId != null) {
-              _chatWsService.subscribeToConversation(convId);
-            }
-            _startMessagePolling(token);
+            await _handleLibrarianJoinedFromSupportRequest(
+              libName,
+              convId,
+              token,
+            );
 
             // Gửi tin nhắn user đến backend (đã switch sang human mode)
             await _chatService.sendMessageToBackend(
@@ -1438,7 +1756,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Nếu đang chat với librarian - gửi tin nhắn đến backend
     if (_isEscalated && _conversationId != null && !_isWaitingInQueue) {
-      print('[CHAT] Sending escalated message: convId=$_conversationId, text=$text');
+      print(
+        '[CHAT] Sending escalated message: convId=$_conversationId, text=$text',
+      );
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
@@ -1462,36 +1782,40 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Local detection cho intent "gap thu thu"
     final lowerText = text.toLowerCase();
-    final wantsLibrarian = lowerText.contains('gap thu thu') || 
-                           lowerText.contains('gặp thủ thư') ||
-                           lowerText.contains('noi chuyen voi thu thu') ||
-                           lowerText.contains('nói chuyện với thủ thư') ||
-                           lowerText.contains('lien he thu thu') ||
-                           lowerText.contains('liên hệ thủ thư') ||
-                           lowerText.contains('muon gap nguoi') ||
-                           lowerText.contains('muốn gặp người');
+    final wantsLibrarian =
+        lowerText.contains('gap thu thu') ||
+        lowerText.contains('gặp thủ thư') ||
+        lowerText.contains('noi chuyen voi thu thu') ||
+        lowerText.contains('nói chuyện với thủ thư') ||
+        lowerText.contains('lien he thu thu') ||
+        lowerText.contains('liên hệ thủ thư') ||
+        lowerText.contains('muon gap nguoi') ||
+        lowerText.contains('muốn gặp người');
 
     if (wantsLibrarian) {
       // Hien thi message voi action button
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
-      
+
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(
-          text: "Dạ, để được gặp thủ thư, bạn vui lòng bấm vào nút bên dưới ạ!",
-          isUser: false,
-          time: DateTime.now(),
-          type: ChatMessageType.withActions,
-          actions: [
-            ChatAction(
-              id: 'request_librarian', 
-              label: 'Chat với Thủ thư SLIB', 
-              icon: '📞',
-              isPrimary: true,
-            ),
-          ],
-        ));
+        _messages.add(
+          ChatMessage(
+            text:
+                "Dạ, để được gặp thủ thư, bạn vui lòng bấm vào nút bên dưới ạ!",
+            isUser: false,
+            time: DateTime.now(),
+            type: ChatMessageType.withActions,
+            actions: [
+              ChatAction(
+                id: 'request_librarian',
+                label: 'Chat với Thủ thư SLIB',
+                icon: '📞',
+                isPrimary: true,
+              ),
+            ],
+          ),
+        );
       });
       _scrollToBottom();
       _saveMessages();
@@ -1501,45 +1825,49 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     try {
       // Goi AI Service API
       final response = await _chatService.sendMessage(text);
-      
+
       if (!mounted) return;
-      
+
       setState(() {
         _isTyping = false;
-        
+
         // Check neu AI tra ve escalation
         if (response.needsReview || response.escalated) {
           // Hien thi message voi action button
-          _messages.add(ChatMessage(
-            text: response.reply,
-            isUser: false,
-            time: DateTime.now(),
-            type: ChatMessageType.withActions,
-            actions: [
-              ChatAction(
-                id: 'request_librarian', 
-                label: 'Chat với Thủ thư SLIB', 
-                icon: '📞',
-                isPrimary: true,
-              ),
-            ],
-          ));
+          _messages.add(
+            ChatMessage(
+              text: response.reply,
+              isUser: false,
+              time: DateTime.now(),
+              type: ChatMessageType.withActions,
+              actions: [
+                ChatAction(
+                  id: 'request_librarian',
+                  label: 'Chat với Thủ thư SLIB',
+                  icon: '📞',
+                  isPrimary: true,
+                ),
+              ],
+            ),
+          );
         } else {
           // Tin nhan thong thuong
-          _messages.add(ChatMessage(
-            text: response.reply,
-            isUser: false,
-            time: DateTime.now(),
-            isEscalation: response.escalated,
-          ));
+          _messages.add(
+            ChatMessage(
+              text: response.reply,
+              isUser: false,
+              time: DateTime.now(),
+              isEscalation: response.escalated,
+            ),
+          );
         }
-        
+
         // Cap nhat trang thai escalation
         if (response.escalated) {
           _isEscalated = true;
         }
       });
-      
+
       _scrollToBottom();
       _saveMessages();
 
@@ -1568,16 +1896,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           print('[CHAT] Error saving AI messages to backend: $e');
         }
       }
-
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(
-          text: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
-          isUser: false,
-          time: DateTime.now(),
-        ));
+        _messages.add(
+          ChatMessage(
+            text: "Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
+            isUser: false,
+            time: DateTime.now(),
+          ),
+        );
       });
       _scrollToBottom();
       _saveMessages();
@@ -1625,7 +1954,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       final nextPage = _currentPage + 1;
       final result = await _chatService.getMessagesPaginated(
-        _conversationId!, token, page: nextPage, size: _pageSize);
+        _conversationId!,
+        token,
+        page: nextPage,
+        size: _pageSize,
+      );
 
       final List<dynamic> content = result['content'] ?? [];
       final bool isLast = result['last'] == true;
@@ -1646,38 +1979,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _hasMorePages = !isLast;
 
         // Content trả về DESC (mới nhất trước), cần reverse lại
-        final olderMessages = content.reversed.map((msg) {
-          final msgContent = msg['content'] as String? ?? '';
-          final senderType = msg['senderType'] as String? ?? 'STUDENT';
-
-          // Parse [IMAGES] tag
-          String displayText = msgContent;
-          List<String> imageUrls = [];
-          if (msgContent.contains('[IMAGES]')) {
-            final parts = msgContent.split('[IMAGES]');
-            displayText = parts[0].trim();
-            if (parts.length > 1) {
-              imageUrls = parts[1].trim().split('\n')
-                  .where((url) => url.trim().isNotEmpty)
-                  .map((url) => url.trim())
-                  .toList();
-            }
-          }
-
-          DateTime msgTime = DateTime.now();
-          final createdAtStr = msg['createdAt']?.toString();
-          if (createdAtStr != null) {
-            try { msgTime = DateTime.parse(createdAtStr); } catch (_) {}
-          }
-
-          return ChatMessage(
-            text: displayText,
-            isUser: senderType == 'STUDENT',
-            isFromLibrarian: senderType == 'LIBRARIAN',
-            time: msgTime,
-            imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
-          );
-        }).toList();
+        final olderMessages = content.reversed
+            .map(
+              (msg) =>
+                  _buildChatMessageFromBackend(msg as Map<String, dynamic>),
+            )
+            .whereType<ChatMessage>()
+            .toList();
 
         // Prepend older messages ở đầu list
         _messages.insertAll(0, olderMessages);
@@ -1713,6 +2021,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   // Xu ly khi user tap vao action button
   void _handleActionTap(String actionId) {
+    _dismissChatFeedbackCard();
+
     switch (actionId) {
       case 'request_librarian':
         _handleRequestLibrarian();
@@ -1729,48 +2039,67 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
+  void _dismissChatFeedbackCard() {
+    final hasFeedbackCard = _messages.any(
+      (m) => m.type == ChatMessageType.feedbackPrompt,
+    );
+    if (!hasFeedbackCard) return;
+
+    setState(() {
+      _messages.removeWhere((m) => m.type == ChatMessageType.feedbackPrompt);
+      _chatFeedbackRating = 0;
+      _chatFeedbackSubmitted = false;
+    });
+    _saveMessages();
+  }
+
   // Yeu cau gap thu thu - gọi API thật
   Future<void> _handleRequestLibrarian() async {
     // Reset cancel guard cho lần escalate mới
     _userCancelledQueue = false;
-    
+
     // Hiện UI waiting ngay lập tức
     setState(() {
       _isWaitingInQueue = true;
       _isEscalated = true;
       _queuePosition = 1;
-      
+
       // Tin nhắn user gởi
-      _messages.add(ChatMessage(
-        text: "Chat với Thủ thư SLIB",
-        isUser: true,
-        time: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          text: "Chat với Thủ thư SLIB",
+          isUser: true,
+          time: DateTime.now(),
+        ),
+      );
       // Bot trả lời
-      _messages.add(ChatMessage(
-        text: "Dạ mình đang điều hướng bạn tới bộ phận thủ thư của thư viện, bạn vui lòng đợi chút nhé",
-        isUser: false,
-        time: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              "Dạ mình đang điều hướng bạn tới bộ phận thủ thư của thư viện, bạn vui lòng đợi chút nhé",
+          isUser: false,
+          time: DateTime.now(),
+        ),
+      );
       // Queue waiting indicator
-      _messages.add(ChatMessage(
-        text: "",
-        isUser: false,
-        time: DateTime.now(),
-        type: ChatMessageType.waiting,
-        queuePosition: _queuePosition,
-        actions: [
-          ChatAction(id: 'cancel_queue', label: 'Không chờ nữa'),
-        ],
-      ));
+      _messages.add(
+        ChatMessage(
+          text: "",
+          isUser: false,
+          time: DateTime.now(),
+          type: ChatMessageType.waiting,
+          queuePosition: _queuePosition,
+          actions: [ChatAction(id: 'cancel_queue', label: 'Không chờ nữa')],
+        ),
+      );
     });
     _scrollToBottom();
-    
+
     // Gọi API để tạo conversation và escalate
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
-      
+
       if (token != null) {
         // Gửi AI session ID để backend đọc chat history từ MongoDB
         final result = await _chatService.requestLibrarian(
@@ -1778,16 +2107,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           token,
           aiSessionId: _chatService.sessionId,
         );
-        
+
         if (result.success && mounted) {
           setState(() {
             _conversationId = result.conversationId;
             _queuePosition = result.queuePosition;
           });
-          
+
           // Save state để có thể restore khi mở lại app
           await _saveState();
-          
+
           // Kết nối WebSocket để nhận queue updates real-time
           _connectWebSocketForQueue(token);
         }
@@ -1842,8 +2171,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   // Handle librarian joined event from WebSocket
-  Future<void> _handleLibrarianJoined(String librarianName, String token) async {
+  Future<void> _handleLibrarianJoined(
+    String librarianName,
+    String token,
+  ) async {
     if (!mounted || _conversationId == null) return;
+    _dismissChatFeedbackCard();
 
     // Reset feedback flag for this conversation so a new session can prompt again
     final prefs = await SharedPreferences.getInstance();
@@ -1865,11 +2198,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Show notification message
     setState(() {
-      _messages.add(ChatMessage(
-        text: "Thủ thư ${librarianName.isNotEmpty ? librarianName : ''} đã tiếp nhận yêu cầu của bạn. Bạn có thể chat trực tiếp ngay bây giờ!",
-        isUser: false,
-        time: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              "Thủ thư ${librarianName.isNotEmpty ? librarianName : ''} đã tiếp nhận yêu cầu của bạn. Bạn có thể chat trực tiếp ngay bây giờ!",
+          isUser: false,
+          time: DateTime.now(),
+        ),
+      );
     });
 
     await _saveState();
@@ -1889,6 +2225,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         final senderType = msgData['senderType'] as String? ?? '';
         if (senderType == 'LIBRARIAN') {
+          _dismissChatFeedbackCard();
           final msgContent = msgData['content'] ?? '';
           // Parse [IMAGES] tag
           String textPart = msgContent;
@@ -1896,16 +2233,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (msgContent.contains('[IMAGES]')) {
             final parts = msgContent.split('[IMAGES]');
             textPart = parts[0].trim();
-            imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+            imgUrls = parts[1]
+                .trim()
+                .split('\n')
+                .where((u) => u.trim().startsWith('http'))
+                .toList();
           }
           setState(() {
-            _messages.add(ChatMessage(
-              text: textPart,
-              isUser: false,
-              time: DateTime.now(),
-              isFromLibrarian: true,
-              imageUrls: imgUrls,
-            ));
+            _messages.add(
+              ChatMessage(
+                text: textPart,
+                isUser: false,
+                time: DateTime.now(),
+                isFromLibrarian: true,
+                imageUrls: imgUrls,
+              ),
+            );
           });
           _scrollToBottom();
           _saveMessages();
@@ -1927,13 +2270,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _isStatusPollingActive = true;
     while (_isWaitingInQueue && mounted && _conversationId != null) {
       await Future.delayed(const Duration(seconds: 2));
-      
+
       if (!mounted || _conversationId == null) break;
-      
-      final status = await _chatService.getConversationStatus(_conversationId!, token);
-      
+
+      final status = await _chatService.getConversationStatus(
+        _conversationId!,
+        token,
+      );
+
       // Cap nhat queue position
-      if (status.isWaiting && mounted && status.queuePosition != _queuePosition) {
+      if (status.isWaiting &&
+          mounted &&
+          status.queuePosition != _queuePosition) {
         setState(() {
           _queuePosition = status.queuePosition;
         });
@@ -1958,7 +2306,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
     _isMessagePollingActive = true;
     debugPrint('[POLLING] Started for: $_conversationId');
-    
+
     if (_conversationId == null) {
       debugPrint('[POLLING] No conversationId, skipping');
       return;
@@ -1967,21 +2315,29 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     int consecutiveErrors = 0;
     const int maxRetries = 60; // 60 lần x 500ms = 30 giây chờ server khôi phục
 
-    while (_isEscalated && mounted && _conversationId != null && !_isWaitingInQueue) {
-      await Future.delayed(const Duration(milliseconds: 500)); // 500ms cho gan real-time
-      
+    while (_isEscalated &&
+        mounted &&
+        _conversationId != null &&
+        !_isWaitingInQueue) {
+      await Future.delayed(
+        const Duration(milliseconds: 500),
+      ); // 500ms cho gan real-time
+
       if (!mounted || _conversationId == null || !_isEscalated) {
         debugPrint('[POLLING] Stopped');
         break;
       }
-      
+
       try {
         // Check nếu conversation đã resolved hoặc quay về AI mode
-        final status = await _chatService.getConversationStatus(_conversationId!, token);
-        
+        final status = await _chatService.getConversationStatus(
+          _conversationId!,
+          token,
+        );
+
         // API thành công → reset đếm lỗi
         consecutiveErrors = 0;
-        
+
         if (status.isResolved) {
           debugPrint('[POLLING] Conversation resolved');
           _handleChatEnded();
@@ -1993,72 +2349,80 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _handleChatEnded();
           break;
         }
-        
+
         // Lấy messages mới từ backend
-        final backendMessages = await _chatService.getMessages(_conversationId!, token);
+        final backendMessages = await _chatService.getMessages(
+          _conversationId!,
+          token,
+        );
         // Verbose log removed
-        
+
         if (mounted && backendMessages.isNotEmpty) {
           bool hasNewMessages = false;
-          
+
           for (final msg in backendMessages) {
             final msgId = msg['id']?.toString() ?? '';
             final content = msg['content'] as String? ?? '';
             final senderType = msg['senderType'] as String? ?? 'STUDENT';
-            
 
-            
             // Check SYSTEM message (thủ thư kết thúc)
             if (senderType == 'SYSTEM' && content.contains('kết thúc')) {
               debugPrint('[POLLING] SYSTEM: librarian ended chat');
               _handleChatEnded();
               return; // Exit polling
             }
-            
+
             // Only add if not already tracked
             if (msgId.isNotEmpty && !_messageIds.contains(msgId)) {
               _messageIds.add(msgId);
-              
+
               // Only add LIBRARIAN messages to UI (STUDENT messages are already local)
               if (senderType == 'LIBRARIAN' && content.isNotEmpty) {
                 debugPrint('[POLLING] New librarian message received');
                 hasNewMessages = true;
+                _dismissChatFeedbackCard();
                 // Parse [IMAGES] tag
                 String textPart = content;
                 List<String>? imgUrls;
                 if (content.contains('[IMAGES]')) {
                   final parts = content.split('[IMAGES]');
                   textPart = parts[0].trim();
-                  imgUrls = parts[1].trim().split('\n').where((u) => u.trim().startsWith('http')).toList();
+                  imgUrls = parts[1]
+                      .trim()
+                      .split('\n')
+                      .where((u) => u.trim().startsWith('http'))
+                      .toList();
                 }
                 setState(() {
-                  _messages.add(ChatMessage(
-                    text: textPart,
-                    isUser: false,
-                    isFromLibrarian: true,
-                    time: DateTime.now(),
-                    imageUrls: imgUrls,
-                  ));
+                  _messages.add(
+                    ChatMessage(
+                      text: textPart,
+                      isUser: false,
+                      isFromLibrarian: true,
+                      time: DateTime.now(),
+                      imageUrls: imgUrls,
+                    ),
+                  );
                 });
               }
             }
           }
-          
+
           if (hasNewMessages) {
             _scrollToBottom();
             _saveMessages(); // Lưu local khi có tin mới
           }
-
         }
       } catch (e) {
         consecutiveErrors++;
         debugPrint('[POLLING] Error #$consecutiveErrors: $e');
-        
+
         // Server đang restart → chờ lâu hơn, KHÔNG kết thúc chat
         if (consecutiveErrors <= maxRetries) {
-
           // Chờ lâu hơn khi có lỗi liên tiếp (1-3 giây)
-          await Future.delayed(Duration(milliseconds: consecutiveErrors > 10 ? 3000 : 1000));
+          await Future.delayed(
+            Duration(milliseconds: consecutiveErrors > 10 ? 3000 : 1000),
+          );
         } else {
           // Quá 30 giây lỗi liên tiếp → thông báo lỗi nhưng vẫn KHÔNG kết thúc
           debugPrint('[POLLING] Too many errors, stopping');
@@ -2102,24 +2466,34 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     setState(() {
       // Xóa waiting message (queue indicator)
       _messages.removeWhere((m) => m.type == ChatMessageType.waiting);
-      
+
       // Thêm tin nhắn user
-      _messages.add(ChatMessage(
-        text: "Không chờ nữa",
-        isUser: true,
-        time: DateTime.now(),
-      ));
-      
-      _messages.add(ChatMessage(
-        text: "Dạ, mong bạn thông cảm vì SLIB vẫn chưa hỗ trợ được bạn trực tiếp. Bạn có thể:",
-        isUser: false,
-        time: DateTime.now(),
-        type: ChatMessageType.withActions,
-        actions: [
-          ChatAction(id: 'submit_support_request', label: 'Gửi yêu cầu hỗ trợ', icon: '', isPrimary: true),
-          ChatAction(id: 'contact_later', label: 'Tôi sẽ liên hệ sau', icon: ''),
-        ],
-      ));
+      _messages.add(
+        ChatMessage(text: "Không chờ nữa", isUser: true, time: DateTime.now()),
+      );
+
+      _messages.add(
+        ChatMessage(
+          text:
+              "Dạ, mong bạn thông cảm vì SLIB vẫn chưa hỗ trợ được bạn trực tiếp. Bạn có thể:",
+          isUser: false,
+          time: DateTime.now(),
+          type: ChatMessageType.withActions,
+          actions: [
+            ChatAction(
+              id: 'submit_support_request',
+              label: 'Gửi yêu cầu hỗ trợ',
+              icon: '',
+              isPrimary: true,
+            ),
+            ChatAction(
+              id: 'contact_later',
+              label: 'Tôi sẽ liên hệ sau',
+              icon: '',
+            ),
+          ],
+        ),
+      );
     });
     _scrollToBottom();
   }
@@ -2136,20 +2510,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _handleContactLater() {
     setState(() {
       // Tin nhắn user
-      _messages.add(ChatMessage(
-        text: "Tiếp tục chat với bot",
-        isUser: true,
-        time: DateTime.now(),
-      ));
-      
+      _messages.add(
+        ChatMessage(
+          text: "Tiếp tục chat với bot",
+          isUser: true,
+          time: DateTime.now(),
+        ),
+      );
+
       // Reset escalation
       _isEscalated = false;
-      
-      _messages.add(ChatMessage(
-        text: "Dạ vâng ạ, SLIB luôn sẵn sàng giúp đỡ bạn. Bạn còn cần hỗ trợ gì không ạ?",
-        isUser: false,
-        time: DateTime.now(),
-      ));
+
+      _messages.add(
+        ChatMessage(
+          text:
+              "Dạ vâng ạ, SLIB luôn sẵn sàng giúp đỡ bạn. Bạn còn cần hỗ trợ gì không ạ?",
+          isUser: false,
+          time: DateTime.now(),
+        ),
+      );
     });
     _scrollToBottom();
   }
@@ -2163,7 +2542,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final token = await authService.getToken();
       if (token == null) return;
 
-      final success = await _chatService.studentResolveConversation(_conversationId!, token);
+      final success = await _chatService.studentResolveConversation(
+        _conversationId!,
+        token,
+      );
       if (success) {
         print('[CHAT] Student resolved conversation: $_conversationId');
         // Reuse _handleChatEnded logic
@@ -2171,7 +2553,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể kết thúc cuộc trò chuyện. Vui lòng thử lại.')),
+            const SnackBar(
+              content: Text(
+                'Không thể kết thúc cuộc trò chuyện. Vui lòng thử lại.',
+              ),
+            ),
           );
         }
       }
@@ -2200,9 +2586,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_rounded, color: Color(0xFF4CAF50), size: 20),
+            Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF4CAF50),
+              size: 20,
+            ),
             SizedBox(width: 8),
-            Text('Cảm ơn bạn đã đánh giá!', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(
+              'Cảm ơn bạn đã đánh giá!',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       );
@@ -2216,7 +2609,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFFF751F).withOpacity(0.2)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Column(
@@ -2242,9 +2639,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Icon(
-                    star <= _chatFeedbackRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    star <= _chatFeedbackRating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     size: 36,
-                    color: star <= _chatFeedbackRating ? const Color(0xFFFF751F) : Colors.grey[300],
+                    color: star <= _chatFeedbackRating
+                        ? const Color(0xFFFF751F)
+                        : Colors.grey[300],
                   ),
                 ),
               );
@@ -2260,10 +2661,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   backgroundColor: const Color(0xFFFF751F),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   elevation: 0,
                 ),
-                child: const Text('Gửi đánh giá', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Gửi đánh giá',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
           ],
@@ -2332,39 +2738,55 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     await prefs.setBool(_keyIsWaitingInQueue, false);
     await prefs.remove(_keyLibrarianName);
     // KHÔNG remove _keyConversationId - giữ session cho lần escalate tiếp theo
-    
+
     _feedbackConversationId = _conversationId;
     _chatFeedbackRating = 0;
     _chatFeedbackSubmitted = false;
 
-    final alreadyRated = prefs.getBool('chat_feedback_$_feedbackConversationId') ?? false;
+    final alreadyRated =
+        prefs.getBool('chat_feedback_$_feedbackConversationId') ?? false;
 
     setState(() {
       _isEscalated = false;
       _isWaitingInQueue = false;
       _librarianName = null;
-      
-      _messages.add(ChatMessage(
-        text: "Cuộc trò chuyện với thủ thư đã kết thúc. Bạn có thể:",
-        isUser: false,
-        time: DateTime.now(),
-        type: ChatMessageType.withActions,
-        actions: [
-          ChatAction(id: 'submit_support_request', label: 'Gửi yêu cầu hỗ trợ', icon: '', isPrimary: true),
-          ChatAction(id: 'contact_later', label: 'Tiếp tục chat với bot', icon: ''),
-        ],
-      ));
 
-      if (!alreadyRated && _feedbackConversationId != null) {
-        _messages.add(ChatMessage(
-          text: '',
+      _messages.add(
+        ChatMessage(
+          text: "Cuộc trò chuyện với thủ thư đã kết thúc. Bạn có thể:",
           isUser: false,
           time: DateTime.now(),
-          type: ChatMessageType.feedbackPrompt,
-        ));
+          type: ChatMessageType.withActions,
+          actions: [
+            ChatAction(
+              id: 'submit_support_request',
+              label: 'Gửi yêu cầu hỗ trợ',
+              icon: '',
+              isPrimary: true,
+            ),
+            ChatAction(
+              id: 'contact_later',
+              label: 'Tiếp tục chat với bot',
+              icon: '',
+            ),
+          ],
+        ),
+      );
+
+      if (!alreadyRated && _feedbackConversationId != null) {
+        _messages.add(
+          ChatMessage(
+            text: '',
+            isUser: false,
+            time: DateTime.now(),
+            type: ChatMessageType.feedbackPrompt,
+          ),
+        );
       }
     });
-    print('[CHAT] Librarian ended conversation (human session ended), back to AI mode. Session ID kept: $_conversationId');
+    print(
+      '[CHAT] Librarian ended conversation (human session ended), back to AI mode. Session ID kept: $_conversationId',
+    );
     _scrollToBottom();
 
     _isHandlingChatEnd = false;
@@ -2406,11 +2828,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     setState(() {
       _messages.clear();
       _messageIds.clear();
-      _messages.add(ChatMessage(
-        text: "Dạ, hi bạn! Rất vui được gặp bạn. Cần mình giúp gì cứ nói nha!",
-        isUser: false,
-        time: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          text:
+              "Dạ, hi bạn! Rất vui được gặp bạn. Cần mình giúp gì cứ nói nha!",
+          isUser: false,
+          time: DateTime.now(),
+        ),
+      );
       _isEscalated = false;
       _isWaitingInQueue = false;
       _conversationId = null;
@@ -2423,10 +2848,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
 // Model tin nhắn
 enum ChatMessageType {
-  text,           // Tin nhắn thông thường
-  withActions,    // Tin nhắn có action buttons
-  waiting,        // Đang chờ trong queue
+  text, // Tin nhắn thông thường
+  withActions, // Tin nhắn có action buttons
+  waiting, // Đang chờ trong queue
   feedbackPrompt, // Inline feedback card after chat ends
+  supportRequestContext, // Card ngữ cảnh từ yêu cầu hỗ trợ
 }
 
 class ChatAction {
@@ -2455,8 +2881,8 @@ class ChatMessage {
   final List<String>? imageUrls;
 
   ChatMessage({
-    required this.text, 
-    required this.isUser, 
+    required this.text,
+    required this.isUser,
     required this.time,
     this.isEscalation = false,
     this.isFromLibrarian = false,
@@ -2485,6 +2911,8 @@ class ChatMessage {
     isFromLibrarian: json['isFromLibrarian'] ?? false,
     type: ChatMessageType.values[json['type'] ?? 0],
     queuePosition: json['queuePosition'],
-    imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : null,
+    imageUrls: json['imageUrls'] != null
+        ? List<String>.from(json['imageUrls'])
+        : null,
   );
 }
