@@ -173,16 +173,19 @@ const ChatManage = () => {
     setSelectedFile(null);
     setImagePreview(null);
 
-    const tempId = `optimistic_${Date.now()}`;
-    const optimisticMsg = {
-      id: tempId,
-      content: currentFile ? (messageContent || 'Đang gửi ảnh...') : messageContent,
-      senderType: 'LIBRARIAN',
-      createdAt: new Date().toISOString(),
-      isMine: true,
-      _optimistic: true
-    };
-    setMessages(prev => [...prev, optimisticMsg]);
+    const shouldAddOptimisticMessage = Boolean(messageContent.trim());
+    if (shouldAddOptimisticMessage) {
+      const tempId = `optimistic_${Date.now()}`;
+      const optimisticMsg = {
+        id: tempId,
+        content: messageContent,
+        senderType: 'LIBRARIAN',
+        createdAt: new Date().toISOString(),
+        isMine: true,
+        _optimistic: true
+      };
+      setMessages(prev => [...prev, optimisticMsg]);
+    }
 
     try {
       const token = localStorage.getItem('librarian_token');

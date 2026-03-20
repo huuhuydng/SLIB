@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -79,6 +80,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _currentPage = 0; // Trang hiện tại (pagination)
   bool _hasMorePages = true; // Còn trang nào chưa load
   static const int _pageSize = 20; // Số tin nhắn mỗi trang
+  double _reloadSwipeDistance = 0;
+  double _reloadSwipeProgress = 0;
+  double _reloadSwipeVisualOffset = 0;
+  bool _showReloadSwipeHint = false;
+  bool _isReloadingFromSwipe = false;
+  bool _didReachReloadThreshold = false;
+  int? _activeReloadPointerId;
+  double? _reloadSwipeLastY;
+  static const double _reloadSwipeThreshold = 110;
+  static const double _reloadSwipeMaxVisualOffset = 96;
 
   // Polling guards - prevent overlapping loops
   bool _isAIPollingActive = false;
@@ -204,25 +215,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             if (senderType == 'LIBRARIAN') {
               _dismissChatFeedbackCard();
               final msgContent = msgData['content'] ?? '';
-              String textPart = msgContent;
-              List<String>? imgUrls;
-              if (msgContent.contains('[IMAGES]')) {
-                final parts = msgContent.split('[IMAGES]');
-                textPart = parts[0].trim();
-                imgUrls = parts[1]
-                    .trim()
-                    .split('\n')
-                    .where((u) => u.trim().startsWith('http'))
-                    .toList();
-              }
+              final parsedMessage = _parseMessageContent(
+                msgContent,
+                attachmentUrl: msgData['attachmentUrl']?.toString(),
+              );
               setState(() {
                 _messages.add(
                   ChatMessage(
-                    text: textPart,
+                    text: parsedMessage.text,
                     isUser: false,
                     time: DateTime.now(),
                     isFromLibrarian: true,
-                    imageUrls: imgUrls,
+                    imageUrls: parsedMessage.imageUrls.isNotEmpty
+                        ? parsedMessage.imageUrls
+                        : null,
                   ),
                 );
               });
@@ -652,6 +658,208 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _reloadChatState() async {
+    if (_isLoadingState) return;
+
+    setState(() {
+      _isLoadingState = true;
+    });
+
+    _isAIPollingActive = false;
+    _isStatusPollingActive = false;
+    _isMessagePollingActive = false;
+
+    _chatWsService.disconnect();
+    _messageIds.clear();
+
+    try {
+      await _loadSavedState();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã làm mới trạng thái trò chuyện')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể làm mới hội thoại: $e')),
+      );
+      setState(() {
+        _isLoadingState = false;
+      });
+    }
+  }
+
+  bool _canStartReloadSwipe() {
+    if (_isLoadingState || _isReloadingFromSwipe) return false;
+    if (!_scrollController.hasClients) return true;
+    return _scrollController.offset <= 8;
+  }
+
+  void _handleReloadPointerDown(PointerDownEvent event) {
+    if (!_canStartReloadSwipe() || _activeReloadPointerId != null) return;
+
+    _activeReloadPointerId = event.pointer;
+    _reloadSwipeLastY = event.position.dy;
+    _reloadSwipeDistance = 0;
+    _reloadSwipeProgress = 0;
+    _reloadSwipeVisualOffset = 0;
+    _showReloadSwipeHint = false;
+    _didReachReloadThreshold = false;
+  }
+
+  void _handleReloadPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activeReloadPointerId || _isReloadingFromSwipe) {
+      return;
+    }
+
+    final lastY = _reloadSwipeLastY;
+    if (lastY == null) return;
+
+    _reloadSwipeLastY = event.position.dy;
+
+    final delta = lastY - event.position.dy;
+    final nextDistance = (_reloadSwipeDistance + delta).clamp(
+      0.0,
+      _reloadSwipeThreshold,
+    );
+    final nextProgress = (nextDistance / _reloadSwipeThreshold).clamp(0.0, 1.0);
+
+    final crossedThreshold = nextProgress >= 1 && !_didReachReloadThreshold;
+    setState(() {
+      _reloadSwipeDistance = nextDistance;
+      _reloadSwipeProgress = nextProgress;
+      _reloadSwipeVisualOffset = nextDistance.clamp(
+        0.0,
+        _reloadSwipeMaxVisualOffset,
+      );
+      _showReloadSwipeHint = nextDistance > 8;
+      if (crossedThreshold) {
+        _didReachReloadThreshold = true;
+      }
+    });
+
+    if (crossedThreshold) {
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  Future<void> _endReloadSwipe() async {
+    if (_isReloadingFromSwipe) return;
+
+    final shouldReload = _showReloadSwipeHint && _reloadSwipeProgress >= 1;
+
+    _activeReloadPointerId = null;
+    _reloadSwipeLastY = null;
+
+    if (!shouldReload) {
+      if (!_showReloadSwipeHint && _reloadSwipeProgress == 0) return;
+      setState(() {
+        _reloadSwipeDistance = 0;
+        _reloadSwipeProgress = 0;
+        _reloadSwipeVisualOffset = 0;
+        _showReloadSwipeHint = false;
+        _didReachReloadThreshold = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isReloadingFromSwipe = true;
+      _reloadSwipeDistance = _reloadSwipeThreshold;
+      _reloadSwipeProgress = 1;
+      _reloadSwipeVisualOffset = _reloadSwipeMaxVisualOffset * 0.9;
+    });
+
+    try {
+      await _reloadChatState();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _reloadSwipeDistance = 0;
+          _reloadSwipeProgress = 0;
+          _reloadSwipeVisualOffset = 0;
+          _showReloadSwipeHint = false;
+          _isReloadingFromSwipe = false;
+          _didReachReloadThreshold = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildReloadSwipeIndicator() {
+    final progress = _isReloadingFromSwipe ? null : _reloadSwipeProgress;
+    final statusText = _isReloadingFromSwipe
+        ? 'Đang làm mới cuộc trò chuyện...'
+        : _reloadSwipeProgress >= 1
+        ? 'Thả tay để làm mới cuộc trò chuyện'
+        : 'Vuốt lên để làm mới cuộc trò chuyện';
+
+    return IgnorePointer(
+      child: AnimatedSlide(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        offset: Offset(
+          0,
+          _isReloadingFromSwipe ? 0 : 0.08 * (1 - _reloadSwipeProgress),
+        ),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 140),
+          opacity: 1,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 4,
+                            backgroundColor: Colors.grey[300],
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              AppColors.brandColor,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          _isReloadingFromSwipe
+                              ? Icons.refresh_rounded
+                              : _reloadSwipeProgress >= 1
+                              ? Icons.lock_open_rounded
+                              : Icons.arrow_upward_rounded,
+                          color: AppColors.brandColor,
+                          size: 22,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    statusText,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     // Bật lại push notification khi rời chat screen
@@ -766,7 +974,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               },
             ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.restart_alt),
             tooltip: "Bắt đầu cuộc trò chuyện mới",
             onPressed: () {
               showDialog(
@@ -798,219 +1006,294 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Escalation Banner - chỉ hiển thị khi đang chờ trong queue
-          if (_isEscalated && _isWaitingInQueue)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: Colors.orange[50],
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Bạn đã được chuyển đến thủ thư. Vui lòng chờ...",
-                      style: TextStyle(color: Colors.orange[800], fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // 1. Danh sách tin nhắn + scroll-to-bottom button
-          Expanded(
-            child: Stack(
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _handleReloadPointerDown,
+        onPointerMove: _handleReloadPointerMove,
+        onPointerUp: (_) => unawaited(_endReloadSwipe()),
+        onPointerCancel: (_) => unawaited(_endReloadSwipe()),
+        child: Stack(
+          children: [
+            Column(
               children: [
-                ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount:
-                      _messages.length +
-                      (_isTyping ? 1 : 0) +
-                      (_isLoadingMore ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    // reverse=true: index 0 = bottom (newest)
-                    // Typing indicator at bottom (index 0 when typing)
-                    if (_isTyping && index == 0) {
-                      return _buildTypingIndicator();
-                    }
-                    final adjustedIndex = _isTyping ? index - 1 : index;
-                    // Loading indicator at top (last index)
-                    final totalMessages = _messages.length;
-                    if (_isLoadingMore && adjustedIndex == totalMessages) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    }
-                    // Reverse: map index to message (newest first → oldest last)
-                    final msgIndex = totalMessages - 1 - adjustedIndex;
-                    if (msgIndex < 0 || msgIndex >= totalMessages)
-                      return const SizedBox.shrink();
-                    final message = _messages[msgIndex];
-                    final supportContext =
-                        message.isFromLibrarian &&
-                            msgIndex > 0 &&
-                            _messages[msgIndex - 1].type ==
-                                ChatMessageType.supportRequestContext
-                        ? _messages[msgIndex - 1]
-                        : null;
-                    final shouldHideStandaloneContext =
-                        message.type == ChatMessageType.supportRequestContext &&
-                        msgIndex + 1 < totalMessages &&
-                        _messages[msgIndex + 1].isFromLibrarian;
-                    if (shouldHideStandaloneContext) {
-                      return const SizedBox.shrink();
-                    }
-                    Widget? timeSeparator;
-                    if (msgIndex == 0) {
-                      timeSeparator = _buildTimeSeparator(message.time);
-                    } else {
-                      final prevMessage = _messages[msgIndex - 1];
-                      final diff = message.time.difference(prevMessage.time);
-                      if (diff.inMinutes.abs() >= 60) {
-                        timeSeparator = _buildTimeSeparator(message.time);
-                      }
-                    }
-                    return Column(
+                // Escalation Banner - chỉ hiển thị khi đang chờ trong queue
+                if (_isEscalated && _isWaitingInQueue)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    color: Colors.orange[50],
+                    child: Row(
                       children: [
-                        if (timeSeparator != null) timeSeparator,
-                        _buildMessageBubble(
-                          message,
-                          supportContext: supportContext,
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.orange[700],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Bạn đã được chuyển đến thủ thư. Vui lòng chờ...",
+                            style: TextStyle(
+                              color: Colors.orange[800],
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
                       ],
-                    );
-                  },
-                ),
-                // Nút scroll xuống cuối
-                if (_showScrollToBottom)
-                  Positioned(
-                    right: 16,
-                    bottom: 8,
-                    child: FloatingActionButton.small(
-                      heroTag: 'scroll_to_bottom',
-                      onPressed: _scrollToBottom,
-                      backgroundColor: AppColors.brandColor,
-                      child: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.white,
-                      ),
                     ),
                   ),
+
+                // 1. Danh sách tin nhắn + scroll-to-bottom button
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Transform.translate(
+                        offset: Offset(0, -_reloadSwipeVisualOffset),
+                        child: Stack(
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final showReloadIndicator =
+                                    _showReloadSwipeHint ||
+                                    _isReloadingFromSwipe;
+                                final reloadItemCount = showReloadIndicator
+                                    ? 1
+                                    : 0;
+                                final typingItemCount = _isTyping ? 1 : 0;
+                                final totalMessages = _messages.length;
+
+                                return ListView.builder(
+                                  controller: _scrollController,
+                                  reverse: true,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount:
+                                      totalMessages +
+                                      typingItemCount +
+                                      reloadItemCount +
+                                      (_isLoadingMore ? 1 : 0),
+                                  itemBuilder: (context, index) {
+                                    if (showReloadIndicator && index == 0) {
+                                      return _buildReloadSwipeIndicator();
+                                    }
+
+                                    final adjustedForReload =
+                                        index - reloadItemCount;
+
+                                    if (_isTyping && adjustedForReload == 0) {
+                                      return _buildTypingIndicator();
+                                    }
+
+                                    final adjustedIndex =
+                                        adjustedForReload - typingItemCount;
+
+                                    if (_isLoadingMore &&
+                                        adjustedIndex == totalMessages) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(16.0),
+                                        child: Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                    final msgIndex =
+                                        totalMessages - 1 - adjustedIndex;
+                                    if (msgIndex < 0 ||
+                                        msgIndex >= totalMessages) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    final message = _messages[msgIndex];
+                                    final supportContext =
+                                        message.isFromLibrarian &&
+                                            msgIndex > 0 &&
+                                            _messages[msgIndex - 1].type ==
+                                                ChatMessageType
+                                                    .supportRequestContext
+                                        ? _messages[msgIndex - 1]
+                                        : null;
+                                    final shouldHideStandaloneContext =
+                                        message.type ==
+                                            ChatMessageType
+                                                .supportRequestContext &&
+                                        msgIndex + 1 < totalMessages &&
+                                        _messages[msgIndex + 1].isFromLibrarian;
+                                    if (shouldHideStandaloneContext) {
+                                      return const SizedBox.shrink();
+                                    }
+
+                                    Widget? timeSeparator;
+                                    if (msgIndex == 0) {
+                                      timeSeparator = _buildTimeSeparator(
+                                        message.time,
+                                      );
+                                    } else {
+                                      final prevMessage =
+                                          _messages[msgIndex - 1];
+                                      final diff = message.time.difference(
+                                        prevMessage.time,
+                                      );
+                                      if (diff.inMinutes.abs() >= 60) {
+                                        timeSeparator = _buildTimeSeparator(
+                                          message.time,
+                                        );
+                                      }
+                                    }
+
+                                    return Column(
+                                      children: [
+                                        if (timeSeparator != null)
+                                          timeSeparator,
+                                        _buildMessageBubble(
+                                          message,
+                                          supportContext: supportContext,
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            // Nút scroll xuống cuối
+                            if (_showScrollToBottom)
+                              Positioned(
+                                right: 16,
+                                bottom: 8,
+                                child: FloatingActionButton.small(
+                                  heroTag: 'scroll_to_bottom',
+                                  onPressed: _scrollToBottom,
+                                  backgroundColor: AppColors.brandColor,
+                                  child: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // 2. Khu vực Gợi ý (Suggestions)
+                if (_messages.length < 4 &&
+                    !_isEscalated) // Chỉ hiện gợi ý khi hội thoại còn ngắn
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _suggestions.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ActionChip(
+                            label: Text(
+                              _suggestions[index],
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            backgroundColor: Colors.grey[100],
+                            side: BorderSide.none,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            onPressed: () =>
+                                _handleSubmitted(_suggestions[index]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                // 3. Thanh nhập liệu (Input Bar)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        offset: const Offset(0, -2),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.add_circle_outline,
+                            color: Colors.grey,
+                          ),
+                          onPressed:
+                              _isEscalated &&
+                                  _conversationId != null &&
+                                  !_isWaitingInQueue
+                              ? () => _handlePickImage()
+                              : null,
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _textController,
+                            decoration: InputDecoration(
+                              hintText: _isEscalated
+                                  ? "Nhắn tin cho thủ thư..."
+                                  : "Nhập tin nhắn...",
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: (text) {},
+                            onSubmitted: _handleSubmitted,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.brandColor,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () =>
+                                _handleSubmitted(_textController.text),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-
-          // 2. Khu vực Gợi ý (Suggestions)
-          if (_messages.length < 4 &&
-              !_isEscalated) // Chỉ hiện gợi ý khi hội thoại còn ngắn
-            SizedBox(
-              height: 50,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _suggestions.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ActionChip(
-                      label: Text(
-                        _suggestions[index],
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      backgroundColor: Colors.grey[100],
-                      side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      onPressed: () => _handleSubmitted(_suggestions[index]),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-          // 3. Thanh nhập liệu (Input Bar)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -2),
-                  blurRadius: 10,
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_circle_outline,
-                      color: Colors.grey,
-                    ),
-                    onPressed:
-                        _isEscalated &&
-                            _conversationId != null &&
-                            !_isWaitingInQueue
-                        ? () => _handlePickImage()
-                        : null,
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      decoration: InputDecoration(
-                        hintText: _isEscalated
-                            ? "Nhắn tin cho thủ thư..."
-                            : "Nhập tin nhắn...",
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (text) {},
-                      onSubmitted: _handleSubmitted,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.brandColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: () => _handleSubmitted(_textController.text),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1036,7 +1319,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   ChatMessage? _buildChatMessageFromBackend(Map<String, dynamic> msg) {
     final content = msg['content'] as String? ?? '';
-    if (content.isEmpty) return null;
+    final attachmentUrl = msg['attachmentUrl'] as String?;
+    if (content.isEmpty && (attachmentUrl == null || attachmentUrl.isEmpty)) {
+      return null;
+    }
 
     final senderType = msg['senderType'] as String? ?? 'STUDENT';
     final msgTime = _parseBackendMessageTime(msg['createdAt']?.toString());
@@ -1053,7 +1339,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       );
     }
 
-    final parsedContent = _parseMessageContent(content);
+    final parsedContent = _parseMessageContent(
+      content,
+      attachmentUrl: attachmentUrl,
+    );
     return ChatMessage(
       text: parsedContent.text,
       isUser: senderType == 'STUDENT',
@@ -1078,22 +1367,70 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     return content.trimLeft().startsWith('[YÊU CẦU HỖ TRỢ]');
   }
 
-  ({String text, List<String> imageUrls}) _parseMessageContent(String content) {
+  ({String text, List<String> imageUrls}) _parseMessageContent(
+    String content, {
+    String? attachmentUrl,
+  }) {
     if (!content.contains('[IMAGES]')) {
-      return (text: content.trim(), imageUrls: <String>[]);
+      return (
+        text: content.trim(),
+        imageUrls: _extractImageUrls(attachmentUrl: attachmentUrl),
+      );
     }
 
     final parts = content.split('[IMAGES]');
     final text = parts.first.trim();
-    final imageUrls = parts.length > 1
-        ? parts[1]
-              .trim()
-              .split('\n')
-              .where((url) => url.trim().startsWith('http'))
-              .map((url) => url.trim())
-              .toList()
-        : <String>[];
+    final imageUrls = _extractImageUrls(
+      contentBlock: parts.length > 1 ? parts[1] : null,
+      attachmentUrl: attachmentUrl,
+    );
     return (text: text, imageUrls: imageUrls);
+  }
+
+  List<String> _extractImageUrls({
+    String? contentBlock,
+    String? attachmentUrl,
+  }) {
+    final urls = <String>[];
+
+    if (contentBlock != null && contentBlock.isNotEmpty) {
+      urls.addAll(
+        contentBlock
+            .trim()
+            .split('\n')
+            .where((url) => url.trim().startsWith('http'))
+            .map((url) => url.trim()),
+      );
+    }
+
+    final normalizedAttachment = attachmentUrl?.trim();
+    if (normalizedAttachment != null &&
+        normalizedAttachment.startsWith('http') &&
+        !urls.contains(normalizedAttachment)) {
+      urls.add(normalizedAttachment);
+    }
+
+    return urls.map(_normalizeImageUrlForMobile).toList();
+  }
+
+  String _normalizeImageUrlForMobile(String url) {
+    final trimmedUrl = url.trim();
+    if (!trimmedUrl.startsWith('http')) {
+      return trimmedUrl;
+    }
+
+    String transformedUrl = trimmedUrl;
+    if (trimmedUrl.contains('res.cloudinary.com') &&
+        trimmedUrl.contains('/upload/') &&
+        !trimmedUrl.contains('/upload/f_auto,q_auto/')) {
+      transformedUrl = trimmedUrl.replaceFirst(
+        '/upload/',
+        '/upload/f_auto,q_auto/',
+      );
+    }
+
+    final encodedUrl = Uri.encodeComponent(transformedUrl);
+    return '${ApiConstants.domain}/slib/files/proxy-image?url=$encodedUrl';
   }
 
   ({String description, List<String> imageUrls}) _parseSupportRequestContext(
@@ -1127,6 +1464,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     bool isUser = message.isUser;
     bool isWaitingType = message.type == ChatMessageType.waiting;
     bool hasText = message.text.isNotEmpty;
+    bool hasImages = message.imageUrls != null && message.imageUrls!.isNotEmpty;
 
     // Nội dung bubble + extra items
     Widget bubbleContent = IntrinsicWidth(
@@ -1138,10 +1476,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               padding: const EdgeInsets.only(top: 4, bottom: 6),
               child: _buildSupportRequestCard(supportContext),
             ),
-          if (hasText)
+          if (hasText || hasImages)
             Container(
               margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                hasText ? 12 : 8,
+                16,
+                hasText ? 12 : 8,
+              ),
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.7,
               ),
@@ -1184,48 +1527,47 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         ],
                       ),
                     ),
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : AppColors.textPrimary,
-                      fontSize: 15,
-                      height: 1.4,
+                  if (hasText)
+                    Text(
+                      message.text,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : AppColors.textPrimary,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
                   // Hiện ảnh nếu có
-                  if (message.imageUrls != null &&
-                      message.imageUrls!.isNotEmpty)
+                  if (hasImages)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: EdgeInsets.only(top: hasText ? 8 : 0),
                       child: Wrap(
                         spacing: 6,
                         runSpacing: 6,
-                        children: message.imageUrls!
-                            .map(
-                              (url) => GestureDetector(
-                                onTap: () => _showFullImage(url),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    url,
-                                    width: 120,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (ctx, err, stack) =>
-                                        Container(
-                                          width: 120,
-                                          height: 120,
-                                          color: Colors.grey[300],
-                                          child: const Icon(
-                                            Icons.broken_image,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                  ),
-                                ),
+                        children: message.imageUrls!.asMap().entries.map((
+                          entry,
+                        ) {
+                          final index = entry.key;
+                          final url = entry.value;
+                          final localImagePath = index == 0
+                              ? message.localImagePath
+                              : null;
+                          return GestureDetector(
+                            onTap: () => _showFullImage(
+                              url,
+                              localImagePath: localImagePath,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _buildChatImageWidget(
+                                url: url,
+                                localImagePath: localImagePath,
+                                width: 180,
+                                height: 220,
+                                fit: BoxFit.contain,
                               ),
-                            )
-                            .toList(),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                 ],
@@ -1371,31 +1713,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: message.imageUrls!
-                  .map(
-                    (url) => GestureDetector(
-                      onTap: () => _showFullImage(url),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          url,
-                          width: 88,
-                          height: 88,
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, stack) => Container(
-                            width: 88,
-                            height: 88,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ),
+              children: message.imageUrls!.asMap().entries.map((entry) {
+                final index = entry.key;
+                final url = entry.value;
+                final localImagePath = index == 0
+                    ? message.localImagePath
+                    : null;
+                return GestureDetector(
+                  onTap: () =>
+                      _showFullImage(url, localImagePath: localImagePath),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _buildChatImageWidget(
+                      url: url,
+                      localImagePath: localImagePath,
+                      width: 110,
+                      height: 140,
+                      fit: BoxFit.contain,
                     ),
-                  )
-                  .toList(),
+                  ),
+                );
+              }).toList(),
             ),
           ],
         ],
@@ -1442,7 +1780,48 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   /// Hiện ảnh full-size trong dialog
-  void _showFullImage(String url) {
+  Widget _buildChatImageWidget({
+    required String url,
+    String? localImagePath,
+    required double width,
+    required double height,
+    BoxFit fit = BoxFit.contain,
+  }) {
+    final hasLocalFile =
+        localImagePath != null && File(localImagePath).existsSync();
+
+    Widget imageWidget;
+    if (hasLocalFile) {
+      imageWidget = Image.file(
+        File(localImagePath),
+        width: width,
+        height: height,
+        fit: fit,
+      );
+    } else {
+      imageWidget = Image.network(
+        url,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (ctx, err, stack) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        ),
+      );
+    }
+
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.white.withOpacity(0.08),
+      child: Center(child: imageWidget),
+    );
+  }
+
+  void _showFullImage(String url, {String? localImagePath}) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1450,7 +1829,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         child: GestureDetector(
           onTap: () => Navigator.of(ctx).pop(),
           child: InteractiveViewer(
-            child: Image.network(url, fit: BoxFit.contain),
+            child: _buildChatImageWidget(
+              url: url,
+              localImagePath: localImagePath,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ),
@@ -1639,7 +2024,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
       if (token != null && _conversationId != null) {
-        final responseContent = await _chatService.sendMessageWithImage(
+        final responseData = await _chatService.sendMessageWithImage(
           conversationId: _conversationId!,
           imageFile: file,
           senderType: 'STUDENT',
@@ -1651,32 +2036,29 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _messages.removeWhere((m) => m.text == 'Đang gửi ảnh...' && m.isUser);
         });
 
-        if (responseContent != null) {
-          // Parse [IMAGES] tag và thêm message thật kèm ảnh
-          String textPart = '';
-          List<String>? imgUrls;
-          if (responseContent.contains('[IMAGES]')) {
-            final parts = responseContent.split('[IMAGES]');
-            textPart = parts[0].trim();
-            imgUrls = parts[1]
-                .trim()
-                .split('\n')
-                .where((u) => u.trim().startsWith('http'))
-                .toList();
-          }
+        if (responseData != null) {
+          final parsedMessage = _parseMessageContent(
+            responseData['content']?.toString() ?? '',
+            attachmentUrl: responseData['attachmentUrl']?.toString(),
+          );
           setState(() {
             _messages.add(
               ChatMessage(
-                text: textPart.isNotEmpty ? textPart : 'Đã gửi ảnh',
+                text: parsedMessage.text,
                 isUser: true,
                 time: DateTime.now(),
-                imageUrls: imgUrls,
+                imageUrls: parsedMessage.imageUrls.isNotEmpty
+                    ? parsedMessage.imageUrls
+                    : null,
+                localImagePath: file.path,
               ),
             );
           });
           _scrollToBottom();
           _saveMessages();
-          print('[CHAT] Image sent successfully, urls: $imgUrls');
+          print(
+            '[CHAT] Image sent successfully, urls: ${parsedMessage.imageUrls}',
+          );
         } else {
           setState(() {
             _messages.add(
@@ -2227,26 +2609,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         if (senderType == 'LIBRARIAN') {
           _dismissChatFeedbackCard();
           final msgContent = msgData['content'] ?? '';
-          // Parse [IMAGES] tag
-          String textPart = msgContent;
-          List<String>? imgUrls;
-          if (msgContent.contains('[IMAGES]')) {
-            final parts = msgContent.split('[IMAGES]');
-            textPart = parts[0].trim();
-            imgUrls = parts[1]
-                .trim()
-                .split('\n')
-                .where((u) => u.trim().startsWith('http'))
-                .toList();
-          }
+          final parsedMessage = _parseMessageContent(
+            msgContent,
+            attachmentUrl: msgData['attachmentUrl']?.toString(),
+          );
           setState(() {
             _messages.add(
               ChatMessage(
-                text: textPart,
+                text: parsedMessage.text,
                 isUser: false,
                 time: DateTime.now(),
                 isFromLibrarian: true,
-                imageUrls: imgUrls,
+                imageUrls: parsedMessage.imageUrls.isNotEmpty
+                    ? parsedMessage.imageUrls
+                    : null,
               ),
             );
           });
@@ -2377,30 +2753,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _messageIds.add(msgId);
 
               // Only add LIBRARIAN messages to UI (STUDENT messages are already local)
-              if (senderType == 'LIBRARIAN' && content.isNotEmpty) {
+              final attachmentUrl = msg['attachmentUrl']?.toString();
+              if (senderType == 'LIBRARIAN' &&
+                  (content.isNotEmpty ||
+                      (attachmentUrl != null && attachmentUrl.isNotEmpty))) {
                 debugPrint('[POLLING] New librarian message received');
                 hasNewMessages = true;
                 _dismissChatFeedbackCard();
-                // Parse [IMAGES] tag
-                String textPart = content;
-                List<String>? imgUrls;
-                if (content.contains('[IMAGES]')) {
-                  final parts = content.split('[IMAGES]');
-                  textPart = parts[0].trim();
-                  imgUrls = parts[1]
-                      .trim()
-                      .split('\n')
-                      .where((u) => u.trim().startsWith('http'))
-                      .toList();
-                }
+                final parsedMessage = _parseMessageContent(
+                  content,
+                  attachmentUrl: attachmentUrl,
+                );
                 setState(() {
                   _messages.add(
                     ChatMessage(
-                      text: textPart,
+                      text: parsedMessage.text,
                       isUser: false,
                       isFromLibrarian: true,
                       time: DateTime.now(),
-                      imageUrls: imgUrls,
+                      imageUrls: parsedMessage.imageUrls.isNotEmpty
+                          ? parsedMessage.imageUrls
+                          : null,
                     ),
                   );
                 });
@@ -2879,6 +3252,7 @@ class ChatMessage {
   final List<ChatAction>? actions;
   final int? queuePosition;
   final List<String>? imageUrls;
+  final String? localImagePath;
 
   ChatMessage({
     required this.text,
@@ -2890,6 +3264,7 @@ class ChatMessage {
     this.actions,
     this.queuePosition,
     this.imageUrls,
+    this.localImagePath,
   });
 
   Map<String, dynamic> toJson() => {
@@ -2901,6 +3276,7 @@ class ChatMessage {
     'type': type.index,
     'queuePosition': queuePosition,
     'imageUrls': imageUrls,
+    'localImagePath': localImagePath,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -2914,5 +3290,6 @@ class ChatMessage {
     imageUrls: json['imageUrls'] != null
         ? List<String>.from(json['imageUrls'])
         : null,
+    localImagePath: json['localImagePath'],
   );
 }
