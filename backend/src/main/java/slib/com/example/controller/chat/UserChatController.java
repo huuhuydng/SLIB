@@ -23,6 +23,7 @@ import slib.com.example.entity.users.Role;
 import slib.com.example.exception.BadRequestException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -375,7 +376,7 @@ public class UserChatController {
             }
 
             // Validate file type (images only)
-            String contentType = file.getContentType();
+            String contentType = resolveImageContentType(file);
             if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType)) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ file ảnh (JPEG, PNG, GIF, WebP)"));
             }
@@ -476,6 +477,31 @@ public class UserChatController {
         return user.getId();
     }
 
+    private String resolveImageContentType(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType != null && !contentType.isBlank() && !"application/octet-stream".equalsIgnoreCase(contentType)) {
+            return contentType.toLowerCase(Locale.ROOT);
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !originalFilename.contains(".")) {
+            return null;
+        }
+
+        String extension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1)
+                .toLowerCase(Locale.ROOT);
+
+        return switch (extension) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "heic" -> "image/heic";
+            case "heif" -> "image/heif";
+            default -> null;
+        };
+    }
+
     private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp");
+            "image/jpeg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif");
 }

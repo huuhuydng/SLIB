@@ -33,6 +33,6 @@ public class ChatMessageDTO {
         }
         // Web màn hình to hơn điện thoại, ta resize khoảng 500px là đẹp
         // c_limit: Giới hạn chiều rộng, giữ nguyên tỉ lệ ảnh
-        return this.attachmentUrl.replace("/upload/", "/upload/w_500,c_limit,q_auto/");
+        return this.attachmentUrl.replace("/upload/", "/upload/f_auto,q_auto,w_500,c_limit/");
     }
 }

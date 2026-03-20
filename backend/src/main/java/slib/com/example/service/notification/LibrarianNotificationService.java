@@ -69,6 +69,13 @@ public class LibrarianNotificationService {
     }
 
     /**
+     * Đếm số conversation có tin nhắn chưa đọc từ student cho một librarian cụ thể
+     */
+    public long getUnreadChatConversationCount(java.util.UUID librarianId) {
+        return messageRepository.countUnreadStudentConversationsForLibrarian(librarianId);
+    }
+
+    /**
      * Đánh dấu tất cả tin nhắn student trong conversation đã đọc
      * Gọi khi thủ thư mở/chọn conversation
      */

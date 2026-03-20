@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:slib/core/constants/api_constants.dart';
 
 /// Chat Service for AI Assistant integration
@@ -22,7 +23,11 @@ class ChatService {
 
   /// Send message to AI and get response
   /// Returns ChatResponse with reply, escalation status, etc.
-  Future<ChatResponse> sendMessage(String message, {String? studentId, String? conversationId}) async {
+  Future<ChatResponse> sendMessage(
+    String message, {
+    String? studentId,
+    String? conversationId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse(_aiChatUrl),
@@ -38,10 +43,10 @@ class ChatService {
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
-        
+
         // Store session ID for subsequent messages
         _sessionId = jsonMap['session_id'];
-        
+
         return ChatResponse(
           success: jsonMap['success'] ?? false,
           reply: jsonMap['reply'] ?? 'Xin lỗi, tôi không thể trả lời lúc này.',
@@ -52,7 +57,9 @@ class ChatService {
           escalationMessage: jsonMap['escalation_message'],
         );
       } else {
-        print('[AI Chat] Error: status=${response.statusCode}, body=${response.body}');
+        print(
+          '[AI Chat] Error: status=${response.statusCode}, body=${response.body}',
+        );
         return ChatResponse(
           success: false,
           reply: 'Lỗi kết nối với AI. Vui lòng thử lại sau.',
@@ -79,7 +86,7 @@ class ChatService {
   void clearSession() {
     _sessionId = null;
   }
-  
+
   /// Get current session ID
   String? get sessionId => _sessionId;
 
@@ -96,15 +103,14 @@ class ChatService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
         },
-        body: jsonEncode({
-          'content': content,
-          'senderType': senderType,
-        }),
+        body: jsonEncode({'content': content, 'senderType': senderType}),
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -114,8 +120,8 @@ class ChatService {
   }
 
   /// Gửi tin nhắn kèm ảnh đến backend
-  /// Trả về content (chứa [IMAGES] url) nếu thành công, null nếu thất bại
-  Future<String?> sendMessageWithImage({
+  /// Trả về payload tin nhắn nếu thành công, null nếu thất bại
+  Future<Map<String, dynamic>?> sendMessageWithImage({
     required String conversationId,
     required File imageFile,
     String content = '',
@@ -123,19 +129,31 @@ class ChatService {
     required String authToken,
   }) async {
     try {
-      final uri = Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages/with-image');
+      final uri = Uri.parse(
+        '${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages/with-image',
+      );
+      final mimeType = _getImageMimeType(imageFile.path);
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer $authToken'
         ..fields['content'] = content
         ..fields['senderType'] = senderType
-        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+        ..files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            imageFile.path,
+            contentType: MediaType.parse(mimeType),
+          ),
+        );
 
       final response = await request.send();
       if (response.statusCode == 200) {
         final body = await response.stream.bytesToString();
-        final data = jsonDecode(body);
-        return data['content'] as String?;
+        return jsonDecode(body) as Map<String, dynamic>;
       }
+      final errorBody = await response.stream.bytesToString();
+      print(
+        'Send Image Message Error: status=${response.statusCode}, body=$errorBody',
+      );
       return null;
     } catch (e) {
       print('Send Image Message Error: $e');
@@ -143,14 +161,37 @@ class ChatService {
     }
   }
 
+  String _getImageMimeType(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'heif':
+        return 'image/heif';
+      case 'jpg':
+      case 'jpeg':
+      default:
+        return 'image/jpeg';
+    }
+  }
+
   /// Lấy tất cả messages của conversation
-  Future<List<Map<String, dynamic>>> getMessages(String conversationId, String authToken) async {
+  Future<List<Map<String, dynamic>>> getMessages(
+    String conversationId,
+    String authToken,
+  ) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       if (response.statusCode == 200) {
@@ -165,13 +206,16 @@ class ChatService {
   }
 
   /// Lấy status của conversation (để biết khi nào librarian tiếp nhận)
-  Future<ConversationStatus> getConversationStatus(String conversationId, String authToken) async {
+  Future<ConversationStatus> getConversationStatus(
+    String conversationId,
+    String authToken,
+  ) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/status'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/status',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       if (response.statusCode == 200) {
@@ -186,7 +230,11 @@ class ChatService {
     } catch (e) {
       print('Get Status Error: $e');
       // Return với hasError=true để polling biết là lỗi mạng, không phải thủ thư kết thúc
-      return ConversationStatus(status: 'ERROR', librarianName: '', hasError: true);
+      return ConversationStatus(
+        status: 'ERROR',
+        librarianName: '',
+        hasError: true,
+      );
     }
   }
 
@@ -197,13 +245,15 @@ class ChatService {
   /// Request librarian - tạo conversation mới và escalate trong 1 bước
   /// aiSessionId: session ID của AI service (MongoDB) để backend đọc chat history
   Future<EscalationResult> requestLibrarian(
-    String? reason, 
-    String authToken, 
-    {String? aiSessionId}
-  ) async {
+    String? reason,
+    String authToken, {
+    String? aiSessionId,
+  }) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/request-librarian'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/request-librarian',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
@@ -222,19 +272,33 @@ class ChatService {
           queuePosition: jsonMap['queuePosition'] ?? 1,
         );
       }
-      return EscalationResult(success: false, conversationId: '', queuePosition: 0);
+      return EscalationResult(
+        success: false,
+        conversationId: '',
+        queuePosition: 0,
+      );
     } catch (e) {
       print('Request Librarian Error: $e');
-      return EscalationResult(success: false, conversationId: '', queuePosition: 0);
+      return EscalationResult(
+        success: false,
+        conversationId: '',
+        queuePosition: 0,
+      );
     }
   }
 
   /// Escalate conversation to human librarian
   /// Returns the conversation ID from backend
-  Future<EscalationResult> escalateToHuman(String conversationId, String reason, String authToken) async {
+  Future<EscalationResult> escalateToHuman(
+    String conversationId,
+    String reason,
+    String authToken,
+  ) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/escalate'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/escalate',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
@@ -250,21 +314,32 @@ class ChatService {
           queuePosition: 1, // Will be updated by getQueuePosition
         );
       }
-      return EscalationResult(success: false, conversationId: conversationId, queuePosition: 0);
+      return EscalationResult(
+        success: false,
+        conversationId: conversationId,
+        queuePosition: 0,
+      );
     } catch (e) {
       print('Escalation Error: $e');
-      return EscalationResult(success: false, conversationId: conversationId, queuePosition: 0);
+      return EscalationResult(
+        success: false,
+        conversationId: conversationId,
+        queuePosition: 0,
+      );
     }
   }
 
   /// Get current queue position for a conversation
-  Future<QueueInfo> getQueuePosition(String conversationId, String authToken) async {
+  Future<QueueInfo> getQueuePosition(
+    String conversationId,
+    String authToken,
+  ) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/queue-position'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/queue-position',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       if (response.statusCode == 200) {
@@ -282,13 +357,13 @@ class ChatService {
   }
 
   /// Check xem student có conversation đang active không (HUMAN_CHATTING / QUEUE_WAITING)
-  Future<Map<String, dynamic>?> getMyActiveConversation(String authToken) async {
+  Future<Map<String, dynamic>?> getMyActiveConversation(
+    String authToken,
+  ) async {
     try {
       final response = await http.get(
         Uri.parse('${ApiConstants.domain}/slib/chat/conversations/my-active'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       if (response.statusCode == 200) {
@@ -308,10 +383,10 @@ class ChatService {
   Future<bool> cancelEscalation(String conversationId, String authToken) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/cancel-escalation'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/cancel-escalation',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       return response.statusCode == 200;
@@ -325,7 +400,9 @@ class ChatService {
   Future<bool> cancelQueue(String conversationId, String authToken) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/cancel-queue'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/cancel-queue',
+        ),
         headers: {
           'Authorization': 'Bearer $authToken',
           'Content-Type': 'application/json',
@@ -339,13 +416,16 @@ class ChatService {
   }
 
   /// Student kết thúc cuộc trò chuyện với thủ thư
-  Future<bool> studentResolveConversation(String conversationId, String authToken) async {
+  Future<bool> studentResolveConversation(
+    String conversationId,
+    String authToken,
+  ) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/student-resolve'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/student-resolve',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
       return response.statusCode == 200;
     } catch (e) {
@@ -358,7 +438,9 @@ class ChatService {
   Future<void> sendTypingIndicator(String conversationId, bool isTyping) async {
     try {
       await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/typing'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/typing',
+        ),
         headers: await _authHeaders(),
         body: jsonEncode({'isTyping': isTyping}),
       );
@@ -369,13 +451,17 @@ class ChatService {
 
   /// Lấy messages với phân trang (page 0 = mới nhất, client reverse lại)
   Future<Map<String, dynamic>> getMessagesPaginated(
-      String conversationId, String authToken, {int page = 0, int size = 20}) async {
+    String conversationId,
+    String authToken, {
+    int page = 0,
+    int size = 20,
+  }) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages?page=$page&size=$size'),
-        headers: {
-          'Authorization': 'Bearer $authToken',
-        },
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/messages?page=$page&size=$size',
+        ),
+        headers: {'Authorization': 'Bearer $authToken'},
       );
 
       if (response.statusCode == 200) {
@@ -393,7 +479,9 @@ class ChatService {
   Future<String?> getOrCreateConversation(String authToken) async {
     try {
       final response = await http.post(
-        Uri.parse('${ApiConstants.domain}/slib/chat/conversations/get-or-create'),
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/get-or-create',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
@@ -430,10 +518,7 @@ class QueueInfo {
   final int position;
   final int totalWaiting;
 
-  QueueInfo({
-    required this.position,
-    required this.totalWaiting,
-  });
+  QueueInfo({required this.position, required this.totalWaiting});
 }
 
 /// Response model from AI Chat API

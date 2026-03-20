@@ -124,9 +124,8 @@ function HeaderBar() {
   const bellRef = useRef(null);
   const navigate = useNavigate();
 
-  // Replace chats count in total with unreadChatCount to avoid double-counting
-  const chatBadge = unreadChatCount || pendingCounts.chats || 0;
-  const bellTotal = (pendingCounts.total - (pendingCounts.chats || 0)) + chatBadge;
+  const unreadMessageCount = unreadChatCount || 0;
+  const bellTotal = (pendingCounts.total || 0) + unreadMessageCount;
 
   // Dong dropdown khi click ra ngoai
   useEffect(() => {
@@ -168,7 +167,9 @@ function HeaderBar() {
     try {
       const s = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
       if (s) { const u = JSON.parse(s); return { name: u.fullName || u.email?.split('@')[0] || 'Thủ thư', role: u.role || 'LIBRARIAN' }; }
-    } catch { }
+    } catch {
+      return { name: 'Thủ thư', role: 'LIBRARIAN' };
+    }
     return { name: 'Thủ thư', role: 'LIBRARIAN' };
   });
 

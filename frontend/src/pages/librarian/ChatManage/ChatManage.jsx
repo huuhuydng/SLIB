@@ -6,7 +6,6 @@ import { Client } from '@stomp/stompjs';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/ChatManage.css';
 
-import { handleLogout } from "../../../utils/auth";
 import { useLibrarianNotification } from "../../../context/LibrarianNotificationContext";
 import {
   Image as ImageIcon,
@@ -47,7 +46,7 @@ const ChatManage = () => {
   const fetchIdRef = useRef(0);
 
   // Notification context for badge updates & chat toast
-  const { refreshUnreadChatCount, chatToast, setChatToast } = useLibrarianNotification();
+  const { refreshUnreadChatCount } = useLibrarianNotification();
   // Keep ref in sync with state
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -120,6 +119,26 @@ const ChatManage = () => {
     }
   }, []);
 
+  const markConversationAsRead = useCallback(async (conversationId) => {
+    if (!conversationId) return;
+    try {
+      const token = localStorage.getItem('librarian_token');
+      const response = await fetch(`${API_BASE}/slib/librarian/chat/${conversationId}/mark-read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        refreshUnreadChatCount?.();
+      }
+    } catch (err) {
+      console.error('Error marking conversation as read:', err);
+    }
+  }, [refreshUnreadChatCount]);
+
   // Take over conversation
   const handleTakeOver = async (conversationId) => {
     try {
@@ -154,16 +173,19 @@ const ChatManage = () => {
     setSelectedFile(null);
     setImagePreview(null);
 
-    const tempId = `optimistic_${Date.now()}`;
-    const optimisticMsg = {
-      id: tempId,
-      content: currentFile ? (messageContent || 'Đang gửi ảnh...') : messageContent,
-      senderType: 'LIBRARIAN',
-      createdAt: new Date().toISOString(),
-      isMine: true,
-      _optimistic: true
-    };
-    setMessages(prev => [...prev, optimisticMsg]);
+    const shouldAddOptimisticMessage = Boolean(messageContent.trim());
+    if (shouldAddOptimisticMessage) {
+      const tempId = `optimistic_${Date.now()}`;
+      const optimisticMsg = {
+        id: tempId,
+        content: messageContent,
+        senderType: 'LIBRARIAN',
+        createdAt: new Date().toISOString(),
+        isMine: true,
+        _optimistic: true
+      };
+      setMessages(prev => [...prev, optimisticMsg]);
+    }
 
     try {
       const token = localStorage.getItem('librarian_token');
@@ -257,12 +279,14 @@ const ChatManage = () => {
     if (selectedConversationId) {
       setMessages([]);
       fetchMessages(selectedConversationId);
+      markConversationAsRead(selectedConversationId);
       const interval = setInterval(() => {
         fetchMessages(selectedConversationId);
+        markConversationAsRead(selectedConversationId);
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [selectedConversationId, fetchMessages]);
+  }, [selectedConversationId, fetchMessages, markConversationAsRead]);
 
   // WebSocket connection
   useEffect(() => {
@@ -299,6 +323,7 @@ const ChatManage = () => {
             // Refresh messages if viewing this conversation (no toast here — context handles it)
             if (data.conversationId === selectedConversationIdRef.current) {
               fetchMessages(data.conversationId);
+              markConversationAsRead(data.conversationId);
             }
             // Refresh conversation list (but don't auto-switch)
             fetchConversations();
@@ -361,9 +386,13 @@ const ChatManage = () => {
           }
           return [...prev, newMessage];
         });
+
+        if (newMessage.senderType === 'STUDENT') {
+          markConversationAsRead(conversationId);
+        }
       }
     );
-  }, []);
+  }, [markConversationAsRead]);
 
   useEffect(() => {
     if (selectedConversationId && wsConnected) {

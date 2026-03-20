@@ -23,6 +23,7 @@ import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -560,6 +561,7 @@ public class ConversationService {
                                         .senderId(lastMsg.getSender().getId())
                                         .receiverId(lastMsg.getReceiver().getId())
                                         .content(lastMsg.getContent())
+                                        .attachmentUrl(lastMsg.getAttachmentUrl())
                                         .type(lastMsg.getType())
                                         .createdAt(lastMsg.getCreatedAt())
                                         .build();
@@ -765,13 +767,17 @@ public class ConversationService {
                         humanSessionId = null;
                 }
 
+                List<String> imageUrls = extractImageUrls(content);
+                MessageType messageType = imageUrls.isEmpty() ? MessageType.TEXT : MessageType.IMAGE;
+
                 Message message = Message.builder()
                                 .sender(sender)
                                 .receiver(conv.getStudent().getId().equals(senderId)
                                                 ? (conv.getLibrarian() != null ? conv.getLibrarian() : sender)
                                                 : conv.getStudent())
                                 .content(content)
-                                .type(MessageType.TEXT)
+                                .attachmentUrl(imageUrls.isEmpty() ? null : imageUrls.get(0))
+                                .type(messageType)
                                 .conversation(conv)
                                 .senderType(senderType)
                                 .humanSessionId(humanSessionId)
@@ -838,11 +844,33 @@ public class ConversationService {
                                 .senderId(msg.getSender().getId())
                                 .receiverId(msg.getReceiver().getId())
                                 .content(msg.getContent())
+                                .attachmentUrl(msg.getAttachmentUrl())
+                                .type(msg.getType())
                                 .createdAt(msg.getCreatedAt())
                                 .senderName(msg.getSender().getFullName())
                                 .senderType(msg.getSenderType())
                                 .isRead(msg.isRead())
                                 .build();
+        }
+
+        private List<String> extractImageUrls(String content) {
+                if (content == null || !content.contains("[IMAGES]")) {
+                        return List.of();
+                }
+
+                String[] parts = content.split("\\[IMAGES\\]", 2);
+                if (parts.length < 2) {
+                        return List.of();
+                }
+
+                List<String> imageUrls = new ArrayList<>();
+                for (String rawLine : parts[1].split("\\R")) {
+                        String url = rawLine.trim();
+                        if (url.startsWith("http")) {
+                                imageUrls.add(url);
+                        }
+                }
+                return imageUrls;
         }
 
         /**
