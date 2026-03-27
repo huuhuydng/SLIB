@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Filter, LayoutGrid, LayoutList, Loader2, RefreshCw, Search, SlidersHorizontal, Wrench, X, XCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Filter, LayoutGrid, LayoutList, Loader2, RefreshCw, Search, SlidersHorizontal, Trash2, Wrench, X, XCircle } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatStatusReportManage.css";
@@ -53,6 +54,7 @@ const normalizeStatus = (value) => (value && VALID_STATUS.has(value) ? value : "
 
 function SeatStatusReportManage() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,10 @@ function SeatStatusReportManage() {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const filterRef = useRef(null);
   const columnMenuRef = useRef(null);
+
+  // Selection for batch delete
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const getToken = () => sessionStorage.getItem("librarian_token") || localStorage.getItem("librarian_token");
 
@@ -507,7 +513,58 @@ function SeatStatusReportManage() {
   };
 
   const activeFilterCount = Object.values(columnFilters).filter(Boolean).length + (statusFilter ? 1 : 0);
-  const visibleColumnCount = Math.max(1, Object.values(visibleColumns).filter(Boolean).length);
+  const visibleColumnCount = Math.max(1, Object.values(visibleColumns).filter(Boolean).length) + 1;
+
+  // Selection logic
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedReports.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedReports.map(r => r.id)));
+    }
+  };
+
+  const isAllSelected = paginatedReports.length > 0 && selectedIds.size === paginatedReports.length;
+
+  const handleDeleteBatch = async () => {
+    if (selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: 'Xoá báo cáo',
+      message: `Bạn có chắc muốn xoá ${selectedIds.size} báo cáo đã chọn?`,
+      variant: 'danger',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/batch`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) {
+        toast.success(`Đã xoá ${selectedIds.size} báo cáo thành công.`);
+        setSelectedIds(new Set());
+        fetchReports();
+      } else {
+        toast.error('Không thể xoá báo cáo.');
+      }
+    } catch (err) {
+      toast.error('Lỗi: ' + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="lib-container">
@@ -579,6 +636,12 @@ function SeatStatusReportManage() {
           </div>
 
           <div className="cio-toolbar-right ssr-toolbar-right">
+            {selectedIds.size > 0 && (
+              <button className="sr-delete-btn" onClick={handleDeleteBatch} disabled={deleting}>
+                <Trash2 size={14} />
+                {deleting ? "Đang xoá..." : `Xoá (${selectedIds.size})`}
+              </button>
+            )}
             <span className="cio-result-count">
               {activeFilterCount > 0 && <span className="cio-active-filters">{activeFilterCount} bộ lọc | </span>}
               Tổng số <strong>{filteredReports.length}</strong> kết quả
@@ -598,6 +661,9 @@ function SeatStatusReportManage() {
             <table className="sr-table ssr-table">
               <thead>
                 <tr>
+                  <th className="sr-checkbox-col">
+                    <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} style={{ accentColor: '#FF751F' }} />
+                  </th>
                   {visibleColumns.reporter && renderColumnHeader("reporter", "Người gửi")}
                   {visibleColumns.issueType && renderColumnHeader("issueType", "Loại sự cố")}
                   {visibleColumns.location && renderColumnHeader("location", "Vị trí")}
@@ -616,7 +682,10 @@ function SeatStatusReportManage() {
                   </tr>
                 ) : (
                   paginatedReports.map((report) => (
-                    <tr key={report.id} className="sr-table-row" onClick={() => setSelectedReport(report)}>
+                    <tr key={report.id} className={`sr-table-row${selectedIds.has(report.id) ? ' selected' : ''}`} onClick={() => setSelectedReport(report)}>
+                      <td className="sr-checkbox-col" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(report.id)} onChange={() => toggleSelect(report.id)} style={{ accentColor: '#FF751F' }} />
+                      </td>
                       {visibleColumns.reporter && (
                         <td>
                           <div className="sr-student-cell">

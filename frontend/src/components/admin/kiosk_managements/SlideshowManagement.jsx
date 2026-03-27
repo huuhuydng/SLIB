@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import { useToast } from '../../../components/common/ToastProvider';
 import {
   Film,
   Upload,
@@ -9,8 +10,7 @@ import {
   Play,
   RefreshCw,
   Plus,
-  AlertCircle,
-  Check,
+
   Loader,
   Edit,
   Save,
@@ -30,11 +30,11 @@ const authHeaders = () => {
 
 const SlideshowManagement = () => {
   const { confirm } = useConfirm();
+  const toast = useToast();
 
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
+
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState([]);
@@ -48,7 +48,7 @@ const SlideshowManagement = () => {
   const fetchImages = useCallback(async () => {
     try {
       setLoading(true);
-      setError(null);
+
       console.log('Fetching images from:', `${API_BASE_URL}/api/slideshow/images`);
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images`, {
         headers: authHeaders(),
@@ -68,7 +68,7 @@ const SlideshowManagement = () => {
       }
     } catch (err) {
       console.error('Error fetching images:', err);
-      setError('Không thể tải danh sách ảnh. Vui lòng thử lại.');
+      toast.error('Không thể tải danh sách ảnh. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -100,12 +100,10 @@ const SlideshowManagement = () => {
       }
 
       setImages(images.filter(img => img.id !== imageObj.id));
-      setSuccessMsg('Xóa ảnh thành công!');
-      setTimeout(() => setSuccessMsg(null), 3000);
+      toast.success('Xóa ảnh thành công!');
     } catch (err) {
       console.error('Error deleting image:', err);
-      setError('Không thể xóa ảnh. Vui lòng thử lại.');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Không thể xóa ảnh. Vui lòng thử lại.');
     }
   };
 
@@ -118,22 +116,19 @@ const SlideshowManagement = () => {
     );
 
     if (validFiles.length === 0) {
-      setError('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF, WebP)');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF, WebP)');
       return;
     }
 
     if (validFiles.length > 10) {
-      setError('Tối đa 10 ảnh mỗi lần upload');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Tối đa 10 ảnh mỗi lần upload');
       return;
     }
 
     // Check file size (max 10MB per file)
     const oversizedFiles = validFiles.filter(f => f.size > 10 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
-      setError('Mỗi ảnh tối đa 10MB');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Mỗi ảnh tối đa 10MB');
       return;
     }
 
@@ -162,19 +157,18 @@ const SlideshowManagement = () => {
         // Backend trả về danh sách ảnh mới đã lưu vào DB
         const newImages = data.images;
         setImages([...images, ...newImages]);
-        setSuccessMsg(`Tải lên ${data.images.length} ảnh thành công!`);
+        toast.success(`Tải lên ${data.images.length} ảnh thành công!`);
         setShowUploadModal(false);
         setUploadingFiles([]);
         // Reset input file value để cho phép chọn lại cùng file nếu cần
         const fileInput = document.getElementById('uploadInput');
         if (fileInput) fileInput.value = '';
 
-        setTimeout(() => setSuccessMsg(null), 3000);
+
       }
     } catch (err) {
       console.error('Error uploading images:', err);
-      setError(err.message || 'Lỗi khi tải ảnh. Vui lòng thử lại.');
-      setTimeout(() => setError(null), 3000);
+      toast.error(err.message || 'Lỗi khi tải ảnh. Vui lòng thử lại.');
     } finally {
       setUploadingFiles([]);
     }
@@ -214,15 +208,13 @@ const SlideshowManagement = () => {
             ? data.image // Cập nhật object ảnh mới từ backend (chứa tên mới)
             : img
         ));
-        setSuccessMsg('Đổi tên ảnh thành công!');
+        toast.success('Đổi tên ảnh thành công!');
         handleCancelEdit();
-        setTimeout(() => setSuccessMsg(null), 3000);
       } else {
         throw new Error(data.message || 'Lỗi khi đổi tên');
       }
     } catch (err) {
-      setError(err.message || 'Không thể đổi tên ảnh.');
-      setTimeout(() => setError(null), 3000);
+      toast.error(err.message || 'Không thể đổi tên ảnh.');
     }
   };
 
@@ -251,8 +243,7 @@ const SlideshowManagement = () => {
       ));
 
     } catch (err) {
-      setError(err.message);
-      setTimeout(() => setError(null), 3000);
+      toast.error(err.message);
       return;
     }
   };
@@ -301,14 +292,12 @@ const SlideshowManagement = () => {
       setIsSelectingAll(false);
 
       if (failedCount > 0) {
-        setSuccessMsg(`Xóa thành công ${selectedIds.size - failedCount} ảnh (${failedCount} thất bại)`);
+        toast.warning(`Xóa thành công ${selectedIds.size - failedCount} ảnh (${failedCount} thất bại)`);
       } else {
-        setSuccessMsg(`Xóa thành công ${selectedIds.size} ảnh!`);
+        toast.success(`Xóa thành công ${selectedIds.size} ảnh!`);
       }
-      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
-      setError('Lỗi khi xóa hàng loạt ảnh');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Lỗi khi xóa hàng loạt ảnh');
     }
   };
 
@@ -337,14 +326,12 @@ const SlideshowManagement = () => {
 
       const actionText = activateStatus ? 'kích hoạt' : 'vô hiệu hóa';
       if (failedCount > 0) {
-        setSuccessMsg(`${actionText} thành công ${selectedIds.size - failedCount} ảnh (${failedCount} thất bại)`);
+        toast.warning(`${actionText} thành công ${selectedIds.size - failedCount} ảnh (${failedCount} thất bại)`);
       } else {
-        setSuccessMsg(`${actionText} thành công ${selectedIds.size} ảnh!`);
+        toast.success(`${actionText} thành công ${selectedIds.size} ảnh!`);
       }
-      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
-      setError('Lỗi khi cập nhật hàng loạt');
-      setTimeout(() => setError(null), 3000);
+      toast.error('Lỗi khi cập nhật hàng loạt');
     }
   };
 
@@ -391,12 +378,6 @@ const SlideshowManagement = () => {
 
     return result; // Backend đã sắp xếp theo displayOrder
   }, [images, searchTerm]);
-
-  const stats = useMemo(() => ({
-    total: images.length,
-    active: images.filter(img => img.isActive).length,
-    backup: images.filter(img => !img.isActive).length,
-  }), [images]);
 
   return (
     <>
@@ -494,58 +475,6 @@ const SlideshowManagement = () => {
               </>
             )}
           </div>
-        </div>
-
-        {/* Alert Messages */}
-        {error && (
-          <div className="slideshowManagement__alert slideshowManagement__alert--error">
-            <AlertCircle size={20} />
-            <span>{error}</span>
-            <button
-              className="slideshowManagement__alertClose"
-              onClick={() => setError(null)}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-
-        {successMsg && (
-          <div className="slideshowManagement__alert slideshowManagement__alert--success">
-            <Check size={20} />
-            <span>{successMsg}</span>
-            <button
-              className="slideshowManagement__alertClose"
-              onClick={() => setSuccessMsg(null)}
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-
-        {/* Stats Cards */}
-        <div className="slideshowManagement__statsGrid">
-          {[
-            { label: 'Tổng ảnh', value: stats.total, icon: Film, color: '#7C3AED', bg: '#F3E8FF', key: 'total' },
-            { label: 'Đang hiển thị', value: stats.active, icon: Eye, color: '#059669', bg: '#D1FAE5', key: 'active' },
-            { label: 'Đang dự phòng', value: stats.backup, icon: Upload, color: '#64748B', bg: '#F1F5F9', key: 'backup' },
-          ].map((stat) => (
-            <div key={stat.key} className="slideshowManagement__statCard">
-              <div
-                className="slideshowManagement__statIcon"
-                style={{
-                  '--stat-bg': stat.bg,
-                  backgroundColor: stat.bg
-                }}
-              >
-                <stat.icon size={22} color={stat.color} />
-              </div>
-              <div className="slideshowManagement__statContent">
-                <h3>{stat.value}</h3>
-                <p>{stat.label}</p>
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* Images Container */}

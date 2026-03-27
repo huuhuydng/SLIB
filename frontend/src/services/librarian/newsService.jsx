@@ -79,6 +79,14 @@ export const deleteNews = async (id) => {
   }
 };
 
+export const batchDeleteNews = async (ids) => {
+  const response = await axios.delete(`${API_URL}/admin/batch`, {
+    headers: getAuthHeaders(),
+    data: { ids },
+  });
+  return response.data;
+};
+
 // Lấy news public (cho student)
 export const getPublicNews = async () => {
   try {

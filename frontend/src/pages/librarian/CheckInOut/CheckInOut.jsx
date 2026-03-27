@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../../../config/apiConfig';
 import { useToast } from '../../../components/common/ToastProvider';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal } from 'lucide-react';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, Trash2 } from 'lucide-react';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import librarianService from "../../../services/librarian/librarianService";
@@ -11,6 +12,7 @@ import websocketService from "../../../services/shared/websocketService";
 
 const CheckInOut = () => {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
 
   // State for real data
@@ -55,6 +57,10 @@ const CheckInOut = () => {
     time: true,
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  // Selection for batch delete
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch data on mount
   useEffect(() => {
@@ -188,6 +194,21 @@ const CheckInOut = () => {
       }
     });
 
+    // Date range filter
+    if (startDate || endDate) {
+      data = data.filter(log => {
+        const timeStr = log.action === 'CHECK_IN' ? log.checkInTime : (log.checkOutTime || log.checkInTime);
+        if (!timeStr) return false;
+        const logDate = new Date(timeStr);
+        const logDateStr = logDate.getFullYear() + '-' +
+          String(logDate.getMonth() + 1).padStart(2, '0') + '-' +
+          String(logDate.getDate()).padStart(2, '0');
+        if (startDate && logDateStr < startDate) return false;
+        if (endDate && logDateStr > endDate) return false;
+        return true;
+      });
+    }
+
     // Sort
     if (sortConfig.column && sortConfig.direction) {
       data.sort((a, b) => {
@@ -209,7 +230,7 @@ const CheckInOut = () => {
     }
 
     return data;
-  }, [searchTerm, accessLogs, columnFilters, sortConfig]);
+  }, [searchTerm, accessLogs, columnFilters, sortConfig, startDate, endDate]);
 
   const totalPages = Math.ceil(displayedLogs.length / itemsPerPage);
   const paginatedLogs = useMemo(() => {
@@ -416,7 +437,60 @@ const CheckInOut = () => {
   const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
 
   // Count visible columns
-  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1;
+
+  // Selection logic
+  const toggleSelect = (logId) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(logId)) next.delete(logId); else next.add(logId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedLogs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedLogs.map(log => log.logId)));
+    }
+  };
+
+  const isAllSelected = paginatedLogs.length > 0 && selectedIds.size === paginatedLogs.length;
+
+  const handleDeleteBatch = async () => {
+    if (selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: 'Xoá lịch sử',
+      message: `Bạn có chắc muốn xoá ${selectedIds.size} bản ghi đã chọn?`,
+      variant: 'danger',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+      // Deduplicate logIds (CHECK_IN + CHECK_OUT share the same logId)
+      const uniqueIds = [...new Set(Array.from(selectedIds))];
+      const res = await fetch(`${API_BASE_URL}/slib/hce/access-logs/batch`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: uniqueIds }),
+      });
+      if (res.ok) {
+        toast.success(`Đã xoá ${selectedIds.size} bản ghi thành công.`);
+        setSelectedIds(new Set());
+        fetchData();
+      } else {
+        toast.error('Không thể xoá bản ghi.');
+      }
+    } catch (err) {
+      toast.error('Lỗi: ' + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -485,6 +559,15 @@ const CheckInOut = () => {
             )}
             Tổng số <strong>{displayedLogs.length}</strong> kết quả
           </span>
+
+          {/* Batch delete */}
+          {selectedIds.size > 0 && (
+            <button className="sr-delete-btn" onClick={handleDeleteBatch} disabled={deleting}>
+              <Trash2 size={14} />
+              {deleting ? "Đang xoá..." : `Xoá (${selectedIds.size})`}
+            </button>
+          )}
+
           <div className="cio-export-controls">
             <input
               type="date"
@@ -512,6 +595,9 @@ const CheckInOut = () => {
           <table className="cio-table">
             <thead>
               <tr>
+                <th className="sr-checkbox-col">
+                  <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} style={{ accentColor: '#FF751F' }} />
+                </th>
                 {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã sinh viên')}
                 {visibleColumns.userName && renderColumnHeader('userName', 'Tên sinh viên')}
                 {visibleColumns.action && renderColumnHeader('action', 'Hành động')}
@@ -530,8 +616,11 @@ const CheckInOut = () => {
                 paginatedLogs.map((log) => (
                   <tr
                     key={`${log.logId}-${log.action}`}
-                    className="cio-table-row"
+                    className={`cio-table-row${selectedIds.has(log.logId) ? ' selected' : ''}`}
                   >
+                    <td className="sr-checkbox-col" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedIds.has(log.logId)} onChange={() => toggleSelect(log.logId)} style={{ accentColor: '#FF751F' }} />
+                    </td>
                     {visibleColumns.userCode && <td className="cio-code-cell">{log.userCode}</td>}
                     {visibleColumns.userName && <td className="cio-name-cell">{log.userName}</td>}
                     {visibleColumns.action && (

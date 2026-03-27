@@ -94,6 +94,25 @@ public class SeatStatusReportController {
         return ResponseEntity.ok(seatStatusReportService.resolveReport(id, librarianId));
     }
 
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(
+            @RequestBody java.util.Map<String, List<String>> body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        requireStaff(userDetails);
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            seatStatusReportService.deleteBatch(uuids);
+            return ResponseEntity.ok(java.util.Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
     private User getCurrentUser(UserDetails userDetails) {
         if (userDetails == null) {
             throw new AccessDeniedException("Session expired. Please log in again.");

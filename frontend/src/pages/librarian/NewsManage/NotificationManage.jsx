@@ -23,7 +23,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/librarian/BookingManage.css';
 import '../../../styles/librarian/NotificationManage.css';
-import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/librarian/newsService';
+import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage, batchDeleteNews } from '../../../services/librarian/newsService';
 import axios from 'axios';
 
 const STATUS_OPTIONS = [
@@ -58,6 +58,10 @@ const NotificationManage = () => {
   });
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const filterRef = useRef(null);
+
+  // Selection for batch delete
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   const classifyStatus = (item, now = new Date()) => {
     const publishedFlag = item?.isPublished === true || item?.isPublished === 'true';
@@ -341,7 +345,49 @@ const NotificationManage = () => {
   };
 
   const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
-  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
+  const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1;
+
+  // Selection logic
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedNews.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedNews.map(n => n.id)));
+    }
+  };
+
+  const isAllSelected = paginatedNews.length > 0 && selectedIds.size === paginatedNews.length;
+
+  const handleDeleteBatch = async () => {
+    if (selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: 'Xoá tin tức',
+      message: `Bạn có chắc muốn xoá ${selectedIds.size} tin tức đã chọn?`,
+      variant: 'danger',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await batchDeleteNews(Array.from(selectedIds));
+      toast.success(`Đã xoá ${selectedIds.size} tin tức thành công.`);
+      setSelectedIds(new Set());
+      loadNotifications();
+    } catch (err) {
+      toast.error('Không thể xoá tin tức: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="lib-container">
@@ -394,6 +440,15 @@ const NotificationManage = () => {
                   </div>
                 )}
               </div>
+
+              {/* Batch delete */}
+              {selectedIds.size > 0 && (
+                <button className="sr-delete-btn" onClick={handleDeleteBatch} disabled={deleting}>
+                  <Trash2 size={14} />
+                  {deleting ? "Đang xoá..." : `Xoá (${selectedIds.size})`}
+                </button>
+              )}
+
               <span className="cio-result-count">
                 {activeFilterCount > 0 && (
                   <span className="cio-active-filters">
@@ -422,6 +477,9 @@ const NotificationManage = () => {
                 <table className="bm-table">
                   <thead>
                     <tr>
+                      <th className="sr-checkbox-col">
+                        <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} style={{ accentColor: '#FF751F' }} />
+                      </th>
                       {visibleColumns.category && renderColumnHeader('category', 'Chủ đề')}
                       {visibleColumns.title && renderColumnHeader('title', 'Tiêu đề')}
                       {visibleColumns.status && renderColumnHeader('status', 'Trạng thái', true)}
@@ -442,9 +500,12 @@ const NotificationManage = () => {
                         return (
                           <tr
                             key={item.id}
-                            className="bm-table-row"
+                            className={`bm-table-row${selectedIds.has(item.id) ? ' selected' : ''}`}
                             onClick={() => handleViewDetail(item)}
                           >
+                            <td className="sr-checkbox-col" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ accentColor: '#FF751F' }} />
+                            </td>
                             {visibleColumns.category && (
                               <td>
                                 <span className="nt-category-tag">{getSubjectFromCategory(item)}</span>

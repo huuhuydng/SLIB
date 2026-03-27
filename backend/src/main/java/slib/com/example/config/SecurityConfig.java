@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .requestMatchers("/slib/files/**").permitAll()
                         // News public endpoints (cho mobile/student)
                         .requestMatchers("/slib/news/public/**").permitAll()
+                        .requestMatchers("/slib/new-books/public/**").permitAll()
+                        .requestMatchers("/slib/new-books/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/news-categories").permitAll()
                         // Settings public endpoints
                         .requestMatchers("/slib/settings/library").permitAll()

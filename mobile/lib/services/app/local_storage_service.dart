@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:slib/models/new_book_model.dart';
 import 'package:slib/models/news_model.dart';
 import '../../models/user_setting.dart';
 
 class LocalStorageService {
   static const String _keySettings = "user_settings_cache";
   static const String _keyNewsCache = "news_list_cache";
+  static const String _keyNewBooksCache = "new_books_list_cache";
   static const String _keyRememberMe = "remember_me";
   static const String _keyCredIdentifier = "saved_identifier";
   static const String _keyCredPassword = "saved_password";
@@ -59,8 +61,8 @@ class LocalStorageService {
   Future<UserSetting?> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString(_keySettings);
-    
-    if (jsonString == null) return null; 
+
+    if (jsonString == null) return null;
 
     try {
       return UserSetting.fromJson(jsonDecode(jsonString));
@@ -75,10 +77,12 @@ class LocalStorageService {
   }
 
   Future<void> saveNewsList(List<News> newsList) async {
-    final prefs = await SharedPreferences.getInstance();    
-    List<Map<String, dynamic>> jsonList = newsList.map((news) => news.toJson()).toList();
+    final prefs = await SharedPreferences.getInstance();
+    List<Map<String, dynamic>> jsonList = newsList
+        .map((news) => news.toJson())
+        .toList();
     String jsonString = jsonEncode(jsonList);
-    
+
     await prefs.setString(_keyNewsCache, jsonString);
   }
 
@@ -86,12 +90,38 @@ class LocalStorageService {
     final prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString(_keyNewsCache);
 
-    if (jsonString == null) return []; 
+    if (jsonString == null) return [];
 
     try {
       List<dynamic> decodedList = jsonDecode(jsonString);
-      List<News> newsList = decodedList.map((item) => News.fromJson(item)).toList();
+      List<News> newsList = decodedList
+          .map((item) => News.fromJson(item))
+          .toList();
       return newsList;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> saveNewBooksList(List<NewBook> newBooks) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = newBooks.map((book) => book.toJson()).toList();
+    final jsonString = jsonEncode(jsonList);
+
+    await prefs.setString(_keyNewBooksCache, jsonString);
+  }
+
+  Future<List<NewBook>> loadNewBooksList() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_keyNewBooksCache);
+
+    if (jsonString == null) return [];
+
+    try {
+      final decodedList = jsonDecode(jsonString) as List<dynamic>;
+      return decodedList
+          .map((item) => NewBook.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       return [];
     }

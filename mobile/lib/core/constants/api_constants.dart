@@ -20,12 +20,11 @@ class ApiConstants {
 
   // Ghi chú: aiDomain không còn cần vì AI Chat đi qua backend proxy
 
-
-  
   static const String authUrl = "$domain/slib/users";
   static const String authBaseUrl = "$domain/slib/auth";
 
   static const String newsUrl = "$domain/slib/news";
+  static const String newBooksUrl = "$domain/slib/new-books";
 
   static const String bookingUrl = "$domain/slib/bookings";
 
