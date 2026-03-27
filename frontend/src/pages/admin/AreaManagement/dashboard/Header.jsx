@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, User, LogOut, Bell, Settings } from 'lucide-react';
 import avatarImage from "../../../../assets/avatar.svg";
 
@@ -9,7 +8,6 @@ const Header = ({
   searchPlaceholder = "Tim kiem...",
   onLogout = () => { }
 }) => {
-  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [userData, setUserData] = useState({ name: 'User', role: 'Librarian' });
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -68,8 +66,8 @@ const Header = ({
         maxWidth: '520px',
         position: 'relative'
       }}>
-        <Search
-          size={18}
+        <Search 
+          size={18} 
           style={{
             position: 'absolute',
             left: '16px',
@@ -80,8 +78,8 @@ const Header = ({
             pointerEvents: 'none'
           }}
         />
-        <input
-          type="text"
+        <input 
+          type="text" 
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={onSearchChange}
@@ -90,24 +88,24 @@ const Header = ({
           style={{
             width: '100%',
             padding: '12px 16px 12px 48px',
-            border: isSearchFocused
-              ? '2px solid var(--slib-primary, #FF751F)'
+            border: isSearchFocused 
+              ? '2px solid var(--slib-primary, #FF751F)' 
               : '2px solid var(--slib-border-light, #E2E8F0)',
             borderRadius: '12px',
             fontSize: '14px',
             color: 'var(--slib-text-primary, #1A1A1A)',
-            backgroundColor: isSearchFocused
-              ? 'var(--slib-bg-card, #ffffff)'
+            backgroundColor: isSearchFocused 
+              ? 'var(--slib-bg-card, #ffffff)' 
               : 'var(--slib-bg-main, #F7FAFC)',
             outline: 'none',
             transition: 'all 0.2s ease',
-            boxShadow: isSearchFocused
-              ? '0 0 0 4px rgba(255, 117, 31, 0.1)'
+            boxShadow: isSearchFocused 
+              ? '0 0 0 4px rgba(255, 117, 31, 0.1)' 
               : 'none'
           }}
         />
       </div>
-
+      
       {/* Right Section */}
       <div style={{
         display: 'flex',
@@ -186,7 +184,7 @@ const Header = ({
 
         {/* User Profile */}
         <div style={{ position: 'relative' }} ref={dropdownRef}>
-          <div
+          <div 
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -196,8 +194,8 @@ const Header = ({
               borderRadius: '12px',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              border: showDropdown
-                ? '2px solid var(--slib-primary, #FF751F)'
+              border: showDropdown 
+                ? '2px solid var(--slib-primary, #FF751F)' 
                 : '2px solid transparent'
             }}
             onClick={() => setShowDropdown(!showDropdown)}
@@ -212,16 +210,16 @@ const Header = ({
               }
             }}
           >
-            <img
-              src={avatarImage}
-              alt="Avatar"
+            <img 
+              src={avatarImage} 
+              alt="Avatar" 
               style={{
                 width: '40px',
                 height: '40px',
                 borderRadius: '10px',
                 border: '2px solid var(--slib-bg-card, #ffffff)',
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
-              }}
+              }} 
             />
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
               <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--slib-text-primary, #1A1A1A)' }}>
@@ -231,10 +229,10 @@ const Header = ({
                 {userData.role}
               </span>
             </div>
-            <ChevronDown
-              size={18}
+            <ChevronDown 
+              size={18} 
               color="var(--slib-text-muted, #A0AEC0)"
-              style={{ transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+              style={{ transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} 
             />
           </div>
 
@@ -265,7 +263,7 @@ const Header = ({
                 </p>
               </div>
 
-              <div
+              <div 
                 onClick={() => setShowDropdown(false)}
                 style={{
                   display: 'flex',
@@ -284,8 +282,9 @@ const Header = ({
                 </span>
               </div>
 
-              <div
-                onClick={() => {
+              <div 
+                onClick={() => { 
+                  console.log('🔴🔴🔴 FORCE LOGOUT!');
                   setShowDropdown(false);
                   navigate('/admin/settings');
                 }}
