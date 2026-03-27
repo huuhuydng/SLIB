@@ -16,9 +16,9 @@ Backend service được xây dựng bằng **Spring Boot 3.4.0** với **Java 2
 - **Authentication**: JWT-based với Google OAuth
 - **User Management**: Quản lý sinh viên, admin, thủ thư
 - **Area Management**: Quản lý khu vực, zone, ghế ngồi
-- **Booking System**: Đặt chỗ, check-in/out
-- **Chat & AI**: Tích hợp với AI Service, WebSocket realtime
-- **News/Notification**: Hệ thống tin tức, thông báo
+- **Booking System**: Đặt chỗ, check-in/out.
+- **Chat & AI**: Tích hợp với AI Service, WebSocket realtime.
+- **News/Notification**: Hệ thống tin tức, thông báo.
 - **System Config**: Cấu hình hệ thống linh hoạt.
 
 ---
