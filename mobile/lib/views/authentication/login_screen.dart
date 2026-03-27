@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/main_screen.dart';
+import 'package:slib/views/authentication/change_password_screen.dart';
+import 'package:slib/views/authentication/forgot_password_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,8 +18,44 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _rememberMe = false;
+  
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _localService = LocalStorageService();
 
-  // --- XỬ LÝ ĐĂNG NHẬP GOOGLE ---
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  /// Tải thông tin đăng nhập đã lưu (nếu có)
+  Future<void> _loadSavedCredentials() async {
+    final rememberMe = await _localService.loadRememberMe();
+    final credentials = await _localService.loadCredentials();
+
+    if (mounted) {
+      setState(() {
+        _rememberMe = rememberMe;
+        if (rememberMe && credentials != null) {
+          _emailController.text = credentials['identifier'] ?? '';
+          _passwordController.text = credentials['password'] ?? '';
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // --- XU LY DANG NHAP GOOGLE ---
   Future<void> _handleGoogleSignIn() async {
     _showLoadingDialog();
 
@@ -28,38 +68,102 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (result != null) {
-        if (mounted) {
-          // Hiển thị thông báo thành công
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Xin chào ${result.fullName ?? 'Sinh viên'}!"),
-              backgroundColor: AppColors.brandColor,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const MainScreen()),
-            (route) => false,
-          );
-        }
+        _handleSuccessfulLogin(result);
       } 
-
-      
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
       String errorMessage = e.toString().replaceAll("Exception: ", "");
-      
+
       if (errorMessage.contains("fpt.edu.vn")) {
         errorMessage = "Truy cập bị từ chối: Vui lòng dùng mail @fpt.edu.vn";
+      } else {
+        errorMessage = ErrorDisplayWidget.toVietnamese(e);
       }
 
       _showErrorSnackBar(errorMessage);
+    }
+  }
+
+  // --- XU LY DANG NHAP BANG MAT KHAU ---
+  Future<void> _handlePasswordSignIn() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    _showLoadingDialog();
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final identifier = _emailController.text.trim();
+      final password = _passwordController.text;
+      final result = await authService.signInWithPassword(identifier, password);
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (result != null) {
+        // Lưu hoặc xóa credentials tùy theo trạng thái checkbox
+        if (_rememberMe) {
+          await _localService.saveCredentials(identifier, password);
+          await _localService.saveRememberMe(true);
+        } else {
+          await _localService.clearCredentials();
+          await _localService.saveRememberMe(false);
+        }
+        _handleSuccessfulLogin(result);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      String errorMessage = ErrorDisplayWidget.toVietnamese(e);
+      _showErrorSnackBar(errorMessage);
+    }
+  }
+
+  void _handleSuccessfulLogin(dynamic result) {
+    if (!mounted) return;
+
+    // Check if user needs to change password
+    if (result.needsPasswordChange) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangePasswordScreen(isFirstLogin: true),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  "Xin chào ${result.fullName ?? 'Sinh viên'}!",
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.brandColor,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -86,149 +190,284 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        child: SizedBox(
-          height: size.height,
-          child: Stack(
-            children: [
-              // 1. HEADER (Màu cam + Logo)
-              _buildHeader(size),
+        child: Column(
+          children: [
+            // 1. HEADER (Màu cam + Logo + Title) - chiếm 50% màn hình
+            _buildHeader(size),
 
-              // 2. CARD ĐĂNG NHẬP (Chỉ chứa Google)
-              Positioned(
-                top: size.height * 0.42, 
-                left: 20,
-                right: 20,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+            // 2. CARD ĐĂNG NHẬP
+            Transform.translate(
+              offset: const Offset(0, -100),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: _buildLoginForm(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- UNIFIED LOGIN FORM ---
+  Widget _buildLoginForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // NUT GOOGLE
+          SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _handleGoogleSignIn,
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: BorderSide(color: Colors.grey[300]!),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Brand(Brands.google, size: 24),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Tiếp tục với Google",
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Chào mừng trở lại!",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Vui lòng sử dụng email nhà trường\n(@fpt.edu.vn) để tiếp tục.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 30),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // DIVIDER
+          Row(
+            children: [
+              Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  "Hoặc",
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                ),
+              ),
+              Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
+            ],
+          ),
+          
+          const SizedBox(height: 24),
 
-                      // NÚT GOOGLE
-                      SizedBox(
-                        height: 55,
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _handleGoogleSignIn,
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            side: BorderSide(color: Colors.grey[300]!),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Brand(Brands.google, size: 28),
-                              const SizedBox(width: 12),
-                              const Text(
-                                "Tiếp tục với Google",
-                                style: TextStyle(
-                                  color: Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+          // EMAIL/MSSV FIELD
+          TextFormField(
+            controller: _emailController,
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              hintText: "Email FPT hoặc MSSV",
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Vui lòng nhập email hoặc MSSV';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // PASSWORD FIELD
+          TextFormField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            decoration: InputDecoration(
+              hintText: "Mật khẩu",
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: Colors.grey[400],
+                  size: 22,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Vui lòng nhập mật khẩu';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // REMEMBER ME & FORGOT PASSWORD ROW
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Checkbox ghi nho dang nhap
+              Row(
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _rememberMe,
+                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                      activeColor: AppColors.brandColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      
-                      const SizedBox(height: 20),
-                      // Footer nhỏ để giao diện đỡ trống
-                      Text(
-                        "Hệ thống dành riêng cho sinh viên & giảng viên\nĐại học FPT Đà Nẵng",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[400],
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                      side: BorderSide(color: Colors.grey[400]!, width: 1.5),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Ghi nhớ đăng nhập",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+              // Link quen mat khau
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                  );
+                },
+                child: const Text(
+                  "Quên mật khẩu ?",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.brandColor,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 24),
+
+          // LOGIN BUTTON
+          SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _handlePasswordSignIn,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                "Đăng nhập",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // --- UI COMPONENTS ---
   Widget _buildHeader(Size size) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      height: size.height * 0.55, // Kéo dài nền cam xuống thấp hơn chút để ôm trọn card
-      child: Container(
+    return Container(
+      width: double.infinity,
+      height: size.height * 0.5, // 50% màn hình
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: const BoxDecoration(
         color: AppColors.brandColor,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              const SizedBox(height: 50), // Khoảng cách từ trên xuống
-              Image.asset(
-                          "assets/images/logo_nencam.png",
-                          height: 120,
-                        ),
-              
-              const SizedBox(height: 5),
-              const Text(
-                "Hệ thống Thư viện SLIB",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo only (không có text Slib)
+            Image.asset(
+              "assets/images/logo_nencam.png",
+              height: 120,
+            ),
+            // Title
+            const Text(
+              "Đăng nhập vào tài khoản\ncủa bạn",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                height: 1.3,
               ),
-              const SizedBox(height: 8),
-              const Text(
-                "Đại học FPT Đà Nẵng",
-                style: TextStyle(
-                  fontSize: 16, 
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w500
-                ),
+            ),
+            const SizedBox(height: 12),
+            // Subtitle
+            Text(
+              "Nhập email và mật khẩu để tiếp tục",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.8),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 50),
+          ],
         ),
       ),
     );

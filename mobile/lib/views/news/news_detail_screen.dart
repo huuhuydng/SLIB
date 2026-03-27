@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
 import 'package:slib/models/news_model.dart';
-import 'package:slib/services/news_service.dart';
+import 'package:slib/services/news/news_service.dart';
 
 class NewsDetailScreen extends StatefulWidget {
   final News news;

@@ -1,0 +1,1289 @@
+.chat-container {
+    display: flex;
+    height: 97vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    background-color: #f0f2f5;
+}
+
+/* --- CỘT TRÁI (SIDEBAR) --- */
+.chat-sidebar {
+    width: 300px;
+    background-color: #fff;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 20px;
+    font-weight: bold;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #e0e0e0;
+    color: #1a1a1a;
+}
+
+.conversation-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.conversation-item {
+    padding: 15px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.conversation-item:hover {
+    background-color: #f5f5f5;
+}
+
+.conversation-item.active {
+    background-color: #e7f3ff;
+    border-left: 4px solid #f2bf18;
+}
+
+.user-avatar-placeholder {
+    width: 40px;
+    height: 30px;
+    background-color: #ddd;
+    border-radius: 50%;
+}
+
+.user-avatar-placeholder {
+    width: 40px;
+    height: 40px;
+    background-color: #ddd;
+    border-radius: 50%;
+    margin-right: 12px;
+
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+
+    font-weight: bold;
+    color: #555;
+    font-size: 16px;
+    text-transform: uppercase;
+}
+
+.conv-subtext {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- CỘT PHẢI (MAIN CHAT) --- */
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+}
+
+.chat-header {
+    height: 60px;
+    background-color: #fff;
+    border-bottom: 1px solid #eee;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 20px;
+}
+
+
+.chat-header div:first-child {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Container chứa các nút bấm (như nút Info, Search) */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chat-messages-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background-color: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Bong bóng tin nhắn */
+.message-row {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.message-row.sent {
+    justify-content: flex-end;
+}
+
+.message-row.received {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 70%;
+    /* padding: 12px 16px; */
+    border-radius: 10px;
+    position: relative;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+
+.message-row.sent .message-bubble {
+    background-color: #f8a14b9e;
+    color: #422f2f;
+    border-bottom-right-radius: 4px;
+}
+
+.message-row.received .message-bubble {
+    background-color: #e4e6eb;
+    color: #050505;
+    border-bottom-left-radius: 4px;
+}
+
+.message-image {
+    display: block;
+    /* Điều chỉnh kích thước ở đây */
+    max-width: 200px;
+    /* Giới hạn chiều rộng tối đa */
+    max-height: 200px;
+    /* Giới hạn chiều cao tối đa */
+
+    width: auto;
+    /* Tự động tính toán width theo tỉ lệ */
+    height: auto;
+    /* Tự động tính toán height theo tỉ lệ */
+
+    border-radius: 12px;
+    margin-bottom: 5px;
+    object-fit: cover;
+    /* Giúp hình ảnh không bị méo nếu dùng kích thước cố định */
+    background-color: #f0f0f0;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+/* Hiệu ứng nhẹ khi di chuột vào ảnh */
+.message-image:hover {
+    transform: scale(1.02);
+}
+
+.chat-input-area {
+    padding: 15px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #fff;
+}
+
+.btn-icon {
+    padding: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+/* Style cho các icon SVG */
+.icon-svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+    object-fit: contain;
+    /* Nếu icon màu đen mà bạn muốn đổi sang màu khác (ví dụ xám), dùng filter: */
+    filter: opacity(0.6);
+    transition: filter 0.2s;
+}
+
+/* Loader nhỏ thay thế cho Emoji khi đang upload */
+.spinner-mini {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0084ff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.8s linear infinite;
+}
+
+.btn-icon:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.input-field {
+    flex: 1;
+    padding: 10px 15px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    outline: none;
+    font-size: 1rem;
+    background-color: #f0f2f5;
+}
+
+.input-field:focus {
+    background-color: #fff;
+    border-color: #0084ff;
+}
+
+.btn-send {
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    background-color: #ea8934;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+/* .btn-send:hover {
+    background-color: #0073e6;
+} */
+
+/* Trạng thái trống */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #65676b;
+}
+
+/* ==============================================
+   CSS CHO TÍNH NĂNG TIMESTAMP, DATE & SEARCH
+   ============================================== */
+
+/* 1. Tiêu đề ngày (Hôm nay, Hôm qua...) */
+.date-separator {
+    display: flex;
+    justify-content: center;
+    margin: 15px 0;
+    opacity: 0.9;
+}
+
+.date-separator span {
+    background-color: #e4e6eb;
+    color: #65676b;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* 2. Bong bóng chat */
+.message-bubble {
+    position: relative;
+    /* Chừa chỗ ở dưới để timestamp hiện lên không đè vào chữ */
+    /* padding-bottom: 25px;  */
+    min-width: 80px;
+    transition: filter 0.2s;
+}
+
+.msg-text {
+
+    margin-bottom: 2px;
+}
+
+/* 3. Timestamp (Mặc định ẨN) */
+.msg-timestamp {
+    /* position: absolute; */
+    bottom: 3px;
+    right: 8px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+
+    /* 👇 CẤU HÌNH ẨN/HIỆN 👇 */
+    opacity: 0;
+    /* Trong suốt */
+    visibility: hidden;
+    /* Ẩn khỏi DOM ảo */
+    transition: all 0.2s ease-in-out;
+    /* Hiệu ứng hiện từ từ */
+    user-select: none;
+    /* Không cho bôi đen giờ */
+}
+
+/* Màu timestamp cho tin nhắn của mình (nền xanh -> chữ trắng mờ) */
+.message-row.sent .msg-timestamp {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Màu timestamp cho tin nhắn người khác (nền xám -> chữ đen mờ) */
+.message-row.received .msg-timestamp {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+/* 👇 QUAN TRỌNG: Khi di chuột vào bong bóng thì HIỆN Timestamp */
+.message-bubble:hover .msg-timestamp {
+    opacity: 1;
+    /* Hiện rõ */
+    visibility: visible;
+    /* Nhìn thấy được */
+}
+
+/* (Tuỳ chọn) Làm tối bong bóng chút xíu khi hover để tạo cảm giác tương tác */
+.message-bubble:hover {
+    filter: brightness(0.95);
+}
+
+/* 4. Thanh tìm kiếm (Search Box) */
+.chat-search-box input {
+    padding: 6px 12px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    background-color: #f0f2f5;
+    outline: none;
+    width: 200px;
+    transition: all 0.3s ease;
+    /* Hiệu ứng dãn ra mượt mà */
+}
+
+/* Khi bấm vào ô tìm kiếm thì nó dài ra và đổi màu */
+.chat-search-box input:focus {
+    background-color: #fff;
+    border-color: #0084ff;
+    width: 240px;
+    /* Dài ra thêm chút */
+    box-shadow: 0 0 0 2px rgba(0, 132, 255, 0.1);
+    /* Hiệu ứng phát sáng nhẹ */
+}
+
+
+
+/* ... Các CSS cũ giữ nguyên ... */
+
+/* =============== CSS CHO CHẾ ĐỘ TÌM KIẾM (GIỐNG FACEBOOK) =============== */
+
+/* Container kết quả */
+.search-results-container {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+.search-info {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 10px;
+    padding-left: 10px;
+}
+
+/* Từng dòng kết quả (Item) */
+.search-result-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+    /* Hover màu sáng */
+}
+
+/* Avatar trong kết quả */
+.search-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: #555;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+/* Phần nội dung text */
+.search-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.search-sender-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #050505;
+    margin-bottom: 3px;
+}
+
+.search-text-preview {
+    font-size: 13px;
+    color: #65676b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 🌟 TÔ ĐẬM TỪ KHÓA (Quan trọng) */
+.highlight-keyword {
+    font-weight: bold;
+    color: #050505;
+    /* Màu đen đậm */
+    background-color: rgba(255, 255, 0, 0.2);
+    /* Hightlight vàng nhạt (tuỳ chọn) */
+}
+
+/* Thời gian bên phải */
+.search-time {
+    font-size: 11px;
+    color: #888;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+/* Nút xóa tìm kiếm (dấu X) */
+.clear-search-btn {
+    background: none;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    color: #999;
+    padding: 0 5px;
+    margin-left: -25px;
+    /* Kéo vào trong ô input */
+    z-index: 10;
+}
+
+.clear-search-btn:hover {
+    color: #333;
+}
+
+.no-result {
+    text-align: center;
+    color: #888;
+    margin-top: 20px;
+}
+
+/* Container cho các nút hành động bên phải header */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Nút icon trên header */
+.btn-header-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 8px;
+    border-radius: 100%;
+    color: #0084ff;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hiệu ứng hiện search box */
+.chat-search-box {
+    display: flex;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* PANEL THỨ 3 (BÊN PHẢI) */
+.search-sidebar {
+    width: 320px;
+    border-left: 1px solid #ddd;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    animation: slideInRight 0.3s ease;
+}
+
+.search-sidebar-header {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.search-results-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+}
+
+.search-result-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f5f5f5;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.search-result-item:hover {
+    background-color: #f0f2f5;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        width: 0;
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        width: 320px;
+        opacity: 1;
+    }
+}
+
+/* --- CSS CHO PANEL BÊN PHẢI (MỚI) --- */
+
+.search-sidebar {
+    width: 350px;
+    /* Rộng hơn chút để chứa menu */
+    border-left: 1px solid #ddd;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    animation: slideInRight 0.3s ease;
+    flex-shrink: 0;
+    /* Không bị co lại */
+}
+
+.search-sidebar-header {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    border-bottom: 1px solid #eee;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.search-sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Style cho phần Menu */
+.partner-info-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 0;
+    border-bottom: 5px solid #f5f5f5;
+}
+
+.big-avatar {
+    width: 80px;
+    height: 80px;
+    background-color: #eee;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.partner-name {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.menu-group {
+    padding: 10px;
+}
+
+.menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 8px;
+    transition: background 0.2s;
+    font-size: 15px;
+    color: #333;
+}
+
+.menu-item:hover {
+    background-color: #f0f2f5;
+}
+
+.menu-item .icon {
+    margin-right: 15px;
+    font-size: 18px;
+}
+
+/* Style cho phần Search (tinh chỉnh lại từ code cũ) */
+.search-ui-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.search-input-wrapper {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.sidebar-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    outline: none;
+    background: #f0f2f5;
+}
+
+.sidebar-search-input:focus {
+    background: #fff;
+    border-color: #0084ff;
+}
+
+.result-count {
+    padding: 10px 15px;
+    font-size: 13px;
+    color: #888;
+    background: #fff;
+}
+
+/* Các nút nhỏ */
+.btn-icon-small {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+}
+
+.btn-icon-small:hover {
+    background-color: #eee;
+}
+
+.loading-text {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+
+/* --- (Giữ nguyên các style message-row, search-result-item cũ...) --- */
+.search-avatar {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    border-radius: 50%;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.search-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.search-sender-name {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.search-date {
+    font-size: 10px;
+    color: #888;
+    margin-left: 5px;
+    font-weight: normal;
+}
+
+.search-text-preview {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+.unread-badge-mini {
+    background-color: #ff4d4f;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.conversation-item.active {
+    background-color: #e5f1ff;
+}
+
+
+
+.seen-status-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-right: 15px;
+    margin-top: 2px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    animation: fadeInUp 0.3s ease;
+    min-height: 14px;
+}
+
+.seen-text {
+    color: #0084ff;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.3s ease;
+}
+
+.message-image {
+    display: block;
+    max-width: 100%;
+    border-radius: 12px;
+    margin-bottom: 5px;
+    /* Giúp trình duyệt tính toán chiều cao trước khi ảnh load xong */
+    min-height: 100px;
+    background-color: #f0f0f0;
+}
+
+.chat-messages-area {
+    /* Hiệu ứng mờ dần khi đổi đoạn chat giúp che đi việc nhảy vị trí */
+    transition: opacity 0.15s ease-in-out;
+}
+
+
+/* --- PROCESSING LOADER --- */
+/* .processing-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    color: #e8600a;
+    font-weight: 500;
+    gap: 12px;
+} */
+
+.spinner-orange {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #e8600a;
+    /* Màu cam dự án */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.chat-messages-area {
+    /* Quan trọng: Tránh giật khi đổi opacity */
+    transition: opacity 0.2s ease-in-out;
+}
+
+/* Container bao bọc bubble và phần mở rộng */
+.message-interaction-wrapper {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Hiệu ứng mượt */
+}
+
+.message-row.sent .message-interaction-wrapper {
+    align-items: flex-end;
+}
+
+.message-row.received .message-interaction-wrapper {
+    align-items: flex-start;
+}
+
+/* Container nhóm để căn lề trái/phải */
+.message-group-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+}
+
+.message-row.sent .message-group-container {
+    align-items: flex-end;
+}
+
+.message-row.received .message-group-container {
+    align-items: flex-start;
+}
+
+/* Container ngang điều khiển hướng hiển thị */
+.message-wrapper-horizontal {
+    display: flex;
+    align-items: center;
+    /* Căn giữa giờ theo chiều dọc của bubble */
+    max-width: 85%;
+    gap: 8px;
+    /* Khoảng cách giữa bong bóng chat và giờ */
+    position: relative;
+}
+
+/* Tin nhắn của mình: Giờ hiện bên Trái của Bubble */
+.message-row.sent .message-wrapper-horizontal {
+    flex-direction: row-reverse;
+}
+
+/* Tin nhắn nhận được: Giờ hiện bên Phải của Bubble */
+.message-row.received .message-wrapper-horizontal {
+    flex-direction: row;
+}
+
+/* Bong bóng thời gian nhỏ gọn theo phong cách ảnh bạn gửi */
+.msg-timestamp-bubble {
+    background-color: rgba(0, 0, 0, 0.08);
+    /* Nền mờ nhẹ như ảnh mẫu */
+    color: #65676b;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+
+    /* Hiệu ứng ẩn hiện mượt mà */
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease-in-out;
+    pointer-events: none;
+}
+
+/* Kích hoạt hiển thị khi di chuột vào bong bóng chat */
+.message-bubble:hover+.msg-timestamp-bubble {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.message-row.sent .msg-timestamp-bubble {
+    background-color: #e7f3ff;
+    color: #0084ff;
+}
+
+.message-bubble {
+    position: relative;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    z-index: 2;
+    word-wrap: break-word;
+    max-width: 100%;
+}
+
+
+/* Container bọc các nút icon để điều chỉnh khoảng cách sát nhau */
+.input-actions-group {
+    display: flex;
+    gap: 2px;
+    /* Chỉnh số này nhỏ lại để các nút sát nhau hơn (mặc định đang là 10px hoặc 12px) */
+    align-items: center;
+}
+
+/* Style cho icon SVG màu đen */
+.icon-svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+    object-fit: contain;
+    filter: brightness(0);
+    opacity: 0.7;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+
+/* Tinh chỉnh lại nút icon để không bị quá to */
+.btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    /* Giảm padding để sát nhau hơn nữa */
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+/* Loader nhỏ khi đang upload */
+.spinner-mini {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #000;
+    /* Loader màu đen đồng bộ */
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ==================== AI-TO-HUMAN ESCALATION STYLES ==================== */
+
+/* Toast thông báo khi có escalation */
+.escalate-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(255, 107, 53, 0.35);
+    z-index: 10000;
+    animation: slideInFromRight 0.4s ease-out, pulse 2s infinite;
+    max-width: 350px;
+}
+
+.escalate-toast span:first-child {
+    font-size: 24px;
+}
+
+.escalate-toast strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.escalate-toast p {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.escalate-toast button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.escalate-toast button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 8px 32px rgba(255, 107, 53, 0.35);
+    }
+
+    50% {
+        box-shadow: 0 8px 40px rgba(255, 107, 53, 0.55);
+    }
+}
+
+/* Toast thông báo tin nhắn mới từ sinh viên */
+.chat-message-toast {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #2d5f2e 0%, #388e3c 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(45, 95, 46, 0.35);
+    z-index: 10000;
+    animation: slideInFromRight 0.4s ease-out;
+    max-width: 350px;
+}
+
+.chat-message-toast span:first-child {
+    font-size: 24px;
+}
+
+.chat-message-toast strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.chat-message-toast p {
+    margin: 0;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.chat-message-toast button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.chat-message-toast button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Tabs cho escalation */
+.escalation-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #fafafa;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tab-btn:hover {
+    background: #f0f0f0;
+}
+
+.tab-btn.active {
+    background: #ea8934;
+    color: white;
+}
+
+/* Badge số lượng waiting */
+.waiting-badge {
+    background: #ff4d4f;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    animation: popIn 0.3s ease-out;
+}
+
+.waiting-badge-mini {
+    background: #ff9500;
+    color: white;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+/* Conversation item đang chờ */
+.conversation-item.waiting-item {
+    background: linear-gradient(135deg, #fff5f0 0%, #fff 100%);
+    border-left: 3px solid #ff6b35;
+}
+
+.conversation-item.waiting-item:hover {
+    background: linear-gradient(135deg, #ffebe0 0%, #fff 100%);
+}
+
+/* Avatar cho waiting conversation */
+.waiting-avatar {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+    color: white !important;
+}
+
+/* Empty state cho tabs */
+.tab-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: #999;
+}
+
+.tab-empty-state .empty-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.tab-empty-state p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ==================== AVATAR CHO TIN NHẮN ==================== */
+/* Avatar chung */
+.message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin: 0 8px;
+}
+
+/* Avatar sinh viên (bên trái) */
+.message-avatar.student-avatar {
+    background-color: #e4e6eb;
+    color: #050505;
+    font-weight: bold;
+}
+
+/* Avatar AI robot (bên phải) */
+.message-avatar.ai-avatar {
+    background-color: #e7f3ff;
+    color: #0084ff;
+    font-size: 18px;
+}
+
+/* Avatar thủ thư (bên phải) */
+.message-avatar.librarian-avatar {
+    background-color: #fff3e0;
+    color: #f57c00;
+    font-size: 16px;
+}
+
+/* Bubble tin nhắn AI - màu sắc riêng */
+.message-bubble.ai-bubble {
+    background-color: #e7f3ff !important;
+    border: 1px solid #b3d4fc;
+}
+
+/* Message row với avatar */
+.message-row.received {
+    align-items: flex-end;
+}
+
+.message-row.sent {
+    align-items: flex-end;
+}

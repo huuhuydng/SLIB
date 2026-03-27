@@ -55,15 +55,20 @@ class ProfileInfoScreen extends StatelessWidget {
                 ),
                 child: CircleAvatar(
                   radius: 50,
-                  backgroundColor: AppColors.brandColor.withOpacity(0.1), // Nền cam nhạt
-                  child: Text(
-                    firstLetter,
-                    style: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.brandColor, // Chữ cam đậm
-                    ),
-                  ),
+                  backgroundColor: AppColors.brandColor.withOpacity(0.1),
+                  backgroundImage: user.avtUrl != null && user.avtUrl!.isNotEmpty
+                      ? NetworkImage(user.avtUrl!)
+                      : null,
+                  child: (user.avtUrl == null || user.avtUrl!.isEmpty)
+                      ? Text(
+                          firstLetter,
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.brandColor,
+                          ),
+                        )
+                      : null,
                 ),
               ),
             ),

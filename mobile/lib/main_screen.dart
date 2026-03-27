@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Nhớ import Provider
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/zones.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/card/hce_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
-import 'package:slib/views/home/widgets/booking_zone.dart';
+import 'package:slib/views/booking/floor_plan_screen.dart';
 import 'package:slib/views/chat/chat_screen.dart';
 import 'package:slib/views/menu/setting_screen.dart';
 import 'package:slib/views/widgets/bottom_nav_widget.dart';
@@ -14,11 +15,15 @@ import 'package:slib/views/widgets/bottom_nav_widget.dart';
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
+  // Static key to access MainScreen state from anywhere
+  static final GlobalKey<MainScreenState> globalKey =
+      GlobalKey<MainScreenState>();
+
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<MainScreen> createState() => MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
   // Biến này để lưu user lấy từ Provider
@@ -62,17 +67,28 @@ class _MainScreenState extends State<MainScreen> {
 
   // Danh sách màn hình
   List<Widget> get _screens => [
-    HomeScreen(user: _currentUser),
-    BookingZoneScreen(zones: _zones),
+    HomeScreen(user: _currentUser, isActive: _selectedIndex == 0),
+    const FloorPlanScreen(), // NEW: Sơ đồ mặt bằng
     const HceCardScreen(),
     const ChatScreen(),
-    SettingScreen(user: _currentUser), 
+    SettingScreen(user: _currentUser),
   ];
 
   void _onItemTapped(int index) {
+    // Clear chat badge when switching to chat tab
+    if (index == 3) {
+      try {
+        context.read<NotificationService>().clearChatBadge();
+      } catch (_) {}
+    }
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  /// Public method to switch tabs programmatically
+  void switchToTab(int index) {
+    _onItemTapped(index);
   }
 
   @override
@@ -84,11 +100,17 @@ class _MainScreenState extends State<MainScreen> {
       _currentUser = authService.currentUser;
     }
 
+    // Watch notification service for chat badge count
+    final chatBadge = context.select<NotificationService, int>(
+      (service) => service.unreadChatCount,
+    );
+
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: BottomNavWidget(
         selectedIndex: _selectedIndex,
         onItemTapped: _onItemTapped,
+        chatBadgeCount: chatBadge,
       ),
     );
   }

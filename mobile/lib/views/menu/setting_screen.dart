@@ -1,12 +1,16 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Import Provider
+import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
-// import 'package:slib/views/home/widgets/profile_info_screen.dart' as screen;
+import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/support/support_request_screen.dart';
+import 'package:slib/views/violation_report/violation_report_screen.dart';
 
 class SettingScreen extends StatefulWidget {
   final UserProfile? user;
@@ -17,15 +21,48 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
-  // Không cần khai báo Service hay biến State cục bộ nữa!
-  // Tất cả đã nằm trong AuthService.
+  int _violationCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadViolationCount();
+  }
+
+  Future<void> _loadViolationCount() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+    if (user == null) return;
+
+    int count = 0;
+    try {
+      final penaltyUrl = Uri.parse("${ApiConstants.activityUrl}/penalties/${user.id}");
+      final penaltyRes = await authService.authenticatedRequest('GET', penaltyUrl);
+      if (penaltyRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(penaltyRes.bodyBytes));
+        count += data.length;
+      }
+    } catch (_) {}
+
+    try {
+      final violationUrl = Uri.parse("${ApiConstants.violationReportUrl}/against-me");
+      final violationRes = await authService.authenticatedRequest('GET', violationUrl);
+      if (violationRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(violationRes.bodyBytes));
+        count += data.where((v) => v['status'] == 'VERIFIED').length;
+      }
+    } catch (_) {}
+
+    if (mounted) setState(() => _violationCount = count);
+  }
 
   @override
   Widget build(BuildContext context) {
     // 1. LẮNG NGHE DỮ LIỆU TỪ PROVIDER (Tự động cập nhật khi Cache/API thay đổi)
     final authService = context.watch<AuthService>();
-    final currentUser = authService.currentUser ?? widget.user; // Ưu tiên lấy từ Provider
-    final settings = authService.currentSetting; 
+    final currentUser =
+        authService.currentUser ?? widget.user; // Ưu tiên lấy từ Provider
+    final settings = authService.currentSetting;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -56,7 +93,7 @@ class _SettingScreenState extends State<SettingScreen> {
             _buildSectionTitle("Cấu hình Thư viện"),
             const SizedBox(height: 10),
 
-            // CHECK NULL: 
+            // CHECK NULL:
             // - Nếu settings đã có (từ Cache hoặc API): Hiện luôn.
             // - Nếu null (lần đầu cài app chưa có cache): Hiện Loading nhỏ.
             if (settings != null)
@@ -66,7 +103,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   iconColor: Colors.deepOrange,
                   title: "Check-in NFC (HCE)",
                   subtitle: "Chạm điện thoại để vào cửa",
-                  value: settings.isHceEnabled, 
+                  value: settings.isHceEnabled,
                   onChanged: (val) {
                     // GỌI HÀM UPDATE CỦA AUTH SERVICE
                     context.read<AuthService>().updateSetting(
@@ -120,10 +157,13 @@ class _SettingScreenState extends State<SettingScreen> {
                 iconColor: Colors.blue,
                 title: "Thông tin sinh viên",
                 onTap: () {
-                   if (currentUser != null) {
+                  if (currentUser != null) {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => ProfileInfoScreen(user: currentUser)),
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfileInfoScreen(user: currentUser),
+                      ),
                     );
                   }
                 },
@@ -135,9 +175,11 @@ class _SettingScreenState extends State<SettingScreen> {
                 title: "Lịch sử đặt chỗ",
                 onTap: () {
                   Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const BookingHistoryScreen()),
-                    );
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BookingHistoryScreen(),
+                    ),
+                  );
                 },
               ),
               _buildDivider(),
@@ -145,9 +187,42 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.warning_amber_rounded,
                 iconColor: Colors.redAccent,
                 title: "Lịch sử vi phạm",
-                trailingText: "0 vi phạm",
+                trailingText: "$_violationCount vi phạm",
                 onTap: () {
-                  
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ViolationHistoryScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.report_outlined,
+                iconColor: Colors.orange,
+                title: "Báo cáo",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ViolationReportScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.support_agent_rounded,
+                iconColor: AppColors.brandColor,
+                title: "Yêu cầu hỗ trợ",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SupportRequestScreen(),
+                    ),
+                  );
                 },
               ),
             ]),
@@ -204,6 +279,8 @@ class _SettingScreenState extends State<SettingScreen> {
         ? user!.fullName[0].toUpperCase()
         : "S";
 
+    final hasAvatar = user?.avtUrl != null && user!.avtUrl!.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -234,14 +311,17 @@ class _SettingScreenState extends State<SettingScreen> {
             child: CircleAvatar(
               radius: 30,
               backgroundColor: AppColors.brandColor.withOpacity(0.1),
-              child: Text(
-                firstLetter,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.brandColor,
-                ),
-              ),
+              backgroundImage: hasAvatar ? NetworkImage(user!.avtUrl!) : null,
+              child: !hasAvatar
+                  ? Text(
+                      firstLetter,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.brandColor,
+                      ),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(width: 16),
@@ -429,7 +509,7 @@ class _SettingScreenState extends State<SettingScreen> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Đăng xuất?",
@@ -441,24 +521,26 @@ class _SettingScreenState extends State<SettingScreen> {
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // Đóng Dialog
-              try {
-                // SỬA LẠI: Dùng context.read để gọi hàm logout của Provider
-                await context.read<AuthService>().logout();
+              // Lưu reference trước khi pop dialog
+              final navigator = Navigator.of(context);
+              final authService = context.read<AuthService>();
 
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (context) => const OnBoardingScreen(),
-                    ),
-                    (route) => false,
-                  );
-                }
+              Navigator.pop(dialogContext); // Đóng Dialog
+
+              try {
+                await authService.logout();
+
+                navigator.pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const OnBoardingScreen(),
+                  ),
+                  (route) => false,
+                );
               } catch (e) {
                 print("Lỗi logout: $e");
               }

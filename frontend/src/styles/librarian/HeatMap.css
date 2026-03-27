@@ -1,0 +1,230 @@
+/* =================== HEATMAP - Specific styles =================== */
+/* Extends librarian-shared.css */
+
+/* --- Stats Row --- */
+.hm-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.hm-stat-card {
+  background: var(--lib-panel, #fff);
+  border-radius: var(--lib-r-lg, 16px);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--lib-shadow-soft);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: var(--lib-transition);
+}
+
+.hm-stat-card:hover {
+  box-shadow: var(--lib-shadow);
+}
+
+.hm-stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.hm-stat-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.hm-stat-icon.red {
+  background: var(--lib-red-bg, #fee2e2);
+  color: #dc2626;
+}
+
+.hm-stat-icon.mint {
+  background: #ccfbf1;
+  color: #0d9488;
+}
+
+.hm-stat-number {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--lib-text, #1f2937);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.hm-stat-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--lib-text, #1f2937);
+  margin-bottom: 2px;
+}
+
+.hm-stat-label {
+  font-size: 13px;
+  color: var(--lib-muted, #64748b);
+  font-weight: 500;
+  margin: 0;
+}
+
+/* --- Map Panel --- */
+.hm-map-panel {
+  position: relative;
+  overflow: hidden;
+  min-height: 680px;
+}
+
+.hm-map-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+  opacity: 0.35;
+  z-index: 0;
+}
+
+/* --- Map Layout --- */
+.hm-map-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  height: 600px;
+  width: 100%;
+  gap: 20px;
+  grid-template-columns: 90px 2fr 18px 2fr;
+  grid-template-rows: 40px 1fr 40px 20px 1.2fr;
+  grid-template-areas:
+    "shelf entrance quiet quiet"
+    "shelf hall     quiet quiet"
+    "shelf library  quiet quiet"
+    "shelf .        .     ."
+    "shelf discuss  wall  self";
+}
+
+/* --- Map Block --- */
+.hm-block {
+  border-radius: var(--lib-r-md, 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  font-weight: 700;
+  text-align: center;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.hm-block:hover {
+  transform: scale(1.01);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.hm-block span {
+  font-size: 14px;
+}
+
+.hm-badge {
+  background: white;
+  padding: 4px 12px;
+  border-radius: var(--lib-r-pill, 9999px);
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  color: var(--lib-text, #1f2937);
+}
+
+/* --- Specific Zones --- */
+.zone-shelf {
+  grid-area: shelf;
+  background: #d1d5db;
+  color: white;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 16px;
+  letter-spacing: 1px;
+}
+
+.zone-entrance {
+  grid-area: entrance;
+  background: #d1d5db;
+  color: white;
+  border-radius: 12px;
+  width: 60%;
+  justify-self: center;
+  font-size: 12px;
+}
+
+.zone-hall {
+  grid-area: hall;
+  background: #d1d5db;
+  color: white;
+  font-size: 16px;
+}
+
+.zone-library {
+  grid-area: library;
+  background: #d1d5db;
+  color: white;
+  border-radius: 12px;
+  width: 60%;
+  justify-self: center;
+  font-size: 12px;
+}
+
+.zone-quiet {
+  grid-area: quiet;
+  background: #f59e0b;
+  color: white;
+  font-size: 18px;
+}
+
+.zone-discuss {
+  grid-area: discuss;
+  background: #4ade80;
+  color: white;
+  font-size: 16px;
+}
+
+.zone-self {
+  grid-area: self;
+  background: #ef4444;
+  color: white;
+  font-size: 16px;
+}
+
+.hm-divider-wall {
+  grid-area: wall;
+  background: #d1d5db;
+  border-radius: 6px;
+  width: 100%;
+  height: 100%;
+  align-self: center;
+  justify-self: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  z-index: 2;
+}
+
+/* --- Responsive --- */
+@media (max-width: 1024px) {
+  .hm-stats-row {
+    grid-template-columns: 1fr;
+  }
+
+  .hm-map-layout {
+    height: auto;
+    min-height: 600px;
+    grid-template-columns: 60px 1fr 1fr;
+  }
+}

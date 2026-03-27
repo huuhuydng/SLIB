@@ -1,0 +1,247 @@
+/* VirtualKeyboard.css - Touchscreen Optimized */
+
+.virtualKeyboard__wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+}
+
+/* Display Input */
+.virtualKeyboard__display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  min-height: 72px;
+}
+
+.virtualKeyboard__input {
+  width: 100%;
+  padding: 32px 36px;
+  font-size: 36px;
+  font-weight: 600;
+  border: 4px solid #FF7518;
+  border-radius: 14px;
+  background-color: #fff;
+  color: #1a1a1a;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  outline: none;
+  box-shadow: 0 6px 20px rgba(255, 117, 24, 0.2);
+  transition: all 0.3s ease;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.virtualKeyboard__input:focus {
+  box-shadow: 0 6px 16px rgba(255, 117, 24, 0.3);
+}
+
+/* Keyboard Container */
+.virtualKeyboard__container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8f8f8;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Rows */
+.virtualKeyboard__row {
+  display: flex;
+  gap: 4px;
+  justify-content: stretch;
+}
+
+/* Keys */
+.virtualKeyboard__key {
+  flex: 1;
+  min-height: 72px;
+  padding: 12px 4px;
+  border: none;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Default Keys */
+.virtualKeyboard__key {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.virtualKeyboard__key:hover {
+  background-color: #e8e8e8;
+  border-color: #c0c0c0;
+  transform: translateY(-3px);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.15);
+}
+
+.virtualKeyboard__key:active {
+  background-color: #e0e0e0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Number Keys */
+.virtualKeyboard__key--number {
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFECDB 100%);
+  color: #FF7518;
+  border: 2px solid #FFB366;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(255, 117, 24, 0.12);
+}
+
+.virtualKeyboard__key--number:hover {
+  background: linear-gradient(135deg, #FFE0B2 0%, #FFD699 100%);
+  border-color: #FF7518;
+  box-shadow: 0 5px 12px rgba(255, 117, 24, 0.2);
+}
+
+.virtualKeyboard__key--number:active {
+  background: linear-gradient(135deg, #FFB366 0%, #FFA84D 100%);
+  transform: translateY(-1px);
+}
+
+/* Letter Keys */
+.virtualKeyboard__key {
+  background-color: #f5f5f5;
+  color: #333;
+  font-size: 16px;
+}
+
+.virtualKeyboard__key:hover {
+  background-color: #e8e8e8;
+  border-color: #FF7518;
+}
+
+
+
+/* Submit Button */
+.virtualKeyboard__key--submit {
+  flex: 1;
+  max-width: none;
+  background: linear-gradient(135deg, #FF7518 0%, #FF9844 100%);
+  color: white;
+  border: 2px solid #FF5500;
+  font-weight: 800;
+  min-height: 72px;
+  font-size: 22px;
+  box-shadow: 0 6px 16px rgba(255, 117, 24, 0.35);
+  letter-spacing: 1px;
+}
+
+.virtualKeyboard__key--submit:hover {
+  background: linear-gradient(135deg, #FF6B00 0%, #FF7518 100%);
+  border-color: #DD6200;
+  box-shadow: 0 8px 20px rgba(255, 117, 24, 0.45);
+  transform: translateY(-3px);
+}
+
+.virtualKeyboard__key--submit:active {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(255, 117, 24, 0.3);
+}
+
+
+
+/* Delete & Clear Buttons */
+.virtualKeyboard__key--delete,
+.virtualKeyboard__key--clear {
+  background: linear-gradient(135deg, #FFCDD2 0%, #FFABAB 100%);
+  color: #d32f2f;
+  border: 2px solid #EF5350;
+  font-weight: 700;
+  box-shadow: 0 3px 8px rgba(211, 47, 47, 0.15);
+}
+
+.virtualKeyboard__key--delete:hover,
+.virtualKeyboard__key--clear:hover {
+  background: linear-gradient(135deg, #FFABAB 0%, #FF8A8A 100%);
+  border-color: #d32f2f;
+  box-shadow: 0 5px 12px rgba(211, 47, 47, 0.25);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .virtualKeyboard__wrapper {
+    gap: 10px;
+  }
+
+  .virtualKeyboard__key {
+    min-width: 50px;
+    min-height: 56px;
+    font-size: 16px;
+    padding: 6px;
+  }
+
+  .virtualKeyboard__key--number {
+    min-width: 52px;
+  }
+
+  .virtualKeyboard__key--delete,
+  .virtualKeyboard__key--clear {
+    min-width: 52px;
+  }
+
+  .virtualKeyboard__container {
+    gap: 3px;
+    padding: 10px;
+  }
+
+  .virtualKeyboard__row {
+    gap: 3px;
+  }
+
+  .virtualKeyboard__input {
+    font-size: 28px;
+    padding: 24px 24px;
+    letter-spacing: 2px;
+  }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+  .virtualKeyboard__key {
+    min-height: 54px;
+    min-width: 54px;
+    font-size: 16px;
+  }
+
+  .virtualKeyboard__key--submit {
+    min-height: 54px;
+  }
+
+  .virtualKeyboard__key:active {
+    background-color: #FFE0B2;
+    transform: scale(0.96);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .virtualKeyboard__key--submit:active {
+    background: linear-gradient(135deg, #FF7518 0%, #FF9844 100%);
+  }
+
+  /* Prevent zoom on iOS */
+  .virtualKeyboard__key--number,
+  .virtualKeyboard__key {
+    font-size: 15px;
+  }
+}

@@ -1,11 +1,13 @@
 package slib.com.example.entity.zone_config;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(name = "area_factories")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -33,6 +35,7 @@ public class AreaFactoryEntity {
 
     @Column(name = "is_locked", nullable = false)
     @Builder.Default
+    @JsonProperty("isLocked")
     private Boolean isLocked = false;
 
     @ManyToOne

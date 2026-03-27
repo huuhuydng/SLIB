@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.zone_config.AmenityResponse;
-import slib.com.example.service.AmenityService;
+import slib.com.example.service.zone_config.AmenityService;
 
 import java.util.List;
 

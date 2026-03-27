@@ -5,7 +5,7 @@ import { Rnd } from 'react-rnd';
 
 function Factory({ factory }) {
   const { state, dispatch, actions } = useLayout();
-  const { selectedItem, factories, zones, canvas } = state;
+  const { selectedItem, factories, zones, canvas, isPreviewMode } = state;
 
   const isSelected = selectedItem?.type === 'factory' && selectedItem?.id === factory.factoryId;
   const saveTimerRef = useRef(null);
@@ -244,7 +244,10 @@ function Factory({ factory }) {
   const handleDeleteFactory = async () => {
     if (confirm(`Delete factory "${factory.factoryName}"?`)) {
       try {
-        await deleteAreaFactory(factory.factoryId);
+        // Only call API if factory has real ID (positive) - pending factories have negative tempId
+        if (factory.factoryId > 0) {
+          await deleteAreaFactory(factory.factoryId);
+        }
         dispatch({
           type: actions.DELETE_FACTORY,
           payload: factory.factoryId,
@@ -289,14 +292,17 @@ function Factory({ factory }) {
         minWidth={80}
         minHeight={60}
         bounds="parent"
-        onDrag={handleDrag}
-        onDragStop={handleDragStop}
-        onResizeStop={handleResizeStop}
+        disableDragging={isPreviewMode}
+        enableResizing={isPreviewMode ? false : undefined}
+        onDrag={isPreviewMode ? undefined : handleDrag}
+        onDragStop={isPreviewMode ? undefined : handleDragStop}
+        onResizeStop={isPreviewMode ? undefined : handleResizeStop}
         dragHandleClassName="factory-header"
         style={{
           position: 'absolute',
           boxSizing: 'border-box',
           zIndex: isSelected ? 100 : 10,
+          pointerEvents: isPreviewMode ? 'none' : 'auto',
         }}
       >
         <div
@@ -308,9 +314,10 @@ function Factory({ factory }) {
             backgroundColor: '#9CA3AF',  // Fixed gray for obstacles
             border: isSelected ? '3px solid #0066CC' : '2px solid #999',
             borderRadius: '6px',
-            cursor: 'move',
+            cursor: isPreviewMode ? 'default' : 'move',
             position: 'relative',
             overflow: 'hidden',
+            pointerEvents: isPreviewMode ? 'none' : 'auto',
           }}
         >
           <div
@@ -330,12 +337,12 @@ function Factory({ factory }) {
               alignItems: 'center',
               userSelect: 'none',
             }}
-            onClick={handleSelectFactory}
+            onClick={isPreviewMode ? undefined : handleSelectFactory}
           >
             <span title={factory.factoryName}>{factory.factoryName}</span>
           </div>
           <div
-            onClick={handleSelectFactory}
+            onClick={isPreviewMode ? undefined : handleSelectFactory}
             style={{
               flex: 1,
               padding: '4px 8px',

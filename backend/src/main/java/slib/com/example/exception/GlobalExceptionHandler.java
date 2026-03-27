@@ -3,6 +3,7 @@ package slib.com.example.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +25,21 @@ import java.util.NoSuchElementException;
  */
 @ControllerAdvice
 public class GlobalExceptionHandler {
+
+        /**
+         * Handle AccessDeniedException (403)
+         */
+        @ExceptionHandler(AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleAccessDenied(
+                        AccessDeniedException ex,
+                        HttpServletRequest request) {
+                ErrorResponse error = new ErrorResponse(
+                                HttpStatus.FORBIDDEN.value(),
+                                "Forbidden",
+                                ex.getMessage(),
+                                request.getRequestURI());
+                return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+        }
 
         /**
          * Handle ResourceNotFoundException (404)
@@ -185,6 +203,21 @@ public class GlobalExceptionHandler {
                                 "The requested endpoint does not exist",
                                 request.getRequestURI());
                 return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        }
+
+        /**
+         * Handle DataIntegrityViolationException (409)
+         */
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+                        DataIntegrityViolationException ex,
+                        HttpServletRequest request) {
+                ErrorResponse error = new ErrorResponse(
+                                HttpStatus.CONFLICT.value(),
+                                "Conflict",
+                                "Dữ liệu bị trùng lặp hoặc vi phạm ràng buộc",
+                                request.getRequestURI());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
         }
 
         /**

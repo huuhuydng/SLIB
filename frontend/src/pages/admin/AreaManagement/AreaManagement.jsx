@@ -9,7 +9,7 @@ function AreaManagementContent() {
   const { isCanvasFullscreen } = state;
 
   return (
-    <div className="app-layout">
+    <div className="app-layout library-map-page">
       {!isCanvasFullscreen && <Sidebar />}
       <CanvasBoard />
       {!isCanvasFullscreen && <PropertiesPanel />}

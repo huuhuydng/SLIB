@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   updateArea,
@@ -28,6 +29,7 @@ const QUICK_AMENITIES = [
 ];
 
 function PropertiesPanel() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, areas, zones, seats, factories } = state;
 
@@ -188,50 +190,45 @@ function PropertiesPanel() {
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
 
+    // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
+    const apiPayload = {
+      ...updated,
+      positionX: Math.max(0, updated.positionX ?? 0),
+      positionY: Math.max(0, updated.positionY ?? 0),
+    };
+
     // API call in background (non-blocking)
-    updateArea(selectedData.areaId, updated).catch(e => {
+    updateArea(selectedData.areaId, apiPayload).catch(e => {
       console.error("Failed to update area:", e);
     });
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleZoneChange = (field, value) => {
     // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_ZONE, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateZone(selectedData.zoneId, updated).catch(e => {
-      console.error("Failed to update zone:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleSeatChange = (field, value) => {
     const payload = buildSeatPayload(selectedData, { [field]: value });
 
     // Update UI immediately
     dispatch({ type: actions.UPDATE_SEAT, payload: { ...selectedData, [field]: value } });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateSeat(selectedData.seatId, payload).catch(e => {
-      console.error("Failed to update seat:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleFactoryChange = (field, value) => {
     // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_FACTORY, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateAreaFactory(selectedData.factoryId, updated).catch(e => {
-      console.error("Failed to update factory:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
   /* ================= SAVE FUNCTIONS ================= */
@@ -269,7 +266,7 @@ function PropertiesPanel() {
   const handleAddAmenity = async (amenityName) => {
     const name = amenityName || addAmenityName.trim();
     if (!name) {
-      alert("Vui lòng nhập tên tiện ích");
+      toast.warning("Vui lòng nhập tên tiện ích");
       return;
     }
 
@@ -290,7 +287,7 @@ function PropertiesPanel() {
       setAddAmenityName("");
     } catch (e) {
       console.error("Failed to add amenity:", e);
-      alert("Thêm tiện ích thất bại");
+      toast.error("Thêm tiện ích thất bại");
     }
   };
 
@@ -307,7 +304,7 @@ function PropertiesPanel() {
       setDeleteAmenityId(null);
     } catch (e) {
       console.error("Failed to delete amenity:", e);
-      alert("Xóa tiện ích thất bại");
+      toast.error("Xóa tiện ích thất bại");
       setDeleteAmenityId(null);
     }
   };
@@ -322,53 +319,60 @@ function PropertiesPanel() {
     try {
       switch (selectedItem.type) {
         case "area":
-          // Delete all zones and factories in this area first
+          // Get all zones and factories in this area
           const areaZones = zones.filter(z => z.areaId === selectedItem.id);
           const areaFactories = factories.filter(f => f.areaId === selectedItem.id);
 
+          // Delete all seats and zones from UI and track for batch delete
           for (const zone of areaZones) {
             const zoneSeats = seats.filter(s => s.zoneId === zone.zoneId);
             for (const seat of zoneSeats) {
-              try {
-                await deleteSeat(seat.seatId);
-                dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-              } catch (e) {
-                console.error(`Failed to delete seat:`, e);
+              dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
+              if (seat.seatId > 0) {
+                dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
               }
             }
-            try {
-              await deleteZone(zone.zoneId);
-              dispatch({ type: actions.DELETE_ZONE, payload: zone.zoneId });
-            } catch (e) {
-              console.error(`Failed to delete zone:`, e);
+            dispatch({ type: actions.DELETE_ZONE, payload: zone.zoneId });
+            if (zone.zoneId > 0) {
+              dispatch({ type: actions.ADD_PENDING_ZONE_DELETE, payload: zone.zoneId });
             }
           }
 
+          // Delete all factories from UI and track for batch delete
           for (const factory of areaFactories) {
-            try {
-              await deleteAreaFactory(factory.factoryId);
-              dispatch({ type: actions.DELETE_FACTORY, payload: factory.factoryId });
-            } catch (e) {
-              console.error(`Failed to delete factory:`, e);
+            dispatch({ type: actions.DELETE_FACTORY, payload: factory.factoryId });
+            if (factory.factoryId > 0) {
+              dispatch({ type: actions.ADD_PENDING_FACTORY_DELETE, payload: factory.factoryId });
             }
           }
 
+          // Delete area from UI - Areas are deleted immediately (they're the container)
           await deleteArea(selectedItem.id);
           dispatch({ type: actions.DELETE_AREA, payload: selectedItem.id });
           break;
 
         case "zone":
+          // Get all seats in this zone
           const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);
+
+          // Delete seats from UI and track for batch delete
           for (const seat of zoneSeats) {
-            try {
-              await deleteSeat(seat.seatId);
-              dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-            } catch (e) {
-              console.error(`Failed to delete seat:`, e);
+            dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
+            // Only track real seats (positive IDs) for batch delete
+            if (seat.seatId > 0) {
+              dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
             }
           }
-          await deleteZone(selectedItem.id);
+
+          // Delete zone from UI
           dispatch({ type: actions.DELETE_ZONE, payload: selectedItem.id });
+
+          // Only track real zones (positive IDs) for batch delete
+          if (selectedItem.id > 0) {
+            dispatch({ type: actions.ADD_PENDING_ZONE_DELETE, payload: selectedItem.id });
+          }
+
+          // NO API calls here - will delete when user clicks Save button
           break;
 
         case "seat":
@@ -390,8 +394,10 @@ function PropertiesPanel() {
           // 1. Delete seat from UI immediately
           dispatch({ type: actions.DELETE_SEAT, payload: selectedItem.id });
 
-          // 2. Track deleted seat for batch save
-          dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: selectedItem.id });
+          // 2. Track deleted seat for batch save (only if has real ID)
+          if (selectedItem.id > 0) {
+            dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: selectedItem.id });
+          }
 
           // 3. Renumber and update remaining seats in UI immediately
           remainingSeatsInSameRow.forEach((seat, i) => {
@@ -418,15 +424,22 @@ function PropertiesPanel() {
           break;
 
         case "factory":
-          await deleteAreaFactory(selectedItem.id);
+          // Delete factory from UI
           dispatch({ type: actions.DELETE_FACTORY, payload: selectedItem.id });
+
+          // Only track real factories (positive IDs) for batch delete
+          if (selectedItem.id > 0) {
+            dispatch({ type: actions.ADD_PENDING_FACTORY_DELETE, payload: selectedItem.id });
+          }
+
+          // NO API calls here - will delete when user clicks Save button
           break;
       }
 
       dispatch({ type: actions.SELECT_ITEM, payload: null });
     } catch (e) {
       console.error("Delete error:", e);
-      alert(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
+      toast.error(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
     }
   };
 
@@ -436,13 +449,13 @@ function PropertiesPanel() {
       case 'area':
         return { label: 'PHÒNG THƯ VIỆN', icon: '', color: '#C2410C', bg: '#FFF7F2' };
       case 'zone':
-        return { label: 'KHU VỰC GHẾ', icon: '', color: '#166534', bg: '#ECFDF5' };
+        return { label: 'KHU VỰC GHẾ', icon: '', color: '#C2410C', bg: '#FFF7F2' };
       case 'seat':
-        return { label: 'GHẾ NGỒI', icon: '', color: '#1E40AF', bg: '#EFF6FF' };
+        return { label: 'GHẾ NGỒI', icon: '', color: '#C2410C', bg: '#FFF7F2' };
       case 'factory':
-        return { label: 'VẬT CẢN', icon: '', color: '#64748B', bg: '#F1F5F9' };
+        return { label: 'VẬT CẢN', icon: '', color: '#C2410C', bg: '#FFF7F2' };
       default:
-        return { label: 'THUỘC TÍNH', icon: '', color: '#64748B', bg: '#F1F5F9' };
+        return { label: 'THUỘC TÍNH', icon: '', color: '#C2410C', bg: '#FFF7F2' };
     }
   };
 
@@ -460,7 +473,7 @@ function PropertiesPanel() {
     }}>
       {/* Header */}
       <div style={{
-        padding: '20px 16px',
+        padding: '9px 16px',
         background: `linear-gradient(135deg, ${typeInfo.bg} 0%, ${typeInfo.bg}CC 100%)`,
         borderBottom: `2px solid ${typeInfo.color}33`
       }}>
@@ -661,7 +674,7 @@ function PropertiesPanel() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                📊 Thống kê
+                Thống kê
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div style={{
@@ -1014,7 +1027,7 @@ function PropertiesPanel() {
                     color: localSeatIsActive ? '#166534' : '#64748B'
                   }}
                 >
-                  ✓ Hoạt động
+                  Hoạt động
                 </button>
                 <button
                   onClick={() => {
@@ -1032,7 +1045,7 @@ function PropertiesPanel() {
                     color: !localSeatIsActive ? '#DC2626' : '#64748B'
                   }}
                 >
-                  🔧 Bảo trì
+                  Bảo trì
                 </button>
               </div>
             </div>
@@ -1053,7 +1066,7 @@ function PropertiesPanel() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                ℹ️ Thông tin
+                Thông tin
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1138,29 +1151,29 @@ function PropertiesPanel() {
               </label>
               <button
                 onClick={() => {
-                  const newLocked = !selectedData.locked;
+                  const newLocked = !selectedData.isLocked;
                   // Optimistic update
                   dispatch({
                     type: actions.UPDATE_FACTORY,
-                    payload: { ...selectedData, locked: newLocked }
+                    payload: { ...selectedData, isLocked: newLocked }
                   });
                   // API in background
-                  handleFactoryChange("locked", newLocked);
+                  handleFactoryChange("isLocked", newLocked);
                 }}
                 style={{
                   width: '100%',
                   padding: '12px',
                   borderRadius: '10px',
-                  border: selectedData.locked ? '2px solid #EF4444' : '2px solid #22C55E',
-                  backgroundColor: selectedData.locked ? '#FEE2E2' : '#ECFDF5',
+                  border: selectedData.isLocked ? '2px solid #EF4444' : '2px solid #22C55E',
+                  backgroundColor: selectedData.isLocked ? '#FEE2E2' : '#ECFDF5',
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: selectedData.locked ? '#DC2626' : '#166534',
+                  color: selectedData.isLocked ? '#DC2626' : '#166534',
                   transition: 'all 0.2s'
                 }}
               >
-                {selectedData.locked ? 'Đã khóa di chuyển' : 'Cho phép di chuyển'}
+                {selectedData.isLocked ? 'Đã khóa di chuyển' : 'Cho phép di chuyển'}
               </button>
             </div>
           </>
@@ -1192,7 +1205,7 @@ function PropertiesPanel() {
             gap: '8px'
           }}
         >
-          🗑️ Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
+          Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
         </button>
       </div>
 
@@ -1311,10 +1324,17 @@ function PropertiesPanel() {
                 Xác nhận xóa?
               </h3>
               <p style={{ margin: '0', color: '#64748B', fontSize: '14px' }}>
-                {selectedItem.type === 'area' && 'Xóa phòng sẽ xóa TẤT CẢ khu vực và ghế bên trong!'}
-                {selectedItem.type === 'zone' && 'Xóa khu vực sẽ xóa tất cả ghế bên trong!'}
-                {selectedItem.type === 'seat' && 'Bạn có chắc muốn xóa ghế này?'}
-                {selectedItem.type === 'factory' && 'Bạn có chắc muốn xóa vật cản này?'}
+                {selectedItem.type === 'area' && (() => {
+                  const areaZones = zones.filter(z => z.areaId === selectedItem.id);
+                  const areaSeats = seats.filter(s => areaZones.some(z => z.zoneId === s.zoneId));
+                  return `Xóa phòng sẽ xóa ${areaZones.length} khu vực và ${areaSeats.length} ghế bên trong! Thay đổi chỉ được lưu khi bấm nút Lưu.`;
+                })()}
+                {selectedItem.type === 'zone' && (() => {
+                  const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);
+                  return `Xóa khu vực sẽ xóa ${zoneSeats.length} ghế bên trong! Thay đổi chỉ được lưu khi bấm nút Lưu.`;
+                })()}
+                {selectedItem.type === 'seat' && 'Bạn có chắc muốn xóa ghế này? Thay đổi chỉ được lưu khi bấm nút Lưu.'}
+                {selectedItem.type === 'factory' && 'Bạn có chắc muốn xóa vật cản này? Thay đổi chỉ được lưu khi bấm nút Lưu.'}
               </p>
             </div>
 

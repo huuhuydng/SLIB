@@ -1,5 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
+// Context
+import { AuthProvider } from "../context/AuthContext";
+
+// Components
+import ProtectedRoute from "../components/ProtectedRoute";
+import LoginPage from "../pages/auth/LoginPage";
+
 // Layout
 import MainLayout from "../layouts/admin/area_management/MainLayOut";
 
@@ -14,41 +21,46 @@ import SystemConfig from "../components/SystemConfig";
 import SystemHealth from "../components/SystemHealth";
 import AIConfig from "../components/AIConfig";
 
+//chat
+import ChatManagement from "../components/chat/ChatManagement";
+
 function AppRoutes() {
-  const isLoggedIn = true;
-  const userRole = "admin"; // Should come from auth context
-
-  if (!isLoggedIn) {
-    return <Navigate to="/login" />;
-  }
-
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Admin Layout with Sidebar */}
-        <Route element={<MainLayout />}>
-          {/* Dashboard */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          
-          {/* Quản lý thư viện */}
-          <Route path="/library-map" element={<AreaManagement />} />
-          
-          {/* Quản lý người dùng */}
-          <Route path="/users" element={<UserManagement />} />
-          
-          {/* Quản lý thiết bị */}
-          <Route path="/devices" element={<DeviceManagement />} />
+      <AuthProvider>
+        <Routes>
+          {/* Public Route - Login */}
+          {/* <Route path="/login" element={<LoginPage />} /> */}
 
-          {/* Hệ thống */}
-          <Route path="/config" element={<SystemConfig />} />
-          <Route path="/health" element={<SystemHealth />} />
-          <Route path="/ai-config" element={<AIConfig />} />
-        </Route>
+          {/* Protected Routes - Admin Layout with Sidebar */}
+          <Route element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }>
+            {/* Dashboard */}
+            <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Default Redirects */}
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+            {/* Quản lý thư viện */}
+            <Route path="/library-map" element={<AreaManagement />} />
+
+            {/* Quản lý người dùng */}
+            <Route path="/users" element={<UserManagement />} />
+
+            {/* Quản lý thiết bị */}
+            <Route path="/devices" element={<DeviceManagement />} />
+
+            {/* Hệ thống */}
+            <Route path="/config" element={<SystemConfig />} />
+            <Route path="/health" element={<SystemHealth />} />
+            <Route path="/ai-config" element={<AIConfig />} />
+          </Route>
+
+          {/* Default Redirects */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

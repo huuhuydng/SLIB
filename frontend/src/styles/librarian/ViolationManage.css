@@ -1,0 +1,21 @@
+/* =================== VIOLATION MANAGE - Specific styles =================== */
+/* Main styles from SupportRequestManage.css (sr-* classes) */
+
+/* Violation type text in table */
+.vr-type-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lib-text, #1f2937);
+}
+
+/* Points badge (red) */
+.vr-points-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--lib-red-bg, #fee2e2);
+    color: var(--lib-red, #ef4444);
+}
