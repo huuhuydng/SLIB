@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import { API_BASE_URL } from '../../../config/apiConfig';
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
@@ -239,9 +240,17 @@ function LibrarianAreasContent() {
   // WebSocket real-time updates
   const stompClientRef = useRef(null);
   useEffect(() => {
-    const wsUrl = `ws://${window.location.hostname}:8080/ws`;
+    const token =
+      sessionStorage.getItem('librarian_token') ||
+      localStorage.getItem('librarian_token');
+
+    if (!token) {
+      return undefined;
+    }
+
     const client = new Client({
-      brokerURL: wsUrl,
+      webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe('/topic/seats', (message) => {
@@ -261,7 +270,7 @@ function LibrarianAreasContent() {
         stompClientRef.current.deactivate();
       }
     };
-  }, [dispatch]);
+  }, []);
 
   // Zoom controls
   const handleZoomIn = () => {

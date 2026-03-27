@@ -98,10 +98,13 @@ class LibraryStatusService extends ChangeNotifier {
   }
 
   /// Connect WebSocket STOMP → subscribe /topic/dashboard
-  void _connectWebSocket() {
+  Future<void> _connectWebSocket() async {
     if (_wsConnected) return;
 
     try {
+      final token = await _token;
+      if (token == null) return;
+
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
         wsUrl = wsUrl.replaceFirst('https://', 'wss://');
@@ -115,6 +118,9 @@ class LibraryStatusService extends ChangeNotifier {
       _stompClient = StompClient(
         config: StompConfig(
           url: stompUrl,
+          stompConnectHeaders: {
+            'Authorization': 'Bearer $token',
+          },
           webSocketConnectHeaders: {
             'ngrok-skip-browser-warning': 'true',
           },

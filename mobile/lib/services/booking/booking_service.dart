@@ -11,7 +11,6 @@ import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slib/utils/nfc_uid_hasher.dart';
 
 class BookingService {
   final _storage = const FlutterSecureStorage();

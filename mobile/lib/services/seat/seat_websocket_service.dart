@@ -25,7 +25,7 @@ class SeatWebSocketService {
   }
 
   /// Connect to WebSocket using STOMP protocol
-  void connect() {
+  Future<void> connect() async {
     if (_isConnected) return;
     if (_reconnectAttempts >= _maxReconnectAttempts) {
       debugPrint('STOMP: Max reconnect attempts reached, falling back to polling');
@@ -33,6 +33,12 @@ class SeatWebSocketService {
     }
 
     try {
+      final token = await const FlutterSecureStorage().read(key: 'jwt_token');
+      if (token == null) {
+        debugPrint('STOMP: Missing auth token, skip WebSocket connection');
+        return;
+      }
+
       // Build WebSocket URL từ API domain
       String wsUrl = ApiConstants.domain;
       
@@ -51,6 +57,9 @@ class SeatWebSocketService {
       _stompClient = StompClient(
         config: StompConfig(
           url: stompUrl,
+          stompConnectHeaders: {
+            'Authorization': 'Bearer $token',
+          },
           onConnect: _onConnect,
           onDisconnect: _onDisconnect,
           onStompError: (frame) {

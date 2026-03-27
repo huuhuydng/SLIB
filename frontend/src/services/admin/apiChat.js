@@ -15,8 +15,6 @@ chatApi.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    console.log("[ChatAPI Request]", config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => Promise.reject(error)

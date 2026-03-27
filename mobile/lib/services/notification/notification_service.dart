@@ -209,10 +209,13 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   /// Connect STOMP WebSocket cho real-time notifications
-  void _connectWebSocket() {
+  Future<void> _connectWebSocket() async {
     if (_wsConnected || _userId == null) return;
     
     try {
+      final token = await _authService.getToken();
+      if (token == null) return;
+
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
         wsUrl = wsUrl.replaceFirst('https://', 'wss://');
@@ -226,6 +229,9 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       _stompClient = StompClient(
         config: StompConfig(
           url: stompUrl,
+          stompConnectHeaders: {
+            'Authorization': 'Bearer $token',
+          },
           webSocketConnectHeaders: {
             'ngrok-skip-browser-warning': 'true',
           },

@@ -3,6 +3,7 @@ package slib.com.example.controller.dashboard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.dashboard.DashboardStatsDTO;
@@ -37,6 +38,7 @@ public class DashboardController {
      * Test endpoint - gửi broadcast WebSocket trực tiếp để debug
      */
     @PostMapping("/test-broadcast")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> testBroadcast() {
         try {
             Map<String, String> payload = Map.of(

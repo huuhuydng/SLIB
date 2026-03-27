@@ -19,14 +19,15 @@ fi
 
 # Check if .env exists
 if [ ! -f ".env" ]; then
-    echo "⚠️  Warning: .env file not found!"
-    echo "📝 Creating from .env.example..."
+    echo "Warning: .env file not found!"
+    echo "Creating from .env.example..."
     cp .env.example .env
-    echo "❗ Please edit .env and add your GEMINI_API_KEY"
+    echo "Please edit .env and add the required values before running again."
+    exit 1
 fi
 
 # Activate virtual environment and run
-echo "🚀 Starting server on http://localhost:8001"
-echo "📖 Swagger docs: http://localhost:8001/docs"
+echo "Starting server on http://localhost:8001"
+echo "Swagger docs: http://localhost:8001/docs"
 echo ""
 ./venv/bin/uvicorn app.main:app --reload --port 8001

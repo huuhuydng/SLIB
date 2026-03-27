@@ -5,7 +5,10 @@ AI-powered analytics for library usage patterns
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
+import logging
 import random
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyticsAIService:
@@ -97,7 +100,7 @@ class AnalyticsAIService:
                 }
 
         except Exception as e:
-            print(f"Error analyzing peak hours: {e}")
+            logger.error("Error analyzing peak hours: %s", e)
             # Fallback mock data
             return {
                 "peak_hours": [
@@ -262,7 +265,7 @@ class AnalyticsAIService:
                     "generated_at": datetime.now().isoformat()
                 }
         except Exception as e:
-            print(f"Error fetching usage statistics: {e}")
+            logger.error("Error fetching usage statistics: %s", e)
             return {
                 "period": period,
                 "total_visits": 0,

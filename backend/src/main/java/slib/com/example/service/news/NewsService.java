@@ -9,6 +9,7 @@ import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.repository.news.NewsRepository;
 import slib.com.example.scheduler.NewsScheduler;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.HtmlSanitizerService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,6 +31,9 @@ public class NewsService {
 
     @Autowired(required = false)
     private PushNotificationService pushNotificationService;
+
+    @Autowired
+    private HtmlSanitizerService htmlSanitizerService;
 
     public List<NewsListDTO> getPublicNews() {
         return newsRepository.getAllPublishedNews().stream()
@@ -57,7 +61,7 @@ public class NewsService {
                 .id(news.getId())
                 .title(news.getTitle())
                 .summary(news.getSummary())
-                .content(news.getContent())
+                .content(htmlSanitizerService.sanitizeRichText(news.getContent()))
                 .categoryId(news.getCategory() != null ? news.getCategory().getId() : null)
                 .categoryName(news.getCategory() != null ? news.getCategory().getName() : null)
                 .isPublished(news.getIsPublished())
@@ -93,6 +97,7 @@ public class NewsService {
     }
 
     public News createNews(News news) {
+        news.setContent(htmlSanitizerService.sanitizeRichText(news.getContent()));
         if (Boolean.TRUE.equals(news.getIsPublished())) {
             news.setPublishedAt(LocalDateTime.now());
         }
@@ -122,7 +127,7 @@ public class NewsService {
 
         existingNews.setTitle(newsDetails.getTitle());
         existingNews.setSummary(newsDetails.getSummary());
-        existingNews.setContent(newsDetails.getContent());
+        existingNews.setContent(htmlSanitizerService.sanitizeRichText(newsDetails.getContent()));
 
         // Xoa anh cu tren Cloudinary neu imageUrl thay doi
         String oldImageUrl = existingNews.getImageUrl();

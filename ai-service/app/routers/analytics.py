@@ -6,8 +6,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+import logging
 
 router = APIRouter(prefix="/api/ai/analytics", tags=["Analytics"])
+logger = logging.getLogger(__name__)
 
 
 class StudentBehaviorRequest(BaseModel):
@@ -75,7 +77,7 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
                 no_shows = expired
 
     except Exception as e:
-        print(f"Error fetching student behavior: {e}")
+        logger.error("Error fetching student behavior: %s", e)
         # Fallback to mock
         total_bookings = 10
         used_bookings = 8
@@ -449,7 +451,7 @@ async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -
             result["weekly_predictions"] = weekly_predictions
 
     except Exception as e:
-        print(f"Error fetching density prediction: {e}")
+        logger.error("Error fetching density prediction: %s", e)
         # Add default predictions
         result["hourly_predictions"] = [
             {"hour": h, "predicted_occupancy": 0.5, "confidence": 0.7}
@@ -613,7 +615,7 @@ async def get_seat_recommendation(
             recommendations = scored_seats[:5]
 
     except Exception as e:
-        print(f"Error getting seat recommendations: {e}")
+        logger.error("Error getting seat recommendations: %s", e)
         recommendations = [
             {"seat_code": "N/A", "zone": "N/A", "availability": 0,
              "reason": "Không thể tải gợi ý lúc này"}
@@ -751,7 +753,7 @@ async def get_realtime_capacity() -> Dict[str, Any]:
             }
 
     except Exception as e:
-        print(f"Error in realtime-capacity: {e}")
+        logger.error("Error in realtime-capacity: %s", e)
         return {
             "timestamp": datetime.now().isoformat(),
             "error": str(e),

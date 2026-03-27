@@ -54,8 +54,12 @@ const Attendance = () => {
       const Sock = new SockJS(`${API_BASE_URL}/ws`);
       stompClient = Stomp.over(Sock);
       stompClient.debug = null;
+      const authToken =
+        localStorage.getItem('kiosk_device_token') ||
+        sessionStorage.getItem('librarian_token') ||
+        localStorage.getItem('librarian_token');
 
-      stompClient.connect({},
+      stompClient.connect(authToken ? { Authorization: `Bearer ${authToken}` } : {},
         () => { if (isMounted) onConnected(); },
         () => { if (isMounted) connectTimeout = setTimeout(connect, 10000); }
       );

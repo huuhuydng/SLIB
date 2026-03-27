@@ -10,10 +10,24 @@ class WebSocketService {
     this.callbacks = new Map(); // Map<topic, Set<callback>>
   }
 
+  getAuthHeaders() {
+    const token =
+      sessionStorage.getItem('librarian_token') ||
+      localStorage.getItem('librarian_token') ||
+      localStorage.getItem('kiosk_device_token');
+
+    return token ? { Authorization: `Bearer ${token}` } : null;
+  }
+
   connect(onConnected, onError) {
     if (this.connected) {
-      console.log('WebSocket already connected');
       if (onConnected) onConnected();
+      return;
+    }
+
+    const connectHeaders = this.getAuthHeaders();
+    if (!connectHeaders) {
+      if (onError) onError(new Error('Thiếu token để kết nối WebSocket'));
       return;
     }
 
@@ -24,36 +38,30 @@ class WebSocketService {
       // Create STOMP client
       this.client = new Client({
         webSocketFactory: () => socket,
-        debug: (str) => {
-          console.log('STOMP Debug:', str);
-        },
+        connectHeaders,
         reconnectDelay: 5000,
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
       });
 
       // Set up connection handlers
-      this.client.onConnect = (frame) => {
-        console.log('✅ WebSocket Connected:', frame);
+      this.client.onConnect = () => {
         this.connected = true;
         if (onConnected) onConnected();
       };
 
       this.client.onStompError = (frame) => {
-        console.error('❌ STOMP Error:', frame);
         this.connected = false;
         if (onError) onError(frame);
       };
 
       this.client.onWebSocketClose = () => {
-        console.log('🔌 WebSocket connection closed');
         this.connected = false;
       };
 
       // Activate the client
       this.client.activate();
     } catch (error) {
-      console.error('❌ WebSocket connection error:', error);
       this.connected = false;
       if (onError) onError(error);
     }
@@ -65,13 +73,11 @@ class WebSocketService {
       this.connected = false;
       this.subscriptions.clear();
       this.callbacks.clear();
-      console.log('🔌 WebSocket disconnected');
     }
   }
 
   subscribe(topic, callback) {
     if (!this.client || !this.connected) {
-      console.warn('⚠️ Cannot subscribe - WebSocket not connected');
       return null;
     }
 
@@ -82,7 +88,6 @@ class WebSocketService {
 
     // Add callback to the set
     this.callbacks.get(topic).add(callback);
-    console.log(`📡 Added callback for ${topic} (${this.callbacks.get(topic).size} total)`);
 
     // Only subscribe to STOMP topic once
     if (!this.subscriptions.has(topic)) {
@@ -90,7 +95,6 @@ class WebSocketService {
         const subscription = this.client.subscribe(topic, (message) => {
           try {
             const data = JSON.parse(message.body);
-            console.log('📨 Received message on', topic, ':', data);
 
             // Notify all registered callbacks for this topic
             const topicCallbacks = this.callbacks.get(topic);
@@ -99,19 +103,18 @@ class WebSocketService {
                 try {
                   cb(data);
                 } catch (error) {
-                  console.error('❌ Error in callback:', error);
+                  console.error('WebSocket callback error:', error);
                 }
               });
             }
           } catch (error) {
-            console.error('❌ Error parsing message:', error);
+            console.error('WebSocket parse error:', error);
           }
         });
 
         this.subscriptions.set(topic, subscription);
-        console.log('📡 Subscribed to STOMP topic:', topic);
       } catch (error) {
-        console.error('❌ Subscribe error:', error);
+        console.error('WebSocket subscribe error:', error);
         return null;
       }
     }
@@ -126,7 +129,6 @@ class WebSocketService {
     const topicCallbacks = this.callbacks.get(topic);
     if (topicCallbacks) {
       topicCallbacks.delete(callback);
-      console.log(`🔕 Removed callback for ${topic} (${topicCallbacks.size} remaining)`);
 
       // If no more callbacks for this topic, unsubscribe from STOMP
       if (topicCallbacks.size === 0) {
@@ -135,7 +137,6 @@ class WebSocketService {
         if (subscription) {
           subscription.unsubscribe();
           this.subscriptions.delete(topic);
-          console.log('🔕 Unsubscribed from STOMP topic:', topic);
         }
       }
     }
@@ -148,7 +149,6 @@ class WebSocketService {
     if (subscription) {
       subscription.unsubscribe();
       this.subscriptions.delete(topic);
-      console.log('🔕 Unsubscribed from', topic);
     }
   }
 

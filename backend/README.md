@@ -78,15 +78,11 @@ backend/
 
 ### Chạy Local
 
-1. **Clone repository và cấu hình database:**
+1. **Clone repository và cấu hình `.env`:**
 
 ```bash
-# Tạo database
-createdb slib_db
-
-# Cấu hình application.properties
-cp src/main/resources/application.properties.example src/main/resources/application.properties
-# Chỉnh sửa DB connection, JWT secret, etc.
+cp .env.example .env
+# Điền secret/key thật vào file .env
 ```
 
 2. **Chạy với Maven:**
@@ -94,6 +90,8 @@ cp src/main/resources/application.properties.example src/main/resources/applicat
 ```bash
 ./mvnw spring-boot:run
 ```
+
+`backend/.env` sẽ được nạp tự động khi ứng dụng khởi động.
 
 3. **Hoặc build JAR:**
 
@@ -140,7 +138,6 @@ docker run -p 8080:8080 \
 
 ```properties
 # Database
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/slib_db
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=your_password
 
@@ -155,8 +152,16 @@ CLOUDINARY_API_SECRET=your_api_secret
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 
+# HCE / Internal
+GATE_SECRET=your_gate_secret
+INTERNAL_API_KEY=your_internal_api_key
+
+# Kiosk
+KIOSK_AUTH_ENABLED=true
+KIOSK_SECRET_KEY=your_kiosk_secret
+
 # AI Service
-AI_SERVICE_URL=http://localhost:8001
+MAIL_PASSWORD=your_mail_app_password
 ```
 
 ---

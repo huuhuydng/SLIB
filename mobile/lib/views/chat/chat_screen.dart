@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
   final ChatWebSocketService _chatWsService = ChatWebSocketService();
+  final FlutterSecureStorage _chatStateStorage = const FlutterSecureStorage();
   AnimationController? _dotAnimController;
 
   bool _isTyping = false; // Trang thai Bot dang go
@@ -67,6 +69,26 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   static const String _keyIsWaitingInQueue = 'chat_is_waiting';
   static const String _keyMessages = 'chat_messages';
   static const String _keyUserId = 'chat_user_id';
+
+  Future<String?> _readChatState(String key) => _chatStateStorage.read(key: key);
+
+  Future<void> _writeChatState(String key, String value) =>
+      _chatStateStorage.write(key: key, value: value);
+
+  Future<void> _writeChatStateBool(String key, bool value) =>
+      _chatStateStorage.write(key: key, value: value.toString());
+
+  Future<bool> _readChatStateBool(String key, {bool defaultValue = false}) async {
+    final value = await _chatStateStorage.read(key: key);
+    if (value == null) return defaultValue;
+    return value.toLowerCase() == 'true';
+  }
+
+  Future<void> _removeChatStateKeys(List<String> keys) async {
+    for (final key in keys) {
+      await _chatStateStorage.delete(key: key);
+    }
+  }
 
   bool _isLoadingState = true; // Loading indicator
   bool _userCancelledQueue = false; // Flag: user chủ động hủy queue
@@ -119,10 +141,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Load saved conversation state từ SharedPreferences
   Future<void> _loadSavedState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      String? savedConversationId = prefs.getString(_keyConversationId);
-      final savedLibrarianName = prefs.getString(_keyLibrarianName);
-      final savedIsWaiting = prefs.getBool(_keyIsWaitingInQueue) ?? false;
+      String? savedConversationId = await _readChatState(_keyConversationId);
+      final savedLibrarianName = await _readChatState(_keyLibrarianName);
+      final savedIsWaiting = await _readChatStateBool(_keyIsWaitingInQueue);
 
       print(
         '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting',
@@ -147,7 +168,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final activeConv = await _chatService.getMyActiveConversation(token);
       if (activeConv != null && activeConv['hasActive'] == true) {
         activeConversationId = activeConv['conversationId'];
-        activeLibrarianName = activeConv['librarianName'] ?? '';
+        activeLibrarianName =
+            activeConv['librarianName'] ?? savedLibrarianName ?? '';
         isFromBackend = true;
         print(
           '[PERSIST] Backend returned active conversation: $activeConversationId, status: ${activeConv['status']}',
@@ -155,7 +177,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       } else if (savedConversationId != null) {
         // Backend nói KHÔNG có active conversation → kiểm tra saved AI session
         // Chỉ dùng nếu _keyUserId đã lưu (code mới) — tránh dùng data user khác
-        final savedUserId = prefs.getString(_keyUserId);
+        final savedUserId = await _readChatState(_keyUserId);
         if (savedUserId != null) {
           activeConversationId = savedConversationId;
           isFromBackend = false;
@@ -167,11 +189,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           print(
             '[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)',
           );
-          final prefs2 = await SharedPreferences.getInstance();
-          await prefs2.remove(_keyConversationId);
-          await prefs2.remove(_keyIsEscalated);
-          await prefs2.remove(_keyLibrarianName);
-          await prefs2.remove(_keyIsWaitingInQueue);
+          await _removeChatStateKeys([
+            _keyConversationId,
+            _keyIsEscalated,
+            _keyLibrarianName,
+            _keyIsWaitingInQueue,
+          ]);
           // KHÔNG xóa _keyMessages — giữ lại tin nhắn cũ
         }
       } else {
@@ -314,8 +337,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (convId != null && mounted) {
             setState(() => _conversationId = convId);
             // Save conversation ID cho lần sau
-            final prefs2 = await SharedPreferences.getInstance();
-            await prefs2.setString(_keyConversationId, convId);
+            await _writeChatState(_keyConversationId, convId);
             // Load messages (nếu có từ lần trước)
             await _loadMessagesFromBackendPaginated(convId, token);
           } else {
@@ -586,19 +608,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Save conversation state vào SharedPreferences
   Future<void> _saveState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       if (_conversationId != null) {
-        await prefs.setString(_keyConversationId, _conversationId!);
-        await prefs.setBool(_keyIsEscalated, _isEscalated);
-        await prefs.setBool(_keyIsWaitingInQueue, _isWaitingInQueue);
+        await _writeChatState(_keyConversationId, _conversationId!);
+        await _writeChatStateBool(_keyIsEscalated, _isEscalated);
+        await _writeChatStateBool(_keyIsWaitingInQueue, _isWaitingInQueue);
         if (_librarianName != null) {
-          await prefs.setString(_keyLibrarianName, _librarianName!);
+          await _writeChatState(_keyLibrarianName, _librarianName!);
         }
         // Lưu userId để validate khi load lại
         final authService = Provider.of<AuthService>(context, listen: false);
         final currentUserId = authService.currentUser?.id;
         if (currentUserId != null) {
-          await prefs.setString(_keyUserId, currentUserId);
+          await _writeChatState(_keyUserId, currentUserId);
         }
         print(
           '[PERSIST] State saved: convId=$_conversationId, escalated=$_isEscalated, userId=$currentUserId',
@@ -612,9 +633,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Save messages vào SharedPreferences (cho AI chat)
   Future<void> _saveMessages() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final messagesJson = _messages.map((m) => m.toJson()).toList();
-      await prefs.setString(_keyMessages, jsonEncode(messagesJson));
+      await _writeChatState(_keyMessages, jsonEncode(messagesJson));
     } catch (e) {
       print('[PERSIST] Error saving messages: $e');
     }
@@ -623,8 +643,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Load messages từ SharedPreferences (cho AI chat)
   Future<void> _loadLocalMessages() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedMessages = prefs.getString(_keyMessages);
+      final savedMessages = await _readChatState(_keyMessages);
       if (savedMessages != null && savedMessages.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(savedMessages);
         if (mounted && decoded.isNotEmpty) {
@@ -646,12 +665,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Clear saved state (khi conversation kết thúc hoặc reset)
   Future<void> _clearSavedState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyConversationId);
-      await prefs.remove(_keyIsEscalated);
-      await prefs.remove(_keyLibrarianName);
-      await prefs.remove(_keyIsWaitingInQueue);
-      await prefs.remove(_keyMessages);
+      await _removeChatStateKeys([
+        _keyConversationId,
+        _keyIsEscalated,
+        _keyLibrarianName,
+        _keyIsWaitingInQueue,
+        _keyMessages,
+        _keyUserId,
+      ]);
       print('[PERSIST] State cleared');
     } catch (e) {
       print('[PERSIST] Error clearing state: $e');
@@ -3106,10 +3127,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _messageIds.clear();
 
     // Chỉ clear escalation state, KHÔNG clear conversationId
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyIsEscalated, false);
-    await prefs.setBool(_keyIsWaitingInQueue, false);
-    await prefs.remove(_keyLibrarianName);
+    await _writeChatStateBool(_keyIsEscalated, false);
+    await _writeChatStateBool(_keyIsWaitingInQueue, false);
+    await _chatStateStorage.delete(key: _keyLibrarianName);
     // KHÔNG remove _keyConversationId - giữ session cho lần escalate tiếp theo
 
     _feedbackConversationId = _conversationId;

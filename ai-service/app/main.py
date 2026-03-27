@@ -45,24 +45,16 @@ async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     settings = get_settings()
-    print("=" * 60)
-    print("🤖 SLIB AI Service Starting...")
-    print(f"🔌 AI Provider: OLLAMA (RAG Mode)")
-    print(f"📦 LLM Model: {settings.ollama_model}")
-    print(f"🔢 Embedding Model: {settings.ollama_embedding_model}")
-    print(f"🏠 Ollama URL: {settings.ollama_url}")
-    print(f"🗄️  Vector DB: Qdrant at {settings.qdrant_url}")
-    print(f"📊 Similarity Threshold: {settings.similarity_threshold}")
-    print(f"🌐 Debug mode: {settings.debug}")
-    print("")
-    print("📊 Available AI Features:")
-    print("   • RAG Chat with Vector Search")
-    print("   • Document Ingestion (PDF, DOCX, Text)")
-    print("   • Human Handoff (ESCALATE_TO_LIBRARIAN)")
-    print("   • Peak Hours Analysis")
-    print("   • Time Slot Recommendations")
-    print("   • Usage Statistics")
-    print("=" * 60)
+    logger.info("SLIB AI Service starting")
+    logger.info(
+        "AI config: provider=OLLAMA model=%s embedding_model=%s ollama_url=%s qdrant_url=%s similarity_threshold=%s debug=%s",
+        settings.ollama_model,
+        settings.ollama_embedding_model,
+        settings.ollama_url,
+        settings.qdrant_url,
+        settings.similarity_threshold,
+        settings.debug,
+    )
     
     # Initialize database (optional - tables created by init_db.sql)
     try:
@@ -77,7 +69,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("🛑 SLIB AI Service shutting down...")
+    logger.info("SLIB AI Service shutting down")
 
 
 # Create FastAPI app
