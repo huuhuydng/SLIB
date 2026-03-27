@@ -111,28 +111,22 @@ export const getNewsDetail = async (id) => {
 
 // Toggle pin status của news
 export const togglePinNews = async (id) => {
-// Toggle pin status của news
-export const togglePinNews = async (id) => {
   try {
     const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`, null, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
-    console.error('Error toggling pin status:', error);
     console.error('Error toggling pin status:', error);
     throw error;
   }
 };
 
 // ============== CATEGORY APIs ==============
-// ============== CATEGORY APIs ==============
 
 const CATEGORY_URL = `${API_BASE_URL}/slib/news-categories`;
 
 // Lay danh sach tat ca categories
-// Lay danh sach tat ca categories
 export const getAllCategories = async () => {
   try {
-    const response = await axios.get(`${CATEGORY_URL}`);
     const response = await axios.get(`${CATEGORY_URL}`);
     return response.data;
   } catch (error) {
@@ -152,7 +146,6 @@ export const createCategory = async (name, colorCode = '#3b82f6') => {
   }
 };
 
-// Xoa category
 // Xoa category
 export const deleteCategory = async (id) => {
   try {
@@ -174,8 +167,6 @@ export const uploadImage = async (file) => {
     });
     return response.data.url;
   } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
     console.error('Error uploading image:', error);
     throw error;
   }
