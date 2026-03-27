@@ -8,7 +8,6 @@ import {
   getZonesByArea,
   getSeats,
   createAreaFactoryInArea,
-  getSeatByNfcUid,
 } from "../../../services/admin/area_management/api";
 import { generateNewSeatData } from "../../../utils/admin/seatLayout";
 import "../../../styles/admin/sidebar_area.css";
@@ -209,7 +208,6 @@ function Sidebar() {
     }
 
     const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
-    const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
 
     const seatData = generateNewSeatData({
       zoneId: selectedZone.zoneId,
@@ -217,23 +215,7 @@ function Sidebar() {
       seatsInZone,
       seatHeight: 44,
     });
-    const seatData = generateNewSeatData({
-      zoneId: selectedZone.zoneId,
-      rowNumber: rowNum,
-      seatsInZone,
-      seatHeight: 44,
-    });
 
-    // Generate temporary ID for the new seat (negative to identify as pending)
-    const tempId = -Date.now();
-    const tempSeat = {
-      ...seatData,
-      seatId: tempId,
-    };
-
-    // Add to local state only - will be created in DB when user clicks Save
-    dispatch({ type: actions.ADD_SEAT, payload: tempSeat });
-    setShowRowModal(false);
     // Generate temporary ID for the new seat (negative to identify as pending)
     const tempId = -Date.now();
     const tempSeat = {
