@@ -19,7 +19,7 @@ Backend service được xây dựng bằng **Spring Boot 3.4.0** với **Java 2
 - **Booking System**: Đặt chỗ, check-in/out
 - **Chat & AI**: Tích hợp với AI Service, WebSocket realtime
 - **News/Notification**: Hệ thống tin tức, thông báo
-- **System Config**: Cấu hình hệ thống linh hoạt
+- **System Config**: Cấu hình hệ thống linh hoạt.
 
 ---
 
