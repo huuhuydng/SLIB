@@ -15,6 +15,8 @@ import Statistic from "../pages/librarian/Statistic/Statistic";
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
+import NewBookManage from "../pages/librarian/NewBooks/NewBookManage";
+import NewBookCreate from "../pages/librarian/NewBooks/NewBookCreate";
 import AccountSettings from "../components/settings/AccountSettings";
 import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
@@ -62,6 +64,9 @@ function LibrarianRoutes() {
         <Route path="news/create" element={<NewCreate />} />
         <Route path="news/edit/:id" element={<NewCreate />} />
         <Route path="news/view/:id" element={<NewsDetailView />} />
+        <Route path="new-books" element={<NewBookManage />} />
+        <Route path="new-books/create" element={<NewBookCreate />} />
+        <Route path="new-books/edit/:id" element={<NewBookCreate />} />
 
         {/* Quản lý Kiosk */}
         <Route path="slideshow-management" element={<SlideshowManagement />} />

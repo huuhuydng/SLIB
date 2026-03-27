@@ -174,6 +174,18 @@ public class NewsService {
         newsRepository.deleteById(id);
     }
 
+    public void deleteBatch(List<Long> ids) {
+        for (Long id : ids) {
+            newsRepository.findById(id).ifPresent(news -> {
+                if (news.getImageUrl() != null && !news.getImageUrl().isEmpty()) {
+                    cloudinaryService.deleteImageByUrl(news.getImageUrl());
+                }
+                newsScheduler.cancelScheduledTask(id);
+            });
+        }
+        newsRepository.deleteAllById(ids);
+    }
+
     /**
      * Toggle pin status cua tin tuc
      */

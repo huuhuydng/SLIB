@@ -177,6 +177,21 @@ public class HCEController {
         }
     }
 
+    @DeleteMapping("/access-logs/batch")
+    public ResponseEntity<?> deleteAccessLogsBatch(@RequestBody Map<String, List<String>> body) {
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            checkInService.deleteAccessLogsBatch(uuids);
+            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /**
      * Lấy chi tiết sinh viên cho thủ thư (chỉ đọc)
      */

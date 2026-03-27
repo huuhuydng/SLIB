@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, Armchair, MapPin, Clock, CalendarDays, User } from "lucide-react";
+import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, Armchair, MapPin, Clock, CalendarDays, User, Trash2 } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/BookingManage.css";
@@ -48,6 +48,10 @@ function BookingManage() {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [searchText, setSearchText] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Selection for batch delete
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [deleting, setDeleting] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -149,6 +153,42 @@ function BookingManage() {
             toast.error("Huỷ đặt chỗ thất bại: " + err.message);
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleDeleteBatch = async () => {
+        if (selectedIds.size === 0) return;
+        const confirmed = await confirm({
+            title: 'Xoá đặt chỗ',
+            message: `Bạn có chắc muốn xoá ${selectedIds.size} đặt chỗ đã chọn?`,
+            variant: 'danger',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
+        setDeleting(true);
+        try {
+            const token = getToken();
+            const res = await fetch(`${API_BASE}/batch`, {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ ids: Array.from(selectedIds) }),
+            });
+            if (res.ok) {
+                toast.success(`Đã xoá ${selectedIds.size} đặt chỗ thành công.`);
+                setSelectedIds(new Set());
+                fetchBookings();
+            } else {
+                toast.error('Không thể xoá đặt chỗ. Vui lòng thử lại.');
+            }
+        } catch (err) {
+            console.error("Error deleting:", err);
+            toast.error('Lỗi: ' + err.message);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -324,6 +364,25 @@ function BookingManage() {
         }
     };
 
+    // Selection logic
+    const toggleSelect = (id) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === paginatedBookings.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(paginatedBookings.map(b => b.reservationId)));
+        }
+    };
+
+    const isAllSelected = paginatedBookings.length > 0 && selectedIds.size === paginatedBookings.length;
+
     // Render sort icon
     const renderSortIcon = (column) => {
         if (sortConfig.column === column) {
@@ -400,7 +459,7 @@ function BookingManage() {
     };
 
     const activeFilterCount = Object.values(columnFilters).filter(Boolean).length;
-    const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length;
+    const visibleColumnCount = Object.values(visibleColumns).filter(Boolean).length + 1;
 
     return (
         <div className="lib-container">
@@ -453,6 +512,15 @@ function BookingManage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Batch delete */}
+                    {selectedIds.size > 0 && (
+                        <button className="sr-delete-btn" onClick={handleDeleteBatch} disabled={deleting}>
+                            <Trash2 size={14} />
+                            {deleting ? "Đang xoá..." : `Xoá (${selectedIds.size})`}
+                        </button>
+                    )}
+
                     <span className="cio-result-count">
                         {activeFilterCount > 0 && (
                             <span className="cio-active-filters">
@@ -474,6 +542,14 @@ function BookingManage() {
                         <table className="bm-table">
                             <thead>
                                 <tr>
+                                    <th className="sr-checkbox-col">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            onChange={toggleSelectAll}
+                                            style={{ accentColor: '#FF751F' }}
+                                        />
+                                    </th>
                                     {visibleColumns.student && renderColumnHeader('student', 'Sinh viên')}
                                     {visibleColumns.seat && renderColumnHeader('seat', 'Ghế')}
                                     {visibleColumns.zone && renderColumnHeader('zone', 'Khu vực')}
@@ -494,9 +570,17 @@ function BookingManage() {
                                     paginatedBookings.map((booking) => (
                                         <tr
                                             key={booking.reservationId}
-                                            className="bm-table-row"
+                                            className={`bm-table-row${selectedIds.has(booking.reservationId) ? ' selected' : ''}`}
                                             onClick={() => setSelectedBooking(booking)}
                                         >
+                                            <td className="sr-checkbox-col" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(booking.reservationId)}
+                                                    onChange={() => toggleSelect(booking.reservationId)}
+                                                    style={{ accentColor: '#FF751F' }}
+                                                />
+                                            </td>
                                             {visibleColumns.student && (
                                                 <td>
                                                     <div

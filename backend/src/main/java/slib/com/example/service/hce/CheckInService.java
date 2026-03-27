@@ -464,6 +464,13 @@ public class CheckInService {
     }
 
     /**
+     * Xoá nhiều access logs
+     */
+    public void deleteAccessLogsBatch(List<UUID> ids) {
+        accessLogRepository.deleteAllById(ids);
+    }
+
+    /**
      * Xuất báo cáo Excel
      */
     public byte[] exportAccessLogsToExcel(java.time.LocalDate startDate, java.time.LocalDate endDate)

@@ -68,6 +68,20 @@ public class NewsController {
         return ResponseEntity.ok("Đã xóa tin tức thành công!");
     }
 
+    @DeleteMapping("/admin/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<Long>> body) {
+        try {
+            List<Long> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            newsService.deleteBatch(ids);
+            return ResponseEntity.ok(Map.of("deleted", ids.size()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     /**
      * Toggle pin status của tin tức
      */

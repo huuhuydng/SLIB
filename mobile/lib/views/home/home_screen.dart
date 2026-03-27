@@ -4,18 +4,22 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/models/new_book_model.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/news_model.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/news/news_service.dart';
+import 'package:slib/services/new_books/new_book_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/views/home/widgets/home_appbar.dart';
 import 'package:slib/views/home/widgets/live_status_dashboard.dart';
+import 'package:slib/views/home/widgets/new_books_slider.dart';
 import 'package:slib/views/home/widgets/upcoming_booking_card.dart';
 import 'package:slib/views/home/widgets/quick_action_grid.dart';
 import 'package:slib/views/home/widgets/ai_suggestion_card.dart';
 import 'package:slib/views/home/widgets/news_slider.dart';
 import 'package:slib/views/home/widgets/compact_header.dart';
+import 'package:slib/views/new_books/new_books_screen.dart';
 import 'package:slib/views/home/widgets/section_title.dart';
 import 'package:slib/views/news/news_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
@@ -40,9 +44,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // --- STATE QUẢN LÝ TIN TỨC ---
   List<News> _newsList = [];
+  List<NewBook> _newBooksList = [];
   bool _isLoading = true;
 
   final NewsService _newsService = NewsService();
+  final NewBookService _newBookService = NewBookService();
   final LocalStorageService _localService = LocalStorageService();
 
   double _headerOpacity = 1.0;
@@ -56,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
-    _loadNewsData();
+    _loadHomeContent();
     _schedulePendingFeedbackCheck(delay: const Duration(seconds: 2));
   }
 
@@ -76,29 +82,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Chiến thuật: Cache trước -> API sau
-  void _loadNewsData() async {
-    // 1. Load Cache
+  void _loadHomeContent() async {
     final cachedNews = await _localService.loadNewsList();
-    if (cachedNews.isNotEmpty && mounted) {
+    final cachedNewBooks = await _localService.loadNewBooksList();
+
+    if ((cachedNews.isNotEmpty || cachedNewBooks.isNotEmpty) && mounted) {
       setState(() {
         _newsList = cachedNews;
+        _newBooksList = _sortNewBooks(cachedNewBooks);
         _isLoading = false;
       });
     }
 
-    // 2. Load API
     try {
-      final freshNews = await _newsService.fetchPublicNews();
+      final results = await Future.wait([
+        _newsService.fetchPublicNews(),
+        _newBookService.fetchPublicNewBooks(),
+      ]);
+
+      final freshNews = results[0] as List<News>;
+      final freshNewBooks = results[1] as List<NewBook>;
+
       if (mounted) {
         setState(() {
           _newsList = freshNews;
+          _newBooksList = _sortNewBooks(freshNewBooks);
           _isLoading = false;
         });
       }
+
       await _localService.saveNewsList(freshNews);
+      await _localService.saveNewBooksList(freshNewBooks);
     } catch (e) {
-      debugPrint("Lỗi tải tin mới: $e");
-      if (mounted && _newsList.isEmpty) {
+      debugPrint("Lỗi tải nội dung trang chủ: $e");
+      if (mounted && _newsList.isEmpty && _newBooksList.isEmpty) {
         setState(() => _isLoading = false);
       }
     }
@@ -183,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _refreshBookingCard(),
       _refreshLiveStatus(),
       _refreshNews(),
+      _refreshNewBooks(),
     ]);
   }
 
@@ -204,6 +222,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _refreshNewBooks() async {
+    try {
+      final freshNewBooks = await _newBookService.fetchPublicNewBooks();
+      if (mounted) {
+        setState(() => _newBooksList = _sortNewBooks(freshNewBooks));
+      }
+      await _localService.saveNewBooksList(freshNewBooks);
+    } catch (e) {
+      debugPrint("Refresh new books error: $e");
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -220,6 +250,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _headerOffset = (offset / 2).clamp(0.0, 100.0);
       _showCompactHeader = offset > 150.0;
     });
+  }
+
+  List<NewBook> _sortNewBooks(List<NewBook> books) {
+    final sorted = List<NewBook>.from(books);
+    sorted.sort((a, b) => b.arrivalDate.compareTo(a.arrivalDate));
+    return sorted;
   }
 
   @override
@@ -240,6 +276,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       displayNews = pinnedNews;
     }
     // ---------------------------------------------------
+    final displayNewBooks = _newBooksList.take(6).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -322,31 +359,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           const Center(child: CircularProgressIndicator())
                         else if (displayNews.isNotEmpty)
                           Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const SectionTitle("Tin tức thư viện"),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const NewsScreen(),
-                                        ),
-                                      );
-                                    },
-                                    child: const Text(
-                                      "Xem tất cả",
-                                      style: TextStyle(color: Colors.orange),
+                              SectionTitle(
+                                "Tin tức thư viện",
+                                actionLabel: "Xem tất cả",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const NewsScreen(),
                                     ),
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
                               // Slider
                               NewsSlider(newsList: displayNews),
+                              const SizedBox(height: 25),
                             ],
                           )
                         else
@@ -357,6 +386,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const SizedBox(height: 12),
                               ErrorDisplayWidget.empty(
                                 message: 'Chưa có tin tức nào',
+                              ),
+                              const SizedBox(height: 25),
+                            ],
+                          ),
+
+                        // --- NEW BOOKS SECTION ---
+                        if (_isLoading && _newBooksList.isEmpty)
+                          const Center(child: CircularProgressIndicator())
+                        else if (displayNewBooks.isNotEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SectionTitle(
+                                "Sách mới thư viện",
+                                actionLabel: "Xem tất cả",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const NewBooksScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              NewBooksSlider(books: displayNewBooks),
+                            ],
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SectionTitle("Sách mới thư viện"),
+                              const SizedBox(height: 12),
+                              ErrorDisplayWidget.empty(
+                                message: 'Chưa có sách mới nào',
                               ),
                             ],
                           ),

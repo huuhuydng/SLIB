@@ -22,6 +22,7 @@ import {
   Star,
   Settings,
   LogOut,
+  BookOpen,
 } from "lucide-react";
 import { useLibrarianNotification } from "../../context/LibrarianNotificationContext";
 
@@ -156,6 +157,11 @@ const Sidebar = () => {
           icon: Newspaper,
           label: "Tin tức",
           path: "/librarian/news",
+        },
+        {
+          icon: BookOpen,
+          label: "Sách mới",
+          path: "/librarian/new-books",
         },
         {
           icon: Monitor,

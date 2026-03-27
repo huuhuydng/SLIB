@@ -152,6 +152,13 @@ public class SeatStatusReportService {
         return SeatStatusReportResponse.fromEntity(saved);
     }
 
+    @Transactional
+    public void deleteBatch(List<UUID> ids) {
+        seatStatusReportRepository.deleteAllById(ids);
+        log.info("[SeatStatusReport] Deleted {} reports", ids.size());
+        librarianNotificationService.broadcastPendingCounts("SEAT_STATUS_REPORT", "DELETED");
+    }
+
     private SeatStatusReportEntity findPendingReport(UUID reportId) {
         SeatStatusReportEntity report = seatStatusReportRepository.findById(reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seat status report", "id", reportId));
