@@ -13,12 +13,12 @@ Backend API service cho hệ thống **SLIB Smart Library** - Hệ thống quả
 
 Backend service được xây dựng bằng **Spring Boot 3.4.0** với **Java 21**, cung cấp RESTful API cho toàn bộ hệ thống SLIB bao gồm:
 
-- **Authentication**: JWT-based với Google OAuth
-- **User Management**: Quản lý sinh viên, admin, thủ thư
-- **Area Management**: Quản lý khu vực, zone, ghế ngồi
-- **Booking System**: Đặt chỗ, check-in/out
-- **Chat & AI**: Tích hợp với AI Service, WebSocket realtime
-- **News/Notification**: Hệ thống tin tức, thông báo
+- **Authentication**: JWT-based với Google OAuth..
+- **User Management**: Quản lý sinh viên, admin, thủ thư..
+- **Area Management**: Quản lý khu vực, zone, ghế ngồi..
+- **Booking System**: Đặt chỗ, check-in/out..
+- **Chat & AI**: Tích hợp với AI Service, WebSocket realtime..
+- **News/Notification**: Hệ thống tin tức, thông báo..
 - **System Config**: Cấu hình hệ thống linh hoạt.
 
 ---
