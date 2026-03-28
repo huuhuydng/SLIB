@@ -1,7 +1,7 @@
 import 'package:barcode_widget/barcode_widget.dart'; // Import thư viện Barcode
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 
 class HceCardScreen extends StatelessWidget {
   const HceCardScreen({super.key});
@@ -13,8 +13,8 @@ class HceCardScreen extends StatelessWidget {
     final user = authService.currentUser;
 
     // Dữ liệu hiển thị (Nếu chưa login thì dùng data mẫu)
-    final String studentName = user?.fullName.toUpperCase() ?? "NGUYỄN VĂN A";
-    final String studentCode = user?.studentCode ?? "SE123456";
+    final String studentName = user?.fullName.toUpperCase() ?? "";
+    final String studentCode = user?.studentCode ?? "";
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -107,15 +107,20 @@ class HceCardScreen extends StatelessWidget {
                               ),
                               color: Colors.white.withOpacity(0.2),
                             ),
-                            child: const Center(
+                            child: Center(
                               child: CircleAvatar(
                                 radius: 68,
                                 backgroundColor: Colors.white,
-                                child: Icon(
-                                  Icons.person,
-                                  size: 100,
-                                  color: Colors.grey,
-                                ),
+                                backgroundImage: user?.avtUrl != null && user!.avtUrl!.isNotEmpty
+                                    ? NetworkImage(user.avtUrl!)
+                                    : null,
+                                child: (user?.avtUrl == null || user!.avtUrl!.isEmpty)
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 100,
+                                        color: Colors.grey,
+                                      )
+                                    : null,
                               ),
                             ),
                           ),

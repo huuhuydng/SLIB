@@ -3,7 +3,7 @@ import { updateSeat } from "../../../services/admin/area_management/api";
 
 function Seat({ seat }) {
   const { state, dispatch, actions } = useLayout();
-  const { selectedItem } = state;
+  const { selectedItem, isPreviewMode } = state;
 
   const isSelected =
     selectedItem?.type === "seat" &&
@@ -86,29 +86,41 @@ function Seat({ seat }) {
 
   /* ================= RENDER ================= */
 
-  // Màu cam (#F97316) cho ghế hoạt động, xám (#9CA3AF) cho ghế bảo trì
-  const statusColor = seat.isActive !== false ? "#F97316" : "#9CA3AF";
+  // Preview mode: màu xanh lá giống mobile (#4CAF50)
+  // Edit mode: màu cam (#F97316) cho ghế hoạt động, xám (#9CA3AF) cho ghế bảo trì
+  const getStatusColor = () => {
+    if (isPreviewMode) {
+      return seat.isActive !== false ? "#4CAF50" : "#9CA3AF";
+    }
+    return seat.isActive !== false ? "#F97316" : "#9CA3AF";
+  };
+
+  const statusColor = getStatusColor();
 
   return (
     <div
       className={`seat ${seat.isActive ? "active" : "inactive"} ${isSelected ? "selected" : ""}`}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
+      onClick={isPreviewMode ? undefined : handleClick}
+      onDoubleClick={isPreviewMode ? undefined : handleDoubleClick}
       title={`${seat.seatCode} - ${seat.isActive ? "Hoạt động" : "Bảo trì"}`}
       style={{
         width: '100%',
         height: '100%',
-        borderRadius: '4px',
+        borderRadius: isPreviewMode ? '8px' : '4px',
         backgroundColor: statusColor,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         color: 'white',
-        fontSize: '12px',
+        fontSize: isPreviewMode ? '11px' : '12px',
         fontWeight: 'bold',
-        cursor: 'pointer',
-        border: isSelected ? '2px solid #1976d2' : '1px solid #ccc',
+        cursor: isPreviewMode ? 'default' : 'pointer',
+        border: isPreviewMode
+          ? '2px solid rgba(0,0,0,0.15)'
+          : (isSelected ? '2px solid #1976d2' : '1px solid #ccc'),
         transition: 'all 0.2s',
+        boxShadow: isPreviewMode ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+        pointerEvents: isPreviewMode ? 'none' : 'auto',
       }}
     >
       {seat.seatCode || 'S'}

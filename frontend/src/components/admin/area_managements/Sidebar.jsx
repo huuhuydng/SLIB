@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   createArea,
@@ -25,6 +26,7 @@ const ZONE_TYPES = [
 ];
 
 function Sidebar() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const {
     areas,
@@ -33,6 +35,7 @@ function Sidebar() {
     selectedItem,
     selectedAreaId,
     selectedZoneId,
+    isPreviewMode,
   } = state;
 
   const [seatCount, setSeatCount] = useState(1);
@@ -40,6 +43,7 @@ function Sidebar() {
   const [showRowModal, setShowRowModal] = useState(false);
   const [showZoneTypeModal, setShowZoneTypeModal] = useState(false);
   const [selectedZoneType, setSelectedZoneType] = useState(ZONE_TYPES[0]);
+
 
   /* ================= FILTER ================= */
   const currentAreaZones = zones.filter((z) => z.areaId === selectedAreaId);
@@ -106,104 +110,90 @@ function Sidebar() {
     dispatch({ type: actions.SELECT_AREA, payload: res.data.areaId });
   };
 
-  const handleAddZone = async () => {
+  const handleAddZone = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
-    setShowZoneTypeModal(true);
-  };
 
-  const confirmAddZone = async () => {
-    try {
-      // Calculate position based on existing zones
-      const existingZones = zones.filter(z => z.areaId === selectedAreaId);
-      let posX = 20;
-      let posY = 20;
+    // Push current state to history for undo
+    dispatch({ type: actions.PUSH_HISTORY });
 
-      if (existingZones.length > 0) {
-        const lastZone = existingZones[existingZones.length - 1];
-        posX = (lastZone.positionX || 0) + (lastZone.width || 200) + 20;
-        if (posX > 500) {
-          posX = 20;
-          posY = (lastZone.positionY || 0) + (lastZone.height || 150) + 20;
-        }
+    // Calculate position based on existing zones
+    const existingZones = zones.filter(z => z.areaId === selectedAreaId);
+    let posX = 20;
+    let posY = 20;
+
+    if (existingZones.length > 0) {
+      const lastZone = existingZones[existingZones.length - 1];
+      posX = (lastZone.positionX || 0) + (lastZone.width || 200) + 20;
+      if (posX > 500) {
+        posX = 20;
+        posY = (lastZone.positionY || 0) + (lastZone.height || 150) + 20;
       }
-
-      const payload = {
-        zoneName: selectedZoneType.name,
-        areaId: selectedAreaId,
-        hasPowerOutlet: selectedZoneType.id === 'computer',
-        width: 250,
-        height: 200,
-        positionX: posX,
-        positionY: posY,
-        color: selectedZoneType.color,
-      };
-
-      const res = await createZone(payload);
-
-      const zoneNormalized = {
-        zoneId: res.data?.zone_id ?? res.data?.zoneId,
-        zoneName: res.data?.zone_name ?? res.data?.zoneName ?? selectedZoneType.name,
-        areaId: res.data?.area_id ?? res.data?.areaId ?? selectedAreaId,
-        positionX: res.data?.position_x ?? res.data?.positionX ?? posX,
-        positionY: res.data?.position_y ?? res.data?.positionY ?? posY,
-        width: res.data?.width ?? 250,
-        height: res.data?.height ?? 200,
-        color: res.data?.color ?? selectedZoneType.color,
-        isLocked: res.data?.is_locked ?? res.data?.isLocked ?? false,
-        isFixed: res.data?.is_fixed ?? res.data?.isFixed ?? false,
-        fixedType: res.data?.fixed_type ?? res.data?.fixedType,
-        amenities: res.data?.amenities ?? [],
-      };
-
-      dispatch({ type: actions.ADD_ZONE, payload: zoneNormalized });
-      setShowZoneTypeModal(false);
-    } catch (e) {
-      console.error("Failed to create zone:", e);
-      alert("Tạo khu vực thất bại: " + (e.response?.data?.message || e.message));
     }
+
+    // Auto-generate zone name
+    const zoneNumber = existingZones.length + 1;
+    const zoneName = `Khu Vực ${zoneNumber}`;
+
+    // Generate temporary negative ID (will be replaced with real ID after save)
+    const tempId = -Date.now();
+
+    const newZone = {
+      zoneId: tempId,
+      zoneName: zoneName,
+      areaId: selectedAreaId,
+      positionX: posX,
+      positionY: posY,
+      width: 250,
+      height: 200,
+      color: '#9CA3AF',
+      isLocked: false,
+      isPending: true, // Mark as pending (not saved to DB yet)
+    };
+
+    // Add to local state and pending changes (no API call)
+    dispatch({ type: actions.ADD_PENDING_ZONE, payload: newZone });
   };
 
-  const handleAddFactory = async () => {
+  // Keep confirmAddZone for backward compatibility but not used anymore
+  const confirmAddZone = async () => {
+    // This function is no longer used - zones are created directly in handleAddZone
+    setShowZoneTypeModal(false);
+  };
+
+  const handleAddFactory = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
 
-    try {
-      const payload = {
-        factoryName: "Vật cản mới",
-        width: 120,
-        height: 80,
-        positionX: 20,
-        positionY: 20,
-        areaId: selectedAreaId,
-        isActive: true,
-      };
+    // Push current state to history for undo
+    dispatch({ type: actions.PUSH_HISTORY });
 
-      const res = await createAreaFactoryInArea(selectedAreaId, payload);
-      const factoryData = {
-        factoryId: res.data.factory_id || res.data.factoryId,
-        factoryName: res.data.factory_name || res.data.factoryName,
-        positionX: res.data.position_x || res.data.positionX,
-        positionY: res.data.position_y || res.data.positionY,
-        width: res.data.width,
-        height: res.data.height,
-        color: res.data.color || "#9CA3AF",
-        areaId: res.data.area_id || res.data.areaId || selectedAreaId,
-      };
-      dispatch({ type: actions.ADD_FACTORY, payload: factoryData });
-    } catch (e) {
-      console.error("Failed to create factory:", e);
-      alert("Tạo vật cản thất bại: " + (e.response?.data?.message || e.message));
-    }
+    // Generate temporary negative ID
+    const tempId = -Date.now();
+
+    const newFactory = {
+      factoryId: tempId,
+      factoryName: "Vật cản mới",
+      width: 120,
+      height: 80,
+      positionX: 20,
+      positionY: 20,
+      areaId: selectedAreaId,
+      color: "#9CA3AF",
+      isPending: true, // Mark as pending
+    };
+
+    // Add to local state and pending changes (no API call)
+    dispatch({ type: actions.ADD_PENDING_FACTORY, payload: newFactory });
   };
 
   const handleAddSeat = async () => {
     if (!selectedZone) {
-      alert("Vui lòng chọn khu vực ghế trước");
+      toast.warning("Vui lòng chọn khu vực ghế trước");
       return;
     }
     setShowRowModal(true);
@@ -213,35 +203,29 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      toast.warning("Vui long chon hang hop le (A-Z)");
       return;
     }
 
-    try {
-      const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
+    const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
 
-      const seatData = generateNewSeatData({
-        zoneId: selectedZone.zoneId,
-        rowNumber: rowNum,
-        seatsInZone,
-        seatHeight: 44,
-      });
+    const seatData = generateNewSeatData({
+      zoneId: selectedZone.zoneId,
+      rowNumber: rowNum,
+      seatsInZone,
+      seatHeight: 44,
+    });
 
-      const res = await createSeat(seatData);
+    // Generate temporary ID for the new seat (negative to identify as pending)
+    const tempId = -Date.now();
+    const tempSeat = {
+      ...seatData,
+      seatId: tempId,
+    };
 
-      const completeSeatData = {
-        ...res.data,
-        rowNumber: seatData.rowNumber,
-        columnNumber: seatData.columnNumber,
-        seatCode: seatData.seatCode,
-      };
-
-      dispatch({ type: actions.ADD_SEAT, payload: completeSeatData });
-      setShowRowModal(false);
-    } catch (e) {
-      console.error("Error adding seat:", e);
-      alert("Tạo ghế thất bại: " + (e.response?.data?.message || e.message));
-    }
+    // Add to local state only - will be created in DB when user clicks Save
+    dispatch({ type: actions.ADD_SEAT, payload: tempSeat });
+    setShowRowModal(false);
   };
 
   // OPTIMISTIC UPDATE: Add seats to UI immediately, API in parallel
@@ -249,7 +233,7 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      toast.warning("Vui lòng chọn hàng hợp lệ (A-Z)");
       return;
     }
 
@@ -262,37 +246,23 @@ function Sidebar() {
         zoneId: selectedZone.zoneId,
         rowNumber: rowNum,
         seatsInZone: [...seatsInZone, ...newSeats],
-        seatHeight: 44,
       });
 
-      // Generate temporary ID for optimistic update
-      const tempId = `temp-${Date.now()}-${i}`;
+      // Generate temporary ID for optimistic update (negative to identify as pending)
+      const tempId = -Date.now() - i;
       const tempSeat = {
         ...seatData,
         seatId: tempId,
-        rowNumber: seatData.rowNumber,
-        columnNumber: seatData.columnNumber,
-        seatCode: seatData.seatCode,
       };
       newSeats.push(tempSeat);
     }
 
     // Add all seats to UI immediately (optimistic)
+    // handleSave will create them in the backend when user clicks Save
     newSeats.forEach(seat => {
       dispatch({ type: actions.ADD_SEAT, payload: seat });
     });
-    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
     setShowRowModal(false);
-
-    // Call API in background for each seat (non-blocking)
-    newSeats.forEach(tempSeat => {
-      createSeat(tempSeat).then(res => {
-        // Replace temp seat with real seat from API
-        dispatch({ type: actions.UPDATE_SEAT, payload: { ...res.data, tempId: tempSeat.seatId } });
-      }).catch(e => {
-        console.error("Failed to create seat:", e);
-      });
-    });
   };
 
   const handleSelectArea = (areaId) => {
@@ -301,6 +271,15 @@ function Sidebar() {
 
   const handleSelectZone = async (zoneId) => {
     dispatch({ type: actions.SELECT_ITEM, payload: { type: "zone", id: zoneId } });
+
+    // Check if we already have seats for this zone (including unsaved ones)
+    const existingSeats = seats.filter(s => s.zoneId === zoneId);
+    if (existingSeats.length > 0) {
+      // Already have seats for this zone, don't refetch (preserves unsaved seats)
+      return;
+    }
+
+    // Only fetch from API if no existing seats
     try {
       const res = await getSeats(zoneId);
       const raw = Array.isArray(res?.data) ? res.data : [];
@@ -316,11 +295,9 @@ function Sidebar() {
         positionY: s.position_y ?? s.positionY ?? 0,
         isActive: (s.is_active ?? s.isActive) ?? true,
       }));
-      // Use MERGE_SEATS instead of SET_SEATS to preserve other zones' seats
       dispatch({ type: actions.MERGE_SEATS, payload: { zoneId, seats: seatsNormalized } });
     } catch (e) {
       console.error("Failed to load seats:", e);
-      // Don't clear all seats on error
     }
   };
 
@@ -347,8 +324,8 @@ function Sidebar() {
     }}>
       {/* Header */}
       <div style={{
-        padding: '20px 16px',
-        background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+        padding: '14px 16px',
+        background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
         color: 'white',
         flexShrink: 0
       }}>
@@ -383,16 +360,18 @@ function Sidebar() {
         }}>
           <button
             onClick={handleAddArea}
+            disabled={isPreviewMode}
             style={{
               padding: '10px 12px',
               borderRadius: '8px',
               border: '1px solid #E2E8F0',
-              background: 'white',
-              color: '#374151',
-              cursor: 'pointer',
+              background: isPreviewMode ? '#F9FAFB' : 'white',
+              color: isPreviewMode ? '#9CA3AF' : '#374151',
+              cursor: isPreviewMode ? 'not-allowed' : 'pointer',
               fontSize: '12px',
               fontWeight: '600',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              opacity: isPreviewMode ? 0.6 : 1
             }}
           >
             + Phòng
@@ -400,18 +379,18 @@ function Sidebar() {
 
           <button
             onClick={handleAddZone}
-            disabled={!selectedAreaId}
+            disabled={!selectedAreaId || isPreviewMode}
             style={{
               padding: '10px 12px',
               borderRadius: '8px',
               border: '1px solid #E2E8F0',
-              background: selectedAreaId ? 'white' : '#F9FAFB',
-              color: selectedAreaId ? '#374151' : '#9CA3AF',
-              cursor: selectedAreaId ? 'pointer' : 'not-allowed',
+              background: (selectedAreaId && !isPreviewMode) ? 'white' : '#F9FAFB',
+              color: (selectedAreaId && !isPreviewMode) ? '#374151' : '#9CA3AF',
+              cursor: (selectedAreaId && !isPreviewMode) ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: '600',
               transition: 'all 0.2s',
-              opacity: selectedAreaId ? 1 : 0.6
+              opacity: (selectedAreaId && !isPreviewMode) ? 1 : 0.6
             }}
           >
             + Khu vực
@@ -419,37 +398,37 @@ function Sidebar() {
 
           <button
             onClick={handleAddFactory}
-            disabled={!selectedAreaId}
+            disabled={!selectedAreaId || isPreviewMode}
             style={{
               padding: '10px 12px',
               borderRadius: '8px',
               border: '1px solid #E2E8F0',
-              background: selectedAreaId ? 'white' : '#F9FAFB',
-              color: selectedAreaId ? '#374151' : '#9CA3AF',
-              cursor: selectedAreaId ? 'pointer' : 'not-allowed',
+              background: (selectedAreaId && !isPreviewMode) ? 'white' : '#F9FAFB',
+              color: (selectedAreaId && !isPreviewMode) ? '#374151' : '#9CA3AF',
+              cursor: (selectedAreaId && !isPreviewMode) ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: '600',
               transition: 'all 0.2s',
-              opacity: selectedAreaId ? 1 : 0.6
+              opacity: (selectedAreaId && !isPreviewMode) ? 1 : 0.6
             }}
           >
-            + Hình
+            + Vật cản
           </button>
 
           <button
             onClick={handleAddSeat}
-            disabled={!selectedZone}
+            disabled={!selectedZone || isPreviewMode}
             style={{
               padding: '10px 12px',
               borderRadius: '8px',
               border: '1px solid #E2E8F0',
-              background: selectedZone ? 'white' : '#F9FAFB',
-              color: selectedZone ? '#374151' : '#9CA3AF',
-              cursor: selectedZone ? 'pointer' : 'not-allowed',
+              background: (selectedZone && !isPreviewMode) ? 'white' : '#F9FAFB',
+              color: (selectedZone && !isPreviewMode) ? '#374151' : '#9CA3AF',
+              cursor: (selectedZone && !isPreviewMode) ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: '600',
               transition: 'all 0.2s',
-              opacity: selectedZone ? 1 : 0.6
+              opacity: (selectedZone && !isPreviewMode) ? 1 : 0.6
             }}
           >
             + Ghế
@@ -457,18 +436,18 @@ function Sidebar() {
         </div>
 
         {/* Bulk Add Seats */}
-        {selectedZone && (
+        {selectedZone && !isPreviewMode && (
           <div style={{
             marginTop: '12px',
             padding: '12px',
-            background: '#F0F9FF',
+            background: '#FFF7ED',
             borderRadius: '10px',
-            border: '1px solid #BAE6FD'
+            border: '1px solid #FDBA74'
           }}>
             <div style={{
               fontSize: '11px',
               fontWeight: '600',
-              color: '#0369A1',
+              color: '#C2410C',
               marginBottom: '8px'
             }}>
               Thêm nhanh nhiều ghế
@@ -478,34 +457,50 @@ function Sidebar() {
                 type="number"
                 min="1"
                 max="20"
-                value={seatCount}
-                onChange={(e) => setSeatCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                value={seatCount === 0 ? '' : seatCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    setSeatCount(0);
+                  } else {
+                    setSeatCount(Math.max(1, Math.min(20, Number(val))));
+                  }
+                }}
+                onBlur={(e) => {
+                  // Reset to 1 if empty on blur
+                  if (seatCount === 0 || seatCount < 1) {
+                    setSeatCount(1);
+                  }
+                }}
                 style={{
                   width: '50px',
                   padding: '8px',
                   borderRadius: '8px',
-                  border: '2px solid #BAE6FD',
+                  border: '2px solid #FDBA74',
                   fontSize: '13px',
                   fontWeight: '600',
                   textAlign: 'center'
                 }}
               />
-              <span style={{ fontSize: '12px', color: '#0369A1' }}>ghế</span>
+              <span style={{ fontSize: '12px', color: '#C2410C' }}>ghế</span>
               <button
                 onClick={() => setShowRowModal(true)}
+                disabled={seatCount < 1}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
                   borderRadius: '8px',
                   border: 'none',
-                  background: 'linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%)',
-                  color: 'white',
+                  background: seatCount >= 1
+                    ? 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)'
+                    : '#E2E8F0',
+                  color: seatCount >= 1 ? 'white' : '#94A3B8',
                   fontSize: '12px',
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: seatCount >= 1 ? 'pointer' : 'not-allowed'
                 }}
               >
-                Tạo {seatCount} ghế
+                Tạo {seatCount >= 1 ? seatCount : 1} ghế
               </button>
             </div>
           </div>
@@ -530,7 +525,7 @@ function Sidebar() {
         }}>
           Phòng thư viện
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -551,10 +546,10 @@ function Sidebar() {
                 fontWeight: '600',
                 color: isAreaSelected(area.areaId) ? '#C2410C' : '#374151',
                 background: isAreaSelected(area.areaId)
-                  ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                  ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                   : '#F8FAFC',
                 border: isAreaSelected(area.areaId)
-                  ? '2px solid #FF751F'
+                  ? '2px solid #e8600a'
                   : '2px solid transparent',
                 transition: 'all 0.2s',
                 display: 'flex',
@@ -570,7 +565,7 @@ function Sidebar() {
                 fontSize: '10px',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: isAreaSelected(area.areaId) ? '#FF751F' : '#E2E8F0',
+                background: isAreaSelected(area.areaId) ? '#e8600a' : '#E2E8F0',
                 color: isAreaSelected(area.areaId) ? 'white' : '#64748B',
                 fontWeight: '700'
               }}>
@@ -613,7 +608,7 @@ function Sidebar() {
         }}>
           Khu vực ghế
           <span style={{
-            background: '#22C55E',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -642,10 +637,10 @@ function Sidebar() {
                   fontWeight: '600',
                   color: isZoneSelected(zone.zoneId) ? '#C2410C' : '#374151',
                   background: isZoneSelected(zone.zoneId)
-                    ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                    ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                     : '#F8FAFC',
                   border: isZoneSelected(zone.zoneId)
-                    ? '2px solid #FF751F'
+                    ? '2px solid #e8600a'
                     : '2px solid transparent',
                   transition: 'all 0.2s',
                   display: 'flex',
@@ -658,7 +653,7 @@ function Sidebar() {
                   fontSize: '11px',
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  background: isZoneSelected(zone.zoneId) ? '#FF751F' : '#E2E8F0',
+                  background: isZoneSelected(zone.zoneId) ? '#e8600a' : '#E2E8F0',
                   color: isZoneSelected(zone.zoneId) ? 'white' : '#64748B',
                   fontWeight: '700'
                 }}>
@@ -696,6 +691,8 @@ function Sidebar() {
         </ul>
       </div>
 
+
+
       {/* Statistics Footer */}
       <div style={{
         padding: '16px',
@@ -717,7 +714,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#C2410C',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {areas.length}
@@ -743,7 +740,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#166534',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {zones.length}
@@ -769,7 +766,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#1E40AF',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {totalSeats}
@@ -916,7 +913,7 @@ function Sidebar() {
                   border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                  background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
@@ -1042,6 +1039,8 @@ function Sidebar() {
           </div>
         </div>
       )}
+
+
     </aside>
   );
 }

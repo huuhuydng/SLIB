@@ -1,0 +1,918 @@
+// SLIB - Smart Library System
+// Database Schema (PostgreSQL)
+// Generated from JPA Entity classes
+// Docs: https://dbml.dbdiagram.io/docs
+
+// =============================================
+// ENUMS
+// =============================================
+
+Enum user_role {
+  STUDENT
+  LIBRARIAN
+  ADMIN
+}
+
+Enum otp_type {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+  TWO_FACTOR_AUTH
+}
+
+Enum import_job_status {
+  PENDING
+  PARSING
+  VALIDATING
+  IMPORTING
+  ENRICHING
+  COMPLETED
+  FAILED
+}
+
+Enum staging_status {
+  PENDING
+  VALID
+  INVALID
+  IMPORTED
+}
+
+Enum seat_status {
+  AVAILABLE
+  UNAVAILABLE
+  BOOKED
+  CONFIRMED
+  HOLDING
+}
+
+Enum notification_type {
+  BOOKING
+  REMINDER
+  VIOLATION
+  SYSTEM
+  NEWS
+  SUPPORT_REQUEST
+  CHAT_MESSAGE
+}
+
+Enum device_type {
+  ENTRY_GATE
+  EXIT_GATE
+  SEAT_READER
+}
+
+Enum device_status {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+Enum feedback_status {
+  NEW
+  REVIEWED
+  ACTED
+}
+
+Enum issue_type {
+  BROKEN
+  DIRTY
+  MISSING_EQUIPMENT
+  OTHER
+}
+
+Enum report_status {
+  PENDING
+  VERIFIED
+  RESOLVED
+  REJECTED
+}
+
+Enum violation_type {
+  UNAUTHORIZED_USE
+  LEFT_BELONGINGS
+  NOISE
+  FEET_ON_SEAT
+  FOOD_DRINK
+  SLEEPING
+  OTHER
+}
+
+Enum complaint_status {
+  PENDING
+  ACCEPTED
+  DENIED
+}
+
+Enum support_request_status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+Enum session_status {
+  ACTIVE
+  CLOSED
+  ESCALATED
+}
+
+Enum message_role {
+  USER
+  AI
+  LIBRARIAN
+}
+
+Enum knowledge_type {
+  RULES
+  GUIDE
+  INFO
+}
+
+Enum sync_status {
+  CHANGED
+  SYNCING
+  SYNCED
+  ERROR
+}
+
+Enum item_type {
+  FILE
+  TEXT
+}
+
+Enum prompt_context {
+  GENERAL
+  BOOKING
+  RULES
+}
+
+Enum rule_type {
+  PENALTY
+  REWARD
+}
+
+Enum behavior_type {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_NO_SHOW
+  BOOKING_EXPIRED
+  BOOKING_COMPLETED
+  CHECKIN_ON_TIME
+  CHECKIN_LATE
+  CHECKIN_EARLY
+  CHECKOUT_ON_TIME
+  CHECKOUT_LATE
+  SEAT_HOLDING
+  VIOLATION_REPORTED
+  VIOLATION_CONFIRMED
+  VIOLATION_DISPUTED
+  POINTS_EARNED
+  POINTS_DEDUCTED
+  LOGIN
+  LOGOUT
+}
+
+Enum conversation_status {
+  AI_HANDLING
+  QUEUE_WAITING
+  HUMAN_CHATTING
+  RESOLVED
+}
+
+Enum message_type {
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
+}
+
+Enum backup_status {
+  SUCCESS
+  FAILED
+}
+
+Enum backup_type {
+  FULL
+  INCREMENTAL
+}
+
+Enum log_level {
+  ERROR
+  WARN
+  INFO
+  DEBUG
+}
+
+Enum log_category {
+  SYSTEM_ERROR
+  PERFORMANCE
+  BACKGROUND_JOB
+  INTEGRATION
+  AUDIT
+}
+
+Enum log_source {
+  WEB
+  MOBILE
+  HCE
+  SCHEDULER
+  SYSTEM
+}
+
+// =============================================
+// USER MANAGEMENT
+// =============================================
+
+Table users {
+  id uuid [pk, not null, note: 'UUID auto-generated']
+  user_code varchar(20) [unique, not null]
+  username varchar(50) [unique]
+  password varchar(255)
+  full_name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  dob date
+  phone varchar(20)
+  avt_url varchar(255)
+  role user_role [not null]
+  is_active boolean
+  password_changed boolean [default: false]
+  noti_device varchar(255)
+  notify_booking boolean [default: true]
+  notify_reminder boolean [default: true]
+  notify_news boolean [default: true]
+  reputation_score integer [default: 100]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table student_profiles {
+  user_id uuid [pk, not null, ref: - users.id]
+  reputation_score integer [not null, default: 100]
+  total_study_hours double [not null, default: 0.0]
+  violation_count integer [not null, default: 0]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table user_settings {
+  user_id uuid [pk, not null, ref: - users.id]
+  is_hce_enabled boolean
+  is_ai_recommend_enabled boolean
+  is_booking_remind_enabled boolean
+  theme_mode varchar(20)
+  language_code varchar(10)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table refresh_tokens {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  token_hash varchar(255) [not null, unique]
+  expires_at timestamp [not null]
+  revoked boolean [not null, default: false]
+  device_info varchar(255)
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table otp_tokens {
+  id uuid [pk, not null]
+  email varchar(255) [not null]
+  token varchar(255) [not null]
+  type otp_type [not null, default: 'PASSWORD_RESET']
+  is_used boolean [not null, default: false]
+  expires_at timestamp [not null]
+  created_at timestamp
+}
+
+Table import_jobs {
+  id uuid [pk, not null]
+  batch_id uuid [not null, unique]
+  file_name varchar(255)
+  total_rows integer
+  valid_count integer
+  invalid_count integer
+  imported_count integer
+  avatar_count integer
+  avatar_uploaded integer
+  status import_job_status
+  error_message text
+  created_at timestamp
+  updated_at timestamp
+  completed_at timestamp
+}
+
+Table user_import_staging {
+  id bigint [pk, not null, increment]
+  batch_id uuid [not null]
+  row_number integer
+  user_code varchar(255)
+  email varchar(255)
+  full_name varchar(255)
+  phone varchar(255)
+  dob date
+  role varchar(255)
+  avt_url text
+  status staging_status
+  error_message text
+  created_at timestamp
+  processed_at timestamp
+}
+
+// =============================================
+// ZONE CONFIGURATION
+// =============================================
+
+Table areas {
+  area_id bigint [pk, not null, increment]
+  area_name varchar(255) [not null, unique]
+  width integer [not null]
+  height integer [not null]
+  position_x integer
+  position_y integer
+  is_active boolean [not null]
+  locked boolean [not null]
+}
+
+Table zones {
+  zone_id integer [pk, not null, increment]
+  zone_name varchar(255) [not null]
+  zone_des varchar(255)
+  position_x integer [not null]
+  position_y integer [not null]
+  width integer [not null]
+  height integer [not null]
+  area_id bigint [not null, ref: > areas.area_id]
+  is_locked boolean [not null, default: false]
+}
+
+Table seats {
+  seat_id integer [pk, not null, increment]
+  zone_id integer [not null, ref: > zones.zone_id]
+  seat_code varchar(255) [not null]
+  row_number integer [not null]
+  column_number integer [not null]
+  is_active boolean [not null, default: true]
+  nfc_tag_uid varchar(255) [unique]
+  nfc_tag_uid_updated_at timestamp
+}
+
+Table area_factories {
+  factory_id bigint [pk, not null, increment]
+  factory_name varchar(255) [not null]
+  position_x integer [not null]
+  position_y integer [not null]
+  width integer [not null]
+  height integer [not null]
+  is_locked boolean [not null, default: false]
+  area_id bigint [not null, ref: > areas.area_id]
+}
+
+Table zone_amenities {
+  amenity_id integer [pk, not null, increment]
+  zone_id integer [not null, ref: > zones.zone_id]
+  amenity_name varchar(100) [not null]
+}
+
+// =============================================
+// BOOKING
+// =============================================
+
+Table reservations {
+  reservation_id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  seat_id integer [not null, ref: > seats.seat_id]
+  start_time timestamp [not null]
+  end_time timestamp [not null]
+  status varchar(255) [not null]
+  created_at timestamp
+}
+
+// =============================================
+// NEWS
+// =============================================
+
+Table news_categories {
+  id bigint [pk, not null, increment]
+  name varchar(50) [not null, unique]
+  color_code varchar(20)
+  created_at timestamp
+}
+
+Table news {
+  id bigint [pk, not null, increment]
+  title varchar(255) [not null]
+  summary text
+  content text [not null]
+  image_url text
+  category_id bigint [ref: > news_categories.id]
+  is_published boolean [not null, default: false]
+  is_pinned boolean [not null, default: false]
+  view_count integer [not null, default: 0]
+  published_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table new_books {
+  id integer [pk, not null, increment]
+  title varchar(300) [not null]
+  author varchar(200)
+  isbn varchar(20)
+  cover_url text
+  description text
+  category varchar(100)
+  publish_date date
+  arrival_date date
+  is_active boolean [not null, default: true]
+  created_by uuid [ref: > users.id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// NOTIFICATIONS
+// =============================================
+
+Table notifications {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  title varchar(200) [not null]
+  content text [not null]
+  notification_type notification_type [not null]
+  reference_type varchar(50)
+  reference_id uuid
+  is_read boolean [not null, default: false]
+  created_at timestamp
+}
+
+// =============================================
+// HCE (NFC) MANAGEMENT
+// =============================================
+
+Table access_logs {
+  log_id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  reservation_id uuid
+  check_in_time timestamp [not null]
+  check_out_time timestamp
+  device_id varchar(50) [not null]
+}
+
+Table hce_devices {
+  id integer [pk, not null, increment]
+  device_id varchar(50) [unique, not null]
+  device_name varchar(100) [not null]
+  location varchar(200)
+  device_type device_type [not null]
+  status device_status [not null, default: 'ACTIVE']
+  last_heartbeat timestamp
+  area_id bigint [ref: > areas.area_id]
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// FEEDBACK & REPORTS
+// =============================================
+
+Table feedbacks {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  reservation_id uuid
+  rating integer [note: '1-5 stars']
+  content text
+  category varchar(50) [note: 'AI-categorized: FACILITY, SERVICE, GENERAL']
+  ai_category_confidence decimal(3,2)
+  status feedback_status [not null, default: 'NEW']
+  reviewed_by uuid [ref: > users.id]
+  created_at timestamp
+  reviewed_at timestamp
+}
+
+Table seat_status_reports {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  seat_id integer [not null, ref: > seats.seat_id]
+  issue_type issue_type [not null]
+  description text
+  image_url text
+  status report_status [not null, default: 'PENDING']
+  verified_by uuid [ref: > users.id]
+  created_at timestamp
+  verified_at timestamp
+  resolved_at timestamp
+}
+
+Table seat_violation_reports {
+  id uuid [pk, not null]
+  reporter_id uuid [not null, ref: > users.id]
+  violator_id uuid [ref: > users.id]
+  seat_id integer [not null, ref: > seats.seat_id]
+  reservation_id uuid
+  violation_type violation_type [not null]
+  description text
+  evidence_url text
+  status report_status [not null, default: 'PENDING']
+  verified_by uuid [ref: > users.id]
+  point_deducted integer
+  created_at timestamp
+  verified_at timestamp
+}
+
+// =============================================
+// COMPLAINTS
+// =============================================
+
+Table complaints {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  point_transaction_id uuid
+  subject varchar(200) [not null]
+  content text [not null]
+  evidence_url text
+  status complaint_status [not null, default: 'PENDING']
+  resolution_note text
+  resolved_by uuid [ref: > users.id]
+  created_at timestamp
+  resolved_at timestamp
+}
+
+// =============================================
+// SUPPORT REQUESTS
+// =============================================
+
+Table support_requests {
+  id uuid [pk, not null]
+  student_id uuid [not null, ref: > users.id]
+  description text [not null]
+  image_urls "text[]"
+  status support_request_status [not null, default: 'PENDING']
+  admin_response text
+  resolved_by uuid [ref: > users.id]
+  created_at timestamp
+  updated_at timestamp
+  resolved_at timestamp
+}
+
+// =============================================
+// ACTIVITY & REPUTATION
+// =============================================
+
+Table activity_logs {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  activity_type varchar(50) [not null]
+  title varchar(255) [not null]
+  description text
+  reservation_id uuid
+  seat_code varchar(20)
+  zone_name varchar(100)
+  duration_minutes integer
+  created_at timestamptz
+}
+
+Table point_transactions {
+  id uuid [pk, not null]
+  user_id uuid [not null, ref: > users.id]
+  points integer [not null]
+  transaction_type varchar(50) [not null]
+  title varchar(255) [not null]
+  description text
+  balance_after integer
+  activity_log_id uuid
+  rule_id integer [ref: > reputation_rules.id]
+  created_at timestamptz
+}
+
+Table reputation_rules {
+  id integer [pk, not null, increment]
+  rule_code varchar(50) [unique, not null]
+  rule_name varchar(200) [not null]
+  description text
+  points integer [not null, note: 'negative = penalty, positive = reward']
+  rule_type rule_type [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// AI & CHATBOT
+// =============================================
+
+Table ai_config {
+  id bigint [pk, not null, increment, note: 'Singleton - only 1 record']
+  provider varchar(20) [not null, default: 'ollama']
+  ollama_model varchar(50) [default: 'llama3.2']
+  ollama_url varchar(200) [default: 'http://localhost:11434']
+  api_key varchar(500) [note: 'Encrypted - only for Gemini']
+  gemini_model varchar(50) [default: 'gemini-2.0-flash']
+  temperature double [not null, default: 0.7]
+  max_tokens integer [not null, default: 1024]
+  system_prompt text
+  enable_context boolean [not null, default: true]
+  enable_history boolean [not null, default: true]
+  auto_suggest boolean [not null, default: true]
+  response_language varchar(10) [default: 'vi']
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table chat_sessions {
+  id bigint [pk, not null, increment]
+  user_id uuid [not null, ref: > users.id]
+  status session_status [not null, default: 'ACTIVE']
+  title varchar(200)
+  created_at timestamp
+  closed_at timestamp
+}
+
+Table chat_messages {
+  id bigint [pk, not null, increment]
+  session_id bigint [not null, ref: > chat_sessions.id]
+  role message_role [not null]
+  content text [not null]
+  needs_review boolean [not null, default: false]
+  confidence_score double
+  created_at timestamp
+}
+
+Table knowledge_base {
+  id bigint [pk, not null, increment]
+  title varchar(200) [not null]
+  content text [not null]
+  type knowledge_type [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table ai_materials {
+  id bigint [pk, not null, increment]
+  name varchar(255) [not null]
+  description text
+  created_by varchar(100)
+  active boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table ai_material_items {
+  id bigint [pk, not null, increment]
+  material_id bigint [not null, ref: > ai_materials.id]
+  name varchar(255) [not null]
+  type item_type [not null]
+  content text [note: 'For TEXT type']
+  file_name varchar(255) [note: 'For FILE type']
+  file_path varchar(500) [note: 'For FILE type']
+  file_size bigint
+  created_at timestamp
+}
+
+Table ai_knowledge_stores {
+  id bigint [pk, not null, increment]
+  name varchar(255) [not null]
+  description text
+  created_by varchar(100)
+  status sync_status [not null, default: 'CHANGED']
+  active boolean [not null, default: true]
+  last_synced_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table ai_knowledge_store_items {
+  knowledge_store_id bigint [not null, ref: > ai_knowledge_stores.id]
+  material_item_id bigint [not null, ref: > ai_material_items.id]
+
+  Indexes {
+    (knowledge_store_id, material_item_id) [pk]
+  }
+}
+
+Table prompt_templates {
+  id bigint [pk, not null, increment]
+  name varchar(100) [not null]
+  prompt text [not null]
+  context prompt_context [not null]
+  is_active boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// CHAT (Student - Librarian)
+// =============================================
+
+Table conversations {
+  id uuid [pk, not null]
+  student_id uuid [not null, ref: > users.id]
+  librarian_id uuid [ref: > users.id]
+  status conversation_status [not null, default: 'AI_HANDLING']
+  escalation_reason varchar(255)
+  created_at timestamp
+  updated_at timestamp
+  escalated_at timestamp
+  resolved_at timestamp
+  current_human_session integer [default: 0]
+  ai_session_id varchar(255)
+}
+
+Table messages {
+  id uuid [pk, not null]
+  sender_id uuid [not null, ref: > users.id]
+  receiver_id uuid [not null, ref: > users.id]
+  content text
+  attachment_url varchar(255)
+  message_type message_type [not null]
+  created_at timestamp
+  is_read boolean [not null, default: false]
+  conversation_id uuid [ref: > conversations.id]
+  sender_type varchar(255)
+  human_session_id integer
+}
+
+// =============================================
+// ANALYTICS
+// =============================================
+
+Table student_behaviors {
+  id integer [pk, not null, increment]
+  user_id uuid [not null, ref: > users.id]
+  behavior_type behavior_type [not null]
+  description varchar(255)
+  related_booking_id uuid
+  related_seat_id integer
+  related_zone_id integer
+  points_impact integer
+  metadata text [note: 'JSON string']
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// KIOSK
+// =============================================
+
+Table kiosk_configs {
+  id integer [pk, not null, increment]
+  kiosk_code varchar(50) [not null, unique]
+  kiosk_name varchar(200) [not null]
+  kiosk_type varchar(50) [not null, note: 'INTERACTIVE or MONITORING']
+  location varchar(255)
+  is_active boolean [not null, default: true]
+  qr_secret_key varchar(255)
+  created_at timestamp
+  updated_at timestamp
+  device_token text
+  device_token_issued_at timestamp
+  device_token_expires_at timestamp
+  device_token_issued_by uuid
+  last_active_at timestamp
+}
+
+Table kiosk_activation_codes {
+  id integer [pk, not null, increment]
+  kiosk_id integer [not null, ref: > kiosk_configs.id]
+  code varchar(6) [not null, unique]
+  device_token text [not null]
+  expires_at timestamp [not null]
+  used boolean [not null, default: false]
+  created_at timestamp
+}
+
+Table kiosk_images {
+  id integer [pk, not null, increment]
+  image_name varchar(200) [not null]
+  image_url text [not null]
+  public_id varchar(255)
+  display_order integer [not null, default: 0]
+  is_active boolean [not null, default: true]
+  duration_seconds integer [not null, default: 10]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table library_maps {
+  id integer [pk, not null, increment]
+  map_name varchar(200) [not null]
+  map_image_url text [not null]
+  public_id varchar(255)
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table zone_maps {
+  id integer [pk, not null, increment]
+  library_map_id integer [not null, ref: > library_maps.id]
+  zone_name varchar(150) [not null]
+  zone_type varchar(100) [not null, note: 'quiet, discuss, self-study, entrance, shelf']
+  x_position integer [not null]
+  y_position integer [not null]
+  width integer [not null]
+  height integer [not null]
+  color_code varchar(20)
+  is_interactive boolean [not null, default: true]
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table kiosk_qr_sessions {
+  id integer [pk, not null, increment]
+  kiosk_id integer [not null, ref: > kiosk_configs.id]
+  session_token varchar(255) [not null, unique]
+  student_id uuid [ref: > users.id]
+  access_log_id uuid
+  qr_payload text [not null]
+  qr_expires_at timestamp [not null]
+  status varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE, USED, EXPIRED']
+  created_at timestamp
+  updated_at timestamp
+}
+
+// =============================================
+// LIBRARY CONFIGURATION
+// =============================================
+
+Table library_settings {
+  id integer [pk, not null, default: 1, note: 'Singleton - only 1 record']
+  open_time varchar(255) [not null, default: '07:00']
+  close_time varchar(255) [not null, default: '21:00']
+  slot_duration integer [not null, default: 60, note: 'minutes']
+  max_booking_days integer [not null, default: 14]
+  working_days varchar(255) [not null, default: '2,3,4,5,6', note: '1=Sun, 2=Mon, ..., 7=Sat']
+  max_bookings_per_day integer [not null, default: 3]
+  max_hours_per_day integer [not null, default: 4]
+  auto_cancel_minutes integer [not null, default: 15, note: 'Auto-cancel if no check-in']
+  auto_cancel_on_leave_minutes integer [not null, default: 30, note: 'Auto-cancel after leaving seat']
+  min_reputation integer [not null, default: 0, note: '0 = no restriction']
+  library_closed boolean [not null, default: false]
+  closed_reason varchar(500)
+  notify_booking_success boolean [not null, default: true]
+  notify_checkin_reminder boolean [not null, default: true]
+  notify_time_expiry boolean [not null, default: true]
+  notify_violation boolean [not null, default: true]
+  notify_weekly_report boolean [not null, default: false]
+  notify_device_alert boolean [not null, default: true]
+}
+
+// =============================================
+// SYSTEM
+// =============================================
+
+Table backup_schedules {
+  id integer [pk, not null, increment]
+  schedule_name varchar(100) [not null]
+  cron_expression varchar(50) [not null]
+  backup_type backup_type [not null]
+  retain_days integer [not null, default: 30]
+  is_active boolean [not null, default: true]
+  last_backup_at timestamp
+  next_backup_at timestamp
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table backup_history {
+  id uuid [pk, not null]
+  schedule_id integer [ref: > backup_schedules.id]
+  file_path text [not null]
+  file_size_bytes bigint
+  status backup_status [not null]
+  error_message text
+  started_at timestamp [not null]
+  completed_at timestamp
+  created_by uuid [ref: > users.id]
+}
+
+Table system_logs {
+  id uuid [pk, not null]
+  level log_level [default: 'INFO']
+  category log_category [default: 'AUDIT']
+  service varchar(100)
+  message text [not null]
+  user_id uuid [ref: > users.id]
+  actor_email varchar(255)
+  source log_source [default: 'SYSTEM']
+  reference_id uuid
+  action varchar(100)
+  entity_type varchar(50)
+  entity_id varchar(100)
+  details jsonb
+  ip_address varchar(45)
+  user_agent text
+  created_at timestamp
+
+  Indexes {
+    created_at [name: 'idx_system_logs_created']
+    user_id [name: 'idx_system_logs_user']
+    level [name: 'idx_system_logs_level']
+    category [name: 'idx_system_logs_category']
+    service [name: 'idx_system_logs_service']
+    source [name: 'idx_system_logs_source']
+  }
+}

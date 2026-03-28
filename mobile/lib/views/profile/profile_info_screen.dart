@@ -1,20 +1,181 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart'; // Thư viện QR
-import 'package:url_launcher/url_launcher.dart'; // Thư viện mở Web
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/user_profile.dart';
+import 'package:slib/models/student_profile.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/user/student_profile_service.dart';
+import 'package:slib/views/authentication/change_password_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
-class ProfileInfoScreen extends StatelessWidget {
+class ProfileInfoScreen extends StatefulWidget {
   final UserProfile user;
 
   const ProfileInfoScreen({super.key, required this.user});
 
-  // Hàm mở trang FAP
+  @override
+  State<ProfileInfoScreen> createState() => _ProfileInfoScreenState();
+}
+
+class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
+  late UserProfile _user;
+  bool _isEditing = false;
+  bool _isLoading = false;
+  
+  late TextEditingController _fullNameController;
+  late TextEditingController _phoneController;
+  DateTime? _selectedDob;
+  
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  // Student profile stats
+  StudentProfile? _studentProfile;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = widget.user;
+    _fullNameController = TextEditingController(text: _user.fullName);
+    _phoneController = TextEditingController(text: _user.phone ?? '');
+    if (_user.dob != null) {
+      try {
+        _selectedDob = DateTime.parse(_user.dob!);
+      } catch (_) {}
+    }
+    _loadStudentProfile();
+  }
+
+  Future<void> _loadStudentProfile() async {
+    final authService = context.read<AuthService>();
+    final profileService = StudentProfileService(authService);
+    final profile = await profileService.getMyProfile();
+    if (mounted && profile != null) {
+      setState(() {
+        _studentProfile = profile;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
   Future<void> _openFAP() async {
     final Uri url = Uri.parse('https://fap.fpt.edu.vn');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      // Xử lý nếu không mở được (hiếm khi xảy ra)
       debugPrint('Không thể mở FAP');
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDob ?? DateTime(2000, 1, 1),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+      locale: const Locale('vi', 'VN'),
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDob = picked;
+      });
+    }
+  }
+
+  void _navigateToChangePassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ChangePasswordScreen(isFirstLogin: false),
+      ),
+    );
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final authService = context.read<AuthService>();
+      final profileService = StudentProfileService(authService);
+      
+      // Upload avatar nếu có chọn ảnh mới
+      String? newAvatarUrl;
+      if (_selectedImage != null) {
+        newAvatarUrl = await profileService.uploadAvatar(_selectedImage!);
+      }
+      
+      // Cập nhật thông tin profile (không đổi tên)
+      final success = await profileService.updateProfile(
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        dob: _selectedDob != null ? DateFormat('yyyy-MM-dd').format(_selectedDob!) : null,
+      );
+      
+      if (success) {
+        // Làm mới dữ liệu user
+        await authService.checkLoginStatus();
+        
+        if (mounted) {
+          setState(() {
+            _isEditing = false;
+            _selectedImage = null;
+            // Cập nhật dữ liệu user local (không đổi tên)
+            _user = _user.copyWith(
+              phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+              dob: _selectedDob != null ? DateFormat('yyyy-MM-dd').format(_selectedDob!) : null,
+              avtUrl: newAvatarUrl ?? _user.avtUrl,
+            );
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cập nhật thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Cập nhật thất bại, vui lòng thử lại'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorDisplayWidget.toVietnamese(e)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -31,6 +192,25 @@ class ProfileInfoScreen extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          if (!_isEditing)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => setState(() => _isEditing = true),
+            )
+          else
+            TextButton(
+              onPressed: _isLoading ? null : () {
+                setState(() {
+                  _isEditing = false;
+                  _selectedImage = null;
+                  _fullNameController.text = _user.fullName;
+                  _phoneController.text = _user.phone ?? '';
+                });
+              },
+              child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -41,14 +221,23 @@ class ProfileInfoScreen extends StatelessWidget {
 
             const SizedBox(height: 25),
 
-            // 2. THÔNG TIN CHI TIẾT (+ Link FAP)
-            _buildSectionTitle("Thông tin học vấn"),
+            // 2. THÔNG TIN CÁ NHÂN (Editable)
+            _buildSectionTitle("Thông tin cá nhân"),
+            const SizedBox(height: 10),
+            _buildPersonalInfoSection(),
+
+            const SizedBox(height: 25),
+
+            // 3. THÔNG TIN HỌC VỤ
+            _buildSectionTitle("Thông tin học vụ"),
             const SizedBox(height: 10),
             _buildInfoGroup([
-              _buildInfoRow(Icons.email_outlined, "Email", "${user.email}"),
+              _buildInfoRow(Icons.email_outlined, "Email", _user.email ?? 'Chưa cập nhật'),
+              _buildDivider(),
+              _buildInfoRow(Icons.badge_outlined, "Mã sinh viên", _user.studentCode),
               _buildDivider(),
               InkWell(
-                onTap: _openFAP, // Gọi hàm mở web
+                onTap: _openFAP,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   child: Row(
@@ -61,7 +250,7 @@ class ProfileInfoScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange, // Màu nổi bật
+                            color: Colors.orange,
                           ),
                         ),
                       ),
@@ -74,24 +263,78 @@ class ProfileInfoScreen extends StatelessWidget {
 
             const SizedBox(height: 25),
 
-            // 3. THỐNG KÊ
+            // 4. THỐNG KÊ
             _buildSectionTitle("Thống kê hoạt động"),
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _buildStatCard(Icons.bookmark_added, Colors.blue, "32", "Lượt đặt chỗ")),
+                Expanded(child: _buildStatCard(
+                  Icons.bookmark_added, 
+                  Colors.blue, 
+                  "${_studentProfile?.totalBookings ?? 0}", 
+                  "Lượt đặt chỗ"
+                )),
                 const SizedBox(width: 15),
-                Expanded(child: _buildStatCard(Icons.warning_amber, Colors.orange, "0", "Vi phạm")),
+                Expanded(child: _buildStatCard(
+                  Icons.warning_amber, 
+                  Colors.orange, 
+                  "${_studentProfile?.violationCount ?? 0}", 
+                  "Vi phạm"
+                )),
               ],
             ),
             const SizedBox(height: 15),
             Row(
               children: [
-                Expanded(child: _buildStatCard(Icons.access_time, Colors.green, "124h", "Giờ học tập")),
+                Expanded(child: _buildStatCard(
+                  Icons.access_time, 
+                  Colors.green, 
+                  _studentProfile?.formattedStudyHours ?? "0h", 
+                  "Giờ học tập"
+                )),
                 const SizedBox(width: 15),
-                Expanded(child: _buildStatCard(Icons.star_border, Colors.purple, "${user.reputationScore}", "Điểm uy tín")),
+                Expanded(child: _buildStatCard(
+                  Icons.star_border, 
+                  Colors.purple, 
+                  "${_studentProfile?.reputationScore ?? _user.reputationScore}", 
+                  "Điểm uy tín"
+                )),
               ],
             ),
+            
+            // Nút lưu khi đang edit
+            if (_isEditing) ...[
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.brandColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Lưu thay đổi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+            
+            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -99,7 +342,7 @@ class ProfileInfoScreen extends StatelessWidget {
   }
 
   Widget _buildDigitalStudentCard() {
-    String firstLetter = user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : "S";
+    String firstLetter = _user.fullName.isNotEmpty ? _user.fullName[0].toUpperCase() : "S";
 
     return Container(
       width: double.infinity,
@@ -121,29 +364,60 @@ class ProfileInfoScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Avatar & Name
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-            ),
-            child: CircleAvatar(
-              radius: 40,
-              backgroundColor: Colors.white,
-              child: Text(
-                firstLetter,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.brandColor,
+          // Avatar với nút edit
+          GestureDetector(
+            onTap: _isEditing ? _pickImage : null,
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.white,
+                    backgroundImage: _selectedImage != null
+                        ? FileImage(_selectedImage!)
+                        : (_user.avtUrl != null && _user.avtUrl!.isNotEmpty
+                            ? NetworkImage(_user.avtUrl!) as ImageProvider
+                            : null),
+                    child: (_selectedImage == null && (_user.avtUrl == null || _user.avtUrl!.isEmpty))
+                        ? Text(
+                            firstLetter,
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.brandColor,
+                            ),
+                          )
+                        : null,
+                  ),
                 ),
-              ),
+                if (_isEditing)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.camera_alt,
+                        size: 18,
+                        color: AppColors.brandColor,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            user.fullName.toUpperCase(),
+            _user.fullName.toUpperCase(),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -160,7 +434,7 @@ class ProfileInfoScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              user.studentCode,
+              _user.studentCode,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -170,7 +444,7 @@ class ProfileInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // --- QR CODE THẬT ---
+          // QR CODE
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -179,14 +453,11 @@ class ProfileInfoScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // Widget tạo QR Code
                 QrImageView(
-                  data: user.studentCode, // Dữ liệu là MSSV
+                  data: _user.studentCode,
                   version: QrVersions.auto,
                   size: 140.0,
                   backgroundColor: Colors.white,
-                  // Có thể thêm logo FPT vào giữa QR nếu muốn (tùy chọn)
-                  // embeddedImage: const AssetImage('assets/images/fpt_logo.png'),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -201,8 +472,107 @@ class ProfileInfoScreen extends StatelessWidget {
     );
   }
 
-  // ... (Giữ nguyên các widget _buildSectionTitle, _buildInfoGroup, _buildDivider, _buildInfoRow, _buildStatCard cũ)
-  
+  Widget _buildPersonalInfoSection() {
+    if (_isEditing) {
+      return _buildInfoGroup([
+        // Họ tên (chỉ xem, không cho sửa)
+        _buildInfoRow(Icons.person_outline, "Họ tên", _user.fullName),
+        _buildDivider(),
+        // Số điện thoại (cho sửa)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              Icon(Icons.phone_outlined, color: Colors.grey[400], size: 22),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Số điện thoại',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _buildDivider(),
+        // Ngày sinh (cho sửa)
+        InkWell(
+          onTap: _selectDate,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Icon(Icons.cake_outlined, color: Colors.grey[400], size: 22),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ngày sinh', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                      const SizedBox(height: 2),
+                      Text(
+                        _selectedDob != null
+                            ? DateFormat('dd/MM/yyyy').format(_selectedDob!)
+                            : 'Chạm để chọn',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+        _buildDivider(),
+        // Đổi mật khẩu
+        InkWell(
+          onTap: _navigateToChangePassword,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Icon(Icons.lock_outline, color: AppColors.brandColor, size: 22),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    'Đổi mật khẩu',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.brandColor,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: AppColors.brandColor.withOpacity(0.7)),
+              ],
+            ),
+          ),
+        ),
+      ]);
+    }
+
+    // Chế độ xem
+    return _buildInfoGroup([
+      _buildInfoRow(Icons.person_outline, "Họ tên", _user.fullName),
+      _buildDivider(),
+      _buildInfoRow(Icons.phone_outlined, "Số điện thoại", _user.phone ?? 'Chưa cập nhật'),
+      _buildDivider(),
+      _buildInfoRow(
+        Icons.cake_outlined,
+        "Ngày sinh",
+        _user.dob != null
+            ? DateFormat('dd/MM/yyyy').format(DateTime.parse(_user.dob!))
+            : 'Chưa cập nhật',
+      ),
+    ]);
+  }
+
   Widget _buildSectionTitle(String title) {
     return SizedBox(
       width: double.infinity,
@@ -217,8 +587,7 @@ class ProfileInfoScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
       ),
-      // Cần Clip để hiệu ứng InkWell không bị tràn ra ngoài bo góc
-      clipBehavior: Clip.hardEdge, 
+      clipBehavior: Clip.hardEdge,
       child: Column(children: children),
     );
   }
@@ -266,7 +635,7 @@ class ProfileInfoScreen extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 4),
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -14,12 +14,36 @@
   "dependencies": {
     "@google/genai": "^1.34.0",
     "@react-oauth/google": "^0.13.4",
+    "@stomp/stompjs": "^7.3.0",
+    "@tiptap/extension-color": "^3.16.0",
+    "@tiptap/extension-heading": "^3.16.0",
+    "@tiptap/extension-highlight": "^3.16.0",
+    "@tiptap/extension-horizontal-rule": "^3.16.0",
+    "@tiptap/extension-image": "^3.16.0",
+    "@tiptap/extension-link": "^3.16.0",
+    "@tiptap/extension-placeholder": "^3.16.0",
+    "@tiptap/extension-table": "^3.16.0",
+    "@tiptap/extension-table-cell": "^3.16.0",
+    "@tiptap/extension-table-header": "^3.16.0",
+    "@tiptap/extension-table-row": "^3.16.0",
+    "@tiptap/extension-text-align": "^3.16.0",
+    "@tiptap/extension-text-style": "^3.16.0",
+    "@tiptap/extension-underline": "^3.16.0",
+    "@tiptap/extension-youtube": "^3.16.0",
+    "@tiptap/pm": "^3.16.0",
+    "@tiptap/react": "^3.16.0",
+    "@tiptap/starter-kit": "^3.16.0",
     "axios": "^1.13.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-rnd": "^10.5.2",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.11.0",
+    "sockjs-client": "^1.6.1",
+    "stompjs": "^2.3.3",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -38,5 +62,8 @@
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.1",
     "vitest": "^4.0.17"
+  },
+  "optionalDependencies": {
+    "@floating-ui/dom": "^1.7.5"
   }
 }

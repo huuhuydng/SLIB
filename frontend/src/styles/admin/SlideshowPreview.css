@@ -1,0 +1,300 @@
+/* Slideshow Preview Styles - FPT Library Orange + White */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Main Container */
+.slideshowPreview__wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+/* Close Button */
+.slideshowPreview__closeBtn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10000;
+  background: linear-gradient(135deg, #F27125 0%, #ff8c42 100%);
+  border: none;
+  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(242, 113, 37, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slideshowPreview__closeBtn:hover {
+  background: linear-gradient(135deg, #ff8c42 0%, #F27125 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(242, 113, 37, 0.4);
+}
+
+.slideshowPreview__closeBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(242, 113, 37, 0.3);
+}
+
+/* Loading State */
+.slideshowPreview__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: white;
+  font-size: 18px;
+  gap: 20px;
+  width: 100%;
+  flex-direction: column;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.slideshowPreview__spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(242, 113, 37, 0.2);
+  border-top-color: #F27125;
+  border-right-color: #ff8c42;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Error State */
+.slideshowPreview__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: white;
+  font-size: 18px;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  padding: 40px;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.slideshowPreview__errorMessage {
+  font-size: 16px;
+  color: #FFB6B6;
+  text-align: center;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+.slideshowPreview__retryBtn {
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #F27125 0%, #ff8c42 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(242, 113, 37, 0.3);
+}
+
+.slideshowPreview__retryBtn:hover {
+  background: linear-gradient(135deg, #ff8c42 0%, #F27125 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(242, 113, 37, 0.4);
+}
+
+.slideshowPreview__retryBtn:active {
+  transform: translateY(0);
+}
+
+/* Empty State */
+.slideshowPreview__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #FF9D6A;
+  font-size: 24px;
+  font-weight: 500;
+  width: 100%;
+}
+
+/* Image Container */
+.slideshowPreview__imageContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.slideshowPreview__slider {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slideshowPreview__image {
+  min-width: 100%;
+  width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  flex-shrink: 0;
+  animation: fadeIn 0.8s ease-in;
+}
+
+/* Indicators */
+.slideshowPreview__indicators {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 1000;
+  animation: slideUp 0.5s ease-out;
+}
+
+.slideshowPreview__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  display: block;
+  background: rgba(255, 255, 255, 0.4);
+  margin: 0;
+  border: 2px solid transparent;
+}
+
+.slideshowPreview__dot:hover {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scale(1.15);
+}
+
+.slideshowPreview__dot--active {
+  background: #F27125;
+  box-shadow: 0 0 12px rgba(242, 113, 37, 0.6);
+  border-color: white;
+  transform: scale(1.2);
+}
+
+/* Navigation Info */
+.slideshowPreview__navInfo {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 15px;
+  opacity: 0.95;
+  text-align: center;
+  z-index: 1000;
+  font-weight: 500;
+  animation: slideUp 0.6s ease-out;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.slideshowPreview__navInfo p {
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+
+.slideshowPreview__navInfo p:first-child {
+  color: #FF9D6A;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.slideshowPreview__navInfo p:last-child {
+  font-size: 13px;
+  color: #F27125;
+  font-weight: 700;
+}
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.slideshowPreview__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  flex-shrink: 0;
+  display: block;
+  background: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.slideshowPreview__dot--active {
+  background: white;
+}
+
+/* Navigation Info */
+.slideshowPreview__navInfo {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 14px;
+  opacity: 0.8;
+  text-align: center;
+  z-index: 1000;
+}
+
+.slideshowPreview__navInfo p {
+  margin: 0;
+}
+
+.slideshowPreview__navInfo p:last-child {
+  margin-top: 8px;
+  font-size: 12px;
+}

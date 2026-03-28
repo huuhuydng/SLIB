@@ -12,34 +12,35 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import jakarta.persistence.FetchType;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 
 @Entity
 @Table(name = "reservations")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ReservationEntity {
-    private LocalDateTime createdTime;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "reservation_id", nullable = false, updatable = false)
     private UUID reservationId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seat_id", nullable = false)
     private SeatEntity seat;
 
@@ -49,15 +50,13 @@ public class ReservationEntity {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
     @Column(name = "status", nullable = false)
     private String status;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @PrePersist
-    public void prePersist() {
-        createdTime = LocalDateTime.now();
-    }
 }

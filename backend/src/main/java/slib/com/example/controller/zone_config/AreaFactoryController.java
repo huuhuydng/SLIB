@@ -2,7 +2,7 @@ package slib.com.example.controller.zone_config;
 
 import slib.com.example.dto.zone_config.AreaFactoryResponse;
 import slib.com.example.entity.zone_config.AreaFactoryEntity;
-import slib.com.example.service.AreaFactoryService;
+import slib.com.example.service.zone_config.AreaFactoryService;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

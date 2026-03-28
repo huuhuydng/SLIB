@@ -8,8 +8,12 @@ const api = axios.create({
   },
 });
 
-// Debug logging for requests/responses to trace 404s
+// Add Authorization header if token exists
 api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('librarian_token') || localStorage.getItem('kiosk_device_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   console.log("[API][Request]", config.method?.toUpperCase(), config.baseURL + config.url, config.params || config.data);
   return config;
 });
@@ -205,6 +209,30 @@ export const updateSeatPositionAndDimensions = (seatId, payload) =>
  */
 export const deleteSeat = (seatId) =>
   api.delete(`/seats/${seatId}`);
+
+/**
+ * UPDATE SEAT NFC UID (UID Mapping Strategy)
+ * Backend: PUT /slib/seats/{seatId}/nfc-uid
+ * @param {number} seatId - Seat ID to update
+ * @param {string} nfcTagUid - NFC tag UID in uppercase HEX format (e.g., "04A23C91")
+ */
+export const updateSeatNfcUid = (seatId, nfcTagUid) =>
+  api.put(`/seats/${seatId}/nfc-uid`, { nfcTagUid });
+
+/**
+ * CLEAR SEAT NFC UID
+ * Backend: DELETE /slib/seats/{seatId}/nfc-uid
+ */
+export const clearSeatNfcUid = (seatId) =>
+  api.delete(`/seats/${seatId}/nfc-uid`);
+
+/**
+ * GET SEAT BY NFC UID
+ * Backend: GET /slib/seats/by-nfc-uid/{nfcTagUid}
+ * @param {string} nfcTagUid - NFC tag UID in uppercase HEX format
+ */
+export const getSeatByNfcUid = (nfcTagUid) =>
+  api.get(`/seats/by-nfc-uid/${nfcTagUid}`);
 
 /* ========================== FACTORY ========================= */
 

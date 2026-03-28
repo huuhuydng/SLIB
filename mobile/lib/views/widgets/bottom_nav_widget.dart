@@ -5,11 +5,13 @@ class BottomNavWidget extends StatelessWidget {
   // Nhận vào chỉ số đang chọn và hàm xử lý khi bấm
   final int selectedIndex;
   final Function(int) onItemTapped;
+  final int chatBadgeCount;
 
   const BottomNavWidget({
     super.key,
     required this.selectedIndex,
     required this.onItemTapped,
+    this.chatBadgeCount = 0,
   });
 
   @override
@@ -47,31 +49,47 @@ class BottomNavWidget extends StatelessWidget {
         elevation: 2,
         height: 65,
         
-        destinations: const <Widget>[
-          NavigationDestination(
+        destinations: <Widget>[
+          const NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Trang chủ',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.chair_alt_outlined),
             selectedIcon: Icon(Icons.chair_alt),
-            label: 'Booking',
+            label: 'Đặt chỗ',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.nfc_outlined),
             selectedIcon: Icon(Icons.nfc),
-            label: 'Card',
+            label: 'Thẻ TV',
           ),
           NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Chat',
+            icon: chatBadgeCount > 0
+                ? Badge(
+                    label: Text(
+                      chatBadgeCount > 99 ? '99+' : '$chatBadgeCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline),
+                  )
+                : const Icon(Icons.chat_bubble_outline),
+            selectedIcon: chatBadgeCount > 0
+                ? Badge(
+                    label: Text(
+                      chatBadgeCount > 99 ? '99+' : '$chatBadgeCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                    child: const Icon(Icons.chat_bubble),
+                  )
+                : const Icon(Icons.chat_bubble),
+            label: 'Trợ lý AI',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.menu),
             selectedIcon: Icon(Icons.menu_open),
-            label: 'Menu',
+            label: 'Thêm',
           ),
         ],
       ),

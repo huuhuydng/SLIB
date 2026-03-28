@@ -1,0 +1,1 @@
+ALTER TABLE feedbacks ADD COLUMN IF NOT EXISTS conversation_id VARCHAR(255);

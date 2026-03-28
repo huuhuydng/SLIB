@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 
 @Configuration
 @RequiredArgsConstructor

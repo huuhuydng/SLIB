@@ -1,7 +1,7 @@
 package slib.com.example.controller.zone_config;
 
 import slib.com.example.dto.zone_config.AreaResponse;
-import slib.com.example.service.AreaService;
+import slib.com.example.service.zone_config.AreaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
