@@ -461,6 +461,12 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   /// Tự động chọn ghế được AI gợi ý
   void _tryAutoSelectSeat(List<Zone> zones, Map<int, List<Seat>> zoneSeats) {
     if (_didAutoSelectSeat || widget.initialSeatId == null) return;
+
+    // Kiểm tra cấu hình AI recommendation
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final aiEnabled = authService.currentSetting?.isAiRecommendEnabled ?? true;
+    if (!aiEnabled) return;
+
     _didAutoSelectSeat = true;
 
     for (final zone in zones) {

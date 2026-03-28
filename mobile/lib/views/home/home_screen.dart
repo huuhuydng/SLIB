@@ -347,10 +347,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(height: 12),
                         const QuickActionGrid(),
 
-                        const SizedBox(height: 25),
-                        const SectionTitle("Gợi ý từ AI"),
-                        const SizedBox(height: 12),
-                        const AICard(),
+                        Consumer<AuthService>(
+                          builder: (context, authService, _) {
+                            final aiEnabled = authService.currentSetting?.isAiRecommendEnabled ?? true;
+                            if (!aiEnabled) return const SizedBox.shrink();
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                SizedBox(height: 25),
+                                SectionTitle("Gợi ý từ AI"),
+                                SizedBox(height: 12),
+                                AICard(),
+                              ],
+                            );
+                          },
+                        ),
 
                         const SizedBox(height: 25),
 

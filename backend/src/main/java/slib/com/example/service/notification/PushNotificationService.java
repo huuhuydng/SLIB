@@ -11,8 +11,10 @@ import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.notification.NotificationRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
@@ -32,6 +34,7 @@ public class PushNotificationService {
     private final FirebaseMessaging firebaseMessaging;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final UserSettingRepository userSettingRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final SystemLogService systemLogService;
     private final LibrarySettingService librarySettingService;
@@ -249,15 +252,16 @@ public class PushNotificationService {
     }
 
     /**
-     * Check if notification should be sent based on user settings
+     * Check if notification should be sent based on user settings.
+     * Kiểm tra cấu hình "Thông báo đẩy" trong UserSetting.
+     * Khi user tắt toggle này, chặn TẤT CẢ notification.
      */
     private boolean shouldSendNotification(User user, NotificationType type) {
-        return switch (type) {
-            case BOOKING -> user.getNotifyBooking() == null || user.getNotifyBooking();
-            case REMINDER -> user.getNotifyReminder() == null || user.getNotifyReminder();
-            case NEWS -> user.getNotifyNews() == null || user.getNotifyNews();
-            case VIOLATION, SYSTEM, SUPPORT_REQUEST, CHAT_MESSAGE -> true;
-        };
+        UserSetting setting = userSettingRepository.findById(user.getId()).orElse(null);
+        if (setting != null && Boolean.FALSE.equals(setting.getIsBookingRemindEnabled())) {
+            return false;
+        }
+        return true;
     }
 
     /**

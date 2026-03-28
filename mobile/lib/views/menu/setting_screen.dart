@@ -128,8 +128,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 _buildSwitchTile(
                   icon: Icons.notifications_none_rounded,
                   iconColor: Colors.blue,
-                  title: "Thông báo lịch đặt",
-                  subtitle: "Nhắc nhở trước 15 phút",
+                  title: "Thông báo đẩy",
+                  subtitle: "Nhận thông báo từ hệ thống",
                   value: settings.isBookingRemindEnabled,
                   onChanged: (val) {
                     context.read<AuthService>().updateSetting(

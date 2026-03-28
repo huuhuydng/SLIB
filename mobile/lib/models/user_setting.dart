@@ -28,6 +28,7 @@ class UserSetting {
 
   Map<String, dynamic> toJson() {
     return {
+      'userId': userId,
       'isHceEnabled': isHceEnabled,
       'isAiRecommendEnabled': isAiRecommendEnabled,
       'isBookingRemindEnabled': isBookingRemindEnabled,

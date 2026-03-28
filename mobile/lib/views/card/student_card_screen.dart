@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/services/auth/auth_service.dart';
 
-class HceCardScreen extends StatelessWidget {
-  const HceCardScreen({super.key});
+class StudentCardScreen extends StatelessWidget {
+  const StudentCardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
