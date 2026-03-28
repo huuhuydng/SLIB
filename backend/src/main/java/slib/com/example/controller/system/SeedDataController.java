@@ -14,7 +14,7 @@ import java.util.Map;
  * Sử dụng qua Postman:
  * 
  * 1. Tạo tất cả dữ liệu mẫu (bao gồm dashboard):
- * POST http://localhost:8080/slib/seed/all?bookings=15&violations=8&supports=8
+ * POST http://localhost:8080/slib/seed/all?bookings=15&violations=8&supports=8&studentCode=SE171001
  * 
  * 2. Tạo riêng từng loại:
  * POST http://localhost:8080/slib/seed/bookings?count=15
@@ -24,11 +24,16 @@ import java.util.Map;
  * POST http://localhost:8080/slib/seed/complaints?count=5
  * POST http://localhost:8080/slib/seed/feedbacks?count=8
  * POST http://localhost:8080/slib/seed/seat-status-reports?count=8
+ * POST http://localhost:8080/slib/seed/news?count=6
+ * POST http://localhost:8080/slib/seed/new-books?count=8
  * 
  * 3. Xoá dữ liệu seed:
  * DELETE http://localhost:8080/slib/seed/clear
  * 
- * 4. Xoá tất cả bookings:
+ * 4. Tạo riêng hành trình dữ liệu cho 1 sinh viên:
+ * POST http://localhost:8080/slib/seed/student-journey?userCode=SE171001
+ * 
+ * 5. Xoá tất cả bookings:
  * DELETE http://localhost:8080/slib/seed/bookings
  */
 @RestController
@@ -41,14 +46,15 @@ public class SeedDataController {
 
     /**
      * Tạo tất cả dữ liệu mẫu cùng lúc (bao gồm dashboard data)
-     * POST /slib/seed/all?bookings=15&violations=8&supports=8
+     * POST /slib/seed/all?bookings=15&violations=8&supports=8&studentCode=SE171001
      */
     @PostMapping("/all")
     public ResponseEntity<Map<String, Object>> seedAll(
             @RequestParam(defaultValue = "15") int bookings,
             @RequestParam(defaultValue = "8") int violations,
-            @RequestParam(defaultValue = "8") int supports) {
-        return ResponseEntity.ok(seedDataService.seedAll(bookings, violations, supports));
+            @RequestParam(defaultValue = "8") int supports,
+            @RequestParam(required = false) String studentCode) {
+        return ResponseEntity.ok(seedDataService.seedAll(bookings, violations, supports, studentCode));
     }
 
     /**
@@ -117,8 +123,20 @@ public class SeedDataController {
         return ResponseEntity.ok(seedDataService.seedSeatStatusReports(count));
     }
 
+    @PostMapping("/news")
+    public ResponseEntity<Map<String, Object>> seedNews(
+            @RequestParam(defaultValue = "6") int count) {
+        return ResponseEntity.ok(seedDataService.seedNews(count, "system-showcase"));
+    }
+
+    @PostMapping("/new-books")
+    public ResponseEntity<Map<String, Object>> seedNewBooks(
+            @RequestParam(defaultValue = "8") int count) {
+        return ResponseEntity.ok(seedDataService.seedNewBooks(count, "system-showcase"));
+    }
+
     /**
-     * Xoá dữ liệu seed (chỉ xoá dữ liệu có marker [SEED])
+     * Xoá dữ liệu seed đã tạo qua seed tracker và dọn luôn dữ liệu marker cũ
      * DELETE /slib/seed/clear
      */
     @DeleteMapping("/clear")
@@ -158,5 +176,15 @@ public class SeedDataController {
     public ResponseEntity<Map<String, Object>> seedReminderTestData(
             @RequestParam String userCode) {
         return ResponseEntity.ok(seedDataService.seedReminderTestData(userCode));
+    }
+
+    /**
+     * Tạo dữ liệu hành trình thực tế cho 1 sinh viên
+     * POST /slib/seed/student-journey?userCode=SE171001
+     */
+    @PostMapping("/student-journey")
+    public ResponseEntity<Map<String, Object>> seedStudentJourney(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedStudentJourney(userCode));
     }
 }

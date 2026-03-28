@@ -3136,6 +3136,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _chatFeedbackRating = 0;
     _chatFeedbackSubmitted = false;
 
+    final prefs = await SharedPreferences.getInstance();
     final alreadyRated =
         prefs.getBool('chat_feedback_$_feedbackConversationId') ?? false;
 
