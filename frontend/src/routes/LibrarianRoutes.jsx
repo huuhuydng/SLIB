@@ -35,8 +35,8 @@ function LibrarianRoutes() {
       {/* Librarian Layout with Sidebar */}
       <Route element={<MainLayout />}>
         {/* Dashboard */}
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
 
         {/* Giám sát */}
         <Route path="checkinout" element={<CheckInOut />} />
@@ -82,7 +82,7 @@ function LibrarianRoutes() {
       <Route path="attendance" element={<Attendance />} />
 
       {/* Redirect any unmatched routes */}
-      <Route path="*" element={<Navigate to="dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

@@ -111,13 +111,8 @@ function App() {
 
     if (loading) {
         return <div>Đang tải...</div>;
+        return <div>Đang tải...</div>;
     }
-
-    // Redirect to appropriate dashboard based on role after login
-    const getDefaultRedirect = () => {
-        if (!isLoggedIn) return '/login';
-        return userRole === 'ADMIN' ? '/admin/dashboard' : '/librarian/dashboard';
-    };
 
     return (
         <ToastProvider>

@@ -2,13 +2,13 @@ name: AI Service CI/CD
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "main" ]
     paths:
       - 'ai-service/**'
       - '.github/workflows/ai_service_ci_cd.yml'
   
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "develop", "main" ]
     paths:
       - 'ai-service/**'
 
@@ -65,7 +65,7 @@ jobs:
           OLLAMA_MODEL: llama3.2
         run: |
           # Run basic import test
-          python -c "from app.main import app; print('✅ Import successful')"
+          python -c "from app.main import app; print('Import successful')"
           # Run pytest if tests exist
           if [ -d "tests" ]; then
             pytest tests/ -v
@@ -108,7 +108,7 @@ jobs:
   # JOB 2: DEPLOY AWS EC2 (Optional)
   # ====================================================
   deploy-aws:
-    name: 🚀 Deploy AI Service to AWS
+    name: Deploy AI Service to AWS
     needs: test-and-build
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            echo "🔥 AWS: Deploying AI Service..."
+            echo "AWS: Deploying AI Service..."
             sudo docker rm -f slib-ai-service || true
             sudo docker rmi huuhuydng/slib-ai-service:latest || true
             sudo docker pull huuhuydng/slib-ai-service:latest
@@ -135,4 +135,4 @@ jobs:
               -e JAVA_BACKEND_URL="http://slib-api:8080/slib" \
               --network host \
               huuhuydng/slib-ai-service:latest
-            echo "✅ AWS: AI Service Deployed!"
+            echo "AWS: AI Service Deployed!"

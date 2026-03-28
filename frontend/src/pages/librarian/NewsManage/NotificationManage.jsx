@@ -144,9 +144,10 @@ const NotificationManage = () => {
       toast.error('Không thể xóa tin tức');
     }
   };
-
+  
   const handleTogglePin = async (id, event) => {
     event.stopPropagation();
+    
     try {
       await axios.patch(`${API_BASE_URL}/slib/news/admin/${id}/pin`);
       loadNotifications();
