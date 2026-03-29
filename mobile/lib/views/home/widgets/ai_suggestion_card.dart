@@ -85,8 +85,8 @@ class _AICardState extends State<AICard> {
             child: _isLoading
                 ? _buildLoading()
                 : _hasError || _aiData == null
-                    ? _buildFallback()
-                    : _buildContent(_aiData!),
+                ? _buildFallback()
+                : _buildContent(_aiData!),
           ),
         ),
       ),
@@ -97,10 +97,7 @@ class _AICardState extends State<AICard> {
     return const SizedBox(
       height: 100,
       child: Center(
-        child: CircularProgressIndicator(
-          color: Colors.white54,
-          strokeWidth: 2,
-        ),
+        child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
       ),
     );
   }
@@ -168,10 +165,8 @@ class _AICardState extends State<AICard> {
       // Có gợi ý zone cụ thể -> mở FloorPlanScreen với zone + seat đó
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => FloorPlanScreen(
-            initialZoneId: zoneId,
-            initialSeatId: seatId,
-          ),
+          builder: (_) =>
+              FloorPlanScreen(initialZoneId: zoneId, initialSeatId: seatId),
         ),
       );
     } else {
@@ -197,7 +192,7 @@ class _AICardState extends State<AICard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Text(

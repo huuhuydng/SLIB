@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Users,
   Armchair,
@@ -16,54 +16,115 @@ import {
 import StatCard from "./StatCard";
 import Header from "./Header";
 import { getLibraryInsights } from "../../../../services/ai/geminiService";
+import dashboardService from "../../../../services/librarian/dashboardService";
+import librarianService from "../../../../services/librarian/librarianService";
 import "../../../../styles/Dashboard.css";
 
-// Mock Data
-const MOCK_STUDENTS = [
-  { id: "1", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check in", time: "12:21:10", date: "15/12/2025", avatar: "NP" },
-  { id: "2", name: "Trần Văn An", studentId: "DE170707", action: "Check out", time: "12:15:30", date: "15/12/2025", avatar: "TA" },
-  { id: "3", name: "Lê Thị Bình", studentId: "DE170708", action: "Check out", time: "11:45:20", date: "15/12/2025", avatar: "LB" },
-  { id: "4", name: "Phạm Minh Cường", studentId: "DE170709", action: "Check in", time: "11:30:00", date: "15/12/2025", avatar: "PC" },
-  { id: "5", name: "Đỗ Hải Đăng", studentId: "DE170710", action: "Check out", time: "10:55:45", date: "15/12/2025", avatar: "ĐD" },
-];
-
-const MOCK_NOTIFICATIONS = [
-  { title: "FPT Techday 2025: Công nghệ tương lai", date: "12/12/2025", type: "event", tag: "SỰ KIỆN" },
-  { title: "Thông báo bảo trì khu vực thư viện", date: "10/12/2025", type: "maintenance", tag: "QUAN TRỌNG" },
-  { title: "Top 100 đầu sách AI mới về thư viện", date: "08/12/2025", type: "info", tag: "SÁCH MỚI" },
-];
-
-const AREAS = [
-  { name: "Khu yên tĩnh", percentage: 95, icon: "🤫" },
-  { name: "Khu thảo luận", percentage: 45, icon: "💬" },
-  { name: "Khu tự học", percentage: 70, icon: "📚" },
-];
-
-const DASHBOARD_STATS = { currentUsers: 69, occupancyRate: 69, violations: 9 };
+const AREA_ICONS = ["🤫", "💬", "📚", "💻", "🪑"];
 
 const Dashboard = () => {
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [accessLogs, setAccessLogs] = useState([]);
+  const [recentNews, setRecentNews] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
-        const data = await getLibraryInsights(DASHBOARD_STATS);
+        const [stats, news, logs] = await Promise.all([
+          dashboardService.getDashboardStats(),
+          dashboardService.getRecentNews(),
+          librarianService.getAllAccessLogs(),
+        ]);
+
+        setDashboardStats(stats);
+        setRecentNews(Array.isArray(news) ? news.slice(0, 3) : []);
+        setAccessLogs(Array.isArray(logs) ? logs.slice(0, 5) : []);
+        setLastUpdated(stats?.serverTime ? new Date(stats.serverTime) : new Date());
+
+        const data = await getLibraryInsights(stats);
         setInsights(Array.isArray(data) ? data : []);
       } catch (e) {
-        console.error(e);
+        console.error("Không thể tải dashboard admin:", e);
         setInsights([]);
+        setRecentNews([]);
+        setAccessLogs([]);
       }
     })();
   }, []);
 
+  const formatDate = (dateTimeString) => {
+    if (!dateTimeString) return "";
+    return new Date(dateTimeString).toLocaleDateString("vi-VN");
+  };
+
+  const formatTime = (dateTimeString) => {
+    if (!dateTimeString) return "";
+    return new Date(dateTimeString).toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "SV";
+    return name
+      .trim()
+      .split(/\s+/)
+      .slice(-2)
+      .map((part) => part[0]?.toUpperCase() || "")
+      .join("");
+  };
+
+  const accessLogItems = useMemo(
+    () =>
+      accessLogs.map((log) => ({
+        id: log.logId,
+        name: log.userName || "Sinh viên",
+        studentId: log.userCode || "N/A",
+        action: log.action === "CHECK_IN" ? "Check in" : "Check out",
+        time: formatTime(log.checkOutTime || log.checkInTime),
+        date: formatDate(log.checkOutTime || log.checkInTime),
+        avatar: getInitials(log.userName),
+      })),
+    [accessLogs],
+  );
+
+  const notificationItems = useMemo(
+    () =>
+      recentNews.map((news) => ({
+        title: news.title,
+        date: formatDate(news.publishedAt || news.createdAt),
+        type: news.categoryName?.toLowerCase().includes("sự kiện")
+          ? "event"
+          : news.categoryName?.toLowerCase().includes("bảo trì")
+            ? "maintenance"
+            : "info",
+        tag: (news.categoryName || "TIN TỨC").toUpperCase(),
+      })),
+    [recentNews],
+  );
+
+  const areaItems = useMemo(
+    () =>
+      (dashboardStats?.areaOccupancies || []).slice(0, 5).map((area, index) => ({
+        name: area.areaName,
+        percentage: Number(area.occupancyPercentage || 0),
+        icon: AREA_ICONS[index % AREA_ICONS.length],
+      })),
+    [dashboardStats],
+  );
+
   const filteredStudents = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    if (!q) return MOCK_STUDENTS;
-    return MOCK_STUDENTS.filter((s) =>
+    if (!q) return accessLogItems;
+    return accessLogItems.filter((s) =>
       s.name.toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q) || s.action.toLowerCase().includes(q)
     );
-  }, [searchText]);
+  }, [searchText, accessLogItems]);
 
   const getProgressColor = (percentage) => {
     if (percentage >= 90) return { bar: '#D32F2F', bg: '#FFEBEE' };
@@ -134,7 +195,7 @@ const Dashboard = () => {
           }}>
             <Activity size={18} color="var(--slib-primary, #FF751F)" />
             <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--slib-text-secondary, #4A5568)' }}>
-              Cập nhật: {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              Cập nhật: {(lastUpdated || new Date()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
         </div>
@@ -148,7 +209,7 @@ const Dashboard = () => {
         }}>
           <StatCard
             icon={<Users size={24} />}
-            value={DASHBOARD_STATS.currentUsers}
+            value={dashboardStats?.currentlyInLibrary ?? 0}
             label="Sinh viên trong thư viện"
             bg="#F3E8FF"
             color="#7C3AED"
@@ -157,7 +218,7 @@ const Dashboard = () => {
           />
           <StatCard
             icon={<Armchair size={24} />}
-            value={`${DASHBOARD_STATS.occupancyRate}%`}
+            value={`${Math.round(dashboardStats?.occupancyRate ?? 0)}%`}
             label="Tỷ lệ chỗ ngồi đã sử dụng"
             bg="#E8F5E9"
             color="#388E3C"
@@ -166,7 +227,7 @@ const Dashboard = () => {
           />
           <StatCard
             icon={<AlertCircle size={24} />}
-            value={DASHBOARD_STATS.violations}
+            value={dashboardStats?.violationsToday ?? 0}
             label="Vi phạm xảy ra hôm nay"
             bg="#FFEBEE"
             color="#D32F2F"
@@ -435,11 +496,11 @@ const Dashboard = () => {
                 borderRadius: '10px',
                 fontSize: '12px',
                 fontWeight: '600'
-              }}>{MOCK_NOTIFICATIONS.length} mới</span>
+              }}>{notificationItems.length} mới</span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {MOCK_NOTIFICATIONS.map((notification, idx) => {
+              {notificationItems.map((notification, idx) => {
                 const colors = getNotificationColors(notification.type);
                 return (
                   <div
@@ -556,7 +617,7 @@ const Dashboard = () => {
 
             {/* Area Progress Bars */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {AREAS.map((area, idx) => {
+              {areaItems.map((area, idx) => {
                 const colors = getProgressColor(area.percentage);
                 return (
                   <div

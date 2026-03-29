@@ -245,18 +245,14 @@ function SeatPlanContent() {
 
     try {
       const timeParams = buildTimeParams(slot, slots || timeSlotsRef.current);
-      console.log(`[DEBUG] loadSeats #${myRequestId}: slot="${slot}" → API params:`, timeParams);
       const seatRes = await seatPlanService.getSeats(timeParams);
 
       // Nếu đã có request mới hơn → bỏ qua response cũ
       if (myRequestId !== requestIdRef.current) {
-        console.log(`[DEBUG] Skipping stale response #${myRequestId} (current: ${requestIdRef.current})`);
         return;
       }
 
       const normalizedSeats = (seatRes.data || []).map(normalizeSeat);
-      const bookedCount = normalizedSeats.filter(s => s.seatStatus === "BOOKED").length;
-      console.log(`[DEBUG] Applied response #${myRequestId}: ${bookedCount} booked seats`);
       dispatch({ type: ACTIONS.SET_SEATS, payload: normalizedSeats });
       setMessage(null);
     } catch (err) {
@@ -296,7 +292,6 @@ function SeatPlanContent() {
 
     websocketService.connect(
       () => {
-        console.log("[SeatPlan] WebSocket connected");
         unsubscribe = websocketService.subscribe("/topic/seats", (msg) => {
           // Chỉ re-fetch nếu KHÔNG ở mode "now" (mode now đã có polling 1s)
           if (slotValueRef.current !== "now") {

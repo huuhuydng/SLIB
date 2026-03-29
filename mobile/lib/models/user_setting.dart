@@ -45,10 +45,11 @@ class UserSetting {
     String? languageCode,
   }) {
     return UserSetting(
-      userId: this.userId,
+      userId: userId,
       isHceEnabled: isHceEnabled ?? this.isHceEnabled,
       isAiRecommendEnabled: isAiRecommendEnabled ?? this.isAiRecommendEnabled,
-      isBookingRemindEnabled: isBookingRemindEnabled ?? this.isBookingRemindEnabled,
+      isBookingRemindEnabled:
+          isBookingRemindEnabled ?? this.isBookingRemindEnabled,
       themeMode: themeMode ?? this.themeMode,
       languageCode: languageCode ?? this.languageCode,
     );

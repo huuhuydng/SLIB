@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Nhớ import Provider
 import 'package:slib/models/user_profile.dart';
-import 'package:slib/models/zones.dart';
 import 'package:slib/services/auth/auth_service.dart';
-import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/library/library_status_service.dart';
 import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/card/student_card_screen.dart';
 import 'package:slib/views/home/home_screen.dart';
@@ -28,28 +27,14 @@ class MainScreenState extends State<MainScreen> {
 
   // Biến này để lưu user lấy từ Provider
   UserProfile? _currentUser;
-  List<Zones> _zones = [];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NotificationService>().initialize();
+      context.read<LibraryStatusService>().initialize();
       _loadUserInfo();
-      _loadZones();
-    });
-  }
-
-  void _loadZones() async {
-    final bookingService = context.read<BookingService>();
-    final zones = await bookingService.getAllZones();
-    debugPrint("Zones fetched: ${zones.length}");
-    for (var z in zones) {
-      debugPrint(
-        "Zone: id=${z.id}, name=${z.name}, desc=${z.description}, hasPower=${z.hasPowerOutlet}",
-      );
-    }
-    setState(() {
-      _zones = zones;
     });
   }
 

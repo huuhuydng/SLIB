@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:slib/main_screen.dart';
 import 'package:slib/views/checkin/qr_scan_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/activity_history_screen.dart';
@@ -53,15 +52,30 @@ class QuickActionGrid extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _buildActionButton(Icons.qr_code_scanner, "Check-in", Colors.orange, () { 
-          _onCheckInPressed(context);
-        }),
-        _buildActionButton(Icons.timeline_outlined, "Hoạt động", Colors.blue, () {
-          _onActivityPressed(context);
-        }),
-        _buildActionButton(Icons.warning_amber_rounded, "Báo cáo", Colors.amber, () {
-          _onReportPressed(context);
-        }),
+        _buildActionButton(
+          Icons.qr_code_scanner,
+          "Check-in",
+          Colors.orange,
+          () {
+            _onCheckInPressed(context);
+          },
+        ),
+        _buildActionButton(
+          Icons.timeline_outlined,
+          "Hoạt động",
+          Colors.blue,
+          () {
+            _onActivityPressed(context);
+          },
+        ),
+        _buildActionButton(
+          Icons.warning_amber_rounded,
+          "Báo cáo",
+          Colors.amber,
+          () {
+            _onReportPressed(context);
+          },
+        ),
         _buildActionButton(Icons.history, "Lịch sử", Colors.purple, () {
           _onHistoryPressed(context);
         }),
@@ -70,7 +84,11 @@ class QuickActionGrid extends StatelessWidget {
   }
 
   Widget _buildActionButton(
-      IconData icon, String label, Color color, VoidCallback onTap) {
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Column(
       children: [
         InkWell(
@@ -84,20 +102,24 @@ class QuickActionGrid extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Icon(icon, color: color, size: 28),
           ),
         ),
         const SizedBox(height: 8),
-        Text(label,
-            style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87))
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
       ],
     );
   }

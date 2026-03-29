@@ -16,7 +16,6 @@ import slib.com.example.service.zone_config.SeatService;
 
 @RestController
 @RequestMapping("/slib/seats")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class SeatController {
 
     @Autowired

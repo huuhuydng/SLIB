@@ -5,6 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import slib.com.example.entity.ai.AIConfigEntity;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Map;
  * Service to interact with Google Gemini AI API
  */
 @Service
+@Slf4j
 public class GeminiService {
 
     @Autowired
@@ -82,22 +84,17 @@ public class GeminiService {
      */
     public boolean testConnection() {
         String apiKey = aiConfigService.getDecryptedApiKey();
-        System.out.println("[GeminiService] Testing connection...");
-        System.out.println("[GeminiService] API Key present: " + (apiKey != null && !apiKey.isEmpty()));
+        log.info("Testing Gemini connection");
+        log.info("Gemini API key present: {}", apiKey != null && !apiKey.isEmpty());
 
         if (apiKey == null || apiKey.isEmpty()) {
-            System.out.println("[GeminiService] ERROR: API key is null or empty");
+            log.warn("Gemini API key is null or empty");
             return false;
         }
 
-        System.out.println("[GeminiService] API Key length: " + apiKey.length());
-        System.out.println(
-                "[GeminiService] API Key preview: " + apiKey.substring(0, Math.min(10, apiKey.length())) + "...");
-
         AIConfigEntity config = aiConfigService.getConfig().orElse(null);
         String model = config != null ? config.getModel() : "gemini-2.0-flash";
-
-        System.out.println("[GeminiService] Using model: " + model);
+        log.info("Using Gemini model: {}", model);
 
         try {
             Map<String, Object> requestBody = new HashMap<>();
@@ -106,7 +103,7 @@ public class GeminiService {
 
             // Use full URL instead of relying on baseUrl
             String fullUrl = GEMINI_API_URL + model + ":generateContent?key=" + apiKey;
-            System.out.println("[GeminiService] Request URL: " + GEMINI_API_URL + model + ":generateContent?key=***");
+            log.debug("Gemini request URL prepared for model {}", model);
 
             // Create a fresh WebClient for this request with full URL
             String response = WebClient.create()
@@ -118,16 +115,12 @@ public class GeminiService {
                     .bodyToMono(String.class)
                     .block();
 
-            System.out.println("[GeminiService] Response received: "
-                    + (response != null ? response.substring(0, Math.min(200, response.length())) + "..." : "null"));
-
             boolean success = response != null && !response.contains("\"error\"");
-            System.out.println("[GeminiService] Connection test result: " + success);
+            log.info("Gemini connection test result: {}", success);
             return success;
 
         } catch (Exception e) {
-            System.err.println("[GeminiService] ERROR: Connection test failed with exception:");
-            e.printStackTrace();
+            log.error("Gemini connection test failed", e);
             return false;
         }
     }

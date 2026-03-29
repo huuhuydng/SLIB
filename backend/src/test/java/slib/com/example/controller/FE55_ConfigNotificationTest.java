@@ -11,7 +11,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.users.UserRepository;
@@ -50,12 +52,22 @@ class FE55_ConfigNotificationTest {
         private ObjectMapper objectMapper;
 
         private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        private static final String TEST_EMAIL = "student@fpt.edu.vn";
+
+        private User buildCurrentUser(UUID userId) {
+                User user = new User();
+                user.setId(userId);
+                user.setEmail(TEST_EMAIL);
+                user.setRole(Role.STUDENT);
+                return user;
+        }
 
         // =========================================
         // === UTCID01: Update settings - all fields ===
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID01: Update notification settings with all fields returns 200 OK")
         void updateSettings_allFields_returns200OK() throws Exception {
                 User mockUser = new User();
@@ -64,6 +76,7 @@ class FE55_ConfigNotificationTest {
                 mockUser.setNotifyReminder(true);
                 mockUser.setNotifyNews(false);
 
+                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(buildCurrentUser(TEST_USER_ID)));
                 when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(mockUser));
                 when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
@@ -88,6 +101,7 @@ class FE55_ConfigNotificationTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID02: Get notification settings for existing user returns 200 OK")
         void getSettings_existingUser_returns200OK() throws Exception {
                 User mockUser = new User();
@@ -96,6 +110,7 @@ class FE55_ConfigNotificationTest {
                 mockUser.setNotifyReminder(false);
                 mockUser.setNotifyNews(true);
 
+                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(buildCurrentUser(TEST_USER_ID)));
                 when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(mockUser));
 
                 mockMvc.perform(get("/slib/notifications/settings/" + TEST_USER_ID))
@@ -112,6 +127,7 @@ class FE55_ConfigNotificationTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID03: Get settings with null fields defaults to true")
         void getSettings_nullFields_defaultsToTrue() throws Exception {
                 User mockUser = new User();
@@ -120,6 +136,7 @@ class FE55_ConfigNotificationTest {
                 mockUser.setNotifyReminder(null);
                 mockUser.setNotifyNews(null);
 
+                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(buildCurrentUser(TEST_USER_ID)));
                 when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(mockUser));
 
                 mockMvc.perform(get("/slib/notifications/settings/" + TEST_USER_ID))
@@ -136,6 +153,7 @@ class FE55_ConfigNotificationTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID04: Partial update notification settings returns 200 OK")
         void updateSettings_partialFields_returns200OK() throws Exception {
                 User mockUser = new User();
@@ -144,6 +162,7 @@ class FE55_ConfigNotificationTest {
                 mockUser.setNotifyReminder(true);
                 mockUser.setNotifyNews(true);
 
+                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(buildCurrentUser(TEST_USER_ID)));
                 when(userRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(mockUser));
                 when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
@@ -166,10 +185,12 @@ class FE55_ConfigNotificationTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID05: Update settings for non-existent user returns 500")
         void updateSettings_userNotFound_returns500() throws Exception {
                 UUID nonExistentId = UUID.fromString("99999999-9999-9999-9999-999999999999");
 
+                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Optional.of(buildCurrentUser(nonExistentId)));
                 when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());
 
                 String requestBody = """

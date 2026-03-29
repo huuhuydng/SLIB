@@ -351,16 +351,7 @@ function LibrarianAreasContent() {
   const confirmReservation = async (seat) => {
     if (!seat?.reservationId) return;
     try {
-      const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(
-        `${API_BASE}/slib/bookings/updateStatusReserv/${seat.reservationId}?status=CONFIRMED`,
-        { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Lỗi xác nhận');
-      }
+      await seatService.manualConfirmReservation(seat.reservationId);
       toast.success('Đã xác nhận chỗ ngồi thành công');
       setSelectedSeat(null);
       await loadSeatsForTimeSlot(slotValue);

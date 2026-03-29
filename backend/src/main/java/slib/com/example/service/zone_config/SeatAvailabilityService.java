@@ -22,7 +22,7 @@ import slib.com.example.repository.booking.ReservationRepository;
 @RequiredArgsConstructor
 public class SeatAvailabilityService {
 
-    private static final int PROCESSING_TIMEOUT_MINUTES = 10;
+    private static final long PROCESSING_TIMEOUT_SECONDS = 120L;
 
     private final ReservationRepository reservationRepository;
 
@@ -32,8 +32,9 @@ public class SeatAvailabilityService {
      * Rules:
      * - UNAVAILABLE: if seat.isActive = false (admin disabled)
      * - AVAILABLE: no overlapping active reservations
-     * - HOLDING: overlapping PROCESSING reservation within timeout (10 minutes)
-     * - BOOKED: overlapping BOOKED or CONFIRMED reservation
+     * - CONFIRMED: overlapping CONFIRMED reservation
+     * - BOOKED: overlapping BOOKED reservation
+     * - HOLDING: overlapping PROCESSING reservation within timeout
      * 
      * @param seat       The seat entity to check
      * @param queryStart Start of the time range to check
@@ -54,23 +55,25 @@ public class SeatAvailabilityService {
             return SeatStatus.AVAILABLE;
         }
 
-        // Check for PROCESSING (HOLDING) - must be within timeout
-        LocalDateTime processingCutoff = LocalDateTime.now().minusMinutes(PROCESSING_TIMEOUT_MINUTES);
+        boolean hasConfirmed = overlapping.stream()
+                .anyMatch(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()));
+        if (hasConfirmed) {
+            return SeatStatus.CONFIRMED;
+        }
+
+        boolean hasBooked = overlapping.stream()
+                .anyMatch(r -> "BOOKED".equalsIgnoreCase(r.getStatus()));
+        if (hasBooked) {
+            return SeatStatus.BOOKED;
+        }
+
+        LocalDateTime processingCutoff = LocalDateTime.now().minusSeconds(PROCESSING_TIMEOUT_SECONDS);
         boolean hasActiveProcessing = overlapping.stream()
                 .anyMatch(r -> "PROCESSING".equalsIgnoreCase(r.getStatus())
                         && r.getCreatedAt() != null
                         && r.getCreatedAt().isAfter(processingCutoff));
 
-        if (hasActiveProcessing) {
-            return SeatStatus.HOLDING;
-        }
-
-        // Check for BOOKED/CONFIRMED
-        boolean hasBooked = overlapping.stream()
-                .anyMatch(r -> "BOOKED".equalsIgnoreCase(r.getStatus())
-                        || "CONFIRMED".equalsIgnoreCase(r.getStatus()));
-
-        return hasBooked ? SeatStatus.BOOKED : SeatStatus.AVAILABLE;
+        return hasActiveProcessing ? SeatStatus.HOLDING : SeatStatus.AVAILABLE;
     }
 
     /**

@@ -48,8 +48,6 @@ const SlideshowManagement = () => {
   const fetchImages = useCallback(async () => {
     try {
       setLoading(true);
-
-      console.log('Fetching images from:', `${API_BASE_URL}/api/slideshow/images`);
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images`, {
         headers: authHeaders(),
       });
@@ -447,7 +445,6 @@ const SlideshowManagement = () => {
                     );
                     if (previewWindow) {
                       previewWindow.focus();
-                      console.log('✅ Preview window opened and focused');
                     } else {
                       console.error('❌ Failed to open preview window - popup may be blocked');
                     }

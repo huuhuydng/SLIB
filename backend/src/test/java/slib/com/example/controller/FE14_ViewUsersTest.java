@@ -9,6 +9,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -17,6 +18,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.Collections;
 
@@ -56,8 +58,12 @@ class FE14_ViewUsersTest {
         @MockBean
         private StagingImportService stagingImportService;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         // UTCD01: Valid admin token - Success
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: View users with admin token returns 200 OK")
         void viewUsers_adminToken_returns200OK() throws Exception {
                 when(userService.getAllUsers()).thenReturn(Collections.emptyList());
@@ -71,6 +77,7 @@ class FE14_ViewUsersTest {
 
         // UTCD02: Empty list - 200 OK
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD02: View users returns empty list with 200 OK")
         void viewUsers_emptyList_returns200OK() throws Exception {
                 when(userService.getAllUsers()).thenReturn(Collections.emptyList());
@@ -82,6 +89,7 @@ class FE14_ViewUsersTest {
 
         // UTCD03: Service error - 500
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD03: Service error returns 500 Internal Server Error")
         void viewUsers_serviceError_returns500() throws Exception {
                 when(userService.getAllUsers()).thenThrow(new RuntimeException("Database error"));

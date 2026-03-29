@@ -2,10 +2,13 @@ package slib.com.example.controller.notification;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.dto.notification.NotificationDTO;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
@@ -21,11 +24,28 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/slib/notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class NotificationController {
 
     private final PushNotificationService pushNotificationService;
     private final UserRepository userRepository;
+
+    private UUID resolveAuthorizedUserId(UUID requestedUserId, UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+
+        User currentUser = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.LIBRARIAN) {
+            return requestedUserId;
+        }
+        if (!currentUser.getId().equals(requestedUserId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Bạn không có quyền thao tác trên thông báo của người khác.");
+        }
+        return currentUser.getId();
+    }
 
     /**
      * Get notifications for a user
@@ -33,20 +53,12 @@ public class NotificationController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<NotificationDTO>> getUserNotifications(
             @PathVariable UUID userId,
-            @RequestParam(defaultValue = "50") int limit) {
-        List<NotificationEntity> notifications = pushNotificationService.getUserNotifications(userId, limit);
+            @RequestParam(defaultValue = "50") int limit,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        List<NotificationEntity> notifications = pushNotificationService.getUserNotifications(resolvedUserId, limit);
         List<NotificationDTO> dtos = notifications.stream()
-                .map(n -> NotificationDTO.builder()
-                        .id(n.getId())
-                        .userId(n.getUser() != null ? n.getUser().getId() : null)
-                        .title(n.getTitle())
-                        .content(n.getContent())
-                        .notificationType(n.getNotificationType() != null ? n.getNotificationType().name() : null)
-                        .referenceType(n.getReferenceType())
-                        .referenceId(n.getReferenceId())
-                        .isRead(n.getIsRead())
-                        .createdAt(n.getCreatedAt())
-                        .build())
+                .map(pushNotificationService::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
@@ -55,8 +67,10 @@ public class NotificationController {
      * Get unread notification count for a user
      */
     @GetMapping("/unread-count/{userId}")
-    public ResponseEntity<Map<String, Long>> getUnreadCount(@PathVariable UUID userId) {
-        long count = pushNotificationService.getUnreadCount(userId);
+    public ResponseEntity<Map<String, Long>> getUnreadCount(@PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        long count = pushNotificationService.getUnreadCount(resolvedUserId);
         return ResponseEntity.ok(Map.of("count", count));
     }
 
@@ -64,8 +78,11 @@ public class NotificationController {
      * Mark a notification as read
      */
     @PutMapping("/mark-read/{notificationId}")
-    public ResponseEntity<Void> markAsRead(@PathVariable UUID notificationId) {
-        pushNotificationService.markAsRead(notificationId);
+    public ResponseEntity<Void> markAsRead(@PathVariable UUID notificationId,
+            @RequestParam UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        pushNotificationService.markAsRead(notificationId, resolvedUserId);
         return ResponseEntity.ok().build();
     }
 
@@ -73,8 +90,23 @@ public class NotificationController {
      * Mark all notifications as read for a user
      */
     @PutMapping("/mark-all-read/{userId}")
-    public ResponseEntity<Void> markAllAsRead(@PathVariable UUID userId) {
-        pushNotificationService.markAllAsRead(userId);
+    public ResponseEntity<Void> markAllAsRead(@PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        pushNotificationService.markAllAsRead(resolvedUserId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Delete a notification
+     */
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Void> deleteNotification(
+            @PathVariable UUID notificationId,
+            @RequestParam UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        pushNotificationService.deleteNotification(notificationId, resolvedUserId);
         return ResponseEntity.ok().build();
     }
 
@@ -84,9 +116,12 @@ public class NotificationController {
     @PutMapping("/settings/{userId}")
     public ResponseEntity<Map<String, Object>> updateSettings(
             @PathVariable UUID userId,
-            @RequestBody NotificationSettingsRequest request) {
+            @RequestBody NotificationSettingsRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
 
-        User user = userRepository.findById(userId)
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+
+        User user = userRepository.findById(resolvedUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (request.notifyBooking() != null) {
@@ -111,8 +146,10 @@ public class NotificationController {
      * Get notification settings for a user
      */
     @GetMapping("/settings/{userId}")
-    public ResponseEntity<Map<String, Object>> getSettings(@PathVariable UUID userId) {
-        User user = userRepository.findById(userId)
+    public ResponseEntity<Map<String, Object>> getSettings(@PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        User user = userRepository.findById(resolvedUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return ResponseEntity.ok(Map.of(

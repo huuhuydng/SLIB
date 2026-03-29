@@ -56,10 +56,14 @@ public class StudentProfileResponse {
     }
 
     public static StudentProfileResponse fromEntity(StudentProfile profile, long bookingCount) {
+        return fromEntity(profile, bookingCount, profile.getTotalStudyHours());
+    }
+
+    public static StudentProfileResponse fromEntity(StudentProfile profile, long bookingCount, Double totalStudyHours) {
         StudentProfileResponseBuilder builder = StudentProfileResponse.builder()
                 .userId(profile.getUserId())
                 .reputationScore(profile.getReputationScore())
-                .totalStudyHours(profile.getTotalStudyHours())
+                .totalStudyHours(totalStudyHours)
                 .violationCount(profile.getViolationCount())
                 .totalBookings(bookingCount);
 

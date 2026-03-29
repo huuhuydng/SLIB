@@ -266,8 +266,8 @@ public class UserChatController {
     public ResponseEntity<ConversationDTO> cancelEscalation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
-        ConversationDTO result = conversationService.cancelEscalation(conversationId);
+        UUID userId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.cancelEscalation(conversationId, userId);
         return ResponseEntity.ok(result);
     }
 

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { AI_API_BASE_URL } from "../../../config/apiConfig";
 
 /**
  * Python AI Service API Client (RAG Mode)
@@ -10,7 +11,7 @@ import axios from "axios";
  * - /api/v1/ingest/* - Document Ingestion
  */
 const pythonAiApi = axios.create({
-    baseURL: "",
+    baseURL: AI_API_BASE_URL,
     headers: {
         "Content-Type": "application/json",
     },
@@ -18,21 +19,32 @@ const pythonAiApi = axios.create({
 
 // File upload API (multipart/form-data)
 const uploadApi = axios.create({
-    baseURL: "",
+    baseURL: AI_API_BASE_URL,
 });
+
+const attachAuthHeader = (config) => {
+    const token =
+        localStorage.getItem("librarian_token") ||
+        localStorage.getItem("token");
+
+    if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+};
 
 // Request interceptor
 pythonAiApi.interceptors.request.use((config) => {
-    console.log("[Python AI API][Request]", config.method?.toUpperCase(), config.baseURL + config.url);
-    return config;
+    return attachAuthHeader(config);
 });
+
+uploadApi.interceptors.request.use((config) => attachAuthHeader(config));
 
 // Response interceptor
 pythonAiApi.interceptors.response.use(
-    (res) => {
-        console.log("[Python AI API][Response]", res.config?.url, res.status);
-        return res;
-    },
+    (res) => res,
     (err) => {
         console.error("[Python AI API][Error]", err.config?.url, err.response?.status, err.response?.data);
         return Promise.reject(err);
@@ -44,7 +56,7 @@ pythonAiApi.interceptors.response.use(
 /**
  * HEALTH CHECK
  */
-export const healthCheck = () => axios.get("/health");
+export const healthCheck = () => pythonAiApi.get("/health");
 
 /* ========================== AI CONFIG ========================= */
 
@@ -259,7 +271,6 @@ export const sendTestMessageWithDebug = (message, sessionId = null) =>
  * SAVE AI CONFIG (stub - config managed via ENV)
  */
 export const saveAIConfig = (payload) => {
-    console.log("[Python AI API] Config save requested (config is managed via ENV):", payload);
     return Promise.resolve({
         data: {
             success: true,

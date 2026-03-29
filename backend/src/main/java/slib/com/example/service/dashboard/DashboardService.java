@@ -65,9 +65,20 @@ public class DashboardService {
             // 3. Booking stats
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
-            long totalBookingsToday = reservationRepository.countConfirmedBookingsToday(startOfDay, endOfDay);
-            long activeBookings = reservationRepository.countByStatus("CONFIRMED");
-            long pendingBookings = reservationRepository.countByStatus("BOOKED");
+            List<ReservationEntity> reservations = reservationRepository.findAll();
+            long totalBookingsToday = reservations.stream()
+                    .filter(r -> r.getStartTime() != null)
+                    .filter(r -> !r.getStartTime().isBefore(startOfDay) && !r.getStartTime().isAfter(endOfDay))
+                    .filter(r -> Set.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED")
+                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
+                    .count();
+            long activeBookings = reservations.stream()
+                    .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                    .count();
+            long pendingBookings = reservations.stream()
+                    .filter(r -> Set.of("BOOKED", "PROCESSING")
+                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
+                    .count();
 
             // 4. Violations today
             long violationsToday = violationReportRepository.countByCreatedAtBetween(startOfDay, endOfDay);

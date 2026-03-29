@@ -98,7 +98,6 @@ const ChatManagement = () => {
     useEffect(() => {
         const targetId = location.state?.targetUserId;
         if (targetId) {
-            console.log("🎯 Chuyển hướng chat tới:", targetId);
             setSelectedUser(targetId);
             window.history.replaceState({}, document.title);
         }
@@ -183,7 +182,6 @@ const ChatManagement = () => {
             connectHeaders: { Authorization: `Bearer ${TOKEN}` },
             debug: () => { }, // Suppress STOMP debug logs
             onConnect: () => {
-                console.log('[WS] Connected to WebSocket');
                 client.subscribe(`/topic/chat/${MY_ID}`, (message) => {
                     const receivedMsg = JSON.parse(message.body);
                     const isMyMsg = receivedMsg.senderId === MY_ID;
@@ -218,7 +216,6 @@ const ChatManagement = () => {
                 // Subscribe de nhan thong bao escalation tu AI
                 client.subscribe('/topic/escalate', (message) => {
                     const escalateData = JSON.parse(message.body);
-                    console.log('[WS] Escalation received:', escalateData);
 
                     if (escalateData.type === 'QUEUE_CANCELLED') {
                         // Student huy queue -> xoa ngay khoi danh sach
@@ -238,7 +235,6 @@ const ChatManagement = () => {
                         );
                     } else {
                         // Escalation moi -> them truc tiep vao waiting list (khong can reload API)
-                        console.log('[WS] New escalation, adding to waiting list:', escalateData);
                         setWaitingConversations(prev => {
                             // Avoid duplicate
                             if (prev.some(c => c.id === escalateData.id)) return prev;
@@ -305,12 +301,10 @@ const ChatManagement = () => {
         activeConversations.forEach(conv => {
             if (activeConvSubscriptionsRef.current[conv.id]) return; // Already subscribed
 
-            console.log('[WS] Subscribing to active conversation:', conv.id);
             activeConvSubscriptionsRef.current[conv.id] = stompClientRef.current.subscribe(
                 `/topic/conversation/${conv.id}`,
                 (message) => {
                     const newMsg = JSON.parse(message.body);
-                    console.log('[WS] Message from conversation:', conv.id, newMsg);
 
                     const isCurrentConv = selectedConversationRef.current?.id === conv.id;
 
@@ -354,7 +348,6 @@ const ChatManagement = () => {
         if (selectedConversation?.id && !activeConvSubscriptionsRef.current[selectedConversation.id]) {
             const waitingConv = waitingConversations.find(c => c.id === selectedConversation.id);
             if (waitingConv) {
-                console.log('[WS] Subscribing to waiting conversation for preview:', selectedConversation.id);
                 activeConvSubscriptionsRef.current[selectedConversation.id] = stompClientRef.current.subscribe(
                     `/topic/conversation/${selectedConversation.id}`,
                     (message) => {
@@ -382,10 +375,8 @@ const ChatManagement = () => {
         const loadConversationMessages = async () => {
             if (!selectedConversation?.id) return;
 
-            console.log('[Chat] Loading messages for conversation:', selectedConversation.id);
             try {
                 const res = await getConversationMessages(selectedConversation.id);
-                console.log('[Chat] Loaded', res.data?.length || 0, 'messages from conversation');
                 if (res.data) {
                     setMessages(res.data);
                     setPage(0);
@@ -403,7 +394,6 @@ const ChatManagement = () => {
     const handleTakeOver = async (conversationId) => {
         try {
             const res = await takeOverConversationAPI(conversationId);
-            console.log('✅ Took over conversation:', res.data);
             // Refresh lists
             loadWaitingConversations();
             loadActiveConversations();
@@ -430,7 +420,6 @@ const ChatManagement = () => {
             try {
                 if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
                 await resolveConversationAPI(activeConv.id);
-                console.log('✅ Ended conversation:', activeConv.id);
                 // Clear selection and refresh
                 setSelectedUser(null);
                 setSelectedConversation(null);
@@ -448,7 +437,6 @@ const ChatManagement = () => {
         try {
             if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
             await resolveConversationAPI(selectedConversation.id);
-            console.log('✅ Ended conversation:', selectedConversation.id);
             // Clear selection and refresh
             setSelectedUser(null);
             setSelectedConversation(null);
@@ -582,7 +570,6 @@ const ChatManagement = () => {
         // Nếu đang chat trong conversation (escalation), gửi qua API để lưu vào conversation
         if (selectedConversation?.id) {
             try {
-                console.log('📤 Sending to conversation:', selectedConversation.id);
                 const res = await sendConversationMessage(selectedConversation.id, content, 'LIBRARIAN');
                 if (res.data) {
                     // Thêm tin nhắn vào UI ngay lập tức (check duplicate vì WebSocket cũng có thể nhận)
@@ -608,7 +595,6 @@ const ChatManagement = () => {
                 senderType: 'LIBRARIAN'
             };
             stompClientRef.current.publish({ destination: '/app/chat', body: JSON.stringify(chatMessage) });
-            console.log('📤 Sent via STOMP:', chatMessage);
         }
     };
 

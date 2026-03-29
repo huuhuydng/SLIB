@@ -2,6 +2,7 @@
 
 import os
 import time
+import logging
 import requests
 import digitalio
 import board
@@ -10,6 +11,15 @@ import adafruit_rgb_display.ili9341 as ili9341
 import RPi.GPIO as GPIO
 from smartcard.System import readers
 from smartcard.util import toHexString
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger("slib_gate_mobile")
 
 LOGO_PATH = "logo.png"
 BUZZER_PIN = 17
@@ -26,7 +36,11 @@ COLOR_TEXT_MAIN = "#2c3e50"
 COLOR_TEXT_SUB  = "#7f8c8d"
 COLOR_BRAND     = "#FF751F"
 
-API_URL = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev/slib/hce/checkin"
+SLIB_API_BASE = os.environ.get("SLIB_API_URL", "https://api.slibsystem.site")
+SLIB_GATE_ID = os.environ.get("SLIB_GATE_ID", "GATE_01")
+SLIB_API_KEY = os.environ.get("SLIB_GATE_API_KEY", "").strip()
+
+API_URL = f"{SLIB_API_BASE}/slib/hce/checkin"
 SELECT_APDU = [0x00, 0xA4, 0x04, 0x00, 0x07, 0xF0, 0x39, 0x41, 0x48, 0x14, 0x81, 0x00]
 
 GPIO.setmode(GPIO.BCM)
@@ -200,13 +214,15 @@ def show_status_screen(status_type, title, message):
     disp.image(image.rotate(90, expand=True))
 
 def send_to_backend(token):
+    if not SLIB_API_KEY:
+        logger.error("SLIB_GATE_API_KEY is missing. Rejecting gateway request.")
+        return False, {"message": "Thiếu cấu hình API key"}
     try:
-        print(f"Token: {token}")
-        payload = {"token": token, "gateId": "GATE_01"}
+        payload = {"token": token, "gateId": SLIB_GATE_ID}
         
         headers = {
             "Content-Type": "application/json",
-            "X-API-KEY": "SLIB_SECRET_GATE_FPT_123" 
+            "X-API-KEY": SLIB_API_KEY
         }
         
         response = requests.post(API_URL, json=payload, headers=headers, timeout=5)
@@ -218,7 +234,7 @@ def send_to_backend(token):
         return False, {"message": "Mất kết nối"}
 
 def main():
-    print("--- SLIB GATEWAY UI UPGRADED ---")
+    logger.info("--- SLIB GATEWAY UI UPGRADED ---")
     
     beep(0.1)
     set_led('BLUE')
@@ -291,7 +307,7 @@ def main():
                 pass
 
         except Exception as e:
-            print(f"System Loop Error: {e}")
+            logger.error("System loop error: %s", e)
         
         time.sleep(0.1)
 
@@ -300,4 +316,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         GPIO.cleanup()
-        print("\nGoodbye!")
+        logger.info("Goodbye!")

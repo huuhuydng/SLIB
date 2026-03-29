@@ -26,6 +26,7 @@ from app.models.schemas import (
     AIConfig,
     ActionType
 )
+from app.core.admin_auth import require_admin_access
 from app.routers import chat, ingestion, analytics
 from app.services.java_backend_client import get_java_client
 from app.services.knowledge_base import knowledge_base_service
@@ -73,12 +74,14 @@ async def lifespan(app: FastAPI):
 
 
 # Create FastAPI app
+settings = get_settings()
+
 app = FastAPI(
     title="SLIB AI Service",
     description="AI Assistant service for SLIB Smart Library - RAG Mode with Qdrant",
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
 
@@ -111,7 +114,7 @@ async def health_check():
 # ============== AI CONFIG ENDPOINTS ==============
 
 @app.get("/api/ai/config")
-async def get_config():
+async def get_config(_: dict = Depends(require_admin_access)):
     """Get current AI configuration"""
     settings = get_settings()
     java_client = get_java_client()
@@ -142,7 +145,7 @@ async def get_config():
 
 
 @app.post("/api/ai/refresh")
-async def refresh_config():
+async def refresh_config(_: dict = Depends(require_admin_access)):
     """Force refresh AI configuration"""
     java_client = get_java_client()
     java_client.refresh_all()
@@ -154,7 +157,7 @@ async def refresh_config():
 
 
 @app.post("/api/ai/test-connection", response_model=TestConnectionResponse)
-async def test_api_connection():
+async def test_api_connection(_: dict = Depends(require_admin_access)):
     """Test AI API connection (RAG service)"""
     try:
         from app.services.chat_service import get_rag_chat_service
@@ -277,13 +280,18 @@ async def generate_response(request: GenerateRequest):
 # ============== KNOWLEDGE BASE ENDPOINTS ==============
 
 @app.get("/api/ai/knowledge")
-async def get_knowledge():
+async def get_knowledge(_: dict = Depends(require_admin_access)):
     """Get all knowledge base items (legacy - from Java backend)"""
     return knowledge_base_service.get_all_knowledge()
 
 
 @app.post("/api/ai/knowledge")
-async def add_knowledge(title: str, content: str, knowledge_type: str = "INFO"):
+async def add_knowledge(
+    title: str,
+    content: str,
+    knowledge_type: str = "INFO",
+    _: dict = Depends(require_admin_access),
+):
     """Add new knowledge item (legacy)"""
     knowledge_base_service.add_knowledge(title, content, knowledge_type)
     return {"success": True, "message": "Knowledge added successfully"}
@@ -294,13 +302,18 @@ async def add_knowledge(title: str, content: str, knowledge_type: str = "INFO"):
 prompts_storage = []
 
 @app.get("/api/ai/prompts")
-async def get_prompts():
+async def get_prompts(_: dict = Depends(require_admin_access)):
     """Get all prompt templates"""
     return prompts_storage
 
 
 @app.post("/api/ai/prompts")
-async def create_prompt(name: str, prompt: str, context: str = "GENERAL"):
+async def create_prompt(
+    name: str,
+    prompt: str,
+    context: str = "GENERAL",
+    _: dict = Depends(require_admin_access),
+):
     """Create new prompt template"""
     new_prompt = {
         "id": len(prompts_storage) + 1,
@@ -315,25 +328,29 @@ async def create_prompt(name: str, prompt: str, context: str = "GENERAL"):
 # ============== ANALYTICS ENDPOINTS ==============
 
 @app.get("/api/ai/analytics/peak-hours")
-async def get_peak_hours(area_id: str = None):
+async def get_peak_hours(area_id: str = None, _: dict = Depends(require_admin_access)):
     """Analyze peak hours for library"""
     return analytics_ai_service.analyze_peak_hours(area_id)
 
 
 @app.get("/api/ai/analytics/recommend-slots")
-async def recommend_time_slots(duration_hours: int = 2):
+async def recommend_time_slots(duration_hours: int = 2, _: dict = Depends(require_admin_access)):
     """Get AI-powered time slot recommendations"""
     return analytics_ai_service.recommend_time_slots(duration_hours=duration_hours)
 
 
 @app.get("/api/ai/analytics/statistics")
-async def get_statistics(period: str = "week", area_id: str = None):
+async def get_statistics(period: str = "week", area_id: str = None, _: dict = Depends(require_admin_access)):
     """Get usage statistics for librarian dashboard"""
     return analytics_ai_service.get_usage_statistics(period, area_id)
 
 
 @app.get("/api/ai/analytics/predict-capacity")
-async def predict_capacity(hours_ahead: int = 1, zone_id: str = None):
+async def predict_capacity(
+    hours_ahead: int = 1,
+    zone_id: str = None,
+    _: dict = Depends(require_admin_access),
+):
     """Predict library capacity at a future time"""
     from datetime import datetime, timedelta
     target_time = datetime.now() + timedelta(hours=hours_ahead)

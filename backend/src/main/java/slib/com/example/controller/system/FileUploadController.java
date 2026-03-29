@@ -17,7 +17,6 @@ import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/slib/files")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class FileUploadController {
 
     // File size limits (in bytes)

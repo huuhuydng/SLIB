@@ -2,6 +2,7 @@ package slib.com.example.service.users;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.ImportUserRequest;
@@ -36,6 +37,7 @@ import slib.com.example.service.auth.AuthService;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
     private final UserRepository userRepository;
@@ -262,8 +264,7 @@ public class UserService {
                         "Slib@2025",
                         (String) entry.get("role"));
             } catch (Exception e) {
-                System.err.println("[IMPORT] Failed to send welcome email to "
-                        + entry.get("email") + ": " + e.getMessage());
+                log.warn("[IMPORT] Failed to send welcome email to {}", entry.get("email"), e);
             }
         }
     }
@@ -277,6 +278,8 @@ public class UserService {
         // Check if user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+
+        ensureAdminRemovalAllowed(user);
 
         // 0. Delete avatar on Cloudinary if exists
         if (user.getAvtUrl() != null && !user.getAvtUrl().isEmpty()) {
@@ -366,6 +369,10 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
 
+        if (!isActive) {
+            ensureAdminWillRemain(user, false, user.getRole());
+        }
+
         user.setIsActive(isActive);
 
         if (!isActive) {
@@ -389,6 +396,52 @@ public class UserService {
      */
     @Transactional
     public User saveUser(User user) {
+        User existingUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + user.getId()));
+
+        ensureAdminWillRemain(existingUser, user.getIsActive(), user.getRole());
         return userRepository.save(user);
+    }
+
+    public User getActiveStudentByUserCode(String userCode) {
+        User user = userRepository.findByUserCode(userCode.toUpperCase().trim())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với mã: " + userCode));
+
+        if (user.getRole() != Role.STUDENT) {
+            throw new RuntimeException("Mã này không thuộc tài khoản sinh viên");
+        }
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new RuntimeException("Tài khoản sinh viên hiện đang bị khóa");
+        }
+
+        return user;
+    }
+
+    private void ensureAdminRemovalAllowed(User user) {
+        if (user.getRole() == Role.ADMIN && Boolean.TRUE.equals(user.getIsActive())) {
+            long activeAdmins = userRepository.countByRoleAndIsActiveTrue(Role.ADMIN);
+            if (activeAdmins <= 1) {
+                throw new RuntimeException("Không thể xoá quản trị viên cuối cùng đang hoạt động");
+            }
+        }
+    }
+
+    private void ensureAdminWillRemain(User existingUser, Boolean newIsActive, Role newRole) {
+        if (existingUser.getRole() != Role.ADMIN || !Boolean.TRUE.equals(existingUser.getIsActive())) {
+            return;
+        }
+
+        Role targetRole = newRole != null ? newRole : existingUser.getRole();
+        boolean targetActive = newIsActive != null ? newIsActive : Boolean.TRUE.equals(existingUser.getIsActive());
+        boolean stillActiveAdmin = targetRole == Role.ADMIN && targetActive;
+
+        if (stillActiveAdmin) {
+            return;
+        }
+
+        long activeAdmins = userRepository.countByRoleAndIsActiveTrue(Role.ADMIN);
+        if (activeAdmins <= 1) {
+            throw new RuntimeException("Phải luôn còn ít nhất một quản trị viên đang hoạt động");
+        }
     }
 }

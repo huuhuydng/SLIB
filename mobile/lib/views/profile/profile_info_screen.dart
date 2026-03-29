@@ -26,11 +26,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   late UserProfile _user;
   bool _isEditing = false;
   bool _isLoading = false;
-  
+
   late TextEditingController _fullNameController;
   late TextEditingController _phoneController;
   DateTime? _selectedDob;
-  
+
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -116,35 +116,43 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final authService = context.read<AuthService>();
       final profileService = StudentProfileService(authService);
-      
+
       // Upload avatar nếu có chọn ảnh mới
       String? newAvatarUrl;
       if (_selectedImage != null) {
         newAvatarUrl = await profileService.uploadAvatar(_selectedImage!);
       }
-      
+
       // Cập nhật thông tin profile (không đổi tên)
       final success = await profileService.updateProfile(
-        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-        dob: _selectedDob != null ? DateFormat('yyyy-MM-dd').format(_selectedDob!) : null,
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        dob: _selectedDob != null
+            ? DateFormat('yyyy-MM-dd').format(_selectedDob!)
+            : null,
       );
-      
+
       if (success) {
         // Làm mới dữ liệu user
         await authService.checkLoginStatus();
-        
+
         if (mounted) {
           setState(() {
             _isEditing = false;
             _selectedImage = null;
             // Cập nhật dữ liệu user local (không đổi tên)
             _user = _user.copyWith(
-              phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-              dob: _selectedDob != null ? DateFormat('yyyy-MM-dd').format(_selectedDob!) : null,
+              phone: _phoneController.text.trim().isEmpty
+                  ? null
+                  : _phoneController.text.trim(),
+              dob: _selectedDob != null
+                  ? DateFormat('yyyy-MM-dd').format(_selectedDob!)
+                  : null,
               avtUrl: newAvatarUrl ?? _user.avtUrl,
             );
           });
@@ -200,14 +208,16 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             )
           else
             TextButton(
-              onPressed: _isLoading ? null : () {
-                setState(() {
-                  _isEditing = false;
-                  _selectedImage = null;
-                  _fullNameController.text = _user.fullName;
-                  _phoneController.text = _user.phone ?? '';
-                });
-              },
+              onPressed: _isLoading
+                  ? null
+                  : () {
+                      setState(() {
+                        _isEditing = false;
+                        _selectedImage = null;
+                        _fullNameController.text = _user.fullName;
+                        _phoneController.text = _user.phone ?? '';
+                      });
+                    },
               child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
             ),
         ],
@@ -232,17 +242,32 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             _buildSectionTitle("Thông tin học vụ"),
             const SizedBox(height: 10),
             _buildInfoGroup([
-              _buildInfoRow(Icons.email_outlined, "Email", _user.email ?? 'Chưa cập nhật'),
+              _buildInfoRow(
+                Icons.email_outlined,
+                "Email",
+                _user.email ?? 'Chưa cập nhật',
+              ),
               _buildDivider(),
-              _buildInfoRow(Icons.badge_outlined, "Mã sinh viên", _user.studentCode),
+              _buildInfoRow(
+                Icons.badge_outlined,
+                "Mã sinh viên",
+                _user.studentCode,
+              ),
               _buildDivider(),
               InkWell(
                 onTap: _openFAP,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   child: Row(
                     children: [
-                      const Icon(Icons.language, color: Colors.orange, size: 22),
+                      const Icon(
+                        Icons.language,
+                        color: Colors.orange,
+                        size: 22,
+                      ),
                       const SizedBox(width: 16),
                       const Expanded(
                         child: Text(
@@ -254,7 +279,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                           ),
                         ),
                       ),
-                      Icon(Icons.open_in_new, size: 16, color: Colors.orange.withOpacity(0.7)),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 16,
+                        color: Colors.orange.withValues(alpha: 0.7),
+                      ),
                     ],
                   ),
                 ),
@@ -268,40 +297,48 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _buildStatCard(
-                  Icons.bookmark_added, 
-                  Colors.blue, 
-                  "${_studentProfile?.totalBookings ?? 0}", 
-                  "Lượt đặt chỗ"
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.bookmark_added,
+                    Colors.blue,
+                    "${_studentProfile?.totalBookings ?? 0}",
+                    "Lượt đặt chỗ",
+                  ),
+                ),
                 const SizedBox(width: 15),
-                Expanded(child: _buildStatCard(
-                  Icons.warning_amber, 
-                  Colors.orange, 
-                  "${_studentProfile?.violationCount ?? 0}", 
-                  "Vi phạm"
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.warning_amber,
+                    Colors.orange,
+                    "${_studentProfile?.violationCount ?? 0}",
+                    "Vi phạm",
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 15),
             Row(
               children: [
-                Expanded(child: _buildStatCard(
-                  Icons.access_time, 
-                  Colors.green, 
-                  _studentProfile?.formattedStudyHours ?? "0h", 
-                  "Giờ học tập"
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.access_time,
+                    Colors.green,
+                    _studentProfile?.formattedStudyHours ?? "0h",
+                    "Giờ học tập",
+                  ),
+                ),
                 const SizedBox(width: 15),
-                Expanded(child: _buildStatCard(
-                  Icons.star_border, 
-                  Colors.purple, 
-                  "${_studentProfile?.reputationScore ?? _user.reputationScore}", 
-                  "Điểm uy tín"
-                )),
+                Expanded(
+                  child: _buildStatCard(
+                    Icons.star_border,
+                    Colors.purple,
+                    "${_studentProfile?.reputationScore ?? _user.reputationScore}",
+                    "Điểm uy tín",
+                  ),
+                ),
               ],
             ),
-            
+
             // Nút lưu khi đang edit
             if (_isEditing) ...[
               const SizedBox(height: 30),
@@ -320,7 +357,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                       ? const SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
                         )
                       : const Text(
                           'Lưu thay đổi',
@@ -333,7 +373,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 ),
               ),
             ],
-            
+
             const SizedBox(height: 30),
           ],
         ),
@@ -342,7 +382,9 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   }
 
   Widget _buildDigitalStudentCard() {
-    String firstLetter = _user.fullName.isNotEmpty ? _user.fullName[0].toUpperCase() : "S";
+    String firstLetter = _user.fullName.isNotEmpty
+        ? _user.fullName[0].toUpperCase()
+        : "S";
 
     return Container(
       width: double.infinity,
@@ -356,7 +398,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brandColor.withOpacity(0.4),
+            color: AppColors.brandColor.withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -373,7 +415,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      width: 2,
+                    ),
                   ),
                   child: CircleAvatar(
                     radius: 40,
@@ -381,9 +426,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                     backgroundImage: _selectedImage != null
                         ? FileImage(_selectedImage!)
                         : (_user.avtUrl != null && _user.avtUrl!.isNotEmpty
-                            ? NetworkImage(_user.avtUrl!) as ImageProvider
-                            : null),
-                    child: (_selectedImage == null && (_user.avtUrl == null || _user.avtUrl!.isEmpty))
+                              ? NetworkImage(_user.avtUrl!) as ImageProvider
+                              : null),
+                    child:
+                        (_selectedImage == null &&
+                            (_user.avtUrl == null || _user.avtUrl!.isEmpty))
                         ? Text(
                             firstLetter,
                             style: TextStyle(
@@ -430,7 +477,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -466,7 +513,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -513,13 +560,20 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Ngày sinh', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                      Text(
+                        'Ngày sinh',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         _selectedDob != null
                             ? DateFormat('dd/MM/yyyy').format(_selectedDob!)
                             : 'Chạm để chọn',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
                       ),
                     ],
                   ),
@@ -549,7 +603,10 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                     ),
                   ),
                 ),
-                Icon(Icons.chevron_right, color: AppColors.brandColor.withOpacity(0.7)),
+                Icon(
+                  Icons.chevron_right,
+                  color: AppColors.brandColor.withValues(alpha: 0.7),
+                ),
               ],
             ),
           ),
@@ -561,7 +618,11 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
     return _buildInfoGroup([
       _buildInfoRow(Icons.person_outline, "Họ tên", _user.fullName),
       _buildDivider(),
-      _buildInfoRow(Icons.phone_outlined, "Số điện thoại", _user.phone ?? 'Chưa cập nhật'),
+      _buildInfoRow(
+        Icons.phone_outlined,
+        "Số điện thoại",
+        _user.phone ?? 'Chưa cập nhật',
+      ),
       _buildDivider(),
       _buildInfoRow(
         Icons.cake_outlined,
@@ -576,7 +637,14 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   Widget _buildSectionTitle(String title) {
     return SizedBox(
       width: double.infinity,
-      child: Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w600)),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: Colors.grey[600],
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 
@@ -585,7 +653,13 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -603,9 +677,19 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
               ],
             ),
           ),
@@ -615,27 +699,54 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, thickness: 1, indent: 58, endIndent: 0, color: Colors.grey[100]);
+    return Divider(
+      height: 1,
+      thickness: 1,
+      indent: 58,
+      endIndent: 0,
+      color: Colors.grey[100],
+    );
   }
 
-  Widget _buildStatCard(IconData icon, Color color, String value, String label) {
+  Widget _buildStatCard(
+    IconData icon,
+    Color color,
+    String value,
+    String label,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
         ],

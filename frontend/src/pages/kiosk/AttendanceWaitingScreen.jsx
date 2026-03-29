@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SockJS from 'sockjs-client';
-import Stomp from 'stompjs';
+import { Client } from '@stomp/stompjs';
 import { API_BASE_URL } from '../../config/apiConfig';
 import "../../styles/Attendance.css";
 import logoFpt from '../../assets/fpt_logo.png';
@@ -25,7 +25,18 @@ const Attendance = () => {
 
   useEffect(() => {
     let isMounted = true;
-    let connectTimeout;
+    let connectTimeout = null;
+
+    const scheduleReconnect = () => {
+      if (!isMounted || connectTimeout) {
+        return;
+      }
+
+      connectTimeout = setTimeout(() => {
+        connectTimeout = null;
+        connect();
+      }, 10000);
+    };
 
     const fetchInitialLogs = async () => {
       try {
@@ -50,19 +61,35 @@ const Attendance = () => {
     };
 
     const connect = () => {
-      if (stompClient?.connected) stompClient.disconnect();
-      const Sock = new SockJS(`${API_BASE_URL}/ws`);
-      stompClient = Stomp.over(Sock);
-      stompClient.debug = null;
       const authToken =
         localStorage.getItem('kiosk_device_token') ||
         sessionStorage.getItem('librarian_token') ||
         localStorage.getItem('librarian_token');
 
-      stompClient.connect(authToken ? { Authorization: `Bearer ${authToken}` } : {},
-        () => { if (isMounted) onConnected(); },
-        () => { if (isMounted) connectTimeout = setTimeout(connect, 10000); }
-      );
+      if (stompClient) {
+        stompClient.deactivate();
+      }
+
+      stompClient = new Client({
+        webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
+        connectHeaders: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+        reconnectDelay: 0,
+        debug: () => {},
+      });
+
+      stompClient.onConnect = () => {
+        if (isMounted) onConnected();
+      };
+
+      stompClient.onStompError = () => {
+        scheduleReconnect();
+      };
+
+      stompClient.onWebSocketClose = () => {
+        scheduleReconnect();
+      };
+
+      stompClient.activate();
     };
 
     const onConnected = () => {
@@ -94,7 +121,9 @@ const Attendance = () => {
     return () => {
       isMounted = false;
       if (connectTimeout) clearTimeout(connectTimeout);
-      if (stompClient?.connected) stompClient.disconnect();
+      if (stompClient) {
+        stompClient.deactivate();
+      }
     };
   }, []);
 

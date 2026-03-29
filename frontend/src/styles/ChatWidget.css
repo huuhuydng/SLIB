@@ -106,7 +106,7 @@
 }
 
 .back-btn:active, .close-btn:active {
-    transform: scF7F8FA;
+    transform: scale(0.96);
 }
 
 .conversation-item {
@@ -157,14 +157,7 @@
     border-radius: 12px;
     min-width: 20px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(232, 96, 10, 0.15)0;
-    color: white;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 10px;
-    min-width: 18px;
-    text-align: center;
+    box-shadow: 0 2px 6px rgba(232, 96, 10, 0.15);
 }
 
 /* ================= MESSAGES AREA ================= */

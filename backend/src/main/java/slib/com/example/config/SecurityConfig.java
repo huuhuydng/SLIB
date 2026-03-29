@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated
                         .requestMatchers("/slib/ai/**").authenticated()
+                        .requestMatchers("/slib/system/**").hasRole("ADMIN")
+                        .requestMatchers("/slib/seed/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
                         .requestMatchers("/slib/files/**").authenticated()
                         .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
@@ -94,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
                         .requestMatchers("/slib/bookings/create").hasAnyRole("STUDENT", "KIOSK")
                         .requestMatchers("/slib/bookings/cancel/**").hasAnyRole("STUDENT", "KIOSK")
+                        .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole("STUDENT", "KIOSK")
                         .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole("STUDENT", "KIOSK")
                         // Cac endpoint khac

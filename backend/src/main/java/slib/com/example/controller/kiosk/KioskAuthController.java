@@ -3,6 +3,7 @@ package slib.com.example.controller.kiosk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import slib.com.example.security.KioskDevicePrincipal;
 import slib.com.example.service.kiosk.KioskQrAuthService;
 import slib.com.example.service.kiosk.KioskQrDTO;
 import slib.com.example.service.kiosk.KioskTokenService;
+import slib.com.example.service.users.UserService;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -34,6 +36,7 @@ public class KioskAuthController {
     private final KioskQrAuthService kioskQrAuthService;
     private final KioskTokenService kioskTokenService;
     private final KioskActivationCodeRepository kioskActivationCodeRepository;
+    private final UserService userService;
 
     /**
      * Kich hoat kiosk bang device token.
@@ -160,16 +163,36 @@ public class KioskAuthController {
      * Body: { "sessionToken": "...", "userId": "..." }
      */
     @PostMapping("/session/complete")
-    public ResponseEntity<KioskQrDTO.KioskSessionResponse> completeSession(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> completeSession(@RequestBody Map<String, String> request) {
         String sessionToken = request.get("sessionToken");
         String userIdStr = request.get("userId");
 
         log.info("Completing session with token: {}", sessionToken);
 
         java.util.UUID userId = java.util.UUID.fromString(userIdStr);
+        ResponseEntity<Map<String, Object>> authError = validateUserOrKioskAccessGeneric(userId);
+        if (authError != null) {
+            return ResponseEntity.status(authError.getStatusCode()).body(authError.getBody());
+        }
         KioskQrDTO.KioskSessionResponse response = kioskQrAuthService.completeSession(sessionToken, userId);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Verify student code entered on kiosk login screen.
+     * GET /slib/kiosk/session/verify-student/{studentCode}
+     */
+    @GetMapping("/session/verify-student/{studentCode}")
+    @PreAuthorize("hasRole('KIOSK')")
+    public ResponseEntity<Map<String, Object>> verifyStudent(@PathVariable String studentCode) {
+        User student = userService.getActiveStudentByUserCode(studentCode);
+        return ResponseEntity.ok(Map.of(
+                "userId", student.getId(),
+                "userCode", student.getUserCode(),
+                "fullName", student.getFullName(),
+                "avatarUrl", student.getAvtUrl() != null ? student.getAvtUrl() : ""
+        ));
     }
 
     /**

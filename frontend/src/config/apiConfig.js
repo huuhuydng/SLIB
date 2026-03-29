@@ -25,3 +25,20 @@ function resolveWsBaseUrl() {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 export const WS_BASE_URL = resolveWsBaseUrl();
+
+function resolveAiApiBaseUrl() {
+  const envUrl = import.meta.env.VITE_AI_API_BASE_URL;
+
+  if (envUrl) {
+    return envUrl;
+  }
+
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  if (hostname.includes('slibsystem.site')) {
+    return 'https://ai.slibsystem.site';
+  }
+
+  return '';
+}
+
+export const AI_API_BASE_URL = resolveAiApiBaseUrl();

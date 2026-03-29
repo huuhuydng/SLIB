@@ -1,10 +1,14 @@
 package slib.com.example.controller.ai;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.ai.AIConfigEntity;
 import slib.com.example.service.ai.AIConfigService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.Map;
 
@@ -14,11 +18,12 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/slib/ai/admin")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
+@RequiredArgsConstructor
+@Slf4j
 public class AIConfigController {
 
-    @Autowired
-    private AIConfigService aiConfigService;
+    private final AIConfigService aiConfigService;
+    private final SystemLogService systemLogService;
 
     /**
      * Get current AI config (API key masked)
@@ -52,24 +57,26 @@ public class AIConfigController {
      * Save AI config
      */
     @PostMapping("/config")
-    public ResponseEntity<?> saveConfig(@RequestBody AIConfigEntity config) {
+    public ResponseEntity<?> saveConfig(
+            @RequestBody AIConfigEntity config,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            System.out.println("[AIConfigController] Saving config...");
-            System.out.println("[AIConfigController] Provider: " + config.getProvider());
-            System.out.println("[AIConfigController] Ollama Model: " + config.getOllamaModel());
-            System.out.println("[AIConfigController] Ollama URL: " + config.getOllamaUrl());
+            log.info("[AIConfigController] Saving config for provider={}, ollamaModel={}, ollamaUrl={}",
+                    config.getProvider(), config.getOllamaModel(), config.getOllamaUrl());
 
             aiConfigService.saveConfig(config);
+            systemLogService.logAudit("AIConfigController",
+                    "Cập nhật cấu hình AI cho provider: " + config.getProvider(),
+                    null, userDetails != null ? userDetails.getUsername() : null);
 
-            System.out.println("[AIConfigController] Config saved successfully!");
+            log.info("[AIConfigController] Config saved successfully");
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã lưu cấu hình AI thành công",
                     "config", aiConfigService.getConfigForDisplay()));
         } catch (Exception e) {
-            System.err.println("[AIConfigController] ERROR saving config: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[AIConfigController] ERROR saving config", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Lỗi lưu cấu hình: " + e.getMessage()));
@@ -80,21 +87,23 @@ public class AIConfigController {
      * Reset AI config to default values
      */
     @PostMapping("/config/reset")
-    public ResponseEntity<?> resetConfig() {
+    public ResponseEntity<?> resetConfig(@AuthenticationPrincipal UserDetails userDetails) {
         try {
-            System.out.println("[AIConfigController] Resetting config to defaults...");
+            log.info("[AIConfigController] Resetting config to defaults");
 
             aiConfigService.resetToDefault();
+            systemLogService.logAudit("AIConfigController",
+                    "Reset cấu hình AI về mặc định",
+                    null, userDetails != null ? userDetails.getUsername() : null);
 
-            System.out.println("[AIConfigController] Config reset successfully!");
+            log.info("[AIConfigController] Config reset successfully");
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã reset cấu hình AI về mặc định",
                     "config", aiConfigService.getConfigForDisplay()));
         } catch (Exception e) {
-            System.err.println("[AIConfigController] ERROR resetting config: " + e.getMessage());
-            e.printStackTrace();
+            log.error("[AIConfigController] ERROR resetting config", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Lỗi reset cấu hình: " + e.getMessage()));

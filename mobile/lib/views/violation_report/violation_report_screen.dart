@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../assets/colors.dart';
-import '../../models/area.dart';
 import '../../models/area_factory.dart';
 import '../../models/seat.dart';
 import '../../models/zone_occupancy.dart';
@@ -17,7 +16,7 @@ import '../../views/widgets/error_display_widget.dart';
 import 'violation_report_history_screen.dart';
 
 class ViolationReportScreen extends StatefulWidget {
-  const ViolationReportScreen({Key? key}) : super(key: key);
+  const ViolationReportScreen({super.key});
 
   @override
   State<ViolationReportScreen> createState() => _ViolationReportScreenState();
@@ -36,10 +35,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
 
   // Reservation info
   int? _mySeatId;
-  int? _myZoneId;
   int? _myAreaId;
-  String _mySeatCode = '';
-  String _zoneName = '';
 
   // Floor plan data (giống FloorPlanScreen)
   List<Zone> _zones = [];
@@ -55,13 +51,11 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
   final _descriptionController = TextEditingController();
   final List<File> _selectedImages = [];
   final int _maxImages = 3;
-  bool _isSubmitting = false;
 
   // Seat status report state
   String? _selectedSeatStatusIssueType;
   final _seatStatusDescriptionController = TextEditingController();
   File? _seatStatusSelectedImage;
-  bool _isSeatStatusSubmitting = false;
 
   final List<Map<String, String>> _seatStatusIssueTypes = const [
     {'value': 'BROKEN', 'label': 'Ghế hỏng'},
@@ -130,10 +124,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
       }
 
       _mySeatId = booking['seatId'];
-      _myZoneId = booking['zoneId'];
       _myAreaId = booking['areaId'];
-      _mySeatCode = booking['seatCode'] ?? '';
-      _zoneName = booking['zoneName'] ?? '';
 
       // Load floor plan cho area hiện tại
       if (_myAreaId != null) {
@@ -289,8 +280,12 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
               children: [
                 Container(
                   margin: const EdgeInsets.only(top: 12),
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -299,21 +294,36 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.brandColor.withOpacity(0.1),
+                          color: AppColors.brandColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.report_outlined, color: AppColors.brandColor, size: 24),
+                        child: const Icon(
+                          Icons.report_outlined,
+                          color: AppColors.brandColor,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Báo cáo vi phạm',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            const Text(
+                              'Báo cáo vi phạm',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text('Ghế ${seat.seatCode}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                            Text(
+                              'Ghế ${seat.seatCode}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -331,26 +341,43 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Loại vi phạm',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const Text(
+                          'Loại vi phạm',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: _selectedViolationType,
+                          initialValue: _selectedViolationType,
                           decoration: _dropdownDecoration('Chọn loại vi phạm'),
-                          items: _violationTypes.map((type) =>
-                            DropdownMenuItem<String>(
-                              value: type['value'],
-                              child: Text(type['label']!, style: const TextStyle(fontSize: 14)),
-                            ),
-                          ).toList(),
+                          items: _violationTypes
+                              .map(
+                                (type) => DropdownMenuItem<String>(
+                                  value: type['value'],
+                                  child: Text(
+                                    type['label']!,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                           onChanged: (value) {
                             setSheetState(() => _selectedViolationType = value);
                             setState(() => _selectedViolationType = value);
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Text('Mô tả chi tiết (không bắt buộc)',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const Text(
+                          'Mô tả chi tiết (không bắt buộc)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _descriptionController,
@@ -358,49 +385,91 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                           maxLength: 300,
                           decoration: InputDecoration(
                             hintText: 'Mô tả thêm về tình trạng vi phạm...',
-                            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.brandColor, width: 1.5)),
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.brandColor,
+                                width: 1.5,
+                              ),
+                            ),
                             contentPadding: const EdgeInsets.all(14),
-                            counterStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            counterStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
                           ),
-                          style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: Color(0xFF333333),
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        Text('Ảnh bằng chứng (không bắt buộc, tối đa $_maxImages ảnh)',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        Text(
+                          'Ảnh bằng chứng (không bắt buộc, tối đa $_maxImages ảnh)',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Wrap(
-                          spacing: 10, runSpacing: 10,
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
-                            ..._selectedImages.asMap().entries.map((entry) =>
-                              _buildImageThumbnail(entry.key, setSheetState)),
-                            if (_selectedImages.length < _maxImages) _buildAddImageButton(setSheetState),
+                            ..._selectedImages.asMap().entries.map(
+                              (entry) => _buildImageThumbnail(
+                                entry.key,
+                                setSheetState,
+                              ),
+                            ),
+                            if (_selectedImages.length < _maxImages)
+                              _buildAddImageButton(setSheetState),
                           ],
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
-                          width: double.infinity, height: 50,
+                          width: double.infinity,
+                          height: 50,
                           child: ElevatedButton(
-                            onPressed: (_selectedViolationType != null && !_isSubmitting)
-                                ? () => _submitReport(ctx) : null,
+                            onPressed: _selectedViolationType != null
+                                ? () => _submitReport(ctx)
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.brandColor,
                               foregroundColor: Colors.white,
                               disabledBackgroundColor: const Color(0xFFF5F5F5),
                               disabledForegroundColor: Colors.grey[400],
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
-                            child: _isSubmitting
-                                ? const SizedBox(width: 22, height: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                                : const Text('Gửi báo cáo vi phạm',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              'Gửi báo cáo vi phạm',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-                        SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                        SizedBox(
+                          height: MediaQuery.of(context).viewInsets.bottom,
+                        ),
                       ],
                     ),
                   ),
@@ -417,9 +486,18 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.brandColor, width: 1.5)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.brandColor, width: 1.5),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     );
   }
@@ -429,10 +507,16 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(_selectedImages[index], width: 72, height: 72, fit: BoxFit.cover),
+          child: Image.file(
+            _selectedImages[index],
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+          ),
         ),
         Positioned(
-          top: -2, right: -2,
+          top: -2,
+          right: -2,
           child: GestureDetector(
             onTap: () {
               setState(() => _selectedImages.removeAt(index));
@@ -441,7 +525,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: AppColors.brandColor.withOpacity(0.85),
+                color: AppColors.brandColor.withValues(alpha: 0.85),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 1.5),
               ),
@@ -457,18 +541,32 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     return GestureDetector(
       onTap: () => _pickImages(setSheetState),
       child: Container(
-        width: 72, height: 72,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
-          color: AppColors.brandColor.withOpacity(0.08),
+          color: AppColors.brandColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.brandColor.withOpacity(0.3)),
+          border: Border.all(
+            color: AppColors.brandColor.withValues(alpha: 0.3),
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined, color: AppColors.brandColor.withOpacity(0.7), size: 22),
+            Icon(
+              Icons.add_a_photo_outlined,
+              color: AppColors.brandColor.withValues(alpha: 0.7),
+              size: 22,
+            ),
             const SizedBox(height: 4),
-            Text('Thêm ảnh', style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+            Text(
+              'Thêm ảnh',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -478,7 +576,10 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
   Future<void> _pickImages(StateSetter setSheetState) async {
     if (_selectedImages.length >= _maxImages) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tối đa $_maxImages ảnh'), backgroundColor: AppColors.brandColor),
+        SnackBar(
+          content: Text('Tối đa $_maxImages ảnh'),
+          backgroundColor: AppColors.brandColor,
+        ),
       );
       return;
     }
@@ -486,27 +587,47 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 16),
-            const Text('Chọn ảnh bằng chứng',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text(
+              'Chọn ảnh bằng chứng',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 16),
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.brandColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.camera_alt, color: AppColors.brandColor),
+                decoration: BoxDecoration(
+                  color: AppColors.brandColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  color: AppColors.brandColor,
+                ),
               ),
               title: const Text('Chụp ảnh'),
               onTap: () async {
                 Navigator.pop(ctx);
-                final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                final XFile? photo = await _imagePicker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                );
                 if (photo != null) {
                   setState(() => _selectedImages.add(File(photo.path)));
                   setSheetState(() {});
@@ -516,18 +637,29 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
             ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: AppColors.brandColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.photo_library, color: AppColors.brandColor),
+                decoration: BoxDecoration(
+                  color: AppColors.brandColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.brandColor,
+                ),
               ),
               title: const Text('Chọn từ thư viện'),
               onTap: () async {
                 Navigator.pop(ctx);
                 final remaining = _maxImages - _selectedImages.length;
-                final List<XFile> photos = await _imagePicker.pickMultiImage(imageQuality: 80, limit: remaining);
+                final List<XFile> photos = await _imagePicker.pickMultiImage(
+                  imageQuality: 80,
+                  limit: remaining,
+                );
                 if (photos.isNotEmpty) {
                   setState(() {
                     for (final photo in photos) {
-                      if (_selectedImages.length < _maxImages) _selectedImages.add(File(photo.path));
+                      if (_selectedImages.length < _maxImages) {
+                        _selectedImages.add(File(photo.path));
+                      }
                     }
                   });
                   setSheetState(() {});
@@ -543,14 +675,18 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
 
   Future<void> _submitReport(BuildContext bottomSheetContext) async {
     if (_selectedSeat == null || _selectedViolationType == null) return;
+    final messenger = ScaffoldMessenger.of(context);
 
     // Lấy token trước
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = await authService.getToken();
     if (token == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chưa đăng nhập'), backgroundColor: AppColors.error),
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Chưa đăng nhập'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
       return;
@@ -559,13 +695,17 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     // Lưu thông tin cần gửi trước khi đóng bottom sheet
     final seatId = _selectedSeat!.seatId;
     final violationType = _selectedViolationType!;
-    final description = _descriptionController.text.trim().isNotEmpty ? _descriptionController.text.trim() : null;
-    final images = _selectedImages.isNotEmpty ? List<File>.from(_selectedImages) : null;
+    final description = _descriptionController.text.trim().isNotEmpty
+        ? _descriptionController.text.trim()
+        : null;
+    final images = _selectedImages.isNotEmpty
+        ? List<File>.from(_selectedImages)
+        : null;
 
     // Đóng bottom sheet + hiện thành công NGAY LẬP TỨC
-    if (mounted) {
+    if (mounted && bottomSheetContext.mounted) {
       Navigator.pop(bottomSheetContext);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Đã gửi báo cáo vi phạm! Thủ thư sẽ xử lý sớm nhất'),
           backgroundColor: AppColors.success,
@@ -575,26 +715,29 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     }
 
     // Gửi request chạy ngầm phía sau (fire-and-forget)
-    _violationReportService.createReport(
-      token: token,
-      seatId: seatId,
-      violationType: violationType,
-      description: description,
-      images: images,
-    ).then((_) {
-      debugPrint('[ViolationReport] Báo cáo đã gửi thành công lên server');
-    }).catchError((e) {
-      debugPrint('[ViolationReport] Lỗi gửi báo cáo: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi gửi báo cáo: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    });
+    _violationReportService
+        .createReport(
+          token: token,
+          seatId: seatId,
+          violationType: violationType,
+          description: description,
+          images: images,
+        )
+        .then((_) {
+          debugPrint('[ViolationReport] Báo cáo đã gửi thành công lên server');
+        })
+        .catchError((e) {
+          debugPrint('[ViolationReport] Lỗi gửi báo cáo: $e');
+          if (mounted) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('Lỗi gửi báo cáo: ${e.toString()}'),
+                backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        });
   }
 
   // ====== SEAT STATUS REPORT BOTTOM SHEET ======
@@ -623,8 +766,12 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
               children: [
                 Container(
                   margin: const EdgeInsets.only(top: 12),
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -633,21 +780,36 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: Colors.blue.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.build_outlined, color: Colors.blue, size: 24),
+                        child: const Icon(
+                          Icons.build_outlined,
+                          color: Colors.blue,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Báo cáo tình trạng ghế',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            const Text(
+                              'Báo cáo tình trạng ghế',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text('Ghế ${seat.seatCode} (ghế của bạn)',
-                              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                            Text(
+                              'Ghế ${seat.seatCode} (ghế của bạn)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -665,68 +827,133 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Loại sự cố',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const Text(
+                          'Loại sự cố',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: _selectedSeatStatusIssueType,
+                          initialValue: _selectedSeatStatusIssueType,
                           decoration: _dropdownDecoration('Chọn loại sự cố'),
-                          items: _seatStatusIssueTypes.map((type) =>
-                            DropdownMenuItem<String>(
-                              value: type['value'],
-                              child: Text(type['label']!, style: const TextStyle(fontSize: 14)),
-                            ),
-                          ).toList(),
+                          items: _seatStatusIssueTypes
+                              .map(
+                                (type) => DropdownMenuItem<String>(
+                                  value: type['value'],
+                                  child: Text(
+                                    type['label']!,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                           onChanged: (value) {
-                            setSheetState(() => _selectedSeatStatusIssueType = value);
-                            setState(() => _selectedSeatStatusIssueType = value);
+                            setSheetState(
+                              () => _selectedSeatStatusIssueType = value,
+                            );
+                            setState(
+                              () => _selectedSeatStatusIssueType = value,
+                            );
                           },
                         ),
                         const SizedBox(height: 16),
-                        const Text('Mô tả chi tiết (không bắt buộc)',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const Text(
+                          'Mô tả chi tiết (không bắt buộc)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: _seatStatusDescriptionController,
                           maxLines: 3,
                           maxLength: 300,
                           decoration: InputDecoration(
-                            hintText: 'Mô tả tình trạng ghế để thủ thư dễ xử lý hơn...',
-                            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.blue, width: 1.5)),
+                            hintText:
+                                'Mô tả tình trạng ghế để thủ thư dễ xử lý hơn...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.blue,
+                                width: 1.5,
+                              ),
+                            ),
                             contentPadding: const EdgeInsets.all(14),
-                            counterStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            counterStyle: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 12,
+                            ),
                           ),
-                          style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: Color(0xFF333333),
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        const Text('Ảnh minh họa (không bắt buộc)',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF333333))),
+                        const Text(
+                          'Ảnh minh họa (không bắt buộc)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         if (_seatStatusSelectedImage != null)
                           Stack(
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.file(_seatStatusSelectedImage!, width: 100, height: 100, fit: BoxFit.cover),
+                                child: Image.file(
+                                  _seatStatusSelectedImage!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                               Positioned(
-                                top: -2, right: -2,
+                                top: -2,
+                                right: -2,
                                 child: GestureDetector(
                                   onTap: () {
-                                    setState(() => _seatStatusSelectedImage = null);
+                                    setState(
+                                      () => _seatStatusSelectedImage = null,
+                                    );
                                     setSheetState(() {});
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.withOpacity(0.85),
+                                      color: Colors.red.withValues(alpha: 0.85),
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 1.5),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1.5,
+                                      ),
                                     ),
-                                    child: const Icon(Icons.close, color: Colors.white, size: 12),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 12,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -740,49 +967,75 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                                 imageQuality: 80,
                               );
                               if (picked != null) {
-                                setState(() => _seatStatusSelectedImage = File(picked.path));
+                                setState(
+                                  () => _seatStatusSelectedImage = File(
+                                    picked.path,
+                                  ),
+                                );
                                 setSheetState(() {});
                               }
                             },
                             child: Container(
-                              width: 100, height: 100,
+                              width: 100,
+                              height: 100,
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.08),
+                                color: Colors.blue.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                                border: Border.all(
+                                  color: Colors.blue.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_a_photo_outlined, color: Colors.blue.withOpacity(0.7), size: 28),
+                                  Icon(
+                                    Icons.add_a_photo_outlined,
+                                    color: Colors.blue.withValues(alpha: 0.7),
+                                    size: 28,
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text('Thêm ảnh', style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                                  Text(
+                                    'Thêm ảnh',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
                           ),
                         const SizedBox(height: 24),
                         SizedBox(
-                          width: double.infinity, height: 50,
+                          width: double.infinity,
+                          height: 50,
                           child: ElevatedButton(
-                            onPressed: (_selectedSeatStatusIssueType != null && !_isSeatStatusSubmitting)
-                                ? () => _submitSeatStatusReport(ctx) : null,
+                            onPressed: _selectedSeatStatusIssueType != null
+                                ? () => _submitSeatStatusReport(ctx)
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
                               disabledBackgroundColor: const Color(0xFFF5F5F5),
                               disabledForegroundColor: Colors.grey[400],
                               elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                             ),
-                            child: _isSeatStatusSubmitting
-                                ? const SizedBox(width: 22, height: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                                : const Text('Gửi báo cáo tình trạng',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              'Gửi báo cáo tình trạng',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
-                        SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                        SizedBox(
+                          height: MediaQuery.of(context).viewInsets.bottom,
+                        ),
                       ],
                     ),
                   ),
@@ -797,13 +1050,17 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
 
   Future<void> _submitSeatStatusReport(BuildContext bottomSheetContext) async {
     if (_selectedSeat == null || _selectedSeatStatusIssueType == null) return;
+    final messenger = ScaffoldMessenger.of(context);
 
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = await authService.getToken();
     if (token == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chưa đăng nhập'), backgroundColor: AppColors.error),
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Chưa đăng nhập'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
       return;
@@ -817,11 +1074,13 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     final image = _seatStatusSelectedImage;
 
     // Đóng bottom sheet + hiện thông báo ngay
-    if (mounted) {
+    if (mounted && bottomSheetContext.mounted) {
       Navigator.pop(bottomSheetContext);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
-          content: Text('Đã gửi báo cáo tình trạng ghế! Thủ thư sẽ xử lý sớm nhất'),
+          content: Text(
+            'Đã gửi báo cáo tình trạng ghế! Thủ thư sẽ xử lý sớm nhất',
+          ),
           backgroundColor: AppColors.success,
           duration: Duration(seconds: 3),
         ),
@@ -829,26 +1088,31 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     }
 
     // Gửi request chạy ngầm (fire-and-forget)
-    _seatStatusReportService.createReport(
-      token: token,
-      seatId: seatId,
-      issueType: issueType,
-      description: description,
-      image: image,
-    ).then((_) {
-      debugPrint('[SeatStatusReport] Báo cáo tình trạng ghế đã gửi thành công');
-    }).catchError((e) {
-      debugPrint('[SeatStatusReport] Lỗi gửi báo cáo: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi gửi báo cáo tình trạng: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    });
+    _seatStatusReportService
+        .createReport(
+          token: token,
+          seatId: seatId,
+          issueType: issueType,
+          description: description,
+          image: image,
+        )
+        .then((_) {
+          debugPrint(
+            '[SeatStatusReport] Báo cáo tình trạng ghế đã gửi thành công',
+          );
+        })
+        .catchError((e) {
+          debugPrint('[SeatStatusReport] Lỗi gửi báo cáo: $e');
+          if (mounted) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('Lỗi gửi báo cáo tình trạng: ${e.toString()}'),
+                backgroundColor: AppColors.error,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        });
   }
 
   // ====== BUILD UI ======
@@ -862,12 +1126,16 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
           _buildHeader(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.brandColor))
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.brandColor,
+                    ),
+                  )
                 : _errorMessage != null
-                    ? _buildErrorState()
-                    : !_hasConfirmedSeat
-                        ? _buildNotConfirmedState()
-                        : _buildFloorPlanView(),
+                ? _buildErrorState()
+                : !_hasConfirmedSeat
+                ? _buildNotConfirmedState()
+                : _buildFloorPlanView(),
           ),
         ],
       ),
@@ -880,7 +1148,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
         color: AppColors.brandColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -893,18 +1161,38 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               const Expanded(
-                child: Text('Báo cáo',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Báo cáo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               TextButton(
-                onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const ViolationReportHistoryScreen())),
-                child: const Text('Lịch sử',
-                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ViolationReportHistoryScreen(),
+                  ),
+                ),
+                child: const Text(
+                  'Lịch sử',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -923,19 +1211,39 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.brandColor.withOpacity(0.1),
+                color: AppColors.brandColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.brandColor.withOpacity(0.15), blurRadius: 20, spreadRadius: 5)],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.brandColor.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  ),
+                ],
               ),
-              child: const Icon(Icons.event_seat_outlined, size: 56, color: AppColors.brandColor),
+              child: const Icon(
+                Icons.event_seat_outlined,
+                size: 56,
+                color: AppColors.brandColor,
+              ),
             ),
             const SizedBox(height: 24),
-            const Text('Chưa xác nhận ghế ngồi',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const Text(
+              'Chưa xác nhận ghế ngồi',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 12),
             Text(
               'Bạn cần xác nhận ghế ngồi (check-in) trước khi có thể báo cáo vi phạm tại các ghế xung quanh.',
-              style: TextStyle(fontSize: 15, color: Colors.grey[600], height: 1.5),
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -946,8 +1254,13 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brandColor,
                 side: const BorderSide(color: AppColors.brandColor),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -1001,17 +1314,21 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
         const SizedBox(height: 8),
 
         // Floor plan - giống hệt FloorPlanScreen._buildFloorPlan
-        Expanded(
-          child: _buildFloorPlan(),
-        ),
+        Expanded(child: _buildFloorPlan()),
       ],
     );
   }
 
   Widget _legend(Color c, String l) => Row(
     children: [
-      Container(width: 14, height: 14,
-        decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(4))),
+      Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: c,
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
       const SizedBox(width: 4),
       Text(l, style: const TextStyle(fontSize: 11)),
     ],
@@ -1033,9 +1350,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
         width: _contentWidth + 40,
         height: _contentHeight + 40,
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-        ),
+        decoration: BoxDecoration(color: Colors.grey[100]),
         child: Stack(
           children: [
             // Grid background
@@ -1076,7 +1391,11 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
             padding: const EdgeInsets.all(4),
             child: Text(
               factory.factoryName,
-              style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
@@ -1096,11 +1415,15 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
 
     final sortedSeats = List<Seat>.from(seats)
       ..sort((a, b) {
-        if (a.rowNumber != b.rowNumber) return a.rowNumber.compareTo(b.rowNumber);
+        if (a.rowNumber != b.rowNumber) {
+          return a.rowNumber.compareTo(b.rowNumber);
+        }
         return a.columnNumber.compareTo(b.columnNumber);
       });
 
-    final availableSeats = sortedSeats.where((s) => s.seatStatus == 'AVAILABLE').length;
+    final availableSeats = sortedSeats
+        .where((s) => s.seatStatus == 'AVAILABLE')
+        .length;
     final totalSeats = sortedSeats.length;
 
     final x = zone.positionX * scale;
@@ -1118,7 +1441,13 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
           color: color.withAlpha(50),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color, width: 2),
-          boxShadow: [BoxShadow(color: color.withAlpha(40), blurRadius: 4, offset: const Offset(0, 2))],
+          boxShadow: [
+            BoxShadow(
+              color: color.withAlpha(40),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -1128,18 +1457,30 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(6), topRight: Radius.circular(6)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(6),
+                  topRight: Radius.circular(6),
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(zone.zoneName,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
-                      overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      zone.zoneName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withAlpha(50),
                       borderRadius: BorderRadius.circular(8),
@@ -1147,10 +1488,20 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.event_seat, color: Colors.white, size: 10),
+                        const Icon(
+                          Icons.event_seat,
+                          color: Colors.white,
+                          size: 10,
+                        ),
                         const SizedBox(width: 2),
-                        Text('$availableSeats/$totalSeats',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 9)),
+                        Text(
+                          '$availableSeats/$totalSeats',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 9,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1164,9 +1515,19 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.event_seat_outlined, color: color.withAlpha(150), size: 24),
+                          Icon(
+                            Icons.event_seat_outlined,
+                            color: color.withAlpha(150),
+                            size: 24,
+                          ),
                           const SizedBox(height: 4),
-                          Text('Chưa có ghế', style: TextStyle(color: color.withAlpha(180), fontSize: 10)),
+                          Text(
+                            'Chưa có ghế',
+                            style: TextStyle(
+                              color: color.withAlpha(180),
+                              fontSize: 10,
+                            ),
+                          ),
                         ],
                       ),
                     )
@@ -1175,7 +1536,13 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _buildSeatRows(sortedSeats, color, w, h, zone),
+                          children: _buildSeatRows(
+                            sortedSeats,
+                            color,
+                            w,
+                            h,
+                            zone,
+                          ),
                         ),
                       ),
                     ),
@@ -1188,7 +1555,13 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
 
   /// Seat rows - copy y hệt FloorPlanScreen._buildSeatRows
   /// Chỉ thay đổi: ghế mình = brandColor, onTap = _onSeatTap (violation)
-  List<Widget> _buildSeatRows(List<Seat> seats, Color color, double zoneWidth, double zoneHeight, Zone zone) {
+  List<Widget> _buildSeatRows(
+    List<Seat> seats,
+    Color color,
+    double zoneWidth,
+    double zoneHeight,
+    Zone zone,
+  ) {
     Map<int, List<Seat>> seatsByRow = {};
     for (final seat in seats) {
       seatsByRow.putIfAbsent(seat.rowNumber, () => []).add(seat);
@@ -1199,7 +1572,9 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     }
 
     final numRows = seatsByRow.length;
-    final maxSeatsPerRow = seatsByRow.values.map((r) => r.length).reduce((a, b) => a > b ? a : b);
+    final maxSeatsPerRow = seatsByRow.values
+        .map((r) => r.length)
+        .reduce((a, b) => a > b ? a : b);
 
     const fixedSeatSize = 35.0;
 
@@ -1207,7 +1582,8 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
     final availableHeight = zoneHeight - 50;
 
     final totalSeatWidthInRow = fixedSeatSize * maxSeatsPerRow;
-    final hSpacing = (availableWidth - totalSeatWidthInRow) / (maxSeatsPerRow + 1);
+    final hSpacing =
+        (availableWidth - totalSeatWidthInRow) / (maxSeatsPerRow + 1);
 
     final totalSeatHeightInCol = fixedSeatSize * numRows;
     final vSpacing = (availableHeight - totalSeatHeightInCol) / (numRows + 1);
@@ -1256,7 +1632,9 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
               return Padding(
                 padding: EdgeInsets.only(
                   left: j == 0 ? max(hSpacing, 4.0) : max(hSpacing / 2, 2.0),
-                  right: j == rowSeats.length - 1 ? max(hSpacing, 4.0) : max(hSpacing / 2, 2.0),
+                  right: j == rowSeats.length - 1
+                      ? max(hSpacing, 4.0)
+                      : max(hSpacing / 2, 2.0),
                 ),
                 child: GestureDetector(
                   onTap: () => _onSeatTap(seat),
@@ -1272,13 +1650,23 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: borderColor, width: 1.5),
                         boxShadow: isMySeat
-                            ? [BoxShadow(color: AppColors.brandColor.withAlpha(100), blurRadius: 6, spreadRadius: 1)]
+                            ? [
+                                BoxShadow(
+                                  color: AppColors.brandColor.withAlpha(100),
+                                  blurRadius: 6,
+                                  spreadRadius: 1,
+                                ),
+                              ]
                             : null,
                       ),
                       child: Center(
                         child: Text(
                           seatLabel,
-                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

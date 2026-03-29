@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/hce/stations")
-@CrossOrigin(origins = "*")
 public class HceStationController {
 
     @Autowired

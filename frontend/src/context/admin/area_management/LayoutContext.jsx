@@ -201,7 +201,6 @@ function layoutReducer(state, action) {
       };
 
     case ACTIONS.SELECT_AREA:
-      console.log("SELECT_AREA reducer - payload:", action.payload);
       return {
         ...state,
         selectedAreaId: action.payload,
@@ -299,14 +298,6 @@ function layoutReducer(state, action) {
       };
 
     case ACTIONS.UPDATE_SEAT:
-      {
-        const before = state.seats.find((s) => s.seatId === action.payload.seatId);
-        console.log("[Reducer] UPDATE_SEAT", {
-          seatId: action.payload.seatId,
-          prevIsActive: before?.isActive,
-          nextIsActive: action.payload.isActive,
-        });
-      }
       return {
         ...state,
         seats: state.seats.map((s) =>
@@ -338,7 +329,6 @@ function layoutReducer(state, action) {
     // Update only seatStatus for a specific seat (WebSocket real-time update)
     case ACTIONS.UPDATE_SEAT_STATUS:
       const { seatId: statusSeatId, seatStatus: newStatus } = action.payload;
-      console.log(`[WebSocket] Updating seat ${statusSeatId} to status ${newStatus}`);
       return {
         ...state,
         seats: state.seats.map((s) =>
@@ -356,7 +346,6 @@ function layoutReducer(state, action) {
     case ACTIONS.MERGE_FACTORIES:
       // Merge factories for a specific area
       const { areaId: factoryAreaId, factories: newFactories } = action.payload;
-      console.log(`MERGE_FACTORIES - Area: ${factoryAreaId}, New factories:`, newFactories);
       const otherFactories = state.factories.filter(f => f.areaId !== factoryAreaId);
       // Preserve pending new factories for this area (not yet saved to DB)
       const pendingNewFactoriesForArea = state.pendingChanges.newFactories.filter(f => f.areaId === factoryAreaId);
@@ -365,14 +354,12 @@ function layoutReducer(state, action) {
         !state.pendingChanges.deletedFactories.includes(f.factoryId)
       );
       const merged = [...otherFactories, ...filteredNewFactories, ...pendingNewFactoriesForArea];
-      console.log(`After merge:`, merged);
       return {
         ...state,
         factories: merged,
       };
 
     case ACTIONS.ADD_FACTORY:
-      console.log(`➕ ADD_FACTORY:`, action.payload);
       return {
         ...state,
         factories: [...state.factories, action.payload],

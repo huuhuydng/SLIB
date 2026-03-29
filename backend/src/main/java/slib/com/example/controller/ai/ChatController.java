@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/slib/ai")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ChatController {
 
     @Autowired

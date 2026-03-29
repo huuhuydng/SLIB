@@ -9,11 +9,15 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.booking.BookingController;
 import slib.com.example.dto.booking.UpcomingBookingResponse;
+import slib.com.example.entity.users.Role;
+import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingService;
 
 import java.util.Optional;
@@ -35,6 +39,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("FE-71: View Booking Details - Unit Tests")
 class FE71_ViewBookingDetailsTest {
 
+        private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        private static final String TEST_EMAIL = "student@fpt.edu.vn";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -44,27 +51,42 @@ class FE71_ViewBookingDetailsTest {
         @MockBean
         private ReservationRepository reservationRepository;
 
+        @MockBean
+        private UserRepository userRepository;
+
+        private User buildCurrentUser(UUID userId) {
+                User user = new User();
+                user.setId(userId);
+                user.setEmail(TEST_EMAIL);
+                user.setRole(Role.STUDENT);
+                return user;
+        }
+
         // =========================================
         // === UTCID01: Valid upcoming booking exists - Normal ===
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID01: Get upcoming booking with valid userId returns 200 OK")
         void getUpcomingBooking_exists_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 UpcomingBookingResponse mockBooking = UpcomingBookingResponse.builder()
                                 .reservationId(UUID.randomUUID())
                                 .status("BOOKED")
                                 .seatCode("A-01")
                                 .build();
 
-                when(bookingService.getUpcomingBooking(eq(userId))).thenReturn(Optional.of(mockBooking));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(bookingService.getUpcomingBooking(eq(TEST_USER_ID))).thenReturn(Optional.of(mockBooking));
 
-                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("BOOKED"));
 
-                verify(bookingService, times(1)).getUpcomingBooking(eq(userId));
+                verify(bookingService, times(1)).getUpcomingBooking(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -72,22 +94,26 @@ class FE71_ViewBookingDetailsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID02: Get upcoming booking with full details returns 200 OK")
         void getUpcomingBooking_fullDetails_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 UpcomingBookingResponse mockBooking = UpcomingBookingResponse.builder()
                                 .reservationId(UUID.randomUUID())
                                 .status("CONFIRMED")
                                 .seatCode("B-05")
                                 .build();
 
-                when(bookingService.getUpcomingBooking(eq(userId))).thenReturn(Optional.of(mockBooking));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(bookingService.getUpcomingBooking(eq(TEST_USER_ID))).thenReturn(Optional.of(mockBooking));
 
-                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("CONFIRMED"));
 
-                verify(bookingService, times(1)).getUpcomingBooking(eq(userId));
+                verify(bookingService, times(1)).getUpcomingBooking(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -95,21 +121,25 @@ class FE71_ViewBookingDetailsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID03: Get upcoming booking with PROCESSING status returns 200 OK")
         void getUpcomingBooking_processingStatus_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 UpcomingBookingResponse mockBooking = UpcomingBookingResponse.builder()
                                 .reservationId(UUID.randomUUID())
                                 .status("PROCESSING")
                                 .build();
 
-                when(bookingService.getUpcomingBooking(eq(userId))).thenReturn(Optional.of(mockBooking));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(bookingService.getUpcomingBooking(eq(TEST_USER_ID))).thenReturn(Optional.of(mockBooking));
 
-                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("PROCESSING"));
 
-                verify(bookingService, times(1)).getUpcomingBooking(eq(userId));
+                verify(bookingService, times(1)).getUpcomingBooking(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -117,16 +147,19 @@ class FE71_ViewBookingDetailsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID04: Get upcoming booking when none exists returns 204 No Content")
         void getUpcomingBooking_notExists_returns204NoContent() throws Exception {
-                UUID userId = UUID.randomUUID();
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID)));
+                when(bookingService.getUpcomingBooking(eq(TEST_USER_ID))).thenReturn(Optional.empty());
 
-                when(bookingService.getUpcomingBooking(eq(userId))).thenReturn(Optional.empty());
-
-                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/upcoming/{userId}", TEST_USER_ID))
                                 .andExpect(status().isNoContent());
 
-                verify(bookingService, times(1)).getUpcomingBooking(eq(userId));
+                verify(bookingService, times(1)).getUpcomingBooking(eq(TEST_USER_ID));
         }
 
         // =========================================

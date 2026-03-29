@@ -2,6 +2,7 @@ package slib.com.example.repository.news;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,5 +28,9 @@ public interface NewsRepository extends JpaRepository<News, Long> {
      */
     @Query("SELECT n FROM News n WHERE n.publishedAt > :now AND n.isPublished = false")
     List<News> findFutureScheduledNews(@Param("now") java.time.LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE News n SET n.isPublished = true WHERE n.id = :newsId AND n.isPublished = false")
+    int markPublishedIfPending(@Param("newsId") Long newsId);
 
 }

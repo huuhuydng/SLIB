@@ -1,46 +1,74 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/services/notification/notification_service.dart';
+import 'package:slib/views/news/news_screen.dart';
+import 'package:slib/views/profile/activity_history_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
-import 'package:intl/intl.dart';
+import 'package:slib/views/support/support_request_history_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
-/// Model gộp nhóm các notification liên tiếp cùng type + title
-class _NotificationGroup {
-  final List<NotificationItem> items;
+class _NotificationCategoryOption {
+  final String key;
+  final String label;
 
-  _NotificationGroup(this.items);
-
-  String get type => items.first.type;
-  String get title => items.first.title;
-  bool get isGrouped => items.length > 1;
-  int get count => items.length;
-  NotificationItem get latest => items.first;
-  bool get hasUnread => items.any((n) => !n.isRead);
+  const _NotificationCategoryOption(this.key, this.label);
 }
 
-/// Gộp notification liên tiếp cùng type + title thành group
-List<_NotificationGroup> _groupConsecutiveNotifications(List<NotificationItem> notifications) {
+class _NotificationGroup {
+  final List<NotificationItem> items;
+  final String? displayTitle;
+  final String? displayContent;
+
+  _NotificationGroup(this.items, {this.displayTitle, this.displayContent});
+
+  NotificationItem get latest => items.first;
+  String get title => displayTitle ?? latest.title;
+  String get content => displayContent ?? latest.content;
+  bool get isGrouped => items.length > 1;
+  int get count => items.length;
+  bool get hasUnread => items.any((item) => !item.isRead);
+}
+
+const _allCategory = _NotificationCategoryOption('ALL', 'Tất cả');
+const _categoryOptions = <_NotificationCategoryOption>[
+  _allCategory,
+  _NotificationCategoryOption('MESSAGE', 'Tin nhắn'),
+  _NotificationCategoryOption('PROCESSING', 'Xử lý'),
+  _NotificationCategoryOption('REPUTATION', 'Điểm uy tín'),
+  _NotificationCategoryOption('BOOKING', 'Đặt chỗ'),
+  _NotificationCategoryOption('NEWS', 'Tin tức'),
+  _NotificationCategoryOption('SYSTEM', 'Hệ thống'),
+];
+
+List<_NotificationGroup> _groupConsecutiveNotifications(
+  List<NotificationItem> notifications,
+) {
   if (notifications.isEmpty) return [];
 
   final groups = <_NotificationGroup>[];
-  List<NotificationItem> currentGroup = [notifications.first];
+  var currentGroup = <NotificationItem>[notifications.first];
 
-  for (int i = 1; i < notifications.length; i++) {
+  for (var i = 1; i < notifications.length; i++) {
     final current = notifications[i];
     final previous = notifications[i - 1];
 
-    if (current.type == previous.type && current.title == previous.title) {
+    final isSameGroup =
+        current.category == previous.category &&
+        current.type == previous.type &&
+        current.title == previous.title;
+
+    if (isSameGroup) {
       currentGroup.add(current);
     } else {
       groups.add(_NotificationGroup(currentGroup));
-      currentGroup = [current];
+      currentGroup = <NotificationItem>[current];
     }
   }
-  groups.add(_NotificationGroup(currentGroup));
 
+  groups.add(_NotificationGroup(currentGroup));
   return groups;
 }
 
@@ -52,48 +80,42 @@ class NotificationScreen extends StatefulWidget {
 }
 
 class _NotificationScreenState extends State<NotificationScreen> {
-  final Set<int> _expandedGroups = {};
+  final Set<String> _expandedGroups = <String>{};
+  final ScrollController _categoryScrollController = ScrollController();
+  final GlobalKey _categoryScrollViewKey = GlobalKey();
+  late final Map<String, GlobalKey> _categoryChipKeys;
+  String _selectedCategory = _allCategory.key;
 
   @override
   void initState() {
     super.initState();
-    // Refresh notifications when screen opens
+    _categoryChipKeys = {
+      for (final option in _categoryOptions) option.key: GlobalKey(),
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotificationService>().refreshData();
+      final service = context.read<NotificationService>();
+      service.refreshData();
     });
+  }
+
+  @override
+  void dispose() {
+    _categoryScrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBar(
         title: const Text(
           'Thông báo',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: AppColors.brandColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          Consumer<NotificationService>(
-            builder: (context, service, _) {
-              if (service.unreadCount > 0) {
-                return TextButton(
-                  onPressed: () => service.markAllAsRead(),
-                  child: const Text(
-                    'Đọc tất cả',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
       ),
       body: Consumer<NotificationService>(
         builder: (context, service, _) {
@@ -107,7 +129,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
             return ErrorDisplayWidget.empty(message: 'Chưa có thông báo nào');
           }
 
-          final groups = _groupConsecutiveNotifications(service.notifications);
+          final filteredNotifications = _selectedCategory == _allCategory.key
+              ? service.notifications
+              : service.notifications
+                    .where((item) => item.category == _selectedCategory)
+                    .toList();
+
+          if (filteredNotifications.isEmpty) {
+            final selectedLabel = _categoryOptions
+                .firstWhere((item) => item.key == _selectedCategory)
+                .label;
+            return Column(
+              children: [
+                _buildCategoryFilterBar(service.notifications),
+                Expanded(
+                  child: ErrorDisplayWidget.empty(
+                    message: 'Chưa có thông báo trong mục $selectedLabel',
+                  ),
+                ),
+              ],
+            );
+          }
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -115,54 +157,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
               await service.refreshData();
             },
             color: AppColors.brandColor,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: groups.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                thickness: 0.5,
-                color: Colors.grey[200],
-                indent: 72,
-                endIndent: 16,
-              ),
-              itemBuilder: (context, index) {
-                final group = groups[index];
-
-                if (!group.isGrouped) {
-                  // Notification đơn lẻ — render như cũ
-                  return _NotificationItemWidget(
-                    notification: group.latest,
-                    onTap: () {
-                      if (!group.latest.isRead) {
-                        service.markAsRead(group.latest.id);
-                      }
-                      _handleNotificationTap(group.latest);
-                    },
-                  );
-                }
-
-                // Nhóm nhiều notification cùng loại
-                final isExpanded = _expandedGroups.contains(index);
-                return _GroupedNotificationWidget(
-                  group: group,
-                  isExpanded: isExpanded,
-                  onToggle: () {
-                    setState(() {
-                      if (isExpanded) {
-                        _expandedGroups.remove(index);
-                      } else {
-                        _expandedGroups.add(index);
-                      }
-                    });
-                  },
-                  onItemTap: (notification) {
-                    if (!notification.isRead) {
-                      service.markAsRead(notification.id);
-                    }
-                    _handleNotificationTap(notification);
-                  },
-                );
-              },
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 16),
+              children: [
+                _buildCategoryFilterBar(service.notifications),
+                if (_selectedCategory == _allCategory.key)
+                  ..._buildAllCategorySections(filteredNotifications, service)
+                else
+                  ..._buildSingleCategorySection(
+                    filteredNotifications,
+                    service,
+                  ),
+              ],
             ),
           );
         },
@@ -170,60 +176,401 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  void _handleNotificationTap(NotificationItem notification) {
-    switch (notification.type) {
+  Widget _buildCategoryFilterBar(List<NotificationItem> notifications) {
+    final counts = <String, int>{};
+    for (final item in notifications) {
+      counts[item.category] = (counts[item.category] ?? 0) + 1;
+    }
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+      child: SingleChildScrollView(
+        key: _categoryScrollViewKey,
+        controller: _categoryScrollController,
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _categoryOptions.map((option) {
+            final isSelected = option.key == _selectedCategory;
+            final count = option.key == 'ALL'
+                ? notifications.length
+                : (counts[option.key] ?? 0);
+
+            return Padding(
+              key: _categoryChipKeys[option.key],
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text('${option.label} ($count)'),
+                selected: isSelected,
+                selectedColor: AppColors.brandColor.withValues(alpha: 0.18),
+                backgroundColor: const Color(0xFFF3F4F6),
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.brandColor
+                      : const Color(0xFFE5E7EB),
+                ),
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? AppColors.brandColor
+                      : const Color(0xFF4B5563),
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                onSelected: (_) {
+                  setState(() {
+                    _selectedCategory = option.key;
+                    _expandedGroups.clear();
+                  });
+                  _scrollToSelectedCategory(option.key);
+                },
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _scrollToSelectedCategory(String categoryKey) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_categoryScrollController.hasClients) return;
+
+      final chipContext = _categoryChipKeys[categoryKey]?.currentContext;
+      final scrollViewContext = _categoryScrollViewKey.currentContext;
+      if (chipContext == null || scrollViewContext == null) return;
+
+      final chipBox = chipContext.findRenderObject() as RenderBox?;
+      final viewportBox = scrollViewContext.findRenderObject() as RenderBox?;
+      if (chipBox == null || viewportBox == null) return;
+
+      final currentOffset = _categoryScrollController.offset;
+      final chipOffset = chipBox.localToGlobal(
+        Offset.zero,
+        ancestor: viewportBox,
+      );
+      final chipLeft = chipOffset.dx;
+      final chipRight = chipLeft + chipBox.size.width;
+      final viewportWidth = viewportBox.size.width;
+
+      const edgePadding = 24.0;
+      var targetOffset = currentOffset;
+
+      if (chipLeft < edgePadding) {
+        targetOffset += chipLeft - edgePadding;
+      } else if (chipRight > viewportWidth - edgePadding) {
+        targetOffset += chipRight - (viewportWidth - edgePadding);
+      } else {
+        return;
+      }
+
+      final clampedTarget = targetOffset.clamp(
+        0.0,
+        _categoryScrollController.position.maxScrollExtent,
+      );
+
+      if ((clampedTarget - currentOffset).abs() < 6) return;
+
+      _categoryScrollController.animateTo(
+        clampedTarget,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  List<Widget> _buildAllCategorySections(
+    List<NotificationItem> notifications,
+    NotificationService service,
+  ) {
+    final widgets = <Widget>[];
+
+    for (final option in _categoryOptions.where((item) => item.key != 'ALL')) {
+      final items = notifications
+          .where((notification) => notification.category == option.key)
+          .toList();
+      if (items.isEmpty) continue;
+
+      widgets.add(
+        _CategoryHeader(categoryKey: option.key, label: option.label),
+      );
+
+      if (option.key == 'BOOKING') {
+        final groupId = '${option.key}-all-booking';
+        widgets.add(
+          _GroupedNotificationWidget(
+            group: _NotificationGroup(
+              items,
+              displayTitle: '${option.label} (${items.length})',
+              displayContent: items.first.content,
+            ),
+            isExpanded: _expandedGroups.contains(groupId),
+            onToggle: () {
+              setState(() {
+                if (_expandedGroups.contains(groupId)) {
+                  _expandedGroups.remove(groupId);
+                } else {
+                  _expandedGroups.add(groupId);
+                }
+              });
+            },
+            onItemTap: _handleNotificationTap,
+            onItemDelete: (notification) =>
+                _deleteNotification(service, notification),
+            onItemDetail: _handleNotificationTap,
+          ),
+        );
+        continue;
+      }
+
+      widgets.addAll(
+        _buildGroupWidgets(
+          _groupConsecutiveNotifications(items),
+          service,
+          option.key,
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _buildSingleCategorySection(
+    List<NotificationItem> notifications,
+    NotificationService service,
+  ) {
+    final selectedOption = _categoryOptions.firstWhere(
+      (item) => item.key == _selectedCategory,
+      orElse: () => _allCategory,
+    );
+
+    return [
+      _CategoryHeader(
+        categoryKey: selectedOption.key,
+        label: selectedOption.label,
+      ),
+      ..._buildFlatNotificationWidgets(notifications, service),
+    ];
+  }
+
+  List<Widget> _buildFlatNotificationWidgets(
+    List<NotificationItem> notifications,
+    NotificationService service,
+  ) {
+    return notifications
+        .map(
+          (notification) => _NotificationItemWidget(
+            notification: notification,
+            onTap: () => _handleNotificationTap(notification),
+            onDelete: () => _deleteNotification(service, notification),
+            onDetail: () => _handleNotificationTap(notification),
+          ),
+        )
+        .toList();
+  }
+
+  List<Widget> _buildGroupWidgets(
+    List<_NotificationGroup> groups,
+    NotificationService service,
+    String categoryKey,
+  ) {
+    return List<Widget>.generate(groups.length, (index) {
+      final group = groups[index];
+      final groupId = '$categoryKey-$index-${group.latest.id}';
+
+      if (!group.isGrouped) {
+        return _NotificationItemWidget(
+          notification: group.latest,
+          onTap: () => _handleNotificationTap(group.latest),
+          onDelete: () => _deleteNotification(service, group.latest),
+          onDetail: () => _handleNotificationTap(group.latest),
+        );
+      }
+
+      return _GroupedNotificationWidget(
+        group: group,
+        isExpanded: _expandedGroups.contains(groupId),
+        onToggle: () {
+          setState(() {
+            if (_expandedGroups.contains(groupId)) {
+              _expandedGroups.remove(groupId);
+            } else {
+              _expandedGroups.add(groupId);
+            }
+          });
+        },
+        onItemTap: _handleNotificationTap,
+        onItemDelete: (notification) =>
+            _deleteNotification(service, notification),
+        onItemDetail: _handleNotificationTap,
+      );
+    });
+  }
+
+  Future<void> _deleteNotification(
+    NotificationService service,
+    NotificationItem notification,
+  ) async {
+    final success = await service.deleteNotification(notification.id);
+    if (mounted && success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã xoá thông báo'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleNotificationTap(NotificationItem notification) async {
+    if (!notification.isRead) {
+      await context.read<NotificationService>().markAsRead(notification.id);
+      if (!mounted) return;
+    }
+
+    switch (notification.category) {
       case 'BOOKING':
+        _openBookingHistory(notification);
+        break;
+      case 'REPUTATION':
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const BookingHistoryScreen()),
+          MaterialPageRoute(builder: (_) => const ActivityHistoryScreen()),
         );
         break;
-      case 'VIOLATION':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
-        );
+      case 'PROCESSING':
+        _openProcessingScreen(notification);
         break;
       case 'NEWS':
-        debugPrint('Navigate to news: ${notification.referenceId}');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NewsScreen()),
+        );
         break;
-      default:
+      case 'MESSAGE':
+      case 'SYSTEM':
         break;
+    }
+  }
+
+  void _openBookingHistory(NotificationItem notification) {
+    final combined = '${notification.title} ${notification.content}'
+        .toLowerCase();
+    var tab = 0;
+
+    if (combined.contains('huỷ') ||
+        combined.contains('hủy') ||
+        combined.contains('hết hạn') ||
+        combined.contains('expired') ||
+        combined.contains('không đến')) {
+      tab = 2;
+    } else if (combined.contains('hoàn thành') ||
+        combined.contains('kết thúc') ||
+        combined.contains('completed')) {
+      tab = 1;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => BookingHistoryScreen(initialTab: tab)),
+    );
+  }
+
+  void _openProcessingScreen(NotificationItem notification) {
+    final combined = '${notification.title} ${notification.content}'
+        .toLowerCase();
+
+    if (combined.contains('yêu cầu hỗ trợ')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
+      );
+      return;
+    }
+
+    if (combined.contains('vi phạm')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
+      );
     }
   }
 }
 
-/// Widget hiển thị nhóm notification gộp
+class _CategoryHeader extends StatelessWidget {
+  final String categoryKey;
+  final String label;
+
+  const _CategoryHeader({required this.categoryKey, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _categoryColor(categoryKey);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _GroupedNotificationWidget extends StatelessWidget {
   final _NotificationGroup group;
   final bool isExpanded;
   final VoidCallback onToggle;
   final void Function(NotificationItem) onItemTap;
+  final void Function(NotificationItem) onItemDelete;
+  final void Function(NotificationItem) onItemDetail;
 
   const _GroupedNotificationWidget({
     required this.group,
     required this.isExpanded,
     required this.onToggle,
     required this.onItemTap,
+    required this.onItemDelete,
+    required this.onItemDetail,
   });
 
   @override
   Widget build(BuildContext context) {
+    final categoryColor = _categoryColor(group.latest.category);
+
     return Column(
       children: [
-        // Header row — tap để expand/collapse
         InkWell(
           onTap: onToggle,
           child: Container(
-            color: group.hasUnread ? Colors.orange.shade50 : Colors.white,
+            decoration: BoxDecoration(
+              color: group.hasUnread
+                  ? categoryColor.withValues(alpha: 0.1)
+                  : Colors.white,
+              border: Border(
+                left: BorderSide(
+                  color: group.hasUnread ? categoryColor : Colors.transparent,
+                  width: 4,
+                ),
+              ),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Icon
-                _buildIcon(group.type),
+                _NotificationLeadingIcon(notification: group.latest),
                 const SizedBox(width: 12),
-                // Content
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,13 +579,13 @@ class _GroupedNotificationWidget extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              '${group.title} (${group.count})',
+                              group.title,
                               style: TextStyle(
                                 fontWeight: group.hasUnread
                                     ? FontWeight.bold
-                                    : FontWeight.w500,
+                                    : FontWeight.w600,
                                 fontSize: 15,
-                                color: Colors.black87,
+                                color: const Color(0xFF111827),
                               ),
                             ),
                           ),
@@ -246,7 +593,7 @@ class _GroupedNotificationWidget extends StatelessWidget {
                             Container(
                               width: 8,
                               height: 8,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: AppColors.brandColor,
                                 shape: BoxShape.circle,
                               ),
@@ -255,238 +602,155 @@ class _GroupedNotificationWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        group.latest.content,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        group.content,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF6B7280),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _formatTime(group.latest.createdAt),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          _CategoryPill(notification: group.latest),
+                          if (group.hasUnread) ...[
+                            const SizedBox(width: 8),
+                            const _UnreadPill(),
+                          ],
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatTime(group.latest.createdAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 4),
                 Icon(
                   isExpanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.keyboard_arrow_down_rounded,
-                  color: Colors.grey[400],
-                  size: 24,
+                  color: const Color(0xFF9CA3AF),
                 ),
               ],
             ),
           ),
         ),
-        // Expanded children
         if (isExpanded)
-          ...group.items.map((notification) => InkWell(
-                onTap: () => onItemTap(notification),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
+          ...group.items.map(
+            (notification) => Container(
+              decoration: BoxDecoration(
+                color: notification.isRead
+                    ? const Color(0xFFFAFAFA)
+                    : categoryColor.withValues(alpha: 0.1),
+                border: Border(
+                  left: BorderSide(
                     color: notification.isRead
-                        ? Colors.grey.shade50
-                        : Colors.orange.shade50,
-                    border: Border(
-                      left: BorderSide(
-                        color: AppColors.brandColor.withOpacity(0.4),
-                        width: 3,
-                      ),
-                    ),
+                        ? Colors.transparent
+                        : categoryColor,
+                    width: 4,
                   ),
+                ),
+              ),
+              child: InkWell(
+                onTap: () => onItemTap(notification),
+                child: Padding(
                   padding: const EdgeInsets.only(
-                      left: 72, right: 16, top: 10, bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    left: 72,
+                    right: 4,
+                    top: 8,
+                    bottom: 8,
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        notification.content,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[700],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              notification.content,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF4B5563),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                if (!notification.isRead) ...[
+                                  const _UnreadPill(
+                                    fontSize: 10,
+                                    horizontalPadding: 6,
+                                    verticalPadding: 2,
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Text(
+                                  _formatTime(notification.createdAt),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatTime(notification.createdAt),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[400],
-                        ),
-                      ),
+                      _buildPopupMenu(notification, onItemDetail, onItemDelete),
                     ],
                   ),
                 ),
-              )),
+              ),
+            ),
+          ),
       ],
     );
   }
-
-  Widget _buildIcon(String type) {
-    final iconColor = _getColorForType(type);
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: iconColor.withOpacity(0.1),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        _getIconForType(type),
-        color: iconColor,
-        size: 22,
-      ),
-    );
-  }
-
-  static IconData _getIconForType(String type) {
-    switch (type) {
-      case 'BOOKING':
-        return Icons.event_seat_rounded;
-      case 'REMINDER':
-        return Icons.alarm_rounded;
-      case 'NEWS':
-        return Icons.article_rounded;
-      case 'VIOLATION':
-        return Icons.warning_rounded;
-      case 'CHAT_MESSAGE':
-        return Icons.chat_bubble_rounded;
-      default:
-        return Icons.notifications_rounded;
-    }
-  }
-
-  static Color _getColorForType(String type) {
-    switch (type) {
-      case 'BOOKING':
-        return Colors.blue;
-      case 'REMINDER':
-        return Colors.orange;
-      case 'NEWS':
-        return Colors.green;
-      case 'VIOLATION':
-        return Colors.red;
-      case 'CHAT_MESSAGE':
-        return Colors.teal;
-      default:
-        return AppColors.brandColor;
-    }
-  }
-
-  static String _formatTime(DateTime dateTime) {
-    final localDateTime = dateTime.toLocal();
-    final now = DateTime.now();
-    final difference = now.difference(localDateTime);
-
-    if (difference.inSeconds < 60) {
-      return 'Vừa xong';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} phút trước';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} ngày trước';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(localDateTime);
-    }
-  }
 }
 
-/// Widget hiển thị 1 notification đơn lẻ
 class _NotificationItemWidget extends StatelessWidget {
   final NotificationItem notification;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
+  final VoidCallback onDetail;
 
   const _NotificationItemWidget({
     required this.notification,
     required this.onTap,
+    required this.onDelete,
+    required this.onDetail,
   });
-
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'BOOKING':
-        return Icons.event_seat_rounded;
-      case 'REMINDER':
-        return Icons.alarm_rounded;
-      case 'NEWS':
-        return Icons.article_rounded;
-      case 'VIOLATION':
-        return Icons.warning_rounded;
-      case 'CHAT_MESSAGE':
-        return Icons.chat_bubble_rounded;
-      default:
-        return Icons.notifications_rounded;
-    }
-  }
-
-  Color _getColorForType(String type) {
-    switch (type) {
-      case 'BOOKING':
-        return Colors.blue;
-      case 'REMINDER':
-        return Colors.orange;
-      case 'NEWS':
-        return Colors.green;
-      case 'VIOLATION':
-        return Colors.red;
-      case 'CHAT_MESSAGE':
-        return Colors.teal;
-      default:
-        return AppColors.brandColor;
-    }
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final localDateTime = dateTime.toLocal();
-    final now = DateTime.now();
-    final difference = now.difference(localDateTime);
-
-    if (difference.inSeconds < 60) {
-      return 'Vừa xong';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} phút trước';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} giờ trước';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} ngày trước';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(localDateTime);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = _getColorForType(notification.type);
+    final categoryColor = _categoryColor(notification.category);
 
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: notification.isRead ? Colors.white : Colors.orange.shade50,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: notification.isRead
+              ? Colors.white
+              : categoryColor.withValues(alpha: 0.12),
+          border: Border(
+            left: BorderSide(
+              color: notification.isRead ? Colors.transparent : categoryColor,
+              width: 4,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.only(left: 16, top: 12, bottom: 12, right: 4),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _getIconForType(notification.type),
-                color: iconColor,
-                size: 22,
-              ),
-            ),
+            _NotificationLeadingIcon(notification: notification),
             const SizedBox(width: 12),
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,10 +762,10 @@ class _NotificationItemWidget extends StatelessWidget {
                           notification.title,
                           style: TextStyle(
                             fontWeight: notification.isRead
-                                ? FontWeight.w500
+                                ? FontWeight.w600
                                 : FontWeight.bold,
                             fontSize: 15,
-                            color: Colors.black87,
+                            color: const Color(0xFF111827),
                           ),
                         ),
                       ),
@@ -509,7 +773,7 @@ class _NotificationItemWidget extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.brandColor,
                             shape: BoxShape.circle,
                           ),
@@ -519,27 +783,236 @@ class _NotificationItemWidget extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     notification.content,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: Color(0xFF6B7280),
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(notification.createdAt),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                    ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      _CategoryPill(notification: notification),
+                      if (!notification.isRead) ...[
+                        const SizedBox(width: 8),
+                        const _UnreadPill(),
+                      ],
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatTime(notification.createdAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+            _buildPopupMenu(notification, (_) => onDetail(), (_) => onDelete()),
           ],
         ),
       ),
     );
   }
+}
+
+class _UnreadPill extends StatelessWidget {
+  final double fontSize;
+  final double horizontalPadding;
+  final double verticalPadding;
+
+  const _UnreadPill({
+    this.fontSize = 11,
+    this.horizontalPadding = 8,
+    this.verticalPadding = 3,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.brandColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'Chưa đọc',
+        style: TextStyle(
+          color: AppColors.brandColor,
+          fontSize: fontSize,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationLeadingIcon extends StatelessWidget {
+  final NotificationItem notification;
+
+  const _NotificationLeadingIcon({required this.notification});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _categoryColor(notification.category);
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(_iconForNotification(notification), color: color, size: 22),
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  final NotificationItem notification;
+
+  const _CategoryPill({required this.notification});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _categoryColor(notification.category);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        notification.categoryLabel,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildPopupMenu(
+  NotificationItem notification,
+  void Function(NotificationItem) onDetail,
+  void Function(NotificationItem) onDelete,
+) {
+  return PopupMenuButton<String>(
+    icon: const Icon(Icons.more_vert, color: Color(0xFF9CA3AF), size: 20),
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints(),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    onSelected: (value) {
+      if (value == 'detail') {
+        onDetail(notification);
+      } else if (value == 'delete') {
+        onDelete(notification);
+      }
+    },
+    itemBuilder: (context) {
+      final items = <PopupMenuEntry<String>>[];
+      if (_canOpenDetail(notification)) {
+        items.add(
+          const PopupMenuItem<String>(
+            value: 'detail',
+            child: Row(
+              children: [
+                Icon(Icons.open_in_new, size: 18),
+                SizedBox(width: 8),
+                Text('Chi tiết'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      items.add(
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Xoá', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      );
+
+      return items;
+    },
+  );
+}
+
+bool _canOpenDetail(NotificationItem notification) {
+  return const {
+    'BOOKING',
+    'REPUTATION',
+    'PROCESSING',
+    'NEWS',
+  }.contains(notification.category);
+}
+
+IconData _iconForNotification(NotificationItem notification) {
+  switch (notification.category) {
+    case 'MESSAGE':
+      return Icons.chat_bubble_rounded;
+    case 'PROCESSING':
+      return notification.content.toLowerCase().contains('vi phạm')
+          ? Icons.warning_rounded
+          : Icons.rule_folder_rounded;
+    case 'REPUTATION':
+      return Icons.workspace_premium_rounded;
+    case 'BOOKING':
+      return notification.type == 'REMINDER'
+          ? Icons.alarm_rounded
+          : Icons.event_seat_rounded;
+    case 'NEWS':
+      return Icons.article_rounded;
+    default:
+      return Icons.notifications_rounded;
+  }
+}
+
+Color _categoryColor(String category) {
+  switch (category) {
+    case 'MESSAGE':
+      return Colors.teal;
+    case 'PROCESSING':
+      return Colors.deepOrange;
+    case 'REPUTATION':
+      return Colors.indigo;
+    case 'BOOKING':
+      return Colors.blue;
+    case 'NEWS':
+      return Colors.green;
+    default:
+      return AppColors.brandColor;
+  }
+}
+
+String _formatTime(DateTime dateTime) {
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
+
+  if (difference.isNegative || difference.inSeconds < 60) {
+    return 'Vừa xong';
+  }
+  if (difference.inMinutes < 60) {
+    return '${difference.inMinutes} phút trước';
+  }
+  if (difference.inHours < 24) {
+    return '${difference.inHours} giờ trước';
+  }
+  if (difference.inDays < 7) {
+    return '${difference.inDays} ngày trước';
+  }
+  return DateFormat('dd/MM/yyyy').format(dateTime);
 }

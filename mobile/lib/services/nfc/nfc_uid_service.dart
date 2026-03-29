@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
+// ignore_for_file: implementation_imports, invalid_use_of_protected_member
+
 import 'package:flutter/foundation.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:nfc_manager/src/nfc_manager_android/pigeon.g.dart' as android;
@@ -59,10 +60,7 @@ class NfcUidService {
       // Start NFC session
       await NfcManager.instance.startSession(
         alertMessageIos: 'Chạm iPhone vào nhãn NFC trên ghế',
-        pollingOptions: {
-          NfcPollingOption.iso14443,
-          NfcPollingOption.iso15693,
-        },
+        pollingOptions: {NfcPollingOption.iso14443, NfcPollingOption.iso15693},
         onDiscovered: (NfcTag tag) async {
           try {
             final uid = _extractUidFromTag(tag);
@@ -141,17 +139,19 @@ class NfcUidService {
   String? _extractUidFromTag(NfcTag tag) {
     try {
       Uint8List? identifier;
-      
+
       if (Platform.isAndroid) {
         // Cast to Android TagPigeon and get id field
         final data = tag.data as android.TagPigeon;
         identifier = data.id;
-        debugPrint('NfcUidService: Got Android tag id, length: ${identifier.length}');
+        debugPrint(
+          'NfcUidService: Got Android tag id, length: ${identifier.length}',
+        );
       } else if (Platform.isIOS) {
         // iOS has different tag structures - try each technology
         final data = tag.data;
         debugPrint('NfcUidService: iOS tag data type: ${data.runtimeType}');
-        
+
         // For iOS, try to cast to specific technology types
         if (data is ios.MiFarePigeon) {
           identifier = data.identifier;
@@ -163,7 +163,9 @@ class NfcUidService {
           identifier = data.identifier;
           debugPrint('NfcUidService: Got iOS ISO15693 identifier');
         } else {
-          debugPrint('NfcUidService: Unknown iOS tag type: ${data.runtimeType}');
+          debugPrint(
+            'NfcUidService: Unknown iOS tag type: ${data.runtimeType}',
+          );
         }
       } else {
         debugPrint('NfcUidService: Unsupported platform');

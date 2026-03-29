@@ -11,12 +11,14 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.system.BackupController;
 import slib.com.example.entity.system.BackupScheduleEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.system.BackupScheduleRepository;
 import slib.com.example.service.system.BackupService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -51,6 +53,9 @@ class FE59_AutoBackupScheduleTest {
         @MockBean
         private BackupScheduleRepository backupScheduleRepository;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         // =========================================
         // === UTCID01: Load current backup schedule ===
         // =========================================
@@ -61,6 +66,7 @@ class FE59_AutoBackupScheduleTest {
          * Expected: 200 OK with schedule data
          */
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCID01: Load current backup schedule returns 200 OK")
         void getSchedule_loadCurrent_returns200OK() throws Exception {
                 BackupScheduleEntity schedule = BackupScheduleEntity.builder()
@@ -95,6 +101,7 @@ class FE59_AutoBackupScheduleTest {
          * Expected: 200 OK with updated schedule
          */
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCID02: Save valid schedule settings returns 200 OK")
         void updateSchedule_validSettings_returns200OK() throws Exception {
                 BackupScheduleEntity existing = BackupScheduleEntity.builder()
@@ -133,8 +140,9 @@ class FE59_AutoBackupScheduleTest {
          * Expected: 200 OK with fallback nextBackupAt (controller handles parse error gracefully)
          */
         @Test
-        @DisplayName("UTCID03: Save invalid time format uses fallback and returns 200 OK")
-        void updateSchedule_invalidTimeFormat_returns200OK() throws Exception {
+        @WithMockUser(roles = "ADMIN")
+        @DisplayName("UTCID03: Save invalid time format returns 400 Bad Request")
+        void updateSchedule_invalidTimeFormat_returns400BadRequest() throws Exception {
                 BackupScheduleEntity existing = BackupScheduleEntity.builder()
                                 .id(1)
                                 .scheduleName("Daily Backup")
@@ -154,10 +162,10 @@ class FE59_AutoBackupScheduleTest {
                 mockMvc.perform(put("/slib/system/backup/schedule")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.scheduleName").exists());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value("Thời gian backup không hợp lệ. Định dạng đúng là HH:mm"));
 
-                verify(backupScheduleRepository, times(1)).save(any(BackupScheduleEntity.class));
+                verify(backupScheduleRepository, never()).save(any(BackupScheduleEntity.class));
         }
 
         // =========================================
@@ -170,6 +178,7 @@ class FE59_AutoBackupScheduleTest {
          * Expected: 200 OK with isActive=false
          */
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCID04: Disable automatic backup schedule returns 200 OK")
         void updateSchedule_disableSchedule_returns200OK() throws Exception {
                 BackupScheduleEntity existing = BackupScheduleEntity.builder()
@@ -209,6 +218,7 @@ class FE59_AutoBackupScheduleTest {
          * Expected: 500 Internal Server Error
          */
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCID05: Unexpected schedule persistence failure returns 500")
         void updateSchedule_persistenceFailure_returns500() throws Exception {
                 when(backupScheduleRepository.findFirstByOrderByIdAsc())

@@ -22,7 +22,6 @@ import slib.com.example.service.zone_config.ZoneService;
 
 @RestController
 @RequestMapping("/slib/zones")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ZoneController {
     private final BookingService bookingService;
     private final ZoneService zoneService;

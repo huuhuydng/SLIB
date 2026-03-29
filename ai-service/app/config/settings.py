@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     
     # Server Settings
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    jwt_secret: str = os.getenv("JWT_SECRET", "")
+    internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")
     
     # Java Backend Integration
     java_backend_url: str = os.getenv("JAVA_BACKEND_URL", "http://localhost:8080/slib")

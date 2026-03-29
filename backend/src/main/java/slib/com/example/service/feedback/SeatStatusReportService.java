@@ -10,10 +10,12 @@ import slib.com.example.dto.feedback.SeatStatusReportResponse;
 import slib.com.example.entity.feedback.SeatStatusReportEntity;
 import slib.com.example.entity.feedback.SeatStatusReportEntity.IssueType;
 import slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus;
+import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.ResourceNotFoundException;
+import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.repository.feedback.SeatStatusReportRepository;
 import slib.com.example.repository.users.UserRepository;
@@ -24,6 +26,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import slib.com.example.service.notification.LibrarianNotificationService;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.service.notification.PushNotificationService;
 
 @Slf4j
 @Service
@@ -34,8 +38,10 @@ public class SeatStatusReportService {
     private final SeatStatusReportRepository seatStatusReportRepository;
     private final UserRepository userRepository;
     private final SeatRepository seatRepository;
+    private final ReservationRepository reservationRepository;
     private final CloudinaryService cloudinaryService;
     private final LibrarianNotificationService librarianNotificationService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public SeatStatusReportResponse createReport(UUID reporterId, CreateSeatStatusReportRequest request, MultipartFile image) {
@@ -44,6 +50,7 @@ public class SeatStatusReportService {
 
         SeatEntity seat = seatRepository.findById(request.getSeatId())
                 .orElseThrow(() -> new ResourceNotFoundException("Seat", request.getSeatId()));
+        validateReporterSeatContext(reporterId, seat.getSeatId());
 
         IssueType issueType;
         try {
@@ -110,6 +117,9 @@ public class SeatStatusReportService {
         report.setVerifiedBy(librarian);
         report.setVerifiedAt(LocalDateTime.now());
         SeatStatusReportEntity saved = seatStatusReportRepository.save(report);
+        sendReporterNotification(saved, "Báo cáo tình trạng ghế đã được xác minh",
+                "Báo cáo của bạn về ghế " + report.getSeat().getSeatCode()
+                        + " đã được thủ thư xác minh. Cảm ơn bạn đã phản hồi.");
         librarianNotificationService.broadcastPendingCounts("SEAT_STATUS_REPORT", "VERIFIED");
         return SeatStatusReportResponse.fromEntity(saved);
     }
@@ -124,6 +134,9 @@ public class SeatStatusReportService {
         report.setVerifiedBy(librarian);
         report.setVerifiedAt(LocalDateTime.now());
         SeatStatusReportEntity saved = seatStatusReportRepository.save(report);
+        sendReporterNotification(saved, "Báo cáo tình trạng ghế bị từ chối",
+                "Báo cáo của bạn về ghế " + report.getSeat().getSeatCode()
+                        + " chưa được chấp nhận. Mở ứng dụng để xem chi tiết.");
         librarianNotificationService.broadcastPendingCounts("SEAT_STATUS_REPORT", "REJECTED");
         return SeatStatusReportResponse.fromEntity(saved);
     }
@@ -148,6 +161,9 @@ public class SeatStatusReportService {
         report.setStatus(ReportStatus.RESOLVED);
         report.setResolvedAt(LocalDateTime.now());
         SeatStatusReportEntity saved = seatStatusReportRepository.save(report);
+        sendReporterNotification(saved, "Báo cáo tình trạng ghế đã được xử lý",
+                "Thủ thư đã xử lý báo cáo tình trạng cho ghế " + report.getSeat().getSeatCode()
+                        + ". Cảm ơn bạn đã giúp cải thiện thư viện.");
         librarianNotificationService.broadcastPendingCounts("SEAT_STATUS_REPORT", "RESOLVED");
         return SeatStatusReportResponse.fromEntity(saved);
     }
@@ -166,5 +182,33 @@ public class SeatStatusReportService {
             throw new BadRequestException("Report has already been processed");
         }
         return report;
+    }
+
+    private void validateReporterSeatContext(UUID reporterId, Integer seatId) {
+        LocalDateTime now = LocalDateTime.now();
+        ReservationEntity activeReservation = reservationRepository.findByUserId(reporterId).stream()
+                .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
+                .filter(r -> !r.getStartTime().isAfter(now) && !r.getEndTime().isBefore(now))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException(
+                        "Bạn chỉ có thể báo cáo tình trạng ghế khi đang check-in tại thư viện."));
+
+        if (activeReservation.getSeat() == null || !activeReservation.getSeat().getSeatId().equals(seatId)) {
+            throw new BadRequestException("Bạn chỉ có thể báo cáo tình trạng cho đúng ghế mình đang sử dụng.");
+        }
+    }
+
+    private void sendReporterNotification(SeatStatusReportEntity report, String title, String body) {
+        try {
+            pushNotificationService.sendToUser(
+                    report.getUser().getId(),
+                    title,
+                    body,
+                    NotificationType.SYSTEM,
+                    report.getId());
+        } catch (Exception e) {
+            log.warn("[SeatStatusReport] Failed to send reporter notification for {}", report.getId(), e);
+        }
     }
 }

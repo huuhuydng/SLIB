@@ -13,7 +13,7 @@ class UpcomingBookingCard extends StatefulWidget {
   State<UpcomingBookingCard> createState() => UpcomingBookingCardState();
 }
 
-class UpcomingBookingCardState extends State<UpcomingBookingCard> 
+class UpcomingBookingCardState extends State<UpcomingBookingCard>
     with WidgetsBindingObserver {
   UpcomingBooking? _upcomingBooking;
   bool _isLoading = true;
@@ -54,7 +54,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   Future<void> _loadUpcomingBooking() async {
     // Cancel any existing expiry timer
     _expiryTimer?.cancel();
-    
+
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
@@ -72,12 +72,12 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
       final data = await _bookingService.getUpcomingBooking(user.id);
       if (mounted) {
         final booking = data != null ? UpcomingBooking.fromJson(data) : null;
-        
+
         // Set up timer to refresh when booking expires
         if (booking != null) {
           _scheduleExpiryRefresh(booking.endTime);
         }
-        
+
         setState(() {
           _upcomingBooking = booking;
           _isLoading = false;
@@ -99,7 +99,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   void _scheduleExpiryRefresh(DateTime endTime) {
     final now = DateTime.now();
     final duration = endTime.difference(now);
-    
+
     // If booking already expired, don't schedule anything - just let it show empty
     if (duration.isNegative) {
       debugPrint("Booking already expired, not scheduling refresh");
@@ -111,7 +111,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
       }
       return;
     }
-    
+
     debugPrint("Scheduling refresh in ${duration.inMinutes} minutes");
     // Schedule refresh when booking expires (add 1 second buffer)
     _expiryTimer = Timer(duration + const Duration(seconds: 1), () {
@@ -132,7 +132,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     if (_hasError || _upcomingBooking == null) {
       return _buildEmptyCard();
     }
-    
+
     // Filter out expired/cancelled/completed bookings
     final status = _upcomingBooking!.status.toUpperCase();
     if (status == 'EXPIRED' || status == 'CANCEL' || status == 'COMPLETED') {
@@ -157,7 +157,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.blue.withOpacity(0.1)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.1)),
       ),
       child: const Center(
         child: SizedBox(
@@ -176,7 +176,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -216,8 +216,10 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
 
   Widget _buildBookingCard(UpcomingBooking booking) {
     final bool isActive = booking.isActive; // Đang trong giờ đặt
-    final bool isConfirmed = _isConfirmed(booking); // Đã xác nhận NFC (CONFIRMED)
-    
+    final bool isConfirmed = _isConfirmed(
+      booking,
+    ); // Đã xác nhận NFC (CONFIRMED)
+
     // Xác định màu sắc:
     // - Xám (grey): chưa đến giờ, lịch sắp tới
     // - Vàng (orange): đã đến giờ nhưng chưa xác nhận NFC
@@ -225,7 +227,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     Color primaryColor;
     Color bgColor;
     String statusText;
-    
+
     if (isActive && isConfirmed) {
       // Đang trong giờ + đã xác nhận NFC → Xanh lá, "Đang học"
       primaryColor = Colors.green;
@@ -249,7 +251,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryColor.withOpacity(0.2)),
+        border: Border.all(color: primaryColor.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -260,7 +262,10 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
-                BoxShadow(color: primaryColor.withOpacity(0.1), blurRadius: 10)
+                BoxShadow(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                ),
               ],
             ),
             child: Column(
@@ -309,7 +314,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: primaryColor.withOpacity(0.5),
+                              color: primaryColor.withValues(alpha: 0.5),
                               blurRadius: 4,
                               spreadRadius: 1,
                             ),
@@ -333,14 +338,22 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       booking.timeRange,
                       style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                     const SizedBox(width: 10),
-                    const Icon(Icons.chair_alt_outlined, size: 14, color: Colors.grey),
+                    const Icon(
+                      Icons.chair_alt_outlined,
+                      size: 14,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       "Ghế ${booking.seatCode}",

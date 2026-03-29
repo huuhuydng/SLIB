@@ -24,6 +24,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.List;
 import java.util.UUID;
@@ -61,6 +62,9 @@ class FE05_ViewProfileTest {
 
         @MockBean
         private StagingImportService stagingImportService;
+
+        @MockBean
+        private SystemLogService systemLogService;
 
         @Autowired
         private ObjectMapper objectMapper;

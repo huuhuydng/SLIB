@@ -2,13 +2,19 @@
 Analytics Router - AI-powered behavior analytics and predictions
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import logging
 
-router = APIRouter(prefix="/api/ai/analytics", tags=["Analytics"])
+from app.core.admin_auth import require_admin_access
+
+router = APIRouter(
+    prefix="/api/ai/analytics",
+    tags=["Analytics"],
+    dependencies=[Depends(require_admin_access)],
+)
 logger = logging.getLogger(__name__)
 
 
@@ -78,11 +84,10 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
 
     except Exception as e:
         logger.error("Error fetching student behavior: %s", e)
-        # Fallback to mock
-        total_bookings = 10
-        used_bookings = 8
-        no_shows = 1
-        cancelled = 1
+        total_bookings = 0
+        used_bookings = 0
+        no_shows = 0
+        cancelled = 0
 
     no_show_rate = no_shows / total_bookings if total_bookings > 0 else 0
     on_time_rate = used_bookings / total_bookings if total_bookings > 0 else 0

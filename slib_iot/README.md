@@ -33,10 +33,12 @@ Cập nhật các giá trị trong `.env`:
 |------|--------|----------|
 | `SLIB_API_URL` | URL backend API | `https://api.slibsystem.site` |
 | `SLIB_GATE_ID` | Mã trạm quét (phải đăng ký trên admin UI trước) | `GATE_01` |
-| `SLIB_GATE_API_KEY` | API key xác thực | `SLIB_SECRET_GATE_FPT_123` |
+| `SLIB_GATE_API_KEY` | API key xác thực | Bắt buộc, không có mặc định |
 | `SLIB_HEARTBEAT_INTERVAL` | Chu kỳ gửi heartbeat (giây) | `30` |
 
 > **Quan trọng:** Giá trị `SLIB_GATE_ID` phải trùng khớp với `deviceId` đã đăng ký trên trang quản trị (Admin UI → Trạm quét HCE → Thêm trạm quét).
+>
+> **Bắt buộc:** `SLIB_GATE_API_KEY` phải được cấp riêng cho thiết bị hoặc môi trường triển khai. Không để secret trực tiếp trong source code.
 
 ### 3. Đăng ký trạm quét trên Admin UI
 

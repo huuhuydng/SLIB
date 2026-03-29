@@ -22,6 +22,7 @@ class BookingService {
       if (json) 'Content-Type': 'application/json',
     };
   }
+
   // ================= AREAS =================
   Future<List<Area>> getAllAreas() async {
     final url = Uri.parse(ApiConstants.areaUrl);
@@ -178,7 +179,7 @@ class BookingService {
   }
 
   /// Lấy tất cả seats của 1 area trong 1 API call - tối ưu performance
-  /// Trả về Map<zoneId, List<Seat>>
+  /// Trả về `Map<int, List<Seat>>`
   Future<Map<int, List<Seat>>> getAllSeatsByArea(
     int areaId,
     DateTime date,
@@ -304,8 +305,13 @@ class BookingService {
   }
 
   /// @Deprecated — Use confirmSeatWithNfcUid instead
-  Future<Map<String, dynamic>> confirmSeatWithNfc(String reservationId, String nfcData) async {
-    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc/$reservationId");
+  Future<Map<String, dynamic>> confirmSeatWithNfc(
+    String reservationId,
+    String nfcData,
+  ) async {
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/confirm-nfc/$reservationId",
+    );
 
     final response = await http.post(
       url,
@@ -324,9 +330,9 @@ class BookingService {
   // ================= NFC UID MAPPING =================
 
   /// Get seat by NFC tag UID (UID Mapping Strategy)
-  /// 
+  ///
   /// Sends raw UID to backend — backend handles hashing.
-  /// 
+  ///
   /// [nfcUid] - NFC tag UID in uppercase HEX format (e.g., "04A23C91")
   /// Returns the seat information if found, throws exception otherwise.
   Future<Seat> getSeatByNfcUid(String nfcUid) async {
@@ -335,7 +341,9 @@ class BookingService {
     final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      final Map<String, dynamic> data = jsonDecode(
+        utf8.decode(response.bodyBytes),
+      );
       return Seat.fromJson(data);
     } else if (response.statusCode == 404) {
       // Seat not found for this NFC UID
@@ -347,21 +355,23 @@ class BookingService {
   }
 
   /// Confirm seat check-in using NFC UID (UID Mapping Strategy)
-  /// 
+  ///
   /// Sends raw UID directly to backend's new confirm-nfc-uid endpoint.
   /// Backend resolves seat, validates, and confirms.
-  /// 
+  ///
   /// [reservationId] - The booking reservation ID
   /// [nfcUid] - NFC tag UID in uppercase HEX format
   /// [expectedSeatId] - The expected seat ID from the reservation (for local pre-check)
   Future<Map<String, dynamic>> confirmSeatWithNfcUid(
-    String reservationId, 
+    String reservationId,
     String nfcUid,
     int expectedSeatId,
   ) async {
     // Call the new backend endpoint directly with raw UID
-    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc-uid/$reservationId");
-    
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/confirm-nfc-uid/$reservationId",
+    );
+
     final response = await http.post(
       url,
       headers: await _authHeaders(json: true),

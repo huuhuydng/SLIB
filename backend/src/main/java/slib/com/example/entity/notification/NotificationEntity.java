@@ -62,6 +62,7 @@ public class NotificationEntity {
         BOOKING,
         REMINDER,
         VIOLATION,
+        REPUTATION,
         SYSTEM,
         NEWS,
         SUPPORT_REQUEST,

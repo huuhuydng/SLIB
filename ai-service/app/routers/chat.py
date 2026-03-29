@@ -6,8 +6,9 @@ Handles RAG chat endpoints
 import uuid
 import logging
 from typing import Dict
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.admin_auth import require_admin_access
 from app.models.schemas import (
     RAGQueryRequest,
     RAGQueryResponse,
@@ -75,7 +76,10 @@ async def rag_query(request: RAGQueryRequest):
 
 
 @router.post("/debug", response_model=DebugRAGResponse)
-async def rag_debug_query(request: RAGQueryRequest):
+async def rag_debug_query(
+    request: RAGQueryRequest,
+    _: dict = Depends(require_admin_access),
+):
     """
     RAG Debug Query Endpoint - For Admin Testing
     
@@ -221,7 +225,7 @@ async def chat(request: ChatRequest):
 
 
 @router.get("/test")
-async def test_rag_service():
+async def test_rag_service(_: dict = Depends(require_admin_access)):
     """Test RAG service connection"""
     rag_service = get_rag_chat_service()
     return rag_service.test_connection()
@@ -236,7 +240,11 @@ async def clear_session(session_id: str):
 
 
 @router.get("/history/{session_id}")
-async def get_chat_history(session_id: str, limit: int = 50):
+async def get_chat_history(
+    session_id: str,
+    limit: int = 50,
+    _: dict = Depends(require_admin_access),
+):
     """
     Get chat history for a session from MongoDB
     Returns messages ordered by timestamp
@@ -264,7 +272,7 @@ async def get_chat_history(session_id: str, limit: int = 50):
 
 
 @router.get("/stats")
-async def get_chat_stats():
+async def get_chat_stats(_: dict = Depends(require_admin_access)):
     """Get chat storage statistics"""
     mongo_service = get_mongo_service()
     return mongo_service.get_stats()

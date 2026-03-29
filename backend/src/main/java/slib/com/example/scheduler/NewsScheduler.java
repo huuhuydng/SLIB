@@ -1,5 +1,6 @@
 package slib.com.example.scheduler;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
@@ -21,6 +22,7 @@ import java.util.concurrent.*;
  * Sử dụng ScheduledExecutorService thay vì polling mỗi phút.
  */
 @Component
+@Slf4j
 public class NewsScheduler {
 
     @Autowired
@@ -40,7 +42,7 @@ public class NewsScheduler {
      */
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationStart() {
-        System.out.println("[NewsScheduler] Initializing real-time news scheduler...");
+        log.info("[NewsScheduler] Initializing real-time news scheduler");
         loadAndScheduleAllPendingNews();
     }
 
@@ -58,7 +60,7 @@ public class NewsScheduler {
 
         // Tìm tin chưa đến giờ -> schedule
         List<News> futureNews = newsRepository.findFutureScheduledNews(now);
-        System.out.println("[NewsScheduler] Found " + futureNews.size() + " future scheduled news");
+        log.info("[NewsScheduler] Found {} future scheduled news", futureNews.size());
 
         for (News news : futureNews) {
             scheduleNewsPublication(news);
@@ -85,9 +87,8 @@ public class NewsScheduler {
         // Tính delay đến thời điểm publish
         long delayMillis = Duration.between(now, publishTime).toMillis();
 
-        System.out.println("[NewsScheduler] Scheduling news ID " + news.getId()
-                + " '" + news.getTitle() + "' to publish at " + publishTime
-                + " (in " + (delayMillis / 1000) + " seconds)");
+        log.info("[NewsScheduler] Scheduling news ID {} '{}' to publish at {} (in {} seconds)",
+                news.getId(), news.getTitle(), publishTime, delayMillis / 1000);
 
         // Cancel task cũ nếu có (trường hợp update lịch)
         cancelScheduledTask(news.getId());
@@ -108,7 +109,7 @@ public class NewsScheduler {
         ScheduledFuture<?> existingTask = scheduledTasks.remove(newsId);
         if (existingTask != null && !existingTask.isDone()) {
             existingTask.cancel(false);
-            System.out.println("[NewsScheduler] Cancelled scheduled task for news ID " + newsId);
+            log.info("[NewsScheduler] Cancelled scheduled task for news ID {}", newsId);
         }
     }
 
@@ -117,15 +118,7 @@ public class NewsScheduler {
      */
     @Transactional
     public void publishNewsImmediately(News news) {
-        news.setIsPublished(true);
-        newsRepository.save(news);
-        System.out.println("[NewsScheduler] Published immediately: " + news.getTitle());
-
-        // Thông báo qua WebSocket
-        notifyNewsPublished(news);
-
-        // Xóa khỏi scheduled tasks
-        scheduledTasks.remove(news.getId());
+        publishNewsById(news.getId());
     }
 
     /**
@@ -134,17 +127,22 @@ public class NewsScheduler {
     @Transactional
     public void publishNewsById(Long newsId) {
         try {
-            News news = newsRepository.findById(newsId).orElse(null);
-            if (news != null && !news.getIsPublished()) {
-                news.setIsPublished(true);
-                newsRepository.save(news);
-                System.out.println("[NewsScheduler] Published on schedule: " + news.getTitle());
-
-                // Thông báo qua WebSocket
-                notifyNewsPublished(news);
+            int updated = newsRepository.markPublishedIfPending(newsId);
+            if (updated == 0) {
+                return;
             }
+
+            News news = newsRepository.findById(newsId).orElse(null);
+            if (news == null) {
+                return;
+            }
+
+            log.info("[NewsScheduler] Published on schedule: {}", news.getTitle());
+
+            // Thông báo qua WebSocket
+            notifyNewsPublished(news);
         } catch (Exception e) {
-            System.err.println("[NewsScheduler] Error publishing news ID " + newsId + ": " + e.getMessage());
+            log.error("[NewsScheduler] Error publishing news ID {}", newsId, e);
         } finally {
             scheduledTasks.remove(newsId);
         }
@@ -162,9 +160,9 @@ public class NewsScheduler {
                         "title", news.getTitle(),
                         "publishedAt", news.getPublishedAt().toString());
                 messagingTemplate.convertAndSend("/topic/news", payload);
-                System.out.println("[NewsScheduler] WebSocket notification sent for: " + news.getTitle());
+                log.info("[NewsScheduler] WebSocket notification sent for: {}", news.getTitle());
             } catch (Exception e) {
-                System.err.println("[NewsScheduler] WebSocket notification failed: " + e.getMessage());
+                log.warn("[NewsScheduler] WebSocket notification failed for newsId={}", news.getId(), e);
             }
         }
     }
@@ -174,7 +172,7 @@ public class NewsScheduler {
      */
     @PreDestroy
     public void shutdown() {
-        System.out.println("[NewsScheduler] Shutting down scheduler...");
+        log.info("[NewsScheduler] Shutting down scheduler");
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {

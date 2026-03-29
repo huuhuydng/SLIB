@@ -89,7 +89,6 @@ function Factory({ factory }) {
     );
 
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: "${factory.factoryName}" chồng lấp với factory khác`);
       setCollidingWith(collidingFactory);
       return;
     }
@@ -120,12 +119,6 @@ function Factory({ factory }) {
   };
 
   const handleDragStop = async (e, d) => {
-    console.log('🔵 handleDragStop called:', {
-      factoryId: factory.factoryId,
-      oldPosition: { x: factory.positionX, y: factory.positionY },
-      newPosition: { x: d.x, y: d.y }
-    });
-
     // Final collision check
     const { hasCollision, collidingFactory } = getCollisionInfo(
       factory.factoryId,
@@ -136,7 +129,6 @@ function Factory({ factory }) {
     );
 
     if (hasCollision) {
-      console.warn(`❌ Vị trí bị từ chối: "${factory.factoryName}" chồng lấp`);
       setCollidingWith(collidingFactory);
       setResetKey(prev => prev + 1); // Reset to original position
       return;
@@ -151,9 +143,7 @@ function Factory({ factory }) {
 
     // Save immediately on stop
     try {
-      console.log('📡 Calling dragAreaFactory API...');
-      const response = await dragAreaFactory(factory.factoryId, d.x, d.y);
-      console.log('✅ dragAreaFactory response:', response.data);
+      await dragAreaFactory(factory.factoryId, d.x, d.y);
 
       dispatch({
         type: actions.UPDATE_FACTORY,
@@ -163,10 +153,8 @@ function Factory({ factory }) {
           positionY: d.y,
         },
       });
-      console.log('✅ State updated with new position');
     } catch (e) {
-      console.error('❌ Failed to save factory position:', e);
-      console.error('Error details:', e.response?.data);
+      console.error('Failed to save factory position:', e);
     }
   };
 
@@ -175,16 +163,6 @@ function Factory({ factory }) {
     const newHeight = parseInt(ref.style.height);
     const positionChanged = position.x !== factory.positionX || position.y !== factory.positionY;
     const dimensionsChanged = newWidth !== factory.width || newHeight !== factory.height;
-
-    console.log('🟣 handleResizeStop called:', {
-      factoryId: factory.factoryId,
-      oldPosition: { x: factory.positionX, y: factory.positionY },
-      newPosition: { x: position.x, y: position.y },
-      oldSize: { width: factory.width, height: factory.height },
-      newSize: { width: newWidth, height: newHeight },
-      positionChanged,
-      dimensionsChanged
-    });
 
     // Check for collision
     const { hasCollision, collidingFactory } = getCollisionInfo(
@@ -196,7 +174,6 @@ function Factory({ factory }) {
     );
 
     if (hasCollision) {
-      console.warn(`❌ Chồng lấp: resize bị từ chối`);
       setCollidingWith(collidingFactory);
       setResetKey(prev => prev + 1); // Reset to original position
       return;
@@ -207,16 +184,12 @@ function Factory({ factory }) {
     try {
       // Handle position change separately
       if (positionChanged) {
-        console.log('📡 Calling dragAreaFactory for position change...');
-        const posRes = await dragAreaFactory(factory.factoryId, position.x, position.y);
-        console.log('✅ dragAreaFactory response:', posRes.data);
+        await dragAreaFactory(factory.factoryId, position.x, position.y);
       }
 
       // Handle dimension change separately
       if (dimensionsChanged) {
-        console.log('📡 Calling resizeAreaFactory for dimension change...');
-        const sizeRes = await resizeAreaFactory(factory.factoryId, newWidth, newHeight);
-        console.log('✅ resizeAreaFactory response:', sizeRes.data);
+        await resizeAreaFactory(factory.factoryId, newWidth, newHeight);
       }
 
       // Update local state only if something changed
@@ -231,13 +204,9 @@ function Factory({ factory }) {
             height: newHeight,
           },
         });
-        console.log('✅ State updated with new position/size');
-      } else {
-        console.log('ℹ️ No changes detected, skipping update');
       }
     } catch (e) {
-      console.error('❌ Failed to update factory:', e);
-      console.error('Error details:', e.response?.data);
+      console.error('Failed to update factory:', e);
     }
   };
 

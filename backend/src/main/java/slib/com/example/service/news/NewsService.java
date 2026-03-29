@@ -1,5 +1,6 @@
 package slib.com.example.service.news;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 import slib.com.example.service.notification.PushNotificationService;
 
 @Service
+@Slf4j
 public class NewsService {
 
     @Autowired
@@ -219,9 +221,9 @@ public class NewsService {
             // Convert Long id to UUID for referenceId (or use null if not compatible)
             UUID referenceId = null; // News uses Long id, notifications use UUID
 
-            pushNotificationService.sendToRole("USER", title, body, NotificationType.NEWS, referenceId);
+            pushNotificationService.sendToRole("STUDENT", title, body, NotificationType.NEWS, referenceId);
         } catch (Exception e) {
-            System.err.println("Failed to send news notification: " + e.getMessage());
+            log.warn("Failed to send news notification for newsId={}", news.getId(), e);
         }
     }
 }

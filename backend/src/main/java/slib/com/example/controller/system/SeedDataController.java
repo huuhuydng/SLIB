@@ -38,7 +38,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/slib/seed")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 public class SeedDataController {
 

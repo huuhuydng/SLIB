@@ -488,9 +488,13 @@ public class ConversationService {
         }
 
         @Transactional
-        public ConversationDTO cancelEscalation(UUID conversationId) {
+        public ConversationDTO cancelEscalation(UUID conversationId, UUID studentId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                if (conv.getStudent() == null || !studentId.equals(conv.getStudent().getId())) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
 
                 if (conv.getStatus() == ConversationStatus.QUEUE_WAITING) {
                         conv.setStatus(ConversationStatus.AI_HANDLING);

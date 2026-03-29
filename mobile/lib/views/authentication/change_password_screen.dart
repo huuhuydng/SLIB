@@ -6,11 +6,8 @@ import 'package:slib/main_screen.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   final bool isFirstLogin;
-  
-  const ChangePasswordScreen({
-    super.key,
-    this.isFirstLogin = false,
-  });
+
+  const ChangePasswordScreen({super.key, this.isFirstLogin = false});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -21,7 +18,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
@@ -46,11 +43,20 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   // Password validation checks
   bool get _hasMinLength => _newPasswordController.text.length >= 8;
-  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_newPasswordController.text);
-  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_newPasswordController.text);
+  bool get _hasUppercase =>
+      RegExp(r'[A-Z]').hasMatch(_newPasswordController.text);
+  bool get _hasLowercase =>
+      RegExp(r'[a-z]').hasMatch(_newPasswordController.text);
   bool get _hasDigit => RegExp(r'[0-9]').hasMatch(_newPasswordController.text);
-  bool get _hasSpecialChar => RegExp(r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>/?]').hasMatch(_newPasswordController.text);
-  bool get _isPasswordValid => _hasMinLength && _hasUppercase && _hasLowercase && _hasDigit && _hasSpecialChar;
+  bool get _hasSpecialChar => RegExp(
+    r'[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>/?]',
+  ).hasMatch(_newPasswordController.text);
+  bool get _isPasswordValid =>
+      _hasMinLength &&
+      _hasUppercase &&
+      _hasLowercase &&
+      _hasDigit &&
+      _hasSpecialChar;
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
@@ -106,10 +112,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (mounted) {
         String errorMessage = e.toString().replaceAll("Exception: ", "");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -155,13 +158,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               padding: EdgeInsets.only(top: size.height * 0.5 - 200),
               child: Container(
                 margin: const EdgeInsets.only(left: 20, right: 20, bottom: 40),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -181,9 +187,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       width: double.infinity,
       height: size.height * 0.5,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.brandColor,
-      ),
+      decoration: const BoxDecoration(color: AppColors.brandColor),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -208,7 +212,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 height: 1.4,
               ),
             ),
@@ -240,17 +244,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             controller: _currentPasswordController,
             obscureText: _obscureCurrentPassword,
             decoration: InputDecoration(
-              hintText: widget.isFirstLogin ? 'Slib@2025' : 'Nhập mật khẩu hiện tại',
+              hintText: widget.isFirstLogin
+                  ? 'Slib@2025'
+                  : 'Nhập mật khẩu hiện tại',
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
               prefixIcon: Icon(Icons.lock_outlined, color: Colors.grey[400]),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureCurrentPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureCurrentPassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: Colors.grey[400],
                 ),
-                onPressed: () => setState(() => _obscureCurrentPassword = !_obscureCurrentPassword),
+                onPressed: () => setState(
+                  () => _obscureCurrentPassword = !_obscureCurrentPassword,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -261,7 +274,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                borderSide: const BorderSide(
+                  color: AppColors.brandColor,
+                  width: 2,
+                ),
               ),
             ),
             validator: (value) {
@@ -293,26 +309,34 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               prefixIcon: Icon(Icons.lock_outlined, color: Colors.grey[400]),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureNewPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureNewPassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: Colors.grey[400],
                 ),
-                onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+                onPressed: () =>
+                    setState(() => _obscureNewPassword = !_obscureNewPassword),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _newPasswordController.text.isNotEmpty 
-                    ? (_isPasswordValid ? Colors.green : AppColors.brandColor)
-                    : Colors.grey[300]!),
+                borderSide: BorderSide(
+                  color: _newPasswordController.text.isNotEmpty
+                      ? (_isPasswordValid ? Colors.green : AppColors.brandColor)
+                      : Colors.grey[300]!,
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: _isPasswordValid ? Colors.green : AppColors.brandColor, 
+                  color: _isPasswordValid ? Colors.green : AppColors.brandColor,
                   width: 2,
                 ),
               ),
@@ -340,12 +364,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               prefixIcon: Icon(Icons.lock_outlined, color: Colors.grey[400]),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  _obscureConfirmPassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: Colors.grey[400],
                 ),
-                onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                onPressed: () => setState(
+                  () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -356,7 +387,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                borderSide: const BorderSide(
+                  color: AppColors.brandColor,
+                  width: 2,
+                ),
               ),
             ),
             validator: (value) {
@@ -392,7 +426,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 _buildRequirement('Ít nhất 1 chữ hoa (A-Z)', _hasUppercase),
                 _buildRequirement('Ít nhất 1 chữ thường (a-z)', _hasLowercase),
                 _buildRequirement('Ít nhất 1 số (0-9)', _hasDigit),
-                _buildRequirement('Ít nhất 1 ký tự đặc biệt (!@#\$%...)', _hasSpecialChar),
+                _buildRequirement(
+                  'Ít nhất 1 ký tự đặc biệt (!@#\$%...)',
+                  _hasSpecialChar,
+                ),
               ],
             ),
           ),
@@ -406,7 +443,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               onPressed: _isLoading ? null : _handleChangePassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brandColor,
-                disabledBackgroundColor: AppColors.brandColor.withOpacity(0.6),
+                disabledBackgroundColor: AppColors.brandColor.withValues(
+                  alpha: 0.6,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),

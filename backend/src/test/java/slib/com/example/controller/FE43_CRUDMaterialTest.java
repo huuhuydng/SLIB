@@ -16,6 +16,7 @@ import slib.com.example.controller.ai.MaterialController;
 import slib.com.example.dto.ai.MaterialDTO;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.ai.MaterialService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,6 +43,9 @@ class FE43_CRUDMaterialTest {
 
         @MockBean
         private MaterialService materialService;
+
+        @MockBean
+        private SystemLogService systemLogService;
 
         @Autowired
         private ObjectMapper objectMapper;

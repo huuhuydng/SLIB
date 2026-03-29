@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 
 /// Service xử lý WebSocket real-time cho seat updates
 /// Sử dụng STOMP protocol để tương thích với Spring Backend
@@ -151,45 +150,18 @@ class SeatWebSocketService {
 
   // ============ API Methods ============
 
-  /// Hold a seat temporarily (5 minutes)
+  /// Deprecated: seat holding now goes through reservation PROCESSING flow.
   Future<Map<String, dynamic>> holdSeat(int seatId, String userId) async {
-    final url = Uri.parse('${ApiConstants.seatUrl}/$seatId/hold');
-    final token = await const FlutterSecureStorage().read(key: 'jwt_token');
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({'userId': userId}),
+    throw UnsupportedError(
+      'Giữ ghế trực tiếp không còn được hỗ trợ. Vui lòng dùng luồng tạo booking.',
     );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to hold seat');
-    }
   }
 
-  /// Release a held seat
+  /// Deprecated: seat release now follows reservation cancellation/expiry flow.
   Future<Map<String, dynamic>> releaseSeat(int seatId, String userId) async {
-    final url = Uri.parse('${ApiConstants.seatUrl}/$seatId/hold');
-    final token = await const FlutterSecureStorage().read(key: 'jwt_token');
-    final request = http.Request('DELETE', url);
-    request.headers['Content-Type'] = 'application/json';
-    if (token != null) request.headers['Authorization'] = 'Bearer $token';
-    request.body = jsonEncode({'userId': userId});
-    
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to release seat');
-    }
+    throw UnsupportedError(
+      'Nhả ghế trực tiếp không còn được hỗ trợ. Vui lòng dùng luồng booking hiện tại.',
+    );
   }
 }
 

@@ -94,8 +94,6 @@ const AccountSettings = () => {
                         }
                     });
 
-                    console.log('Profile data from API:', response.data);
-
                     const profileData = response.data;
 
                     // Update state with API data
@@ -124,7 +122,6 @@ const AccountSettings = () => {
                         userCode: profileData.userCode || profileData.studentCode || currentUser.userCode
                     };
                     localStorage.setItem('librarian_user', JSON.stringify(updatedUser));
-                    console.log('Updated user session:', updatedUser);
                 }
             } catch (err) {
                 console.error('Error fetching profile:', err);
@@ -198,8 +195,6 @@ const AccountSettings = () => {
                     }
                 }
             );
-
-            console.log('Profile updated:', response.data);
 
             // Update localStorage with new data
             const currentUser = JSON.parse(localStorage.getItem('librarian_user') || '{}');

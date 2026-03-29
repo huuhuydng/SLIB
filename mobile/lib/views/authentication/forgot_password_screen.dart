@@ -21,7 +21,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    6,
+    (_) => TextEditingController(),
+  );
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
   String _email = '';
@@ -64,7 +67,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   // ============ STEP 1: SEND OTP ============
   Future<void> _handleSendOtp() async {
     final email = _emailController.text.trim();
-    
+
     if (email.isEmpty) {
       _showMessage('Vui lòng nhập email', isError: true);
       return;
@@ -236,13 +239,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               offset: const Offset(0, -100),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -283,9 +289,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       width: double.infinity,
       height: size.height * 0.45,
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.brandColor,
-      ),
+      decoration: const BoxDecoration(color: AppColors.brandColor),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -306,10 +310,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             const Spacer(),
             // Logo
-            Image.asset(
-              'assets/images/logo_nencam.png',
-              height: 100,
-            ),
+            Image.asset('assets/images/logo_nencam.png', height: 100),
             const SizedBox(height: 16),
             // Title
             Text(
@@ -329,7 +330,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
             const Spacer(),
@@ -363,7 +364,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           decoration: InputDecoration(
             hintText: 'Email (username@fpt.edu.vn)',
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -374,7 +378,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.brandColor,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -451,7 +458,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
                 maxLength: 1,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   counterText: '',
@@ -466,7 +476,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.brandColor,
+                      width: 2,
+                    ),
                   ),
                 ),
                 onChanged: (value) {
@@ -523,10 +536,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onTap: () => Navigator.of(context).pop(),
           child: Text(
             'Quay lại đăng nhập',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ),
       ],
@@ -545,7 +555,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           decoration: InputDecoration(
             hintText: 'Mật khẩu mới (tối thiểu 6 ký tự)',
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -556,14 +569,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.brandColor,
+                width: 2,
+              ),
             ),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: Colors.grey[400],
               ),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
         ),
@@ -576,7 +595,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           decoration: InputDecoration(
             hintText: 'Xác nhận mật khẩu',
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -587,14 +609,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+              borderSide: const BorderSide(
+                color: AppColors.brandColor,
+                width: 2,
+              ),
             ),
             suffixIcon: IconButton(
               icon: Icon(
-                _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                _obscureConfirmPassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
                 color: Colors.grey[400],
               ),
-              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+              onPressed: () => setState(
+                () => _obscureConfirmPassword = !_obscureConfirmPassword,
+              ),
             ),
           ),
         ),

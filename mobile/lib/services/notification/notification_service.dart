@@ -14,6 +14,8 @@ class NotificationItem {
   final String title;
   final String content;
   final String type;
+  final String category;
+  final String categoryLabel;
   final String? referenceType;
   final String? referenceId;
   final bool isRead;
@@ -24,6 +26,8 @@ class NotificationItem {
     required this.title,
     required this.content,
     required this.type,
+    required this.category,
+    required this.categoryLabel,
     this.referenceType,
     this.referenceId,
     required this.isRead,
@@ -31,28 +35,88 @@ class NotificationItem {
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
-    // Server returns UTC time, need to parse properly
     DateTime createdAt = DateTime.now();
     if (json['createdAt'] != null) {
-      // Parse as UTC (server time is UTC)
-      final parsed = DateTime.parse(json['createdAt']);
-      // If no timezone info in string, assume it's UTC
-      createdAt = parsed.isUtc ? parsed : DateTime.utc(
-        parsed.year, parsed.month, parsed.day,
-        parsed.hour, parsed.minute, parsed.second, parsed.millisecond
-      );
+      // Server dùng LocalDateTime (không có timezone info)
+      // Server chạy ở Asia/Ho_Chi_Minh (UTC+7) → thời gian đã là local time
+      // Không chuyển sang UTC vì sẽ bị lệch +7h
+      createdAt = DateTime.parse(json['createdAt']);
     }
-    
+
     return NotificationItem(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
       content: json['content'] ?? '',
       type: json['notificationType'] ?? json['type'] ?? 'SYSTEM',
+      category:
+          json['category'] ??
+          _deriveCategoryFromType(
+            json['notificationType'] ?? json['type'] ?? 'SYSTEM',
+          ),
+      categoryLabel:
+          json['categoryLabel'] ??
+          _categoryLabelFromKey(
+            json['category'] ??
+                _deriveCategoryFromType(
+                  json['notificationType'] ?? json['type'] ?? 'SYSTEM',
+                ),
+          ),
       referenceType: json['referenceType'],
       referenceId: json['referenceId'],
       isRead: json['isRead'] ?? json['read'] ?? false,
       createdAt: createdAt,
     );
+  }
+
+  NotificationItem copyWith({bool? isRead}) {
+    return NotificationItem(
+      id: id,
+      title: title,
+      content: content,
+      type: type,
+      category: category,
+      categoryLabel: categoryLabel,
+      referenceType: referenceType,
+      referenceId: referenceId,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt,
+    );
+  }
+
+  static String _deriveCategoryFromType(String type) {
+    switch (type) {
+      case 'CHAT_MESSAGE':
+        return 'MESSAGE';
+      case 'BOOKING':
+      case 'REMINDER':
+        return 'BOOKING';
+      case 'SUPPORT_REQUEST':
+        return 'PROCESSING';
+      case 'VIOLATION':
+      case 'REPUTATION':
+        return 'REPUTATION';
+      case 'NEWS':
+        return 'NEWS';
+      default:
+        return 'SYSTEM';
+    }
+  }
+
+  static String _categoryLabelFromKey(String key) {
+    switch (key) {
+      case 'MESSAGE':
+        return 'Tin nhắn';
+      case 'PROCESSING':
+        return 'Xử lý';
+      case 'REPUTATION':
+        return 'Điểm uy tín';
+      case 'BOOKING':
+        return 'Đặt chỗ';
+      case 'NEWS':
+        return 'Tin tức';
+      default:
+        return 'Hệ thống';
+    }
   }
 }
 
@@ -62,10 +126,15 @@ Future<void> showBackgroundNotification(RemoteMessage message) async {
   if (notification == null && message.data.isEmpty) return;
 
   final title = notification?.title ?? message.data['title'] ?? 'Thông báo';
-  final body = notification?.body ?? message.data['body'] ?? message.data['content'] ?? '';
+  final body =
+      notification?.body ??
+      message.data['body'] ??
+      message.data['content'] ??
+      '';
 
-  final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
-  
+  final FlutterLocalNotificationsPlugin localNotifications =
+      FlutterLocalNotificationsPlugin();
+
   const androidDetails = AndroidNotificationDetails(
     'slib_notifications',
     'SLIB',
@@ -76,18 +145,15 @@ Future<void> showBackgroundNotification(RemoteMessage message) async {
     icon: '@drawable/ic_stat_notification',
     color: Color(0xFFFF751F),
   );
-  
+
   const iosDetails = DarwinNotificationDetails(
     presentAlert: true,
     presentBadge: true,
     presentSound: true,
   );
-  
-  const details = NotificationDetails(
-    android: androidDetails,
-    iOS: iosDetails,
-  );
-  
+
+  const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
   await localNotifications.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
     title,
@@ -118,10 +184,10 @@ class NotificationSettings {
   }
 
   Map<String, dynamic> toJson() => {
-        'notifyBooking': notifyBooking,
-        'notifyReminder': notifyReminder,
-        'notifyNews': notifyNews,
-      };
+    'notifyBooking': notifyBooking,
+    'notifyReminder': notifyReminder,
+    'notifyNews': notifyNews,
+  };
 
   NotificationSettings copyWith({
     bool? notifyBooking,
@@ -139,9 +205,10 @@ class NotificationSettings {
 /// Service to handle push notifications with real-time updates
 class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   final AuthService _authService;
-  
+
   // Local notifications plugin for foreground notifications
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   // WebSocket (STOMP) cho real-time notifications
   StompClient? _stompClient;
@@ -166,6 +233,34 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   int get unreadChatCount => _unreadChatCount;
   NotificationSettings get settings => _settings;
   bool get isLoading => _isLoading;
+  Map<String, int> get unreadCategoryCounts {
+    final counts = <String, int>{};
+    for (final notification in _notifications) {
+      if (!notification.isRead) {
+        counts[notification.category] =
+            (counts[notification.category] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  String? get topUnreadCategory {
+    const priority = <String>[
+      'MESSAGE',
+      'PROCESSING',
+      'REPUTATION',
+      'BOOKING',
+      'NEWS',
+      'SYSTEM',
+    ];
+    final counts = unreadCategoryCounts;
+    for (final category in priority) {
+      if ((counts[category] ?? 0) > 0) {
+        return category;
+      }
+    }
+    return null;
+  }
 
   NotificationService(this._authService);
 
@@ -178,13 +273,13 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   /// Initialize notification service
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     // Register lifecycle observer
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Initialize local notifications
     await _initializeLocalNotifications();
-    
+
     // Request permission for notifications
     await _requestPermission();
 
@@ -200,18 +295,18 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     if (_userId != null) {
       await refreshData();
     }
-    
+
     // Connect WebSocket (cơ chế chính) + fallback polling
     _connectWebSocket();
     _startFallbackPolling();
-    
+
     _isInitialized = true;
   }
 
   /// Connect STOMP WebSocket cho real-time notifications
   Future<void> _connectWebSocket() async {
     if (_wsConnected || _userId == null) return;
-    
+
     try {
       final token = await _authService.getToken();
       if (token == null) return;
@@ -223,18 +318,14 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
         wsUrl = wsUrl.replaceFirst('http://', 'ws://');
       }
       final stompUrl = '$wsUrl/ws/websocket';
-      
+
       debugPrint('[NotificationWS] Connecting to $stompUrl');
-      
+
       _stompClient = StompClient(
         config: StompConfig(
           url: stompUrl,
-          stompConnectHeaders: {
-            'Authorization': 'Bearer $token',
-          },
-          webSocketConnectHeaders: {
-            'ngrok-skip-browser-warning': 'true',
-          },
+          stompConnectHeaders: {'Authorization': 'Bearer $token'},
+          webSocketConnectHeaders: {'ngrok-skip-browser-warning': 'true'},
           onConnect: _onStompConnected,
           onWebSocketError: (error) {
             debugPrint('[NotificationWS] WebSocket error: $error');
@@ -264,7 +355,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void _onStompConnected(StompFrame frame) {
     debugPrint('[NotificationWS] Connected, subscribing...');
     _wsConnected = true;
-    
+
     _stompClient?.subscribe(
       destination: '/topic/notifications/$_userId',
       callback: (StompFrame frame) {
@@ -285,10 +376,16 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void _handleWebSocketNotification(Map<String, dynamic> data) {
     final notifType = data['notificationType'] ?? 'SYSTEM';
 
-    // CHAT_MESSAGE đã được xử lý qua FCM (hiện notification + badge)
-    // Nếu xử lý ở đây nữa sẽ bị duplicate
     if (notifType == 'CHAT_MESSAGE') {
-      debugPrint('[NotificationWS] Skipping CHAT_MESSAGE (handled by FCM)');
+      // CHAT_MESSAGE: chỉ cập nhật unreadCount badge, không insert vào list
+      // (FCM handler đã xử lý hiển thị notification + chat badge)
+      if (data['unreadCount'] != null) {
+        _unreadCount = (data['unreadCount'] as num).toInt();
+        notifyListeners();
+      }
+      debugPrint(
+        '[NotificationWS] CHAT_MESSAGE: updated unreadCount=$_unreadCount',
+      );
       return;
     }
 
@@ -297,7 +394,16 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       title: data['title'] ?? 'Thông báo',
       content: data['content'] ?? '',
       type: notifType,
-      referenceType: data['notificationType'],
+      category:
+          data['category'] ??
+          NotificationItem._deriveCategoryFromType(notifType),
+      categoryLabel:
+          data['categoryLabel'] ??
+          NotificationItem._categoryLabelFromKey(
+            data['category'] ??
+                NotificationItem._deriveCategoryFromType(notifType),
+          ),
+      referenceType: data['referenceType'],
       referenceId: data['referenceId'],
       isRead: false,
       createdAt: DateTime.now(),
@@ -305,16 +411,16 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
     // Insert vào đầu danh sách
     _notifications.insert(0, notification);
-    
+
     // Update unread count từ server payload
     if (data['unreadCount'] != null) {
       _unreadCount = (data['unreadCount'] as num).toInt();
     } else {
       _unreadCount++;
     }
-    
+
     notifyListeners();
-    
+
     // Show local notification (banner trên đầu)
     _showLocalNotificationFromData(data);
   }
@@ -322,7 +428,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   /// Show local notification từ WebSocket data
   Future<void> _showLocalNotificationFromData(Map<String, dynamic> data) async {
     const androidDetails = AndroidNotificationDetails(
-      'slib_notifications', 'SLIB',
+      'slib_notifications',
+      'SLIB',
       channelDescription: 'Thông báo từ thư viện SLIB',
       importance: Importance.high,
       priority: Priority.high,
@@ -331,10 +438,15 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       color: Color(0xFFFF751F),
     );
     const iosDetails = DarwinNotificationDetails(
-      presentAlert: true, presentBadge: true, presentSound: true,
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
     );
-    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
-    
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
       data['title'] ?? 'Thông báo',
@@ -401,20 +513,22 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _initializeLocalNotifications() async {
     // Android initialization
-    const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
-    
+    const androidSettings = AndroidInitializationSettings(
+      '@drawable/ic_stat_notification',
+    );
+
     // iOS initialization
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
     );
-    
+
     const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
-    
+
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
@@ -422,7 +536,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
         // Handle notification tap
       },
     );
-    
+
     // Create notification channel for Android
     const androidChannel = AndroidNotificationChannel(
       'slib_notifications',
@@ -430,9 +544,11 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       description: 'Thông báo từ thư viện SLIB',
       importance: Importance.high,
     );
-    
+
     await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -458,19 +574,26 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notificationType = message.data['type'] ?? '';
-      
+
       if (notificationType == 'CHAT_MESSAGE') {
         // CHAT_MESSAGE: backend gửi data-only FCM (không có notification payload)
         _unreadChatCount++;
         notifyListeners();
 
+        // Cập nhật badge chuông từ server (fallback khi WebSocket không kết nối)
+        refreshUnreadCount();
+
         // Không hiện notification nếu user đang ở chat screen
         if (isChatScreenActive) {
-          debugPrint('[FCM] CHAT_MESSAGE received but user is in chat screen, skipping notification');
+          debugPrint(
+            '[FCM] CHAT_MESSAGE received but user is in chat screen, skipping notification',
+          );
           return;
         }
 
-        debugPrint('[FCM] CHAT_MESSAGE received, showing local notification + badge');
+        debugPrint(
+          '[FCM] CHAT_MESSAGE received, showing local notification + badge',
+        );
         _showLocalNotificationFromData({
           'title': message.data['title'] ?? 'Tin nhắn mới từ Thủ thư',
           'content': message.data['body'] ?? '',
@@ -478,10 +601,12 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       } else {
         // Các loại khác: xử lý bình thường
         _handleIncomingNotification(message);
-        
+
         if (!_wsConnected) {
           // Chỉ hiện local notification khi WebSocket không kết nối (tránh duplicate)
-          debugPrint('[FCM] WebSocket disconnected, showing notification from FCM');
+          debugPrint(
+            '[FCM] WebSocket disconnected, showing notification from FCM',
+          );
           _showLocalNotification(message);
         }
       }
@@ -515,18 +640,18 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       icon: '@drawable/ic_stat_notification',
       color: Color(0xFFFF751F),
     );
-    
+
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
     );
-    
+
     const details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
-    
+
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch ~/ 1000,
       notification.title ?? 'Thông báo',
@@ -539,10 +664,25 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void _handleIncomingNotification(RemoteMessage message) {
     // Add to local list for immediate display
     final notification = NotificationItem(
-      id: message.data['notificationId'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          message.data['notificationId'] ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: message.notification?.title ?? 'Thông báo',
       content: message.notification?.body ?? '',
       type: message.data['type'] ?? 'SYSTEM',
+      category:
+          message.data['category'] ??
+          NotificationItem._deriveCategoryFromType(
+            message.data['type'] ?? 'SYSTEM',
+          ),
+      categoryLabel:
+          message.data['categoryLabel'] ??
+          NotificationItem._categoryLabelFromKey(
+            message.data['category'] ??
+                NotificationItem._deriveCategoryFromType(
+                  message.data['type'] ?? 'SYSTEM',
+                ),
+          ),
       referenceType: message.data['referenceType'],
       referenceId: message.data['referenceId'],
       isRead: false,
@@ -551,7 +691,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
     _notifications.insert(0, notification);
     notifyListeners();
-    
+
     // Refresh unread count from server (source of truth)
     refreshUnreadCount();
   }
@@ -559,7 +699,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void _handleNotificationTap(RemoteMessage message) {
     // Refresh data when notification is tapped
     refreshData();
-    
+
     // Navigate based on notification type
     final type = message.data['type'];
     final referenceId = message.data['referenceId'];
@@ -602,8 +742,12 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(utf8.decode(response.bodyBytes));
-        _notifications = jsonList.map((e) => NotificationItem.fromJson(e)).toList();
+        final List<dynamic> jsonList = jsonDecode(
+          utf8.decode(response.bodyBytes),
+        );
+        _notifications = jsonList
+            .map((e) => NotificationItem.fromJson(e))
+            .toList();
         notifyListeners();
       }
     } catch (e) {
@@ -630,7 +774,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         final newCount = (data['count'] as num?)?.toInt() ?? 0;
-        
+
         // Always update from server (source of truth)
         _unreadCount = newCount;
         notifyListeners();
@@ -644,10 +788,12 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> markAsRead(String notificationId) async {
     try {
       final token = await _token;
-      if (token == null) return;
+      if (token == null || _userId == null) return;
 
       final response = await http.put(
-        Uri.parse('$_baseUrl/notifications/mark-read/$notificationId'),
+        Uri.parse(
+          '$_baseUrl/notifications/mark-read/$notificationId?userId=$_userId',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -658,16 +804,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
         // Update local state
         final index = _notifications.indexWhere((n) => n.id == notificationId);
         if (index != -1 && !_notifications[index].isRead) {
-          _notifications[index] = NotificationItem(
-            id: _notifications[index].id,
-            title: _notifications[index].title,
-            content: _notifications[index].content,
-            type: _notifications[index].type,
-            referenceType: _notifications[index].referenceType,
-            referenceId: _notifications[index].referenceId,
-            isRead: true,
-            createdAt: _notifications[index].createdAt,
-          );
+          _notifications[index] = _notifications[index].copyWith(isRead: true);
           _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
           notifyListeners();
         }
@@ -695,22 +832,46 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
       if (response.statusCode == 200) {
         // Update local state
-        _notifications = _notifications.map((n) => NotificationItem(
-          id: n.id,
-          title: n.title,
-          content: n.content,
-          type: n.type,
-          referenceType: n.referenceType,
-          referenceId: n.referenceId,
-          isRead: true,
-          createdAt: n.createdAt,
-        )).toList();
+        _notifications = _notifications
+            .map((n) => n.copyWith(isRead: true))
+            .toList();
         _unreadCount = 0;
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error marking all as read: $e');
     }
+  }
+
+  /// Delete a notification
+  Future<bool> deleteNotification(String notificationId) async {
+    try {
+      final token = await _token;
+      if (token == null || _userId == null) return false;
+
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/notifications/$notificationId?userId=$_userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final wasUnread = _notifications.any(
+          (n) => n.id == notificationId && !n.isRead,
+        );
+        _notifications.removeWhere((n) => n.id == notificationId);
+        if (wasUnread) {
+          _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
+        }
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error deleting notification: $e');
+    }
+    return false;
   }
 
   /// Fetch notification settings

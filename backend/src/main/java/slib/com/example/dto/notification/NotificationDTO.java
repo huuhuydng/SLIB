@@ -18,6 +18,8 @@ public class NotificationDTO {
     private String title;
     private String content;
     private String notificationType;
+    private String category;
+    private String categoryLabel;
     private String referenceType;
     private UUID referenceId;
     private Boolean isRead;

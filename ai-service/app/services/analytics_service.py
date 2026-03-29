@@ -23,8 +23,7 @@ class AnalyticsAIService:
     """
     
     def __init__(self):
-        # Simulated historical data (in production, fetch from database)
-        self._mock_usage_data = self._generate_mock_data()
+        pass
     
     def analyze_peak_hours(self, area_id: Optional[str] = None, days: int = 7) -> Dict[str, Any]:
         """
@@ -101,21 +100,12 @@ class AnalyticsAIService:
 
         except Exception as e:
             logger.error("Error analyzing peak hours: %s", e)
-            # Fallback mock data
             return {
-                "peak_hours": [
-                    {"hour": 14, "avg_occupancy": 0.85, "label": "14:00"},
-                    {"hour": 15, "avg_occupancy": 0.90, "label": "15:00"},
-                    {"hour": 16, "avg_occupancy": 0.82, "label": "16:00"},
-                ],
-                "quiet_hours": [
-                    {"hour": 8, "avg_occupancy": 0.15, "label": "08:00"},
-                    {"hour": 9, "avg_occupancy": 0.25, "label": "09:00"},
-                    {"hour": 20, "avg_occupancy": 0.30, "label": "20:00"},
-                ],
-                "busiest_day": "Thứ 4",
-                "quietest_day": "Chủ nhật",
-                "recommendation": "Giờ cao điểm là 14h-16h. Để có chỗ ngồi tốt, nên đến trước 10h sáng hoặc sau 18h.",
+                "peak_hours": [],
+                "quiet_hours": [],
+                "busiest_day": "Chưa có dữ liệu",
+                "quietest_day": "Chưa có dữ liệu",
+                "recommendation": "Chưa đủ dữ liệu để phân tích giờ cao điểm. Vui lòng thử lại sau khi hệ thống có thêm lịch sử truy cập.",
                 "analyzed_at": datetime.now().isoformat()
             }
     
@@ -311,19 +301,5 @@ class AnalyticsAIService:
             ]
         }
     
-    def _generate_mock_data(self) -> List[Dict]:
-        """Generate mock historical usage data"""
-        data = []
-        for day in range(30):
-            for hour in range(8, 22):
-                data.append({
-                    "date": (datetime.now() - timedelta(days=day)).date().isoformat(),
-                    "hour": hour,
-                    "occupancy": random.uniform(0.2, 0.9),
-                    "zone": random.choice(["A", "B", "C"])
-                })
-        return data
-
-
 # Singleton instance
 analytics_ai_service = AnalyticsAIService()

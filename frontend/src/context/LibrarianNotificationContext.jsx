@@ -76,7 +76,6 @@ export function LibrarianNotificationProvider({ children }) {
             });
             if (res.ok && mountedRef.current) {
                 const data = await res.json();
-                console.log('[LibrarianNotification] Fetched counts:', data);
                 setPendingCounts(data);
             }
         } catch (err) {
@@ -199,13 +198,11 @@ export function LibrarianNotificationProvider({ children }) {
         const trySubscribe = () => {
             if (websocketService.isConnected()) {
                 unsubFn = websocketService.subscribe('/topic/librarian-notifications', handleMessage);
-                console.log('[LibrarianNotification] Subscribed to WebSocket topic');
             } else {
                 // WebSocket not ready yet, try connecting
                 websocketService.connect(
                     () => {
                         unsubFn = websocketService.subscribe('/topic/librarian-notifications', handleMessage);
-                        console.log('[LibrarianNotification] Connected & subscribed');
                     },
                     (err) => console.error('[LibrarianNotification] WebSocket error:', err)
                 );

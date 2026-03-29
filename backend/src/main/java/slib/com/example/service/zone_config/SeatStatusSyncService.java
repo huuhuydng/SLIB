@@ -82,8 +82,9 @@ public class SeatStatusSyncService {
             case "PROCESSING":
                 return "HOLDING";
             case "BOOKED":
-            case "CONFIRMED":
                 return "BOOKED";
+            case "CONFIRMED":
+                return "CONFIRMED";
             case "CANCEL":
             case "CANCELLED":
             case "EXPIRED":

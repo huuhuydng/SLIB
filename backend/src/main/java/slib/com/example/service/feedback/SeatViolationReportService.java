@@ -21,6 +21,7 @@ import slib.com.example.entity.reputation.ReputationRuleEntity;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.zone_config.SeatEntity;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.booking.ReservationRepository;
@@ -70,6 +71,9 @@ public class SeatViolationReportService {
             List<MultipartFile> images) {
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new RuntimeException("Reporter not found: " + reporterId));
+        ReservationEntity reporterReservation = findActiveConfirmedReservationByUser(reporterId)
+                .orElseThrow(() -> new BadRequestException(
+                        "Bạn chỉ có thể báo cáo vi phạm khi đang check-in trong thư viện."));
 
         SeatEntity seat = seatRepository.findById(request.getSeatId())
                 .orElseThrow(() -> new RuntimeException("Seat not found: " + request.getSeatId()));
@@ -81,9 +85,15 @@ public class SeatViolationReportService {
             throw new RuntimeException("Invalid violation type: " + request.getViolationType());
         }
 
-        // Tim violator tu reservation active tai ghe
-        User violator = findActiveViolator(seat.getSeatId());
-        UUID reservationId = findActiveReservationId(seat.getSeatId());
+        ReservationEntity violatorReservation = findActiveConfirmedReservationBySeat(seat.getSeatId())
+                .orElseThrow(() -> new BadRequestException("Ghế này hiện không có người check-in để báo cáo."));
+        if (reporterReservation.getSeat() != null
+                && reporterReservation.getSeat().getSeatId().equals(seat.getSeatId())) {
+            throw new BadRequestException("Ghế của bạn chỉ có thể gửi báo cáo tình trạng, không dùng báo cáo vi phạm.");
+        }
+
+        User violator = violatorReservation.getUser();
+        UUID reservationId = violatorReservation.getReservationId();
 
         // Upload anh bang chung
         String evidenceUrl = null;
@@ -214,7 +224,9 @@ public class SeatViolationReportService {
 
             // Neu van null, thu tim tu reservation active tai ghe
             if (violator == null) {
-                violator = findActiveViolator(report.getSeat().getSeatId());
+                violator = findActiveConfirmedReservationBySeat(report.getSeat().getSeatId())
+                        .map(ReservationEntity::getUser)
+                        .orElse(null);
                 if (violator != null) {
                     log.info("[ViolationReport] Found violator {} from active reservation at seat {}",
                             violator.getId(), report.getSeat().getSeatId());
@@ -310,25 +322,33 @@ public class SeatViolationReportService {
      * Tim nguoi dang ngoi tai ghe (co reservation active)
      */
     private User findActiveViolator(Integer seatId) {
+        return findActiveConfirmedReservationBySeat(seatId)
+                .map(ReservationEntity::getUser)
+                .orElse(null);
+    }
+
+    private java.util.Optional<ReservationEntity> findActiveConfirmedReservationBySeat(Integer seatId) {
         LocalDateTime now = LocalDateTime.now();
         List<ReservationEntity> activeReservations = reservationRepository.findOverlappingReservations(
                 seatId, now, now.plusMinutes(1));
-
-        if (!activeReservations.isEmpty()) {
-            return activeReservations.get(0).getUser();
-        }
-        return null;
+        return activeReservations.stream()
+                .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                .findFirst();
     }
 
     private UUID findActiveReservationId(Integer seatId) {
-        LocalDateTime now = LocalDateTime.now();
-        List<ReservationEntity> activeReservations = reservationRepository.findOverlappingReservations(
-                seatId, now, now.plusMinutes(1));
+        return findActiveConfirmedReservationBySeat(seatId)
+                .map(ReservationEntity::getReservationId)
+                .orElse(null);
+    }
 
-        if (!activeReservations.isEmpty()) {
-            return activeReservations.get(0).getReservationId();
-        }
-        return null;
+    private java.util.Optional<ReservationEntity> findActiveConfirmedReservationByUser(UUID userId) {
+        LocalDateTime now = LocalDateTime.now();
+        return reservationRepository.findByUserId(userId).stream()
+                .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getStartTime() != null && r.getEndTime() != null)
+                .filter(r -> !r.getStartTime().isAfter(now) && !r.getEndTime().isBefore(now))
+                .findFirst();
     }
 
     /**
