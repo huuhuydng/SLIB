@@ -281,6 +281,15 @@ public class UserChatController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/conversations/{conversationId}/student-reset")
+    public ResponseEntity<ConversationDTO> studentResetConversation(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.resetConversationForStudent(conversationId, userId);
+        return ResponseEntity.ok(result);
+    }
+
     // 15c. Đánh dấu đã đọc tin nhắn trong conversation
     @PostMapping("/conversations/{conversationId}/mark-read")
     public ResponseEntity<Map<String, Object>> markConversationAsRead(
@@ -341,11 +350,11 @@ public class UserChatController {
         if (page != null) {
             // Paginated mode - cho mobile lazy loading
             org.springframework.data.domain.Page<ChatMessageDTO> messages =
-                conversationService.getConversationMessagesPaginated(conversationId, page, size);
+                conversationService.getConversationMessagesPaginatedForViewer(conversationId, userId, page, size);
             return ResponseEntity.ok(messages);
         }
         // Non-paginated (backward compat cho frontend web)
-        List<ChatMessageDTO> messages = conversationService.getConversationMessages(conversationId);
+        List<ChatMessageDTO> messages = conversationService.getConversationMessagesForViewer(conversationId, userId);
         return ResponseEntity.ok(messages);
     }
 

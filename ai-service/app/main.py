@@ -12,6 +12,7 @@ Features:
 
 import uuid
 import logging
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -41,6 +42,47 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def sync_local_knowledge_base_on_startup():
+    """
+    Reload markdown files in ai-service/knowledge_base into Qdrant.
+    This makes the repo documents the primary source of truth for RAG answers
+    after each service restart or redeploy.
+    """
+    try:
+        from app.services.ingestion_service import get_ingestion_service
+
+        kb_dir = Path(__file__).resolve().parent.parent / "knowledge_base"
+        if not kb_dir.is_dir():
+            logger.warning("Knowledge base directory not found: %s", kb_dir)
+            return
+
+        ingestion_service = get_ingestion_service()
+        loaded_files = 0
+        total_chunks = 0
+
+        for filepath in sorted(kb_dir.glob("*.md")):
+            content = filepath.read_text(encoding="utf-8")
+            result = ingestion_service.ingest_text(
+                content=content,
+                source=filepath.stem,
+                category="knowledge_base",
+                metadata={"origin": "local_markdown"}
+            )
+            if result.get("success"):
+                loaded_files += 1
+                total_chunks += result.get("chunks_created", 0)
+            else:
+                logger.warning("Failed to ingest %s: %s", filepath.name, result.get("message"))
+
+        logger.info(
+            "Knowledge base sync completed: %s files, %s chunks",
+            loaded_files,
+            total_chunks,
+        )
+    except Exception as e:
+        logger.warning("Knowledge base sync skipped: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
@@ -66,6 +108,8 @@ async def lifespan(app: FastAPI):
             logger.warning("⚠️ Database connection failed - some features may not work")
     except Exception as e:
         logger.warning(f"⚠️ Database check skipped: {e}")
+
+    sync_local_knowledge_base_on_startup()
     
     yield
     
@@ -197,8 +241,8 @@ async def legacy_chat(request: ChatRequest):
     
     if should_escalate:
         escalation_message = (
-            "Tôi sẽ chuyển bạn đến thủ thư ngay. "
-            "Vui lòng chờ trong giây lát, thủ thư sẽ tiếp nhận và hỗ trợ bạn! 👋"
+            "Tôi sẽ chuyển yêu cầu của bạn đến thủ thư. "
+            "Vui lòng chờ trong giây lát để được hỗ trợ."
         )
         
         if request.conversation_id or request.student_id:
@@ -233,11 +277,6 @@ async def legacy_chat(request: ChatRequest):
     needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
     
     reply = result["reply"]
-    if needs_review:
-        reply += (
-            "\n\n💡 *Nếu bạn cần hỗ trợ thêm, hãy nói 'cho em gặp thủ thư' "
-            "để được kết nối với nhân viên thư viện.*"
-        )
     
     confidence_score = min(result["similarity_score"], 1.0) if not needs_review else 0.3
     

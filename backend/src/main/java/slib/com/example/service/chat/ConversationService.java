@@ -266,6 +266,36 @@ public class ConversationService {
                 return convertToDTO(saved);
         }
 
+        @Transactional
+        public ConversationDTO resetConversationForStudent(UUID conversationId, UUID studentId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                if (conv.getStudent() == null || !studentId.equals(conv.getStudent().getId())) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
+
+                if (conv.getStatus() == ConversationStatus.HUMAN_CHATTING) {
+                        studentResolveConversation(conversationId, studentId);
+                        conv = conversationRepository.findById(conversationId)
+                                        .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                } else if (conv.getStatus() == ConversationStatus.QUEUE_WAITING) {
+                        conv.setStatus(ConversationStatus.AI_HANDLING);
+                        conv.setEscalationReason(null);
+                        conv.setEscalatedAt(null);
+                        conv = conversationRepository.save(conv);
+                        broadcastQueuePositionUpdates();
+                }
+
+                conv.setStudentClearedAt(LocalDateTime.now());
+                Conversation saved = conversationRepository.save(conv);
+
+                log.info("[Conversation] Student {} reset visible chat history for conversation {} at {}",
+                                studentId, conversationId, saved.getStudentClearedAt());
+
+                return convertToDTO(saved);
+        }
+
         /**
          * Lấy danh sách conversation đang chờ xử lý
          */
@@ -663,6 +693,22 @@ public class ConversationService {
                 return allMessages;
         }
 
+        public List<ChatMessageDTO> getConversationMessagesForViewer(UUID conversationId, UUID viewerUserId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                List<ChatMessageDTO> messages = getConversationMessages(conversationId);
+                LocalDateTime visibleFrom = resolveStudentVisibleFrom(conv, viewerUserId);
+                if (visibleFrom == null) {
+                        return messages;
+                }
+
+                return messages.stream()
+                                .filter(message -> message.getCreatedAt() != null
+                                                && !message.getCreatedAt().isBefore(visibleFrom))
+                                .collect(Collectors.toList());
+        }
+
         /**
          * Lấy messages của conversation với phân trang (cho mobile lazy loading)
          * Trả về page mới nhất trước (DESC), client reverse lại để hiển thị ASC
@@ -670,6 +716,20 @@ public class ConversationService {
         public Page<ChatMessageDTO> getConversationMessagesPaginated(UUID conversationId, int page, int size) {
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
                 Page<Message> messagePage = messageRepository.findByConversationIdPaginated(conversationId, pageable);
+                return messagePage.map(this::convertMessageToDTO);
+        }
+
+        public Page<ChatMessageDTO> getConversationMessagesPaginatedForViewer(UUID conversationId, UUID viewerUserId,
+                        int page, int size) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                LocalDateTime visibleFrom = resolveStudentVisibleFrom(conv, viewerUserId);
+                Page<Message> messagePage = visibleFrom != null
+                                ? messageRepository.findByConversationIdPaginatedVisibleFrom(conversationId, visibleFrom,
+                                                pageable)
+                                : messageRepository.findByConversationIdPaginated(conversationId, pageable);
                 return messagePage.map(this::convertMessageToDTO);
         }
 
@@ -855,6 +915,16 @@ public class ConversationService {
                                 .senderType(msg.getSenderType())
                                 .isRead(msg.isRead())
                                 .build();
+        }
+
+        private LocalDateTime resolveStudentVisibleFrom(Conversation conv, UUID viewerUserId) {
+                if (conv.getStudent() == null) {
+                        return null;
+                }
+                if (!viewerUserId.equals(conv.getStudent().getId())) {
+                        return null;
+                }
+                return conv.getStudentClearedAt();
         }
 
         private List<String> extractImageUrls(String content) {

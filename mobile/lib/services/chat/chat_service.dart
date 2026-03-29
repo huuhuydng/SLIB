@@ -431,6 +431,31 @@ class ChatService {
     }
   }
 
+  /// Student reset chat:
+  /// - kết thúc human chat nếu đang active
+  /// - hủy queue nếu đang chờ
+  /// - ẩn lịch sử cũ khỏi phía student, nhưng vẫn giữ dữ liệu trong DB
+  Future<bool> resetConversationForStudent(
+    String conversationId,
+    String authToken,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/student-reset',
+        ),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Reset Conversation Error: $e');
+      return false;
+    }
+  }
+
   /// Gửi typing indicator cho đối phương (deprecated - kept for backward compat)
   Future<void> sendTypingIndicator(String conversationId, bool isTyping) async {
     try {

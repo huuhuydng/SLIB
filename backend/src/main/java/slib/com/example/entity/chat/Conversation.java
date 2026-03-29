@@ -58,6 +58,9 @@ public class Conversation {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    @Column(name = "student_cleared_at")
+    private LocalDateTime studentClearedAt;
+
     // Counter for librarian conversation rounds (1, 2, 3, ...)
     @Column(name = "current_human_session")
     @Builder.Default

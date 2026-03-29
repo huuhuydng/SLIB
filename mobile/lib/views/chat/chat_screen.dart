@@ -3216,16 +3216,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _chatWsService.unsubscribeFromConversation();
     _chatWsService.unsubscribeFromStudentTopic();
 
-    // Nếu đang chờ queue, hủy trước
-    if (_isWaitingInQueue && _conversationId != null) {
+    // Đồng bộ reset lên backend để hot restart/mở lại app không kéo lịch sử cũ lên nữa.
+    // Dữ liệu vẫn được giữ trong DB, chỉ ẩn khỏi phía student từ thời điểm reset.
+    if (_conversationId != null) {
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
         if (token != null) {
-          await _chatService.cancelQueue(_conversationId!, token);
+          await _chatService.resetConversationForStudent(_conversationId!, token);
         }
       } catch (e) {
-        debugPrint('[CHAT] Error cancelling queue on reset: $e');
+        debugPrint('[CHAT] Error syncing reset to backend: $e');
       }
     }
 

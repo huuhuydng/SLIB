@@ -6,7 +6,7 @@ Fetches AI config, knowledge base, and prompts from Java backend (port 8080)
 import httpx
 import logging
 from typing import Dict, List, Optional, Any
-from functools import lru_cache
+from app.config.settings import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,13 +18,15 @@ class JavaBackendClient:
     Client to fetch AI configuration from Java Spring Boot backend
     """
     
-    BACKEND_URL = "http://localhost:8080/slib/ai/admin"
-    
     def __init__(self):
+        settings = get_settings()
+        self.base_url = settings.java_backend_url.rstrip("/")
+        self.admin_url = f"{self.base_url}/ai/admin"
         self.client = httpx.Client(timeout=10.0)
         self._cached_config: Optional[Dict] = None
         self._cached_knowledge: Optional[List[Dict]] = None
         self._cached_prompts: Optional[List[Dict]] = None
+        self._cached_library_settings: Optional[Dict] = None
     
     def get_ai_config(self, force_refresh: bool = False) -> Dict[str, Any]:
         """
@@ -38,7 +40,7 @@ class JavaBackendClient:
         
         try:
             logger.info("[JavaBackendClient] Fetching AI config...")
-            response = self.client.get(f"{self.BACKEND_URL}/config")
+            response = self.client.get(f"{self.admin_url}/config")
             response.raise_for_status()
             data = response.json()
             
@@ -67,7 +69,7 @@ class JavaBackendClient:
         
         try:
             logger.info("[JavaBackendClient] Fetching knowledge base...")
-            response = self.client.get(f"{self.BACKEND_URL}/knowledge")
+            response = self.client.get(f"{self.admin_url}/knowledge")
             response.raise_for_status()
             
             self._cached_knowledge = response.json()
@@ -90,7 +92,7 @@ class JavaBackendClient:
         
         try:
             logger.info("[JavaBackendClient] Fetching prompts...")
-            response = self.client.get(f"{self.BACKEND_URL}/prompts")
+            response = self.client.get(f"{self.admin_url}/prompts")
             response.raise_for_status()
             
             self._cached_prompts = response.json()
@@ -100,6 +102,27 @@ class JavaBackendClient:
         except Exception as e:
             logger.error(f"[JavaBackendClient] Error fetching prompts: {e}")
             return []
+
+    def get_library_settings(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """
+        Get public library settings from Java backend.
+
+        Returns:
+            Dict with openTime, closeTime, workingDays, libraryClosed, etc.
+        """
+        if self._cached_library_settings and not force_refresh:
+            return self._cached_library_settings
+
+        try:
+            logger.info("[JavaBackendClient] Fetching library settings...")
+            response = self.client.get(f"{self.base_url}/settings/library")
+            response.raise_for_status()
+
+            self._cached_library_settings = response.json()
+            return self._cached_library_settings
+        except Exception as e:
+            logger.error(f"[JavaBackendClient] Error fetching library settings: {e}")
+            return {}
     
     def refresh_all(self):
         """Force refresh all cached data from backend"""
@@ -107,6 +130,7 @@ class JavaBackendClient:
         self.get_ai_config(force_refresh=True)
         self.get_knowledge(force_refresh=True)
         self.get_prompts(force_refresh=True)
+        self.get_library_settings(force_refresh=True)
     
     def _get_default_config(self) -> Dict[str, Any]:
         """Return default configuration"""
