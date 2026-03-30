@@ -18,9 +18,9 @@ const cloudinary = require('cloudinary').v2;
 // ========================================
 const CONFIG = {
     // Cloudinary credentials (lấy từ Dashboard)
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'dsupnjcqy',
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '356659581747979',
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || 'HlvOnlX7oJNDnoGEmWm-Y6_EPlQ',
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
 
     // Folder prefix cần xóa (VD: 'slib_avatars/')
     FOLDER_PREFIX: process.env.FOLDER_PREFIX || 'slib_avatars/',
@@ -49,6 +49,10 @@ cloudinary.config({
     api_key: CONFIG.CLOUDINARY_API_KEY,
     api_secret: CONFIG.CLOUDINARY_API_SECRET,
 });
+
+if (!CONFIG.CLOUDINARY_CLOUD_NAME || !CONFIG.CLOUDINARY_API_KEY || !CONFIG.CLOUDINARY_API_SECRET) {
+    throw new Error('Thiếu cấu hình Cloudinary. Hãy đặt CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET trước khi chạy script.');
+}
 
 // ========================================
 // UTILITY FUNCTIONS

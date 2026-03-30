@@ -8,7 +8,7 @@ import '../widgets/error_display_widget.dart';
 import 'support_request_history_screen.dart';
 
 class SupportRequestScreen extends StatefulWidget {
-  const SupportRequestScreen({Key? key}) : super(key: key);
+  const SupportRequestScreen({super.key});
 
   @override
   State<SupportRequestScreen> createState() => _SupportRequestScreenState();
@@ -62,7 +62,8 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2),
@@ -102,7 +103,10 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
                   color: const Color(0xFFFFF7F2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.photo_library, color: Color(0xFFFF751F)),
+                child: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFFFF751F),
+                ),
               ),
               title: const Text('Chọn từ thư viện'),
               onTap: () async {
@@ -153,7 +157,9 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Gửi yêu cầu trợ giúp thành công! Thủ thư sẽ liên hệ bạn sớm nhất'),
+            content: Text(
+              'Gửi yêu cầu trợ giúp thành công! Thủ thư sẽ liên hệ bạn sớm nhất',
+            ),
             backgroundColor: Color(0xFF4CAF50),
             duration: Duration(seconds: 3),
           ),
@@ -165,7 +171,9 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gửi thất bại: ${ErrorDisplayWidget.toVietnamese(e)}'),
+            content: Text(
+              'Gửi thất bại: ${ErrorDisplayWidget.toVietnamese(e)}',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -188,10 +196,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildTitleSection(),
-                    _buildFormCard(),
-                  ],
+                  children: [_buildTitleSection(), _buildFormCard()],
                 ),
               ),
             ),
@@ -219,7 +224,11 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333), size: 20),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Color(0xFF333333),
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               const Expanded(
@@ -233,11 +242,17 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.history_rounded, color: Color(0xFF333333), size: 24),
+                icon: const Icon(
+                  Icons.history_rounded,
+                  color: Color(0xFF333333),
+                  size: 24,
+                ),
                 tooltip: 'Lịch sử yêu cầu',
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const SupportRequestHistoryScreen(),
+                  ),
                 ),
               ),
             ],
@@ -286,7 +301,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -319,7 +334,11 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
             floatingLabelBehavior: FloatingLabelBehavior.always,
             hintText: 'Vui lòng mô tả chi tiết vấn đề của bạn',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
+            hintStyle: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 14,
+              height: 1.5,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -330,12 +349,19 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFFF751F), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFFFF751F),
+                width: 1.5,
+              ),
             ),
             contentPadding: const EdgeInsets.all(14),
             counterStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
           ),
-          style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF333333)),
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: Color(0xFF333333),
+          ),
         ),
       ],
     );
@@ -361,12 +387,11 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
           runSpacing: 10,
           children: [
             // Các ảnh đã chọn
-            ..._selectedImages.asMap().entries.map((entry) =>
-              _buildImageThumbnail(entry.key),
+            ..._selectedImages.asMap().entries.map(
+              (entry) => _buildImageThumbnail(entry.key),
             ),
             // Nút thêm ảnh
-            if (_selectedImages.length < _maxImages)
-              _buildAddImageButton(),
+            if (_selectedImages.length < _maxImages) _buildAddImageButton(),
           ],
         ),
       ],
@@ -393,7 +418,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             child: Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.85),
+                color: Colors.red.withValues(alpha: 0.85),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 1.5),
               ),
@@ -412,14 +437,20 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
         width: 72,
         height: 72,
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF7F2).withOpacity(0.5),
+          color: const Color(0xFFFFF7F2).withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFFF751F).withOpacity(0.3)),
+          border: Border.all(
+            color: const Color(0xFFFF751F).withValues(alpha: 0.3),
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined, color: const Color(0xFFFF751F).withOpacity(0.7), size: 22),
+            Icon(
+              Icons.add_a_photo_outlined,
+              color: const Color(0xFFFF751F).withValues(alpha: 0.7),
+              size: 22,
+            ),
             const SizedBox(height: 4),
             Text(
               'Thêm ảnh',
@@ -438,12 +469,17 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
   /// Nút gửi ở bottom - mờ khi chưa nhập mô tả
   Widget _buildBottomButton() {
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -460,12 +496,18 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             disabledBackgroundColor: const Color(0xFFF5F5F5),
             disabledForegroundColor: Colors.grey[400],
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
           ),
           child: _isSubmitting
               ? const SizedBox(
-                  width: 22, height: 22,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2.5,
+                  ),
                 )
               : Text(
                   'Gửi yêu cầu trợ giúp',

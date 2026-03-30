@@ -1,5 +1,6 @@
 package slib.com.example.service.booking;
 
+import lombok.extern.slf4j.Slf4j;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -34,6 +35,7 @@ import slib.com.example.service.notification.PushNotificationService;
  * - COMPLETED: Hết giờ, tự động hoàn thành
  */
 @Service
+@Slf4j
 public class ReservationScheduler {
     private final ReservationRepository reservationRepository;
     private final ActivityLogRepository activityLogRepository;
@@ -100,8 +102,8 @@ public class ReservationScheduler {
                                 zoneName,
                                 r.getReservationId());
                     } catch (Exception penaltyErr) {
-                        System.err.println("Failed to apply NO_SHOW penalty for reservation "
-                                + r.getReservationId() + ": " + penaltyErr.getMessage());
+                        log.warn("Failed to apply NO_SHOW penalty for reservation {}", r.getReservationId(),
+                                penaltyErr);
                     }
 
                     // Set EXPIRED và giải phóng ghế
@@ -126,7 +128,8 @@ public class ReservationScheduler {
                                 NotificationType.BOOKING,
                                 r.getReservationId());
                     } catch (Exception e) {
-                        System.err.println("Failed to send auto-cancel notification: " + e.getMessage());
+                        log.warn("Failed to send auto-cancel notification for reservation {}", r.getReservationId(),
+                                e);
                     }
                 }
             }
@@ -174,12 +177,11 @@ public class ReservationScheduler {
                             java.util.Map.of("type", "BOOKING_UPDATE", "action", "AUTO_STATUS_CHANGE",
                                     "count", totalChanged, "timestamp", java.time.Instant.now().toString()));
                 } catch (Exception wsErr) {
-                    System.err.println("Failed to broadcast dashboard update: " + wsErr.getMessage());
+                    log.warn("Failed to broadcast dashboard update", wsErr);
                 }
             }
         } catch (Exception e) {
-            System.err.println("Error in releaseExpiredSeats: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in releaseExpiredSeats", e);
         }
     }
 
@@ -196,12 +198,12 @@ public class ReservationScheduler {
                     .with(LocalTime.MIN);
             LocalDateTime weekEnd = LocalDateTime.now();
 
-            // Lấy tất cả user IDs có reservation COMPLETED trong tuần (đã sử dụng thư viện)
+            // Lấy tất cả user IDs có reservation COMPLETED trong tuần dựa trên thời điểm sử dụng thực tế
             List<ReservationEntity> completedThisWeek = reservationRepository
                     .findByStatus("COMPLETED").stream()
-                    .filter(r -> r.getCreatedAt() != null
-                            && r.getCreatedAt().isAfter(weekStart)
-                            && r.getCreatedAt().isBefore(weekEnd))
+                    .filter(r -> r.getEndTime() != null
+                            && !r.getEndTime().isBefore(weekStart)
+                            && !r.getEndTime().isAfter(weekEnd))
                     .collect(Collectors.toList());
 
             // Nhóm theo userId
@@ -224,17 +226,16 @@ public class ReservationScheduler {
                         reputationService.applyWeeklyPerfectBonus(userId);
                         bonusCount++;
                     } catch (Exception e) {
-                        System.err.println("Failed to apply weekly bonus for user " + userId + ": " + e.getMessage());
+                        log.warn("Failed to apply weekly bonus for user {}", userId, e);
                     }
                 }
             }
 
             if (bonusCount > 0) {
-                System.out.println("Applied WEEKLY_PERFECT bonus to " + bonusCount + " users");
+                log.info("Applied WEEKLY_PERFECT bonus to {} users", bonusCount);
             }
         } catch (Exception e) {
-            System.err.println("Error in applyWeeklyPerfectBonus: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error in applyWeeklyPerfectBonus", e);
         }
     }
 }

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-import 'package:slib/services/booking/booking_service.dart';
 
 /// Handles deep links from NFC background tag reading on iOS.
 ///
@@ -72,35 +71,10 @@ class DeepLinkService {
   /// Call backend to confirm booking by seat ID with HMAC signature.
   /// Backend verifies signature and finds user's active BOOKED reservation.
   Future<void> _confirmSeatBySeatId(String seatId, String signature) async {
-    _showLoadingDialog();
-
-    try {
-      final bookingService = BookingService();
-      await bookingService.confirmSeatByDeepLink(int.parse(seatId), signature);
-      _dismissDialog();
-      _showResultDialog(true, 'Xac nhan cho ngoi thanh cong!');
-    } catch (e) {
-      _dismissDialog();
-      String errorMsg = e.toString().replaceAll('Exception: ', '');
-      _showResultDialog(false, errorMsg);
-    }
-  }
-
-  void _showLoadingDialog() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx == null) return;
-    showDialog(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (_) => const _ConfirmingDialog(),
+    _showResultDialog(
+      false,
+      'Xác nhận qua deep link hiện chưa được bật trên máy chủ. Vui lòng mở ứng dụng và quét NFC trực tiếp để check-in ghế.',
     );
-  }
-
-  void _dismissDialog() {
-    final ctx = navigatorKey.currentContext;
-    if (ctx != null && Navigator.canPop(ctx)) {
-      Navigator.pop(ctx);
-    }
   }
 
   void _showResultDialog(bool success, String message) {
@@ -123,7 +97,7 @@ class DeepLinkService {
               ),
               const SizedBox(height: 16),
               Text(
-                success ? 'Thanh cong!' : 'Khong the xac nhan',
+                success ? 'Thành công!' : 'Không thể xác nhận',
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -146,39 +120,13 @@ class DeepLinkService {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text(
-                    'Dong',
+                    'Đóng',
                     style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Simple loading dialog shown while confirming seat
-class _ConfirmingDialog extends StatelessWidget {
-  const _ConfirmingDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: const Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(color: Color(0xFFFF751F)),
-            SizedBox(height: 20),
-            Text(
-              'Dang xac nhan cho ngoi...',
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
         ),
       ),
     );

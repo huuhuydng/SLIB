@@ -6,13 +6,17 @@ import slib.com.example.dto.hce.CheckInRequest;
 import slib.com.example.dto.hce.StudentDetailDTO;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
+import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
+import slib.com.example.service.notification.PushNotificationService;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -60,6 +64,12 @@ public class CheckInService {
 
     @Autowired
     private HceStationService hceStationService;
+
+    @Autowired
+    private UserSettingRepository userSettingRepository;
+
+    @Autowired
+    private PushNotificationService pushNotificationService;
 
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -133,6 +143,24 @@ public class CheckInService {
 
             if (Boolean.FALSE.equals(user.getIsActive())) {
                 throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            }
+
+            // Kiểm tra cấu hình HCE của user
+            UserSetting userSetting = userSettingRepository.findById(userId).orElse(null);
+            if (userSetting != null && Boolean.FALSE.equals(userSetting.getIsHceEnabled())) {
+                // Gửi push notification thông báo cho user
+                try {
+                    pushNotificationService.sendToUser(
+                            userId,
+                            "Check-in NFC bị chặn",
+                            "Bạn đã tắt chức năng Check-in NFC trong Cài đặt. Bật lại để sử dụng.",
+                            NotificationEntity.NotificationType.SYSTEM,
+                            null
+                    );
+                } catch (Exception ex) {
+                    // Không để lỗi push ảnh hưởng response
+                }
+                throw new RuntimeException("Bạn đã tắt chức năng Check-in NFC. Bật lại trong Cài đặt ứng dụng.");
             }
 
             LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);

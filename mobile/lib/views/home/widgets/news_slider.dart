@@ -20,7 +20,8 @@ class NewsSlider extends StatelessWidget {
         clipBehavior: Clip.none,
         itemCount: newsList.length,
         separatorBuilder: (context, index) => const SizedBox(width: 15),
-        itemBuilder: (context, index) => _buildNewsItem(context, newsList[index]),
+        itemBuilder: (context, index) =>
+            _buildNewsItem(context, newsList[index]),
       ),
     );
   }
@@ -38,7 +39,11 @@ class NewsSlider extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
           ],
         ),
         child: ClipRRect(
@@ -50,9 +55,10 @@ class NewsSlider extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: item.imageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.grey[200]),
+                  placeholder: (context, url) =>
+                      Container(color: Colors.grey[200]),
                   errorWidget: (context, url, error) => Container(
-                    color: item.getTagColor().withOpacity(0.15),
+                    color: item.getTagColor().withValues(alpha: 0.15),
                     child: Icon(Icons.broken_image, color: item.getTagColor()),
                   ),
                 ),
@@ -64,7 +70,10 @@ class NewsSlider extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.8),
+                      ],
                     ),
                   ),
                 ),
@@ -80,25 +89,46 @@ class NewsSlider extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.flash_on, size: 12, color: item.getTagColor()),
+                              Icon(
+                                Icons.flash_on,
+                                size: 12,
+                                color: item.getTagColor(),
+                              ),
                               const SizedBox(width: 4),
-                              Text(item.categoryName, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: item.getTagColor())),
+                              Text(
+                                item.categoryName,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: item.getTagColor(),
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         if (item.isPinned)
                           Container(
                             padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                            child: const Icon(Icons.push_pin, size: 14, color: Colors.red),
-                          )
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.push_pin,
+                              size: 14,
+                              color: Colors.red,
+                            ),
+                          ),
                       ],
                     ),
                     Column(
@@ -106,16 +136,31 @@ class NewsSlider extends StatelessWidget {
                       children: [
                         Text(
                           item.title,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, height: 1.3, color: Colors.white),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            height: 1.3,
+                            color: Colors.white,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Text("Xem chi tiết", style: TextStyle(fontSize: 12, color: Colors.white70)),
+                            const Text(
+                              "Xem chi tiết",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                            ),
                             const SizedBox(width: 4),
-                            Icon(Icons.arrow_right_alt, size: 16, color: item.getTagColor()),
+                            Icon(
+                              Icons.arrow_right_alt,
+                              size: 16,
+                              color: item.getTagColor(),
+                            ),
                           ],
                         ),
                       ],

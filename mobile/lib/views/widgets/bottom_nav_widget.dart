@@ -19,20 +19,20 @@ class BottomNavWidget extends StatelessWidget {
     return NavigationBarTheme(
       data: NavigationBarThemeData(
         // Màu nền của nút khi được chọn (Cam nhạt)
-        indicatorColor: AppColors.brandColor.withOpacity(0.15),
-        
+        indicatorColor: AppColors.brandColor.withValues(alpha: 0.15),
+
         // Style chữ khi được chọn
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const TextStyle(
-              fontSize: 12, 
-              fontWeight: FontWeight.bold, 
-              color: AppColors.brandColor
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.brandColor,
             );
           }
           return const TextStyle(fontSize: 12, fontWeight: FontWeight.normal);
         }),
-        
+
         // Style icon khi được chọn
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -48,7 +48,7 @@ class BottomNavWidget extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 2,
         height: 65,
-        
+
         destinations: <Widget>[
           const NavigationDestination(
             icon: Icon(Icons.home_outlined),

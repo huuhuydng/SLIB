@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -57,9 +58,7 @@ class ChatService {
           escalationMessage: jsonMap['escalation_message'],
         );
       } else {
-        print(
-          '[AI Chat] Error: status=${response.statusCode}, body=${response.body}',
-        );
+        debugPrint('[AI Chat] Error status=${response.statusCode}');
         return ChatResponse(
           success: false,
           reply: 'Lỗi kết nối với AI. Vui lòng thử lại sau.',
@@ -70,7 +69,7 @@ class ChatService {
         );
       }
     } catch (e) {
-      print('ChatService Error: $e');
+      debugPrint('ChatService Error: $e');
       return ChatResponse(
         success: false,
         reply: 'Không thể kết nối. Vui lòng kiểm tra mạng và thử lại.',
@@ -114,7 +113,7 @@ class ChatService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Send Message Error: $e');
+      debugPrint('Send Message Error: $e');
       return false;
     }
   }
@@ -150,13 +149,11 @@ class ChatService {
         final body = await response.stream.bytesToString();
         return jsonDecode(body) as Map<String, dynamic>;
       }
-      final errorBody = await response.stream.bytesToString();
-      print(
-        'Send Image Message Error: status=${response.statusCode}, body=$errorBody',
-      );
+      await response.stream.bytesToString();
+      debugPrint('Send Image Message Error: status=${response.statusCode}');
       return null;
     } catch (e) {
-      print('Send Image Message Error: $e');
+      debugPrint('Send Image Message Error: $e');
       return null;
     }
   }
@@ -200,7 +197,7 @@ class ChatService {
       }
       return [];
     } catch (e) {
-      print('Get Messages Error: $e');
+      debugPrint('Get Messages Error: $e');
       return [];
     }
   }
@@ -228,7 +225,7 @@ class ChatService {
       }
       return ConversationStatus(status: 'AI_HANDLING', librarianName: '');
     } catch (e) {
-      print('Get Status Error: $e');
+      debugPrint('Get Status Error: $e');
       // Return với hasError=true để polling biết là lỗi mạng, không phải thủ thư kết thúc
       return ConversationStatus(
         status: 'ERROR',
@@ -278,7 +275,7 @@ class ChatService {
         queuePosition: 0,
       );
     } catch (e) {
-      print('Request Librarian Error: $e');
+      debugPrint('Request Librarian Error: $e');
       return EscalationResult(
         success: false,
         conversationId: '',
@@ -320,7 +317,7 @@ class ChatService {
         queuePosition: 0,
       );
     } catch (e) {
-      print('Escalation Error: $e');
+      debugPrint('Escalation Error: $e');
       return EscalationResult(
         success: false,
         conversationId: conversationId,
@@ -351,7 +348,7 @@ class ChatService {
       }
       return QueueInfo(position: 0, totalWaiting: 0);
     } catch (e) {
-      print('Get Queue Position Error: $e');
+      debugPrint('Get Queue Position Error: $e');
       return QueueInfo(position: 0, totalWaiting: 0);
     }
   }
@@ -374,7 +371,7 @@ class ChatService {
       }
       return null;
     } catch (e) {
-      print('Get My Active Conversation Error: $e');
+      debugPrint('Get My Active Conversation Error: $e');
       return null;
     }
   }
@@ -391,7 +388,7 @@ class ChatService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print('Cancel Escalation Error: $e');
+      debugPrint('Cancel Escalation Error: $e');
       return false;
     }
   }
@@ -410,7 +407,7 @@ class ChatService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Cancel Queue Error: $e');
+      debugPrint('Cancel Queue Error: $e');
       return false;
     }
   }
@@ -429,7 +426,32 @@ class ChatService {
       );
       return response.statusCode == 200;
     } catch (e) {
-      print('Student Resolve Error: $e');
+      debugPrint('Student Resolve Error: $e');
+      return false;
+    }
+  }
+
+  /// Student reset chat:
+  /// - kết thúc human chat nếu đang active
+  /// - hủy queue nếu đang chờ
+  /// - ẩn lịch sử cũ khỏi phía student, nhưng vẫn giữ dữ liệu trong DB
+  Future<bool> resetConversationForStudent(
+    String conversationId,
+    String authToken,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+          '${ApiConstants.domain}/slib/chat/conversations/$conversationId/student-reset',
+        ),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Reset Conversation Error: $e');
       return false;
     }
   }
@@ -470,7 +492,7 @@ class ChatService {
       }
       return {'content': [], 'totalPages': 0, 'last': true};
     } catch (e) {
-      print('Get Messages Paginated Error: $e');
+      debugPrint('Get Messages Paginated Error: $e');
       return {'content': [], 'totalPages': 0, 'last': true};
     }
   }
@@ -494,7 +516,7 @@ class ChatService {
       }
       return null;
     } catch (e) {
-      print('Get Or Create Conversation Error: $e');
+      debugPrint('Get Or Create Conversation Error: $e');
       return null;
     }
   }

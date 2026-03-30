@@ -36,13 +36,9 @@ public class UserChatService {
         User receiver = userRepository.findById(chatMessageDto.getReceiverId())
                 .orElseThrow(() -> new RuntimeException("Receiver not found"));
 
-        // Xác định senderType - ưu tiên từ DTO, fallback dựa trên role
-        String senderType = chatMessageDto.getSenderType();
-        if (senderType == null || senderType.isEmpty()) {
-            // Fallback: xác định dựa trên role của sender
-            senderType = sender.getRole() != null &&
-                    sender.getRole().name().contains("LIBRARIAN") ? "LIBRARIAN" : "STUDENT";
-        }
+        // senderType duoc suy ra tu role cua sender de tranh client gia mao
+        String senderType = sender.getRole() != null &&
+                sender.getRole().name().contains("LIBRARIAN") ? "LIBRARIAN" : "STUDENT";
 
         // Tạo Entity
         Message message = Message.builder()

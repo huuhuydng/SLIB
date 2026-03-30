@@ -5,13 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.entity.chat.Conversation;
 import slib.com.example.service.notification.LibrarianNotificationService;
 import slib.com.example.dto.feedback.FeedbackDTO;
 import slib.com.example.entity.feedback.FeedbackEntity;
 import slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.users.UserRepository;
 
@@ -29,6 +32,7 @@ public class FeedbackService {
 
     private final FeedbackRepository feedbackRepository;
     private final ReservationRepository reservationRepository;
+    private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -81,6 +85,7 @@ public class FeedbackService {
     public FeedbackDTO create(UUID studentId, Integer rating, String content, String category, String conversationId, UUID reservationId) {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
+        validateFeedbackContext(studentId, conversationId, reservationId);
 
         String resolvedCategory = category;
         if (resolvedCategory == null || resolvedCategory.isBlank()) {
@@ -158,11 +163,12 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public Map<String, Object> checkPendingFeedback(UUID userId) {
         LocalDateTime now = LocalDateTime.now();
+        // Chỉ hiện đánh giá khi reservation COMPLETED (user đã ngồi xong, kết thúc phiên)
         List<ReservationEntity> eligibleReservations = reservationRepository
                 .findByUserIdAndConfirmedAtIsNotNullAndEndTimeBeforeAndStatusInOrderByEndTimeDesc(
                         userId,
                         now,
-                        List.of("CONFIRMED", "COMPLETED"));
+                        List.of("COMPLETED"));
 
         if (eligibleReservations.isEmpty()) {
             return Map.of("hasPending", false);
@@ -193,6 +199,38 @@ public class FeedbackService {
                     java.util.Map.of("type", type, "action", action, "timestamp", java.time.Instant.now().toString()));
         } catch (Exception e) {
             log.warn("Failed to broadcast dashboard update: {}", e.getMessage());
+        }
+    }
+
+    private void validateFeedbackContext(UUID studentId, String conversationId, UUID reservationId) {
+        if (conversationId != null && !conversationId.isBlank()) {
+            UUID convId;
+            try {
+                convId = UUID.fromString(conversationId);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("conversationId không hợp lệ.");
+            }
+
+            Conversation conversation = conversationRepository.findById(convId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy cuộc trò chuyện"));
+            if (conversation.getStudent() == null || !studentId.equals(conversation.getStudent().getId())) {
+                throw new BadRequestException("Bạn không thể gửi phản hồi cho cuộc trò chuyện không thuộc về mình.");
+            }
+        }
+
+        if (reservationId != null) {
+            ReservationEntity reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy lượt đặt chỗ"));
+            if (reservation.getUser() == null || !studentId.equals(reservation.getUser().getId())) {
+                throw new BadRequestException("Bạn không thể gửi phản hồi cho lượt đặt chỗ không thuộc về mình.");
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            String status = reservation.getStatus() != null ? reservation.getStatus().toUpperCase() : "";
+            if (!List.of("CONFIRMED", "COMPLETED").contains(status) || reservation.getEndTime() == null
+                    || reservation.getEndTime().isAfter(now)) {
+                throw new BadRequestException("Chỉ có thể gửi phản hồi cho lượt đặt chỗ đã sử dụng và đã kết thúc.");
+            }
         }
     }
 }

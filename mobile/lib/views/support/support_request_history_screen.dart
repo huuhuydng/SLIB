@@ -7,7 +7,7 @@ import '../../services/support/support_request_service.dart';
 import '../widgets/error_display_widget.dart';
 
 class SupportRequestHistoryScreen extends StatefulWidget {
-  const SupportRequestHistoryScreen({Key? key}) : super(key: key);
+  const SupportRequestHistoryScreen({super.key});
 
   @override
   State<SupportRequestHistoryScreen> createState() =>
@@ -67,22 +67,24 @@ class _SupportRequestHistoryScreenState
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child:
-                        CircularProgressIndicator(color: AppColors.brandColor))
+                    child: CircularProgressIndicator(
+                      color: AppColors.brandColor,
+                    ),
+                  )
                 : _errorMessage != null
-                    ? _buildErrorState()
-                    : _requests.isEmpty
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                            color: AppColors.brandColor,
-                            onRefresh: _loadRequests,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                              itemCount: _requests.length,
-                              itemBuilder: (context, index) =>
-                                  _buildRequestCard(_requests[index]),
-                            ),
-                          ),
+                ? _buildErrorState()
+                : _requests.isEmpty
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    color: AppColors.brandColor,
+                    onRefresh: _loadRequests,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: _requests.length,
+                      itemBuilder: (context, index) =>
+                          _buildRequestCard(_requests[index]),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -105,8 +107,11 @@ class _SupportRequestHistoryScreenState
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios,
-                    color: Color(0xFF333333), size: 20),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Color(0xFF333333),
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               const Expanded(
@@ -120,8 +125,11 @@ class _SupportRequestHistoryScreenState
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.home_outlined,
-                    color: Color(0xFF333333), size: 24),
+                icon: const Icon(
+                  Icons.home_outlined,
+                  color: Color(0xFF333333),
+                  size: 24,
+                ),
                 onPressed: () =>
                     Navigator.of(context).popUntil((route) => route.isFirst),
               ),
@@ -161,7 +169,7 @@ class _SupportRequestHistoryScreenState
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -214,18 +222,24 @@ class _SupportRequestHistoryScreenState
             if (adminResponse != null && adminResponse.isNotEmpty) ...[
               const SizedBox(height: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF0FFF4),
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: Colors.green.withOpacity(0.2)),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.reply_rounded,
-                        size: 16, color: Colors.green[600]),
+                    Icon(
+                      Icons.reply_rounded,
+                      size: 16,
+                      color: Colors.green[600],
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -252,13 +266,16 @@ class _SupportRequestHistoryScreenState
                   'Xem chi tiết',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.brandColor.withOpacity(0.7),
+                    color: AppColors.brandColor.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(width: 2),
-                Icon(Icons.arrow_forward_ios,
-                    size: 10, color: AppColors.brandColor.withOpacity(0.7)),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 10,
+                  color: AppColors.brandColor.withValues(alpha: 0.7),
+                ),
               ],
             ),
           ],
@@ -267,12 +284,11 @@ class _SupportRequestHistoryScreenState
     );
   }
 
-  Widget _buildStatusBadge(
-      String status, Map<String, dynamic> statusInfo) {
+  Widget _buildStatusBadge(String status, Map<String, dynamic> statusInfo) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: (statusInfo['color'] as Color).withOpacity(0.1),
+        color: (statusInfo['color'] as Color).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -346,8 +362,11 @@ class _SupportRequestHistoryScreenState
                     // Header: Trạng thái
                     Row(
                       children: [
-                        Icon(statusInfo['icon'] as IconData,
-                            color: statusInfo['color'] as Color, size: 28),
+                        Icon(
+                          statusInfo['icon'] as IconData,
+                          color: statusInfo['color'] as Color,
+                          size: 28,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -365,7 +384,9 @@ class _SupportRequestHistoryScreenState
                               Text(
                                 'Gửi lúc ${_formatDateTimeFull(createdAt)}',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey[500]),
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                ),
                               ),
                             ],
                           ),
@@ -423,8 +444,7 @@ class _SupportRequestHistoryScreenState
                           itemCount: imageUrls.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(width: 10),
-                          itemBuilder: (_, idx) =>
-                              ClipRRect(
+                          itemBuilder: (_, idx) => ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: Image.network(
                               imageUrls[idx].toString(),
@@ -435,8 +455,10 @@ class _SupportRequestHistoryScreenState
                                 width: 100,
                                 height: 100,
                                 color: Colors.grey[200],
-                                child: Icon(Icons.broken_image,
-                                    color: Colors.grey[400]),
+                                child: Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey[400],
+                                ),
                               ),
                             ),
                           ),
@@ -445,8 +467,7 @@ class _SupportRequestHistoryScreenState
                     ],
 
                     // Phản hồi từ thủ thư
-                    if (adminResponse != null &&
-                        adminResponse.isNotEmpty) ...[
+                    if (adminResponse != null && adminResponse.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _buildDivider(),
                       const SizedBox(height: 16),
@@ -455,11 +476,14 @@ class _SupportRequestHistoryScreenState
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
+                              color: Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(Icons.support_agent_rounded,
-                                color: Colors.green[600], size: 20),
+                            child: Icon(
+                              Icons.support_agent_rounded,
+                              color: Colors.green[600],
+                              size: 20,
+                            ),
                           ),
                           const SizedBox(width: 10),
                           const Text(
@@ -478,8 +502,9 @@ class _SupportRequestHistoryScreenState
                         decoration: BoxDecoration(
                           color: const Color(0xFFF0FFF4),
                           borderRadius: BorderRadius.circular(12),
-                          border:
-                              Border.all(color: Colors.green.withOpacity(0.2)),
+                          border: Border.all(
+                            color: Colors.green.withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,17 +600,13 @@ class _SupportRequestHistoryScreenState
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 16),
             ),
             if (!isLast)
-              Container(
-                width: 2,
-                height: 24,
-                color: Colors.grey[200],
-              ),
+              Container(width: 2, height: 24, color: Colors.grey[200]),
           ],
         ),
         const SizedBox(width: 12),

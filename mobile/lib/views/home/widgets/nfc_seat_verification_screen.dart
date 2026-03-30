@@ -161,14 +161,15 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
       _pulseController.stop();
     } catch (e) {
       debugPrint('NfcVerification: Error confirming booking: $e');
-      
+
       if (!mounted) return;
 
       String errorMsg = e.toString().replaceAll('Exception: ', '');
-      
+
       // Provide user-friendly messages
       if (errorMsg.contains('không tìm thấy') || errorMsg.contains('404')) {
-        errorMsg = 'Thẻ NFC này chưa được gán cho ghế nào.\nVui lòng liên hệ quản trị viên.';
+        errorMsg =
+            'Thẻ NFC này chưa được gán cho ghế nào.\nVui lòng liên hệ quản trị viên.';
       } else if (errorMsg.contains('không khớp')) {
         // Seat mismatch — message already good from backend
       } else if (errorMsg.contains('check-in')) {
@@ -209,12 +210,12 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     // Prevent multiple closes
     if (_isClosed) return;
     _isClosed = true;
-    
+
     _stopNfcScan();
-    
+
     // Only close if we can pop
     if (!mounted) return;
-    
+
     if (widget.onCancel != null) {
       widget.onCancel!.call();
     } else if (Navigator.canPop(context)) {
@@ -365,11 +366,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
             color: Colors.red[50],
             shape: BoxShape.circle,
           ),
-          child: const Icon(
-            Icons.nfc_rounded,
-            size: 60,
-            color: Colors.red,
-          ),
+          child: const Icon(Icons.nfc_rounded, size: 60, color: Colors.red),
         ),
       ),
     );
@@ -390,10 +387,28 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
           const SizedBox(height: 8),
           Text(
             'Ghế ${widget.expectedSeatCode} đã được xác nhận',
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          ),
+        ],
+      );
+    }
+
+    if (_isLookingUp) {
+      return Column(
+        children: [
+          const Text(
+            'Đang xác thực ghế...',
             style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.brandColor,
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Hệ thống đang đối chiếu thẻ NFC với ghế ${widget.expectedSeatCode}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       );
@@ -414,10 +429,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
           Text(
             _errorMessage ?? 'Vui lòng kiểm tra cài đặt NFC trên thiết bị',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       );
@@ -438,10 +450,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
           Text(
             _errorMessage!,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       );
@@ -461,10 +470,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
         Text(
           'Chạm điện thoại vào nhãn dán NFC\ntrên ghế ${widget.expectedSeatCode}',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
       ],
     );
@@ -505,10 +511,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
             children: [
               Text(
                 'Ghế đã đặt',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
               const SizedBox(height: 4),
               Text(
@@ -705,7 +708,8 @@ class NfcVerificationDialog {
           expectedSeatCode: seatCode,
           expectedSeatId: seatId,
           reservationId: reservationId,
-          onVerificationSuccess: null, // Không dùng callback - dùng Navigator.pop với result
+          onVerificationSuccess:
+              null, // Không dùng callback - dùng Navigator.pop với result
           onCancel: () {
             if (Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext, false);

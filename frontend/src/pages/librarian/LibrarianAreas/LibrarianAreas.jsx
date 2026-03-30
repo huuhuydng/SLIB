@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import { API_BASE_URL } from '../../../config/apiConfig';
 
 import { LayoutProvider, useLayout, ACTIONS } from "../../../context/admin/area_management/LayoutContext";
@@ -239,9 +240,17 @@ function LibrarianAreasContent() {
   // WebSocket real-time updates
   const stompClientRef = useRef(null);
   useEffect(() => {
-    const wsUrl = `ws://${window.location.hostname}:8080/ws`;
+    const token =
+      sessionStorage.getItem('librarian_token') ||
+      localStorage.getItem('librarian_token');
+
+    if (!token) {
+      return undefined;
+    }
+
     const client = new Client({
-      brokerURL: wsUrl,
+      webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
         client.subscribe('/topic/seats', (message) => {
@@ -261,7 +270,7 @@ function LibrarianAreasContent() {
         stompClientRef.current.deactivate();
       }
     };
-  }, [dispatch]);
+  }, []);
 
   // Zoom controls
   const handleZoomIn = () => {
@@ -342,16 +351,7 @@ function LibrarianAreasContent() {
   const confirmReservation = async (seat) => {
     if (!seat?.reservationId) return;
     try {
-      const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(
-        `${API_BASE}/slib/bookings/updateStatusReserv/${seat.reservationId}?status=CONFIRMED`,
-        { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Lỗi xác nhận');
-      }
+      await seatService.manualConfirmReservation(seat.reservationId);
       toast.success('Đã xác nhận chỗ ngồi thành công');
       setSelectedSeat(null);
       await loadSeatsForTimeSlot(slotValue);

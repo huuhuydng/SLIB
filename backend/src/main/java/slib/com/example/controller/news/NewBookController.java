@@ -15,7 +15,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/slib/new-books")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 public class NewBookController {
 

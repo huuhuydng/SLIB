@@ -7,12 +7,15 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import slib.com.example.dto.notification.NotificationDTO;
 import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.notification.NotificationRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
@@ -28,10 +31,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class PushNotificationService {
+    public static final String DELIVERY_KEY_CHECKIN_REMINDER = "CHECKIN_REMINDER";
+    public static final String DELIVERY_KEY_TIME_EXPIRY = "TIME_EXPIRY";
 
     private final FirebaseMessaging firebaseMessaging;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final UserSettingRepository userSettingRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final SystemLogService systemLogService;
     private final LibrarySettingService librarySettingService;
@@ -152,6 +158,24 @@ public class PushNotificationService {
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId) {
+        sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
+            String deliveryKey) {
+        sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, deliveryKey);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category) {
+        sendToUser(userId, title, body, type, referenceId, referenceType, category, null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category, String deliveryKey) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             log.warn("User not found: {}", userId);
@@ -159,7 +183,7 @@ public class PushNotificationService {
         }
 
         // Check global notification settings (admin config)
-        if (!isNotificationEnabledGlobally(type)) {
+        if (!isNotificationEnabledGlobally(type, deliveryKey)) {
             log.info("Loai thong bao {} da bi tat boi admin trong cau hinh he thong", type);
             return;
         }
@@ -176,7 +200,7 @@ public class PushNotificationService {
                 .title(title)
                 .content(body)
                 .notificationType(type)
-                .referenceType(type.name())
+                .referenceType(referenceType)
                 .referenceId(referenceId)
                 .isRead(false)
                 .build();
@@ -184,12 +208,21 @@ public class PushNotificationService {
 
         // Get unread count for badge (after saving new notification)
         int badgeCount = (int) notificationRepository.countUnreadByUserId(userId);
+        String resolvedCategory = category != null && !category.isBlank()
+                ? category
+                : resolveCategory(type, title, body);
+        String categoryLabel = resolveCategoryLabel(resolvedCategory);
 
         // Send push notification to device
         Map<String, String> data = new HashMap<>();
         data.put("type", type.name());
+        data.put("category", resolvedCategory);
+        data.put("categoryLabel", categoryLabel);
         data.put("notificationId", notification.getId().toString());
         data.put("badgeCount", String.valueOf(badgeCount));
+        if (notification.getReferenceType() != null) {
+            data.put("referenceType", notification.getReferenceType());
+        }
         if (referenceId != null) {
             data.put("referenceId", referenceId.toString());
         }
@@ -208,6 +241,9 @@ public class PushNotificationService {
         wsPayload.put("title", title);
         wsPayload.put("content", body);
         wsPayload.put("notificationType", type.name());
+        wsPayload.put("category", resolvedCategory);
+        wsPayload.put("categoryLabel", categoryLabel);
+        wsPayload.put("referenceType", notification.getReferenceType());
         wsPayload.put("referenceId", referenceId != null ? referenceId.toString() : null);
         wsPayload.put("isRead", false);
         wsPayload.put("unreadCount", badgeCount);
@@ -222,9 +258,7 @@ public class PushNotificationService {
         List<User> users = userRepository.findAll();
 
         for (User user : users) {
-            if (user.getNotiDevice() != null && !user.getNotiDevice().isEmpty()) {
-                sendToUser(user.getId(), title, body, type, referenceId);
-            }
+            sendToUser(user.getId(), title, body, type, referenceId);
         }
 
         log.info("Sent notification to {} users", users.size());
@@ -238,7 +272,6 @@ public class PushNotificationService {
         // Find users with specific role
         List<User> users = userRepository.findAll().stream()
                 .filter(u -> u.getRole() != null && role.equalsIgnoreCase(u.getRole().name()))
-                .filter(u -> u.getNotiDevice() != null && !u.getNotiDevice().isEmpty())
                 .toList();
 
         for (User user : users) {
@@ -249,14 +282,22 @@ public class PushNotificationService {
     }
 
     /**
-     * Check if notification should be sent based on user settings
+     * Check if notification should be sent based on user settings.
+     * Kiểm tra cấu hình "Thông báo đẩy" trong UserSetting.
+     * Khi user tắt toggle này, chặn TẤT CẢ notification.
      */
     private boolean shouldSendNotification(User user, NotificationType type) {
+        UserSetting setting = userSettingRepository.findById(user.getId()).orElse(null);
+        if (setting != null && Boolean.FALSE.equals(setting.getIsBookingRemindEnabled())) {
+            return false;
+        }
+
         return switch (type) {
-            case BOOKING -> user.getNotifyBooking() == null || user.getNotifyBooking();
-            case REMINDER -> user.getNotifyReminder() == null || user.getNotifyReminder();
-            case NEWS -> user.getNotifyNews() == null || user.getNotifyNews();
-            case VIOLATION, SYSTEM, SUPPORT_REQUEST, CHAT_MESSAGE -> true;
+            case BOOKING -> !Boolean.FALSE.equals(user.getNotifyBooking());
+            case REMINDER -> !Boolean.FALSE.equals(user.getNotifyReminder());
+            case NEWS -> !Boolean.FALSE.equals(user.getNotifyNews());
+            case VIOLATION, VIOLATION_REPORT, REPUTATION, SYSTEM, SUPPORT_REQUEST, COMPLAINT,
+                    SEAT_STATUS_REPORT, CHAT_MESSAGE -> true;
         };
     }
 
@@ -264,19 +305,101 @@ public class PushNotificationService {
      * Kiem tra loai thong bao co duoc bat o cap do he thong (admin config) hay khong.
      * Cac loai SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST luon duoc gui.
      */
-    private boolean isNotificationEnabledGlobally(NotificationType type) {
+    private boolean isNotificationEnabledGlobally(NotificationType type, String deliveryKey) {
         try {
             LibrarySetting settings = librarySettingService.getSettings();
             return switch (type) {
                 case BOOKING -> Boolean.TRUE.equals(settings.getNotifyBookingSuccess());
-                case REMINDER -> Boolean.TRUE.equals(settings.getNotifyCheckinReminder());
+                case REMINDER -> DELIVERY_KEY_TIME_EXPIRY.equals(deliveryKey)
+                        ? Boolean.TRUE.equals(settings.getNotifyTimeExpiry())
+                        : Boolean.TRUE.equals(settings.getNotifyCheckinReminder());
                 case VIOLATION -> Boolean.TRUE.equals(settings.getNotifyViolation());
-                case SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST -> true;
+                case VIOLATION_REPORT, REPUTATION, SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST, COMPLAINT,
+                        SEAT_STATUS_REPORT -> true;
             };
         } catch (Exception e) {
             log.warn("Khong the kiem tra cau hinh thong bao he thong, cho phep gui mac dinh: {}", e.getMessage());
             return true;
         }
+    }
+
+    public NotificationDTO toDTO(NotificationEntity notification) {
+        String category = resolveCategory(notification.getNotificationType(), notification.getTitle(),
+                notification.getContent());
+
+        return NotificationDTO.builder()
+                .id(notification.getId())
+                .userId(notification.getUser() != null ? notification.getUser().getId() : null)
+                .title(notification.getTitle())
+                .content(notification.getContent())
+                .notificationType(notification.getNotificationType() != null ? notification.getNotificationType().name() : null)
+                .category(category)
+                .categoryLabel(resolveCategoryLabel(category))
+                .referenceType(notification.getReferenceType())
+                .referenceId(notification.getReferenceId())
+                .isRead(notification.getIsRead())
+                .createdAt(notification.getCreatedAt())
+                .build();
+    }
+
+    public String resolveCategory(NotificationType type, String title, String body) {
+        if (type == null) {
+            return "SYSTEM";
+        }
+
+        return switch (type) {
+            case CHAT_MESSAGE -> "MESSAGE";
+            case BOOKING, REMINDER -> "BOOKING";
+            case SUPPORT_REQUEST, COMPLAINT, SEAT_STATUS_REPORT, VIOLATION_REPORT -> "PROCESSING";
+            case REPUTATION -> "REPUTATION";
+            case NEWS -> "NEWS";
+            case VIOLATION -> containsPointKeywords(title, body) ? "REPUTATION" : "PROCESSING";
+            case SYSTEM -> containsProcessingKeywords(title, body) ? "PROCESSING" : "SYSTEM";
+        };
+    }
+
+    public String resolveCategoryLabel(String category) {
+        return switch (category) {
+            case "MESSAGE" -> "Tin nhắn";
+            case "PROCESSING" -> "Xử lý";
+            case "REPUTATION" -> "Điểm uy tín";
+            case "BOOKING" -> "Đặt chỗ";
+            case "NEWS" -> "Tin tức";
+            default -> "Hệ thống";
+        };
+    }
+
+    private boolean containsPointKeywords(String title, String body) {
+        String combined = normalizeForMatching(title) + " " + normalizeForMatching(body);
+        return combined.contains("diem")
+                || combined.contains("uy tin")
+                || combined.contains("thuong")
+                || combined.contains("phat")
+                || combined.contains("tru")
+                || combined.contains("cong")
+                || combined.contains("hoan");
+    }
+
+    private boolean containsProcessingKeywords(String title, String body) {
+        String combined = normalizeForMatching(title) + " " + normalizeForMatching(body);
+        return combined.contains("xu ly")
+                || combined.contains("tiep nhan")
+                || combined.contains("giai quyet")
+                || combined.contains("tu choi")
+                || combined.contains("xac minh")
+                || combined.contains("khieu nai")
+                || combined.contains("bao cao")
+                || combined.contains("yeu cau");
+    }
+
+    private String normalizeForMatching(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase();
     }
 
     /**
@@ -300,8 +423,11 @@ public class PushNotificationService {
      * Mark notification as read
      */
     @Transactional
-    public void markAsRead(UUID notificationId) {
+    public void markAsRead(UUID notificationId, UUID userId) {
         notificationRepository.findById(notificationId).ifPresent(notification -> {
+            if (notification.getUser() == null || !notification.getUser().getId().equals(userId)) {
+                throw new RuntimeException("Bạn không có quyền đánh dấu thông báo của người khác.");
+            }
             notification.setIsRead(true);
             notificationRepository.save(notification);
         });
@@ -313,5 +439,18 @@ public class PushNotificationService {
     @Transactional
     public void markAllAsRead(UUID userId) {
         notificationRepository.markAllAsReadByUserId(userId);
+    }
+
+    /**
+     * Delete a notification (only if it belongs to the user)
+     */
+    @Transactional
+    public void deleteNotification(UUID notificationId, UUID userId) {
+        notificationRepository.findById(notificationId).ifPresent(notification -> {
+            if (notification.getUser() == null || !notification.getUser().getId().equals(userId)) {
+                throw new RuntimeException("Bạn không có quyền xoá thông báo của người khác.");
+            }
+            notificationRepository.delete(notification);
+        });
     }
 }

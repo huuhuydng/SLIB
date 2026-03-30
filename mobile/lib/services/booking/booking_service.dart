@@ -11,7 +11,6 @@ import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slib/utils/nfc_uid_hasher.dart';
 
 class BookingService {
   final _storage = const FlutterSecureStorage();
@@ -23,6 +22,7 @@ class BookingService {
       if (json) 'Content-Type': 'application/json',
     };
   }
+
   // ================= AREAS =================
   Future<List<Area>> getAllAreas() async {
     final url = Uri.parse(ApiConstants.areaUrl);
@@ -179,7 +179,7 @@ class BookingService {
   }
 
   /// Lấy tất cả seats của 1 area trong 1 API call - tối ưu performance
-  /// Trả về Map<zoneId, List<Seat>>
+  /// Trả về `Map<int, List<Seat>>`
   Future<Map<int, List<Seat>>> getAllSeatsByArea(
     int areaId,
     DateTime date,
@@ -305,8 +305,13 @@ class BookingService {
   }
 
   /// @Deprecated — Use confirmSeatWithNfcUid instead
-  Future<Map<String, dynamic>> confirmSeatWithNfc(String reservationId, String nfcData) async {
-    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc/$reservationId");
+  Future<Map<String, dynamic>> confirmSeatWithNfc(
+    String reservationId,
+    String nfcData,
+  ) async {
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/confirm-nfc/$reservationId",
+    );
 
     final response = await http.post(
       url,
@@ -325,9 +330,9 @@ class BookingService {
   // ================= NFC UID MAPPING =================
 
   /// Get seat by NFC tag UID (UID Mapping Strategy)
-  /// 
+  ///
   /// Sends raw UID to backend — backend handles hashing.
-  /// 
+  ///
   /// [nfcUid] - NFC tag UID in uppercase HEX format (e.g., "04A23C91")
   /// Returns the seat information if found, throws exception otherwise.
   Future<Seat> getSeatByNfcUid(String nfcUid) async {
@@ -336,7 +341,9 @@ class BookingService {
     final response = await http.get(url, headers: await _authHeaders());
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      final Map<String, dynamic> data = jsonDecode(
+        utf8.decode(response.bodyBytes),
+      );
       return Seat.fromJson(data);
     } else if (response.statusCode == 404) {
       // Seat not found for this NFC UID
@@ -348,21 +355,23 @@ class BookingService {
   }
 
   /// Confirm seat check-in using NFC UID (UID Mapping Strategy)
-  /// 
+  ///
   /// Sends raw UID directly to backend's new confirm-nfc-uid endpoint.
   /// Backend resolves seat, validates, and confirms.
-  /// 
+  ///
   /// [reservationId] - The booking reservation ID
   /// [nfcUid] - NFC tag UID in uppercase HEX format
   /// [expectedSeatId] - The expected seat ID from the reservation (for local pre-check)
   Future<Map<String, dynamic>> confirmSeatWithNfcUid(
-    String reservationId, 
+    String reservationId,
     String nfcUid,
     int expectedSeatId,
   ) async {
     // Call the new backend endpoint directly with raw UID
-    final url = Uri.parse("${ApiConstants.bookingUrl}/confirm-nfc-uid/$reservationId");
-    
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/confirm-nfc-uid/$reservationId",
+    );
+
     final response = await http.post(
       url,
       headers: await _authHeaders(json: true),
@@ -375,5 +384,18 @@ class BookingService {
       final errorMsg = utf8.decode(response.bodyBytes);
       throw Exception(errorMsg);
     }
+  }
+
+  /// Legacy deep link check-in flow from iOS background NFC scanning.
+  ///
+  /// The old mobile flow expected a dedicated backend endpoint that accepted
+  /// `seatId` plus an HMAC `signature`. That endpoint no longer exists in the
+  /// current backend, so the app should fail gracefully instead of breaking
+  /// compilation or showing a generic network error.
+  Future<void> confirmSeatByDeepLink(int seatId, String signature) async {
+    throw Exception(
+      'Tính năng xác nhận qua liên kết NFC hiện chưa khả dụng. '
+      'Vui lòng mở ứng dụng và quét NFC trực tiếp để check-in.',
+    );
   }
 }

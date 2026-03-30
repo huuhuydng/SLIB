@@ -2,9 +2,12 @@ package slib.com.example.controller.ai;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.ai.PromptTemplateEntity;
 import slib.com.example.service.ai.PromptTemplateService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.List;
 import java.util.Map;
@@ -14,11 +17,12 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/slib/ai/admin/prompts")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class PromptTemplateController {
 
     @Autowired
     private PromptTemplateService promptTemplateService;
+    @Autowired
+    private SystemLogService systemLogService;
 
     /**
      * Get all prompt templates
@@ -40,9 +44,14 @@ public class PromptTemplateController {
      * Create new prompt
      */
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody PromptTemplateEntity prompt) {
+    public ResponseEntity<?> create(
+            @RequestBody PromptTemplateEntity prompt,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             PromptTemplateEntity created = promptTemplateService.create(prompt);
+            systemLogService.logAudit("PromptTemplateController",
+                    "Tạo prompt template: " + created.getName(),
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã thêm prompt mới",
@@ -58,9 +67,15 @@ public class PromptTemplateController {
      * Update prompt
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody PromptTemplateEntity prompt) {
+    public ResponseEntity<?> update(
+            @PathVariable Long id,
+            @RequestBody PromptTemplateEntity prompt,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             PromptTemplateEntity updated = promptTemplateService.update(id, prompt);
+            systemLogService.logAudit("PromptTemplateController",
+                    "Cập nhật prompt template: " + id,
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã cập nhật prompt",
@@ -76,9 +91,14 @@ public class PromptTemplateController {
      * Delete prompt
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             promptTemplateService.delete(id);
+            systemLogService.logAudit("PromptTemplateController",
+                    "Xoá prompt template: " + id,
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã xóa prompt"));

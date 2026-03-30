@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.io.InputStream;
  * Initializes Firebase Admin SDK for sending push notifications
  */
 @Configuration
+@Slf4j
 public class FirebaseConfig {
 
     @Value("${firebase.config.path:firebase-service-account.json}")
@@ -34,11 +36,11 @@ public class FirebaseConfig {
                         .build();
 
                 FirebaseApp.initializeApp(options);
-                System.out.println("Firebase initialized successfully");
+                log.info("Firebase initialized successfully");
             }
         } catch (IOException e) {
-            System.err.println("Firebase initialization failed: " + e.getMessage());
-            System.err.println("Push notifications will not work until firebase-service-account.json is provided");
+            log.warn("Firebase initialization failed: {}", e.getMessage());
+            log.warn("Push notifications will not work until firebase-service-account.json is provided");
         }
     }
 

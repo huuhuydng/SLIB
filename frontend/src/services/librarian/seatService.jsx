@@ -38,8 +38,6 @@ export const seatService = {
         ? `${BASE}/slib/seats?${queryString}`
         : `${BASE}/slib/seats`;
 
-      console.log('📡 API URL:', url);
-
       const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders()
@@ -64,8 +62,6 @@ export const seatService = {
   async addRestriction(seatId) {
     try {
       const url = `${BASE}/slib/seats/${seatId}/restrict`;
-
-      console.log('🔒 Adding restriction for seatId:', seatId);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -92,8 +88,6 @@ export const seatService = {
   async removeRestriction(seatId) {
     try {
       const url = `${BASE}/slib/seats/${seatId}/restrict`;
-
-      console.log('Removing restriction for seatId:', seatId);
 
       const response = await fetch(url, {
         method: 'DELETE',
@@ -133,5 +127,44 @@ export const seatService = {
       console.error('Error fetching zones:', error);
       throw error;
     }
+  },
+
+  /**
+   * Thủ thư xác nhận sinh viên đã ngồi đúng chỗ.
+   * Ưu tiên endpoint manual-confirm mới; nếu backend cũ chưa có route này thì
+   * fallback sang luồng cũ updateStatusReserv=CONFIRMED để tránh gãy thao tác.
+   */
+  async manualConfirmReservation(reservationId) {
+    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const tryReadError = async (response) => {
+      try {
+        return await response.text();
+      } catch {
+        return '';
+      }
+    };
+
+    const manualConfirmUrl = `${BASE}/slib/bookings/manual-confirm/${reservationId}`;
+    let response = await fetch(manualConfirmUrl, {
+      method: 'POST',
+      headers,
+    });
+
+    if (response.status === 404) {
+      const legacyUrl = `${BASE}/slib/bookings/updateStatusReserv/${reservationId}?status=CONFIRMED`;
+      response = await fetch(legacyUrl, {
+        method: 'PUT',
+        headers,
+      });
+    }
+
+    if (!response.ok) {
+      const errorText = await tryReadError(response);
+      throw new Error(errorText || 'Lỗi xác nhận chỗ ngồi');
+    }
+
+    return response.json().catch(() => ({}));
   }
 };

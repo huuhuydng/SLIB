@@ -10,10 +10,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.entity.users.User;
@@ -23,6 +21,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.UUID;
 
@@ -62,22 +61,15 @@ class FE12_AISuggestionSettingTest {
         @MockBean
         private StagingImportService stagingImportService;
 
-        private RequestPostProcessor authenticatedUser(String email) {
-                return request -> {
-                        var user = org.springframework.security.core.userdetails.User.withUsername(email)
-                                        .password("pass").roles("STUDENT").build();
-                        SecurityContextHolder.getContext().setAuthentication(
-                                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
-                        return request;
-                };
-        }
+        @MockBean
+        private SystemLogService systemLogService;
 
         @BeforeEach
         void clearSecurityContext() {
-                SecurityContextHolder.clearContext();
         }
 
         @Test
+        @WithMockUser(username = "student@fpt.edu.vn", roles = "STUDENT")
         @DisplayName("UTCD01: Update AI suggestion setting returns 200 OK")
         void updateAISuggestionSetting_validValue_returns200OK() throws Exception {
                 when(userService.getMyProfile(anyString())).thenReturn(
@@ -89,7 +81,6 @@ class FE12_AISuggestionSettingTest {
                 when(userService.updateUser(any(), any())).thenReturn(User.builder().build());
 
                 mockMvc.perform(patch("/slib/users/me")
-                                .with(authenticatedUser("student@fpt.edu.vn"))
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                                 .content("{\"fullName\":\"Test\"}"))
                         .andExpect(status().isOk());

@@ -12,7 +12,8 @@ import {
 import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
 import librarianService from "../../../services/librarian/librarianService";
 import dashboardService from "../../../services/librarian/dashboardService";
-import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
+import { getBehaviorSummary, getDensityPrediction, getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
+import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
 
 import "../../../styles/librarian/Dashboard.css";
@@ -172,24 +173,22 @@ const Dashboard = () => {
         console.warn('Could not fetch realtime capacity:', e);
       }
 
-      // Fetch AI Analytics data (qua Vite proxy /api/ai -> localhost:8001)
+      // Fetch AI Analytics data
       try {
-        const peakRes = await fetch('/api/ai/analytics/peak-hours');
-        const peakData = await peakRes.json();
-        if (peakData.peak_hours) setPeakHours(peakData.peak_hours.slice(0, 3));
-        if (peakData.quiet_hours) setQuietHours(peakData.quiet_hours);
+        const peakRes = await getPeakHours();
+        const peakData = peakRes?.data || {};
+        setPeakHours(Array.isArray(peakData.peak_hours) ? peakData.peak_hours.slice(0, 3) : []);
+        setQuietHours(Array.isArray(peakData.quiet_hours) ? peakData.quiet_hours : []);
       } catch (e) { console.warn('Could not fetch peak hours:', e); }
 
       try {
-        const densityRes = await fetch('/api/ai/analytics/density-prediction');
-        const densityData = await densityRes.json();
-        if (densityData.hourly_predictions) setDensityHours(densityData.hourly_predictions);
+        const densityData = await getDensityPrediction();
+        setDensityHours(Array.isArray(densityData?.hourly_predictions) ? densityData.hourly_predictions : []);
       } catch (e) { console.warn('Could not fetch density:', e); }
 
       try {
-        const behaviorRes = await fetch('/api/ai/analytics/behavior-issues');
-        const behaviorData = await behaviorRes.json();
-        if (behaviorData.students) setBehaviorIssues(behaviorData.students);
+        const behaviorData = await getBehaviorSummary();
+        setBehaviorIssues(Array.isArray(behaviorData?.students) ? behaviorData.students : []);
       } catch (e) { console.warn('Could not fetch behavior issues:', e); }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -248,14 +247,12 @@ const Dashboard = () => {
 
         // Subscribe dashboard updates (bookings, violations, complaints, feedbacks, support)
         unsubscribers.push(websocketService.subscribe('/topic/dashboard', (message) => {
-          console.log('[Dashboard] WebSocket dashboard update:', message.type, message.action);
           // Dùng refreshStatsOnly cho mọi event - nhanh, không loading flash
           setTimeout(() => refreshStatsOnly(), 500);
         }));
 
         // Subscribe news updates
         unsubscribers.push(websocketService.subscribe('/topic/news', () => {
-          console.log('[Dashboard] WebSocket news update');
           // Refresh stats + fetch news mới
           setTimeout(async () => {
             refreshStatsOnly();

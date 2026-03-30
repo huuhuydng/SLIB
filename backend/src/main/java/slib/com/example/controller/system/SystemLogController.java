@@ -19,7 +19,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/slib/system/logs")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class SystemLogController {

@@ -23,6 +23,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,7 +32,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/slib/users")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -44,6 +44,7 @@ public class UserController {
     private final CloudinaryService cloudinaryService;
     private final AsyncImportService asyncImportService;
     private final StagingImportService stagingImportService;
+    private final SystemLogService systemLogService;
 
     /**
      * Login with Google ID Token
@@ -115,7 +116,9 @@ public class UserController {
     @PostMapping("/import")
     @PreAuthorize("hasRole('ADMIN')")
     @SuppressWarnings("unchecked")
-    public ResponseEntity<?> importUsers(@RequestBody List<ImportUserRequest> requests) {
+    public ResponseEntity<?> importUsers(
+            @RequestBody List<ImportUserRequest> requests,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             if (requests == null || requests.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Danh sách user không được rỗng"));
@@ -128,6 +131,14 @@ public class UserController {
             if (successList != null && !successList.isEmpty()) {
                 userService.sendWelcomeEmails(successList);
             }
+
+            systemLogService.logAudit(
+                    "UserController",
+                    "Import người dùng: thành công %d, thất bại %d".formatted(
+                            ((Number) result.get("successCount")).intValue(),
+                            ((Number) result.get("failedCount")).intValue()),
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
 
             return ResponseEntity.ok(result);
 
@@ -144,7 +155,8 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> adminUpdateUser(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             User existingUser = userService.getUserById(userId);
             if (existingUser == null) {
@@ -183,6 +195,11 @@ public class UserController {
             }
 
             User saved = userService.saveUser(existingUser);
+            systemLogService.logAudit(
+                    "UserController",
+                    "Cập nhật thông tin người dùng: " + userId,
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "message", "Đã cập nhật thông tin người dùng",
                     "userId", userId,
@@ -201,7 +218,8 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Boolean> request) {
+            @RequestBody Map<String, Boolean> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             Boolean isActive = request.get("isActive");
             if (isActive == null) {
@@ -209,6 +227,11 @@ public class UserController {
             }
 
             User updatedUser = userService.toggleUserActive(userId, isActive);
+            systemLogService.logAudit(
+                    "UserController",
+                    (isActive ? "Mở khóa" : "Khóa") + " tài khoản người dùng: " + userId,
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản",
                     "userId", userId,
@@ -234,6 +257,11 @@ public class UserController {
 
         try {
             userService.deleteUserById(userId);
+            systemLogService.logAudit(
+                    "UserController",
+                    "Xóa người dùng: " + userId,
+                    null,
+                    userDetails.getUsername());
             return ResponseEntity.ok(Map.of(
                     "message", "Đã xoá user và tất cả dữ liệu liên quan thành công",
                     "userId", userId));

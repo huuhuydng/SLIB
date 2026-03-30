@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import slib.com.example.entity.users.User;
+import slib.com.example.entity.users.Role;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -53,4 +54,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Modifying
     @Query("UPDATE User u SET u.avtUrl = :avatarUrl WHERE UPPER(u.userCode) = UPPER(:userCode)")
     void updateAvatarUrl(@Param("userCode") String userCode, @Param("avatarUrl") String avatarUrl);
+
+    long countByRoleAndIsActiveTrue(Role role);
 }

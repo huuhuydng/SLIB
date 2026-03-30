@@ -24,7 +24,7 @@ import "../../../styles/librarian/SeatManage.css";
 const getZoneOccupancy = (zoneSeats, seatStatusMap) => {
   const total = zoneSeats.length;
   if (total === 0) return { percent: 0, booked: 0, total: 0 };
-  const booked = zoneSeats.filter(s => seatStatusMap[s.id]?.status === 'BOOKED').length;
+  const booked = zoneSeats.filter(s => ['BOOKED', 'CONFIRMED'].includes(seatStatusMap[s.id]?.status)).length;
   return { percent: Math.round((booked / total) * 100), booked, total };
 };
 
@@ -178,7 +178,7 @@ const KioskSeatManage = () => {
       setSeatStatusMap(statusMap);
 
       // Tính toán stats
-      const bookedCount = Object.values(statusMap).filter(s => s.status === 'BOOKED').length;
+      const bookedCount = Object.values(statusMap).filter(s => ['BOOKED', 'CONFIRMED'].includes(s.status)).length;
       const unavailableCount = Object.values(statusMap).filter(s => s.status === 'UNAVAILABLE').length;
       const availableCount = TOTAL_SEATS - bookedCount - unavailableCount;
 
@@ -248,19 +248,7 @@ const KioskSeatManage = () => {
       return;
     }
     try {
-      const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-      const API_BASE = API_BASE_URL;
-      const res = await fetch(
-        `${API_BASE}/slib/bookings/updateStatusReserv/${seatData.reservationId}?status=CONFIRMED`,
-        {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Lỗi xác nhận');
-      }
+      await seatService.manualConfirmReservation(seatData.reservationId);
       showToast(`Đã xác nhận chỗ ngồi ${seatCode}`);
       await loadSeatDataForTimeSlot(currentSlotIndex);
       setSelectedSeatId(null);
@@ -303,7 +291,7 @@ const KioskSeatManage = () => {
     let statusClass = "seatManage__seat--empty"; // AVAILABLE -> xanh dương
     if (status === 'UNAVAILABLE') {
       statusClass = "seatManage__seat--restricted"; // UNAVAILABLE -> xám
-    } else if (status === 'BOOKED') {
+    } else if (status === 'BOOKED' || status === 'CONFIRMED') {
       statusClass = "seatManage__seat--occupied"; // BOOKED -> cam
     }
 
@@ -469,7 +457,7 @@ const KioskSeatManage = () => {
           const status = seatData?.status || 'AVAILABLE';
           const zone = ALL_SEATS.find(s => s.id === selectedSeatId)?.zone;
 
-          if (status === 'BOOKED' && seatData?.bookedByUserName) {
+          if ((status === 'BOOKED' || status === 'CONFIRMED') && seatData?.bookedByUserName) {
             // Card thông tin sinh viên đang đặt
             const startTime = seatData.reservationStartTime
               ? new Date(seatData.reservationStartTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })

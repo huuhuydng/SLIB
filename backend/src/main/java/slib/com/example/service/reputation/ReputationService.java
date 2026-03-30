@@ -1,5 +1,6 @@
 package slib.com.example.service.reputation;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,8 @@ import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.reputation.ReputationRuleRepository;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.service.notification.PushNotificationService;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,22 +25,26 @@ import java.util.UUID;
  * Điểm uy tín được lưu trong bảng student_profiles.reputation_score.
  */
 @Service
+@Slf4j
 public class ReputationService {
 
     private final StudentProfileRepository studentProfileRepository;
     private final ReputationRuleRepository reputationRuleRepository;
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
+    private final PushNotificationService pushNotificationService;
 
     public ReputationService(
             StudentProfileRepository studentProfileRepository,
             ReputationRuleRepository reputationRuleRepository,
             ActivityLogRepository activityLogRepository,
-            PointTransactionRepository pointTransactionRepository) {
+            PointTransactionRepository pointTransactionRepository,
+            PushNotificationService pushNotificationService) {
         this.studentProfileRepository = studentProfileRepository;
         this.reputationRuleRepository = reputationRuleRepository;
         this.activityLogRepository = activityLogRepository;
         this.pointTransactionRepository = pointTransactionRepository;
+        this.pushNotificationService = pushNotificationService;
     }
 
     /**
@@ -72,7 +79,7 @@ public class ReputationService {
                 .findByRuleCodeAndIsActive(ruleCode, true);
 
         if (ruleOpt.isEmpty()) {
-            System.err.println("Rule not found or not active: " + ruleCode);
+            log.warn("Rule not found or not active: {}", ruleCode);
             return false;
         }
 
@@ -81,7 +88,7 @@ public class ReputationService {
         // Get student profile (reputation score lives here)
         Optional<StudentProfile> profileOpt = studentProfileRepository.findByUserId(userId);
         if (profileOpt.isEmpty()) {
-            System.err.println("StudentProfile not found for user: " + userId);
+            log.warn("StudentProfile not found for user: {}", userId);
             return false;
         }
 
@@ -93,9 +100,8 @@ public class ReputationService {
         profile.setReputationScore(newScore);
         studentProfileRepository.save(profile);
 
-        System.out.println(String.format(
-                "Applied rule '%s' to user %s: %d -> %d (change: %d)",
-                ruleCode, userId, currentScore, newScore, rule.getPoints()));
+        log.info("Applied rule '{}' to user {}: {} -> {} (change: {})",
+                ruleCode, userId, currentScore, newScore, rule.getPoints());
 
         // Log activity
         ActivityLogEntity activityLog = ActivityLogEntity.builder()
@@ -122,9 +128,30 @@ public class ReputationService {
                 .rule(rule)
                 .build();
 
-        pointTransactionRepository.save(transaction);
+        PointTransactionEntity savedTransaction = pointTransactionRepository.save(transaction);
+        sendReputationNotification(userId, rule.getPoints(), newScore, activityDescription, savedTransaction.getId());
 
         return true;
+    }
+
+    private void sendReputationNotification(UUID userId, int pointsChanged, int currentScore, String reason,
+            UUID referenceId) {
+        try {
+            String title = pointsChanged >= 0 ? "Điểm uy tín đã tăng" : "Điểm uy tín đã giảm";
+            String body = pointsChanged >= 0
+                    ? String.format("Bạn được cộng %d điểm. %s Điểm hiện tại: %d.", pointsChanged, reason, currentScore)
+                    : String.format("Bạn bị trừ %d điểm. %s Điểm hiện tại: %d.", Math.abs(pointsChanged), reason,
+                            currentScore);
+
+            pushNotificationService.sendToUser(
+                    userId,
+                    title,
+                    body,
+                    NotificationType.REPUTATION,
+                    referenceId);
+        } catch (Exception e) {
+            log.warn("Failed to send reputation notification for user {}", userId, e);
+        }
     }
 
     /**
@@ -141,8 +168,8 @@ public class ReputationService {
                 "NO_SHOW",
                 "Phạt: Không quét NFC đúng giờ",
                 description,
-                ActivityLogEntity.TYPE_LATE_CHECKIN_PENALTY,
-                PointTransactionEntity.TYPE_LATE_CHECKIN_PENALTY,
+                ActivityLogEntity.TYPE_NO_SHOW,
+                PointTransactionEntity.TYPE_NO_SHOW_PENALTY,
                 seatCode,
                 zoneName,
                 reservationId);
@@ -162,7 +189,7 @@ public class ReputationService {
                 "LATE_CHECKOUT",
                 "Phạt: Trả chỗ muộn",
                 description,
-                ActivityLogEntity.TYPE_LATE_CHECKIN_PENALTY,
+                ActivityLogEntity.TYPE_LATE_CHECKOUT_PENALTY,
                 PointTransactionEntity.TYPE_CHECK_OUT_LATE_PENALTY,
                 seatCode,
                 zoneName,
@@ -200,7 +227,7 @@ public class ReputationService {
                 "WEEKLY_PERFECT",
                 "Thưởng: Tuần hoàn hảo",
                 "Bạn không có vi phạm nào trong tuần. Tuyệt vời!",
-                ActivityLogEntity.TYPE_NFC_CONFIRM,
+                ActivityLogEntity.TYPE_WEEKLY_BONUS,
                 PointTransactionEntity.TYPE_WEEKLY_BONUS,
                 null,
                 null,

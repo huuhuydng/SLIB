@@ -15,18 +15,17 @@ class ActivityHistoryScreen extends StatefulWidget {
   State<ActivityHistoryScreen> createState() => _ActivityHistoryScreenState();
 }
 
-class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with WidgetsBindingObserver {
+class _ActivityHistoryScreenState extends State<ActivityHistoryScreen>
+    with WidgetsBindingObserver {
   List<Map<String, dynamic>> _activities = [];
   List<Map<String, dynamic>> _pointTransactions = [];
-  
+
   double _totalStudyHours = 0;
   int _totalVisits = 0;
-  int _totalPointsEarned = 0;
-  int _totalPointsLost = 0;
-  
+
   bool _isLoading = true;
   String? _errorMessage;
-  
+
   Timer? _refreshTimer;
 
   @override
@@ -81,15 +80,17 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
-        
+
         if (mounted) {
           setState(() {
-            _activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
-            _pointTransactions = List<Map<String, dynamic>>.from(data['pointTransactions'] ?? []);
+            _activities = List<Map<String, dynamic>>.from(
+              data['activities'] ?? [],
+            );
+            _pointTransactions = List<Map<String, dynamic>>.from(
+              data['pointTransactions'] ?? [],
+            );
             _totalStudyHours = (data['totalStudyHours'] ?? 0).toDouble();
             _totalVisits = (data['totalVisits'] ?? 0).toInt();
-            _totalPointsEarned = (data['totalPointsEarned'] ?? 0).toInt();
-            _totalPointsLost = (data['totalPointsLost'] ?? 0).toInt();
             _isLoading = false;
             _errorMessage = null;
           });
@@ -124,7 +125,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
         appBar: AppBar(
           title: const Text(
             "Lịch sử hoạt động",
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           backgroundColor: Colors.white,
           centerTitle: true,
@@ -145,15 +149,13 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? _errorMessage == 'auth'
-                    ? ErrorDisplayWidget.auth(onRetry: _loadData)
-                    : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadData)
-                : TabBarView(
-                    children: [
-                      _buildActivityTab(),
-                      _buildPointsTab(),
-                    ],
-                  ),
+            ? _errorMessage == 'auth'
+                  ? ErrorDisplayWidget.auth(onRetry: _loadData)
+                  : ErrorDisplayWidget(
+                      message: _errorMessage!,
+                      onRetry: _loadData,
+                    )
+            : TabBarView(children: [_buildActivityTab(), _buildPointsTab()]),
       ),
     );
   }
@@ -170,7 +172,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.brandColor, AppColors.brandColor.withAlpha(200)],
+                  colors: [
+                    AppColors.brandColor,
+                    AppColors.brandColor.withAlpha(200),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -201,7 +206,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
               ),
             ),
           ),
-          
+
           // Activity list
           if (_activities.isEmpty)
             SliverFillRemaining(
@@ -251,10 +256,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
     final createdAtRaw = DateTime.tryParse(activity['createdAt'] ?? '');
     final createdAt = createdAtRaw?.toLocal() ?? DateTime.now();
     final durationMinutes = activity['durationMinutes'];
-    
+
     IconData icon;
     Color color;
-    
+
     switch (type) {
       case 'CHECK_IN':
         icon = Icons.login_rounded;
@@ -320,7 +325,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -370,7 +378,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pointTransactions.length,
-              itemBuilder: (context, index) => _buildPointCard(_pointTransactions[index]),
+              itemBuilder: (context, index) =>
+                  _buildPointCard(_pointTransactions[index]),
             ),
     );
   }
@@ -379,8 +388,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
     final points = transaction['points'] ?? 0;
     final title = transaction['title'] ?? '';
     final description = transaction['description'] ?? '';
-    final createdAt = DateTime.tryParse(transaction['createdAt'] ?? '') ?? DateTime.now();
-    
+    final createdAt =
+        DateTime.tryParse(transaction['createdAt'] ?? '') ?? DateTime.now();
+
     final isPositive = points > 0;
     final color = isPositive ? Colors.green : Colors.red;
     final pointText = isPositive ? "+$points" : "$points";
@@ -408,7 +418,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -450,7 +463,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with Widg
   String _formatDateTime(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    
+
     if (diff.inDays == 0) {
       return "${DateFormat('HH:mm').format(dt)} - Hôm nay";
     } else if (diff.inDays == 1) {

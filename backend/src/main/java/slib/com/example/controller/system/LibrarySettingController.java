@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/settings")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class LibrarySettingController {
 

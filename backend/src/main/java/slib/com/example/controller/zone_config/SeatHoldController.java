@@ -7,11 +7,9 @@ import slib.com.example.service.zone_config.SeatHoldService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/slib/seats")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class SeatHoldController {
 
@@ -20,47 +18,29 @@ public class SeatHoldController {
     /**
      * Hold a seat temporarily for a specific time slot
      * POST /slib/seats/{seatId}/hold
-     * Body: { userId, startTime, endTime }
+     * Deprecated: seat holding is now managed via reservation PROCESSING flow.
      */
     @PostMapping("/{seatId}/hold")
     public ResponseEntity<?> holdSeat(
             @PathVariable Integer seatId,
             @RequestBody Map<String, String> body) {
-        try {
-            UUID userId = UUID.fromString(body.get("userId"));
-            LocalDateTime startTime = LocalDateTime.parse(body.get("startTime"));
-            LocalDateTime endTime = LocalDateTime.parse(body.get("endTime"));
-
-            Map<String, Object> result = seatHoldService.holdSeat(seatId, userId, startTime, endTime);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid request format"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.status(410).body(Map.of(
+                "error", "Chức năng giữ ghế trực tiếp không còn được hỗ trợ. Vui lòng dùng luồng tạo booking."
+        ));
     }
 
     /**
      * Release a held seat
      * DELETE /slib/seats/{seatId}/hold
-     * Body: { userId, startTime, endTime }
+     * Deprecated: seat release now follows reservation cancellation/expiry flow.
      */
     @DeleteMapping("/{seatId}/hold")
     public ResponseEntity<?> releaseSeat(
             @PathVariable Integer seatId,
             @RequestBody Map<String, String> body) {
-        try {
-            UUID userId = UUID.fromString(body.get("userId"));
-            LocalDateTime startTime = LocalDateTime.parse(body.get("startTime"));
-            LocalDateTime endTime = LocalDateTime.parse(body.get("endTime"));
-
-            Map<String, Object> result = seatHoldService.releaseSeat(seatId, userId, startTime, endTime);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid request format"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+        return ResponseEntity.status(410).body(Map.of(
+                "error", "Chức năng nhả ghế trực tiếp không còn được hỗ trợ. Vui lòng dùng luồng booking hiện tại."
+        ));
     }
 
     /**

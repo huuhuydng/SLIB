@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -32,7 +33,7 @@ class StudentProfileService {
       }
       return null;
     } catch (e) {
-      print("Error fetching student profile: $e");
+      debugPrint("Error fetching student profile: $e");
       return null;
     }
   }
@@ -63,7 +64,7 @@ class StudentProfileService {
 
       return response.statusCode == 200;
     } catch (e) {
-      print("Error updating profile: $e");
+      debugPrint("Error updating profile: $e");
       return false;
     }
   }
@@ -76,17 +77,19 @@ class StudentProfileService {
 
       final uri = Uri.parse('${ApiConstants.studentProfileUrl}/me/avatar');
       final request = http.MultipartRequest('POST', uri);
-      
+
       request.headers['Authorization'] = 'Bearer $token';
-      
+
       final ext = file.path.split('.').last.toLowerCase();
       final mimeType = ext == 'png' ? 'image/png' : 'image/jpeg';
-      
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        file.path,
-        contentType: MediaType.parse(mimeType),
-      ));
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          contentType: MediaType.parse(mimeType),
+        ),
+      );
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -98,7 +101,7 @@ class StudentProfileService {
       }
       return null;
     } catch (e) {
-      print("Error uploading avatar: $e");
+      debugPrint("Error uploading avatar: $e");
       return null;
     }
   }

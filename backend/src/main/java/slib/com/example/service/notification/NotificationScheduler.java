@@ -31,6 +31,7 @@ public class NotificationScheduler {
 
     // Track sent reminders to avoid duplicates (in memory - will reset on restart)
     private final Set<UUID> sentReminders = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> sentExpiryWarnings = ConcurrentHashMap.newKeySet();
 
     /**
      * Run every minute to check for upcoming reservations
@@ -41,11 +42,12 @@ public class NotificationScheduler {
     public void sendBookingReminders() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime reminderTime = now.plusMinutes(15);
+        LocalDateTime expiryWarningTime = now.plusMinutes(10);
 
         // Find reservations starting in the next 15-16 minutes that haven't been
         // reminded
         List<ReservationEntity> upcomingReservations = reservationRepository
-                .findByStatusIn(List.of("BOOKED", "CONFIRMED")).stream()
+                .findByStatusIn(List.of("BOOKED")).stream()
                 .filter(r -> r.getStartTime() != null)
                 .filter(r -> {
                     LocalDateTime startTime = r.getStartTime();
@@ -64,6 +66,29 @@ public class NotificationScheduler {
                         e.getMessage());
                 systemLogService.logJobEvent(LogLevel.ERROR, "NotificationScheduler",
                         "Failed to send booking reminder: " + e.getMessage());
+            }
+        }
+
+        List<ReservationEntity> endingReservations = reservationRepository
+                .findByStatusIn(List.of("CONFIRMED")).stream()
+                .filter(r -> r.getEndTime() != null)
+                .filter(r -> {
+                    LocalDateTime endTime = r.getEndTime();
+                    return endTime.isAfter(now) && endTime.isBefore(expiryWarningTime.plusMinutes(1));
+                })
+                .filter(r -> !sentExpiryWarnings.contains(r.getReservationId()))
+                .toList();
+
+        for (ReservationEntity reservation : endingReservations) {
+            try {
+                sendExpiryWarningNotification(reservation);
+                sentExpiryWarnings.add(reservation.getReservationId());
+                log.info("Sent expiry warning for reservation: {}", reservation.getReservationId());
+            } catch (Exception e) {
+                log.error("Failed to send expiry warning for reservation {}: {}", reservation.getReservationId(),
+                        e.getMessage());
+                systemLogService.logJobEvent(LogLevel.ERROR, "NotificationScheduler",
+                        "Failed to send expiry warning: " + e.getMessage());
             }
         }
 
@@ -92,7 +117,33 @@ public class NotificationScheduler {
                 title,
                 body,
                 NotificationType.REMINDER,
-                reservation.getReservationId());
+                reservation.getReservationId(),
+                PushNotificationService.DELIVERY_KEY_CHECKIN_REMINDER);
+    }
+
+    private void sendExpiryWarningNotification(ReservationEntity reservation) {
+        if (reservation.getUser() == null) {
+            log.warn("Reservation {} has no user", reservation.getReservationId());
+            return;
+        }
+
+        String seatCode = reservation.getSeat() != null ? reservation.getSeat().getSeatCode() : "N/A";
+        String endTimeStr = reservation.getEndTime() != null
+                ? reservation.getEndTime().toLocalTime().toString().substring(0, 5)
+                : "N/A";
+
+        String title = "Sắp hết giờ sử dụng";
+        String body = String.format(
+                "Phiên sử dụng ghế %s của bạn sẽ kết thúc lúc %s. Hãy chủ động lưu tài liệu và rời chỗ đúng giờ.",
+                seatCode, endTimeStr);
+
+        pushNotificationService.sendToUser(
+                reservation.getUser().getId(),
+                title,
+                body,
+                NotificationType.REMINDER,
+                reservation.getReservationId(),
+                PushNotificationService.DELIVERY_KEY_TIME_EXPIRY);
     }
 
     private void cleanupOldReminders() {
@@ -100,6 +151,10 @@ public class NotificationScheduler {
         if (sentReminders.size() > 10000) {
             sentReminders.clear();
             log.info("Cleared reminder cache");
+        }
+        if (sentExpiryWarnings.size() > 10000) {
+            sentExpiryWarnings.clear();
+            log.info("Cleared expiry warning cache");
         }
     }
 }

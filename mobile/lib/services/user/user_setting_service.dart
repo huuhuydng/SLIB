@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -24,9 +25,13 @@ class UserSettingService {
         Uri.parse('$baseUrl/$userId'),
         headers: await _authHeaders(),
       );
-      print('Fetch settings response: ${response.statusCode}, body: ${response.body}');
+      debugPrint(
+        'Fetch settings response: ${response.statusCode}, body: ${response.body}',
+      );
       if (response.statusCode == 200) {
-        return UserSetting.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+        return UserSetting.fromJson(
+          jsonDecode(utf8.decode(response.bodyBytes)),
+        );
       } else {
         throw Exception('Lỗi tải cài đặt: ${response.body}');
       }
@@ -35,7 +40,10 @@ class UserSettingService {
     }
   }
 
-  Future<UserSetting> updateSettings(String userId, UserSetting newSetting) async {
+  Future<UserSetting> updateSettings(
+    String userId,
+    UserSetting newSetting,
+  ) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/$userId'),
@@ -44,7 +52,9 @@ class UserSettingService {
       );
 
       if (response.statusCode == 200) {
-        return UserSetting.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+        return UserSetting.fromJson(
+          jsonDecode(utf8.decode(response.bodyBytes)),
+        );
       } else {
         throw Exception('Lỗi cập nhật: ${response.body}');
       }

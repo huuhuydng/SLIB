@@ -13,7 +13,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/slib/areas")
-@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class AreaController {
 

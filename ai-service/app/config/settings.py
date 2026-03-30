@@ -7,6 +7,10 @@ import os
 from typing import Optional
 from functools import lru_cache
 from pydantic_settings import BaseSettings
+from app.core.env_loader import load_project_env
+
+
+load_project_env()
 
 
 class Settings(BaseSettings):
@@ -28,7 +32,7 @@ class Settings(BaseSettings):
     # Database Configuration
     database_url: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql://postgres:Slib123@localhost:5432/slib"
+        "postgresql://postgres:@localhost:5434/slib"
     )
     
     # RAG Configuration
@@ -57,12 +61,14 @@ class Settings(BaseSettings):
     
     # Server Settings
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    jwt_secret: str = os.getenv("JWT_SECRET", "")
+    internal_api_key: str = os.getenv("INTERNAL_API_KEY", "")
     
     # Java Backend Integration
     java_backend_url: str = os.getenv("JAVA_BACKEND_URL", "http://localhost:8080/slib")
     
     class Config:
-        env_file = ".env"
+        env_file = ("../.env", ".env")
         env_file_encoding = "utf-8"
 
 

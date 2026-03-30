@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/services/booking/booking_service.dart';
 import 'package:slib/views/home/widgets/nfc_seat_verification_screen.dart';
@@ -15,15 +14,17 @@ class BookingActionDialog extends StatefulWidget {
     required this.onActionComplete,
   });
 
-  static Future<void> show(BuildContext context, UpcomingBooking booking, VoidCallback onComplete) {
+  static Future<void> show(
+    BuildContext context,
+    UpcomingBooking booking,
+    VoidCallback onComplete,
+  ) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => BookingActionDialog(
-        booking: booking,
-        onActionComplete: onComplete,
-      ),
+      builder: (context) =>
+          BookingActionDialog(booking: booking, onActionComplete: onComplete),
     );
   }
 
@@ -39,19 +40,24 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
   /// Check if booking can be cancelled (more than 12 hours before start)
   bool get _canCancel {
     final now = DateTime.now();
-    final cancelDeadline = widget.booking.startTime.subtract(const Duration(hours: 12));
+    final cancelDeadline = widget.booking.startTime.subtract(
+      const Duration(hours: 12),
+    );
     return now.isBefore(cancelDeadline);
   }
 
   /// Check if booking can be confirmed (within 15 mins before start to end AND not already confirmed)
   bool get _canConfirm {
     final now = DateTime.now();
-    final checkInStart = widget.booking.startTime.subtract(const Duration(minutes: 15));
-    final isWithinTimeWindow = now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
+    final checkInStart = widget.booking.startTime.subtract(
+      const Duration(minutes: 15),
+    );
+    final isWithinTimeWindow =
+        now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
     final isNotConfirmed = widget.booking.status.toUpperCase() != 'CONFIRMED';
     return isWithinTimeWindow && isNotConfirmed;
   }
-  
+
   /// Check if booking is already confirmed
   bool get _isAlreadyConfirmed {
     return widget.booking.status.toUpperCase() == 'CONFIRMED';
@@ -82,7 +88,7 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             // Icon
             Container(
               padding: const EdgeInsets.all(20),
@@ -90,10 +96,14 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                 color: Colors.red.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.cancel_outlined, size: 60, color: Colors.red.shade400),
+              child: Icon(
+                Icons.cancel_outlined,
+                size: 60,
+                color: Colors.red.shade400,
+              ),
             ),
             const SizedBox(height: 20),
-            
+
             // Title
             const Text(
               "Xác nhận hủy đặt chỗ",
@@ -105,7 +115,7 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               style: TextStyle(color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
-            
+
             // Info card
             Container(
               padding: const EdgeInsets.all(20),
@@ -122,18 +132,37 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               ),
               child: Column(
                 children: [
-                  _buildInfoRow(Icons.location_on_rounded, "Khu vực", widget.booking.zoneName),
+                  _buildInfoRow(
+                    Icons.location_on_rounded,
+                    "Khu vực",
+                    widget.booking.zoneName,
+                  ),
                   const Divider(height: 30),
-                  _buildInfoRow(Icons.chair_alt_rounded, "Mã ghế", widget.booking.seatCode),
+                  _buildInfoRow(
+                    Icons.chair_alt_rounded,
+                    "Mã ghế",
+                    widget.booking.seatCode,
+                  ),
                   const Divider(height: 30),
-                  _buildInfoRow(Icons.calendar_month_rounded, "Ngày", DateFormat('EEEE, dd/MM/yyyy', 'vi').format(widget.booking.startTime)),
+                  _buildInfoRow(
+                    Icons.calendar_month_rounded,
+                    "Ngày",
+                    DateFormat(
+                      'EEEE, dd/MM/yyyy',
+                      'vi',
+                    ).format(widget.booking.startTime),
+                  ),
                   const Divider(height: 30),
-                  _buildInfoRow(Icons.access_time_rounded, "Khung giờ", widget.booking.timeRange),
+                  _buildInfoRow(
+                    Icons.access_time_rounded,
+                    "Khung giờ",
+                    widget.booking.timeRange,
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Buttons
             Row(
               children: [
@@ -143,9 +172,14 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.grey[400]!),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Không', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    child: const Text(
+                      'Không',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -156,9 +190,18 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text('Xác nhận hủy', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Xác nhận hủy',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -198,26 +241,29 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
   }
 
   Future<void> _handleNfcConfirm() async {
-    final bookingService = Provider.of<BookingService>(context, listen: false);
-    
     // Store the root navigator context before popping
     final rootContext = Navigator.of(context, rootNavigator: true).context;
-    
+
     // Close this dialog first
     Navigator.pop(context);
-    
+
     // Wait a frame for the dialog to fully close
     await Future.delayed(const Duration(milliseconds: 100));
-    
+
     // Use try-catch to handle any navigation errors
     try {
+      if (!rootContext.mounted) return;
+
+      final seatCode = widget.booking.seatCode;
+      final seatId = widget.booking.seatId;
+      final reservationId = widget.booking.reservationId;
       final result = await NfcVerificationDialog.show(
         rootContext,
-        seatCode: widget.booking.seatCode,
-        seatId: widget.booking.seatId,
-        reservationId: widget.booking.reservationId,
+        seatCode: seatCode,
+        seatId: seatId,
+        reservationId: reservationId,
       );
-      
+
       if (result == true) {
         // NFC screen already confirmed via confirmSeatWithNfcUid — just refresh UI
         widget.onActionComplete();
@@ -262,14 +308,14 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Booking info header
               Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.event_seat, color: Colors.blue),
@@ -295,38 +341,45 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                   ),
                 ],
               ),
-              
+
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 24),
-              
+
               // Action buttons
               // 1. Cancel booking button
               _buildActionButton(
                 icon: Icons.cancel_outlined,
                 label: 'Hủy đặt chỗ',
-                subtitle: _canCancel 
+                subtitle: _canCancel
                     ? 'Hủy trước 12 giờ để không bị trừ điểm'
                     : 'Không thể hủy (còn dưới 12 giờ)',
                 color: Colors.red,
@@ -334,23 +387,25 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                 isLoading: _isLoading,
                 onTap: _handleCancel,
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               // 2. NFC confirm button - ẩn hoặc hiển thị "Đã xác nhận"
               _buildActionButton(
                 icon: _isAlreadyConfirmed ? Icons.check_circle : Icons.nfc,
-                label: _isAlreadyConfirmed ? 'Đã xác nhận chỗ ngồi' : 'Xác nhận chỗ ngồi',
-                subtitle: _isAlreadyConfirmed 
+                label: _isAlreadyConfirmed
+                    ? 'Đã xác nhận chỗ ngồi'
+                    : 'Xác nhận chỗ ngồi',
+                subtitle: _isAlreadyConfirmed
                     ? 'Bạn đã check-in thành công'
-                    : (_canConfirm 
-                        ? 'Chạm thẻ NFC trên bàn để check-in'
-                        : 'Có thể check-in từ 15 phút trước giờ đặt'),
+                    : (_canConfirm
+                          ? 'Chạm thẻ NFC trên bàn để check-in'
+                          : 'Có thể check-in từ 15 phút trước giờ đặt'),
                 color: _isAlreadyConfirmed ? Colors.blue : Colors.green,
                 enabled: _canConfirm && !_isLoading,
                 onTap: _handleNfcConfirm,
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),
@@ -369,7 +424,7 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: enabled ? color.withOpacity(0.1) : Colors.grey[100],
+      color: enabled ? color.withValues(alpha: 0.1) : Colors.grey[100],
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: enabled ? onTap : null,
@@ -381,7 +436,9 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: enabled ? color.withOpacity(0.2) : Colors.grey[200],
+                  color: enabled
+                      ? color.withValues(alpha: 0.2)
+                      : Colors.grey[200],
                   shape: BoxShape.circle,
                 ),
                 child: isLoading
@@ -445,9 +502,18 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+              Text(
+                label,
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
               const SizedBox(height: 4),
-              Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
             ],
           ),
         ),

@@ -10,7 +10,8 @@ import 'package:slib/views/home/widgets/booking_action_dialog.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
-  const BookingHistoryScreen({super.key});
+  final int initialTab;
+  const BookingHistoryScreen({super.key, this.initialTab = 0});
 
   @override
   State<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
@@ -147,6 +148,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
+      initialIndex: widget.initialTab.clamp(0, 2),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(

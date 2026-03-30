@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/news-categories")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class CategoryController {
 
     @Autowired

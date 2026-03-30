@@ -17,10 +17,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _isLoading = false;
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -64,12 +63,12 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await authService.signInWithGoogle();
 
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop(); 
+        Navigator.of(context, rootNavigator: true).pop();
       }
 
       if (result != null) {
         _handleSuccessfulLogin(result);
-      } 
+      }
     } catch (e) {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
@@ -140,7 +139,11 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.white,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -154,7 +157,9 @@ class _LoginScreenState extends State<LoginScreen> {
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -200,13 +205,16 @@ class _LoginScreenState extends State<LoginScreen> {
               offset: const Offset(0, -100),
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 28,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 20,
                       offset: const Offset(0, 8),
                     ),
@@ -259,9 +267,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // DIVIDER
           Row(
             children: [
@@ -276,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Expanded(child: Divider(color: Colors.grey[300], thickness: 1)),
             ],
           ),
-          
+
           const SizedBox(height: 24),
 
           // EMAIL/MSSV FIELD
@@ -286,7 +294,10 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: InputDecoration(
               hintText: "Email FPT hoặc MSSV",
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -297,7 +308,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                borderSide: const BorderSide(
+                  color: AppColors.brandColor,
+                  width: 2,
+                ),
               ),
             ),
             validator: (value) {
@@ -316,7 +330,10 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: InputDecoration(
               hintText: "Mật khẩu",
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey[300]!),
@@ -327,15 +344,21 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                borderSide: const BorderSide(
+                  color: AppColors.brandColor,
+                  width: 2,
+                ),
               ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                   color: Colors.grey[400],
                   size: 22,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
             validator: (value) {
@@ -359,7 +382,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     height: 24,
                     child: Checkbox(
                       value: _rememberMe,
-                      onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                      onChanged: (value) =>
+                          setState(() => _rememberMe = value ?? false),
                       activeColor: AppColors.brandColor,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
@@ -370,10 +394,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(width: 8),
                   Text(
                     "Ghi nhớ đăng nhập",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -382,7 +403,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordScreen(),
+                    ),
                   );
                 },
                 child: const Text(
@@ -432,19 +455,14 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: size.height * 0.5, // 50% màn hình
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: const BoxDecoration(
-        color: AppColors.brandColor,
-      ),
+      decoration: const BoxDecoration(color: AppColors.brandColor),
       child: SafeArea(
         bottom: false,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Logo only (không có text Slib)
-            Image.asset(
-              "assets/images/logo_nencam.png",
-              height: 120,
-            ),
+            Image.asset("assets/images/logo_nencam.png", height: 120),
             // Title
             const Text(
               "Đăng nhập vào tài khoản\ncủa bạn",
@@ -463,7 +481,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 50),

@@ -14,7 +14,6 @@ api.interceptors.request.use(config => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log("[Materials API]", config.method?.toUpperCase(), config.url);
     return config;
 });
 

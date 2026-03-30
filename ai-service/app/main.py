@@ -12,6 +12,7 @@ Features:
 
 import uuid
 import logging
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -26,6 +27,7 @@ from app.models.schemas import (
     AIConfig,
     ActionType
 )
+from app.core.admin_auth import require_admin_access
 from app.routers import chat, ingestion, analytics
 from app.services.java_backend_client import get_java_client
 from app.services.knowledge_base import knowledge_base_service
@@ -40,29 +42,62 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def sync_local_knowledge_base_on_startup():
+    """
+    Reload markdown files in ai-service/knowledge_base into Qdrant.
+    This makes the repo documents the primary source of truth for RAG answers
+    after each service restart or redeploy.
+    """
+    try:
+        from app.services.ingestion_service import get_ingestion_service
+
+        kb_dir = Path(__file__).resolve().parent.parent / "knowledge_base"
+        if not kb_dir.is_dir():
+            logger.warning("Knowledge base directory not found: %s", kb_dir)
+            return
+
+        ingestion_service = get_ingestion_service()
+        loaded_files = 0
+        total_chunks = 0
+
+        for filepath in sorted(kb_dir.glob("*.md")):
+            content = filepath.read_text(encoding="utf-8")
+            result = ingestion_service.ingest_text(
+                content=content,
+                source=filepath.stem,
+                category="knowledge_base",
+                metadata={"origin": "local_markdown"}
+            )
+            if result.get("success"):
+                loaded_files += 1
+                total_chunks += result.get("chunks_created", 0)
+            else:
+                logger.warning("Failed to ingest %s: %s", filepath.name, result.get("message"))
+
+        logger.info(
+            "Knowledge base sync completed: %s files, %s chunks",
+            loaded_files,
+            total_chunks,
+        )
+    except Exception as e:
+        logger.warning("Knowledge base sync skipped: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
     settings = get_settings()
-    print("=" * 60)
-    print("🤖 SLIB AI Service Starting...")
-    print(f"🔌 AI Provider: OLLAMA (RAG Mode)")
-    print(f"📦 LLM Model: {settings.ollama_model}")
-    print(f"🔢 Embedding Model: {settings.ollama_embedding_model}")
-    print(f"🏠 Ollama URL: {settings.ollama_url}")
-    print(f"🗄️  Vector DB: Qdrant at {settings.qdrant_url}")
-    print(f"📊 Similarity Threshold: {settings.similarity_threshold}")
-    print(f"🌐 Debug mode: {settings.debug}")
-    print("")
-    print("📊 Available AI Features:")
-    print("   • RAG Chat with Vector Search")
-    print("   • Document Ingestion (PDF, DOCX, Text)")
-    print("   • Human Handoff (ESCALATE_TO_LIBRARIAN)")
-    print("   • Peak Hours Analysis")
-    print("   • Time Slot Recommendations")
-    print("   • Usage Statistics")
-    print("=" * 60)
+    logger.info("SLIB AI Service starting")
+    logger.info(
+        "AI config: provider=OLLAMA model=%s embedding_model=%s ollama_url=%s qdrant_url=%s similarity_threshold=%s debug=%s",
+        settings.ollama_model,
+        settings.ollama_embedding_model,
+        settings.ollama_url,
+        settings.qdrant_url,
+        settings.similarity_threshold,
+        settings.debug,
+    )
     
     # Initialize database (optional - tables created by init_db.sql)
     try:
@@ -73,20 +108,24 @@ async def lifespan(app: FastAPI):
             logger.warning("⚠️ Database connection failed - some features may not work")
     except Exception as e:
         logger.warning(f"⚠️ Database check skipped: {e}")
+
+    sync_local_knowledge_base_on_startup()
     
     yield
     
     # Shutdown
-    print("🛑 SLIB AI Service shutting down...")
+    logger.info("SLIB AI Service shutting down")
 
 
 # Create FastAPI app
+settings = get_settings()
+
 app = FastAPI(
     title="SLIB AI Service",
     description="AI Assistant service for SLIB Smart Library - RAG Mode with Qdrant",
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
 
@@ -119,7 +158,7 @@ async def health_check():
 # ============== AI CONFIG ENDPOINTS ==============
 
 @app.get("/api/ai/config")
-async def get_config():
+async def get_config(_: dict = Depends(require_admin_access)):
     """Get current AI configuration"""
     settings = get_settings()
     java_client = get_java_client()
@@ -150,7 +189,7 @@ async def get_config():
 
 
 @app.post("/api/ai/refresh")
-async def refresh_config():
+async def refresh_config(_: dict = Depends(require_admin_access)):
     """Force refresh AI configuration"""
     java_client = get_java_client()
     java_client.refresh_all()
@@ -162,7 +201,7 @@ async def refresh_config():
 
 
 @app.post("/api/ai/test-connection", response_model=TestConnectionResponse)
-async def test_api_connection():
+async def test_api_connection(_: dict = Depends(require_admin_access)):
     """Test AI API connection (RAG service)"""
     try:
         from app.services.chat_service import get_rag_chat_service
@@ -202,8 +241,8 @@ async def legacy_chat(request: ChatRequest):
     
     if should_escalate:
         escalation_message = (
-            "Tôi sẽ chuyển bạn đến thủ thư ngay. "
-            "Vui lòng chờ trong giây lát, thủ thư sẽ tiếp nhận và hỗ trợ bạn! 👋"
+            "Tôi sẽ chuyển yêu cầu của bạn đến thủ thư. "
+            "Vui lòng chờ trong giây lát để được hỗ trợ."
         )
         
         if request.conversation_id or request.student_id:
@@ -238,11 +277,6 @@ async def legacy_chat(request: ChatRequest):
     needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
     
     reply = result["reply"]
-    if needs_review:
-        reply += (
-            "\n\n💡 *Nếu bạn cần hỗ trợ thêm, hãy nói 'cho em gặp thủ thư' "
-            "để được kết nối với nhân viên thư viện.*"
-        )
     
     confidence_score = min(result["similarity_score"], 1.0) if not needs_review else 0.3
     
@@ -285,13 +319,18 @@ async def generate_response(request: GenerateRequest):
 # ============== KNOWLEDGE BASE ENDPOINTS ==============
 
 @app.get("/api/ai/knowledge")
-async def get_knowledge():
+async def get_knowledge(_: dict = Depends(require_admin_access)):
     """Get all knowledge base items (legacy - from Java backend)"""
     return knowledge_base_service.get_all_knowledge()
 
 
 @app.post("/api/ai/knowledge")
-async def add_knowledge(title: str, content: str, knowledge_type: str = "INFO"):
+async def add_knowledge(
+    title: str,
+    content: str,
+    knowledge_type: str = "INFO",
+    _: dict = Depends(require_admin_access),
+):
     """Add new knowledge item (legacy)"""
     knowledge_base_service.add_knowledge(title, content, knowledge_type)
     return {"success": True, "message": "Knowledge added successfully"}
@@ -302,13 +341,18 @@ async def add_knowledge(title: str, content: str, knowledge_type: str = "INFO"):
 prompts_storage = []
 
 @app.get("/api/ai/prompts")
-async def get_prompts():
+async def get_prompts(_: dict = Depends(require_admin_access)):
     """Get all prompt templates"""
     return prompts_storage
 
 
 @app.post("/api/ai/prompts")
-async def create_prompt(name: str, prompt: str, context: str = "GENERAL"):
+async def create_prompt(
+    name: str,
+    prompt: str,
+    context: str = "GENERAL",
+    _: dict = Depends(require_admin_access),
+):
     """Create new prompt template"""
     new_prompt = {
         "id": len(prompts_storage) + 1,
@@ -323,25 +367,29 @@ async def create_prompt(name: str, prompt: str, context: str = "GENERAL"):
 # ============== ANALYTICS ENDPOINTS ==============
 
 @app.get("/api/ai/analytics/peak-hours")
-async def get_peak_hours(area_id: str = None):
+async def get_peak_hours(area_id: str = None, _: dict = Depends(require_admin_access)):
     """Analyze peak hours for library"""
     return analytics_ai_service.analyze_peak_hours(area_id)
 
 
 @app.get("/api/ai/analytics/recommend-slots")
-async def recommend_time_slots(duration_hours: int = 2):
+async def recommend_time_slots(duration_hours: int = 2, _: dict = Depends(require_admin_access)):
     """Get AI-powered time slot recommendations"""
     return analytics_ai_service.recommend_time_slots(duration_hours=duration_hours)
 
 
 @app.get("/api/ai/analytics/statistics")
-async def get_statistics(period: str = "week", area_id: str = None):
+async def get_statistics(period: str = "week", area_id: str = None, _: dict = Depends(require_admin_access)):
     """Get usage statistics for librarian dashboard"""
     return analytics_ai_service.get_usage_statistics(period, area_id)
 
 
 @app.get("/api/ai/analytics/predict-capacity")
-async def predict_capacity(hours_ahead: int = 1, zone_id: str = None):
+async def predict_capacity(
+    hours_ahead: int = 1,
+    zone_id: str = None,
+    _: dict = Depends(require_admin_access),
+):
     """Predict library capacity at a future time"""
     from datetime import datetime, timedelta
     target_time = datetime.now() + timedelta(hours=hours_ahead)

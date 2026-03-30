@@ -11,7 +11,7 @@ import 'firebase_options.dart';
 
 // Import cac file cua ban
 import 'services/auth/auth_service.dart';
-import 'main_screen.dart'; 
+import 'main_screen.dart';
 import 'views/authentication/on_boarding_screen.dart';
 
 @pragma('vm:entry-point')
@@ -19,18 +19,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
   if (Firebase.apps.isEmpty) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   }
-  print("Handling a background message: ${message.messageId}");
-  
+  debugPrint("Handling a background message: ${message.messageId}");
+
   // CHAT_MESSAGE: Android tự hiện notification từ FCM notification payload
   // → không cần showBackgroundNotification (tránh duplicate)
   final type = message.data['type'] ?? '';
   if (type == 'CHAT_MESSAGE') {
-    print('[BG] Skipping CHAT_MESSAGE (auto-displayed by Android)');
+    debugPrint('[BG] Skipping CHAT_MESSAGE (auto-displayed by Android)');
     return;
   }
-  
+
   // Show local notification using our helper
   await showBackgroundNotification(message);
 }
@@ -47,10 +49,10 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     } else {
-      Firebase.app(); 
+      Firebase.app();
     }
   } catch (e) {
-    print("Firebase init warning: $e");
+    debugPrint("Firebase init warning: $e");
   }
 
   // Set the background messaging handler early on, as a top-level function
@@ -64,9 +66,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authService),
         Provider<BookingService>(create: (_) => BookingService()),
-        ChangeNotifierProvider(
-          create: (_) => NotificationService(authService),
-        ),
+        ChangeNotifierProvider(create: (_) => NotificationService(authService)),
         ChangeNotifierProvider(
           create: (_) => LibraryStatusService(authService),
         ),
@@ -90,10 +90,7 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('vi', 'VN'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
       locale: const Locale('vi', 'VN'),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF751F)),
@@ -121,9 +118,11 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> _handleNavigation() async {
     try {
       final AuthService authService = context.read<AuthService>();
-      final NotificationService notificationService = context.read<NotificationService>();
-      final LibraryStatusService libraryStatusService = context.read<LibraryStatusService>();
-      
+      final NotificationService notificationService = context
+          .read<NotificationService>();
+      final LibraryStatusService libraryStatusService = context
+          .read<LibraryStatusService>();
+
       final results = await Future.wait([
         Future.delayed(const Duration(seconds: 2)),
         authService.checkLoginStatus(),
@@ -141,20 +140,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (isLoggedIn) {
         Navigator.pushReplacement(
-          context, 
-          MaterialPageRoute(builder: (_) => MainScreen(key: MainScreen.globalKey))
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainScreen(key: MainScreen.globalKey),
+          ),
         );
       } else {
         Navigator.pushReplacement(
-          context, 
-          MaterialPageRoute(builder: (_) => const OnBoardingScreen())
+          context,
+          MaterialPageRoute(builder: (_) => const OnBoardingScreen()),
         );
       }
     } catch (e) {
-      print("Loi Navigation: $e");
+      debugPrint("Loi Navigation: $e");
       if (mounted) {
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const OnBoardingScreen()));
+          context,
+          MaterialPageRoute(builder: (_) => const OnBoardingScreen()),
+        );
       }
     }
   }
@@ -172,9 +175,9 @@ class _MyHomePageState extends State<MyHomePage> {
               width: 150,
               height: 150,
               errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.local_library_rounded, 
-                size: 100, 
-                color: Color(0xFFFF751F)
+                Icons.local_library_rounded,
+                size: 100,
+                color: Color(0xFFFF751F),
               ),
             ),
             const SizedBox(height: 20),

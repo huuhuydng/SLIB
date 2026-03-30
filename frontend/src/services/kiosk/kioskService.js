@@ -85,6 +85,15 @@ const kioskService = {
   },
 
   /**
+   * Xác thực mã sinh viên nhập tay trên kiosk
+   * @param {string} studentCode - Mã sinh viên
+   */
+  verifyStudent: async (studentCode) => {
+    const response = await kioskApi.get(`/session/verify-student/${encodeURIComponent(studentCode)}`);
+    return response.data;
+  },
+
+  /**
    * Hoàn tất phiên sau khi xác thực mobile
    * @param {string} sessionToken - Session token
    * @param {string} userId - User ID

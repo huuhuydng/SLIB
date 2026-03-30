@@ -9,17 +9,19 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 // --- IMPORTS MỚI ---
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
-import 'package:slib/models/user_setting.dart';   
+import 'package:slib/models/user_setting.dart';
 import 'package:slib/services/hce/hce_bridge.dart';
-import 'package:slib/services/user/user_setting_service.dart'; 
-import 'package:slib/services/app/local_storage_service.dart'; 
+import 'package:slib/services/user/user_setting_service.dart';
+import 'package:slib/services/app/local_storage_service.dart';
 
 class AuthService extends ChangeNotifier {
-  static const String _webClientId = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
+  static const String _webClientId =
+      '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
 
   static String getBaseUrl() {
-    return ApiConstants.authUrl; 
+    return ApiConstants.authUrl;
   }
+
   static String baseUrl = getBaseUrl();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
@@ -28,7 +30,7 @@ class AuthService extends ChangeNotifier {
   );
 
   final _storage = const FlutterSecureStorage();
-  
+
   final UserSettingService _settingApiService = UserSettingService();
   final LocalStorageService _localService = LocalStorageService();
 
@@ -40,7 +42,7 @@ class AuthService extends ChangeNotifier {
 
   Future<bool> checkLoginStatus() async {
     _currentSetting = await _localService.loadSettings();
-    notifyListeners(); 
+    notifyListeners();
 
     String? token = await getToken();
     if (token == null) return false;
@@ -84,11 +86,11 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        print("Check login failed with status: ${response.statusCode}");
+        debugPrint("Check login failed with status: ${response.statusCode}");
         return false;
       }
     } catch (e) {
-      print("Check login error: $e");
+      debugPrint("Check login error: $e");
       return false;
     }
   }
@@ -103,10 +105,13 @@ class AuthService extends ChangeNotifier {
         throw Exception('Vui lòng sử dụng email sinh viên FPT (@fpt.edu.vn)!');
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
-      if (idToken == null) throw Exception('Không lấy được ID Token từ Google.');
+      if (idToken == null) {
+        throw Exception('Không lấy được ID Token từ Google.');
+      }
 
       String? fcmToken;
       try {
@@ -118,7 +123,7 @@ class AuthService extends ChangeNotifier {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'id_token': idToken,
-          'full_name': googleUser.displayName, 
+          'full_name': googleUser.displayName,
           'noti_device': fcmToken,
         }),
       );
@@ -128,9 +133,10 @@ class AuthService extends ChangeNotifier {
         final jsonMap = jsonDecode(decodedBody);
 
         // New JWT response format - accessToken and user data at root level
-        final String accessToken = jsonMap['accessToken'] ?? jsonMap['access_token'];
+        final String accessToken =
+            jsonMap['accessToken'] ?? jsonMap['access_token'];
         final String? refreshToken = jsonMap['refreshToken'];
-        
+
         await _saveToken(accessToken);
         if (refreshToken != null) {
           await _saveRefreshToken(refreshToken);
@@ -147,7 +153,7 @@ class AuthService extends ChangeNotifier {
           isActive: jsonMap['isActive'] ?? true,
           passwordChanged: jsonMap['passwordChanged'] ?? true,
         );
-        
+
         await _saveUserCode(_currentUser!.userCode);
         await HceBridge.setUserId(_currentUser!.id);
         await _fetchAndSyncSettings(_currentUser!.id);
@@ -163,13 +169,16 @@ class AuthService extends ChangeNotifier {
       }
     } catch (e) {
       if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
-      print('Google Sign-In Error: $e');
+      debugPrint('Google Sign-In Error: $e');
       throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
     }
   }
 
   /// Sign in with email/username/MSSV and password
-  Future<UserProfile?> signInWithPassword(String identifier, String password) async {
+  Future<UserProfile?> signInWithPassword(
+    String identifier,
+    String password,
+  ) async {
     try {
       String? fcmToken;
       try {
@@ -182,19 +191,17 @@ class AuthService extends ChangeNotifier {
           'Content-Type': 'application/json',
           'X-Device-Info': 'mobile-app',
         },
-        body: jsonEncode({
-          'identifier': identifier,
-          'password': password,
-        }),
+        body: jsonEncode({'identifier': identifier, 'password': password}),
       );
 
       if (response.statusCode == 200) {
         final decodedBody = utf8.decode(response.bodyBytes);
         final jsonMap = jsonDecode(decodedBody);
 
-        final String accessToken = jsonMap['accessToken'] ?? jsonMap['access_token'];
+        final String accessToken =
+            jsonMap['accessToken'] ?? jsonMap['access_token'];
         final String? refreshToken = jsonMap['refreshToken'];
-        
+
         await _saveToken(accessToken);
         if (refreshToken != null) {
           await _saveRefreshToken(refreshToken);
@@ -210,7 +217,7 @@ class AuthService extends ChangeNotifier {
           isActive: jsonMap['isActive'] ?? true,
           passwordChanged: jsonMap['passwordChanged'] ?? false,
         );
-        
+
         await _saveUserCode(_currentUser!.userCode);
         await HceBridge.setUserId(_currentUser!.id);
 
@@ -218,7 +225,7 @@ class AuthService extends ChangeNotifier {
         if (fcmToken != null) {
           syncFcmToken(_currentUser!.id);
         }
-        
+
         await _fetchAndSyncSettings(_currentUser!.id);
 
         // Fetch full profile from /me to get avtUrl and other fields
@@ -232,14 +239,15 @@ class AuthService extends ChangeNotifier {
         String errorMessage;
         try {
           final jsonError = jsonDecode(errorBody);
-          errorMessage = jsonError['message'] ?? jsonError['error'] ?? errorBody;
+          errorMessage =
+              jsonError['message'] ?? jsonError['error'] ?? errorBody;
         } catch (_) {
           errorMessage = errorBody;
         }
         throw Exception(errorMessage);
       }
     } catch (e) {
-      print('Password Sign-In Error: $e');
+      debugPrint('Password Sign-In Error: $e');
       String message = e.toString();
       if (message.startsWith('Exception: ')) {
         message = message.substring(11);
@@ -249,7 +257,10 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Change password for authenticated user
-  Future<void> changePassword(String currentPassword, String newPassword) async {
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       String? token = await getToken();
       if (token == null) {
@@ -279,7 +290,8 @@ class AuthService extends ChangeNotifier {
         String errorMessage;
         try {
           final jsonError = jsonDecode(errorBody);
-          errorMessage = jsonError['message'] ?? jsonError['error'] ?? errorBody;
+          errorMessage =
+              jsonError['message'] ?? jsonError['error'] ?? errorBody;
         } catch (_) {
           errorMessage = errorBody;
         }
@@ -294,14 +306,13 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-
   Future<void> _fetchAndSyncSettings(String userId) async {
     try {
       final freshSetting = await _settingApiService.getSettings(userId);
       _currentSetting = freshSetting;
-      await _localService.saveSettings(freshSetting); 
+      await _localService.saveSettings(freshSetting);
     } catch (e) {
-      print("⚠️ Lỗi sync setting từ server: $e");
+      debugPrint("⚠️ Lỗi sync setting từ server: $e");
     }
   }
 
@@ -314,7 +325,7 @@ class AuthService extends ChangeNotifier {
     try {
       await _settingApiService.updateSettings(newSetting.userId, newSetting);
     } catch (e) {
-      print("❌ Lỗi sync setting lên server: $e");
+      debugPrint("❌ Lỗi sync setting lên server: $e");
     }
   }
 
@@ -333,10 +344,10 @@ class AuthService extends ChangeNotifier {
             },
             body: jsonEncode({'notiDevice': null}),
           );
-          print('✅ FCM token cleared on server');
+          debugPrint('✅ FCM token cleared on server');
         }
       } catch (e) {
-        print('⚠️ Could not clear FCM token on server: $e');
+        debugPrint('⚠️ Could not clear FCM token on server: $e');
       }
 
       // Xóa từng key riêng lẻ thay vì deleteAll()
@@ -346,20 +357,20 @@ class AuthService extends ChangeNotifier {
       await _storage.delete(key: 'user_code');
       await _googleSignIn.signOut();
       await HceBridge.clearUserId();
-      
+
       _currentUser = null;
       _currentSetting = null;
       await _localService.clearData();
-      
+
       notifyListeners();
     } catch (e) {
-      print("Lỗi logout: $e");
+      debugPrint("Lỗi logout: $e");
       _currentUser = null;
       _currentSetting = null;
       notifyListeners();
     }
   }
-  
+
   Future<void> syncFcmToken(String userId) async {
     try {
       String? fcmToken = await FirebaseMessaging.instance.getToken();
@@ -377,22 +388,26 @@ class AuthService extends ChangeNotifier {
         },
         body: jsonEncode({'notiDevice': fcmToken}),
       );
-      if(response.statusCode == 200) print("✅ FCM Synced");
+      if (response.statusCode == 200) debugPrint("✅ FCM Synced");
     } catch (e) {
-      print("❌ FCM Sync Error: $e");
+      debugPrint("❌ FCM Sync Error: $e");
     }
   }
 
   // Token storage methods
-  Future<void> _saveToken(String token) async => await _storage.write(key: 'jwt_token', value: token);
+  Future<void> _saveToken(String token) async =>
+      await _storage.write(key: 'jwt_token', value: token);
   Future<String?> getToken() async => await _storage.read(key: 'jwt_token');
-  Future<void> _saveRefreshToken(String token) async => await _storage.write(key: 'refresh_token', value: token);
-  Future<String?> getRefreshToken() async => await _storage.read(key: 'refresh_token');
-  Future<void> _saveUserCode(String code) async => await _storage.write(key: 'user_code', value: code);
-  
+  Future<void> _saveRefreshToken(String token) async =>
+      await _storage.write(key: 'refresh_token', value: token);
+  Future<String?> getRefreshToken() async =>
+      await _storage.read(key: 'refresh_token');
+  Future<void> _saveUserCode(String code) async =>
+      await _storage.write(key: 'user_code', value: code);
+
   Future<UserProfile?> getProfile({bool forceRefresh = false}) async {
     if (_currentUser != null && !forceRefresh) return _currentUser;
-    await checkLoginStatus(); 
+    await checkLoginStatus();
     return _currentUser;
   }
 
@@ -429,12 +444,13 @@ class AuthService extends ChangeNotifier {
       _refreshCompleter = null;
       return false;
     } catch (e) {
-      print("❌ Token refresh error: $e");
+      debugPrint("❌ Token refresh error: $e");
       _refreshCompleter?.complete(false);
       _refreshCompleter = null;
       return false;
     }
   }
+
   Completer<bool>? _refreshCompleter;
 
   /// Lấy token hợp lệ, tự động refresh nếu cần.
@@ -568,7 +584,9 @@ class AuthService extends ChangeNotifier {
         final resultJson = jsonDecode(resultStr);
         return resultJson['access_token'];
       } else {
-        throw Exception(jsonMap['message'] ?? 'Mã OTP không đúng hoặc đã hết hạn');
+        throw Exception(
+          jsonMap['message'] ?? 'Mã OTP không đúng hoặc đã hết hạn',
+        );
       }
     } catch (e) {
       String message = e.toString();

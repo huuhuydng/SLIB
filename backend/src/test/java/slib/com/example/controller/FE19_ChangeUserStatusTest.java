@@ -9,6 +9,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.entity.users.User;
@@ -18,6 +19,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.UUID;
 
@@ -54,7 +56,11 @@ class FE19_ChangeUserStatusTest {
         @MockBean
         private StagingImportService stagingImportService;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCD01: Change user status returns 200 OK")
         void changeUserStatus_admin_returns200OK() throws Exception {
                 UUID userId = UUID.randomUUID();
@@ -68,6 +74,7 @@ class FE19_ChangeUserStatusTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCD02: Invalid UUID format returns 400 Bad Request")
         void changeUserStatus_invalidUUID_returns400() throws Exception {
                 mockMvc.perform(patch("/slib/users/invalid-uuid/status")

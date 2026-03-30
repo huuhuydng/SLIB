@@ -6,15 +6,20 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.system.BackupHistoryEntity;
 import slib.com.example.entity.system.BackupScheduleEntity;
 import slib.com.example.repository.system.BackupScheduleRepository;
 import slib.com.example.service.system.BackupService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.io.File;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 /**
@@ -23,12 +28,13 @@ import java.util.*;
  */
 @RestController
 @RequestMapping("/slib/system/backup")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class BackupController {
 
     private final BackupService backupService;
     private final BackupScheduleRepository backupScheduleRepository;
+    private final SystemLogService systemLogService;
 
     // =========================================
     // === MANUAL BACKUP ===
@@ -38,9 +44,14 @@ public class BackupController {
      * POST /slib/system/backup — Trigger manual backup
      */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> triggerBackup() {
+    public ResponseEntity<Map<String, Object>> triggerBackup(@AuthenticationPrincipal UserDetails userDetails) {
         try {
             BackupHistoryEntity result = backupService.performBackup();
+            systemLogService.logAudit(
+                    "BackupController",
+                    "Kích hoạt sao lưu thủ công: " + result.getId(),
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
             Map<String, Object> response = new HashMap<>();
             response.put("id", result.getId());
             response.put("status", result.getStatus().name());
@@ -51,6 +62,7 @@ public class BackupController {
             response.put("message", "Sao lưu thành công");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            systemLogService.logError("BackupController", "Sao lưu thủ công thất bại", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of(
                     "status", "FAILED",
                     "message", "Sao lưu thất bại: " + e.getMessage()
@@ -141,7 +153,9 @@ public class BackupController {
      * Body: { "time": "03:00", "retainDays": 30, "isActive": true }
      */
     @PutMapping("/schedule")
-    public ResponseEntity<Map<String, Object>> updateSchedule(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> updateSchedule(
+            @RequestBody Map<String, Object> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
         BackupScheduleEntity schedule = backupScheduleRepository.findFirstByOrderByIdAsc()
                 .orElseGet(() -> BackupScheduleEntity.builder()
                         .scheduleName("Daily Backup")
@@ -152,7 +166,14 @@ public class BackupController {
                         .build());
 
         if (request.containsKey("time")) {
-            schedule.setCronExpression(request.get("time").toString());
+            try {
+                LocalTime backupTime = parseBackupTime(request.get("time").toString());
+                schedule.setCronExpression(backupTime.toString());
+            } catch (DateTimeParseException e) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Thời gian backup không hợp lệ. Định dạng đúng là HH:mm"
+                ));
+            }
         }
         if (request.containsKey("retainDays")) {
             schedule.setRetainDays(Integer.parseInt(request.get("retainDays").toString()));
@@ -174,6 +195,14 @@ public class BackupController {
         }
 
         backupScheduleRepository.save(schedule);
+        systemLogService.logAudit(
+                "BackupController",
+                "Cập nhật lịch sao lưu: time=%s, retainDays=%s, active=%s".formatted(
+                        schedule.getCronExpression(),
+                        schedule.getRetainDays(),
+                        schedule.getIsActive()),
+                null,
+                userDetails != null ? userDetails.getUsername() : null);
         return ResponseEntity.ok(scheduleToMap(schedule));
     }
 
@@ -200,5 +229,9 @@ public class BackupController {
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024L * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+
+    private LocalTime parseBackupTime(String time) {
+        return LocalTime.parse(time);
     }
 }

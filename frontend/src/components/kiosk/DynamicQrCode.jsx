@@ -68,7 +68,6 @@ const DynamicQrCode = ({
 
       // Auto refresh when 30 seconds left
       if (remaining <= 30 && remaining > 0) {
-        console.log('QR expiring soon, refreshing...');
         generateQr();
       }
     }, 1000);
@@ -82,7 +81,6 @@ const DynamicQrCode = ({
 
     // Set up auto-refresh interval
     const refreshInterval = setInterval(() => {
-      console.log('Auto-refreshing QR...');
       generateQr();
     }, refreshIntervalMs);
 

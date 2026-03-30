@@ -57,7 +57,6 @@ export default function IdleSlideshow({ children, idleTimeMs = 5000, forceActive
         });
         setImages(activeImages);
         setCurrentImageIndex(0); // Reset về ảnh đầu tiên mỗi khi kích hoạt lại
-        console.log(`✅ Slideshow activated - Loaded ${activeImages.length} active images`);
       } else {
         console.warn('⚠️ No images found in Cloudinary');
         setImages([]);

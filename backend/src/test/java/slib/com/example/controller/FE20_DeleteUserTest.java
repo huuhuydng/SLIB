@@ -10,10 +10,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.users.AsyncImportService;
@@ -21,6 +19,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.UUID;
 
@@ -57,28 +56,20 @@ class FE20_DeleteUserTest {
         @MockBean
         private StagingImportService stagingImportService;
 
-        private RequestPostProcessor authenticatedAdmin(String email) {
-                return request -> {
-                        var user = org.springframework.security.core.userdetails.User.withUsername(email)
-                                        .password("pass").roles("ADMIN").build();
-                        SecurityContextHolder.getContext().setAuthentication(
-                                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
-                        return request;
-                };
-        }
+        @MockBean
+        private SystemLogService systemLogService;
 
         @BeforeEach
         void clearSecurityContext() {
-                SecurityContextHolder.clearContext();
         }
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: Delete user with valid token returns 200 OK")
         void deleteUser_admin_returns200OK() throws Exception {
                 doNothing().when(userService).deleteUserById(any());
 
-                mockMvc.perform(delete("/slib/users/" + UUID.randomUUID())
-                                .with(authenticatedAdmin("admin@fpt.edu.vn")))
+                mockMvc.perform(delete("/slib/users/" + UUID.randomUUID()))
                         .andExpect(status().isOk());
         }
 

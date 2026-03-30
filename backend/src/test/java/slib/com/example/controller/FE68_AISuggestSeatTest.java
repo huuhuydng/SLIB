@@ -9,6 +9,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.RestTemplate;
@@ -56,7 +58,7 @@ class FE68_AISuggestSeatTest {
                                 "zone", "Zone A",
                                 "confidence", 0.85);
 
-                when(restTemplate.getForEntity(anyString(), eq(Map.class)))
+                when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                                 .thenReturn(ResponseEntity.ok(aiResponse));
 
                 mockMvc.perform(get("/slib/ai/analytics/seat-recommendation")
@@ -67,7 +69,7 @@ class FE68_AISuggestSeatTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.recommended_seat").value("A-05"));
 
-                verify(restTemplate, times(1)).getForEntity(anyString(), eq(Map.class));
+                verify(restTemplate, times(1)).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class));
         }
 
         // =========================================
@@ -87,7 +89,7 @@ class FE68_AISuggestSeatTest {
                                 "zone", "Zone B",
                                 "confidence", 0.72);
 
-                when(restTemplate.getForEntity(anyString(), eq(Map.class)))
+                when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                                 .thenReturn(ResponseEntity.ok(aiResponse));
 
                 mockMvc.perform(get("/slib/ai/analytics/seat-recommendation")
@@ -95,7 +97,7 @@ class FE68_AISuggestSeatTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.recommended_seat").value("B-01"));
 
-                verify(restTemplate, times(1)).getForEntity(anyString(), eq(Map.class));
+                verify(restTemplate, times(1)).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class));
         }
 
         // =========================================
@@ -113,7 +115,7 @@ class FE68_AISuggestSeatTest {
                 mockMvc.perform(get("/slib/ai/analytics/seat-recommendation"))
                                 .andExpect(status().isBadRequest());
 
-                verify(restTemplate, never()).getForEntity(anyString(), any());
+                verify(restTemplate, never()).exchange(anyString(), any(), any(), eq(Map.class));
         }
 
         // =========================================
@@ -129,7 +131,7 @@ class FE68_AISuggestSeatTest {
         @DisplayName("UTCID04: Empty user_id value triggers downstream error returns 500")
         void getSeatRecommendation_emptyUserId_returns500() throws Exception {
                 // Controller has no try-catch, so HttpClientErrorException propagates as 500
-                when(restTemplate.getForEntity(anyString(), eq(Map.class)))
+                when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                                 .thenThrow(new org.springframework.web.client.HttpClientErrorException(
                                                 org.springframework.http.HttpStatus.BAD_REQUEST));
 
@@ -155,7 +157,7 @@ class FE68_AISuggestSeatTest {
                                 "zone", "Zone C",
                                 "confidence", 0.90);
 
-                when(restTemplate.getForEntity(anyString(), eq(Map.class)))
+                when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                                 .thenReturn(ResponseEntity.ok(aiResponse));
 
                 mockMvc.perform(get("/slib/ai/analytics/seat-recommendation")
@@ -165,6 +167,6 @@ class FE68_AISuggestSeatTest {
                                 .andExpect(jsonPath("$.recommended_seat").value("C-12"))
                                 .andExpect(jsonPath("$.confidence").value(0.90));
 
-                verify(restTemplate, times(1)).getForEntity(anyString(), eq(Map.class));
+                verify(restTemplate, times(1)).exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class));
         }
 }

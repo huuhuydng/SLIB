@@ -24,8 +24,6 @@ const KioskQrAuth = () => {
     const topic = `/topic/kiosk/${KIOSK_CODE}/session-updated`;
 
     const handleSessionUpdate = (data) => {
-      console.log('Session updated:', data);
-
       if (data.action === 'CHECK_IN' || data.action === 'SESSION_CREATED' || data.action === 'NONE') {
         // Store session data and navigate to dashboard
         sessionStorage.setItem('kiosk_session', JSON.stringify({
@@ -51,7 +49,6 @@ const KioskQrAuth = () => {
     const connectWs = () => {
       websocketService.connect(
         () => {
-          console.log('WebSocket connected');
           setConnected(true);
           websocketService.subscribe(topic, handleSessionUpdate);
         },
@@ -80,7 +77,7 @@ const KioskQrAuth = () => {
           navigate('/kiosk/dashboard');
         }
       } catch (err) {
-        console.log('No existing session');
+        // Không có session hoạt động, giữ nguyên màn QR.
       }
     };
 

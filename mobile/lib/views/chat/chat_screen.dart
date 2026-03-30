@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
   final ChatWebSocketService _chatWsService = ChatWebSocketService();
+  final FlutterSecureStorage _chatStateStorage = const FlutterSecureStorage();
   AnimationController? _dotAnimController;
 
   bool _isTyping = false; // Trang thai Bot dang go
@@ -67,6 +69,30 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   static const String _keyIsWaitingInQueue = 'chat_is_waiting';
   static const String _keyMessages = 'chat_messages';
   static const String _keyUserId = 'chat_user_id';
+
+  Future<String?> _readChatState(String key) =>
+      _chatStateStorage.read(key: key);
+
+  Future<void> _writeChatState(String key, String value) =>
+      _chatStateStorage.write(key: key, value: value);
+
+  Future<void> _writeChatStateBool(String key, bool value) =>
+      _chatStateStorage.write(key: key, value: value.toString());
+
+  Future<bool> _readChatStateBool(
+    String key, {
+    bool defaultValue = false,
+  }) async {
+    final value = await _chatStateStorage.read(key: key);
+    if (value == null) return defaultValue;
+    return value.toLowerCase() == 'true';
+  }
+
+  Future<void> _removeChatStateKeys(List<String> keys) async {
+    for (final key in keys) {
+      await _chatStateStorage.delete(key: key);
+    }
+  }
 
   bool _isLoadingState = true; // Loading indicator
   bool _userCancelledQueue = false; // Flag: user chủ động hủy queue
@@ -119,20 +145,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Load saved conversation state từ SharedPreferences
   Future<void> _loadSavedState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      String? savedConversationId = prefs.getString(_keyConversationId);
-      final savedLibrarianName = prefs.getString(_keyLibrarianName);
-      final savedIsWaiting = prefs.getBool(_keyIsWaitingInQueue) ?? false;
+      final authService = Provider.of<AuthService>(context, listen: false);
+      String? savedConversationId = await _readChatState(_keyConversationId);
+      final savedLibrarianName = await _readChatState(_keyLibrarianName);
+      final savedIsWaiting = await _readChatStateBool(_keyIsWaitingInQueue);
 
-      print(
+      debugPrint(
         '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting',
       );
 
-      final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
 
       if (token == null) {
-        print('[PERSIST] No auth token, loading local messages only');
+        debugPrint('[PERSIST] No auth token, loading local messages only');
         await _loadLocalMessages();
         return;
       }
@@ -147,35 +172,37 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final activeConv = await _chatService.getMyActiveConversation(token);
       if (activeConv != null && activeConv['hasActive'] == true) {
         activeConversationId = activeConv['conversationId'];
-        activeLibrarianName = activeConv['librarianName'] ?? '';
+        activeLibrarianName =
+            activeConv['librarianName'] ?? savedLibrarianName ?? '';
         isFromBackend = true;
-        print(
+        debugPrint(
           '[PERSIST] Backend returned active conversation: $activeConversationId, status: ${activeConv['status']}',
         );
       } else if (savedConversationId != null) {
         // Backend nói KHÔNG có active conversation → kiểm tra saved AI session
         // Chỉ dùng nếu _keyUserId đã lưu (code mới) — tránh dùng data user khác
-        final savedUserId = prefs.getString(_keyUserId);
+        final savedUserId = await _readChatState(_keyUserId);
         if (savedUserId != null) {
           activeConversationId = savedConversationId;
           isFromBackend = false;
-          print(
+          debugPrint(
             '[PERSIST] No active backend conversation, using saved AI session (userId=$savedUserId): $activeConversationId',
           );
         } else {
           // Không có savedUserId → data cũ, không tin tưởng → clear conversation state nhưng giữ messages
-          print(
+          debugPrint(
             '[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)',
           );
-          final prefs2 = await SharedPreferences.getInstance();
-          await prefs2.remove(_keyConversationId);
-          await prefs2.remove(_keyIsEscalated);
-          await prefs2.remove(_keyLibrarianName);
-          await prefs2.remove(_keyIsWaitingInQueue);
+          await _removeChatStateKeys([
+            _keyConversationId,
+            _keyIsEscalated,
+            _keyLibrarianName,
+            _keyIsWaitingInQueue,
+          ]);
           // KHÔNG xóa _keyMessages — giữ lại tin nhắn cũ
         }
       } else {
-        print('[PERSIST] No active conversation found');
+        debugPrint('[PERSIST] No active conversation found');
       }
 
       if (activeConversationId != null && isFromBackend) {
@@ -184,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           activeConversationId,
           token,
         );
-        print(
+        debugPrint(
           '[PERSIST] Backend status: ${status.status}, isHumanChatting: ${status.isHumanChatting}',
         );
 
@@ -197,7 +224,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _librarianName = activeLibrarianName ?? status.librarianName;
           });
 
-          await _loadMessagesFromBackend(activeConversationId!, token);
+          await _loadMessagesFromBackend(activeConversationId, token);
           await _saveState();
 
           // Subscribe WebSocket để nhận tin nhắn realtime + typing indicator
@@ -236,7 +263,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _saveMessages();
             }
           });
-          _chatWsService.subscribeToConversation(activeConversationId!);
+          _chatWsService.subscribeToConversation(activeConversationId);
           _startMessagePolling(token);
         } else if (status.isWaiting) {
           // Đang chờ trong hàng đợi
@@ -249,7 +276,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 : 1;
           });
 
-          await _loadMessagesFromBackend(activeConversationId!, token);
+          await _loadMessagesFromBackend(activeConversationId, token);
 
           // Re-add queue waiting indicator message (UI-only, not stored in backend)
           setState(() {
@@ -275,7 +302,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         } else {
           // AI_HANDLING hoặc RESOLVED -> user chat với bot bình thường
           // Load messages từ backend (có pagination)
-          await _loadMessagesFromBackendPaginated(activeConversationId!, token);
+          await _loadMessagesFromBackendPaginated(activeConversationId, token);
           if (mounted) {
             setState(() {
               _conversationId = activeConversationId;
@@ -284,7 +311,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _librarianName = null;
             });
           }
-          print(
+          debugPrint(
             '[PERSIST] Session is in AI mode, keeping session ID: $activeConversationId',
           );
         }
@@ -292,7 +319,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         // Saved AI session (không có active conversation trên backend)
         // Thử load từ backend trước, fallback sang local
         try {
-          await _loadMessagesFromBackendPaginated(activeConversationId!, token);
+          await _loadMessagesFromBackendPaginated(activeConversationId, token);
         } catch (_) {
           await _loadLocalMessages();
         }
@@ -304,25 +331,24 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             _librarianName = null;
           });
         }
-        print('[PERSIST] Loaded local AI session: $activeConversationId');
+        debugPrint('[PERSIST] Loaded local AI session: $activeConversationId');
       } else {
         // Không có conversation nào → load local messages nếu có
-        print('[PERSIST] No active conversation found');
+        debugPrint('[PERSIST] No active conversation found');
         // Tạo conversation mới cho AI chat
         try {
           final convId = await _chatService.getOrCreateConversation(token);
           if (convId != null && mounted) {
             setState(() => _conversationId = convId);
             // Save conversation ID cho lần sau
-            final prefs2 = await SharedPreferences.getInstance();
-            await prefs2.setString(_keyConversationId, convId);
+            await _writeChatState(_keyConversationId, convId);
             // Load messages (nếu có từ lần trước)
             await _loadMessagesFromBackendPaginated(convId, token);
           } else {
             await _loadLocalMessages();
           }
         } catch (e) {
-          print('[PERSIST] Error creating conversation: $e');
+          debugPrint('[PERSIST] Error creating conversation: $e');
           await _loadLocalMessages();
         }
       }
@@ -333,7 +359,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _connectStudentTopicAlways(token);
       }
     } catch (e) {
-      print('[PERSIST] Error loading state: $e');
+      debugPrint('[PERSIST] Error loading state: $e');
       // Fallback: luôn thử load local messages khi có lỗi
       await _loadLocalMessages();
     } finally {
@@ -358,7 +384,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         conversationId,
         token,
       );
-      print(
+      debugPrint(
         '[PERSIST] Loaded ${backendMessages.length} messages from backend (keepExisting=$keepExisting)',
       );
 
@@ -402,7 +428,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         // Mark messages as read (student đánh dấu tin librarian là đã đọc)
       }
     } catch (e) {
-      print('[PERSIST] Error loading messages: $e');
+      debugPrint('[PERSIST] Error loading messages: $e');
     }
   }
 
@@ -425,7 +451,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final List<dynamic> content = result['content'] ?? [];
       final bool isLast = result['last'] == true;
 
-      print(
+      debugPrint(
         '[PERSIST] Loaded ${content.length} messages from backend (paginated, isLast=$isLast)',
       );
 
@@ -453,7 +479,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         await _loadLocalMessages();
       }
     } catch (e) {
-      print('[PERSIST] Error loading paginated messages: $e');
+      debugPrint('[PERSIST] Error loading paginated messages: $e');
       await _loadLocalMessages(); // Fallback
     }
   }
@@ -467,11 +493,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Polling check status mỗi 2 giây khi ở AI mode
   void _startAIModeStatusPolling() async {
     if (_isAIPollingActive) {
-      print('[AI-POLL] Already active, skipping');
+      debugPrint('[AI-POLL] Already active, skipping');
       return;
     }
     _isAIPollingActive = true;
-    print(
+    debugPrint(
       '[AI-POLL] === STARTED === _isEscalated=$_isEscalated, _isWaitingInQueue=$_isWaitingInQueue',
     );
     int pollCount = 0;
@@ -481,7 +507,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       pollCount++;
 
       if (!mounted || _isEscalated || _isWaitingInQueue) {
-        print(
+        debugPrint(
           '[AI-POLL] Breaking - mounted=$mounted, escalated=$_isEscalated, waiting=$_isWaitingInQueue',
         );
         break;
@@ -492,21 +518,21 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
         if (token == null) {
-          print('[AI-POLL] #$pollCount: No token, skipping');
+          debugPrint('[AI-POLL] #$pollCount: No token, skipping');
           continue;
         }
 
         final activeConv = await _chatService.getMyActiveConversation(token);
         final status = activeConv?['status'];
 
-        print(
+        debugPrint(
           '[AI-POLL] #$pollCount: hasActive=${activeConv != null}, status=$status',
         );
 
         if (activeConv != null && status == 'HUMAN_CHATTING') {
           final convId = activeConv['conversationId']?.toString();
           final libName = activeConv['librarianName'] as String? ?? '';
-          print(
+          debugPrint(
             '[AI-POLL] >>> DETECTED HUMAN_CHATTING! convId=$convId, libName=$libName',
           );
 
@@ -520,11 +546,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           break;
         }
       } catch (e) {
-        print('[AI-POLL] #$pollCount: Error: $e');
+        debugPrint('[AI-POLL] #$pollCount: Error: $e');
       }
     }
     _isAIPollingActive = false;
-    print('[AI-POLL] === ENDED === pollCount=$pollCount');
+    debugPrint('[AI-POLL] === ENDED === pollCount=$pollCount');
   }
 
   /// Xử lý khi thủ thư bắt đầu chat từ yêu cầu hỗ trợ (không qua queue)
@@ -540,7 +566,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Cập nhật conversationId nếu có
     final targetConvId = convId ?? _conversationId;
     if (targetConvId == null) {
-      print('[CHAT] No conversationId for librarian joined event');
+      debugPrint('[CHAT] No conversationId for librarian joined event');
       return;
     }
 
@@ -586,45 +612,42 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Save conversation state vào SharedPreferences
   Future<void> _saveState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final authService = Provider.of<AuthService>(context, listen: false);
       if (_conversationId != null) {
-        await prefs.setString(_keyConversationId, _conversationId!);
-        await prefs.setBool(_keyIsEscalated, _isEscalated);
-        await prefs.setBool(_keyIsWaitingInQueue, _isWaitingInQueue);
+        await _writeChatState(_keyConversationId, _conversationId!);
+        await _writeChatStateBool(_keyIsEscalated, _isEscalated);
+        await _writeChatStateBool(_keyIsWaitingInQueue, _isWaitingInQueue);
         if (_librarianName != null) {
-          await prefs.setString(_keyLibrarianName, _librarianName!);
+          await _writeChatState(_keyLibrarianName, _librarianName!);
         }
         // Lưu userId để validate khi load lại
-        final authService = Provider.of<AuthService>(context, listen: false);
         final currentUserId = authService.currentUser?.id;
         if (currentUserId != null) {
-          await prefs.setString(_keyUserId, currentUserId);
+          await _writeChatState(_keyUserId, currentUserId);
         }
-        print(
+        debugPrint(
           '[PERSIST] State saved: convId=$_conversationId, escalated=$_isEscalated, userId=$currentUserId',
         );
       }
     } catch (e) {
-      print('[PERSIST] Error saving state: $e');
+      debugPrint('[PERSIST] Error saving state: $e');
     }
   }
 
   /// Save messages vào SharedPreferences (cho AI chat)
   Future<void> _saveMessages() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final messagesJson = _messages.map((m) => m.toJson()).toList();
-      await prefs.setString(_keyMessages, jsonEncode(messagesJson));
+      await _writeChatState(_keyMessages, jsonEncode(messagesJson));
     } catch (e) {
-      print('[PERSIST] Error saving messages: $e');
+      debugPrint('[PERSIST] Error saving messages: $e');
     }
   }
 
   /// Load messages từ SharedPreferences (cho AI chat)
   Future<void> _loadLocalMessages() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedMessages = prefs.getString(_keyMessages);
+      final savedMessages = await _readChatState(_keyMessages);
       if (savedMessages != null && savedMessages.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(savedMessages);
         if (mounted && decoded.isNotEmpty) {
@@ -635,26 +658,28 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             );
           });
           _scrollToBottom();
-          print('[PERSIST] Loaded ${_messages.length} local messages');
+          debugPrint('[PERSIST] Loaded ${_messages.length} local messages');
         }
       }
     } catch (e) {
-      print('[PERSIST] Error loading local messages: $e');
+      debugPrint('[PERSIST] Error loading local messages: $e');
     }
   }
 
   /// Clear saved state (khi conversation kết thúc hoặc reset)
   Future<void> _clearSavedState() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_keyConversationId);
-      await prefs.remove(_keyIsEscalated);
-      await prefs.remove(_keyLibrarianName);
-      await prefs.remove(_keyIsWaitingInQueue);
-      await prefs.remove(_keyMessages);
-      print('[PERSIST] State cleared');
+      await _removeChatStateKeys([
+        _keyConversationId,
+        _keyIsEscalated,
+        _keyLibrarianName,
+        _keyIsWaitingInQueue,
+        _keyMessages,
+        _keyUserId,
+      ]);
+      debugPrint('[PERSIST] State cleared');
     } catch (e) {
-      print('[PERSIST] Error clearing state: $e');
+      debugPrint('[PERSIST] Error clearing state: $e');
     }
   }
 
@@ -888,7 +913,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 1,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         title: Row(
           children: [
             // Avatar Bot hoặc Librarian
@@ -1226,7 +1251,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         offset: const Offset(0, -2),
                         blurRadius: 10,
                       ),
@@ -1816,7 +1841,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     return Container(
       width: width,
       height: height,
-      color: Colors.white.withOpacity(0.08),
+      color: Colors.white.withValues(alpha: 0.08),
       child: Center(child: imageWidget),
     );
   }
@@ -1907,7 +1932,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              color: fptOrange.withOpacity(1.0 - index * 0.25),
+              color: fptOrange.withValues(alpha: 1.0 - index * 0.25),
               shape: BoxShape.circle,
             ),
           ),
@@ -1935,7 +1960,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: fptOrange.withOpacity(opacity),
+                    color: fptOrange.withValues(alpha: opacity),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -2021,6 +2046,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       });
       _scrollToBottom();
 
+      if (!mounted) return;
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
       if (token != null && _conversationId != null) {
@@ -2056,7 +2082,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           });
           _scrollToBottom();
           _saveMessages();
-          print(
+          debugPrint(
             '[CHAT] Image sent successfully, urls: ${parsedMessage.imageUrls}',
           );
         } else {
@@ -2072,7 +2098,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      print('[CHAT] Error picking/sending image: $e');
+      debugPrint('[CHAT] Error picking/sending image: $e');
       setState(() {
         _messages.removeWhere((m) => m.text == 'Đang gửi ảnh...' && m.isUser);
       });
@@ -2107,7 +2133,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (activeConv != null && activeConv['status'] == 'HUMAN_CHATTING') {
             final convId = activeConv['conversationId']?.toString();
             final libName = activeConv['librarianName'] as String? ?? '';
-            print(
+            debugPrint(
               '[CHAT] Detected HUMAN_CHATTING before sending to AI! Switching mode...',
             );
             setState(() {
@@ -2132,16 +2158,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           }
         }
       } catch (e) {
-        print('[CHAT] Error checking status before submit: $e');
+        debugPrint('[CHAT] Error checking status before submit: $e');
       }
     }
 
     // Nếu đang chat với librarian - gửi tin nhắn đến backend
     if (_isEscalated && _conversationId != null && !_isWaitingInQueue) {
-      print(
+      debugPrint(
         '[CHAT] Sending escalated message: convId=$_conversationId, text=$text',
       );
       try {
+        if (!mounted) return;
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
         if (token != null) {
@@ -2151,12 +2178,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             senderType: 'STUDENT',
             authToken: token,
           );
-          print('[CHAT] Send result: $success');
+          debugPrint('[CHAT] Send result: $success');
         } else {
-          print('[CHAT] No auth token!');
+          debugPrint('[CHAT] No auth token!');
         }
       } catch (e) {
-        print('[CHAT] Error sending message to backend: $e');
+        debugPrint('[CHAT] Error sending message to backend: $e');
       }
       _saveMessages();
       return;
@@ -2275,7 +2302,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             );
           }
         } catch (e) {
-          print('[CHAT] Error saving AI messages to backend: $e');
+          debugPrint('[CHAT] Error saving AI messages to backend: $e');
         }
       }
     } catch (e) {
@@ -2384,7 +2411,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       setState(() => _isLoadingMore = false);
     } catch (e) {
-      print('[PAGINATION] Error loading more: $e');
+      debugPrint('[PAGINATION] Error loading more: $e');
       setState(() => _isLoadingMore = false);
     }
   }
@@ -2503,10 +2530,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _connectWebSocketForQueue(token);
         }
       } else {
-        print('User chưa đăng nhập, không thể tạo conversation');
+        debugPrint('User chưa đăng nhập, không thể tạo conversation');
       }
     } catch (e) {
-      print('Error calling requestLibrarian: $e');
+      debugPrint('Error calling requestLibrarian: $e');
     }
   }
 
@@ -2515,7 +2542,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final authService = Provider.of<AuthService>(context, listen: false);
     final userId = authService.currentUser?.id;
     if (userId == null) {
-      print('[WS] No userId, falling back to polling');
+      debugPrint('[WS] No userId, falling back to polling');
       _startStatusPolling(token);
       return;
     }
@@ -2523,7 +2550,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Setup handler for student topic events
     _chatWsService.setOnStudentTopicMessage((data) {
       final type = data['type'] as String?;
-      print('[WS] Received event: $type');
+      debugPrint('[WS] Received event: $type');
 
       if (type == 'QUEUE_POSITION_UPDATE' && mounted) {
         final newPosition = data['queuePosition'] as int? ?? 0;
@@ -2542,11 +2569,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _chatWsService.connect(
       authToken: token,
       onConnected: () {
-        print('[WS] Connected, subscribing to student topic: $userId');
+        debugPrint('[WS] Connected, subscribing to student topic: $userId');
         _chatWsService.subscribeToStudentTopic(userId);
       },
       onError: (error) {
-        print('[WS] Connection error: $error, falling back to polling');
+        debugPrint('[WS] Connection error: $error, falling back to polling');
         _startStatusPolling(token);
       },
     );
@@ -2640,7 +2667,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // Fallback: Polling de check conversation status (khi WebSocket khong ket noi duoc)
   void _startStatusPolling(String token) async {
     if (_isStatusPollingActive) {
-      print('[STATUS-POLL] Already active, skipping');
+      debugPrint('[STATUS-POLL] Already active, skipping');
       return;
     }
     _isStatusPollingActive = true;
@@ -2832,7 +2859,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           await _chatService.cancelQueue(_conversationId!, token);
         }
       } catch (e) {
-        print('[CHAT] Error cancelling queue: $e');
+        debugPrint('[CHAT] Error cancelling queue: $e');
       }
     }
 
@@ -2920,7 +2947,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         token,
       );
       if (success) {
-        print('[CHAT] Student resolved conversation: $_conversationId');
+        debugPrint('[CHAT] Student resolved conversation: $_conversationId');
         // Reuse _handleChatEnded logic
         _handleChatEnded();
       } else {
@@ -2935,7 +2962,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         }
       }
     } catch (e) {
-      print('[CHAT] Error resolving conversation: $e');
+      debugPrint('[CHAT] Error resolving conversation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(ErrorDisplayWidget.toVietnamese(e))),
@@ -2954,7 +2981,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           color: const Color(0xFFF0FFF4),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
+          border: Border.all(
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.3),
+          ),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -2980,10 +3009,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF751F).withOpacity(0.2)),
+        border: Border.all(
+          color: const Color(0xFFFF751F).withValues(alpha: 0.2),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -3083,13 +3114,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _handleChatEnded() async {
     // Skip nếu user chủ động cancel queue (guard KHÔNG reset để block tất cả calls)
     if (_userCancelledQueue) {
-      print('[CHAT] Skipping _handleChatEnded because user cancelled queue');
+      debugPrint(
+        '[CHAT] Skipping _handleChatEnded because user cancelled queue',
+      );
       return;
     }
 
     // Prevent concurrent calls
     if (_isHandlingChatEnd) {
-      print('[CHAT] Skipping duplicate _handleChatEnded call');
+      debugPrint('[CHAT] Skipping duplicate _handleChatEnded call');
       return;
     }
     _isHandlingChatEnd = true;
@@ -3106,16 +3139,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _messageIds.clear();
 
     // Chỉ clear escalation state, KHÔNG clear conversationId
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyIsEscalated, false);
-    await prefs.setBool(_keyIsWaitingInQueue, false);
-    await prefs.remove(_keyLibrarianName);
+    await _writeChatStateBool(_keyIsEscalated, false);
+    await _writeChatStateBool(_keyIsWaitingInQueue, false);
+    await _chatStateStorage.delete(key: _keyLibrarianName);
     // KHÔNG remove _keyConversationId - giữ session cho lần escalate tiếp theo
 
     _feedbackConversationId = _conversationId;
     _chatFeedbackRating = 0;
     _chatFeedbackSubmitted = false;
 
+    final prefs = await SharedPreferences.getInstance();
     final alreadyRated =
         prefs.getBool('chat_feedback_$_feedbackConversationId') ?? false;
 
@@ -3157,7 +3190,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         );
       }
     });
-    print(
+    debugPrint(
       '[CHAT] Librarian ended conversation (human session ended), back to AI mode. Session ID kept: $_conversationId',
     );
     _scrollToBottom();
@@ -3165,6 +3198,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _isHandlingChatEnd = false;
 
     // Restart polling để phát hiện nếu thủ thư chat lại từ support request khác
+    if (!mounted) return;
     final authService = Provider.of<AuthService>(context, listen: false);
     final token = await authService.getToken();
     if (token != null) {
@@ -3182,16 +3216,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _chatWsService.unsubscribeFromConversation();
     _chatWsService.unsubscribeFromStudentTopic();
 
-    // Nếu đang chờ queue, hủy trước
-    if (_isWaitingInQueue && _conversationId != null) {
+    // Đồng bộ reset lên backend để hot restart/mở lại app không kéo lịch sử cũ lên nữa.
+    // Dữ liệu vẫn được giữ trong DB, chỉ ẩn khỏi phía student từ thời điểm reset.
+    if (_conversationId != null) {
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
         if (token != null) {
-          await _chatService.cancelQueue(_conversationId!, token);
+          await _chatService.resetConversationForStudent(_conversationId!, token);
         }
       } catch (e) {
-        print('[CHAT] Error cancelling queue on reset: $e');
+        debugPrint('[CHAT] Error syncing reset to backend: $e');
       }
     }
 

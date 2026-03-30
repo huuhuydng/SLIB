@@ -10,10 +10,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.dto.users.UserProfileResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -22,6 +20,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.UUID;
 
@@ -62,23 +61,16 @@ class FE08_ViewBarcodeTest {
         @MockBean
         private StagingImportService stagingImportService;
 
-        private RequestPostProcessor authenticatedUser(String email) {
-                return request -> {
-                        var user = org.springframework.security.core.userdetails.User.withUsername(email)
-                                        .password("pass").roles("STUDENT").build();
-                        SecurityContextHolder.getContext().setAuthentication(
-                                        new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
-                        return request;
-                };
-        }
+        @MockBean
+        private SystemLogService systemLogService;
 
         @BeforeEach
         void clearSecurityContext() {
-                SecurityContextHolder.clearContext();
         }
 
         // UTCD01: Valid token - view profile (which contains barcode/userCode)
         @Test
+        @WithMockUser(username = "student@fpt.edu.vn", roles = "STUDENT")
         @DisplayName("UTCD01: View profile with barcode data returns 200 OK")
         void viewBarcode_validToken_returns200OK() throws Exception {
                 when(userService.getMyProfile(anyString())).thenReturn(
@@ -91,8 +83,7 @@ class FE08_ViewBarcodeTest {
                                 .build()
                 );
 
-                mockMvc.perform(get("/slib/users/me")
-                                .with(authenticatedUser("student@fpt.edu.vn")))
+                mockMvc.perform(get("/slib/users/me"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.userCode").value("SE123456"));
         }
@@ -107,13 +98,13 @@ class FE08_ViewBarcodeTest {
 
         // UTCD03: User not found - 404
         @Test
+        @WithMockUser(username = "unknown@fpt.edu.vn", roles = "STUDENT")
         @DisplayName("UTCD03: User not found returns 404 Not Found")
         void viewBarcode_userNotFound_returns404NotFound() throws Exception {
                 when(userService.getMyProfile(anyString()))
                         .thenThrow(new RuntimeException("User not found"));
 
-                mockMvc.perform(get("/slib/users/me")
-                                .with(authenticatedUser("unknown@fpt.edu.vn")))
+                mockMvc.perform(get("/slib/users/me"))
                         .andExpect(status().isNotFound());
         }
 }

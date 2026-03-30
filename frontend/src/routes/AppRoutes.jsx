@@ -1,15 +1,39 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { isTokenExpired } from "../utils/auth";
 
-// Auth Page
-import AuthPage from "../components/auth/AuthPage";
+const AuthPage = lazy(() => import("../components/auth/AuthPage"));
+const AdminRoutes = lazy(() => import("./AdminRoutes"));
+const LibrarianRoutes = lazy(() => import("./LibrarianRoutes"));
 
-// Admin Routes
-import AdminRoutes from "./AdminRoutes";
-
-// Librarian Routes  
-import LibrarianRoutes from "./LibrarianRoutes";
+const LoadingScreen = () => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    fontSize: '18px',
+    color: '#666',
+    flexDirection: 'column',
+    gap: '16px'
+  }}>
+    <div className="spinner" style={{
+      border: '4px solid #f3f3f3',
+      borderTop: '4px solid #F27125',
+      borderRadius: '50%',
+      width: '40px',
+      height: '40px',
+      animation: 'spin 1s linear infinite'
+    }}></div>
+    <p>Đang tải...</p>
+    <style>{`
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `}</style>
+  </div>
+);
 
 function AppRoutes() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -58,9 +82,6 @@ function AppRoutes() {
           || user.roles?.[0]?.name;
         const role = rawRole ? rawRole.toString().toUpperCase() : null;
 
-        console.log('[Auth] User loaded:', user);
-        console.log('[Auth] Role detected:', role);
-
         // Chỉ cho phép LIBRARIAN và ADMIN đăng nhập
         if (role === 'LIBRARIAN' || role === 'ADMIN') {
           setIsLoggedIn(true);
@@ -101,43 +122,18 @@ function AppRoutes() {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: '#666',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
-        <div className="spinner" style={{
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #F27125',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <p>Đang tải...</p>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   // Nếu chưa đăng nhập → Hiển thị trang Login
   if (!isLoggedIn) {
     return (
       <BrowserRouter>
-        <Routes>
-          <Route path="*" element={<AuthPage onLogin={handleLogin} />} />
-        </Routes>
+        <Suspense fallback={<LoadingScreen />}>
+          <Routes>
+            <Route path="*" element={<AuthPage onLogin={handleLogin} />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     );
   }
@@ -145,20 +141,22 @@ function AppRoutes() {
   // Đã đăng nhập → Route theo role
   return (
     <BrowserRouter>
-      <Routes>
-        {/* LIBRARIAN Routes */}
-        {userRole === 'LIBRARIAN' && (
-          <Route path="/*" element={<LibrarianRoutes />} />
-        )}
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          {/* LIBRARIAN Routes */}
+          {userRole === 'LIBRARIAN' && (
+            <Route path="/*" element={<LibrarianRoutes />} />
+          )}
 
-        {/* ADMIN Routes */}
-        {userRole === 'ADMIN' && (
-          <Route path="/*" element={<AdminRoutes />} />
-        )}
+          {/* ADMIN Routes */}
+          {userRole === 'ADMIN' && (
+            <Route path="/*" element={<AdminRoutes />} />
+          )}
 
-        {/* Default redirect */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Default redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

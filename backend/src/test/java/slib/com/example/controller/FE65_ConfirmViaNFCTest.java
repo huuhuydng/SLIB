@@ -16,6 +16,7 @@ import slib.com.example.controller.booking.BookingController;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingService;
 
 import java.util.HashMap;
@@ -49,6 +50,9 @@ class FE65_ConfirmViaNFCTest {
 
         @MockBean
         private ReservationRepository reservationRepository;
+
+        @MockBean
+        private UserRepository userRepository;
 
         // =========================================
         // === UTCID01: Valid reservationId + nfc_uid ===

@@ -81,14 +81,15 @@ class FE119_ViewChatDetailsTest {
                 ChatMessageDTO msg = new ChatMessageDTO();
                 msg.setContent("Xin chao");
 
-                when(conversationService.getConversationMessages(eq(conversationId)))
+                when(conversationService.getConversationMessagesForViewer(eq(conversationId), eq(userId)))
                                 .thenReturn(List.of(msg));
 
                 mockMvc.perform(get("/slib/chat/conversations/{conversationId}/messages", conversationId))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].content").value("Xin chao"));
 
-                verify(conversationService, times(1)).getConversationMessages(eq(conversationId));
+                verify(conversationService, times(1)).verifyConversationAccess(eq(conversationId), eq(userId));
+                verify(conversationService, times(1)).getConversationMessagesForViewer(eq(conversationId), eq(userId));
         }
 
         // =========================================
@@ -107,7 +108,7 @@ class FE119_ViewChatDetailsTest {
                 ChatMessageDTO msg2 = new ChatMessageDTO();
                 msg2.setContent("Tin nhan 2");
 
-                when(conversationService.getConversationMessages(eq(conversationId)))
+                when(conversationService.getConversationMessagesForViewer(eq(conversationId), eq(userId)))
                                 .thenReturn(List.of(msg1, msg2));
 
                 mockMvc.perform(get("/slib/chat/conversations/{conversationId}/messages", conversationId))
@@ -126,7 +127,7 @@ class FE119_ViewChatDetailsTest {
                 UUID conversationId = UUID.randomUUID();
                 mockCurrentUser(userId);
 
-                when(conversationService.getConversationMessages(eq(conversationId)))
+                when(conversationService.getConversationMessagesForViewer(eq(conversationId), eq(userId)))
                                 .thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/chat/conversations/{conversationId}/messages", conversationId))
@@ -145,7 +146,7 @@ class FE119_ViewChatDetailsTest {
                 UUID conversationId = UUID.randomUUID();
                 mockCurrentUser(userId);
 
-                when(conversationService.getConversationMessages(eq(conversationId)))
+                when(conversationService.getConversationMessagesForViewer(eq(conversationId), eq(userId)))
                                 .thenThrow(new RuntimeException("Cuoc tro chuyen khong ton tai"));
 
                 mockMvc.perform(get("/slib/chat/conversations/{conversationId}/messages", conversationId))
@@ -163,7 +164,7 @@ class FE119_ViewChatDetailsTest {
                 UUID conversationId = UUID.randomUUID();
                 mockCurrentUser(userId);
 
-                when(conversationService.getConversationMessages(eq(conversationId)))
+                when(conversationService.getConversationMessagesForViewer(eq(conversationId), eq(userId)))
                                 .thenThrow(new RuntimeException("Loi truy van tin nhan"));
 
                 mockMvc.perform(get("/slib/chat/conversations/{conversationId}/messages", conversationId))

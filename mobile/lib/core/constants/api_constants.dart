@@ -8,6 +8,7 @@ class ApiConstants {
 
   // [CẤU HÌNH 1 - PRODUCTION]: Dành cho máy thật, build APK, demo.
   // static const String domain = "https://api.slibsystem.site";
+  static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
 
   // [CẤU HÌNH 2 - DEVELOPMENT]: Dành cho máy ảo (Emulator Android) chạy chung với Backend trên cùng máy tính.
   // static const String domain = "http://10.0.2.2:8080";
@@ -16,7 +17,7 @@ class ApiConstants {
   // static const String domain = "http://192.168.17.162:8080";
 
   // [CẤU HÌNH 4 - ADB REVERSE]: Dành cho máy thật qua USB (adb reverse tcp:8080 tcp:8080)
-  static const String domain = "http://localhost:8080";
+  // static const String domain = "http://localhost:8080";
 
   // Ghi chú: aiDomain không còn cần vì AI Chat đi qua backend proxy
 

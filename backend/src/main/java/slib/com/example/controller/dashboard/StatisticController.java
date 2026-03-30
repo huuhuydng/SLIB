@@ -9,7 +9,6 @@ import slib.com.example.service.dashboard.StatisticService;
 
 @RestController
 @RequestMapping("/slib/statistics")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequiredArgsConstructor
 public class StatisticController {
 

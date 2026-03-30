@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { AI_API_BASE_URL } from '../../../config/apiConfig';
 
 const aiAnalyticsService = axios.create({
-  baseURL: '',
+  baseURL: AI_API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

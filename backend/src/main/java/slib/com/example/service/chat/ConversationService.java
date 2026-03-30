@@ -19,6 +19,7 @@ import slib.com.example.repository.chat.MessageRepository;
 import slib.com.example.service.notification.LibrarianNotificationService;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.users.Role;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
@@ -38,6 +39,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 
 @Service
 @RequiredArgsConstructor
@@ -54,7 +58,76 @@ public class ConversationService {
         @Value("${app.ai-service.url:http://127.0.0.1:8001}")
         private String aiServiceUrl;
 
+        @Value("${slib.internal.api-key:}")
+        private String internalApiKey;
+
         private final RestTemplate restTemplate = new RestTemplate();
+
+        private Conversation getConversationForUpdate(UUID conversationId) {
+                return conversationRepository.findByIdForUpdate(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+        }
+
+        private User getRequiredUser(UUID userId) {
+                return userRepository.findById(userId)
+                                .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+        }
+
+        private boolean isAdmin(User user) {
+                return user != null && user.getRole() == Role.ADMIN;
+        }
+
+        private boolean isLibrarian(User user) {
+                return user != null && user.getRole() == Role.LIBRARIAN;
+        }
+
+        private boolean isPrivilegedStaff(User user) {
+                return isAdmin(user) || isLibrarian(user);
+        }
+
+        private void clearHumanAssignment(Conversation conv) {
+                conv.setLibrarian(null);
+                conv.setEscalationReason(null);
+                conv.setEscalatedAt(null);
+        }
+
+        private boolean canViewConversation(User user, Conversation conv) {
+                if (user == null || conv == null) {
+                        return false;
+                }
+
+                if (conv.getStudent() != null && conv.getStudent().getId().equals(user.getId())) {
+                        return true;
+                }
+
+                if (isAdmin(user)) {
+                        return true;
+                }
+
+                if (conv.getLibrarian() != null && conv.getLibrarian().getId().equals(user.getId())) {
+                        return true;
+                }
+
+                return isLibrarian(user)
+                                && conv.getStatus() == ConversationStatus.QUEUE_WAITING
+                                && conv.getLibrarian() == null;
+        }
+
+        private boolean canParticipateInConversation(User user, Conversation conv) {
+                if (user == null || conv == null) {
+                        return false;
+                }
+
+                if (conv.getStudent() != null && conv.getStudent().getId().equals(user.getId())) {
+                        return true;
+                }
+
+                if (isAdmin(user)) {
+                        return true;
+                }
+
+                return conv.getLibrarian() != null && conv.getLibrarian().getId().equals(user.getId());
+        }
 
         /**
          * Lấy hoặc tạo session duy nhất cho student
@@ -94,14 +167,14 @@ public class ConversationService {
          */
         @Transactional
         public ConversationDTO escalateToHuman(UUID conversationId, String reason) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
                 // Increment human session counter (1, 2, 3, ...)
                 int newHumanSession = (conv.getCurrentHumanSession() != null ? conv.getCurrentHumanSession() : 0) + 1;
                 conv.setCurrentHumanSession(newHumanSession);
 
                 conv.setStatus(ConversationStatus.QUEUE_WAITING);
+                conv.setLibrarian(null);
                 conv.setEscalationReason(reason);
                 conv.setEscalatedAt(LocalDateTime.now());
 
@@ -141,18 +214,18 @@ public class ConversationService {
          */
         @Transactional
         public ConversationDTO takeOverConversation(UUID conversationId, UUID librarianId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
-                if (conv.getStatus() != ConversationStatus.QUEUE_WAITING &&
-                                conv.getStatus() != ConversationStatus.AI_HANDLING) {
+                if (conv.getStatus() != ConversationStatus.QUEUE_WAITING) {
                         throw new RuntimeException(
                                         "Conversation is not available for takeover. Current status: "
                                                         + conv.getStatus());
                 }
 
-                User librarian = userRepository.findById(librarianId)
-                                .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
+                User librarian = getRequiredUser(librarianId);
+                if (!isPrivilegedStaff(librarian)) {
+                        throw new RuntimeException("Only librarian/admin can take over conversation");
+                }
 
                 conv.setStatus(ConversationStatus.HUMAN_CHATTING);
                 conv.setLibrarian(librarian);
@@ -188,14 +261,12 @@ public class ConversationService {
          */
         @Transactional
         public ConversationDTO resolveConversation(UUID conversationId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
                 // Set status về AI_HANDLING để user có thể tiếp tục chat với bot
                 conv.setStatus(ConversationStatus.AI_HANDLING);
                 conv.setResolvedAt(LocalDateTime.now());
-                // Giữ librarian để biết ai đã xử lý lần cuối
-                // Giữ currentHumanSession để lần escalate tiếp theo sẽ increment
+                clearHumanAssignment(conv);
 
                 Conversation saved = conversationRepository.save(conv);
 
@@ -230,8 +301,7 @@ public class ConversationService {
          */
         @Transactional
         public ConversationDTO studentResolveConversation(UUID conversationId, UUID studentId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
                 // Verify student owns this conversation
                 if (!conv.getStudent().getId().equals(studentId)) {
@@ -245,6 +315,7 @@ public class ConversationService {
 
                 conv.setStatus(ConversationStatus.AI_HANDLING);
                 conv.setResolvedAt(LocalDateTime.now());
+                clearHumanAssignment(conv);
 
                 Conversation saved = conversationRepository.save(conv);
 
@@ -263,6 +334,33 @@ public class ConversationService {
                                 "conversationId", conversationId.toString()));
 
                 librarianNotificationService.broadcastPendingCounts("CHAT", "STUDENT_RESOLVED");
+                return convertToDTO(saved);
+        }
+
+        @Transactional
+        public ConversationDTO resetConversationForStudent(UUID conversationId, UUID studentId) {
+                Conversation conv = getConversationForUpdate(conversationId);
+
+                if (conv.getStudent() == null || !studentId.equals(conv.getStudent().getId())) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
+
+                if (conv.getStatus() == ConversationStatus.HUMAN_CHATTING) {
+                        studentResolveConversation(conversationId, studentId);
+                        conv = getConversationForUpdate(conversationId);
+                } else if (conv.getStatus() == ConversationStatus.QUEUE_WAITING) {
+                        conv.setStatus(ConversationStatus.AI_HANDLING);
+                        clearHumanAssignment(conv);
+                        conv = conversationRepository.save(conv);
+                        broadcastQueuePositionUpdates();
+                }
+
+                conv.setStudentClearedAt(LocalDateTime.now());
+                Conversation saved = conversationRepository.save(conv);
+
+                log.info("[Conversation] Student {} reset visible chat history for conversation {} at {}",
+                                studentId, conversationId, saved.getStudentClearedAt());
+
                 return convertToDTO(saved);
         }
 
@@ -313,8 +411,7 @@ public class ConversationService {
          */
         @Transactional
         public void cancelQueue(UUID conversationId, UUID studentId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
                 // Verify student owns this conversation
                 if (!conv.getStudent().getId().equals(studentId)) {
@@ -327,6 +424,7 @@ public class ConversationService {
                 }
 
                 conv.setStatus(ConversationStatus.RESOLVED);
+                clearHumanAssignment(conv);
                 conversationRepository.save(conv);
 
                 // Broadcast cho librarian biết queue đã bị hủy
@@ -373,15 +471,18 @@ public class ConversationService {
         public void verifyConversationAccess(UUID conversationId, UUID userId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                         .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
-                boolean isStudent = conv.getStudent() != null && conv.getStudent().getId().equals(userId);
-                boolean isLibrarian = conv.getLibrarian() != null && conv.getLibrarian().getId().equals(userId);
-                // Also allow LIBRARIAN/ADMIN roles to access any conversation
                 User user = userRepository.findById(userId).orElse(null);
-                boolean isLibrarianRole = user != null &&
-                        (user.getRole() == slib.com.example.entity.users.Role.LIBRARIAN
-                                || user.getRole() == slib.com.example.entity.users.Role.ADMIN);
-                if (!isStudent && !isLibrarian && !isLibrarianRole) {
+                if (!canViewConversation(user, conv)) {
                         throw new slib.com.example.exception.BadRequestException("Bạn không có quyền truy cập cuộc hội thoại này");
+                }
+        }
+
+        public void verifyConversationParticipationAccess(UUID conversationId, UUID userId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                        .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
+                User user = userRepository.findById(userId).orElse(null);
+                if (!canParticipateInConversation(user, conv)) {
+                        throw new slib.com.example.exception.BadRequestException("Bạn không có quyền thao tác trên cuộc hội thoại này");
                 }
         }
 
@@ -436,6 +537,7 @@ public class ConversationService {
                 int newHumanSession = (conv.getCurrentHumanSession() != null ? conv.getCurrentHumanSession() : 0) + 1;
                 conv.setCurrentHumanSession(newHumanSession);
                 conv.setStatus(ConversationStatus.QUEUE_WAITING);
+                conv.setLibrarian(null);
                 conv.setEscalationReason(reason);
                 conv.setEscalatedAt(LocalDateTime.now());
 
@@ -488,14 +590,16 @@ public class ConversationService {
         }
 
         @Transactional
-        public ConversationDTO cancelEscalation(UUID conversationId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+        public ConversationDTO cancelEscalation(UUID conversationId, UUID studentId) {
+                Conversation conv = getConversationForUpdate(conversationId);
+
+                if (conv.getStudent() == null || !studentId.equals(conv.getStudent().getId())) {
+                        throw new RuntimeException("Unauthorized: conversation does not belong to this student");
+                }
 
                 if (conv.getStatus() == ConversationStatus.QUEUE_WAITING) {
                         conv.setStatus(ConversationStatus.AI_HANDLING);
-                        conv.setEscalationReason(null);
-                        conv.setEscalatedAt(null);
+                        clearHumanAssignment(conv);
 
                         Conversation saved = conversationRepository.save(conv);
                         log.info("[Conversation] Cancelled escalation for conversation {}", conversationId);
@@ -574,8 +678,8 @@ public class ConversationService {
                                 .studentCode(conv.getStudent().getUserCode())
                                 .studentEmail(conv.getStudent().getEmail())
                                 .studentAvatarUrl(conv.getStudent().getAvtUrl())
-                                .librarianId(conv.getLibrarian() != null ? conv.getLibrarian().getId() : null)
-                                .librarianName(conv.getLibrarian() != null ? conv.getLibrarian().getFullName() : null)
+                                .librarianId(conv.getStatus() == ConversationStatus.HUMAN_CHATTING && conv.getLibrarian() != null ? conv.getLibrarian().getId() : null)
+                                .librarianName(conv.getStatus() == ConversationStatus.HUMAN_CHATTING && conv.getLibrarian() != null ? conv.getLibrarian().getFullName() : null)
                                 .status(conv.getStatus())
                                 .escalationReason(conv.getEscalationReason())
                                 .createdAt(conv.getCreatedAt())
@@ -659,6 +763,22 @@ public class ConversationService {
                 return allMessages;
         }
 
+        public List<ChatMessageDTO> getConversationMessagesForViewer(UUID conversationId, UUID viewerUserId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                List<ChatMessageDTO> messages = getConversationMessages(conversationId);
+                LocalDateTime visibleFrom = resolveStudentVisibleFrom(conv, viewerUserId);
+                if (visibleFrom == null) {
+                        return messages;
+                }
+
+                return messages.stream()
+                                .filter(message -> message.getCreatedAt() != null
+                                                && !message.getCreatedAt().isBefore(visibleFrom))
+                                .collect(Collectors.toList());
+        }
+
         /**
          * Lấy messages của conversation với phân trang (cho mobile lazy loading)
          * Trả về page mới nhất trước (DESC), client reverse lại để hiển thị ASC
@@ -666,6 +786,20 @@ public class ConversationService {
         public Page<ChatMessageDTO> getConversationMessagesPaginated(UUID conversationId, int page, int size) {
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
                 Page<Message> messagePage = messageRepository.findByConversationIdPaginated(conversationId, pageable);
+                return messagePage.map(this::convertMessageToDTO);
+        }
+
+        public Page<ChatMessageDTO> getConversationMessagesPaginatedForViewer(UUID conversationId, UUID viewerUserId,
+                        int page, int size) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+
+                Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                LocalDateTime visibleFrom = resolveStudentVisibleFrom(conv, viewerUserId);
+                Page<Message> messagePage = visibleFrom != null
+                                ? messageRepository.findByConversationIdPaginatedVisibleFrom(conversationId, visibleFrom,
+                                                pageable)
+                                : messageRepository.findByConversationIdPaginated(conversationId, pageable);
                 return messagePage.map(this::convertMessageToDTO);
         }
 
@@ -677,7 +811,16 @@ public class ConversationService {
                 String url = aiServiceUrl + "/api/v1/chat/history/" + aiSessionId + "?limit=100";
                 log.info("[Conversation] Fetching AI chat history from: {}", url);
 
-                ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+                HttpHeaders headers = new HttpHeaders();
+                if (internalApiKey != null && !internalApiKey.isBlank()) {
+                        headers.set("X-Internal-Api-Key", internalApiKey);
+                }
+
+                ResponseEntity<Map> response = restTemplate.exchange(
+                                url,
+                                HttpMethod.GET,
+                                new HttpEntity<>(headers),
+                                Map.class);
                 Map<String, Object> body = response.getBody();
 
                 if (body == null || !Boolean.TRUE.equals(body.get("success"))) {
@@ -742,11 +885,17 @@ public class ConversationService {
         @Transactional
         public ChatMessageDTO addMessageToConversation(UUID conversationId, UUID senderId, String content,
                         String senderType) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
 
-                User sender = userRepository.findById(senderId)
-                                .orElseThrow(() -> new RuntimeException("User not found: " + senderId));
+                User sender = getRequiredUser(senderId);
+                String resolvedSenderType;
+                if (conv.getStudent() != null && conv.getStudent().getId().equals(senderId)) {
+                        resolvedSenderType = "STUDENT";
+                } else if (isPrivilegedStaff(sender)) {
+                        resolvedSenderType = "LIBRARIAN";
+                } else {
+                        throw new RuntimeException("Unsupported sender for conversation message");
+                }
 
                 // Set humanSessionId based on senderType and conversation status
                 // - LIBRARIAN messages: always get current human session ID
@@ -755,9 +904,9 @@ public class ConversationService {
                 // - STUDENT/AI messages khi đang chat với bot: get null (bot conversation
                 // context)
                 Integer humanSessionId;
-                if ("LIBRARIAN".equals(senderType) || "SYSTEM".equals(senderType)) {
+                if ("LIBRARIAN".equals(resolvedSenderType) || "SYSTEM".equals(resolvedSenderType)) {
                         humanSessionId = conv.getCurrentHumanSession();
-                } else if ("STUDENT".equals(senderType) &&
+                } else if ("STUDENT".equals(resolvedSenderType) &&
                                 (conv.getStatus() == ConversationStatus.HUMAN_CHATTING ||
                                                 conv.getStatus() == ConversationStatus.QUEUE_WAITING)) {
                         // Student đang chat với thủ thư hoặc đang chờ -> gán humanSessionId
@@ -779,13 +928,13 @@ public class ConversationService {
                                 .attachmentUrl(imageUrls.isEmpty() ? null : imageUrls.get(0))
                                 .type(messageType)
                                 .conversation(conv)
-                                .senderType(senderType)
+                                .senderType(resolvedSenderType)
                                 .humanSessionId(humanSessionId)
                                 .build();
 
                 Message savedMessage = messageRepository.save(message);
                 log.info("[Conversation] Added message to conversation {}: {} - type: {}", conversationId, content,
-                                senderType);
+                                resolvedSenderType);
 
                 ChatMessageDTO dto = convertMessageToDTO(savedMessage);
 
@@ -799,10 +948,10 @@ public class ConversationService {
                                 notifyContent = notifyContent.substring(0, 100) + "...";
                         }
 
-                        log.debug("[Chat] Processing message notification for senderType={} in conv {}", senderType,
+                        log.debug("[Chat] Processing message notification for senderType={} in conv {}", resolvedSenderType,
                                         conversationId);
 
-                        if ("STUDENT".equals(senderType)) {
+                        if ("STUDENT".equals(resolvedSenderType)) {
                                 // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
                                 Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
                                 chatNotify.put("type", "CHAT_NEW_MESSAGE");
@@ -813,7 +962,7 @@ public class ConversationService {
                                 messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
                                 log.info("[Chat] Sent librarian notification for new student message in conv {}",
                                                 conversationId);
-                        } else if ("LIBRARIAN".equals(senderType)) {
+                        } else if ("LIBRARIAN".equals(resolvedSenderType)) {
                                 // Librarian gửi → push notification cho student qua FCM
                                 UUID studentId = conv.getStudent().getId();
                                 log.debug("[Chat] Sending FCM to student {} for conv {}", studentId, conversationId);
@@ -825,11 +974,11 @@ public class ConversationService {
                                                 conversationId);
                                 log.info("[Chat] Sent push notification to student {} for conv {}", studentId,
                                                 conversationId);
-                        } else if ("AI".equals(senderType)) {
+                        } else if ("AI".equals(resolvedSenderType)) {
                                 // AI messages don't need notifications
                                 log.debug("[Chat] Skipping notification for AI message in conv {}", conversationId);
                         } else {
-                                log.warn("[Chat] Unknown senderType for notification: {}", senderType);
+                                log.warn("[Chat] Unknown senderType for notification: {}", resolvedSenderType);
                         }
                 } catch (Exception e) {
                         log.error("[Chat] Failed to send chat notification: {}", e.getMessage(), e);
@@ -851,6 +1000,16 @@ public class ConversationService {
                                 .senderType(msg.getSenderType())
                                 .isRead(msg.isRead())
                                 .build();
+        }
+
+        private LocalDateTime resolveStudentVisibleFrom(Conversation conv, UUID viewerUserId) {
+                if (conv.getStudent() == null) {
+                        return null;
+                }
+                if (!viewerUserId.equals(conv.getStudent().getId())) {
+                        return null;
+                }
+                return conv.getStudentClearedAt();
         }
 
         private List<String> extractImageUrls(String content) {
@@ -880,14 +1039,21 @@ public class ConversationService {
          */
         @Transactional
         public int markConversationAsRead(UUID conversationId, UUID userId) {
-                Conversation conv = conversationRepository.findById(conversationId)
-                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                Conversation conv = getConversationForUpdate(conversationId);
+                User user = getRequiredUser(userId);
 
                 int updated;
                 if (conv.getStudent().getId().equals(userId)) {
                         // Student gọi → mark librarian messages as read
                         updated = messageRepository.markConversationLibrarianMessagesAsRead(conversationId);
                 } else {
+                        if (conv.getStatus() != ConversationStatus.HUMAN_CHATTING) {
+                                throw new RuntimeException("Only active human conversations can be marked as read by librarian");
+                        }
+                        if (!isAdmin(user) &&
+                                        (conv.getLibrarian() == null || !conv.getLibrarian().getId().equals(userId))) {
+                                throw new RuntimeException("Only assigned librarian can mark this conversation as read");
+                        }
                         // Librarian gọi → mark student messages as read
                         updated = messageRepository.markConversationStudentMessagesAsRead(conversationId);
                 }

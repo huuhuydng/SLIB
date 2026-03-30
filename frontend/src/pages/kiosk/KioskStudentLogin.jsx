@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import VirtualKeyboard from '../../components/common/VirtualKeyboard';
 import { useIdleTimer } from '../../hooks/useIdleTimer';
+import kioskService from '../../services/kiosk/kioskService';
 import logo from '../../assets/logo.png';
 import '../../styles/kiosk/KioskLogin.css';
 
@@ -24,7 +25,6 @@ const KioskStudentLogin = () => {
       // Clear session and redirect to login
       sessionStorage.removeItem('kiosk_student_id');
       sessionStorage.removeItem('kiosk_session_time');
-      console.log('⏱️ Kiosk login idle timeout - Resetting');
     }
   }, [isIdle]);
 
@@ -51,21 +51,32 @@ const KioskStudentLogin = () => {
     setError(null);
 
     try {
-      // TODO: Call API verify student
-      // const response = await kioskService.verifyStudent(studentId);
-      
-      // Tạm thời mock - sau sẽ replace với API thực
-      console.log('🎫 Verifying student:', studentId);
-      
-      // Lưu vào session
-      sessionStorage.setItem('kiosk_student_id', studentId);
+      const student = await kioskService.verifyStudent(studentId);
+
+      sessionStorage.setItem('kiosk_student_id', student.userCode);
       sessionStorage.setItem('kiosk_session_time', new Date().getTime());
-      
-      // 🔹 CHỈ NHẢY SAU KHI BẤM XÁC NHẬN (VIA SUBMIT button click)
-      navigate('/kiosk/menu');
+      sessionStorage.setItem(
+        'kiosk_session',
+        JSON.stringify({
+          studentId: student.userId,
+          studentCode: student.userCode,
+          studentName: student.fullName,
+          studentAvatar: student.avatarUrl || null,
+        }),
+      );
+
+      const params = new URLSearchParams({
+        studentId: student.userId,
+        name: student.fullName,
+      });
+      navigate(`/kiosk/seat-manage?${params.toString()}`);
     } catch (err) {
-      console.error('❌ Login error:', err);
-      setError(err.message || 'Xác thực thất bại. Vui lòng thử lại.');
+      setError(
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        err.message ||
+        'Xác thực thất bại. Vui lòng thử lại.'
+      );
     } finally {
       setLoading(false);
     }

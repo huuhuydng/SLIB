@@ -52,11 +52,7 @@ function ForgotPassword({ onSwitch }) {
       setLoading(true);
 
       const cleanEmail = email.trim().toLowerCase();
-      console.log('🟡 [ForgotPassword] Sending OTP to:', cleanEmail);
-
       const response = await librarianService.forgotPassword(cleanEmail);
-
-      console.log('✅ [ForgotPassword] Response:', response);
       toast.success(`${response.message || 'Mã OTP đã được gửi đến email của bạn!'}`);
       setStep(2);
 
@@ -103,7 +99,6 @@ function ForgotPassword({ onSwitch }) {
 
     try {
       setLoading(true);
-      console.log('🟡 [ForgotPassword] Verifying OTP:', otpCode);
 
       const response = await librarianService.verifyOtp(
         email.trim().toLowerCase(),
@@ -111,7 +106,6 @@ function ForgotPassword({ onSwitch }) {
         'recovery'
       );
 
-      console.log('✅ [ForgotPassword] Verify response:', response);
       toast.success("Xác thực thành công! Vui lòng đặt mật khẩu mới.");
       setStep(3);
 
@@ -134,14 +128,11 @@ function ForgotPassword({ onSwitch }) {
       setLoading(true);
       setOtp(["", "", "", "", "", ""]);
 
-      console.log('🟡 [ForgotPassword] Resending OTP');
-
       const response = await librarianService.resendOtp(
         email.trim().toLowerCase(),
         'recovery'
       );
 
-      console.log('✅ [ForgotPassword] Resend response:', response);
       toast.success(response.message || "Mã OTP mới đã được gửi!");
 
     } catch (err) {
@@ -173,11 +164,8 @@ function ForgotPassword({ onSwitch }) {
 
     try {
       setLoading(true);
-      console.log('🟡 [ForgotPassword] Resetting password');
 
       const response = await librarianService.updatePassword(newPassword);
-
-      console.log('✅ [ForgotPassword] Reset response:', response);
       toast.success("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.");
       onSwitch();
 

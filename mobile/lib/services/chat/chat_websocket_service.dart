@@ -1,5 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
 
@@ -13,7 +13,6 @@ class ChatWebSocketService {
   
   String? _currentConversationId;
   String? _currentStudentId;
-  String? _authToken;
   StompUnsubscribe? _conversationSubscription;
   StompUnsubscribe? _studentTopicSubscription;
 
@@ -32,12 +31,11 @@ class ChatWebSocketService {
     Function()? onConnected,
     Function(String)? onError,
   }) {
-    _authToken = authToken;
     _onConnected = onConnected;
     _onError = onError;
 
     final wsUrl = _getWebSocketUrl();
-    print('[WS] Connecting to: $wsUrl');
+    debugPrint('[WS] Connecting to chat WebSocket');
 
     _stompClient = StompClient(
       config: StompConfig.sockJS(
@@ -48,11 +46,11 @@ class ChatWebSocketService {
         onConnect: _onStompConnected,
         onDisconnect: _onStompDisconnected,
         onWebSocketError: (error) {
-          print('[WS] WebSocket error: $error');
+          debugPrint('[WS] WebSocket error: $error');
           _onError?.call(error.toString());
         },
         onStompError: (frame) {
-          print('[WS] STOMP error: ${frame.body}');
+          debugPrint('[WS] STOMP error');
           _onError?.call(frame.body ?? 'STOMP error');
         },
         reconnectDelay: const Duration(seconds: 5),
@@ -63,7 +61,7 @@ class ChatWebSocketService {
   }
 
   void _onStompConnected(StompFrame frame) {
-    print('[WS] Connected successfully');
+    debugPrint('[WS] Connected successfully');
     _onConnected?.call();
     
     // Re-subscribe if there was a previous conversation
@@ -77,14 +75,14 @@ class ChatWebSocketService {
   }
 
   void _onStompDisconnected(StompFrame frame) {
-    print('[WS] Disconnected');
+    debugPrint('[WS] Disconnected');
   }
 
   /// Subscribe to student topic for queue updates and status changes
   /// Receives: QUEUE_POSITION_UPDATE, LIBRARIAN_JOINED, etc.
   void subscribeToStudentTopic(String studentId) {
     if (_stompClient == null || !_stompClient!.connected) {
-      print('[WS] Cannot subscribe to student topic - not connected');
+      debugPrint('[WS] Cannot subscribe to student topic - not connected');
       return;
     }
 
@@ -93,7 +91,7 @@ class ChatWebSocketService {
 
     _currentStudentId = studentId;
     final topic = '/topic/chat/$studentId';
-    print('[WS] Subscribing to student topic: $topic');
+    debugPrint('[WS] Subscribing to student topic');
 
     _studentTopicSubscription = _stompClient!.subscribe(
       destination: topic,
@@ -101,10 +99,10 @@ class ChatWebSocketService {
         if (frame.body != null) {
           try {
             final data = jsonDecode(frame.body!) as Map<String, dynamic>;
-            print('[WS] Student topic event: ${data['type']}');
+            debugPrint('[WS] Student topic event received');
             _onStudentTopicMessage?.call(data);
           } catch (e) {
-            print('[WS] Error parsing student topic message: $e');
+            debugPrint('[WS] Error parsing student topic message: $e');
           }
         }
       },
@@ -114,7 +112,7 @@ class ChatWebSocketService {
   /// Subscribe to a conversation topic for real-time messages
   void subscribeToConversation(String conversationId) {
     if (_stompClient == null || !_stompClient!.connected) {
-      print('[WS] Cannot subscribe - not connected');
+      debugPrint('[WS] Cannot subscribe - not connected');
       return;
     }
 
@@ -122,7 +120,7 @@ class ChatWebSocketService {
 
     _currentConversationId = conversationId;
     final topic = '/topic/conversation/$conversationId';
-    print('[WS] Subscribing to: $topic');
+    debugPrint('[WS] Subscribing to conversation topic');
 
     _conversationSubscription = _stompClient!.subscribe(
       destination: topic,
@@ -130,10 +128,9 @@ class ChatWebSocketService {
         if (frame.body != null) {
           try {
             final message = jsonDecode(frame.body!) as Map<String, dynamic>;
-            print('[WS] Received message: ${message['content']}');
             _onMessageReceived?.call(message);
           } catch (e) {
-            print('[WS] Error parsing message: $e');
+            debugPrint('[WS] Error parsing message: $e');
           }
         }
       },
@@ -174,6 +171,6 @@ class ChatWebSocketService {
     _onError = null;
     _stompClient?.deactivate();
     _stompClient = null;
-    print('[WS] Disconnected and cleaned up');
+    debugPrint('[WS] Disconnected and cleaned up');
   }
 }

@@ -12,6 +12,9 @@ from typing import List, Dict, Any, Optional
 from urllib.parse import quote_plus
 from pymongo import MongoClient, ASCENDING
 from pymongo.errors import ConnectionFailure, OperationFailure
+from app.core.env_loader import load_project_env
+
+load_project_env()
 
 logger = logging.getLogger(__name__)
 

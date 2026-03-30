@@ -694,8 +694,8 @@ body {
 .seatManage__toast {
   position: fixed;
   bottom: 40px;
-  left: 50%;
-  transform: translateX(-50% + 120px);
+  left: calc(50% + 120px);
+  transform: translateX(-50%);
   background-color: #1f2937;
   color: white;
   padding: 12px 24px;
@@ -707,8 +707,8 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translate(-50% + 120px, 10px); }
-  to { opacity: 1; transform: translate(-50% + 120px, 0); }
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .seatManage__topCards{

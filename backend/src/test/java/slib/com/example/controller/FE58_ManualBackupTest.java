@@ -9,12 +9,14 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.system.BackupController;
 import slib.com.example.entity.system.BackupHistoryEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.system.BackupScheduleRepository;
 import slib.com.example.service.system.BackupService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -45,6 +47,9 @@ class FE58_ManualBackupTest {
         @MockBean
         private BackupScheduleRepository backupScheduleRepository;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         // =========================================
         // === UTCID01: Trigger a manual backup ===
         // =========================================
@@ -55,6 +60,7 @@ class FE58_ManualBackupTest {
          * Expected: 200 OK with backup result
          */
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID01: Trigger a manual backup returns 200 OK")
         void triggerBackup_success_returns200OK() throws Exception {
                 BackupHistoryEntity result = BackupHistoryEntity.builder()
@@ -86,6 +92,7 @@ class FE58_ManualBackupTest {
          * Expected: 200 OK with history list
          */
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID02: Load backup history returns 200 OK")
         void getHistory_success_returns200OK() throws Exception {
                 BackupHistoryEntity historyEntry = BackupHistoryEntity.builder()
@@ -118,6 +125,7 @@ class FE58_ManualBackupTest {
          * Expected: 200 OK with file download
          */
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID03: Download existing backup file returns 200 OK")
         void downloadBackup_existingFile_returns200OK() throws Exception {
                 UUID backupId = UUID.randomUUID();
@@ -143,6 +151,7 @@ class FE58_ManualBackupTest {
          * Expected: 404 Not Found
          */
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID04: Download unknown backup id returns 404 Not Found")
         void downloadBackup_unknownId_returns404() throws Exception {
                 UUID unknownId = UUID.randomUUID();
@@ -166,6 +175,7 @@ class FE58_ManualBackupTest {
          * Expected: 500 Internal Server Error
          */
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID05: Backup job fails unexpectedly returns 500 Internal Server Error")
         void triggerBackup_failure_returns500() throws Exception {
                 when(backupService.performBackup())

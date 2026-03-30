@@ -16,6 +16,7 @@ class LiveStatusDashboard extends StatefulWidget {
 }
 
 class LiveStatusDashboardState extends State<LiveStatusDashboard> {
+  final AuthService _authService = AuthService();
   StudentProfile? _studentProfile;
   double _realStudyHours = 0.0;
   int _violationCount = 0;
@@ -44,9 +45,12 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   /// Connect STOMP WebSocket → subscribe /topic/dashboard
   /// Khi reservation COMPLETED/EXPIRED → ReservationScheduler gửi event AUTO_STATUS_CHANGE
   /// → reload giờ học realtime
-  void _connectWebSocket() {
+  Future<void> _connectWebSocket() async {
     if (_wsConnected) return;
     try {
+      final token = await _authService.getToken();
+      if (token == null || token.isEmpty) return;
+
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
         wsUrl = wsUrl.replaceFirst('https://', 'wss://');
@@ -59,6 +63,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
         config: StompConfig(
           url: stompUrl,
           webSocketConnectHeaders: {'ngrok-skip-browser-warning': 'true'},
+          stompConnectHeaders: {'Authorization': 'Bearer $token'},
           onConnect: (StompFrame frame) {
             debugPrint('[LiveStatus] WebSocket connected');
             _wsConnected = true;

@@ -66,4 +66,7 @@ public class ActivityLogEntity {
     public static final String TYPE_NO_SHOW = "NO_SHOW";
     public static final String TYPE_VIOLATION = "VIOLATION";
     public static final String TYPE_LATE_CHECKIN_PENALTY = "LATE_CHECKIN_PENALTY";
+    public static final String TYPE_LATE_CHECKOUT_PENALTY = "LATE_CHECKOUT_PENALTY";
+    public static final String TYPE_WEEKLY_BONUS = "WEEKLY_BONUS";
+    public static final String TYPE_APPEAL_REFUND = "APPEAL_REFUND";
 }

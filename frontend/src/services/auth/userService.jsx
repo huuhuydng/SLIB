@@ -20,7 +20,6 @@ axiosInstance.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-        console.log('📤 [UserService]', config.method.toUpperCase(), config.url);
         return config;
     },
     (error) => {
@@ -31,10 +30,7 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor - detect token expiry
 axiosInstance.interceptors.response.use(
-    (response) => {
-        console.log('[UserService Response]', response.status, response.data);
-        return response;
-    },
+    (response) => response,
     (error) => {
         console.error('[UserService Response Error]', error.response?.status, error.response?.data);
 
@@ -95,9 +91,7 @@ class UserService {
      */
     async importUsers(users) {
         try {
-            console.log('📤 [UserService] Importing', users.length, 'users');
             const response = await axiosInstance.post('/users/import', users);
-            console.log('✅ [UserService] Import result:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] importUsers error:', error);
@@ -110,7 +104,6 @@ class UserService {
      */
     async validateUsers(users) {
         try {
-            console.log('📤 [UserService] Validating', users.length, 'users');
             const response = await axiosInstance.post('/users/validate', users);
             return response.data;
         } catch (error) {
@@ -156,13 +149,10 @@ class UserService {
                 formData.append('files', renamedFile);
             });
 
-            console.log('📤 [UserService] Batch uploading', Object.keys(avatarFiles).length, 'avatars');
-
             const response = await axiosInstance.post('/users/avatars/batch', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            console.log('[UserService] Batch upload result:', response.data);
             return response.data;
         } catch (error) {
             console.error('[UserService] uploadAvatarsBatch error:', error);
@@ -177,11 +167,9 @@ class UserService {
      */
     async deleteAvatarsBatch(urls) {
         try {
-            console.log('[UserService] Deleting', urls.length, 'avatars for rollback');
             const response = await axiosInstance.delete('/users/avatars/batch', {
                 data: { urls }
             });
-            console.log('[UserService] Delete result:', response.data);
             return response.data;
         } catch (error) {
             console.error('[UserService] deleteAvatarsBatch error:', error);
@@ -204,13 +192,10 @@ class UserService {
             const formData = new FormData();
             formData.append('file', excelFile);
 
-            console.log('📤 [UserService] Starting async Excel import:', excelFile.name);
-
             const response = await axiosInstance.post('/users/import/excel', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            console.log('✅ [UserService] Import started:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] importExcelAsync error:', error);
@@ -283,9 +268,7 @@ class UserService {
      */
     async updateUserStatus(userId, isActive) {
         try {
-            console.log('📤 [UserService] Updating status for user', userId, 'to', isActive ? 'active' : 'locked');
             const response = await axiosInstance.patch(`/users/${userId}/status`, { isActive });
-            console.log('✅ [UserService] Status update result:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] updateUserStatus error:', error);
@@ -300,9 +283,7 @@ class UserService {
      */
     async adminUpdateUser(userId, data) {
         try {
-            console.log('📤 [UserService] Admin updating user', userId, data);
             const response = await axiosInstance.patch(`/users/${userId}`, data);
-            console.log('✅ [UserService] Admin update result:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] adminUpdateUser error:', error);
@@ -315,9 +296,7 @@ class UserService {
      */
     async resetPasswordToDefault(email) {
         try {
-            console.log('📤 [UserService] Resetting password for', email);
             const response = await axiosInstance.post('/auth/admin-reset-password', { email });
-            console.log('✅ [UserService] Password reset result:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] resetPasswordToDefault error:', error);
@@ -330,7 +309,6 @@ class UserService {
      */
     async createLibrarian(data) {
         try {
-            console.log('📤 [UserService] Creating librarian:', data);
             const userData = [{
                 userCode: data.email.split('@')[0].toUpperCase(),
                 email: data.email,
@@ -357,11 +335,9 @@ class UserService {
      */
     async deleteUser(userId, hardDelete = false) {
         try {
-            console.log('📤 [UserService] Deleting user', userId, hardDelete ? '(HARD)' : '(soft)');
             const response = await axiosInstance.delete(`/users/${userId}`, {
                 params: { hard: hardDelete }
             });
-            console.log('✅ [UserService] Delete result:', response.data);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] deleteUser error:', error);
@@ -398,21 +374,14 @@ class UserService {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
 
-                    console.log('📊 [Excel] Sheets:', workbook.SheetNames);
-
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                    console.log('📊 [Excel] Raw rows count:', jsonData.length);
-                    console.log('📊 [Excel] First row:', jsonData[0]);
 
                     // Filter out empty rows
                     const nonEmptyRows = jsonData.filter(row =>
                         row && row.length > 0 && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== '')
                     );
-
-                    console.log('📊 [Excel] Non-empty rows:', nonEmptyRows.length);
 
                     if (nonEmptyRows.length < 2) {
                         throw new Error('File Excel không có dữ liệu. Vui lòng kiểm tra file có header và ít nhất 1 dòng dữ liệu.');
@@ -420,11 +389,7 @@ class UserService {
 
                     // First non-empty row is header
                     const headers = nonEmptyRows[0].map(h => String(h || '').trim().toLowerCase());
-                    console.log('📊 [Excel] Headers:', headers);
-
                     const users = this.parseRowsWithHeaders(headers, nonEmptyRows.slice(1));
-                    console.log('📊 [Excel] Parsed users:', users.length);
-
                     resolve(users);
                 } catch (error) {
                     console.error('❌ [Excel] Parse error:', error);
@@ -455,19 +420,16 @@ class UserService {
 
             // Skip Mac metadata files and __MACOSX folder
             if (baseName.startsWith('._') || lowerName.includes('__macosx') || baseName.startsWith('.')) {
-                console.log('⏭️ Skipping metadata file:', filename);
                 continue;
             }
 
             if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
                 excelFile = zipEntry;
-                console.log('📊 Found Excel file:', filename);
             } else if (lowerName.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
                 // Extract userCode from filename (remove extension)
                 const userCode = baseName.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
                 const blob = await zipEntry.async('blob');
                 avatars[userCode.toUpperCase()] = new File([blob], baseName, { type: this.getMimeType(baseName) });
-                console.log('📷 Found avatar:', baseName, '-> userCode:', userCode.toUpperCase());
             }
         }
 

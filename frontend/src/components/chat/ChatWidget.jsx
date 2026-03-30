@@ -214,14 +214,6 @@ const ChatWidget = () => {
                     const isMyMessage = (receivedMsg.senderId === MY_ID);
                     const partnerId = isMyMessage ? receivedMsg.receiverId : receivedMsg.senderId;
 
-                    // Debug: Log tin nhắn nhận được
-                    console.log('📩 Nhận tin nhắn:', {
-                        isMyMessage,
-                        partnerId,
-                        isRead: receivedMsg.isRead,
-                        content: receivedMsg.content
-                    });
-
                     // 1. Cập nhật danh sách hội thoại: Đẩy lên đầu & tăng unread
                     setConversations(prev => {
                         const updatedList = [...prev];
@@ -244,25 +236,15 @@ const ChatWidget = () => {
 
                     // 2. Xử lý Badge Launcher & Khung chat
                     if (!isMyMessage) {
-                        console.log('🔍 Check điều kiện mark read:', {
-                            isOpenRef: isOpenRef.current,
-                            selectedUserRef: selectedUserRef.current,
-                            partnerId,
-                            match: selectedUserRef.current === partnerId
-                        });
-
                         if (isOpenRef.current && selectedUserRef.current === partnerId) {
                             // Đang mở chat với người này → mark as read và cập nhật badge
-                            console.log('✅ Đang mở chat với người gửi, gọi markMessagesAsRead cho:', partnerId);
                             markMessagesAsRead(partnerId)
                                 .then(() => {
-                                    console.log('✅ Mark as read thành công, fetch lại badge');
                                     fetchTotalUnread();
                                 })
                                 .catch(err => console.error("Lỗi mark as read:", err));
                         } else {
                             // Không mở chat → tăng badge
-                            console.log('📬 Không mở chat với người gửi, tăng badge');
                             setUnreadCount(prev => prev + 1);
                         }
                     }
@@ -284,29 +266,16 @@ const ChatWidget = () => {
                     const seenData = JSON.parse(notification.body);
                     const { partnerId } = seenData;
 
-                    console.log('👁️ Nhận notification SEEN từ:', partnerId);
-
                     // Lưu partnerId vào Set để apply sau
                     setSeenByPartners(prev => new Set(prev).add(partnerId));
 
                     // Cập nhật messages: đánh dấu tất cả tin của mình gửi cho partnerId là đã đọc
                     setMessages(prev => {
-                        const matchedMessages = prev.filter(msg =>
-                            msg.senderId === MY_ID && msg.receiverId === partnerId && !msg.isRead
-                        );
-
-                        console.log('🔍 Tìm thấy', matchedMessages.length, 'tin cần update trong', prev.length, 'tin');
-                        if (matchedMessages.length > 0) {
-                            console.log('📋 Chi tiết:', matchedMessages.map(m => ({ id: m.id, content: m.content, isRead: m.isRead })));
-                        }
-
-                        const updated = prev.map(msg =>
+                        return prev.map(msg =>
                             (msg.senderId === MY_ID && msg.receiverId === partnerId && !msg.isRead)
                                 ? { ...msg, isRead: true }
                                 : msg
                         );
-                        console.log('📝 Messages sau khi cập nhật SEEN:', updated.filter(m => m.senderId === MY_ID));
-                        return updated;
                     });
                 });
             }
@@ -330,7 +299,6 @@ const ChatWidget = () => {
                             ? { ...msg, isRead: true }
                             : msg
                     );
-                    console.log('✅ Applied SEEN notification cho messages vừa load');
                 }
 
                 setMessages(loadedMessages);
@@ -364,7 +332,6 @@ const ChatWidget = () => {
         if (!file) return;
 
         setIsUploading(true);
-        console.log("🚀 [UPLOAD] Bắt đầu xử lý file:", file.name, "Size:", (file.size / 1024).toFixed(2) + "KB");
 
         try {
             const isImage = file.type.startsWith('image/');
@@ -372,21 +339,16 @@ const ChatWidget = () => {
 
             // 1. Gọi API Upload
             if (isImage) {
-                console.log("📸 [UPLOAD] Đang tải lên dưới dạng IMAGE...");
                 res = await uploadFile(file);
             } else {
-                console.log("📄 [UPLOAD] Đang tải lên dưới dạng DOCUMENT...");
                 res = await uploadDocument(file);
             }
 
             // 2. Kiểm tra dữ liệu phản hồi
             const data = res.data;
-            console.log("📥 [SERVER RESPONSE]:", data);
 
             if (data && data.url) {
                 sendToWebSocket(file.name, data.url, data.type);
-
-                console.log("📤 [WEBSOCKET SENT] Đã gửi payload qua /app/chat");
             } else {
                 console.warn("⚠️ [WARNING] Upload thành công nhưng Server không trả về URL đính kèm.");
             }
@@ -416,8 +378,6 @@ const ChatWidget = () => {
 
         // Kiểm tra kỹ selectedUser có giá trị không
         if (!selectedUser) return;
-
-        console.log("🚀 Điều hướng đến chat với ID:", selectedUser);
 
         // Đóng widget trước khi chuyển trang
         handleCloseAll();

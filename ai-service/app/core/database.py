@@ -8,6 +8,10 @@ import logging
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlmodel import SQLModel
+from app.core.env_loader import load_project_env
+
+
+load_project_env()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Database configuration from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql://postgres:Slib123@localhost:5432/slib"
+    "postgresql://postgres:@localhost:5434/slib"
 )
 
 # Create SQLAlchemy engine
