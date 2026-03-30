@@ -9,7 +9,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import slib.com.example.entity.users.Role;
+import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
@@ -34,6 +37,9 @@ import slib.com.example.controller.notification.NotificationController;
 @DisplayName("FE-99: View/Delete Notifications - Unit Tests")
 class FE99_NotificationTest {
 
+        private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        private static final String TEST_EMAIL = "student@fpt.edu.vn";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -43,24 +49,36 @@ class FE99_NotificationTest {
         @MockBean
         private UserRepository userRepository;
 
+        private User buildCurrentUser(UUID userId, String email) {
+                User user = new User();
+                user.setId(userId);
+                user.setEmail(email);
+                user.setRole(Role.STUDENT);
+                return user;
+        }
+
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCD01: View notifications returns 200 OK")
         void viewNotifications_validToken_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
-                when(notificationService.getUserNotifications(eq(userId), anyInt()))
+                when(userRepository.findByEmail(TEST_EMAIL))
+                        .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(notificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
                         .thenReturn(Collections.emptyList());
 
-                mockMvc.perform(get("/slib/notifications/user/{userId}", userId))
+                mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                         .andExpect(status().isOk());
         }
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCD02: Get unread count returns 200 OK with count")
         void getUnreadCount_validUser_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
-                when(notificationService.getUnreadCount(eq(userId))).thenReturn(5L);
+                when(userRepository.findByEmail(TEST_EMAIL))
+                        .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(notificationService.getUnreadCount(eq(TEST_USER_ID))).thenReturn(5L);
 
-                mockMvc.perform(get("/slib/notifications/unread-count/{userId}", userId))
+                mockMvc.perform(get("/slib/notifications/unread-count/{userId}", TEST_USER_ID))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.count").value(5));
         }

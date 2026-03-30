@@ -83,7 +83,6 @@ function Zone({ zone, areaBounds }) {
     (async () => {
       try {
         const res = await getSeats(zone.zoneId);
-        console.log("Loaded seats for zone", zone.zoneId, ":", res.data);
         dispatch({
           type: actions.SET_SEATS,
           payload: res.data || [],
@@ -105,8 +104,6 @@ function Zone({ zone, areaBounds }) {
       const newWidth = Math.max(zone.width, minDims.minWidth);
       const newHeight = Math.max(zone.height, minDims.minHeight);
 
-      console.log(`Zone ${zone.zoneId} auto-resized: ${zone.width}×${zone.height} → ${newWidth}×${newHeight}`);
-
       updateZoneDimensions(zone.zoneId, newWidth, newHeight).then(() => {
         dispatch({
           type: actions.UPDATE_ZONE,
@@ -124,8 +121,6 @@ function Zone({ zone, areaBounds }) {
   /* ================= DERIVED ================= */
 
   const zoneSeats = seats.filter(s => s.zoneId === zone.zoneId);
-
-  console.log(`Zone ${zone.zoneId} rendered - seats: ${zoneSeats.length}`);
 
   const isSelected =
     selectedItem?.type === "zone" &&
@@ -169,7 +164,6 @@ function Zone({ zone, areaBounds }) {
     // update backend
     try {
       await updateZonePosition(zone.zoneId, x, y);
-      console.log(`Zone position saved: (${x}, ${y})`);
     } catch (e) {
       console.error('Failed to save zone position', e);
       return;
@@ -259,7 +253,6 @@ function Zone({ zone, areaBounds }) {
 
     try {
       await updateZoneDimensions(zone.zoneId, size.width, size.height);
-      console.log(`Zone ${zone.zoneId} saved: ${size.width}×${size.height}`);
     } catch (e) {
       console.error('Failed to save zone dimensions', e);
       setLiveSize({ width: zone.width, height: zone.height });
@@ -328,7 +321,6 @@ function Zone({ zone, areaBounds }) {
           height={liveSize.height}
           minConstraints={(() => {
             const dims = calculateMinZoneDimensions(zoneSeats);
-            console.log(`Zone ${zone.zoneId} - minConstraints set to: [${dims.minWidth}, ${dims.minHeight}]`);
             return [dims.minWidth, dims.minHeight];
           })()}
           maxConstraints={[
@@ -376,55 +368,44 @@ function Zone({ zone, areaBounds }) {
                 <>
                   <div className="seats-container" style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
                     {zoneSeats && zoneSeats.length > 0 ? (
-                      <>
-                        {console.log(`Zone ${zone.zoneId} rendering ${zoneSeats.length} seats`)}
-                        {(() => {
-                          const minDims = calculateMinZoneDimensions(zoneSeats);
-                          const headerHeight = 40;
-                          const padding = 8;
-                          const minContentHeight = minDims.minHeight - headerHeight - padding;
+                      (() => {
+                        const minDims = calculateMinZoneDimensions(zoneSeats);
+                        const headerHeight = 40;
+                        const padding = 8;
+                        const minContentHeight = minDims.minHeight - headerHeight - padding;
 
-                          console.log(`Zone ${zone.zoneId} - minDims: ${minDims.minWidth}×${minDims.minHeight}, liveSize: ${liveSize.width}×${liveSize.height}`);
+                        return (
+                          <div style={{
+                            position: "relative",
+                            minWidth: minDims.minWidth,
+                            minHeight: minContentHeight,
+                            padding: `${padding}px`,
+                            backgroundColor: 'rgba(0,0,0,0.02)',
+                            border: '1px dashed #ccc',
+                          }}>
+                            {zoneSeats.map((seat) => {
+                              const layout = calculateSeatLayout(seat);
+                              const finalLeft = layout.positionX + padding;
+                              const finalTop = layout.positionY - headerHeight + padding;
 
-                          return (
-                            <div style={{
-                              position: "relative",
-                              minWidth: minDims.minWidth,
-                              minHeight: minContentHeight,
-                              padding: `${padding}px`,
-                              backgroundColor: 'rgba(0,0,0,0.02)',
-                              border: '1px dashed #ccc',
-                            }}>
-                              {zoneSeats.map((seat, idx) => {
-                                const layout = calculateSeatLayout(seat);
-                                const finalLeft = layout.positionX + padding;
-                                const finalTop = layout.positionY - headerHeight + padding;
-
-                                if (idx === 0) {
-                                  console.log(`   Seat[0] ${seat.seatId} (${seat.seatCode}): row=${seat.rowNumber}, col=${seat.columnNumber}`);
-                                  console.log(`       layout.positionX=${layout.positionX}, layout.positionY=${layout.positionY}`);
-                                  console.log(`       finalLeft=${finalLeft}, finalTop=${finalTop}`);
-                                }
-
-                                return (
-                                  <div
-                                    key={seat.seatId}
-                                    style={{
-                                      position: "absolute",
-                                      left: finalLeft,
-                                      top: finalTop,
-                                      width: layout.width,
-                                      height: layout.height,
-                                    }}
-                                  >
-                                    <Seat seat={seat} />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </>
+                              return (
+                                <div
+                                  key={seat.seatId}
+                                  style={{
+                                    position: "absolute",
+                                    left: finalLeft,
+                                    top: finalTop,
+                                    width: layout.width,
+                                    height: layout.height,
+                                  }}
+                                >
+                                  <Seat seat={seat} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div style={{ padding: '20px', color: '#999' }}>Không có ghế</div>
                     )}

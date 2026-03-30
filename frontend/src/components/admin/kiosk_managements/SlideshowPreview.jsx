@@ -9,9 +9,6 @@ import { API_BASE_URL } from '../../../config/apiConfig';
  * Hiển thị fullscreen slideshow với tất cả các ảnh hiện hoạt.
  */
 const SlideshowPreview = () => {
-  console.log('🎬 SlideshowPreview component mounted!');
-  console.log('📍 API_BASE_URL:', API_BASE_URL);
-  
   const [images, setImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -23,12 +20,10 @@ const SlideshowPreview = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        console.log('🔧 Fetching config from:', `${API_BASE_URL}/api/slideshow/config`);
         const response = await fetch(`${API_BASE_URL}/api/slideshow/config`);
         const data = await response.json();
         if (data.success && data.config.duration) {
           setSlideDuration(data.config.duration);
-          console.log('✅ Config duration:', data.config.duration);
         }
       } catch (e) {
         console.warn('⚠️ Failed to fetch config:', e);
@@ -46,31 +41,24 @@ const SlideshowPreview = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🚀 Starting fetch from:', `${API_BASE_URL}/api/slideshow/images`);
       setDebugInfo(`🚀 Fetching from ${API_BASE_URL}`);
       
       const response = await fetch(`${API_BASE_URL}/api/slideshow/images`);
-      console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('📦 Full API Response:', data);
-      console.log('📊 Response type:', typeof data);
       
       // Handle different response formats
       let imagesToProcess = [];
       if (Array.isArray(data)) {
         imagesToProcess = data;
-        console.log('📋 Response is array with', data.length, 'items');
       } else if (data.success && data.images && Array.isArray(data.images)) {
         imagesToProcess = data.images;
-        console.log('📋 Response has images array with', data.images.length, 'items');
       } else if (data.images && Array.isArray(data.images)) {
         imagesToProcess = data.images;
-        console.log('📋 Response has images property with', data.images.length, 'items');
       } else {
         console.warn('⚠️ Unexpected response format:', data);
         setError('Unexpected API response format');
@@ -79,10 +67,8 @@ const SlideshowPreview = () => {
         return;
       }
 
-      console.log('🔍 Filtering active images...');
       const activeImages = imagesToProcess.filter(img => {
         const isActive = img.isActive === true || img.isActive === 'true';
-        console.log(`  📌 "${img.imageName}": isActive=${img.isActive} (type: ${typeof img.isActive}) → ${isActive ? '✅' : '❌'}`);
         
         if (!isActive) return false;
         
@@ -91,23 +77,18 @@ const SlideshowPreview = () => {
         const start = img.startDate ? new Date(img.startDate) : null;
         const end = img.endDate ? new Date(img.endDate) : null;
         if (start && now < start) {
-          console.log(`    ⏰ Start date ${start} > now, skipping`);
           return false;
         }
         if (end && now > end) {
-          console.log(`    ⏰ End date ${end} < now, skipping`);
           return false;
         }
         return true;
       });
       
-      console.log(`✅ Total: ${imagesToProcess.length}, Active: ${activeImages.length}`);
-      
       if (activeImages.length > 0) {
         setImages(activeImages);
         setCurrentImageIndex(0);
         setDebugInfo(`✅ ${activeImages.length}/${imagesToProcess.length} ảnh hoạt động`);
-        console.log('✅ Preview loaded successfully with', activeImages.length, 'images');
       } else {
         console.warn('⚠️ No active images found');
         setError(`Không có ảnh nào (Tìm thấy: ${imagesToProcess.length} ảnh, nhưng 0 ảnh hoạt động)`);
@@ -128,7 +109,6 @@ const SlideshowPreview = () => {
   useEffect(() => {
     if (images.length === 0) return;
 
-    console.log('▶️ Starting auto-rotate with interval:', slideDuration);
     const interval = setInterval(() => {
       setCurrentImageIndex(prev => (prev + 1) % images.length);
     }, slideDuration);
@@ -139,13 +119,11 @@ const SlideshowPreview = () => {
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e) => {
-      console.log('🎹 Key pressed:', e.key);
       if (e.key === 'ArrowLeft') {
         setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length);
       } else if (e.key === 'ArrowRight') {
         setCurrentImageIndex(prev => (prev + 1) % images.length);
       } else if (e.key === 'Escape') {
-        console.log('🔐 Closing window...');
         window.close();
       }
     };
@@ -153,17 +131,6 @@ const SlideshowPreview = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [images.length]);
-
-  // Log render state
-  useEffect(() => {
-    console.log('🎨 Component Render State:', {
-      loading,
-      error,
-      imagesCount: images.length,
-      currentIndex: currentImageIndex,
-      slideDuration
-    });
-  }, [loading, error, images, currentImageIndex, slideDuration]);
 
   return (
     <div className="slideshowPreview__wrapper">

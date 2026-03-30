@@ -92,11 +92,17 @@ class _QrScanScreenState extends State<QrScanScreen> {
                       IconButton(
                         onPressed: () => Navigator.pop(context),
                         icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black45,
+                        ),
                       ),
                       const Text(
                         "Quét mã QR Kiosk",
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         onPressed: () => controller.toggleTorch(),
@@ -110,7 +116,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
                             );
                           },
                         ),
-                        style: IconButton.styleFrom(backgroundColor: Colors.black45),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black45,
+                        ),
                       ),
                     ],
                   ),
@@ -147,7 +155,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -159,10 +167,14 @@ class _QrScanScreenState extends State<QrScanScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
+              color: const Color(0xFF4CAF50).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 24),
+            child: const Icon(
+              Icons.check_circle,
+              color: Color(0xFF4CAF50),
+              size: 24,
+            ),
           ),
           const SizedBox(width: 12),
 
@@ -174,7 +186,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
               children: [
                 Text(
                   "Bạn đang trong thư viện",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                  ),
                 ),
                 SizedBox(height: 2),
                 Text(
@@ -194,15 +210,27 @@ class _QrScanScreenState extends State<QrScanScreen> {
                 backgroundColor: const Color(0xFFFF5722),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 elevation: 0,
               ),
               child: _isCheckingOut
                   ? const SizedBox(
-                      width: 18, height: 18,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
                     )
-                  : const Text("Check-out", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  : const Text(
+                      "Check-out",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -294,7 +322,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("QR không hợp lệ: ${validateResult['message'] ?? 'Lỗi'}"),
+              content: Text(
+                "QR không hợp lệ: ${validateResult['message'] ?? 'Lỗi'}",
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -325,7 +355,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -350,7 +382,11 @@ class _QrScanScreenState extends State<QrScanScreen> {
                     SizedBox(height: 10),
                     Text(
                       "Xác nhận Check-in",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -380,21 +416,37 @@ class _QrScanScreenState extends State<QrScanScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: AppColors.brandColor.withOpacity(0.15),
+                              color: AppColors.brandColor.withValues(
+                                alpha: 0.15,
+                              ),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.location_on, color: AppColors.brandColor, size: 22),
+                            child: const Icon(
+                              Icons.location_on,
+                              color: AppColors.brandColor,
+                              size: 22,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text("Vị trí", style: TextStyle(fontSize: 12, color: Color(0xFF999999))),
+                                const Text(
+                                  "Vị trí",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
                                   _kioskName ?? kioskCode,
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF333333),
+                                  ),
                                 ),
                               ],
                             ),
@@ -413,41 +465,63 @@ class _QrScanScreenState extends State<QrScanScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isProcessing ? null : () {
-                          setState(() => _isScanned = false);
-                          Navigator.pop(context);
-                        },
+                        onPressed: _isProcessing
+                            ? null
+                            : () {
+                                setState(() => _isScanned = false);
+                                Navigator.pop(context);
+                              },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           side: const BorderSide(color: Color(0xFFDDDDDD)),
                         ),
-                        child: const Text("Hủy", style: TextStyle(color: Color(0xFF888888), fontSize: 15)),
+                        child: const Text(
+                          "Hủy",
+                          style: TextStyle(
+                            color: Color(0xFF888888),
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed: _isProcessing ? null : () {
-                          setDialogState(() {});
-                          _processCheckIn();
-                        },
+                        onPressed: _isProcessing
+                            ? null
+                            : () {
+                                setDialogState(() {});
+                                _processCheckIn();
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brandColor,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                         child: _isProcessing
-                          ? const SizedBox(
-                              width: 22, height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                            )
-                          : const Text(
-                              "Check-in ngay",
-                              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                            ),
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                "Check-in ngay",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -482,7 +556,9 @@ class _QrScanScreenState extends State<QrScanScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Check-in thành công! Xin chào ${currentUser.fullName}"),
+            content: Text(
+              "Check-in thành công! Xin chào ${currentUser.fullName}",
+            ),
             backgroundColor: Colors.green,
           ),
         );

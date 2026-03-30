@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
+import 'package:slib/views/booking/floor_plan_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -370,7 +371,7 @@ class _MapScreenState extends State<MapScreen> {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: zone.color.withOpacity(0.1),
+                      color: zone.color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -406,8 +407,10 @@ class _MapScreenState extends State<MapScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context); // Đóng sheet
-                    // TODO: Navigate to Booking Screen with zone.id
-                    // Navigator.push(context, MaterialPageRoute(builder: (_) => SeatSelectionScreen(zoneName: zone.name)));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FloorPlanScreen()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brandColor,
@@ -501,7 +504,7 @@ class GridPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.grey
-          .withOpacity(0.2) // Màu lưới nhạt hơn
+          .withValues(alpha: 0.2) // Màu lưới nhạt hơn
       ..strokeWidth = 1;
 
     // Vẽ lưới ô vuông 40x40 (Khớp với tỉ lệ ảnh)

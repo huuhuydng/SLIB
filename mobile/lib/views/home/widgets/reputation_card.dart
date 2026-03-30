@@ -35,7 +35,7 @@ class ReputationCard extends StatelessWidget {
 
     return Card(
       elevation: 8,
-      shadowColor: AppColors.brandColor.withOpacity(0.3),
+      shadowColor: AppColors.brandColor.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: Colors.white,
       surfaceTintColor: Colors.white,
@@ -53,7 +53,7 @@ class ReputationCard extends StatelessWidget {
                   CircularProgressIndicator(
                     value: 1.0 - score / 100,
                     strokeWidth: 8,
-                    color: AppColors.brandColor.withOpacity(0.1),
+                    color: AppColors.brandColor.withValues(alpha: 0.1),
                   ),
                   CircularProgressIndicator(
                     value: score / 100,

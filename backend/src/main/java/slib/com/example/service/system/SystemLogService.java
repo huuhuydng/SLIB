@@ -45,6 +45,7 @@ public class SystemLogService {
                     .category(category)
                     .service(service)
                     .message(message)
+                    .action(resolveAction(category, service))
                     .source(source != null ? source : LogSource.SYSTEM)
                     .referenceId(referenceId)
                     .build();
@@ -100,6 +101,7 @@ public class SystemLogService {
                     .category(LogCategory.AUDIT)
                     .service(service)
                     .message(message)
+                    .action(resolveAction(LogCategory.AUDIT, service))
                     .source(LogSource.WEB)
                     .actorEmail(actorEmail)
                     .build();
@@ -175,5 +177,13 @@ public class SystemLogService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String resolveAction(LogCategory category, String service) {
+        String prefix = category != null ? category.name() : "SYSTEM";
+        if (service == null || service.isBlank()) {
+            return prefix;
+        }
+        return prefix + ":" + service;
     }
 }

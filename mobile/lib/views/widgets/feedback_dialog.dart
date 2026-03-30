@@ -56,7 +56,9 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
       final body = <String, dynamic>{
         'rating': _rating,
         'content': _commentController.text.trim(),
-        'category': widget.conversationId != null ? 'MESSAGE' : _selectedCategory,
+        'category': widget.conversationId != null
+            ? 'MESSAGE'
+            : _selectedCategory,
       };
       if (widget.conversationId != null) {
         body['conversationId'] = widget.conversationId;
@@ -101,7 +103,11 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_rounded, color: Color(0xFF4CAF50), size: 56),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF4CAF50),
+            size: 56,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Cảm ơn bạn đã đánh giá!',
@@ -151,7 +157,9 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Icon(
-                    starIndex <= _rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    starIndex <= _rating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
                     size: 40,
                     color: starIndex <= _rating
                         ? const Color(0xFFFF751F)
@@ -165,7 +173,11 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
             const SizedBox(height: 8),
             Text(
               _ratingLabel(_rating),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFFFF751F)),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFFFF751F),
+              ),
             ),
           ],
           if (widget.conversationId == null) ...[
@@ -181,7 +193,10 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                 child: DropdownButton<String>(
                   value: _selectedCategory,
                   isExpanded: true,
-                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500]),
+                  icon: Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.grey[500],
+                  ),
                   style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                   items: _categoryOptions.map((opt) {
                     return DropdownMenuItem<String>(
@@ -232,16 +247,27 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.grey[300],
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: _isSubmitting
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Gửi đánh giá', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  : const Text(
+                      'Gửi đánh giá',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 8),
@@ -301,11 +327,16 @@ Future<void> showFeedbackPopup(
         onSubmitted: () {
           onSubmitted?.call();
           Future.delayed(const Duration(seconds: 2), () {
-            if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+            if (!ctx.mounted) return;
+            final navigator = Navigator.of(ctx);
+            if (navigator.canPop()) {
+              navigator.pop();
+            }
           });
         },
         onDismissed: () {
           onDismissed?.call();
+          if (!ctx.mounted) return;
           Navigator.of(ctx).pop();
         },
       ),

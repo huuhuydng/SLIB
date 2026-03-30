@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:slib/core/constants/api_constants.dart';
@@ -17,38 +18,46 @@ class AIAnalyticsService {
   }
 
   /// Lấy dự đoán mật độ sử dụng
-  static Future<Map<String, dynamic>?> getDensityPrediction({String? zoneId}) async {
+  static Future<Map<String, dynamic>?> getDensityPrediction({
+    String? zoneId,
+  }) async {
     try {
       final queryParams = zoneId != null ? '?zone_id=$zoneId' : '';
-      final response = await http.get(
-        Uri.parse('$_baseUrl/density-prediction$queryParams'),
-        headers: await _authHeaders(),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/density-prediction$queryParams'),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       return null;
     } catch (e) {
-      print('Error fetching density prediction: $e');
+      debugPrint('Error fetching density prediction: $e');
       return null;
     }
   }
 
   /// Lấy thống kê sử dụng
-  static Future<Map<String, dynamic>?> getUsageStatistics({String period = 'week'}) async {
+  static Future<Map<String, dynamic>?> getUsageStatistics({
+    String period = 'week',
+  }) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/usage-statistics?period=$period'),
-        headers: await _authHeaders(),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/usage-statistics?period=$period'),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       return null;
     } catch (e) {
-      print('Error fetching usage statistics: $e');
+      debugPrint('Error fetching usage statistics: $e');
       return null;
     }
   }
@@ -56,17 +65,19 @@ class AIAnalyticsService {
   /// Lấy công suất thời gian thực
   static Future<Map<String, dynamic>?> getRealtimeCapacity() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/realtime-capacity'),
-        headers: await _authHeaders(),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/realtime-capacity'),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       return null;
     } catch (e) {
-      print('Error fetching realtime capacity: $e');
+      debugPrint('Error fetching realtime capacity: $e');
       return null;
     }
   }
@@ -79,24 +90,34 @@ class AIAnalyticsService {
   }) async {
     try {
       var queryParams = 'user_id=$userId';
-      if (zonePreference != null) queryParams += '&zone_preference=$zonePreference';
+      if (zonePreference != null) {
+        queryParams += '&zone_preference=$zonePreference';
+      }
       if (timeSlot != null) queryParams += '&time_slot=$timeSlot';
 
-      print('[AI_DEBUG] getSeatRecommendation URL: $_baseUrl/seat-recommendation?$queryParams');
+      debugPrint(
+        '[AI_DEBUG] getSeatRecommendation URL: $_baseUrl/seat-recommendation?$queryParams',
+      );
 
-      final response = await http.get(
-        Uri.parse('$_baseUrl/seat-recommendation?$queryParams'),
-        headers: await _authHeaders(),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/seat-recommendation?$queryParams'),
+            headers: await _authHeaders(),
+          )
+          .timeout(const Duration(seconds: 10));
 
-      print('[AI_DEBUG] getSeatRecommendation status: ${response.statusCode}');
-      print('[AI_DEBUG] getSeatRecommendation body: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}');
+      debugPrint(
+        '[AI_DEBUG] getSeatRecommendation status: ${response.statusCode}',
+      );
+      debugPrint(
+        '[AI_DEBUG] getSeatRecommendation body: ${response.body.substring(0, response.body.length > 500 ? 500 : response.body.length)}',
+      );
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       return null;
     } catch (e) {
-      print('Error fetching seat recommendation: $e');
+      debugPrint('Error fetching seat recommendation: $e');
       return null;
     }
   }
@@ -107,21 +128,20 @@ class AIAnalyticsService {
     int days = 30,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/student-behavior'),
-        headers: await _authHeaders(),
-        body: json.encode({
-          'user_id': userId,
-          'days': days,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/student-behavior'),
+            headers: await _authHeaders(),
+            body: json.encode({'user_id': userId, 'days': days}),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
       return null;
     } catch (e) {
-      print('Error fetching student behavior: $e');
+      debugPrint('Error fetching student behavior: $e');
       return null;
     }
   }
@@ -155,9 +175,11 @@ class AIAnalyticsService {
       String? actionText;
 
       // Ưu tiên 1: Gợi ý chỗ ngồi
-      if (seatRec != null && seatRec['recommendations'] != null && (seatRec['recommendations'] as List).isNotEmpty) {
+      if (seatRec != null &&
+          seatRec['recommendations'] != null &&
+          (seatRec['recommendations'] as List).isNotEmpty) {
         final rec = seatRec['recommendations'][0];
-        print('[AI_DEBUG] Top recommendation: ${rec}');
+        debugPrint('[AI_DEBUG] Top recommendation: $rec');
         seatCode = rec['seat_code'];
         seatId = rec['seat_id'] is int ? rec['seat_id'] : null;
         zoneId = rec['zone_id'] is int ? rec['zone_id'] : null;
@@ -183,23 +205,29 @@ class AIAnalyticsService {
         final occupancy = (capacity['occupancy_rate'] as num).toDouble();
         if (occupancy >= 90) {
           title = 'Cảnh báo: Thư viện gần kín chỗ';
-          message = 'Hiện tại ${occupancy.toStringAsFixed(0)}% công suất. Nên đặt chỗ trước!';
+          message =
+              'Hiện tại ${occupancy.toStringAsFixed(0)}% công suất. Nên đặt chỗ trước!';
           actionText = 'Xem chỗ trống';
         } else if (occupancy >= 70) {
           title = 'Thư viện đang đông';
-          message = 'Hiện tại ${occupancy.toStringAsFixed(0)}% công suất. Nên đến sớm!';
+          message =
+              'Hiện tại ${occupancy.toStringAsFixed(0)}% công suất. Nên đến sớm!';
           actionText = 'Xem chỗ trống';
         } else {
           title = 'Thư viện còn nhiều chỗ';
-          message = 'Hiện tại chỉ ${occupancy.toStringAsFixed(0)}% công suất. Đây là thời điểm tốt!';
+          message =
+              'Hiện tại chỉ ${occupancy.toStringAsFixed(0)}% công suất. Đây là thời điểm tốt!';
           actionText = 'Đặt chỗ ngay';
         }
       }
       // Ưu tiên 3: Dự báo giờ cao điểm
-      else if (density != null && density['quiet_hours'] != null && (density['quiet_hours'] as List).isNotEmpty) {
+      else if (density != null &&
+          density['quiet_hours'] != null &&
+          (density['quiet_hours'] as List).isNotEmpty) {
         final quietHour = density['quiet_hours'][0];
         title = 'Dự báo: ${quietHour['label']} thư viện sẽ vắng';
-        message = 'Đây là thời điểm lý tưởng để học tập. Tỉ lệ công suất dự kiến thấp.';
+        message =
+            'Đây là thời điểm lý tưởng để học tập. Tỉ lệ công suất dự kiến thấp.';
         actionText = 'Đặt chỗ trước';
       }
       // Fallback
@@ -222,7 +250,7 @@ class AIAnalyticsService {
         seatRecommendation: seatRec,
       );
     } catch (e) {
-      print('Error generating AI card data: $e');
+      debugPrint('Error generating AI card data: $e');
       return null;
     }
   }

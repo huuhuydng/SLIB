@@ -25,11 +25,6 @@ function Seat({ seat }) {
     e.stopPropagation();
 
     const newIsActive = seat.isActive !== true;
-    console.log("[Seat] DoubleClick - toggling seat", {
-      seatId: seat.seatId,
-      currentIsActive: seat.isActive,
-      newIsActive
-    });
 
     const buildSeatPayload = (s, override = {}) => {
       const {
@@ -65,9 +60,7 @@ function Seat({ seat }) {
     // update backend
     try {
       const payload = buildSeatPayload(seat, { isActive: newIsActive });
-      console.log("[Seat] updateSeat payload:", payload);
-      const res = await updateSeat(seat.seatId, payload);
-      console.log("[Seat] updateSeat response:", res?.status, res?.data);
+      await updateSeat(seat.seatId, payload);
 
       // sync context
       dispatch({
@@ -78,7 +71,6 @@ function Seat({ seat }) {
           isActive: newIsActive,
         },
       });
-      console.log("[Seat] Dispatched UPDATE_SEAT for", seat.seatId, "-> isActive:", newIsActive);
     } catch (e) {
       console.error("[Seat] Failed to update seat status", e);
     }

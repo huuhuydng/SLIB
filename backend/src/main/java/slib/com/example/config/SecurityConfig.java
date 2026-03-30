@@ -2,6 +2,7 @@ package slib.com.example.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,6 +20,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -37,7 +39,7 @@ public class SecurityConfig {
                         // Public auth endpoints
                         .requestMatchers("/slib/auth/**").permitAll()
                         .requestMatchers("/slib/users/login-google").permitAll()
-                        .requestMatchers("/slib/users/getall").permitAll()
+                        .requestMatchers("/slib/users/getall").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").hasRole("ADMIN")
                         // Open WebSocket endpoints (important for realtime)
@@ -47,7 +49,14 @@ public class SecurityConfig {
                         .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated
                         .requestMatchers("/slib/ai/**").authenticated()
-                        .requestMatchers("/slib/files/**").permitAll()
+                        .requestMatchers("/slib/system/**").hasRole("ADMIN")
+                        .requestMatchers("/slib/seed/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
+                        .requestMatchers("/slib/files/**").authenticated()
+                        .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
+                        .requestMatchers("/slib/hce/access-logs/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/hce/latest-logs").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/hce/student-detail/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // News public endpoints (cho mobile/student)
                         .requestMatchers("/slib/news/public/**").permitAll()
                         .requestMatchers("/slib/new-books/public/**").permitAll()
@@ -71,6 +80,8 @@ public class SecurityConfig {
                         // HCE gate endpoints (Raspberry Pi uses X-API-KEY, not JWT)
                         .requestMatchers(HttpMethod.POST, "/slib/hce/checkin").permitAll()
                         .requestMatchers(HttpMethod.POST, "/slib/hce/stations/*/heartbeat").permitAll()
+                        .requestMatchers("/slib/hce/stations/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/hce/**").hasAnyRole("ADMIN", "LIBRARIAN")
 
                         // Kiosk admin endpoints - yeu cau ADMIN hoac LIBRARIAN
                         .requestMatchers("/slib/kiosk/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
@@ -85,6 +96,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
                         .requestMatchers("/slib/bookings/create").hasAnyRole("STUDENT", "KIOSK")
                         .requestMatchers("/slib/bookings/cancel/**").hasAnyRole("STUDENT", "KIOSK")
+                        .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole("STUDENT", "KIOSK")
                         .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole("STUDENT", "KIOSK")
                         // Cac endpoint khac

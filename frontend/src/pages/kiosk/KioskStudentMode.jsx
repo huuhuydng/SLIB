@@ -32,8 +32,6 @@ const KioskStudentMode = () => {
     const subscribeTime = Date.now();
 
     const handleSessionUpdate = (data) => {
-      console.log('Session updated:', data);
-
       // Bỏ qua nếu đã xử lý session này
       if (processedSessionRef.current === data.sessionToken) return;
 
@@ -41,7 +39,6 @@ const KioskStudentMode = () => {
       if (data.timestamp) {
         const msgTime = new Date(data.timestamp).getTime();
         if (msgTime < subscribeTime - 10000) {
-          console.log('Ignoring old WebSocket message', data.sessionToken);
           return;
         }
       }
@@ -75,7 +72,6 @@ const KioskStudentMode = () => {
     const connectWs = () => {
       websocketService.connect(
         () => {
-          console.log('WebSocket connected at', new Date(subscribeTime).toISOString());
           websocketService.subscribe(topic, handleSessionUpdate);
         },
         (error) => {
@@ -109,13 +105,11 @@ const KioskStudentMode = () => {
           if (session.checkInTime) {
             const checkInMs = new Date(session.checkInTime).getTime();
             if (checkInMs < startTime - 15000) {
-              console.log('Ignoring old session from polling', session.sessionToken);
               processedSessionRef.current = session.sessionToken;
               return;
             }
           }
 
-          console.log('Polling found new active session:', session);
           processedSessionRef.current = session.sessionToken;
           sessionStorage.setItem('kiosk_session', JSON.stringify(session));
 

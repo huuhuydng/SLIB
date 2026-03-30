@@ -21,16 +21,12 @@ aiConfigApi.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log("[AI Config API][Request]", config.method?.toUpperCase(), config.baseURL + config.url);
     return config;
 });
 
 // Response interceptor
 aiConfigApi.interceptors.response.use(
-    (res) => {
-        console.log("[AI Config API][Response]", res.config?.url, res.status);
-        return res;
-    },
+    (res) => res,
     (err) => {
         console.error("[AI Config API][Error]", err.config?.url, err.response?.status, err.response?.data);
         return Promise.reject(err);

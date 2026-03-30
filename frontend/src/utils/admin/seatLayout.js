@@ -66,8 +66,6 @@ export const calculateMinZoneDimensions = (seats) => {
   const headerHeight = 40;
   const minHeight = headerHeight + (maxRow - 1) * (SEAT_DEFAULT_HEIGHT + SEAT_MARGIN) + SEAT_DEFAULT_HEIGHT + verticalPadding;
 
-  console.log(`📏 calculateMinZoneDimensions: ${seats.length} seats, maxCol=${maxColumn}, maxRow=${maxRow} → minWidth=${minWidth}, minHeight=${minHeight}`);
-
   return {
     minWidth: Math.max(100, minWidth),
     minHeight: Math.max(80, minHeight)
@@ -104,8 +102,6 @@ export const calculateSeatLayout = (seat) => {
 
   const positionX = calculateSeatPositionX(columnNumber);
   const positionY = calculateSeatPositionY(rowNumber);
-
-  console.log(`📐 calculateSeatLayout - seatId:${seatId}, row:${rowNumber}, col:${columnNumber} -> X:${positionX}, Y:${positionY}`);
 
   return {
     width: SEAT_DEFAULT_WIDTH,

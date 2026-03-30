@@ -2,6 +2,9 @@ package slib.com.example.controller.ai;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +26,9 @@ public class AIAnalyticsProxyController {
     @Value("${app.ai-service.url:http://localhost:8001}")
     private String aiServiceUrl;
 
+    @Value("${slib.internal.api-key:}")
+    private String internalApiKey;
+
     /**
      * Proxy: /slib/ai/analytics/density-prediction
      */
@@ -33,7 +39,7 @@ public class AIAnalyticsProxyController {
         if (zone_id != null) {
             url += "?zone_id=" + zone_id;
         }
-        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, buildInternalRequest(), Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
@@ -43,7 +49,7 @@ public class AIAnalyticsProxyController {
     @GetMapping("/analytics/usage-statistics")
     public ResponseEntity<?> getUsageStatistics(@RequestParam(defaultValue = "week") String period) {
         String url = aiServiceUrl + "/api/ai/analytics/usage-statistics?period=" + period;
-        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, buildInternalRequest(), Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
@@ -53,7 +59,7 @@ public class AIAnalyticsProxyController {
     @GetMapping("/analytics/realtime-capacity")
     public ResponseEntity<?> getRealtimeCapacity() {
         String url = aiServiceUrl + "/api/ai/analytics/realtime-capacity";
-        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, buildInternalRequest(), Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
@@ -72,7 +78,11 @@ public class AIAnalyticsProxyController {
         if (time_slot != null) url.append("&time_slot=").append(time_slot);
         if (date != null) url.append("&date=").append(date);
 
-        ResponseEntity<Map> response = restTemplate.getForEntity(url.toString(), Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url.toString(),
+                HttpMethod.GET,
+                buildInternalRequest(),
+                Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
@@ -82,7 +92,23 @@ public class AIAnalyticsProxyController {
     @PostMapping("/analytics/student-behavior")
     public ResponseEntity<?> getStudentBehavior(@RequestBody Map<String, Object> body) {
         String url = aiServiceUrl + "/api/ai/analytics/student-behavior";
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, body, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                buildInternalRequest(body),
+                Map.class);
         return ResponseEntity.ok(response.getBody());
+    }
+
+    private HttpEntity<?> buildInternalRequest() {
+        return buildInternalRequest(null);
+    }
+
+    private HttpEntity<?> buildInternalRequest(Object body) {
+        HttpHeaders headers = new HttpHeaders();
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            headers.set("X-Internal-Api-Key", internalApiKey);
+        }
+        return new HttpEntity<>(body, headers);
     }
 }

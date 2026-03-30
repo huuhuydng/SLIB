@@ -7,6 +7,9 @@ import httpx
 import logging
 import os
 from typing import Optional
+from app.core.env_loader import load_project_env
+
+load_project_env()
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,7 @@ class EscalationService:
     
     def __init__(self):
         self.backend_url = os.getenv("BACKEND_URL", "http://localhost:8080/slib")
-        self.internal_api_key = os.getenv("INTERNAL_API_KEY", "default-internal-key")
+        self.internal_api_key = os.getenv("INTERNAL_API_KEY")
         self.client = httpx.Client(timeout=10.0)
     
     def should_escalate(self, user_message: str, ai_response: str) -> tuple[bool, Optional[str]]:
@@ -83,6 +86,8 @@ class EscalationService:
             Response from backend
         """
         try:
+            if not self.internal_api_key:
+                raise RuntimeError("INTERNAL_API_KEY is not configured")
             url = f"{self.backend_url}/internal/chat/escalate"
             payload = {
                 "conversationId": conversation_id,
@@ -129,6 +134,8 @@ class EscalationService:
             Response from backend
         """
         try:
+            if not self.internal_api_key:
+                raise RuntimeError("INTERNAL_API_KEY is not configured")
             url = f"{self.backend_url}/internal/chat/reply"
             payload = {
                 "conversationId": conversation_id,

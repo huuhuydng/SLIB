@@ -5,6 +5,8 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/library/library_status_service.dart';
+import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
@@ -36,19 +38,33 @@ class _SettingScreenState extends State<SettingScreen> {
 
     int count = 0;
     try {
-      final penaltyUrl = Uri.parse("${ApiConstants.activityUrl}/penalties/${user.id}");
-      final penaltyRes = await authService.authenticatedRequest('GET', penaltyUrl);
+      final penaltyUrl = Uri.parse(
+        "${ApiConstants.activityUrl}/penalties/${user.id}",
+      );
+      final penaltyRes = await authService.authenticatedRequest(
+        'GET',
+        penaltyUrl,
+      );
       if (penaltyRes.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(utf8.decode(penaltyRes.bodyBytes));
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(penaltyRes.bodyBytes),
+        );
         count += data.length;
       }
     } catch (_) {}
 
     try {
-      final violationUrl = Uri.parse("${ApiConstants.violationReportUrl}/against-me");
-      final violationRes = await authService.authenticatedRequest('GET', violationUrl);
+      final violationUrl = Uri.parse(
+        "${ApiConstants.violationReportUrl}/against-me",
+      );
+      final violationRes = await authService.authenticatedRequest(
+        'GET',
+        violationUrl,
+      );
       if (violationRes.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(utf8.decode(violationRes.bodyBytes));
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(violationRes.bodyBytes),
+        );
         count += data.where((v) => v['status'] == 'VERIFIED').length;
       }
     } catch (_) {}
@@ -128,8 +144,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 _buildSwitchTile(
                   icon: Icons.notifications_none_rounded,
                   iconColor: Colors.blue,
-                  title: "Thông báo lịch đặt",
-                  subtitle: "Nhắc nhở trước 15 phút",
+                  title: "Thông báo đẩy",
+                  subtitle: "Nhận thông báo từ hệ thống",
                   value: settings.isBookingRemindEnabled,
                   onChanged: (val) {
                     context.read<AuthService>().updateSetting(
@@ -275,11 +291,10 @@ class _SettingScreenState extends State<SettingScreen> {
   // --- CÁC WIDGET UI (GIỮ NGUYÊN STYLE) ---
 
   Widget _buildModernProfileHeader(UserProfile? user) {
-    String firstLetter = (user?.fullName.isNotEmpty ?? false)
-        ? user!.fullName[0].toUpperCase()
-        : "S";
-
-    final hasAvatar = user?.avtUrl != null && user!.avtUrl!.isNotEmpty;
+    final fullName = user?.fullName ?? '';
+    final avatarUrl = user?.avtUrl;
+    final firstLetter = fullName.isNotEmpty ? fullName[0].toUpperCase() : "S";
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -292,7 +307,7 @@ class _SettingScreenState extends State<SettingScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -310,8 +325,8 @@ class _SettingScreenState extends State<SettingScreen> {
             ),
             child: CircleAvatar(
               radius: 30,
-              backgroundColor: AppColors.brandColor.withOpacity(0.1),
-              backgroundImage: hasAvatar ? NetworkImage(user!.avtUrl!) : null,
+              backgroundColor: AppColors.brandColor.withValues(alpha: 0.1),
+              backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
               child: !hasAvatar
                   ? Text(
                       firstLetter,
@@ -330,7 +345,7 @@ class _SettingScreenState extends State<SettingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user?.fullName ?? "Sinh viên FPT",
+                  fullName.isNotEmpty ? fullName : "Sinh viên FPT",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -344,7 +359,7 @@ class _SettingScreenState extends State<SettingScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.brandColor.withOpacity(0.1),
+                    color: AppColors.brandColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -386,7 +401,7 @@ class _SettingScreenState extends State<SettingScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -408,7 +423,7 @@ class _SettingScreenState extends State<SettingScreen> {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.white,
+      activeThumbColor: Colors.white,
       activeTrackColor: AppColors.brandColor,
       inactiveThumbColor: Colors.white,
       inactiveTrackColor: Colors.grey.shade200,
@@ -417,7 +432,7 @@ class _SettingScreenState extends State<SettingScreen> {
       secondary: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
+          color: iconColor.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: iconColor, size: 22),
@@ -458,7 +473,7 @@ class _SettingScreenState extends State<SettingScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: iconColor, size: 22),
@@ -529,11 +544,15 @@ class _SettingScreenState extends State<SettingScreen> {
               // Lưu reference trước khi pop dialog
               final navigator = Navigator.of(context);
               final authService = context.read<AuthService>();
+              final notificationService = context.read<NotificationService>();
+              final libraryStatusService = context.read<LibraryStatusService>();
 
               Navigator.pop(dialogContext); // Đóng Dialog
 
               try {
                 await authService.logout();
+                notificationService.clearData();
+                libraryStatusService.clearData();
 
                 navigator.pushAndRemoveUntil(
                   MaterialPageRoute(
@@ -542,7 +561,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   (route) => false,
                 );
               } catch (e) {
-                print("Lỗi logout: $e");
+                debugPrint("Lỗi logout: $e");
               }
             },
             style: ElevatedButton.styleFrom(

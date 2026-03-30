@@ -18,6 +18,7 @@ import slib.com.example.repository.kiosk.KioskActivationCodeRepository;
 import slib.com.example.service.kiosk.KioskQrAuthService;
 import slib.com.example.service.kiosk.KioskQrDTO;
 import slib.com.example.service.kiosk.KioskTokenService;
+import slib.com.example.service.users.UserService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,6 +50,9 @@ class FE73_CheckInOutViaQRTest {
 
         @MockBean
         private KioskActivationCodeRepository kioskActivationCodeRepository;
+
+        @MockBean
+        private UserService userService;
 
         @Autowired
         private ObjectMapper objectMapper;

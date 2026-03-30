@@ -15,6 +15,7 @@ import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
@@ -54,8 +55,17 @@ public class WeeklyReportScheduler {
             LocalDateTime weekStart = weekEnd.minusDays(7);
 
             // Thong ke tuan
-            long totalBookings = reservationRepository.countByCreatedAtBetween(weekStart, weekEnd);
-            long totalCheckIns = reservationRepository.countConfirmedBookingsToday(weekStart, weekEnd);
+            var reservations = reservationRepository.findAll();
+            long totalBookings = reservations.stream()
+                    .filter(r -> r.getStartTime() != null)
+                    .filter(r -> !r.getStartTime().isBefore(weekStart) && r.getStartTime().isBefore(weekEnd))
+                    .filter(r -> Set.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED")
+                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
+                    .count();
+            long totalCheckIns = reservations.stream()
+                    .filter(r -> r.getConfirmedAt() != null)
+                    .filter(r -> !r.getConfirmedAt().isBefore(weekStart) && r.getConfirmedAt().isBefore(weekEnd))
+                    .count();
             long totalViolations = violationReportRepository.countByCreatedAtBetween(weekStart, weekEnd);
 
             // Dinh dang khoang ngay

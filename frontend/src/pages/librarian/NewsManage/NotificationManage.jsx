@@ -25,6 +25,7 @@ import '../../../styles/librarian/BookingManage.css';
 import '../../../styles/librarian/NotificationManage.css';
 import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage, batchDeleteNews } from '../../../services/librarian/newsService';
 import axios from 'axios';
+import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -733,7 +734,7 @@ const NotificationManage = () => {
             marginBottom: '1.5rem'
           }}>
             <div
-              dangerouslySetInnerHTML={{ __html: selectedNotification.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedNotification.content) }}
               style={{
                 maxWidth: '100%',
                 overflow: 'hidden'

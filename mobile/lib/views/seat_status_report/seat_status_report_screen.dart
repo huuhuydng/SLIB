@@ -149,7 +149,10 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadCurrentSeat)
+          ? ErrorDisplayWidget(
+              message: _errorMessage!,
+              onRetry: _loadCurrentSeat,
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -164,7 +167,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedIssueType,
+                    initialValue: _selectedIssueType,
                     decoration: const InputDecoration(
                       labelText: 'Loại sự cố',
                       border: OutlineInputBorder(),

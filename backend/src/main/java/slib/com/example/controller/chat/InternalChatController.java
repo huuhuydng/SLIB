@@ -38,7 +38,7 @@ public class InternalChatController {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @Value("${slib.internal.api-key:default-internal-key}")
+    @Value("${slib.internal.api-key}")
     private String internalApiKey;
 
     /**

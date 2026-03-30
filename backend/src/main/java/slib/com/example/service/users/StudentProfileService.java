@@ -28,10 +28,7 @@ public class StudentProfileService {
      */
     public Optional<StudentProfileResponse> getProfileByUserId(UUID userId) {
         return studentProfileRepository.findByUserId(userId)
-                .map(profile -> {
-                    long bookingCount = reservationRepository.countByUserId(userId);
-                    return StudentProfileResponse.fromEntity(profile, bookingCount);
-                });
+                .map(this::buildProfileResponse);
     }
 
     /**
@@ -42,8 +39,7 @@ public class StudentProfileService {
         Optional<StudentProfile> existing = studentProfileRepository.findByUserId(user.getId());
 
         if (existing.isPresent()) {
-            long bookingCount = reservationRepository.countByUserId(user.getId());
-            return StudentProfileResponse.fromEntity(existing.get(), bookingCount);
+            return buildProfileResponse(existing.get());
         }
 
         // Create new profile with default values
@@ -56,7 +52,7 @@ public class StudentProfileService {
                 .build();
 
         StudentProfile saved = studentProfileRepository.save(newProfile);
-        return StudentProfileResponse.fromEntity(saved, 0L);
+        return buildProfileResponse(saved);
     }
 
     /**
@@ -67,7 +63,7 @@ public class StudentProfileService {
         return studentProfileRepository.findByUserId(userId)
                 .map(profile -> {
                     profile.setTotalStudyHours(profile.getTotalStudyHours() + hours);
-                    return StudentProfileResponse.fromEntity(studentProfileRepository.save(profile));
+                    return buildProfileResponse(studentProfileRepository.save(profile));
                 });
     }
 
@@ -79,7 +75,7 @@ public class StudentProfileService {
         return studentProfileRepository.findByUserId(userId)
                 .map(profile -> {
                     profile.setReputationScore(newScore);
-                    return StudentProfileResponse.fromEntity(studentProfileRepository.save(profile));
+                    return buildProfileResponse(studentProfileRepository.save(profile));
                 });
     }
 
@@ -92,7 +88,7 @@ public class StudentProfileService {
                 .map(profile -> {
                     profile.setViolationCount(profile.getViolationCount() + 1);
                     profile.setReputationScore(Math.max(0, profile.getReputationScore() - penaltyPoints));
-                    return StudentProfileResponse.fromEntity(studentProfileRepository.save(profile));
+                    return buildProfileResponse(studentProfileRepository.save(profile));
                 });
     }
 
@@ -146,5 +142,11 @@ public class StudentProfileService {
                         throw new RuntimeException("Lỗi upload avatar: " + e.getMessage());
                     }
                 });
+    }
+
+    private StudentProfileResponse buildProfileResponse(StudentProfile profile) {
+        long bookingCount = reservationRepository.countByUserId(profile.getUserId());
+        double studyHours = reservationRepository.getTotalStudyMinutesByUser(profile.getUserId()) / 60.0;
+        return StudentProfileResponse.fromEntity(profile, bookingCount, studyHours);
     }
 }

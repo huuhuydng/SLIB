@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ import slib.com.example.exception.BadRequestException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.security.Principal;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +47,8 @@ public class UserChatController {
     // PHẦN 1: WEBSOCKET
     // ==========================================
     @MessageMapping("/chat")
-    public void processMessage(@Payload ChatMessageDTO chatMessageDto) {
+    public void processMessage(@Payload ChatMessageDTO chatMessageDto, Principal principal) {
+        chatMessageDto.setSenderId(getCurrentUserId(principal));
         // Lưu DB
         ChatMessageDTO savedMsg = chatService.saveMessage(chatMessageDto);
 
@@ -64,11 +67,15 @@ public class UserChatController {
     @MessageMapping("/typing/{conversationId}")
     public void handleTypingIndicator(
             @org.springframework.messaging.handler.annotation.DestinationVariable UUID conversationId,
-            @Payload Map<String, Object> payload) {
+            @Payload Map<String, Object> payload,
+            Principal principal) {
+        UUID currentUserId = getCurrentUserId(principal);
+        conversationService.verifyConversationParticipationAccess(conversationId, currentUserId);
+
         // Broadcast trạng thái đang gõ tới tất cả subscriber của conversation
         Map<String, Object> typingEvent = Map.of(
                 "type", "TYPING",
-                "userId", payload.get("userId"),
+                "userId", currentUserId,
                 "isTyping", payload.getOrDefault("isTyping", true));
         messagingTemplate.convertAndSend(
                 "/topic/conversation/" + conversationId, typingEvent);
@@ -227,7 +234,8 @@ public class UserChatController {
     public ResponseEntity<ConversationDTO> resolveConversation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        requireLibrarianRole(userDetails);
+        UUID librarianId = requireLibrarianRole(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, librarianId);
         ConversationDTO result = conversationService.resolveConversation(conversationId);
         return ResponseEntity.ok(result);
     }
@@ -259,8 +267,8 @@ public class UserChatController {
     public ResponseEntity<ConversationDTO> cancelEscalation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
-        ConversationDTO result = conversationService.cancelEscalation(conversationId);
+        UUID userId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.cancelEscalation(conversationId, userId);
         return ResponseEntity.ok(result);
     }
 
@@ -274,12 +282,22 @@ public class UserChatController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/conversations/{conversationId}/student-reset")
+    public ResponseEntity<ConversationDTO> studentResetConversation(
+            @PathVariable UUID conversationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = getCurrentUserId(userDetails);
+        ConversationDTO result = conversationService.resetConversationForStudent(conversationId, userId);
+        return ResponseEntity.ok(result);
+    }
+
     // 15c. Đánh dấu đã đọc tin nhắn trong conversation
     @PostMapping("/conversations/{conversationId}/mark-read")
     public ResponseEntity<Map<String, Object>> markConversationAsRead(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, userId);
         int updated = conversationService.markConversationAsRead(conversationId, userId);
         return ResponseEntity.ok(Map.of("updated", updated));
     }
@@ -291,6 +309,7 @@ public class UserChatController {
             @RequestBody Map<String, Object> payload,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, userId);
         boolean isTyping = Boolean.TRUE.equals(payload.get("isTyping"));
         messagingTemplate.convertAndSend(
                 "/topic/conversation/" + conversationId,
@@ -334,11 +353,11 @@ public class UserChatController {
         if (page != null) {
             // Paginated mode - cho mobile lazy loading
             org.springframework.data.domain.Page<ChatMessageDTO> messages =
-                conversationService.getConversationMessagesPaginated(conversationId, page, size);
+                conversationService.getConversationMessagesPaginatedForViewer(conversationId, userId, page, size);
             return ResponseEntity.ok(messages);
         }
         // Non-paginated (backward compat cho frontend web)
-        List<ChatMessageDTO> messages = conversationService.getConversationMessages(conversationId);
+        List<ChatMessageDTO> messages = conversationService.getConversationMessagesForViewer(conversationId, userId);
         return ResponseEntity.ok(messages);
     }
 
@@ -349,7 +368,7 @@ public class UserChatController {
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID senderId = getCurrentUserId(userDetails);
-        conversationService.verifyConversationAccess(conversationId, senderId);
+        conversationService.verifyConversationParticipationAccess(conversationId, senderId);
         String content = request.get("content");
         String senderType = request.getOrDefault("senderType", "STUDENT"); // STUDENT, LIBRARIAN, AI
 
@@ -368,7 +387,7 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             UUID senderId = getCurrentUserId(userDetails);
-            conversationService.verifyConversationAccess(conversationId, senderId);
+            conversationService.verifyConversationParticipationAccess(conversationId, senderId);
 
             // Validate file size (5MB max)
             if (file.getSize() > 5 * 1024 * 1024) {
@@ -402,7 +421,8 @@ public class UserChatController {
     public ResponseEntity<Map<String, Object>> getConversationStatus(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
+        UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationAccess(conversationId, userId);
         ConversationDTO conv = conversationService.getConversationById(conversationId)
                 .map(c -> conversationService.convertToDTO(c))
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
@@ -463,6 +483,13 @@ public class UserChatController {
         }
         String email = userDetails.getUsername();
         return userService.getUserByEmail(email).getId();
+    }
+
+    private UUID getCurrentUserId(Principal principal) {
+        if (principal == null) {
+            throw new AccessDeniedException("Kết nối WebSocket chưa được xác thực");
+        }
+        return userService.getUserByEmail(principal.getName()).getId();
     }
 
     private UUID requireLibrarianRole(UserDetails userDetails) {

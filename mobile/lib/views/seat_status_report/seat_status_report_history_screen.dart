@@ -75,10 +75,12 @@ class _SeatStatusReportHistoryScreenState
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? _error == 'auth'
-              ? ErrorDisplayWidget.auth(onRetry: _loadReports)
-              : ErrorDisplayWidget(message: _error!, onRetry: _loadReports)
+                ? ErrorDisplayWidget.auth(onRetry: _loadReports)
+                : ErrorDisplayWidget(message: _error!, onRetry: _loadReports)
           : _reports.isEmpty
-          ? ErrorDisplayWidget.empty(message: 'Chưa có báo cáo tình trạng ghế nào')
+          ? ErrorDisplayWidget.empty(
+              message: 'Chưa có báo cáo tình trạng ghế nào',
+            )
           : RefreshIndicator(
               onRefresh: _loadReports,
               child: ListView.builder(
@@ -105,7 +107,9 @@ class _SeatStatusReportHistoryScreenState
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: _statusColor(report.status).withOpacity(0.1),
+                          color: _statusColor(
+                            report.status,
+                          ).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(

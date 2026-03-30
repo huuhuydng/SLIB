@@ -33,6 +33,7 @@ const STATUS_CLASSES = {
 
 const STATUS_OPTIONS = [
     { value: "", label: "Tất cả" },
+    { value: "PROCESSING", label: "Đang giữ chỗ" },
     { value: "BOOKED", label: "Đã đặt" },
     { value: "CONFIRMED", label: "Đã xác nhận" },
     { value: "CANCELLED", label: "Đã huỷ" },
@@ -299,10 +300,11 @@ function BookingManage() {
 
     // Stats
     const counts = useMemo(() => {
-        const c = { ALL: bookings.length, BOOKED: 0, CONFIRMED: 0, CANCELLED: 0, EXPIRED: 0, COMPLETED: 0 };
+        const c = { ALL: bookings.length, PROCESSING: 0, BOOKED: 0, CONFIRMED: 0, CANCELLED: 0, CANCEL: 0, EXPIRED: 0, COMPLETED: 0 };
         bookings.forEach((b) => {
             if (c[b.status] !== undefined) c[b.status]++;
         });
+        c.CANCELLED += c.CANCEL;
         return c;
     }, [bookings]);
 

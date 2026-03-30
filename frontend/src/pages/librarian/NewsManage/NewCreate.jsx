@@ -29,6 +29,7 @@ import {
   deleteCategory,
   uploadImage
 } from '../../../services/librarian/newsService';
+import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const NewCreate = () => {
   const toast = useToast();
@@ -870,7 +871,7 @@ const NewCreate = () => {
                   lineHeight: 1.8,
                   color: '#334155'
                 }}
-                dangerouslySetInnerHTML={{ __html: formData.content || '<p style="color:#94a3b8">Chưa có nội dung...</p>' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.content || '<p style="color:#94a3b8">Chưa có nội dung...</p>') }}
               />
 
               {/* Style for images inside preview content */}

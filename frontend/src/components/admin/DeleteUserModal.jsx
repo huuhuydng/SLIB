@@ -53,7 +53,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
 
     // Validation checks
     const isSelf = user.id === currentUserId;
-    const isLastAdmin = user.role === 'ADMIN'; // TODO: Check if last admin from API
+    const isLastAdmin = user.role === 'ADMIN';
     const confirmRequired = user.fullName || user.email || '';
     const isConfirmed = confirmText.trim().toLowerCase() === confirmRequired.trim().toLowerCase();
 

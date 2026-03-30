@@ -44,9 +44,7 @@ export const getNewsImage = async (id) => {
 // Tạo news mới
 export const createNews = async (newsData) => {
   try {
-    console.log('📤 Sending to backend:', JSON.stringify(newsData, null, 2));
     const response = await axios.post(`${API_URL}/admin`, newsData, { headers: getAuthHeaders() });
-    console.log('Success:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Error creating news:', error);

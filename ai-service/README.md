@@ -114,6 +114,9 @@ pip install -r requirements.txt
 ### Chạy Service
 
 ```bash
+cp .env.example .env
+# Điền các giá trị thật trong .env
+
 # Development
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
@@ -148,14 +151,15 @@ QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=slib_knowledge
 
 # Database
-DATABASE_URL=postgresql://postgres:password@localhost:5432/slib_ai
+DATABASE_URL=postgresql://postgres:password@localhost:5434/slib
 
 # Java Backend
-JAVA_BACKEND_URL=http://localhost:8080
+JAVA_BACKEND_URL=http://localhost:8080/slib
+INTERNAL_API_KEY=your_internal_api_key
 
 # RAG Settings
-SIMILARITY_THRESHOLD=0.7
-MAX_CONTEXT_CHUNKS=5
+SIMILARITY_THRESHOLD=0.5
+MAX_RETRIEVED_CHUNKS=5
 
 # Debug
 DEBUG=true

@@ -14,17 +14,12 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log("[API][Request]", config.method?.toUpperCase(), config.baseURL + config.url, config.params || config.data);
   return config;
 });
 
 api.interceptors.response.use(
-  (res) => {
-    console.log("[API][Response]", res.config?.url, res.status, res.data);
-    return res;
-  },
+  (res) => res,
   (err) => {
-    console.error("[API][Error]", err.config?.url, err.response?.status, err.response?.data);
     return Promise.reject(err);
   }
 );

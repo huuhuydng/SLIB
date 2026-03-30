@@ -10,6 +10,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -18,6 +19,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.Collections;
 import java.util.Map;
@@ -59,12 +61,18 @@ class FE17_AddLibrarianTest {
         @MockBean
         private StagingImportService stagingImportService;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: Import librarian user returns 200 OK")
         void addLibrarian_admin_returns200OK() throws Exception {
                 when(userService.importUsers(any())).thenReturn(Map.of(
                         "success", Collections.emptyList(),
-                        "failed", Collections.emptyList()
+                        "failed", Collections.emptyList(),
+                        "successCount", 0,
+                        "failedCount", 0
                 ));
 
                 mockMvc.perform(post("/slib/users/import")
@@ -74,6 +82,7 @@ class FE17_AddLibrarianTest {
         }
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD02: Import with empty list returns 400 Bad Request")
         void addLibrarian_emptyList_returns400() throws Exception {
                 mockMvc.perform(post("/slib/users/import")

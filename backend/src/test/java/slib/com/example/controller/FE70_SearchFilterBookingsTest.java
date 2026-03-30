@@ -14,6 +14,7 @@ import slib.com.example.controller.booking.BookingController;
 import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingService;
 
 import java.util.Collections;
@@ -42,6 +43,9 @@ class FE70_SearchFilterBookingsTest {
 
         @MockBean
         private ReservationRepository reservationRepository;
+
+        @MockBean
+        private UserRepository userRepository;
 
         // =========================================
         // === UTCID01: Get all bookings - Normal ===

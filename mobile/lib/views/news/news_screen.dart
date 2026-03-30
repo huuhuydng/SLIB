@@ -21,7 +21,13 @@ class _NewsScreenState extends State<NewsScreen> {
   bool _isLoading = true;
 
   String _selectedCategory = "Tất cả";
-  final List<String> _categories = ["Tất cả", "Quan trọng", "Sự kiện", "Sách mới", "Ưu đãi"];
+  final List<String> _categories = [
+    "Tất cả",
+    "Quan trọng",
+    "Sự kiện",
+    "Sách mới",
+    "Ưu đãi",
+  ];
 
   final NewsService _newsService = NewsService();
   final LocalStorageService _localService = LocalStorageService();
@@ -63,7 +69,9 @@ class _NewsScreenState extends State<NewsScreen> {
     if (_selectedCategory == "Tất cả") {
       _displayNews = List.from(_allNews);
     } else {
-      _displayNews = _allNews.where((item) => item.categoryName == _selectedCategory).toList();
+      _displayNews = _allNews
+          .where((item) => item.categoryName == _selectedCategory)
+          .toList();
     }
     // Sắp xếp mới nhất lên đầu
     _displayNews.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -80,7 +88,9 @@ class _NewsScreenState extends State<NewsScreen> {
         });
       }
       await _localService.saveNewsList(freshNews);
-    } catch (e) { print(e); }
+    } catch (e) {
+      debugPrint('$e');
+    }
   }
 
   @override
@@ -88,7 +98,10 @@ class _NewsScreenState extends State<NewsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text("Tin tức & Sự kiện", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+        title: const Text(
+          "Tin tức & Sự kiện",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
@@ -120,10 +133,17 @@ class _NewsScreenState extends State<NewsScreen> {
                         }
                       },
                       selectedColor: AppColors.brandColor,
-                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
                       backgroundColor: Colors.grey.shade100,
                       side: BorderSide.none,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -139,14 +159,14 @@ class _NewsScreenState extends State<NewsScreen> {
               child: _isLoading && _allNews.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : _displayNews.isEmpty
-                      ? ErrorDisplayWidget.empty(message: 'Chưa có tin tức nào')
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _displayNews.length,
-                          itemBuilder: (context, index) {
-                            return _buildBigNewsCard(context, _displayNews[index]);
-                          },
-                        ),
+                  ? ErrorDisplayWidget.empty(message: 'Chưa có tin tức nào')
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _displayNews.length,
+                      itemBuilder: (context, index) {
+                        return _buildBigNewsCard(context, _displayNews[index]);
+                      },
+                    ),
             ),
           ),
         ],
@@ -159,18 +179,29 @@ class _NewsScreenState extends State<NewsScreen> {
     try {
       DateTime dt = DateTime.parse(item.publishedAt);
       formattedDate = DateFormat('dd/MM/yyyy').format(dt);
-    } catch (e) { formattedDate = item.publishedAt; }
+    } catch (e) {
+      formattedDate = item.publishedAt;
+    }
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => NewsDetailScreen(news: item)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => NewsDetailScreen(news: item)),
+        );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,25 +209,47 @@ class _NewsScreenState extends State<NewsScreen> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
                   child: Hero(
-                    tag: "news_list_${item.id}", // Tag khác với Slider để tránh lỗi
+                    tag:
+                        "news_list_${item.id}", // Tag khác với Slider để tránh lỗi
                     child: CachedNetworkImage(
                       imageUrl: item.imageUrl,
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(height: 180, color: Colors.grey[100]),
-                      errorWidget: (context, url, error) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.broken_image)),
+                      placeholder: (context, url) =>
+                          Container(height: 180, color: Colors.grey[100]),
+                      errorWidget: (context, url, error) => Container(
+                        height: 180,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image),
+                      ),
                     ),
                   ),
                 ),
                 Positioned(
-                  top: 12, left: 12,
+                  top: 12,
+                  left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(color: item.getTagColor(), borderRadius: BorderRadius.circular(8)),
-                    child: Text(item.categoryName.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: item.getTagColor(),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      item.categoryName.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -206,19 +259,53 @@ class _NewsScreenState extends State<NewsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                    const SizedBox(width: 6),
-                    Text(formattedDate, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    const Spacer(),
-                    const Icon(Icons.remove_red_eye, size: 14, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text("${item.viewCount}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ]),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const Spacer(),
+                      const Icon(
+                        Icons.remove_red_eye,
+                        size: 14,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${item.viewCount}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 8),
-                  Text(item.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.3)),
+                  Text(
+                    item.title,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      height: 1.3,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(item.summary, style: const TextStyle(fontSize: 14, color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(
+                    item.summary,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),

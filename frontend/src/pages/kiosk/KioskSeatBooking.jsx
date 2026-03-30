@@ -389,14 +389,12 @@ function KioskSeatBookingContent() {
         const params = new URLSearchParams(location.search);
         const studentId = params.get('studentId');
         if (studentId) {
-            console.log('[KioskSeat] Session từ URL param:', studentId);
             return { studentId, studentName: params.get('name') || 'Sinh viên' };
         }
 
         // 2. Từ Router state
         const fromState = location.state?.session;
         if (fromState?.studentId) {
-            console.log('[KioskSeat] Session từ Router state:', fromState.studentId);
             return fromState;
         }
 
@@ -406,13 +404,11 @@ function KioskSeatBookingContent() {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 if (parsed?.studentId) {
-                    console.log('[KioskSeat] Session từ sessionStorage:', parsed.studentId);
                     return parsed;
                 }
             }
         } catch (e) { /* ignore */ }
 
-        console.log('[KioskSeat] Không tìm thấy session sinh viên');
         return null;
     }, [location]);
 
@@ -582,9 +578,7 @@ function KioskSeatBookingContent() {
 
         websocketService.connect(
             () => {
-                console.log("[KioskSeat] WebSocket connected");
                 unsubscribe = websocketService.subscribe("/topic/seats", (msg) => {
-                    console.log("[KioskSeat] Seat update received:", msg);
                     if (selectedSlotRef.current) {
                         loadSeatsForSlot(selectedSlotRef.current);
                     }

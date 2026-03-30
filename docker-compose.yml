@@ -119,9 +119,11 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GATE_SECRET=${GATE_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
     volumes:
       - maven-repo:/root/.m2
     networks:
@@ -148,6 +150,7 @@ services:
       - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@slib-postgres:5432/${POSTGRES_DB}
       - JAVA_BACKEND_URL=http://slib-backend:8080/slib
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - REDIS_URL=redis://slib-redis:6379
       - QDRANT_URL=http://slib-qdrant:6333
       - QDRANT_COLLECTION=slib_knowledge

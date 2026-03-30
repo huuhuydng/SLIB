@@ -11,12 +11,14 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.ai.KnowledgeStoreController;
 import slib.com.example.dto.ai.KnowledgeStoreDTO;
 import slib.com.example.entity.ai.KnowledgeStoreEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.ai.KnowledgeStoreService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -44,6 +46,9 @@ class FE45_CRUDKnowledgeStoreTest {
         @MockBean
         private KnowledgeStoreService knowledgeStoreService;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         @Autowired
         private ObjectMapper objectMapper;
 
@@ -52,6 +57,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID01: Create knowledge store with valid data returns 200 OK")
         void createKnowledgeStore_validData_returns200OK() throws Exception {
                 KnowledgeStoreDTO.CreateRequest request = KnowledgeStoreDTO.CreateRequest.builder()
@@ -89,6 +95,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID02: Create knowledge store without items returns 200 OK")
         void createKnowledgeStore_noItems_returns200OK() throws Exception {
                 KnowledgeStoreDTO.CreateRequest request = KnowledgeStoreDTO.CreateRequest.builder()
@@ -121,6 +128,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID03: Update existing knowledge store returns 200 OK")
         void updateKnowledgeStore_existingId_returns200OK() throws Exception {
                 KnowledgeStoreDTO.UpdateRequest request = KnowledgeStoreDTO.UpdateRequest.builder()
@@ -154,6 +162,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID04: Delete existing knowledge store returns 200 OK")
         void deleteKnowledgeStore_existingId_returns200OK() throws Exception {
                 doNothing().when(knowledgeStoreService).deleteKnowledgeStore(1L);
@@ -170,6 +179,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID05: Sync knowledge store returns 200 OK")
         void syncKnowledgeStore_existingId_returns200OK() throws Exception {
                 KnowledgeStoreDTO.SyncResult mockResult = KnowledgeStoreDTO.SyncResult.builder()
@@ -194,6 +204,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID06: Update non-existent knowledge store returns 500")
         void updateKnowledgeStore_nonExistentId_returnsError() throws Exception {
                 KnowledgeStoreDTO.UpdateRequest request = KnowledgeStoreDTO.UpdateRequest.builder()
@@ -216,6 +227,7 @@ class FE45_CRUDKnowledgeStoreTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCID07: Delete non-existent knowledge store returns 500")
         void deleteKnowledgeStore_nonExistentId_returnsError() throws Exception {
                 doThrow(new RuntimeException("Knowledge store not found with id: 999"))

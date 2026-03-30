@@ -12,11 +12,7 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use(
-  (config) => {
-    console.log('📤 [Request]', config.method.toUpperCase(), config.url);
-    console.log('📤 [Data]', config.data);
-    return config;
-  },
+  (config) => config,
   (error) => {
     console.error('❌ [Request Error]', error);
     return Promise.reject(error);
@@ -24,10 +20,7 @@ axiosInstance.interceptors.request.use(
 );
 
 axiosInstance.interceptors.response.use(
-  (response) => {
-    console.log('📥 [Response]', response.status, response.data);
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error('❌ [Response Error]', error.response?.status, error.response?.data);
     return Promise.reject(error);
@@ -46,14 +39,12 @@ class LibrarianService {
 
     if (token) {
       localStorage.setItem('librarian_token', token);
-      console.log('✅ [Service] Token saved:', token.substring(0, 20) + '...');
     } else {
       console.error('❌ [Service] No token in response:', response.data);
     }
 
     if (user) {
       localStorage.setItem('librarian_user', JSON.stringify(user));
-      console.log('✅ [Service] User saved:', user);
     }
 
     return response.data;
@@ -61,8 +52,6 @@ class LibrarianService {
 
   async loginWithPassword(identifier, password) {
     try {
-      console.log('[Service] Calling loginWithPassword with identifier:', identifier);
-
       const response = await axios.post(`${BASE}/slib/auth/login`, {
         identifier: identifier,
         password: password
@@ -73,18 +62,14 @@ class LibrarianService {
         }
       });
 
-      console.log('[Service] loginWithPassword success:', response.data);
-
       const { accessToken, refreshToken } = response.data;
 
       if (accessToken) {
         localStorage.setItem('librarian_token', accessToken);
-        console.log('[Service] Access token saved');
       }
 
       if (refreshToken) {
         localStorage.setItem('refresh_token', refreshToken);
-        console.log('[Service] Refresh token saved');
       }
 
       const user = {
@@ -96,8 +81,6 @@ class LibrarianService {
       };
 
       localStorage.setItem('librarian_user', JSON.stringify(user));
-      console.log('[Service] User saved:', user);
-
       return response.data;
 
     } catch (error) {
@@ -108,8 +91,6 @@ class LibrarianService {
 
   async googleLogin(idToken) {
     try {
-      console.log('🟡 [Service] Calling googleLogin with ID Token');
-
       const response = await axios.post(`${BASE}/slib/auth/google`, {
         idToken: idToken,
         fullName: "",
@@ -117,19 +98,15 @@ class LibrarianService {
         deviceInfo: navigator.userAgent
       });
 
-      console.log('✅ [Service] googleLogin success:', response.data);
-
       // Backend trả về AuthResponse với accessToken và refreshToken
       const { accessToken, refreshToken } = response.data;
 
       if (accessToken) {
-        sessionStorage.setItem('librarian_token', accessToken);
-        console.log('✅ [Service] Access token saved:', accessToken.substring(0, 20) + '...');
+        localStorage.setItem('librarian_token', accessToken);
       }
 
       if (refreshToken) {
-        sessionStorage.setItem('refresh_token', refreshToken);
-        console.log('✅ [Service] Refresh token saved');
+        localStorage.setItem('refresh_token', refreshToken);
       }
 
       // Lưu user info
@@ -140,10 +117,8 @@ class LibrarianService {
         studentCode: response.data.studentCode,
         role: response.data.role
       };
-      
-      sessionStorage.setItem('librarian_user', JSON.stringify(user));
-      console.log('✅ [Service] Google user saved:', user);
 
+      localStorage.setItem('librarian_user', JSON.stringify(user));
       return response.data;
 
     } catch (error) {
@@ -154,13 +129,10 @@ class LibrarianService {
 
   async forgotPassword(email) {
     try {
-      console.log('🟡 [Service] Calling forgotPassword with:', email);
-
       const response = await axiosInstance.post('/forgot-password', {
         email: email.trim().toLowerCase()
       });
 
-      console.log('✅ [Service] forgotPassword success:', response.data);
       return response.data;
 
     } catch (error) {
@@ -171,22 +143,17 @@ class LibrarianService {
 
   async verifyOtp(email, token, type = 'recovery') {
     try {
-      console.log('🟡 [Service] Calling verifyOtp:', { email, token, type });
-
       const response = await axiosInstance.post('/verify-otp', {
         email: email.trim().toLowerCase(),
         token: token.trim(),
         type: type
       });
 
-      console.log('✅ [Service] verifyOtp success:', response.data);
-
       if (response.data.result) {
         try {
           const resultData = JSON.parse(response.data.result);
           if (resultData.access_token) {
             localStorage.setItem('temp_reset_token', resultData.access_token);
-            console.log('✅ [Service] Saved access_token to localStorage');
           }
         } catch (e) {
           console.warn('⚠️ [Service] Cannot parse result JSON:', e);
@@ -203,14 +170,11 @@ class LibrarianService {
 
   async resendOtp(email, type = 'recovery') {
     try {
-      console.log('🟡 [Service] Calling resendOtp:', { email, type });
-
       const response = await axiosInstance.post('/resend-otp', {
         email: email.trim().toLowerCase(),
         type: type
       });
 
-      console.log('✅ [Service] resendOtp success:', response.data);
       return response.data;
 
     } catch (error) {
@@ -227,8 +191,6 @@ class LibrarianService {
         throw new Error('Không tìm thấy token xác thực. Vui lòng xác thực OTP lại.');
       }
 
-      console.log('🟡 [Service] Calling updatePassword');
-
       const response = await axiosInstance.post('/update-password', {
         password: newPassword
       }, {
@@ -236,8 +198,6 @@ class LibrarianService {
           'Authorization': `Bearer ${token}`
         }
       });
-
-      console.log('✅ [Service] updatePassword success:', response.data);
 
       localStorage.removeItem('temp_reset_token');
 

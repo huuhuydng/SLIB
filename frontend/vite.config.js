@@ -6,6 +6,45 @@ export default defineConfig({
   define: {
     'global': 'globalThis',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return;
+          }
+
+          if (
+            id.includes('@tiptap') ||
+            id.includes('prosemirror')
+          ) {
+            return 'editor';
+          }
+
+          if (
+            id.includes('xlsx') ||
+            id.includes('jszip')
+          ) {
+            return 'spreadsheet';
+          }
+
+          if (
+            id.includes('sockjs-client') ||
+            id.includes('@stomp/stompjs')
+          ) {
+            return 'realtime';
+          }
+
+          if (
+            id.includes('react') ||
+            id.includes('scheduler')
+          ) {
+            return 'react-vendor';
+          }
+        },
+      },
+    },
+  },
   server: {
     allowedHosts: ['slibsystem.site', 'api.slibsystem.site', 'ai.slibsystem.site'],
     headers: {

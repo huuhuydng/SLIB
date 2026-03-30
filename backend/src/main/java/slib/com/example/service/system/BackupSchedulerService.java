@@ -68,27 +68,22 @@ public class BackupSchedulerService {
     }
 
     /**
-     * Calculate next backup time from cron expression.
-     * Simple parsing: expects "HH:mm" format from cronExpression for daily backups.
+     * Calculate next backup time from configured backup time string (HH:mm).
      */
     private LocalDateTime calculateNextBackupTime(BackupScheduleEntity schedule) {
         try {
-            // Parse time from cron expression (stored as "HH:mm" for simplicity)
-            String cronExpr = schedule.getCronExpression();
+            String configuredTime = schedule.getCronExpression();
             LocalTime backupTime;
 
-            if (cronExpr.contains(":")) {
-                // Format: "03:00"
-                backupTime = LocalTime.parse(cronExpr);
+            if (configuredTime.contains(":")) {
+                backupTime = LocalTime.parse(configuredTime);
             } else {
-                // Default to 3:00 AM
                 backupTime = LocalTime.of(3, 0);
             }
 
-            // Next backup is tomorrow at the specified time
             return LocalDateTime.now().plusDays(1).with(backupTime);
         } catch (Exception e) {
-            // Default: next day at 3 AM
+            log.warn("Backup time config không hợp lệ, fallback về 03:00: {}", schedule.getCronExpression());
             return LocalDateTime.now().plusDays(1).withHour(3).withMinute(0).withSecond(0);
         }
     }

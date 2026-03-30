@@ -292,9 +292,18 @@ const ChatManage = () => {
   useEffect(() => {
     const backendUrl = API_BASE;
     const wsEndpoint = backendUrl + '/ws';
+    const wsToken =
+      sessionStorage.getItem('librarian_token') ||
+      localStorage.getItem('librarian_token');
+
+    if (!wsToken) {
+      setWsConnected(false);
+      return undefined;
+    }
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsEndpoint),
+      connectHeaders: { Authorization: `Bearer ${wsToken}` },
       reconnectDelay: 5000,
       debug: () => { },
       onConnect: () => {

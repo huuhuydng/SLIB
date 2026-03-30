@@ -13,15 +13,11 @@ api.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log("[AI API][Request]", config.method?.toUpperCase(), config.baseURL + config.url);
     return config;
 });
 
 api.interceptors.response.use(
-    (res) => {
-        console.log("[AI API][Response]", res.config?.url, res.status);
-        return res;
-    },
+    (res) => res,
     (err) => {
         console.error("[AI API][Error]", err.config?.url, err.response?.status, err.response?.data);
         return Promise.reject(err);

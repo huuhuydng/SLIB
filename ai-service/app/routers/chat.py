@@ -6,8 +6,9 @@ Handles RAG chat endpoints
 import uuid
 import logging
 from typing import Dict
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.core.admin_auth import require_admin_access
 from app.models.schemas import (
     RAGQueryRequest,
     RAGQueryResponse,
@@ -75,7 +76,10 @@ async def rag_query(request: RAGQueryRequest):
 
 
 @router.post("/debug", response_model=DebugRAGResponse)
-async def rag_debug_query(request: RAGQueryRequest):
+async def rag_debug_query(
+    request: RAGQueryRequest,
+    _: dict = Depends(require_admin_access),
+):
     """
     RAG Debug Query Endpoint - For Admin Testing
     
@@ -147,8 +151,8 @@ async def chat(request: ChatRequest):
         if should_escalate:
             # User explicitly wants to talk to human
             escalation_message = (
-                "Tôi sẽ chuyển bạn đến thủ thư ngay. "
-                "Vui lòng chờ trong giây lát, thủ thư sẽ tiếp nhận và hỗ trợ bạn! 👋"
+                "Tôi sẽ chuyển yêu cầu của bạn đến thủ thư. "
+                "Vui lòng chờ trong giây lát để được hỗ trợ."
             )
             
             # Call backend to escalate if we have conversation/student info
@@ -191,13 +195,7 @@ async def chat(request: ChatRequest):
         # Determine if needs review based on action
         needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
 
-        # Add escalation hint if needed
         reply = result["reply"]
-        if needs_review:
-            reply += (
-                "\n\n💡 *Nếu bạn cần hỗ trợ thêm, hãy nói 'cho em gặp thủ thư' "
-                "để được kết nối với nhân viên thư viện.*"
-            )
         
         # Calculate confidence score based on similarity
         confidence_score = min(result["similarity_score"], 1.0)
@@ -221,7 +219,7 @@ async def chat(request: ChatRequest):
 
 
 @router.get("/test")
-async def test_rag_service():
+async def test_rag_service(_: dict = Depends(require_admin_access)):
     """Test RAG service connection"""
     rag_service = get_rag_chat_service()
     return rag_service.test_connection()
@@ -236,7 +234,11 @@ async def clear_session(session_id: str):
 
 
 @router.get("/history/{session_id}")
-async def get_chat_history(session_id: str, limit: int = 50):
+async def get_chat_history(
+    session_id: str,
+    limit: int = 50,
+    _: dict = Depends(require_admin_access),
+):
     """
     Get chat history for a session from MongoDB
     Returns messages ordered by timestamp
@@ -264,7 +266,7 @@ async def get_chat_history(session_id: str, limit: int = 50):
 
 
 @router.get("/stats")
-async def get_chat_stats():
+async def get_chat_stats(_: dict = Depends(require_admin_access)):
     """Get chat storage statistics"""
     mongo_service = get_mongo_service()
     return mongo_service.get_stats()

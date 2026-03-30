@@ -9,11 +9,15 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.booking.BookingController;
 import slib.com.example.dto.booking.BookingHistoryResponse;
+import slib.com.example.entity.users.Role;
+import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingService;
 
 import java.util.Collections;
@@ -36,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("FE-69: View Student Bookings - Unit Tests")
 class FE69_ViewStudentBookingsTest {
 
+        private static final UUID TEST_USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        private static final String TEST_EMAIL = "student@fpt.edu.vn";
+
         @Autowired
         private MockMvc mockMvc;
 
@@ -45,27 +52,42 @@ class FE69_ViewStudentBookingsTest {
         @MockBean
         private ReservationRepository reservationRepository;
 
+        @MockBean
+        private UserRepository userRepository;
+
+        private User buildCurrentUser(UUID userId, String email) {
+                User user = new User();
+                user.setId(userId);
+                user.setEmail(email);
+                user.setRole(Role.STUDENT);
+                return user;
+        }
+
         // =========================================
         // === UTCID01: Valid user with bookings - Normal ===
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID01: Get bookings for user with existing bookings returns 200 OK")
         void getBookingsByUser_withBookings_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 BookingHistoryResponse r1 = BookingHistoryResponse.builder()
                                 .reservationId(UUID.randomUUID()).status("BOOKED").build();
                 BookingHistoryResponse r2 = BookingHistoryResponse.builder()
                                 .reservationId(UUID.randomUUID()).status("COMPLETED").build();
 
-                when(bookingService.getBookingHistory(eq(userId))).thenReturn(List.of(r1, r2));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(bookingService.getBookingHistory(eq(TEST_USER_ID))).thenReturn(List.of(r1, r2));
 
-                mockMvc.perform(get("/slib/bookings/user/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray())
                                 .andExpect(jsonPath("$.length()").value(2));
 
-                verify(bookingService, times(1)).getBookingHistory(eq(userId));
+                verify(bookingService, times(1)).getBookingHistory(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -73,20 +95,24 @@ class FE69_ViewStudentBookingsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID02: Get bookings for user with single booking returns 200 OK")
         void getBookingsByUser_singleBooking_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 BookingHistoryResponse r1 = BookingHistoryResponse.builder()
                                 .reservationId(UUID.randomUUID()).status("BOOKED").build();
 
-                when(bookingService.getBookingHistory(eq(userId))).thenReturn(List.of(r1));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(bookingService.getBookingHistory(eq(TEST_USER_ID))).thenReturn(List.of(r1));
 
-                mockMvc.perform(get("/slib/bookings/user/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray())
                                 .andExpect(jsonPath("$.length()").value(1));
 
-                verify(bookingService, times(1)).getBookingHistory(eq(userId));
+                verify(bookingService, times(1)).getBookingHistory(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -94,21 +120,25 @@ class FE69_ViewStudentBookingsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID03: Get bookings with mixed statuses returns 200 OK")
         void getBookingsByUser_mixedStatuses_returns200OK() throws Exception {
-                UUID userId = UUID.randomUUID();
                 BookingHistoryResponse r1 = BookingHistoryResponse.builder()
                                 .reservationId(UUID.randomUUID()).status("CANCELLED").build();
                 BookingHistoryResponse r2 = BookingHistoryResponse.builder()
                                 .reservationId(UUID.randomUUID()).status("EXPIRED").build();
 
-                when(bookingService.getBookingHistory(eq(userId))).thenReturn(List.of(r1, r2));
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(bookingService.getBookingHistory(eq(TEST_USER_ID))).thenReturn(List.of(r1, r2));
 
-                mockMvc.perform(get("/slib/bookings/user/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray());
 
-                verify(bookingService, times(1)).getBookingHistory(eq(userId));
+                verify(bookingService, times(1)).getBookingHistory(eq(TEST_USER_ID));
         }
 
         // =========================================
@@ -116,18 +146,21 @@ class FE69_ViewStudentBookingsTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID04: Get bookings for user with no bookings returns 200 OK with empty list")
         void getBookingsByUser_noBookings_returns200OKEmptyList() throws Exception {
-                UUID userId = UUID.randomUUID();
+                when(userRepository.findByEmail(TEST_EMAIL))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(userRepository.findById(TEST_USER_ID))
+                                .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
+                when(bookingService.getBookingHistory(eq(TEST_USER_ID))).thenReturn(Collections.emptyList());
 
-                when(bookingService.getBookingHistory(eq(userId))).thenReturn(Collections.emptyList());
-
-                mockMvc.perform(get("/slib/bookings/user/{userId}", userId))
+                mockMvc.perform(get("/slib/bookings/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray())
                                 .andExpect(jsonPath("$.length()").value(0));
 
-                verify(bookingService, times(1)).getBookingHistory(eq(userId));
+                verify(bookingService, times(1)).getBookingHistory(eq(TEST_USER_ID));
         }
 
         // =========================================

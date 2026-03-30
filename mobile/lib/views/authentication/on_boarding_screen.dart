@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:slib/assets/colors.dart'; 
+import 'package:slib/assets/colors.dart';
 import 'login_screen.dart';
 // import 'register_screen.dart'; // Đã bỏ màn hình đăng ký
 
@@ -18,23 +18,27 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     {
       "image": "assets/images/on_boarding_1.png",
       "title": "Thư viện thông minh\ntrong tầm tay!",
-      "desc": "Khám phá SLIB – nơi kết nối và quản lý mọi hoạt động thư viện chỉ với một ứng dụng duy nhất."
+      "desc":
+          "Khám phá SLIB – nơi kết nối và quản lý mọi hoạt động thư viện chỉ với một ứng dụng duy nhất.",
     },
     {
       "image": "assets/images/on_boarding_2.png",
       "title": "Check-in siêu tốc\nvới một chạm",
-      "desc": "Dùng điện thoại như thẻ từ. Vào/ra thư viện tiện lợi và hiện đại bằng công nghệ HCE không tiếp xúc."
+      "desc":
+          "Dùng điện thoại như thẻ từ. Vào/ra thư viện tiện lợi và hiện đại bằng công nghệ HCE không tiếp xúc.",
     },
     {
       "image": "assets/images/on_boarding_3.png",
       "title": "Đặt chỗ chính xác\ntừng vị trí",
-      "desc": "Xem sơ đồ chỗ trống theo thời gian thực và giữ chỗ ngồi yêu thích của bạn chỉ trong vài giây."
+      "desc":
+          "Xem sơ đồ chỗ trống theo thời gian thực và giữ chỗ ngồi yêu thích của bạn chỉ trong vài giây.",
     },
     {
       "image": "assets/images/on_boarding_4.png",
       "title": "Trợ lý AI hỗ trợ\nhọc tập hiệu quả",
-      "desc": "Nhận gợi ý giờ vàng học tập và giải đáp thắc mắc 24/7 cùng Chatbot AI thông minh."
-    }
+      "desc":
+          "Nhận gợi ý giờ vàng học tập và giải đáp thắc mắc 24/7 cùng Chatbot AI thông minh.",
+    },
   ];
 
   void _nextPage() {
@@ -48,9 +52,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
       // Dùng pushReplacement để người dùng không back lại onboarding được nữa
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => const LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
   }
@@ -60,7 +62,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundPrimary, 
+      backgroundColor: AppColors.backgroundPrimary,
       body: SafeArea(
         child: Column(
           children: [
@@ -83,7 +85,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                         const SizedBox(height: 20),
                         Image.asset(
                           onboardingData[index]["image"]!,
-                          height: size.height * 0.35, 
+                          height: size.height * 0.35,
                           fit: BoxFit.contain,
                         ),
                         SizedBox(height: size.height * 0.05),
@@ -109,7 +111,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                             style: const TextStyle(
                               fontSize: 15,
                               color: Colors.grey,
-                              height: 1.5, 
+                              height: 1.5,
                             ),
                           ),
                         ),
@@ -126,7 +128,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
               child: Column(
                 children: [
                   const Spacer(),
-                
+
                   // Chấm tròn chỉ số trang
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -135,18 +137,18 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                       (index) => AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: _currentIndex == index ? 24 : 8, 
+                        width: _currentIndex == index ? 24 : 8,
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentIndex == index
-                              ? AppColors.brandColor 
-                              : AppColors.brandColor.withOpacity(0.2), 
+                              ? AppColors.brandColor
+                              : AppColors.brandColor.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
                     ),
                   ),
-                  
+
                   const Spacer(),
 
                   // Nút Tiếp tục / Bắt đầu ngay
@@ -154,13 +156,13 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SizedBox(
                       width: double.infinity,
-                      height: 52, 
+                      height: 52,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.brandColor,
                           elevation: 2,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12), 
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                         onPressed: _nextPage,
@@ -179,7 +181,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen> {
                   ),
 
                   // 👉 SỬA ĐỔI: Đã xóa phần RichText "Bạn đã có tài khoản?" ở đây
-                  
                   const SizedBox(height: 30), // Padding đáy cho thoáng
                 ],
               ),

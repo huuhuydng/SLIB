@@ -52,6 +52,9 @@ class Seat {
   /// Kiểm tra ghế đã được đặt hay chưa
   bool get isBooked => seatStatus == 'BOOKED';
 
+  /// Kiểm tra ghế đang có người ngồi
+  bool get isConfirmed => seatStatus == 'CONFIRMED';
+
   /// Kiểm tra ghế bị hạn chế (admin đã disable)
   bool get isUnavailable => seatStatus == 'UNAVAILABLE' || !isActive;
 
@@ -68,4 +71,3 @@ class Seat {
   static const double seatWidth = 44.0;
   static const double seatHeight = 44.0;
 }
-

@@ -39,7 +39,6 @@ function Login({ onLogin, onForgotPassword }) {
             );
           }
 
-          console.log('Google Sign-In đã khởi tạo');
         } catch (error) {
           console.error('Lỗi khởi tạo Google:', error);
         }

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/services/auth/auth_service.dart';
 
-class HceCardScreen extends StatelessWidget {
-  const HceCardScreen({super.key});
+class StudentCardScreen extends StatelessWidget {
+  const StudentCardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +54,7 @@ class HceCardScreen extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -77,8 +77,14 @@ class HceCardScreen extends StatelessWidget {
                             height: 40,
                             fit: BoxFit.contain,
                             // Xử lý nếu ảnh lỗi hoặc chưa có
-                            errorBuilder: (context, error, stackTrace) => 
-                                const Text("FPT UNIVERSITY", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Text(
+                                  "FPT UNIVERSITY",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                           ),
 
                           const SizedBox(height: 10),
@@ -102,19 +108,23 @@ class HceCardScreen extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: Colors.white.withValues(alpha: 0.3),
                                 width: 1,
                               ),
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
                             child: Center(
                               child: CircleAvatar(
                                 radius: 68,
                                 backgroundColor: Colors.white,
-                                backgroundImage: user?.avtUrl != null && user!.avtUrl!.isNotEmpty
+                                backgroundImage:
+                                    user?.avtUrl != null &&
+                                        user!.avtUrl!.isNotEmpty
                                     ? NetworkImage(user.avtUrl!)
                                     : null,
-                                child: (user?.avtUrl == null || user!.avtUrl!.isEmpty)
+                                child:
+                                    (user?.avtUrl == null ||
+                                        user!.avtUrl!.isEmpty)
                                     ? const Icon(
                                         Icons.person,
                                         size: 100,
@@ -147,7 +157,9 @@ class HceCardScreen extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD35400).withOpacity(0.8),
+                              color: const Color(
+                                0xFFD35400,
+                              ).withValues(alpha: 0.8),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
@@ -165,17 +177,22 @@ class HceCardScreen extends StatelessWidget {
                           // E. BARCODE THẬT (CODE 128)
                           // Barcode cần nền trắng để máy quét đọc được
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: BarcodeWidget(
-                              barcode: Barcode.code128(), // Loại barcode phổ biến nhất cho thẻ
+                              barcode:
+                                  Barcode.code128(), // Loại barcode phổ biến nhất cho thẻ
                               data: studentCode, // Dữ liệu là MSSV
                               height: 60,
                               width: double.infinity,
-                              drawText: false, // Không cần vẽ text MSSV ở dưới vì đã có Badge ở trên
+                              drawText:
+                                  false, // Không cần vẽ text MSSV ở dưới vì đã có Badge ở trên
                               color: Colors.black,
                             ),
                           ),
@@ -203,7 +220,7 @@ class HceCardScreen extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),        
+              ),
             ],
           ),
         ),
@@ -235,7 +252,7 @@ class HceCardScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
               const SizedBox(height: 30),
-              
+
               // Barcode Lớn
               BarcodeWidget(
                 barcode: Barcode.code128(),
@@ -243,7 +260,10 @@ class HceCardScreen extends StatelessWidget {
                 height: 100,
                 width: double.infinity,
                 drawText: true, // Show text MSSV bên dưới cho dễ đối chiếu
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),

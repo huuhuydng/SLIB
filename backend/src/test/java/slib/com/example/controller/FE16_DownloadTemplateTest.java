@@ -9,6 +9,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.users.UserController;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -17,6 +18,7 @@ import slib.com.example.service.auth.AuthService;
 import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.SystemLogService;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -53,11 +55,15 @@ class FE16_DownloadTemplateTest {
         @MockBean
         private StagingImportService stagingImportService;
 
+        @MockBean
+        private SystemLogService systemLogService;
+
         // =========================================
         // === UTCD01: Valid request - Success ===
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: Download template returns 200 OK with Excel content")
         void downloadTemplate_validRequest_returns200OK() throws Exception {
                 mockMvc.perform(get("/slib/users/import/template"))
@@ -73,6 +79,7 @@ class FE16_DownloadTemplateTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD02: Download template returns non-empty content")
         void downloadTemplate_returnsNonEmptyContent() throws Exception {
                 mockMvc.perform(get("/slib/users/import/template"))
@@ -86,6 +93,7 @@ class FE16_DownloadTemplateTest {
         // =========================================
 
         @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD03: Download template multiple times returns consistent results")
         void downloadTemplate_multipleRequests_returnsConsistentResults() throws Exception {
                 mockMvc.perform(get("/slib/users/import/template"))

@@ -3,6 +3,7 @@
 import os
 import time
 import threading
+import logging
 import requests
 import digitalio
 import board
@@ -18,6 +19,9 @@ try:
     load_dotenv()
 except ImportError:
     pass  # python-dotenv not installed, use os.environ only
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger("slib_gate")
 
 LOGO_PATH = "logo.png"
 BUZZER_PIN = 17
@@ -39,7 +43,7 @@ COLOR_BRAND     = "#FF751F"
 # ============================================================
 SLIB_API_BASE = os.environ.get("SLIB_API_URL", "https://api.slibsystem.site")
 SLIB_GATE_ID = os.environ.get("SLIB_GATE_ID", "GATE_01")
-SLIB_API_KEY = os.environ.get("SLIB_GATE_API_KEY", "SLIB_SECRET_GATE_FPT_123")
+SLIB_API_KEY = os.environ.get("SLIB_GATE_API_KEY", "").strip()
 SLIB_HEARTBEAT_INTERVAL = int(os.environ.get("SLIB_HEARTBEAT_INTERVAL", "30"))
 COOLDOWN_SECONDS = int(os.environ.get("SLIB_COOLDOWN_SECONDS", "30"))
 
@@ -228,6 +232,10 @@ def show_status_screen(status_type, title, message):
 def heartbeat_worker():
     """Background thread that sends heartbeat to backend every N seconds."""
     while True:
+        if not SLIB_API_KEY:
+            logger.error("SLIB_GATE_API_KEY is missing. Heartbeat skipped until the gateway is configured.")
+            time.sleep(SLIB_HEARTBEAT_INTERVAL)
+            continue
         try:
             headers = {
                 "Content-Type": "application/json",
@@ -235,17 +243,19 @@ def heartbeat_worker():
             }
             resp = requests.post(HEARTBEAT_URL, headers=headers, timeout=5)
             if resp.status_code == 200:
-                print(f"[Heartbeat] OK - {SLIB_GATE_ID}")
+                logger.info("Heartbeat OK - %s", SLIB_GATE_ID)
             else:
-                print(f"[Heartbeat] Error {resp.status_code}: {resp.text}")
+                logger.warning("Heartbeat error %s: %s", resp.status_code, resp.text)
         except Exception as e:
-            print(f"[Heartbeat] Failed: {e}")
+            logger.error("Heartbeat failed: %s", e)
         time.sleep(SLIB_HEARTBEAT_INTERVAL)
 
 
 def send_to_backend(token):
+    if not SLIB_API_KEY:
+        logger.error("SLIB_GATE_API_KEY is missing. Rejecting gateway request.")
+        return False, {"message": "Thiếu cấu hình API key"}
     try:
-        print(f"Token: {token}")
         payload = {"token": token, "gateId": SLIB_GATE_ID}
         
         headers = {
@@ -257,31 +267,31 @@ def send_to_backend(token):
         
         if response.status_code == 200:
             data = response.json()
-            print(f"[Backend] Response: type={data.get('type')}, message={data.get('message')}")
+            logger.info("Backend response: type=%s, message=%s", data.get('type'), data.get('message'))
             return True, data
         
         # Parse error response for station-specific messages
         try:
             err_data = response.json()
-            print(f"[Backend] Error {response.status_code}: {err_data.get('message')}")
+            logger.warning("Backend error %s: %s", response.status_code, err_data.get('message'))
             return False, err_data
         except Exception:
             return False, {"message": "Server Error"}
     except Exception as e:
-        print(f"[Backend] Connection failed: {e}")
+        logger.error("Backend connection failed: %s", e)
         return False, {"message": "Mất kết nối"}
 
 def main():
-    print("--- SLIB GATEWAY UI UPGRADED ---")
-    print(f"Gate ID: {SLIB_GATE_ID}")
-    print(f"API URL: {API_URL}")
-    print(f"Heartbeat URL: {HEARTBEAT_URL}")
-    print(f"Heartbeat Interval: {SLIB_HEARTBEAT_INTERVAL}s")
+    logger.info("--- SLIB GATEWAY UI UPGRADED ---")
+    logger.info("Gate ID: %s", SLIB_GATE_ID)
+    logger.info("API URL: %s", API_URL)
+    logger.info("Heartbeat URL: %s", HEARTBEAT_URL)
+    logger.info("Heartbeat Interval: %ss", SLIB_HEARTBEAT_INTERVAL)
     
     # Start heartbeat thread (daemon=True so it dies with main process)
     hb_thread = threading.Thread(target=heartbeat_worker, daemon=True)
     hb_thread.start()
-    print("[Heartbeat] Thread started")
+    logger.info("Heartbeat thread started")
     
     beep(0.1)
     set_led('BLUE')
@@ -317,7 +327,7 @@ def main():
                         now = time.time()
                         if token == last_scanned_token and (now - last_scanned_time) < COOLDOWN_SECONDS:
                             remaining = int(COOLDOWN_SECONDS - (now - last_scanned_time))
-                            print(f"[Cooldown] Same token skipped, wait {remaining}s")
+                            logger.info("Cooldown active for the last token, wait %ss", remaining)
                             show_status_screen('error', "VUI LÒNG CHỜ", f"Thẻ đã quét, chờ {remaining} giây")
                             beep(0.3)
                             time.sleep(3)
@@ -373,7 +383,7 @@ def main():
                 pass
 
         except Exception as e:
-            print(f"System Loop Error: {e}")
+            logger.error("System loop error: %s", e)
         
         time.sleep(0.1)
 
@@ -382,4 +392,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         GPIO.cleanup()
-        print("\nGoodbye!")
+        logger.info("Goodbye!")

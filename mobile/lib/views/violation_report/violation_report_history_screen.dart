@@ -6,13 +6,15 @@ import '../../models/violation_report.dart';
 import '../../views/widgets/error_display_widget.dart';
 
 class ViolationReportHistoryScreen extends StatefulWidget {
-  const ViolationReportHistoryScreen({Key? key}) : super(key: key);
+  const ViolationReportHistoryScreen({super.key});
 
   @override
-  State<ViolationReportHistoryScreen> createState() => _ViolationReportHistoryScreenState();
+  State<ViolationReportHistoryScreen> createState() =>
+      _ViolationReportHistoryScreenState();
 }
 
-class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScreen> {
+class _ViolationReportHistoryScreenState
+    extends State<ViolationReportHistoryScreen> {
   final _violationReportService = ViolationReportService();
   List<ViolationReport> _reports = [];
   bool _isLoading = true;
@@ -63,20 +65,26 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
           _buildHeader(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFD32F2F)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFFD32F2F)),
+                  )
                 : _error != null
-                    ? _buildErrorState()
-                    : _reports.isEmpty
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _loadReports,
-                            color: const Color(0xFFD32F2F),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: _reports.length,
-                              itemBuilder: (context, index) => _buildReportCard(_reports[index]),
-                            ),
-                          ),
+                ? _buildErrorState()
+                : _reports.isEmpty
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: _loadReports,
+                    color: const Color(0xFFD32F2F),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      itemCount: _reports.length,
+                      itemBuilder: (context, index) =>
+                          _buildReportCard(_reports[index]),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -99,7 +107,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF333333), size: 20),
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  color: Color(0xFF333333),
+                  size: 20,
+                ),
                 onPressed: () => Navigator.pop(context),
               ),
               const Expanded(
@@ -113,7 +125,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: Color(0xFF333333), size: 24),
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Color(0xFF333333),
+                  size: 24,
+                ),
                 onPressed: _loadReports,
               ),
             ],
@@ -149,7 +165,7 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -168,7 +184,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
                   color: const Color(0xFFFFEBEE),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.report_outlined, color: Color(0xFFD32F2F), size: 24),
+                child: const Icon(
+                  Icons.report_outlined,
+                  color: Color(0xFFD32F2F),
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -192,9 +212,12 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -214,7 +237,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
             const SizedBox(height: 12),
             Text(
               report.description!,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -225,7 +252,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
           Row(
             children: [
               if (report.areaName != null || report.zoneName != null) ...[
-                Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[400]),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 14,
+                  color: Colors.grey[400],
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -256,7 +287,11 @@ class _ViolationReportHistoryScreenState extends State<ViolationReportHistoryScr
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.remove_circle_outline, size: 14, color: Color(0xFFD32F2F)),
+                  const Icon(
+                    Icons.remove_circle_outline,
+                    size: 14,
+                    color: Color(0xFFD32F2F),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Người vi phạm bị trừ ${report.pointDeducted} điểm',

@@ -118,6 +118,14 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
               @Param("conversationId") UUID conversationId,
               Pageable pageable);
 
+       @Query("SELECT m FROM Message m WHERE m.conversation.id = :conversationId " +
+                     "AND m.createdAt >= :visibleFrom " +
+                     "ORDER BY m.createdAt DESC")
+       Page<Message> findByConversationIdPaginatedVisibleFrom(
+              @Param("conversationId") UUID conversationId,
+              @Param("visibleFrom") LocalDateTime visibleFrom,
+              Pageable pageable);
+
        // 13. Lấy messages của conversation với filter theo humanSessionId
        // Quy tắc:
        // - CHỈ load messages có humanSessionId = current session

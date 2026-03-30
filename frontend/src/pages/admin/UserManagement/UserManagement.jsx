@@ -398,7 +398,6 @@ const UserManagement = () => {
 
     // Skip Mac metadata files
     if (fileName.startsWith('._') || fileName.startsWith('__macosx')) {
-      console.log('⏭️ Skipping metadata file:', fileName);
       return;
     }
 
@@ -571,7 +570,6 @@ const UserManagement = () => {
             setProcessingStatus(`Lỗi! Đang xóa ${uploadedUrls.length} ảnh đã upload...`);
             try {
               await userService.deleteAvatarsBatch(uploadedUrls);
-              console.log('[Cleanup] Đã xóa', uploadedUrls.length, 'avatars');
             } catch (cleanupErr) {
               console.error('[Cleanup] Lỗi xóa avatars:', cleanupErr);
             }
@@ -614,7 +612,6 @@ const UserManagement = () => {
             setProcessingStatus('Lỗi import! Đang xóa ảnh đã upload...');
             try {
               await userService.deleteAvatarsBatch(uploadedAvatarUrls);
-              console.log('[Rollback] Đã xóa', uploadedAvatarUrls.length, 'avatars');
             } catch (rollbackErr) {
               console.error('[Rollback] Lỗi xóa avatars:', rollbackErr);
             }
@@ -853,10 +850,8 @@ const UserManagement = () => {
   const resetImportModal = async () => {
     // Cleanup uploaded avatars if any (when user clicks X during upload)
     if (uploadedAvatarUrlsRef.current.length > 0) {
-      console.log('[Cancel] Cleaning up', uploadedAvatarUrlsRef.current.length, 'uploaded avatars');
       try {
         await userService.deleteAvatarsBatch(uploadedAvatarUrlsRef.current);
-        console.log('[Cancel] Cleanup completed');
       } catch (err) {
         console.error('[Cancel] Cleanup failed:', err);
       }

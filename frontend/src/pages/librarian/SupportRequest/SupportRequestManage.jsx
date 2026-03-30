@@ -139,15 +139,6 @@ function SupportRequestManage() {
         setChatLoading(true);
         try {
             const token = getToken();
-            // Update status to IN_PROGRESS first
-            await fetch(`${API_BASE}/${requestId}/status`, {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ status: "IN_PROGRESS" }),
-            });
             const res = await fetch(`${API_BASE}/${requestId}/chat`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },

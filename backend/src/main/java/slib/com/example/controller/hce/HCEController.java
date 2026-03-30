@@ -1,6 +1,7 @@
 package slib.com.example.controller.hce;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,13 +24,13 @@ import slib.com.example.dto.hce.StudentDetailDTO;
 
 @RestController
 @RequestMapping("/slib/hce")
-@CrossOrigin(origins = "*")
+@RequiredArgsConstructor
+@Slf4j
 public class HCEController {
-    @Autowired
-    CheckInService checkInService;
+    private final CheckInService checkInService;
 
     @Value("${gate.secret}")
-    String gateSecretKey;
+    private String gateSecretKey;
 
     @PostMapping("/checkin")
     public ResponseEntity<?> checkIn(@RequestBody CheckInRequest request, HttpServletRequest httpRequest) {
@@ -171,8 +172,7 @@ public class HCEController {
                     .headers(headers)
                     .body(excelContent);
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Error exporting to Excel: " + e.getMessage());
+            log.error("Error exporting access logs to Excel", e);
             return ResponseEntity.badRequest().build();
         }
     }

@@ -2,9 +2,12 @@ package slib.com.example.controller.ai;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.ai.KnowledgeBaseEntity;
 import slib.com.example.service.ai.KnowledgeBaseService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.util.List;
 import java.util.Map;
@@ -14,11 +17,12 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/slib/ai/admin/knowledge")
-@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class KnowledgeBaseController {
 
     @Autowired
     private KnowledgeBaseService knowledgeBaseService;
+    @Autowired
+    private SystemLogService systemLogService;
 
     /**
      * Get all knowledge items
@@ -40,9 +44,14 @@ public class KnowledgeBaseController {
      * Create new knowledge
      */
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody KnowledgeBaseEntity knowledge) {
+    public ResponseEntity<?> create(
+            @RequestBody KnowledgeBaseEntity knowledge,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             KnowledgeBaseEntity created = knowledgeBaseService.create(knowledge);
+            systemLogService.logAudit("KnowledgeBaseController",
+                    "Tạo knowledge base item: " + created.getTitle(),
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã thêm kiến thức mới",
@@ -58,9 +67,15 @@ public class KnowledgeBaseController {
      * Update knowledge
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody KnowledgeBaseEntity knowledge) {
+    public ResponseEntity<?> update(
+            @PathVariable Long id,
+            @RequestBody KnowledgeBaseEntity knowledge,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             KnowledgeBaseEntity updated = knowledgeBaseService.update(id, knowledge);
+            systemLogService.logAudit("KnowledgeBaseController",
+                    "Cập nhật knowledge base item: " + id,
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã cập nhật kiến thức",
@@ -76,9 +91,14 @@ public class KnowledgeBaseController {
      * Delete knowledge
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
         try {
             knowledgeBaseService.delete(id);
+            systemLogService.logAudit("KnowledgeBaseController",
+                    "Xoá knowledge base item: " + id,
+                    null, userDetails != null ? userDetails.getUsername() : null);
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Đã xóa kiến thức"));

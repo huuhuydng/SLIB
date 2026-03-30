@@ -16,6 +16,7 @@ import slib.com.example.dto.ai.KnowledgeStoreDTO;
 import slib.com.example.entity.ai.KnowledgeStoreEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.ai.KnowledgeStoreService;
+import slib.com.example.service.system.SystemLogService;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -41,6 +42,9 @@ class FE46_ViewKnowledgeStoresTest {
 
         @MockBean
         private KnowledgeStoreService knowledgeStoreService;
+
+        @MockBean
+        private SystemLogService systemLogService;
 
         @Autowired
         private ObjectMapper objectMapper;

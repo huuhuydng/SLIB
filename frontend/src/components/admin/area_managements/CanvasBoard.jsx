@@ -3,7 +3,19 @@ import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
-import { getAreas, updateAreaFactory } from "../../../services/admin/area_management/api";
+import {
+  createAreaFactoryInArea,
+  createSeat,
+  createZone,
+  deleteAreaFactory,
+  deleteSeat,
+  deleteZone,
+  getAreas,
+  updateAreaFactory,
+  updateSeat,
+  updateZone,
+  updateZonePositionAndDimensions,
+} from "../../../services/admin/area_management/api";
 import { clearAllPositionCache } from "../../../utils/positionCache";
 import "../../../styles/admin/canvas.css";
 
@@ -355,7 +367,6 @@ function CanvasBoard() {
 
     try {
       const { pendingChanges } = state;
-      const { createZone, createAreaFactoryInArea, updateZonePositionAndDimensions, updateAreaFactory, deleteSeat, updateSeat, createSeat } = await import('../../../services/admin/area_management/api');
 
       // 1. Create new zones FIRST (pending with negative IDs)
       // Zones must be created before seats that belong to them
@@ -525,7 +536,6 @@ function CanvasBoard() {
       await Promise.all(newSeatPromises);
 
       // 3. Update existing zones (those with positive IDs)
-      const { updateZone } = await import('../../../services/admin/area_management/api');
       const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
       const updateZonePromises = existingZones.map(zone =>
         updateZone(zone.zoneId, {
@@ -554,14 +564,11 @@ function CanvasBoard() {
       );
 
       // 5. Delete pending deleted seats
-      console.log('[SAVE] Pending deleted seats:', pendingChanges?.deletedSeats);
       const deletePromises = (pendingChanges?.deletedSeats || []).map(seatId =>
         deleteSeat(seatId).catch(e => console.error(`Failed to delete seat ${seatId}:`, e))
       );
 
       // 6. Delete zones marked for deletion
-      const { deleteZone, deleteAreaFactory } = await import('../../../services/admin/area_management/api');
-      console.log('[SAVE] Pending deleted zones:', pendingChanges?.deletedZones);
       const deleteZonePromises = (pendingChanges?.deletedZones || []).map(zoneId =>
         deleteZone(zoneId).catch(e => console.error(`Failed to delete zone ${zoneId}:`, e))
       );
@@ -594,7 +601,6 @@ function CanvasBoard() {
       // Clear position cache after successful save
       clearAllPositionCache();
       dispatch({ type: actions.MARK_SAVED });
-      console.log('All changes saved successfully');
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));

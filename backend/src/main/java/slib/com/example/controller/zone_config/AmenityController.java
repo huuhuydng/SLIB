@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/slib/zone_amenities") 
-@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class AmenityController {
 

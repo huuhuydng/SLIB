@@ -33,6 +33,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SupportRequestService {
+    private static final java.util.Map<SupportRequestStatus, java.util.Set<SupportRequestStatus>> VALID_TRANSITIONS = java.util.Map.of(
+            SupportRequestStatus.PENDING, java.util.Set.of(SupportRequestStatus.IN_PROGRESS, SupportRequestStatus.REJECTED),
+            SupportRequestStatus.IN_PROGRESS, java.util.Set.of(SupportRequestStatus.RESOLVED, SupportRequestStatus.REJECTED),
+            SupportRequestStatus.RESOLVED, java.util.Set.of(),
+            SupportRequestStatus.REJECTED, java.util.Set.of());
+
 
     private final SupportRequestRepository supportRequestRepository;
     private final UserRepository userRepository;
@@ -118,6 +124,7 @@ public class SupportRequestService {
     public SupportRequestDTO updateStatus(UUID requestId, SupportRequestStatus status, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+        validateStatusTransition(request.getStatus(), status);
 
         request.setStatus(status);
 
@@ -126,6 +133,9 @@ public class SupportRequestService {
                     .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
             request.setResolvedBy(librarian);
             request.setResolvedAt(LocalDateTime.now());
+        } else {
+            request.setResolvedBy(null);
+            request.setResolvedAt(null);
         }
 
         SupportRequest saved = supportRequestRepository.save(request);
@@ -146,6 +156,9 @@ public class SupportRequestService {
     public SupportRequestDTO respond(UUID requestId, String response, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+        if (request.getStatus() == SupportRequestStatus.REJECTED) {
+            throw new RuntimeException("Không thể phản hồi yêu cầu đã bị từ chối");
+        }
 
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
@@ -175,6 +188,9 @@ public class SupportRequestService {
     public UUID startChatForRequest(UUID requestId, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+        if (request.getStatus() == SupportRequestStatus.RESOLVED || request.getStatus() == SupportRequestStatus.REJECTED) {
+            throw new RuntimeException("Không thể mở chat cho yêu cầu đã kết thúc");
+        }
 
         UUID studentId = request.getStudent().getId();
 
@@ -213,6 +229,14 @@ public class SupportRequestService {
         // Gửi WebSocket notification cho sinh viên để mobile cập nhật real-time
         String librarianName = librarian.getFullName() != null ? librarian.getFullName() : "Thủ thư";
         conversationService.notifyStudentLibrarianJoined(conversation.getId(), studentId, librarianName);
+
+        if (request.getStatus() == SupportRequestStatus.PENDING) {
+            request.setStatus(SupportRequestStatus.IN_PROGRESS);
+            request.setResolvedBy(null);
+            request.setResolvedAt(null);
+            supportRequestRepository.save(request);
+            sendStatusNotification(request, SupportRequestStatus.IN_PROGRESS);
+        }
 
         log.info("[SupportRequest] Started chat for request {} with student {}", requestId, studentId);
 
@@ -277,7 +301,9 @@ public class SupportRequestService {
                                 pushNotificationService.sendToUser(
                                         studentId, notiTitle, notiBody,
                                         NotificationType.SUPPORT_REQUEST,
-                                        requestId);
+                                        requestId,
+                                        "SUPPORT_REQUEST",
+                                        "PROCESSING");
                                 log.info("[SupportRequest] Sent notification to student {} for status {}", studentId,
                                         status);
                             } catch (Exception e) {
@@ -287,6 +313,17 @@ public class SupportRequestService {
                     });
         } catch (Exception e) {
             log.error("[SupportRequest] Failed to prepare notification: {}", e.getMessage());
+        }
+    }
+
+    private void validateStatusTransition(SupportRequestStatus currentStatus, SupportRequestStatus nextStatus) {
+        if (currentStatus == nextStatus) {
+            return;
+        }
+
+        if (!VALID_TRANSITIONS.getOrDefault(currentStatus, java.util.Set.of()).contains(nextStatus)) {
+            throw new RuntimeException(
+                    "Không thể chuyển trạng thái yêu cầu hỗ trợ từ " + currentStatus + " sang " + nextStatus);
         }
     }
 

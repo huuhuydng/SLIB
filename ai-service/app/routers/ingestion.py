@@ -4,9 +4,10 @@ Handles document upload and knowledge base management endpoints
 """
 
 import logging
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from typing import Optional
 
+from app.core.admin_auth import require_admin_access
 from app.models.schemas import (
     IngestTextRequest,
     IngestResponse,
@@ -17,7 +18,11 @@ from app.services.ingestion_service import get_ingestion_service
 # Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/ingest", tags=["Ingestion"])
+router = APIRouter(
+    prefix="/api/v1/ingest",
+    tags=["Ingestion"],
+    dependencies=[Depends(require_admin_access)],
+)
 
 
 @router.post("/upload", response_model=IngestResponse)

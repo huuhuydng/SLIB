@@ -1,12 +1,13 @@
 """
-RAG Chat Service - SLIB AI (MoMo Style Edition 🌸)
-Handles RAG (Retrieval-Augmented Generation) chat with strict guardrails
-and "Cute & Polite" persona logic.
-Supports real-time statistics queries (density, capacity, peak hours).
+RAG Chat Service for SLIB AI.
+Handles knowledge retrieval, deterministic answers for key library settings,
+and real-time statistics queries.
 """
 
 import logging
 import re
+import unicodedata
+import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
@@ -27,31 +28,37 @@ logger = logging.getLogger(__name__)
 # --- 1. CẤU HÌNH NGƯỠNG (THRESHOLDS) ---
 # Điểm < 0.35: Coi là spam/gõ bậy -> Giới thiệu lại bản thân (Giống MoMo case "hdjdhdiirhfh")
 SPAM_THRESHOLD = 0.35 
+STRICT_GROUNDED_SCORE_THRESHOLD = 0.62
 
 # Điểm >= 0.75 (Lấy từ settings): Mới được coi là tìm thấy thông tin
 # Khoảng giữa (0.35 - 0.75): Coi là câu hỏi khó/không có data -> Xin lỗi nhẹ nhàng
 
 
-# --- 2. SYSTEM PROMPT (STYLE MOMO) ---
-RAG_SYSTEM_PROMPT = """Bạn là **SLIB AI** - trợ thủ đắc lực và siêu dễ thương của Thư viện SLIB 🌸
+# --- 2. SYSTEM PROMPT ---
+RAG_SYSTEM_PROMPT = """Bạn là SLIB AI, trợ lý hỗ trợ sinh viên của thư viện SLIB.
 
 --- NHIỆM VỤ ---
-Trả lời câu hỏi của sinh viên dựa trên thông tin được cung cấp trong phần CONTEXT.
+Trả lời câu hỏi của sinh viên dựa trên thông tin được cung cấp trong dữ liệu bên dưới.
 
 --- QUY TẮC AN TOÀN (BẮT BUỘC) ---
-1. Đọc kỹ phần CONTEXT bên dưới.
-2. Nếu thông tin KHÔNG có trong CONTEXT, bạn phải trả lời duy nhất cụm từ: I_DO_NOT_KNOW
-3. Tuyệt đối KHÔNG tự bịa ra thông tin hoặc sử dụng kiến thức bên ngoài context.
+1. Đọc kỹ toàn bộ dữ liệu được cung cấp.
+2. Chỉ được khẳng định khi dữ liệu có căn cứ rõ ràng, trực tiếp.
+3. Nếu thông tin KHÔNG có trong dữ liệu, dữ liệu không đủ chắc chắn, hoặc có nhiều khả năng hiểu sai, bạn phải trả lời duy nhất cụm từ: I_DO_NOT_KNOW
+4. Tuyệt đối KHÔNG tự bịa ra thông tin, KHÔNG suy đoán, KHÔNG dùng kiến thức bên ngoài dữ liệu được cung cấp.
+5. Không tự hợp nhất nhiều dữ liệu rời rạc thành một kết luận mới nếu dữ liệu không nói rõ như vậy.
 
---- PHONG CÁCH TRẢ LỜI (MOMO STYLE) ---
-- Bắt buộc bắt đầu câu trả lời bằng: **"Dạ,"**
-- Xưng hô: "mình" (SLIB AI) và "bạn".
-- Giọng điệu: Lễ phép, nhẹ nhàng, nhiệt tình.
-- Ví dụ: "Dạ, theo quy định thì...", "Dạ, hiện tại thư viện có..."
+--- PHONG CÁCH TRẢ LỜI ---
+- Trả lời bằng tiếng Việt, lịch sự, rõ ràng, chuyên nghiệp.
+- Ưu tiên câu ngắn, trực tiếp vào thông tin người dùng hỏi.
+- Không nhắc đến các cụm như "theo thông tin trong context", "dựa trên context", "trong dữ liệu được cung cấp" trừ khi người dùng hỏi về nguồn.
+- Không dùng giọng điệu quá trẻ con, quá đáng yêu hoặc thêm biểu tượng cảm xúc.
+- Nếu dữ liệu có giờ giấc hoặc con số cụ thể, hãy nêu trực tiếp con số đó.
+- Nếu dữ liệu có các mốc thời gian cụ thể như 07:00 hoặc 21:00, phải lặp lại đúng các mốc đó, không được tự đổi sang giờ khác.
+- Nếu không chắc, không vòng vo. Chỉ trả lời: I_DO_NOT_KNOW
 
---- CONTEXT TỪ THƯ VIỆN ---
+--- DỮ LIỆU THƯ VIỆN ---
 {context}
---- HẾT CONTEXT ---
+--- HẾT DỮ LIỆU ---
 
 {live_data}
 
@@ -67,36 +74,40 @@ Câu trả lời của bạn:"""
 # A. Greeting Patterns (Xã giao)
 GREETING_PATTERNS = {
     # Identity & Intro
-    "bạn là ai": "Dạ, mình là **SLIB AI** - Trợ lý ảo hỗ trợ sinh viên tại Thư viện SLIB ạ! Mình có thể giúp bạn tra cứu sách, xem quy định hoặc hướng dẫn đặt phòng... Bạn cần mình hỗ trợ gì hông nè?",
-    "bạn là gì": "Dạ, mình là **SLIB AI** - chatbot của thư viện SLIB đó ạ! Mình được tạo ra để giúp bạn tìm thông tin thư viện nhanh gọn lẹ nè!",
-    "ai đang nói": "Dạ, là mình nè - **SLIB AI**, trợ lý ảo của thư viện SLIB!",
-    "giới thiệu": "Dạ, chào bạn! Mình là **SLIB AI**.\n\nMình ở đây để giải đáp mọi thắc mắc về Thư viện SLIB một cách nhanh nhất. Đừng ngại hỏi mình nha!",
+    "bạn là ai": "Xin chào, tôi là **SLIB AI**, trợ lý hỗ trợ sinh viên tại thư viện SLIB. Tôi có thể giúp bạn tra cứu thông tin, hướng dẫn sử dụng và giải đáp các câu hỏi thường gặp.",
+    "bạn là gì": "Tôi là **SLIB AI**, trợ lý hỗ trợ thông tin của thư viện SLIB.",
+    "ai đang nói": "Tôi là **SLIB AI**, trợ lý hỗ trợ của thư viện SLIB.",
+    "giới thiệu": "Xin chào, tôi là **SLIB AI**. Tôi có thể hỗ trợ bạn về giờ hoạt động, đặt chỗ, check-in, điểm uy tín và các quy định của thư viện.",
     
     # Greetings
-    "xin chào": "Dạ, chào bạn ạ! SLIB AI đã sẵn sàng. Hôm nay bạn cần tìm thông tin gì nè?",
-    "chào bạn": "Dạ, chào bạn nha! Mình sẵn sàng hỗ trợ bạn rồi đây. Cần mình giúp gì không?",
-    "hello": "Dạ, hello bạn! SLIB AI nghe nè!",
-    "hi": "Dạ, hi bạn! Rất vui được gặp bạn. Cần mình giúp gì cứ nói nha!",
+    "xin chào": "Xin chào, tôi là SLIB AI. Bạn cần tôi hỗ trợ thông tin gì?",
+    "chào bạn": "Xin chào, tôi có thể hỗ trợ bạn thông tin gì về thư viện?",
+    "hello": "Xin chào, tôi là SLIB AI. Bạn cần hỗ trợ gì?",
+    "hi": "Xin chào, tôi là SLIB AI. Bạn cần hỗ trợ gì?",
     
     # Thanks
-    "cảm ơn": "Dạ, không có chi đâu ạ! Giúp được bạn là niềm vui của mình mà. Cần gì thêm cứ ới mình nha!",
-    "cám ơn": "Dạ, hông có gì nè! Chúc bạn học tập thật tốt tại thư viện nhé!",
-    "thanks": "Dạ, you're welcome! Chúc bạn một ngày học tập thật hiệu quả!",
+    "cảm ơn": "Rất vui được hỗ trợ bạn. Nếu cần thêm thông tin, bạn cứ tiếp tục đặt câu hỏi.",
+    "cám ơn": "Rất vui được hỗ trợ bạn. Nếu cần thêm thông tin, bạn cứ tiếp tục đặt câu hỏi.",
+    "thanks": "Rất vui được hỗ trợ bạn. Nếu cần thêm thông tin, bạn cứ tiếp tục đặt câu hỏi.",
     
     # Help
-    "giúp tôi": "Dạ, mình sẵn sàng nè! Bạn muốn hỏi về quy định, đặt chỗ hay điểm uy tín? Nói cho mình biết đi!",
-    "hỗ trợ": "Dạ, mình ở đây để hỗ trợ bạn mà! Cứ hỏi thoải mái nhé, mình sẽ cố gắng trả lời nhanh nhất có thể!",
+    "giúp tôi": "Tôi có thể hỗ trợ bạn về giờ hoạt động, đặt chỗ, check-in, điểm uy tín hoặc quy định thư viện.",
+    "hỗ trợ": "Tôi có thể hỗ trợ bạn về giờ hoạt động, đặt chỗ, check-in, điểm uy tín hoặc quy định thư viện.",
 }
 
 # B. Fallback Messages (Xử lý lỗi)
 
 # Case 1: Spam/Gõ bậy (Score < SPAM_THRESHOLD)
 # Giống MoMo đoạn "hdjdhdiirhfh" -> Giới thiệu lại bản thân để định hướng user
-MSG_SPAM_DETECTED = "Dạ, mình là **SLIB AI** - Trợ lý thư viện đây ạ!\n\nMình có thể giúp bạn giải quyết các vấn đề liên quan đến Thư viện SLIB (như quy định, giờ mở cửa, tài liệu...). Bạn cần hỗ trợ gì hông ạ?"
+MSG_SPAM_DETECTED = "Tôi là **SLIB AI**. Tôi có thể hỗ trợ bạn về giờ hoạt động, đặt chỗ, check-in, điểm uy tín và các quy định của thư viện. Bạn hãy gửi lại câu hỏi rõ hơn nhé."
 
 # Case 2: Không tìm thấy tin (SPAM_THRESHOLD <= Score < Similarity_Threshold)
 # Giống MoMo đoạn "Slib là gì" -> Xin lỗi vì chưa có data
-MSG_NO_INFO = "Dạ, mình chưa có thông tin về vấn đề này trong hệ thống thư viện ạ.\n\nBạn có thể mô tả rõ hơn hoặc hỏi về vấn đề khác được không ạ? Nếu cần gấp, mình sẽ nhờ thủ thư hỗ trợ bạn nha!"
+MSG_NO_INFO_VARIANTS = [
+    "Hiện tôi chưa đủ căn cứ để trả lời chắc chắn câu hỏi này. Để tránh cung cấp sai thông tin, bạn có thể chọn Chat với Thủ thư SLIB để được hỗ trợ chính xác hơn.",
+    "Tôi chưa có đủ cơ sở để trả lời câu hỏi này một cách chính xác. Bạn có thể chọn Chat với Thủ thư SLIB để được hỗ trợ đúng nghiệp vụ hơn.",
+    "Thông tin hiện có chưa đủ rõ để tôi trả lời một cách chắc chắn. Nếu cần, bạn có thể chọn Chat với Thủ thư SLIB để được xác nhận chính xác hơn.",
+]
 
 # C. Escalation Patterns (User muốn gặp thủ thư)
 ESCALATION_PATTERNS = [
@@ -117,7 +128,22 @@ ESCALATION_PATTERNS = [
     "chuyển cho người", "chuyen cho nguoi",
 ]
 
-MSG_ESCALATION_OFFER = "Dạ, để được gặp thủ thư, bạn vui lòng bấm vào nút bên dưới ạ!"
+MSG_ESCALATION_OFFER = "Bạn có thể bấm nút bên dưới để kết nối với thủ thư."
+
+GROUNDING_STOPWORDS = {
+    "thu", "vien", "slib", "toi", "ban", "em", "anh", "chi", "va", "la",
+    "co", "cua", "cho", "voi", "mot", "nhung", "nay", "kia", "neu", "thi",
+    "de", "duoc", "can", "hay", "giup", "ho", "tro", "thong", "tin", "gi",
+    "nao", "mau", "the", "trong", "ngoai", "tren", "duoi", "toi", "den",
+    "tu", "luc", "gio", "rang", "rang", "ro", "chinh", "xac", "hien", "tai",
+}
+
+BOILERPLATE_SENTENCE_PATTERNS = [
+    r"ban co the chon chat voi thu thu slib",
+    r"ban co the lien he thu thu",
+    r"neu can ho tro them",
+    r"de tranh cung cap sai thong tin",
+]
 
 
 
@@ -126,13 +152,23 @@ class RAGChatService:
     RAG Chat Service
     Workflow:
     1. Check Greeting (Xã giao)
-    2. Retrieve Context (Tìm kiếm)
-    3. Check Spam (Score quá thấp -> Re-intro)
-    4. Check Low Confidence (Score trung bình -> Xin lỗi)
-    5. Generate Answer (Score cao -> Trả lời cute)
+    2. Retrieve context from document knowledge base first
+    3. Fall back to other indexed sources if needed
+    4. Check spam / low confidence
+    5. Generate response with LLM when enough evidence exists
     """
     
     I_DO_NOT_KNOW_MARKER = "I_DO_NOT_KNOW"
+    HOURS_QUERY_PATTERNS = [
+        r"(giờ|gio).*(mở cửa|đóng cửa)",
+        r"(mở cửa|đóng cửa).*(giờ|gio|lúc|luc|mấy|may)",
+        r"mở.*(đến mấy giờ|tới mấy giờ|den may gio|toi may gio)",
+        r"(mấy giờ|may gio).*(mở|đóng)",
+        r"(giờ|gio).*(hoạt động|lam viec|làm việc)",
+        r"thư viện.*(mở cửa|đóng cửa|giờ hoạt động|giờ làm việc)",
+        r"(chủ nhật|chu nhat).*(mở|đóng|hoạt động|lam viec|làm việc)",
+        r"(ngày nào|ngay nao).*(mở cửa|hoạt động|lam viec|làm việc)",
+    ]
     
     def __init__(self):
         settings = get_settings()
@@ -148,7 +184,7 @@ class RAGChatService:
         self.llm = Ollama(
             model=self.model,
             base_url=self.ollama_url,
-            temperature=settings.default_temperature,
+            temperature=min(settings.default_temperature, 0.15),
             num_predict=settings.default_max_tokens
         )
         
@@ -179,7 +215,203 @@ class RAGChatService:
                 if pattern in normalized:
                     return response
         return None
-    
+
+    def _build_no_info_reply(self, query: str) -> str:
+        normalized = self._normalize_for_match(query)
+        if not normalized:
+            return MSG_NO_INFO_VARIANTS[0]
+
+        digest = hashlib.md5(normalized.encode("utf-8")).digest()
+        variant_index = int.from_bytes(digest[:2], "big") % len(MSG_NO_INFO_VARIANTS)
+        return MSG_NO_INFO_VARIANTS[variant_index]
+
+    def _strip_accents(self, text: str) -> str:
+        normalized = unicodedata.normalize("NFD", text or "")
+        return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+
+    def _normalize_for_match(self, text: str) -> str:
+        lowered = self._strip_accents((text or "").lower())
+        lowered = re.sub(r"[*_`>#-]+", " ", lowered)
+        lowered = re.sub(r"[^a-z0-9:%/\s]", " ", lowered)
+        return re.sub(r"\s+", " ", lowered).strip()
+
+    def _clean_response_tone(self, response: str) -> str:
+        cleaned = response or ""
+        cleanup_patterns = [
+            r"\b[Tt]heo thông tin (?:trong|trên) [Cc]ontext[:,]?\s*",
+            r"\b[Tt]heo thông tin (?:trong|trên) context[:,]?\s*",
+            r"\b[Dd]ựa trên [Cc]ontext[:,]?\s*",
+            r"\b[Dd]ựa trên context[:,]?\s*",
+            r"\b[Tt]rong [Cc]ontext[:,]?\s*",
+            r"\b[Tt]rong context[:,]?\s*",
+            r"\b[Tt]heo [Cc]ontext[:,]?\s*",
+            r"\b[Tt]heo context[:,]?\s*",
+            r"\b[Dd]ựa trên dữ liệu được cung cấp[:,]?\s*",
+        ]
+
+        for pattern in cleanup_patterns:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" .,:;")
+        if not cleaned:
+            return ""
+
+        return cleaned[:1].upper() + cleaned[1:]
+
+    def _extract_fact_tokens(self, text: str) -> List[str]:
+        normalized = self._normalize_for_match(text)
+        patterns = [
+            r"\b\d{1,2}:\d{2}\b",
+            r"\b\d+\s*(?:%|gio|phut|ngay|tuan|thang|nam|diem|ghe|cho|nguoi|luot)\b",
+            r"\bthu\s*(?:hai|ba|tu|nam|sau|bay)\b",
+            r"\bchu nhat\b",
+        ]
+
+        tokens = []
+        for pattern in patterns:
+            tokens.extend(re.findall(pattern, normalized, flags=re.IGNORECASE))
+        return list(dict.fromkeys(token.strip() for token in tokens if token.strip()))
+
+    def _extract_keywords(self, text: str) -> List[str]:
+        normalized = self._normalize_for_match(text)
+        words = []
+        for token in normalized.split():
+            if len(token) < 4:
+                continue
+            if token in GROUNDING_STOPWORDS:
+                continue
+            if token.isdigit():
+                continue
+            words.append(token)
+        return list(dict.fromkeys(words))
+
+    def _is_boilerplate_sentence(self, sentence: str) -> bool:
+        normalized = self._normalize_for_match(sentence)
+        return any(re.search(pattern, normalized) for pattern in BOILERPLATE_SENTENCE_PATTERNS)
+
+    def _verify_response_grounding(
+        self,
+        query: str,
+        response: str,
+        context_chunks: List[Dict[str, Any]],
+        live_data: str = "",
+    ) -> Tuple[bool, str]:
+        evidence_parts = [chunk.get("content", "") for chunk in context_chunks if chunk.get("content")]
+        if live_data:
+            evidence_parts.append(live_data)
+
+        evidence_text = self._normalize_for_match("\n".join(evidence_parts))
+        normalized_response = self._normalize_for_match(response)
+        if not evidence_text or not normalized_response:
+            return False, "Không có đủ evidence để kiểm chứng câu trả lời"
+
+        response_fact_tokens = self._extract_fact_tokens(response)
+        missing_fact_tokens = [token for token in response_fact_tokens if token not in evidence_text]
+        if missing_fact_tokens:
+            return False, f"Câu trả lời chứa chi tiết không có trong evidence: {', '.join(missing_fact_tokens[:3])}"
+
+        sentences = [s.strip() for s in re.split(r"[.!?\n]+", response) if s.strip()]
+        for sentence in sentences:
+            if self._is_boilerplate_sentence(sentence):
+                continue
+
+            fact_tokens = self._extract_fact_tokens(sentence)
+            if fact_tokens:
+                continue
+
+            keywords = self._extract_keywords(sentence)
+            if not keywords:
+                continue
+
+            matched_keywords = [keyword for keyword in keywords if keyword in evidence_text]
+            min_required = 2 if len(keywords) >= 3 else 1
+            if len(matched_keywords) < min_required:
+                return False, f"Câu trả lời chưa bám đủ evidence cho ý: '{sentence}'"
+
+        return True, "Grounded"
+
+    def _is_library_hours_query(self, message: str) -> bool:
+        normalized = message.lower().strip()
+        return any(re.search(pattern, normalized) for pattern in self.HOURS_QUERY_PATTERNS)
+
+    def _rerank_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not chunks:
+            return chunks
+
+        normalized_query = query.lower().strip()
+        is_hours_query = self._is_library_hours_query(query)
+
+        def rank(chunk: Dict[str, Any]) -> tuple[float, float]:
+            content = chunk.get("content", "").lower()
+            source = chunk.get("source", "").lower()
+            bonus = 0.0
+
+            if is_hours_query:
+                if "mở cửa" in content or "đóng cửa" in content or "giờ hoạt động" in content:
+                    bonus += 0.25
+                if re.search(r"\b\d{1,2}:\d{2}\b", content):
+                    bonus += 0.20
+                if "thứ hai" in content or "chủ nhật" in content:
+                    bonus += 0.10
+                if "01_gioi_thieu_thu_vien" in source or "08_cau_hoi_thuong_gap" in source:
+                    bonus += 0.15
+
+            keyword_hits = 0
+            for token in normalized_query.split():
+                if len(token) < 3:
+                    continue
+                if token in content:
+                    keyword_hits += 1
+            bonus += min(keyword_hits * 0.03, 0.15)
+
+            return (chunk.get("similarity_score", 0.0) + bonus, chunk.get("similarity_score", 0.0))
+
+        return sorted(chunks, key=rank, reverse=True)
+
+    def _try_answer_hours_from_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> Optional[str]:
+        if not self._is_library_hours_query(query) or not chunks:
+            return None
+
+        combined_text = "\n".join(chunk.get("content", "") for chunk in chunks[:5])
+        normalized_query = query.lower().strip()
+
+        open_match = re.search(r"giờ mở cửa:\s*(\d{1,2}:\d{2})", combined_text, re.IGNORECASE)
+        close_match = re.search(r"giờ đóng cửa:\s*(\d{1,2}:\d{2})", combined_text, re.IGNORECASE)
+        monday_to_saturday = bool(re.search(r"thứ hai đến thứ bảy", combined_text, re.IGNORECASE))
+        sunday_closed = bool(re.search(r"chủ nhật:\s*đóng cửa", combined_text, re.IGNORECASE))
+
+        asks_sunday = "chủ nhật" in normalized_query or "chu nhat" in normalized_query
+        asks_close_time = bool(re.search(r"(đóng cửa|đến mấy giờ|tới mấy giờ|may gio dong|dong cua)", normalized_query))
+        asks_open_time = bool(re.search(r"(mở cửa|từ mấy giờ|may gio mo|mo cua)", normalized_query))
+
+        if asks_sunday and sunday_closed:
+            response = "Thư viện không mở cửa vào Chủ Nhật."
+            if open_match and close_match and monday_to_saturday:
+                response += f" Thư viện hoạt động từ Thứ Hai đến Thứ Bảy, từ {open_match.group(1)} đến {close_match.group(1)}."
+            return response
+
+        if asks_close_time and close_match:
+            response = f"Thư viện mở cửa đến {close_match.group(1)}."
+            if monday_to_saturday:
+                response += " Thư viện hoạt động từ Thứ Hai đến Thứ Bảy."
+            return response
+
+        if asks_open_time and open_match:
+            response = f"Thư viện mở cửa từ {open_match.group(1)}."
+            if monday_to_saturday:
+                response += " Thư viện hoạt động từ Thứ Hai đến Thứ Bảy."
+            return response
+
+        if open_match and close_match:
+            response = f"Thư viện hoạt động từ {open_match.group(1)} đến {close_match.group(1)}."
+            if monday_to_saturday:
+                response += " Thư viện hoạt động từ Thứ Hai đến Thứ Bảy."
+            if sunday_closed:
+                response += " Chủ Nhật thư viện đóng cửa."
+            return response
+
+        return None
+
     # --- Realtime detection: Regex patterns (gom nhóm, không cần liệt kê từng keyword) ---
     REALTIME_REGEX_PATTERNS = [
         # Density words: đông, vắng, trống, kín, đầy, full + context
@@ -229,6 +461,10 @@ class RAGChatService:
         r'(mấy|lúc|giờ).*đóng cửa',
         r'quy định',                   # hỏi quy định -> KB
         r'(cách|hướng dẫn)\s*(đặt|đăng|check)',  # hướng dẫn sử dụng -> KB
+        r'đặt\s*(tối đa|bao nhiêu|mấy)',
+        r'bao nhiêu\s*lượt',
+        r'(điểm uy tín|uy tín|uy tin)',
+        r'(bị trừ|trừ|cộng)\s*bao nhiêu\s*điểm',
     ]
 
     def _get_realtime_embeddings(self):
@@ -441,7 +677,12 @@ class RAGChatService:
                 return True
         return False
     
-    def retrieve_context(self, query: str, top_k: int = None) -> Tuple[List[Dict[str, Any]], float]:
+    def retrieve_context(
+        self,
+        query: str,
+        top_k: int = None,
+        category: Optional[str] = None
+    ) -> Tuple[List[Dict[str, Any]], float]:
         """Retrieve relevant context from Qdrant vector database"""
         if top_k is None:
             top_k = self.max_chunks
@@ -457,6 +698,7 @@ class RAGChatService:
             results = qdrant_service.search(
                 query_vector=query_embedding,
                 limit=top_k,
+                category=category,
                 score_threshold=0.0
             )
             
@@ -475,6 +717,8 @@ class RAGChatService:
                 if score > best_score:
                     best_score = score
             
+            chunks = self._rerank_chunks(query, chunks)
+
             logger.info(f"[Retrieve] Found {len(chunks)} chunks. Best score: {best_score:.4f}")
             return chunks, best_score
                 
@@ -527,7 +771,7 @@ class RAGChatService:
     
     def query(self, message: str, chat_history: List[Dict[str, str]] = None) -> Dict[str, Any]:
         """
-        Main RAG query method with MoMo-style logic
+        Main RAG query method
         chat_history: list of {"role": "user"|"assistant", "content": "..."}
         """
         logger.info(f"[Query] User: {message} (history: {len(chat_history) if chat_history else 0} msgs)")
@@ -554,11 +798,26 @@ class RAGChatService:
                 "similarity_score": 1.0,
                 "sources": []
             }
+
+        preferred_top_k = max(self.max_chunks, 12) if self._is_library_hours_query(message) else self.max_chunks
+
+        # 2. Retrieve Context from document knowledge base first
+        chunks, best_score = self.retrieve_context(
+            message,
+            top_k=preferred_top_k,
+            category="knowledge_base"
+        )
+
+        # 3. Fall back to all indexed sources only when document KB is too weak
+        if best_score < self.similarity_threshold:
+            fallback_chunks, fallback_score = self.retrieve_context(
+                message,
+                top_k=preferred_top_k
+            )
+            if fallback_score > best_score:
+                chunks, best_score = fallback_chunks, fallback_score
         
-        # 2. Retrieve Context
-        chunks, best_score = self.retrieve_context(message)
-        
-        # 3. Check Spam/Gibberish (Score cực thấp)
+        # 4. Check Spam/Gibberish (Score cực thấp)
         # Ví dụ: "hdjdhdiirhfh" -> Score ~ 0.2 -> Trả lời giới thiệu bản thân
         if best_score < SPAM_THRESHOLD:
             logger.info(f"[Query] Spam detected (Score {best_score:.4f} < {SPAM_THRESHOLD})")
@@ -570,7 +829,20 @@ class RAGChatService:
                 "sources": []
             }
 
-        # 4. Check realtime query BEFORE low confidence check
+        grounded_hours_response = self._try_answer_hours_from_chunks(message, chunks)
+        if grounded_hours_response:
+            return {
+                "success": True,
+                "reply": grounded_hours_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
+        # 5. Check realtime query BEFORE low confidence check
         is_realtime = self._detect_realtime_query(message)
 
         # Also check if this is a follow-up to a realtime conversation
@@ -588,48 +860,85 @@ class RAGChatService:
             logger.info("[Query] Realtime query detected, fetching live data...")
             live_data = self._fetch_live_context()
 
-        # 4a. Check Low Confidence (Score lửng lơ)
+        # 5a. Check Low Confidence (Score lửng lơ)
         if best_score < self.similarity_threshold:
             # Nếu là câu hỏi realtime hoặc có history -> vẫn generate
             if (is_realtime and live_data) or chat_history:
                 logger.info(f"[Query] Low score but realtime/follow-up — using live data + history to answer")
                 response = self.generate_response(message, chunks[:3], live_data=live_data, chat_history=chat_history)
+                response = self._clean_response_tone(response)
 
                 if self.I_DO_NOT_KNOW_MARKER not in response:
+                    is_grounded, grounding_reason = self._verify_response_grounding(message, response, chunks[:3], live_data=live_data)
+                    if is_grounded:
+                        return {
+                            "success": True,
+                            "reply": response,
+                            "action": ActionType.NONE,
+                            "similarity_score": best_score,
+                            "sources": [{"source": "Dữ liệu thời gian thực", "score": 1.0}]
+                        }
+
+                    logger.info(f"[Query] Rejected low-confidence answer after grounding check: {grounding_reason}")
+                    
                     return {
                         "success": True,
-                        "reply": response,
-                        "action": ActionType.NONE,
+                        "reply": self._build_no_info_reply(message),
+                        "action": ActionType.ESCALATE_TO_LIBRARIAN,
                         "similarity_score": best_score,
-                        "sources": [{"source": "Dữ liệu thời gian thực", "score": 1.0}]
+                        "sources": []
                     }
 
             # Không phải realtime hoặc LLM trả IDK -> escalate
             logger.info(f"[Query] Low confidence ({best_score:.4f} < {self.similarity_threshold}). Escalating.")
             return {
                 "success": True,
-                "reply": MSG_NO_INFO,
+                "reply": self._build_no_info_reply(message),
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
             }
 
-        # 5. Generate Response (Score cao)
+        # 6. Generate Response (Score cao)
         relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
-        response = self.generate_response(message, relevant_chunks, live_data=live_data, chat_history=chat_history)
+        if self._is_library_hours_query(message):
+            focused_chunks = [
+                c for c in relevant_chunks
+                if (
+                    "mở cửa" in c.get("content", "").lower()
+                    or "đóng cửa" in c.get("content", "").lower()
+                    or "giờ hoạt động" in c.get("content", "").lower()
+                )
+            ]
+            if focused_chunks:
+                relevant_chunks = focused_chunks[:3]
 
-        # 6. Check I_DO_NOT_KNOW (LLM fallback)
+        response = self.generate_response(message, relevant_chunks, live_data=live_data, chat_history=chat_history)
+        response = self._clean_response_tone(response)
+
+        # 7. Check I_DO_NOT_KNOW (LLM fallback)
         if self.I_DO_NOT_KNOW_MARKER in response:
             logger.info("[Query] LLM returned I_DO_NOT_KNOW.")
             return {
                 "success": True,
-                "reply": MSG_NO_INFO,
+                "reply": self._build_no_info_reply(message),
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
             }
 
-        # 7. Success
+        is_grounded, grounding_reason = self._verify_response_grounding(message, response, relevant_chunks, live_data=live_data)
+        if not is_grounded:
+            logger.info(f"[Query] Rejected answer after grounding check: {grounding_reason}")
+            return {
+                "success": True,
+                "reply": self._build_no_info_reply(message),
+                "action": ActionType.ESCALATE_TO_LIBRARIAN,
+                "similarity_score": min(best_score, STRICT_GROUNDED_SCORE_THRESHOLD),
+                "sources": []
+            }
+
+        # 8. Success
         sources = [
             {"source": c["source"], "score": round(c["similarity_score"], 4)}
             for c in relevant_chunks[:3]
@@ -692,8 +1001,26 @@ class RAGChatService:
                 "debug": debug
             }
         
-        # 2. Retrieve
-        chunks, best_score = self.retrieve_context(message)
+        # 2. Retrieve from document knowledge base first
+        preferred_top_k = max(self.max_chunks, 12) if self._is_library_hours_query(message) else self.max_chunks
+        chunks, best_score = self.retrieve_context(
+            message,
+            top_k=preferred_top_k,
+            category="knowledge_base"
+        )
+        debug["retrieval"]["primary_category"] = "knowledge_base"
+
+        # 3. Fall back to all indexed sources only when document KB is too weak
+        if best_score < self.similarity_threshold:
+            fallback_chunks, fallback_score = self.retrieve_context(
+                message,
+                top_k=preferred_top_k
+            )
+            if fallback_score > best_score:
+                chunks, best_score = fallback_chunks, fallback_score
+                debug["retrieval"]["fell_back_to_all_sources"] = True
+
+        # 4. Retrieve
         debug["retrieval"]["best_score"] = round(best_score, 4)
         debug["retrieval"]["chunks_found"] = len(chunks)
         debug["retrieval"]["passed_threshold"] = best_score >= self.similarity_threshold
@@ -709,7 +1036,7 @@ class RAGChatService:
                 "source": chunk.get("source", "Unknown"),
             })
             
-        # 3. Check Spam
+        # 4. Check Spam
         if best_score < SPAM_THRESHOLD:
             debug["retrieval"]["is_spam"] = True
             debug["generation"]["action_reason"] = f"Spam detected (Score {best_score:.4f} < {SPAM_THRESHOLD})"
@@ -719,39 +1046,71 @@ class RAGChatService:
                 "action": ActionType.NONE,
                 "debug": debug
             }
+
+        grounded_hours_response = self._try_answer_hours_from_chunks(message, chunks)
+        if grounded_hours_response:
+            debug["generation"]["action_reason"] = "Answered from retrieved knowledge-base chunk"
+            return {
+                "success": True,
+                "reply": grounded_hours_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
             
-        # 4. Check realtime query BEFORE low confidence
+        # 5. Check realtime query BEFORE low confidence
         is_realtime = self._detect_realtime_query(message)
         live_data = ""
         if is_realtime:
             live_data = self._fetch_live_context()
             debug["generation"]["is_realtime_query"] = True
 
-        # 4a. Check Low Confidence
+        # 5a. Check Low Confidence
         if best_score < self.similarity_threshold:
             # If realtime query -> try with live data
             if is_realtime and live_data:
                 debug["generation"]["used_llm"] = True
                 debug["generation"]["action_reason"] = "Low score but realtime query — answered with live data"
                 response = self.generate_response(message, chunks[:3], live_data=live_data)
+                response = self._clean_response_tone(response)
                 if self.I_DO_NOT_KNOW_MARKER not in response:
+                    is_grounded, grounding_reason = self._verify_response_grounding(message, response, chunks[:3], live_data=live_data)
+                    if is_grounded:
+                        return {
+                            "success": True,
+                            "reply": response,
+                            "action": ActionType.NONE,
+                            "debug": debug
+                        }
+
+                    debug["generation"]["action_reason"] = f"Rejected after grounding check: {grounding_reason}"
                     return {
                         "success": True,
-                        "reply": response,
-                        "action": ActionType.NONE,
+                        "reply": self._build_no_info_reply(message),
+                        "action": ActionType.ESCALATE_TO_LIBRARIAN,
                         "debug": debug
                     }
 
             debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {self.similarity_threshold}"
             return {
                 "success": True,
-                "reply": MSG_NO_INFO,
+                "reply": self._build_no_info_reply(message),
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "debug": debug
             }
 
-        # 5. Generate with LLM
+        # 6. Generate with LLM
         relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        if self._is_library_hours_query(message):
+            focused_chunks = [
+                c for c in relevant_chunks
+                if (
+                    "mở cửa" in c.get("content", "").lower()
+                    or "đóng cửa" in c.get("content", "").lower()
+                    or "giờ hoạt động" in c.get("content", "").lower()
+                )
+            ]
+            if focused_chunks:
+                relevant_chunks = focused_chunks[:3]
         debug["generation"]["used_llm"] = True
         debug["generation"]["used_chunks_count"] = len(relevant_chunks)
         debug["generation"]["used_chunks"] = [
@@ -764,19 +1123,30 @@ class RAGChatService:
         ]
 
         response = self.generate_response(message, relevant_chunks, live_data=live_data)
+        response = self._clean_response_tone(response)
 
-        # 6. Check IDK
+        # 7. Check IDK
         if self.I_DO_NOT_KNOW_MARKER in response:
             debug["generation"]["llm_returned_idk"] = True
             debug["generation"]["action_reason"] = "LLM returned I_DO_NOT_KNOW marker"
             return {
                 "success": True,
-                "reply": MSG_NO_INFO,
+                "reply": self._build_no_info_reply(message),
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "debug": debug
             }
 
-        # 7. Success
+        is_grounded, grounding_reason = self._verify_response_grounding(message, response, relevant_chunks, live_data=live_data)
+        if not is_grounded:
+            debug["generation"]["action_reason"] = f"Rejected after grounding check: {grounding_reason}"
+            return {
+                "success": True,
+                "reply": self._build_no_info_reply(message),
+                "action": ActionType.ESCALATE_TO_LIBRARIAN,
+                "debug": debug
+            }
+
+        # 8. Success
         debug["generation"]["action_reason"] = "Successfully generated response"
         return {
             "success": True,

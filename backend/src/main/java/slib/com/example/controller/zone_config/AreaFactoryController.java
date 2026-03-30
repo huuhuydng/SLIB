@@ -11,7 +11,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/slib/area_factories")
-@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class AreaFactoryController {
 
