@@ -19,7 +19,7 @@ Backend service được xây dựng bằng **Spring Boot 3.4.0** với **Java 2
 - **Booking System**: Đặt chỗ, check-in/out
 - **Chat & AI**: Tích hợp với AI Service, WebSocket realtime
 - **News/Notification**: Hệ thống tin tức, thông báo
-- **System Config**: Cấu hình hệ thống linh hoạt
+- **System Config**: Cấu hình hệ thống linh hoạt.
 
 ---
 
@@ -48,6 +48,50 @@ backend/
 ├── pom.xml                      # Maven dependencies
 └── uploads/                     # File uploads directory
 ```
+
+---
+
+## Thông tin nhánh `feature/user-reputation-v2`
+
+Nhánh này dùng để phát triển phiên bản 2 của cơ chế **điểm uy tín người dùng** với mục tiêu chuẩn hóa rule, tăng khả năng mở rộng và hỗ trợ báo cáo/giám sát tốt hơn.
+
+### Mục tiêu chính
+
+- Thiết kế lại logic cộng/trừ điểm uy tín theo rule cấu hình.
+- Tách rõ layer nghiệp vụ để dễ test và bảo trì.
+- Chuẩn hóa dữ liệu phục vụ analytics và cảnh báo hành vi.
+- Đồng bộ API với frontend/mobile cho các màn hình lịch sử vi phạm và điểm uy tín.
+
+### Phạm vi kỹ thuật dự kiến
+
+- **Database/Flyway**:
+  - Bổ sung hoặc điều chỉnh bảng/ràng buộc liên quan đến rule uy tín, transaction điểm, và lịch sử vi phạm.
+  - Thêm index cho các truy vấn thống kê và tra cứu theo người dùng/thời gian.
+- **Backend Service**:
+  - Cập nhật service tính điểm uy tín theo rule động.
+  - Bổ sung validate để tránh trừ/cộng điểm trùng lặp.
+  - Chuẩn hóa response DTO cho dữ liệu điểm uy tín.
+- **API/Controller**:
+  - Mở rộng endpoint xem rule, lịch sử điểm, và trạng thái uy tín hiện tại.
+  - Bảo đảm phân quyền rõ giữa `STUDENT`, `LIBRARIAN`, `ADMIN`.
+- **Test**:
+  - Bổ sung test cho luồng cộng điểm, trừ điểm, rollback khi lỗi, và kiểm tra idempotency.
+
+### Quy ước làm việc trên nhánh
+
+- Mọi thay đổi schema bắt buộc đi qua Flyway migration mới, không sửa migration đã chạy ở môi trường dùng chung.
+- Ưu tiên backward-compatible cho API nếu frontend/mobile chưa cập nhật đồng thời.
+- Mỗi PR nên mô tả rõ:
+  - Rule nào thay đổi.
+  - Ảnh hưởng dữ liệu cũ (nếu có).
+  - Cách test lại thủ công và tự động.
+
+### Tiêu chí hoàn thành
+
+- Tính điểm uy tín chính xác theo rule cấu hình.
+- API trả về dữ liệu nhất quán giữa các module sử dụng.
+- Flyway migrate sạch trên môi trường mới.
+- Các test cốt lõi cho reputation pass ổn định.
 
 ---
 
@@ -180,7 +224,6 @@ MAIL_PASSWORD=your_mail_app_password
 ```
 
 ---
-
 ## License
 
 © 2024 SLIB Team. All rights reserved.

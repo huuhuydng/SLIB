@@ -120,12 +120,6 @@ function App() {
         return <LoadingScreen />;
     }
 
-    // Redirect to appropriate dashboard based on role after login
-    const getDefaultRedirect = () => {
-        if (!isLoggedIn) return '/login';
-        return userRole === 'ADMIN' ? '/admin/dashboard' : '/librarian/dashboard';
-    };
-
     return (
         <ToastProvider>
             <ConfirmProvider>
