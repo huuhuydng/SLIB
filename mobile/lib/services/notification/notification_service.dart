@@ -91,6 +91,9 @@ class NotificationItem {
       case 'REMINDER':
         return 'BOOKING';
       case 'SUPPORT_REQUEST':
+      case 'COMPLAINT':
+      case 'SEAT_STATUS_REPORT':
+      case 'VIOLATION_REPORT':
         return 'PROCESSING';
       case 'VIOLATION':
       case 'REPUTATION':

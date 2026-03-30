@@ -27,7 +27,7 @@ public class ChatController {
     @Autowired
     private ChatService chatService;
 
-    @Value("${ai.service.url:http://slib-ai-service:8001}")
+    @Value("${app.ai-service.url:${ai.service.url:http://127.0.0.1:8001}}")
     private String aiServiceUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();

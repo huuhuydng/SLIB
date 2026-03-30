@@ -158,12 +158,24 @@ public class PushNotificationService {
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId) {
-        sendToUser(userId, title, body, type, referenceId, null);
+        sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, null);
     }
 
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
             String deliveryKey) {
+        sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, deliveryKey);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category) {
+        sendToUser(userId, title, body, type, referenceId, referenceType, category, null);
+    }
+
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category, String deliveryKey) {
         User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             log.warn("User not found: {}", userId);
@@ -188,7 +200,7 @@ public class PushNotificationService {
                 .title(title)
                 .content(body)
                 .notificationType(type)
-                .referenceType(type.name())
+                .referenceType(referenceType)
                 .referenceId(referenceId)
                 .isRead(false)
                 .build();
@@ -196,17 +208,21 @@ public class PushNotificationService {
 
         // Get unread count for badge (after saving new notification)
         int badgeCount = (int) notificationRepository.countUnreadByUserId(userId);
-        String category = resolveCategory(type, title, body);
-        String categoryLabel = resolveCategoryLabel(category);
+        String resolvedCategory = category != null && !category.isBlank()
+                ? category
+                : resolveCategory(type, title, body);
+        String categoryLabel = resolveCategoryLabel(resolvedCategory);
 
         // Send push notification to device
         Map<String, String> data = new HashMap<>();
         data.put("type", type.name());
-        data.put("category", category);
+        data.put("category", resolvedCategory);
         data.put("categoryLabel", categoryLabel);
         data.put("notificationId", notification.getId().toString());
         data.put("badgeCount", String.valueOf(badgeCount));
-        data.put("referenceType", notification.getReferenceType());
+        if (notification.getReferenceType() != null) {
+            data.put("referenceType", notification.getReferenceType());
+        }
         if (referenceId != null) {
             data.put("referenceId", referenceId.toString());
         }
@@ -225,7 +241,7 @@ public class PushNotificationService {
         wsPayload.put("title", title);
         wsPayload.put("content", body);
         wsPayload.put("notificationType", type.name());
-        wsPayload.put("category", category);
+        wsPayload.put("category", resolvedCategory);
         wsPayload.put("categoryLabel", categoryLabel);
         wsPayload.put("referenceType", notification.getReferenceType());
         wsPayload.put("referenceId", referenceId != null ? referenceId.toString() : null);
@@ -280,7 +296,8 @@ public class PushNotificationService {
             case BOOKING -> !Boolean.FALSE.equals(user.getNotifyBooking());
             case REMINDER -> !Boolean.FALSE.equals(user.getNotifyReminder());
             case NEWS -> !Boolean.FALSE.equals(user.getNotifyNews());
-            case VIOLATION, REPUTATION, SYSTEM, SUPPORT_REQUEST, CHAT_MESSAGE -> true;
+            case VIOLATION, VIOLATION_REPORT, REPUTATION, SYSTEM, SUPPORT_REQUEST, COMPLAINT,
+                    SEAT_STATUS_REPORT, CHAT_MESSAGE -> true;
         };
     }
 
@@ -297,7 +314,8 @@ public class PushNotificationService {
                         ? Boolean.TRUE.equals(settings.getNotifyTimeExpiry())
                         : Boolean.TRUE.equals(settings.getNotifyCheckinReminder());
                 case VIOLATION -> Boolean.TRUE.equals(settings.getNotifyViolation());
-                case REPUTATION, SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST -> true;
+                case VIOLATION_REPORT, REPUTATION, SYSTEM, NEWS, CHAT_MESSAGE, SUPPORT_REQUEST, COMPLAINT,
+                        SEAT_STATUS_REPORT -> true;
             };
         } catch (Exception e) {
             log.warn("Khong the kiem tra cau hinh thong bao he thong, cho phep gui mac dinh: {}", e.getMessage());
@@ -332,7 +350,7 @@ public class PushNotificationService {
         return switch (type) {
             case CHAT_MESSAGE -> "MESSAGE";
             case BOOKING, REMINDER -> "BOOKING";
-            case SUPPORT_REQUEST -> "PROCESSING";
+            case SUPPORT_REQUEST, COMPLAINT, SEAT_STATUS_REPORT, VIOLATION_REPORT -> "PROCESSING";
             case REPUTATION -> "REPUTATION";
             case NEWS -> "NEWS";
             case VIOLATION -> containsPointKeywords(title, body) ? "REPUTATION" : "PROCESSING";

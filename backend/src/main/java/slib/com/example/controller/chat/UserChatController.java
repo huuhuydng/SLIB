@@ -70,7 +70,7 @@ public class UserChatController {
             @Payload Map<String, Object> payload,
             Principal principal) {
         UUID currentUserId = getCurrentUserId(principal);
-        conversationService.verifyConversationAccess(conversationId, currentUserId);
+        conversationService.verifyConversationParticipationAccess(conversationId, currentUserId);
 
         // Broadcast trạng thái đang gõ tới tất cả subscriber của conversation
         Map<String, Object> typingEvent = Map.of(
@@ -234,7 +234,8 @@ public class UserChatController {
     public ResponseEntity<ConversationDTO> resolveConversation(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        requireLibrarianRole(userDetails);
+        UUID librarianId = requireLibrarianRole(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, librarianId);
         ConversationDTO result = conversationService.resolveConversation(conversationId);
         return ResponseEntity.ok(result);
     }
@@ -296,6 +297,7 @@ public class UserChatController {
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, userId);
         int updated = conversationService.markConversationAsRead(conversationId, userId);
         return ResponseEntity.ok(Map.of("updated", updated));
     }
@@ -307,6 +309,7 @@ public class UserChatController {
             @RequestBody Map<String, Object> payload,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationParticipationAccess(conversationId, userId);
         boolean isTyping = Boolean.TRUE.equals(payload.get("isTyping"));
         messagingTemplate.convertAndSend(
                 "/topic/conversation/" + conversationId,
@@ -365,7 +368,7 @@ public class UserChatController {
             @RequestBody Map<String, String> request,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID senderId = getCurrentUserId(userDetails);
-        conversationService.verifyConversationAccess(conversationId, senderId);
+        conversationService.verifyConversationParticipationAccess(conversationId, senderId);
         String content = request.get("content");
         String senderType = request.getOrDefault("senderType", "STUDENT"); // STUDENT, LIBRARIAN, AI
 
@@ -384,7 +387,7 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             UUID senderId = getCurrentUserId(userDetails);
-            conversationService.verifyConversationAccess(conversationId, senderId);
+            conversationService.verifyConversationParticipationAccess(conversationId, senderId);
 
             // Validate file size (5MB max)
             if (file.getSize() > 5 * 1024 * 1024) {
@@ -418,7 +421,8 @@ public class UserChatController {
     public ResponseEntity<Map<String, Object>> getConversationStatus(
             @PathVariable UUID conversationId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        getCurrentUserId(userDetails);
+        UUID userId = getCurrentUserId(userDetails);
+        conversationService.verifyConversationAccess(conversationId, userId);
         ConversationDTO conv = conversationService.getConversationById(conversationId)
                 .map(c -> conversationService.convertToDTO(c))
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));

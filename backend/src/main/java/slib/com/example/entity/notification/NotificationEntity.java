@@ -62,10 +62,13 @@ public class NotificationEntity {
         BOOKING,
         REMINDER,
         VIOLATION,
+        VIOLATION_REPORT,
         REPUTATION,
         SYSTEM,
         NEWS,
         SUPPORT_REQUEST,
+        COMPLAINT,
+        SEAT_STATUS_REPORT,
         CHAT_MESSAGE
     }
 }

@@ -301,7 +301,9 @@ public class SupportRequestService {
                                 pushNotificationService.sendToUser(
                                         studentId, notiTitle, notiBody,
                                         NotificationType.SUPPORT_REQUEST,
-                                        requestId);
+                                        requestId,
+                                        "SUPPORT_REQUEST",
+                                        "PROCESSING");
                                 log.info("[SupportRequest] Sent notification to student {} for status {}", studentId,
                                         status);
                             } catch (Exception e) {

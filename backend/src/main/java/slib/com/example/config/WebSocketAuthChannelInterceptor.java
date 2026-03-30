@@ -51,10 +51,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             return message;
         }
 
-        Authentication authentication = extractAuthentication(accessor);
         if (StompCommand.SUBSCRIBE.equals(command)) {
+            Authentication authentication = extractAuthentication(accessor);
             validateSubscription(accessor.getDestination(), authentication);
         } else if (StompCommand.SEND.equals(command)) {
+            Authentication authentication = extractAuthentication(accessor);
             validateSend(accessor.getDestination(), authentication);
         }
 

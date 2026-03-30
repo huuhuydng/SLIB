@@ -7,7 +7,9 @@ import 'package:slib/views/news/news_screen.dart';
 import 'package:slib/views/profile/activity_history_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/seat_status_report/seat_status_report_history_screen.dart';
 import 'package:slib/views/support/support_request_history_screen.dart';
+import 'package:slib/views/violation_report/violation_report_history_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class _NotificationCategoryOption {
@@ -475,10 +477,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _openProcessingScreen(NotificationItem notification) {
+    final referenceType =
+        (notification.referenceType ?? notification.type).toUpperCase();
     final combined = '${notification.title} ${notification.content}'
         .toLowerCase();
 
-    if (combined.contains('yêu cầu hỗ trợ')) {
+    if (referenceType == 'SUPPORT_REQUEST' ||
+        combined.contains('yêu cầu hỗ trợ')) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
@@ -486,10 +491,27 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return;
     }
 
-    if (combined.contains('vi phạm')) {
+    if (referenceType == 'COMPLAINT' || combined.contains('khiếu nại')) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
+      );
+      return;
+    }
+
+    if (referenceType == 'SEAT_STATUS_REPORT' ||
+        combined.contains('tình trạng ghế')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SeatStatusReportHistoryScreen()),
+      );
+      return;
+    }
+
+    if (referenceType == 'VIOLATION_REPORT' || combined.contains('vi phạm')) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ViolationReportHistoryScreen()),
       );
     }
   }

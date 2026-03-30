@@ -122,11 +122,6 @@
             <artifactId>google-cloud-vertexai</artifactId>
             <version>1.1.0</version>
         </dependency>
-        <!-- WebSocket for real-time updates -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
         <!-- Flyway Database Migration -->
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -186,9 +181,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version> <configuration>
+                <version>3.5.2</version>
+                <configuration>
                     <argLine>
-                        -XX:+EnableDynamicAgentLoading
+                        -XX:+EnableDynamicAgentLoading -Dnet.bytebuddy.experimental=true
                     </argLine>
                 </configuration>
             </plugin>
@@ -202,15 +198,6 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
-                </configuration>
-            </plugin>
-            <!-- Surefire Plugin - Fix for Java 25 + Mockito/ByteBuddy -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.2</version>
-                <configuration>
-                    <argLine>-Dnet.bytebuddy.experimental=true</argLine>
                 </configuration>
             </plugin>
         </plugins>

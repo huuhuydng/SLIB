@@ -491,8 +491,10 @@ public class SeatViolationReportService {
                             try {
                                 pushNotificationService.sendToUser(
                                         reporterId, title, body,
-                                        NotificationType.VIOLATION,
-                                        report.getId());
+                                        NotificationType.VIOLATION_REPORT,
+                                        report.getId(),
+                                        "VIOLATION_REPORT",
+                                        "PROCESSING");
                             } catch (Exception e) {
                                 log.error("[ViolationReport] Failed to send reporter notification: {}", e.getMessage());
                             }
@@ -521,8 +523,10 @@ public class SeatViolationReportService {
                             try {
                                 pushNotificationService.sendToUser(
                                         violatorId, title, body,
-                                        NotificationType.VIOLATION,
-                                        report.getId());
+                                        NotificationType.VIOLATION_REPORT,
+                                        report.getId(),
+                                        "VIOLATION_REPORT",
+                                        "PROCESSING");
                             } catch (Exception e) {
                                 log.error("[ViolationReport] Failed to send new report notification: {}",
                                         e.getMessage());

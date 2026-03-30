@@ -205,8 +205,10 @@ public class SeatStatusReportService {
                     report.getUser().getId(),
                     title,
                     body,
-                    NotificationType.SYSTEM,
-                    report.getId());
+                    NotificationType.SEAT_STATUS_REPORT,
+                    report.getId(),
+                    "SEAT_STATUS_REPORT",
+                    "PROCESSING");
         } catch (Exception e) {
             log.warn("[SeatStatusReport] Failed to send reporter notification for {}", report.getId(), e);
         }

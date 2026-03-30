@@ -372,8 +372,10 @@ public class ComplaintService {
                                         complaint.getUser().getId(),
                                         title,
                                         body,
-                                        NotificationType.SYSTEM,
-                                        complaint.getId());
+                                        NotificationType.COMPLAINT,
+                                        complaint.getId(),
+                                        "COMPLAINT",
+                                        "PROCESSING");
                 } catch (Exception e) {
                         log.warn("Failed to send complaint notification for {}", complaint.getId(), e);
                 }

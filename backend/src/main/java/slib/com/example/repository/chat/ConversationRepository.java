@@ -1,6 +1,8 @@
 package slib.com.example.repository.chat;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -60,6 +62,13 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
      * Tìm tất cả conversations của student
      */
     List<Conversation> findByStudentId(UUID studentId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Conversation c " +
+            "LEFT JOIN FETCH c.student " +
+            "LEFT JOIN FETCH c.librarian " +
+            "WHERE c.id = :conversationId")
+    Optional<Conversation> findByIdForUpdate(@Param("conversationId") UUID conversationId);
 
     /**
      * Xóa tất cả conversations của student (cho cascade delete user)
