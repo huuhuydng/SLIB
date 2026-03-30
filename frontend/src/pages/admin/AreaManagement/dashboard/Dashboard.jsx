@@ -1,21 +1,21 @@
 import React, { useMemo, useState } from "react";
-import { 
-  Users, 
-  Armchair, 
-  AlertCircle, 
-  Sparkles, 
-  Clock, 
-  Bell, 
-  Calendar, 
-  ChevronRight, 
-  Wrench, 
+import {
+  Users,
+  Armchair,
+  AlertCircle,
+  Sparkles,
+  Clock,
+  Bell,
+  Calendar,
+  ChevronRight,
+  Wrench,
   BookOpen,
   MapPin,
   Activity
 } from "lucide-react";
 import StatCard from "./StatCard";
 import Header from "./Header";
-import { getLibraryInsights } from "../../../../services/geminiService";
+import { getLibraryInsights } from "../../../../services/ai/geminiService";
 import "../../../../styles/Dashboard.css";
 
 // Mock Data
@@ -60,7 +60,7 @@ const Dashboard = () => {
   const filteredStudents = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     if (!q) return MOCK_STUDENTS;
-    return MOCK_STUDENTS.filter((s) => 
+    return MOCK_STUDENTS.filter((s) =>
       s.name.toLowerCase().includes(q) || s.studentId.toLowerCase().includes(q) || s.action.toLowerCase().includes(q)
     );
   }, [searchText]);
@@ -72,7 +72,7 @@ const Dashboard = () => {
   };
 
   const getNotificationIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'event': return <Calendar size={18} />;
       case 'maintenance': return <Wrench size={18} />;
       case 'info': return <BookOpen size={18} />;
@@ -81,7 +81,7 @@ const Dashboard = () => {
   };
 
   const getNotificationColors = (type) => {
-    switch(type) {
+    switch (type) {
       case 'event': return { bg: '#E3F2FD', color: '#0054A6', border: '#BBDEFB' };
       case 'maintenance': return { bg: '#FFEBEE', color: '#D32F2F', border: '#FFCDD2' };
       case 'info': return { bg: '#E8F5E9', color: '#388E3C', border: '#C8E6C9' };
@@ -91,7 +91,7 @@ const Dashboard = () => {
 
   return (
     <>
-      <Header 
+      <Header
         searchValue={searchText}
         onSearchChange={(e) => setSearchText(e.target.value)}
         searchPlaceholder="Tìm kiếm sinh viên, mã số..."
@@ -112,8 +112,8 @@ const Dashboard = () => {
         }}>
           <div>
             <h1 style={{
-              fontSize: '28px',
-              fontWeight: '700',
+              fontSize: '20px',
+              fontWeight: '600',
               color: 'var(--slib-text-primary, #1A1A1A)',
               margin: '0 0 4px 0'
             }}>Tổng quan</h1>
@@ -185,7 +185,7 @@ const Dashboard = () => {
           {/* Student List Table */}
           <div style={{
             background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
+            borderRadius: '10px',
             boxShadow: 'var(--slib-shadow-card)',
             overflow: 'hidden'
           }}>
@@ -231,14 +231,14 @@ const Dashboard = () => {
                 gap: '6px',
                 transition: 'all 0.2s ease'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--slib-primary-subtle, #FFF7F2)';
-                e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)';
-                e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
-              }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--slib-primary-subtle, #FFF7F2)';
+                  e.currentTarget.style.color = 'var(--slib-primary, #FF751F)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--slib-bg-main, #F7FAFC)';
+                  e.currentTarget.style.color = 'var(--slib-text-secondary, #4A5568)';
+                }}
               >
                 Xem tất cả
                 <ChevronRight size={16} />
@@ -264,7 +264,7 @@ const Dashboard = () => {
                 </thead>
                 <tbody>
                   {filteredStudents.map((student, index) => (
-                    <tr 
+                    <tr
                       key={student.id}
                       style={{
                         borderBottom: index === filteredStudents.length - 1 ? 'none' : '1px solid var(--slib-border-light, #E2E8F0)',
@@ -330,7 +330,7 @@ const Dashboard = () => {
           {/* AI Insights Panel */}
           <div style={{
             background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
+            borderRadius: '10px',
             boxShadow: 'var(--slib-shadow-card)',
             padding: '24px',
             height: 'fit-content'
@@ -371,7 +371,7 @@ const Dashboard = () => {
                   onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'}
                   onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
                 >
-                  <div style={{ 
+                  <div style={{
                     flexShrink: 0,
                     width: '32px',
                     height: '32px',
@@ -407,7 +407,7 @@ const Dashboard = () => {
           {/* Notifications Panel */}
           <div style={{
             background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
+            borderRadius: '10px',
             boxShadow: 'var(--slib-shadow-card)',
             padding: '24px'
           }}>
@@ -432,7 +432,7 @@ const Dashboard = () => {
                 padding: '4px 12px',
                 background: 'var(--slib-primary, #FF751F)',
                 color: '#fff',
-                borderRadius: '20px',
+                borderRadius: '10px',
                 fontSize: '12px',
                 fontWeight: '600'
               }}>{MOCK_NOTIFICATIONS.length} mới</span>
@@ -480,7 +480,7 @@ const Dashboard = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                         <span style={{
                           fontSize: '10px',
-                          fontWeight: '700',
+                          fontWeight: '600',
                           color: colors.color,
                           background: colors.bg,
                           padding: '3px 8px',
@@ -506,7 +506,7 @@ const Dashboard = () => {
           {/* Area Status Panel */}
           <div style={{
             background: 'var(--slib-bg-card, #ffffff)',
-            borderRadius: '16px',
+            borderRadius: '10px',
             boxShadow: 'var(--slib-shadow-card)',
             padding: '24px'
           }}>
@@ -525,7 +525,6 @@ const Dashboard = () => {
               </div>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--slib-text-primary, #1A1A1A)', margin: 0 }}>
-                  Trạng thái khu vực
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--slib-text-muted, #A0AEC0)', margin: 0 }}>
                   Mức độ sử dụng theo thời gian thực
@@ -560,7 +559,7 @@ const Dashboard = () => {
               {AREAS.map((area, idx) => {
                 const colors = getProgressColor(area.percentage);
                 return (
-                  <div 
+                  <div
                     key={idx}
                     style={{
                       padding: '16px',
@@ -584,7 +583,7 @@ const Dashboard = () => {
                           {area.name}
                         </span>
                       </div>
-                      <span style={{ fontSize: '16px', fontWeight: '700', color: colors.bar }}>{area.percentage}%</span>
+                      <span style={{ fontSize: '16px', fontWeight: '600', color: colors.bar }}>{area.percentage}%</span>
                     </div>
                     <div style={{
                       height: '8px',

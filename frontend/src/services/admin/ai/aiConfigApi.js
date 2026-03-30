@@ -1,4 +1,5 @@
 import axios from "axios";
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 /**
  * Java Backend API Client for AI Configuration
@@ -8,14 +9,18 @@ import axios from "axios";
  * Use pythonAiApi.js for: Chat, Test Connection, Health Check
  */
 const aiConfigApi = axios.create({
-    baseURL: "http://localhost:8080/slib/ai/admin",
+    baseURL: `${API_BASE_URL}/slib/ai/admin`,
     headers: {
         "Content-Type": "application/json",
     },
 });
 
-// Request interceptor
+// Request interceptor - add auth token
 aiConfigApi.interceptors.request.use((config) => {
+    const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
     console.log("[AI Config API][Request]", config.method?.toUpperCase(), config.baseURL + config.url);
     return config;
 });

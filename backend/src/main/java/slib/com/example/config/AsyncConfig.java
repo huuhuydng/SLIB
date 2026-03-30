@@ -7,20 +7,10 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
-/**
- * Configuration for async processing.
- * Used for background avatar enrichment and parallel operations.
- */
 @Configuration
 @EnableAsync
 public class AsyncConfig {
 
-    /**
-     * Thread pool for import operations.
-     * - Core pool: 4 threads for normal operations
-     * - Max pool: 8 threads for peak load
-     * - Queue: 500 tasks waiting
-     */
     @Bean(name = "importExecutor")
     public Executor importExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -34,10 +24,6 @@ public class AsyncConfig {
         return executor;
     }
 
-    /**
-     * Thread pool for avatar upload operations.
-     * Separate pool to avoid starving import threads.
-     */
     @Bean(name = "avatarExecutor")
     public Executor avatarExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

@@ -1,9 +1,12 @@
 package slib.com.example.entity.activity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import slib.com.example.entity.reputation.ReputationRuleEntity;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -14,6 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class PointTransactionEntity {
 
     @Id
@@ -44,15 +48,18 @@ public class PointTransactionEntity {
     // Liên kết đến quy tắc đã áp dụng
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rule_id")
+    @JsonIgnore
     private ReputationRuleEntity rule;
 
     @Column(name = "created_at")
     private ZonedDateTime createdAt;
 
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = ZonedDateTime.now();
+            createdAt = ZonedDateTime.now(VIETNAM_ZONE);
         }
     }
 
@@ -62,4 +69,5 @@ public class PointTransactionEntity {
     public static final String TYPE_WEEKLY_BONUS = "WEEKLY_BONUS";
     public static final String TYPE_NO_SHOW_PENALTY = "NO_SHOW_PENALTY";
     public static final String TYPE_CHECK_OUT_LATE_PENALTY = "CHECK_OUT_LATE_PENALTY";
+    public static final String TYPE_LATE_CHECKIN_PENALTY = "LATE_CHECKIN_PENALTY";
 }

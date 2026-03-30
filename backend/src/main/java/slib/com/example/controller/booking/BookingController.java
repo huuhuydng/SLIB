@@ -3,10 +3,11 @@ package slib.com.example.controller.booking;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.dto.booking.ReservationDTO;
 import slib.com.example.entity.booking.ReservationEntity;
-import slib.com.example.repository.ReservationRepository;
-import slib.com.example.service.BookingService;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.service.booking.BookingService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,6 +45,7 @@ public class BookingController {
             dto.setSeatId(reservation.getSeat().getSeatId());
             dto.setStartTime(reservation.getStartTime());
             dto.setEndTime(reservation.getEndTime());
+            dto.setConfirmedAt(reservation.getConfirmedAt());
 
             return ResponseEntity.ok(dto);
         } catch (Exception e) {
@@ -52,13 +54,11 @@ public class BookingController {
     }
 
     @PutMapping("/updateStatusReserv/{reservationId}")
-    public ResponseEntity<ReservationEntity> updateStatus(
+    public ResponseEntity<ReservationDTO> updateStatus(
             @PathVariable UUID reservationId,
             @RequestParam String status) {
-        ReservationEntity reserv = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reservation not found"));
-        reserv.setStatus(status);
-        return ResponseEntity.ok(reservationRepository.save(reserv));
+        ReservationEntity reserv = bookingService.updateStatus(reservationId, status);
+        return ResponseEntity.ok(toDTO(reserv));
     }
 
     // --- GET BOOKINGS BY USER (with zone/area info) ---
@@ -89,13 +89,14 @@ public class BookingController {
     public ResponseEntity<?> cancelBooking(@PathVariable UUID reservationId) {
         try {
             ReservationEntity reservation = bookingService.cancelBooking(reservationId);
-            return ResponseEntity.ok(reservation);
+            return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // --- CONFIRM SEAT WITH NFC ---
+    // --- CONFIRM SEAT WITH NFC (legacy — deprecated) ---
+    @Deprecated
     @PostMapping("/confirm-nfc/{reservationId}")
     public ResponseEntity<?> confirmSeatWithNfc(
             @PathVariable UUID reservationId,
@@ -106,7 +107,24 @@ public class BookingController {
                 return ResponseEntity.badRequest().body("Thiếu dữ liệu NFC");
             }
             ReservationEntity reservation = bookingService.confirmSeatWithNfc(reservationId, nfcData);
-            return ResponseEntity.ok(reservation);
+            return ResponseEntity.ok(toDTO(reservation));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // --- CONFIRM SEAT WITH NFC UID (new — UID Mapping Strategy) ---
+    @PostMapping("/confirm-nfc-uid/{reservationId}")
+    public ResponseEntity<?> confirmSeatWithNfcUid(
+            @PathVariable UUID reservationId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String nfcUid = request.get("nfc_uid");
+            if (nfcUid == null || nfcUid.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Thiếu NFC UID");
+            }
+            ReservationEntity reservation = bookingService.confirmSeatWithNfcUid(reservationId, nfcUid);
+            return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -114,7 +132,35 @@ public class BookingController {
 
     // --- GET ALL BOOKINGS ---
     @GetMapping("/getall")
-    public List<ReservationEntity> getAllBookings() {
-        return bookingService.getAllBookings();
+    public ResponseEntity<List<BookingResponse>> getAllBookings() {
+        return ResponseEntity.ok(bookingService.getAllBookings());
+    }
+
+    // --- BATCH DELETE ---
+    @DeleteMapping("/batch")
+    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+        try {
+            List<String> ids = body.get("ids");
+            if (ids == null || ids.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
+            }
+            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            reservationRepository.deleteAllById(uuids);
+            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private ReservationDTO toDTO(ReservationEntity entity) {
+        ReservationDTO dto = new ReservationDTO();
+        dto.setReservationId(entity.getReservationId());
+        dto.setStatus(entity.getStatus());
+        dto.setUserId(entity.getUser() != null ? entity.getUser().getId() : null);
+        dto.setSeatId(entity.getSeat() != null ? entity.getSeat().getSeatId() : null);
+        dto.setStartTime(entity.getStartTime());
+        dto.setEndTime(entity.getEndTime());
+        dto.setConfirmedAt(entity.getConfirmedAt());
+        return dto;
     }
 }

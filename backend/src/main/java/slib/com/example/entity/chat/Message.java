@@ -47,6 +47,7 @@ public class Message {
         return this.attachmentUrl != null && !this.attachmentUrl.isEmpty();
     }
 
+    @Builder.Default
     @Column(name = "is_read", nullable = false)
     private boolean isRead = false;
 
@@ -54,4 +55,12 @@ public class Message {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "conversation_id")
     private Conversation conversation;
+
+    // Loại người gửi: STUDENT, AI, LIBRARIAN
+    @Column(name = "sender_type")
+    private String senderType;
+
+    // Human session ID: NULL = bot conversation, INTEGER = librarian round number
+    @Column(name = "human_session_id")
+    private Integer humanSessionId;
 }

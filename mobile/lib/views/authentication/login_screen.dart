@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:icons_plus/icons_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/app/local_storage_service.dart';
 import 'package:slib/main_screen.dart';
 import 'package:slib/views/authentication/change_password_screen.dart';
 import 'package:slib/views/authentication/forgot_password_screen.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +24,29 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _localService = LocalStorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  /// Tải thông tin đăng nhập đã lưu (nếu có)
+  Future<void> _loadSavedCredentials() async {
+    final rememberMe = await _localService.loadRememberMe();
+    final credentials = await _localService.loadCredentials();
+
+    if (mounted) {
+      setState(() {
+        _rememberMe = rememberMe;
+        if (rememberMe && credentials != null) {
+          _emailController.text = credentials['identifier'] ?? '';
+          _passwordController.text = credentials['password'] ?? '';
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -51,9 +76,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       String errorMessage = e.toString().replaceAll("Exception: ", "");
-      
+
       if (errorMessage.contains("fpt.edu.vn")) {
         errorMessage = "Truy cập bị từ chối: Vui lòng dùng mail @fpt.edu.vn";
+      } else {
+        errorMessage = ErrorDisplayWidget.toVietnamese(e);
       }
 
       _showErrorSnackBar(errorMessage);
@@ -68,16 +95,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
-      final result = await authService.signInWithPassword(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      final identifier = _emailController.text.trim();
+      final password = _passwordController.text;
+      final result = await authService.signInWithPassword(identifier, password);
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
       if (result != null) {
+        // Lưu hoặc xóa credentials tùy theo trạng thái checkbox
+        if (_rememberMe) {
+          await _localService.saveCredentials(identifier, password);
+          await _localService.saveRememberMe(true);
+        } else {
+          await _localService.clearCredentials();
+          await _localService.saveRememberMe(false);
+        }
         _handleSuccessfulLogin(result);
       }
     } catch (e) {
@@ -85,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      String errorMessage = e.toString().replaceAll("Exception: ", "");
+      String errorMessage = ErrorDisplayWidget.toVietnamese(e);
       _showErrorSnackBar(errorMessage);
     }
   }
@@ -104,9 +138,24 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Xin chào ${result.fullName ?? 'Sinh viên'}!"),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  "Xin chào ${result.fullName ?? 'Sinh viên'}!",
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
           backgroundColor: AppColors.brandColor,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 2),
         ),
       );
 

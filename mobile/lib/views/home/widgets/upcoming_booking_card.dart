@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
-import 'package:slib/services/auth_service.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 import 'package:slib/views/home/widgets/booking_action_dialog.dart';
 
 class UpcomingBookingCard extends StatefulWidget {
@@ -143,6 +143,12 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     return _buildBookingCard(_upcomingBooking!);
   }
 
+  /// Check if booking is confirmed via NFC (only CONFIRMED status)
+  bool _isConfirmed(UpcomingBooking booking) {
+    final status = booking.status.toUpperCase();
+    return status == 'CONFIRMED';
+  }
+
   Widget _buildLoadingCard() {
     return Container(
       width: double.infinity,
@@ -209,11 +215,33 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   }
 
   Widget _buildBookingCard(UpcomingBooking booking) {
-    final bool isActive = booking.isActive;
-    final Color primaryColor = isActive ? Colors.green : Colors.blue;
-    final Color bgColor = isActive 
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFEFF6FF);
+    final bool isActive = booking.isActive; // Đang trong giờ đặt
+    final bool isConfirmed = _isConfirmed(booking); // Đã xác nhận NFC (CONFIRMED)
+    
+    // Xác định màu sắc:
+    // - Xám (grey): chưa đến giờ, lịch sắp tới
+    // - Vàng (orange): đã đến giờ nhưng chưa xác nhận NFC
+    // - Xanh lá (green): đã xác nhận NFC và đang học
+    Color primaryColor;
+    Color bgColor;
+    String statusText;
+    
+    if (isActive && isConfirmed) {
+      // Đang trong giờ + đã xác nhận NFC → Xanh lá, "Đang học"
+      primaryColor = Colors.green;
+      bgColor = const Color(0xFFE8F5E9);
+      statusText = "Đang học";
+    } else if (isActive && !isConfirmed) {
+      // Đang trong giờ + chưa xác nhận NFC → Vàng, "Chưa xác nhận chỗ ngồi"
+      primaryColor = Colors.orange;
+      bgColor = const Color(0xFFFFF3E0);
+      statusText = "Chưa xác nhận chỗ ngồi";
+    } else {
+      // Chưa đến giờ → Xám, "Lịch sắp tới"
+      primaryColor = Colors.grey;
+      bgColor = Colors.grey[100]!;
+      statusText = "Lịch sắp tới";
+    }
 
     return Container(
       width: double.infinity,
@@ -260,12 +288,15 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
               children: [
                 Row(
                   children: [
-                    Text(
-                      isActive ? "Đang học" : "Đặt chỗ sắp tới",
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        statusText,
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (isActive) ...[
@@ -274,11 +305,11 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: primaryColor,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.green.withOpacity(0.5),
+                              color: primaryColor.withOpacity(0.5),
                               blurRadius: 4,
                               spreadRadius: 1,
                             ),

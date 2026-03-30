@@ -34,6 +34,9 @@ public class FeedbackEntity {
     @Column(name = "reservation_id")
     private UUID reservationId;
 
+    @Column(name = "conversation_id")
+    private String conversationId;
+
     @Column(name = "rating")
     private Integer rating; // 1-5 stars
 

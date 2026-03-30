@@ -36,6 +36,8 @@ class LibrarySetting {
   final String workingDays; // "2,3,4,5,6" (1=CN, 2=T2, ..., 7=T7)
   final int maxBookingsPerDay; // Số lần đặt tối đa mỗi ngày
   final int maxHoursPerDay; // Số giờ tối đa được đặt mỗi ngày
+  final bool libraryClosed; // true = thư viện đang tạm đóng
+  final String? closedReason; // Lý do đóng thư viện
 
   LibrarySetting({
     required this.openTime,
@@ -45,6 +47,8 @@ class LibrarySetting {
     required this.workingDays,
     this.maxBookingsPerDay = 3,
     this.maxHoursPerDay = 4,
+    this.libraryClosed = false,
+    this.closedReason,
   });
 
   factory LibrarySetting.fromJson(Map<String, dynamic> json) {
@@ -56,6 +60,8 @@ class LibrarySetting {
       workingDays: json['workingDays'] ?? json['working_days'] ?? '2,3,4,5,6',
       maxBookingsPerDay: json['maxBookingsPerDay'] ?? json['max_bookings_per_day'] ?? 3,
       maxHoursPerDay: json['maxHoursPerDay'] ?? json['max_hours_per_day'] ?? 4,
+      libraryClosed: json['libraryClosed'] ?? json['library_closed'] ?? false,
+      closedReason: json['closedReason'] ?? json['closed_reason'],
     );
   }
 
@@ -68,6 +74,8 @@ class LibrarySetting {
       'workingDays': workingDays,
       'maxBookingsPerDay': maxBookingsPerDay,
       'maxHoursPerDay': maxHoursPerDay,
+      'libraryClosed': libraryClosed,
+      'closedReason': closedReason,
     };
   }
 

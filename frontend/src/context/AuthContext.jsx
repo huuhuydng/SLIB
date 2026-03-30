@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import librarianService from '../services/librarianService';
+import librarianService from '../services/librarian/librarianService';
 
 const AuthContext = createContext(null);
 

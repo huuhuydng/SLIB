@@ -2,14 +2,14 @@ name: Backend CI/CD (Docker Microservices)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'backend/**'
       - 'docker-compose.yml'
       - '.github/workflows/slib_backend_ci_cd.yml'
   
   pull_request:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - 'backend/**'
 
@@ -19,11 +19,8 @@ permissions:
   actions: read
 
 jobs:
-  # ====================================================
-  # JOB 1: TEST & BUILD
-  # ====================================================
   test-and-build:
-    name: 🧪 Test & 🐳 Build Docker
+    name: Test & Build Docker
     runs-on: ubuntu-latest
     
     services:
@@ -58,7 +55,7 @@ jobs:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/slib
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: Slib@123
-        run: mvn test -Dtest="*ControllerUnitTest"
+        run: mvn test -Dtest="FE*Test"
       
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4

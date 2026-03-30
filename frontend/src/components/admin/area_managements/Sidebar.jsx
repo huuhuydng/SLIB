@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   createArea,
@@ -25,6 +26,7 @@ const ZONE_TYPES = [
 ];
 
 function Sidebar() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const {
     areas,
@@ -41,6 +43,7 @@ function Sidebar() {
   const [showRowModal, setShowRowModal] = useState(false);
   const [showZoneTypeModal, setShowZoneTypeModal] = useState(false);
   const [selectedZoneType, setSelectedZoneType] = useState(ZONE_TYPES[0]);
+
 
   /* ================= FILTER ================= */
   const currentAreaZones = zones.filter((z) => z.areaId === selectedAreaId);
@@ -109,7 +112,7 @@ function Sidebar() {
 
   const handleAddZone = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
 
@@ -162,7 +165,7 @@ function Sidebar() {
 
   const handleAddFactory = () => {
     if (!selectedAreaId) {
-      alert("Vui lòng chọn phòng thư viện trước");
+      toast.warning("Vui lòng chọn phòng thư viện trước");
       return;
     }
 
@@ -190,7 +193,7 @@ function Sidebar() {
 
   const handleAddSeat = async () => {
     if (!selectedZone) {
-      alert("Vui lòng chọn khu vực ghế trước");
+      toast.warning("Vui lòng chọn khu vực ghế trước");
       return;
     }
     setShowRowModal(true);
@@ -200,35 +203,29 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      toast.warning("Vui long chon hang hop le (A-Z)");
       return;
     }
 
-    try {
-      const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
+    const seatsInZone = seats.filter(s => s.zoneId === selectedZone.zoneId);
 
-      const seatData = generateNewSeatData({
-        zoneId: selectedZone.zoneId,
-        rowNumber: rowNum,
-        seatsInZone,
-        seatHeight: 44,
-      });
+    const seatData = generateNewSeatData({
+      zoneId: selectedZone.zoneId,
+      rowNumber: rowNum,
+      seatsInZone,
+      seatHeight: 44,
+    });
 
-      const res = await createSeat(seatData);
+    // Generate temporary ID for the new seat (negative to identify as pending)
+    const tempId = -Date.now();
+    const tempSeat = {
+      ...seatData,
+      seatId: tempId,
+    };
 
-      const completeSeatData = {
-        ...res.data,
-        rowNumber: seatData.rowNumber,
-        columnNumber: seatData.columnNumber,
-        seatCode: seatData.seatCode,
-      };
-
-      dispatch({ type: actions.ADD_SEAT, payload: completeSeatData });
-      setShowRowModal(false);
-    } catch (e) {
-      console.error("Error adding seat:", e);
-      alert("Tạo ghế thất bại: " + (e.response?.data?.message || e.message));
-    }
+    // Add to local state only - will be created in DB when user clicks Save
+    dispatch({ type: actions.ADD_SEAT, payload: tempSeat });
+    setShowRowModal(false);
   };
 
   // OPTIMISTIC UPDATE: Add seats to UI immediately, API in parallel
@@ -236,7 +233,7 @@ function Sidebar() {
     const rowNum = rowLetter.toUpperCase().charCodeAt(0) - 64;
 
     if (!selectedZone || !rowLetter || rowNum < 1 || rowNum > 26) {
-      alert("Vui lòng chọn hàng hợp lệ (A-Z)");
+      toast.warning("Vui lòng chọn hàng hợp lệ (A-Z)");
       return;
     }
 
@@ -328,7 +325,7 @@ function Sidebar() {
       {/* Header */}
       <div style={{
         padding: '14px 16px',
-        background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+        background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
         color: 'white',
         flexShrink: 0
       }}>
@@ -528,7 +525,7 @@ function Sidebar() {
         }}>
           Phòng thư viện
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -549,10 +546,10 @@ function Sidebar() {
                 fontWeight: '600',
                 color: isAreaSelected(area.areaId) ? '#C2410C' : '#374151',
                 background: isAreaSelected(area.areaId)
-                  ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                  ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                   : '#F8FAFC',
                 border: isAreaSelected(area.areaId)
-                  ? '2px solid #FF751F'
+                  ? '2px solid #e8600a'
                   : '2px solid transparent',
                 transition: 'all 0.2s',
                 display: 'flex',
@@ -568,7 +565,7 @@ function Sidebar() {
                 fontSize: '10px',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: isAreaSelected(area.areaId) ? '#FF751F' : '#E2E8F0',
+                background: isAreaSelected(area.areaId) ? '#e8600a' : '#E2E8F0',
                 color: isAreaSelected(area.areaId) ? 'white' : '#64748B',
                 fontWeight: '700'
               }}>
@@ -611,7 +608,7 @@ function Sidebar() {
         }}>
           Khu vực ghế
           <span style={{
-            background: '#FF751F',
+            background: '#e8600a',
             color: 'white',
             padding: '2px 8px',
             borderRadius: '10px',
@@ -640,10 +637,10 @@ function Sidebar() {
                   fontWeight: '600',
                   color: isZoneSelected(zone.zoneId) ? '#C2410C' : '#374151',
                   background: isZoneSelected(zone.zoneId)
-                    ? 'linear-gradient(135deg, #FFF7F2 0%, #FFEDD5 100%)'
+                    ? 'linear-gradient(135deg, #fef6f0 0%, #FFEDD5 100%)'
                     : '#F8FAFC',
                   border: isZoneSelected(zone.zoneId)
-                    ? '2px solid #FF751F'
+                    ? '2px solid #e8600a'
                     : '2px solid transparent',
                   transition: 'all 0.2s',
                   display: 'flex',
@@ -656,7 +653,7 @@ function Sidebar() {
                   fontSize: '11px',
                   padding: '4px 10px',
                   borderRadius: '6px',
-                  background: isZoneSelected(zone.zoneId) ? '#FF751F' : '#E2E8F0',
+                  background: isZoneSelected(zone.zoneId) ? '#e8600a' : '#E2E8F0',
                   color: isZoneSelected(zone.zoneId) ? 'white' : '#64748B',
                   fontWeight: '700'
                 }}>
@@ -694,6 +691,8 @@ function Sidebar() {
         </ul>
       </div>
 
+
+
       {/* Statistics Footer */}
       <div style={{
         padding: '16px',
@@ -715,7 +714,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {areas.length}
@@ -741,7 +740,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {zones.length}
@@ -767,7 +766,7 @@ function Sidebar() {
             <div style={{
               fontSize: '20px',
               fontWeight: '700',
-              color: '#FF751F',
+              color: '#e8600a',
               lineHeight: '1'
             }}>
               {totalSeats}
@@ -914,7 +913,7 @@ function Sidebar() {
                   border: 'none',
                   borderRadius: '12px',
                   cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                  background: 'linear-gradient(135deg, #e8600a 0%, #E85A00 100%)',
                   color: 'white',
                   fontSize: '14px',
                   fontWeight: '600',
@@ -1040,6 +1039,8 @@ function Sidebar() {
           </div>
         </div>
       )}
+
+
     </aside>
   );
 }

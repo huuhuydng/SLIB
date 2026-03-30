@@ -1,0 +1,245 @@
+/* KioskHome.css */
+
+.kioskHome__wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f6f8fc 0%, #e9eff5 100%);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  user-select: none; /* Ngăn bôi đen văn bản trên màn hình cảm ứng */
+}
+
+/* Header */
+.kioskHome__header {
+  padding: 24px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+.kioskHome__brand {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.kioskHome__logo {
+  height: 120px;
+  width: auto;
+}
+
+.kioskHome__title h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #1A1A1A;
+  font-weight: 800;
+}
+
+.kioskHome__title p {
+  margin: 4px 0 0;
+  font-size: 18px;
+  color: #718096;
+}
+
+.kioskHome__time {
+  font-size: 48px;
+  font-weight: 700;
+  color: #FF751F;
+  background: #FFF7F2;
+  padding: 12px 32px;
+  border-radius: 20px;
+}
+
+/* Main Content */
+.kioskHome__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.kioskHome__welcome {
+  font-size: 36px;
+  color: #2D3748;
+  margin-bottom: 60px;
+  font-weight: 600;
+}
+
+.kioskHome__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+/* 2 column grid */
+.kioskHome__grid--2col {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 900px;
+}
+
+/* Card description */
+.kioskHome__card-desc {
+  margin-top: 12px !important;
+  font-size: 14px !important;
+  color: #a0aec0 !important;
+  line-height: 1.4;
+}
+
+/* Back button */
+.kiosk-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: #f0f0f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.kiosk-back-btn:hover {
+  background: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.kiosk-back-link {
+  background: none;
+  border: none;
+  color: #3182ce;
+  font-size: 16px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.kiosk-back-link:hover {
+  color: #2c5282;
+}
+
+/* Cards / Buttons */
+.kioskHome__card {
+  background: #fff;
+  border: 2px solid transparent;
+  border-radius: 32px;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.kioskHome__card:active {
+  transform: scale(0.96);
+}
+
+.kioskHome__card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.kioskHome__icon {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.kioskHome__card h3 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: #1A1A1A;
+}
+
+.kioskHome__card p {
+  font-size: 18px;
+  color: #718096;
+  margin: 0;
+}
+
+/* Card Variants */
+.kioskHome__card--primary .kioskHome__icon {
+  background: #FFF7F2;
+  color: #FF751F;
+}
+.kioskHome__card--primary:hover {
+  border-color: #FF751F;
+}
+
+.kioskHome__card--secondary .kioskHome__icon {
+  background: #E6FFFA;
+  color: #059669;
+}
+.kioskHome__card--secondary:hover {
+  border-color: #059669;
+}
+
+.kioskHome__card--info .kioskHome__icon {
+  background: #EBF8FF;
+  color: #3182CE;
+}
+.kioskHome__card--info:hover {
+  border-color: #3182CE;
+}
+
+.kioskHome__card--monitor .kioskHome__icon {
+  background: #FAF5FF;
+  color: #805AD5;
+}
+.kioskHome__card--monitor:hover {
+  border-color: #805AD5;
+}
+
+.kioskHome__card--qr .kioskHome__icon {
+  background: #fef3e2;
+  color: #FF751F;
+}
+.kioskHome__card--qr:hover {
+  border-color: #FF751F;
+}
+
+/* Footer */
+.kioskHome__footer {
+  text-align: center;
+  padding: 24px;
+  color: #A0AEC0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Responsive for smaller touch screens */
+@media (max-width: 1024px) {
+  .kioskHome__grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .kioskHome__card {
+    flex-direction: row;
+    padding: 32px;
+    text-align: left;
+  }
+  
+  .kioskHome__icon {
+    margin-bottom: 0;
+    margin-right: 32px;
+    width: 80px;
+    height: 80px;
+  }
+}

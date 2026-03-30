@@ -17,7 +17,9 @@ public class ConversationDTO {
     private UUID id;
     private UUID studentId;
     private String studentName;
+    private String studentCode;
     private String studentEmail;
+    private String studentAvatarUrl;
     private UUID librarianId;
     private String librarianName;
     private ConversationStatus status;
@@ -27,4 +29,5 @@ public class ConversationDTO {
     private LocalDateTime escalatedAt;
     private ChatMessageDTO lastMessage;
     private long unreadCount;
+    private Integer currentHumanSession;
 }

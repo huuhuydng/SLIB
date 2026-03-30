@@ -1,8 +1,8 @@
 import axios from "axios";
-
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const chatApi = axios.create({
-  baseURL: "http://localhost:8080/slib",
+  baseURL: `${API_BASE_URL}/slib`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -105,8 +105,16 @@ export const takeOverConversation = (conversationId) =>
 export const resolveConversation = (conversationId) =>
   chatApi.post(`/chat/conversations/${conversationId}/resolve`);
 
+// Gửi tin nhắn vào conversation (cho librarian chat với student)
+export const sendConversationMessage = (conversationId, content, senderType = 'LIBRARIAN') =>
+  chatApi.post(`/chat/conversations/${conversationId}/messages`, { content, senderType });
+
 // Đếm số conversation đang chờ
 export const getWaitingCount = () =>
   chatApi.get('/chat/conversations/waiting/count');
+
+// Lấy danh sách messages của conversation
+export const getConversationMessages = (conversationId) =>
+  chatApi.get(`/chat/conversations/${conversationId}/messages`);
 
 export default chatApi;

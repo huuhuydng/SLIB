@@ -12,8 +12,7 @@ import java.time.LocalDateTime;
 @Table(name = "news", indexes = {
     @Index(name = "idx_news_published", columnList = "is_published, published_at DESC")
 })
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -35,7 +34,7 @@ public class News {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl; 
 
-    @ManyToOne(fetch = FetchType.EAGER) 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     @ToString.Exclude 
     @EqualsAndHashCode.Exclude 

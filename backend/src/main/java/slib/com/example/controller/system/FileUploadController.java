@@ -1,12 +1,19 @@
 package slib.com.example.controller.system;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.service.chat.CloudinaryService;
 
+import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
+import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/slib/files")
@@ -20,6 +27,8 @@ public class FileUploadController {
 
     @Autowired
     private CloudinaryService cloudinaryService;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @PostMapping("/upload_news_image")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
@@ -72,6 +81,46 @@ public class FileUploadController {
             return ResponseEntity.ok().body(Map.of("url", fileUrl, "type", "FILE"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Lỗi upload tài liệu: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/proxy-image")
+    public ResponseEntity<?> proxyImage(@RequestParam("url") String url) {
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+
+            if (host == null || !host.equals("res.cloudinary.com")) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Chỉ hỗ trợ proxy ảnh từ Cloudinary"));
+            }
+
+            ResponseEntity<byte[]> upstream = restTemplate.exchange(
+                    uri,
+                    HttpMethod.GET,
+                    null,
+                    byte[].class);
+
+            byte[] body = upstream.getBody();
+            if (body == null || body.length == 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Không thể tải ảnh từ Cloudinary"));
+            }
+
+            MediaType mediaType = upstream.getHeaders().getContentType();
+            if (mediaType == null) {
+                mediaType = MediaType.IMAGE_JPEG;
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(mediaType);
+            headers.setCacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic());
+
+            return ResponseEntity
+                    .status(upstream.getStatusCode())
+                    .headers(headers)
+                    .body(body);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Không thể proxy ảnh: " + e.getMessage()));
         }
     }
 

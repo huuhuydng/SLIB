@@ -13,7 +13,9 @@ import DeviceManagement from "../pages/admin/DeviceManagement/DeviceManagement";
 import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
-import AccountSettings from "../components/AccountSettings";
+import AccountSettings from "../components/settings/AccountSettings";
+import NfcManagement from "../pages/admin/NfcManagement/NfcManagement";
+import KioskManagement from "../pages/admin/KioskManagement/KioskManagement";
 
 function AdminRoutes() {
   return (
@@ -33,10 +35,17 @@ function AdminRoutes() {
         {/* Quản lý thiết bị */}
         <Route path="devices" element={<DeviceManagement />} />
 
+        {/* Quản lý NFC Tag */}
+        <Route path="nfc-management" element={<NfcManagement />} />
+
+        {/* Quản lý Kiosk */}
+        <Route path="kiosk" element={<KioskManagement />} />
+
         {/* Hệ thống */}
         <Route path="config" element={<SystemConfig />} />
         <Route path="health" element={<SystemHealth />} />
         <Route path="ai-config" element={<AIConfig />} />
+
 
         {/* Cài đặt tài khoản */}
         <Route path="settings" element={<AccountSettings />} />

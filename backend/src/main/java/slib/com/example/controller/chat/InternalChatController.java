@@ -16,7 +16,7 @@ import slib.com.example.entity.chat.Message;
 import slib.com.example.entity.chat.MessageType;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
-import slib.com.example.repository.UserRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.chat.MessageRepository;
 import slib.com.example.service.chat.ConversationService;
 
@@ -80,6 +80,7 @@ public class InternalChatController {
                     .attachmentUrl(request.getAttachmentUrl())
                     .type(parseMessageType(request.getMessageType()))
                     .conversation(conversation)
+                    .senderType("AI")
                     .build();
 
             Message savedMessage = messageRepository.save(message);
@@ -171,7 +172,10 @@ public class InternalChatController {
     // ==================== HELPER METHODS ====================
 
     private boolean validateApiKey(String apiKey) {
-        return apiKey != null && apiKey.equals(internalApiKey);
+        if (apiKey == null || internalApiKey == null) return false;
+        return java.security.MessageDigest.isEqual(
+                apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                internalApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private User getOrCreateBotUser() {

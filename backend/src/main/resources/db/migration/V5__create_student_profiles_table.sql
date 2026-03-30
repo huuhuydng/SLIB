@@ -7,7 +7,7 @@
 ALTER TABLE users DROP COLUMN IF EXISTS reputation_score;
 
 -- Bước 2: Tạo bảng mới student_profiles
-CREATE TABLE student_profiles (
+CREATE TABLE IF NOT EXISTS student_profiles (
     user_id uuid not null primary key references users (id) on delete cascade,
     reputation_score integer default 100 not null,
     total_study_hours float default 0 not null,
@@ -20,6 +20,7 @@ CREATE TABLE student_profiles (
 ALTER TABLE student_profiles OWNER TO postgres;
 
 -- Bước 4: Tạo Trigger để tự động cập nhật updated_at
+DROP TRIGGER IF EXISTS update_student_profiles_updated_at ON student_profiles;
 CREATE TRIGGER update_student_profiles_updated_at
     BEFORE UPDATE
     ON student_profiles

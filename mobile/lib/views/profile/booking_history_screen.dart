@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/upcoming_booking.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/views/home/widgets/booking_action_dialog.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
@@ -20,7 +20,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   List<Map<String, dynamic>> _activeBookings = [];
   List<Map<String, dynamic>> _completedBookings = [];
   List<Map<String, dynamic>> _cancelledBookings = [];
-  
+
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -31,12 +31,17 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
   }
 
   Future<void> _loadBookings() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
     if (user == null) {
       setState(() {
-        _errorMessage = "Vui lòng đăng nhập";
+        _errorMessage = 'auth';
         _isLoading = false;
       });
       return;
@@ -44,7 +49,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
     try {
       final url = Uri.parse("${ApiConstants.bookingUrl}/user/${user.id}");
-      final response = await http.get(url);
+      final response = await authService.authenticatedRequest('GET', url);
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -58,8 +63,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           final status = (booking['status'] ?? '').toString().toUpperCase();
           final endTime = DateTime.parse(booking['endTime']);
           final startTime = DateTime.parse(booking['startTime']);
-          
-          // New flat DTO structure - zoneName and areaName are directly in response
+
           final parsedBooking = {
             'reservationId': booking['reservationId'],
             'seatCode': booking['seatCode'] ?? 'N/A',
@@ -72,7 +76,9 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             'time': '${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}',
           };
 
-          if (status == 'CANCEL') {
+          if (status == 'CANCEL' || status == 'CANCELLED') {
+            _cancelledBookings.add(parsedBooking);
+          } else if (status == 'EXPIRED') {
             _cancelledBookings.add(parsedBooking);
           } else if (status == 'COMPLETED' || endTime.isBefore(now)) {
             _completedBookings.add(parsedBooking);
@@ -86,12 +92,20 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         _cancelledBookings.sort((a, b) => (b['startTime'] as DateTime).compareTo(a['startTime']));
 
         setState(() => _isLoading = false);
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        setState(() {
+          _errorMessage = 'auth';
+          _isLoading = false;
+        });
       } else {
-        throw Exception("Failed to load bookings");
+        setState(() {
+          _errorMessage = ErrorDisplayWidget.toVietnamese('status ${response.statusCode}');
+          _isLoading = false;
+        });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = ErrorDisplayWidget.toVietnamese(e);
         _isLoading = false;
       });
     }
@@ -119,6 +133,16 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     });
   }
 
+  Widget _buildErrorWidget() {
+    if (_errorMessage == 'auth') {
+      return ErrorDisplayWidget.auth(onRetry: _loadBookings);
+    }
+    return ErrorDisplayWidget(
+      message: _errorMessage!,
+      onRetry: _loadBookings,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -143,14 +167,14 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             tabs: const [
               Tab(text: "Sắp tới"),
               Tab(text: "Hoàn thành"),
-              Tab(text: "Đã hủy"),
+              Tab(text: "Đã huỷ"),
             ],
           ),
         ),
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: CircularProgressIndicator(color: AppColors.brandColor))
             : _errorMessage != null
-                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+                ? _buildErrorWidget()
                 : TabBarView(
                     children: [
                       _buildBookingList(_activeBookings, isActive: true),
@@ -164,19 +188,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
   Widget _buildBookingList(List<Map<String, dynamic>> bookings, {bool isActive = false}) {
     if (bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history_toggle_off, size: 60, color: Colors.grey[300]),
-            const SizedBox(height: 10),
-            Text("Không có dữ liệu", style: TextStyle(color: Colors.grey[500])),
-          ],
-        ),
-      );
+      return ErrorDisplayWidget.empty(message: 'Không có dữ liệu');
     }
 
     return RefreshIndicator(
+      color: AppColors.brandColor,
       onRefresh: _loadBookings,
       child: ListView.separated(
         padding: const EdgeInsets.all(20),
@@ -194,16 +210,20 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     final startTime = booking['startTime'] as DateTime;
     final endTime = booking['endTime'] as DateTime;
     final now = DateTime.now();
-    
+
     Color statusColor;
     String statusText;
     IconData statusIcon;
     bool isOngoing = now.isAfter(startTime) && now.isBefore(endTime);
 
-    if (status == 'CANCEL') {
+    if (status == 'CANCEL' || status == 'CANCELLED') {
       statusColor = Colors.red;
-      statusText = "Đã hủy";
+      statusText = "Đã huỷ";
       statusIcon = Icons.cancel_outlined;
+    } else if (status == 'EXPIRED') {
+      statusColor = Colors.orange;
+      statusText = "Không đến";
+      statusIcon = Icons.warning_amber_rounded;
     } else if (status == 'COMPLETED' || endTime.isBefore(now)) {
       statusColor = Colors.green;
       statusText = "Hoàn thành";
@@ -226,7 +246,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             )
@@ -271,7 +291,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -325,7 +345,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     ],
                   ),
                 ),
-                if (isActive) 
+                if (isActive)
                   Icon(Icons.chevron_right, color: Colors.grey[400]),
               ],
             ),

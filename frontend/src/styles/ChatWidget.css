@@ -5,7 +5,7 @@
     right: 24px;
     width: 64px;
     height: 64px;
-    background: linear-gradient(135deg, #FF751F, #FF9A4D);
+    background: linear-gradient(135deg, #e8600a, #FF9A4D);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -52,7 +52,7 @@
     height: 600px;
     max-height: calc(100vh - 140px);
     background: #FFFFFF;
-    border-radius: 16px;
+    border-radius: 10px;
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
@@ -73,7 +73,7 @@
 }
 
 .widget-header {
-    background: linear-gradient(135deg, #FF751F 0%, #FF9A4D 100%);
+    background: linear-gradient(135deg, #e8600a 0%, #FF9A4D 100%);
     color: white;
     padding: 18px 20px;
     display: flex;
@@ -131,7 +131,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #FF751F, #FF9A4D);
+    background: linear-gradient(135deg, #e8600a, #FF9A4D);
     color: white;
     display: flex;
     align-items: center;
@@ -139,7 +139,7 @@
     font-weight: 600;
     font-size: 16px;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(255, 117, 31, 0.25);
+    box-shadow: 0 2px 8px rgba(232, 96, 10, 0.12);
 }
 
 .conv-info {
@@ -149,7 +149,7 @@
 }
 
 .conv-unread-dot {
-    background: linear-gradient(135deg, #FF751F, #FF9A4D);
+    background: linear-gradient(135deg, #e8600a, #FF9A4D);
     color: white;
     font-size: 10px;
     font-weight: 700;
@@ -157,7 +157,7 @@
     border-radius: 12px;
     min-width: 20px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(255, 117, 31, 0.3)0;
+    box-shadow: 0 2px 6px rgba(232, 96, 10, 0.15)0;
     color: white;
     font-size: 10px;
     font-weight: bold;
@@ -192,7 +192,7 @@
     max-width: 100%;
     /* padding: Trên | Phải | Dưới | Trái */
     padding: 5px 5px 5px 5px;
-    border-radius: 16px;
+    border-radius: 10px;
     font-size: 13px;
     line-height: 1.4;
     word-wrap: break-word;
@@ -234,7 +234,7 @@
     flex: 1;
     padding: 8px 12px;
     border: 1px solid #dee2e6;
-    border-radius: 20px;
+    border-radius: 12px;
     font-size: 13px;
     outline: none;
 }

@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Database configuration from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql://postgres:Slib@123@localhost:5432/slib"
+    "postgresql://postgres:Slib123@localhost:5432/slib"
 )
 
 # Create SQLAlchemy engine

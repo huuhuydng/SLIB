@@ -5,9 +5,10 @@ import {
     Trash2,
     Loader2,
     User,
-    Calendar
+    Calendar,
+    CheckCircle2
 } from 'lucide-react';
-import userService from '../../services/userService';
+import userService from '../../services/auth/userService';
 
 /**
  * Modal xác nhận xóa người dùng với type-to-confirm
@@ -24,12 +25,14 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
     const [checking, setChecking] = useState(true);
     const [activeBookings, setActiveBookings] = useState(0);
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState(false);
 
     // Check active bookings when modal opens
     useEffect(() => {
         if (isOpen && user) {
             setConfirmText('');
             setError('');
+            setSuccess(false);
             setChecking(true);
 
             // Check for active bookings
@@ -63,8 +66,12 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
 
             await userService.deleteUser(user.id, false); // soft delete
 
-            onDeleted?.();
-            onClose();
+            setSuccess(true);
+            setTimeout(() => {
+                setSuccess(false);
+                onDeleted?.();
+                onClose();
+            }, 1800);
         } catch (err) {
             console.error('Delete user error:', err);
             setError(err.response?.data?.message || err.message || 'Không thể xóa tài khoản');
@@ -93,7 +100,8 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
             width: '100%',
             maxWidth: '480px',
             overflow: 'hidden',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            position: 'relative'
         },
         header: {
             background: 'linear-gradient(135deg, #DC2626 0%, #EF4444 100%)',
@@ -117,8 +125,46 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
     };
 
     return (
-        <div style={modalStyles.overlay} onClick={onClose}>
+        <div style={modalStyles.overlay} onClick={success ? undefined : onClose}>
             <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+                {/* Success Overlay */}
+                {success && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(255,255,255,0.96)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10,
+                        borderRadius: '20px',
+                        animation: 'fadeIn 0.3s ease'
+                    }}>
+                        <div style={{
+                            width: '72px', height: '72px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #10B981, #059669)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '16px',
+                            animation: 'scaleIn 0.4s ease'
+                        }}>
+                            <CheckCircle2 size={36} color="#fff" />
+                        </div>
+                        <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1A1A1A' }}>
+                            Xóa thành công!
+                        </h3>
+                        <p style={{ margin: '8px 0 0', fontSize: '14px', color: '#6B7280' }}>
+                            Tài khoản <strong>{user.fullName}</strong> đã được xóa
+                        </p>
+                        <style>{`
+                            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                            @keyframes scaleIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                        `}</style>
+                    </div>
+                )}
                 {/* Header */}
                 <div style={modalStyles.header}>
                     <div style={{

@@ -70,6 +70,23 @@ public class User implements UserDetails {
     @Column(name = "noti_device")
     private String notiDevice;
 
+    // Notification Settings
+    @Column(name = "notify_booking")
+    @Builder.Default
+    private Boolean notifyBooking = true;
+
+    @Column(name = "notify_reminder")
+    @Builder.Default
+    private Boolean notifyReminder = true;
+
+    @Column(name = "notify_news")
+    @Builder.Default
+    private Boolean notifyNews = true;
+
+    @Column(name = "reputation_score")
+    @Builder.Default
+    private Integer reputationScore = 100;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

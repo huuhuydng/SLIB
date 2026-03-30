@@ -1,7 +1,6 @@
-# syntax=docker/dockerfile:1.4
 # --- Giai đoạn 1: Build ---
-# Dùng Maven bản mới nhất chạy trên Amazon Corretto 21 (Hỗ trợ Java 21)
-FROM maven:3.9.9-amazoncorretto-21 AS build
+# Dùng Maven 3.9.9 chạy trên Eclipse Temurin 21 để build ổn định hơn
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 
 # Copy file cấu hình maven
@@ -17,7 +16,7 @@ COPY src ./src
 
 # Build package với cache mount (Bỏ qua test)
 RUN --mount=type=cache,target=/root/.m2,sharing=locked \
-    mvn clean package -DskipTests
+    mvn clean package -Dmaven.test.skip=true
 
 # --- Giai đoạn 2: Run ---
 # Dùng Amazon Corretto 21 bản Alpine (Siêu nhẹ) để chạy
@@ -39,4 +38,7 @@ ENV SPRING_PROFILES_ACTIVE=docker
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Set timezone to match PostgreSQL
+ENV TZ=Asia/Ho_Chi_Minh
+
+ENTRYPOINT ["java", "-Duser.timezone=Asia/Ho_Chi_Minh", "-jar", "app.jar"]

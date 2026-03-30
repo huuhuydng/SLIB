@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
-import 'package:slib/services/auth_service.dart';
+import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ActivityHistoryScreen extends StatefulWidget {
   const ActivityHistoryScreen({super.key});
@@ -14,7 +15,7 @@ class ActivityHistoryScreen extends StatefulWidget {
   State<ActivityHistoryScreen> createState() => _ActivityHistoryScreenState();
 }
 
-class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
+class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _activities = [];
   List<Map<String, dynamic>> _pointTransactions = [];
   
@@ -25,49 +26,92 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   
   bool _isLoading = true;
   String? _errorMessage;
+  
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    // Auto-refresh mỗi 10 giây
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadData(silent: true);
+    });
   }
 
-  Future<void> _loadData() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh khi app trở lại foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadData(silent: true);
+    }
+  }
+
+  Future<void> _loadData({bool silent = false}) async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
     if (user == null) {
-      setState(() {
-        _errorMessage = "Vui lòng đăng nhập";
-        _isLoading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _errorMessage = 'auth';
+          _isLoading = false;
+        });
+      }
       return;
+    }
+
+    if (!silent && mounted) {
+      setState(() {
+        _isLoading = true;
+      });
     }
 
     try {
       final url = Uri.parse("${ApiConstants.activityUrl}/history/${user.id}");
-      final response = await http.get(url);
+      final response = await authService.authenticatedRequest('GET', url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         
-        setState(() {
-          _activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
-          _pointTransactions = List<Map<String, dynamic>>.from(data['pointTransactions'] ?? []);
-          _totalStudyHours = (data['totalStudyHours'] ?? 0).toDouble();
-          _totalVisits = (data['totalVisits'] ?? 0).toInt();
-          _totalPointsEarned = (data['totalPointsEarned'] ?? 0).toInt();
-          _totalPointsLost = (data['totalPointsLost'] ?? 0).toInt();
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _activities = List<Map<String, dynamic>>.from(data['activities'] ?? []);
+            _pointTransactions = List<Map<String, dynamic>>.from(data['pointTransactions'] ?? []);
+            _totalStudyHours = (data['totalStudyHours'] ?? 0).toDouble();
+            _totalVisits = (data['totalVisits'] ?? 0).toInt();
+            _totalPointsEarned = (data['totalPointsEarned'] ?? 0).toInt();
+            _totalPointsLost = (data['totalPointsLost'] ?? 0).toInt();
+            _isLoading = false;
+            _errorMessage = null;
+          });
+        }
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        if (!silent && mounted) {
+          setState(() {
+            _errorMessage = 'auth';
+            _isLoading = false;
+          });
+        }
+        return;
       } else {
-        throw Exception("Failed to load activity history");
+        throw Exception('status ${response.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (!silent && mounted) {
+        setState(() {
+          _errorMessage = ErrorDisplayWidget.toVietnamese(e);
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -101,7 +145,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? Center(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)))
+                ? _errorMessage == 'auth'
+                    ? ErrorDisplayWidget.auth(onRetry: _loadData)
+                    : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadData)
                 : TabBarView(
                     children: [
                       _buildActivityTab(),
@@ -158,17 +204,8 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           
           // Activity list
           if (_activities.isEmpty)
-            const SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.history_toggle_off, size: 60, color: Colors.grey),
-                    SizedBox(height: 10),
-                    Text("Chưa có hoạt động nào", style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              ),
+            SliverFillRemaining(
+              child: ErrorDisplayWidget.empty(message: 'Chưa có hoạt động nào'),
             )
           else
             SliverPadding(
@@ -210,7 +247,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     final type = activity['activityType'] ?? '';
     final title = activity['title'] ?? '';
     final description = activity['description'] ?? '';
-    final createdAt = DateTime.tryParse(activity['createdAt'] ?? '') ?? DateTime.now();
+    // Parse datetime từ backend (UTC) và convert sang local time
+    final createdAtRaw = DateTime.tryParse(activity['createdAt'] ?? '');
+    final createdAt = createdAtRaw?.toLocal() ?? DateTime.now();
     final durationMinutes = activity['durationMinutes'];
     
     IconData icon;
@@ -327,16 +366,7 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     return RefreshIndicator(
       onRefresh: _loadData,
       child: _pointTransactions.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.stars_outlined, size: 60, color: Colors.grey),
-                  SizedBox(height: 10),
-                  Text("Chưa có biến động điểm", style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            )
+          ? ErrorDisplayWidget.empty(message: 'Chưa có biến động điểm')
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: _pointTransactions.length,

@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app ./app
 
+# Copy knowledge base documents
+COPY knowledge_base ./knowledge_base
+
 # Expose port
 EXPOSE 8001
 

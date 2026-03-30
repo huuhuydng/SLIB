@@ -3,7 +3,7 @@ package slib.com.example.controller.zone_config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import slib.com.example.service.SeatHoldService;
+import slib.com.example.service.zone_config.SeatHoldService;
 
 import java.time.LocalDateTime;
 import java.util.Map;

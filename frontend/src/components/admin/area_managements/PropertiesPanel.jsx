@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   updateArea,
@@ -14,6 +15,8 @@ import {
   getAmenitiesByZone,
   deleteAmenity,
   createAmenity,
+  updateSeatNfcUid,
+  clearSeatNfcUid,
 } from "../../../services/admin/area_management/api";
 import "../../../styles/admin/properties.css";
 
@@ -28,6 +31,7 @@ const QUICK_AMENITIES = [
 ];
 
 function PropertiesPanel() {
+  const toast = useToast();
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, areas, zones, seats, factories } = state;
 
@@ -44,6 +48,12 @@ function PropertiesPanel() {
   // Local state for Seat
   const [localSeatCode, setLocalSeatCode] = useState("");
   const [localSeatIsActive, setLocalSeatIsActive] = useState(true);
+  const [localNfcTagUid, setLocalNfcTagUid] = useState("");
+
+  // NFC Scanning state
+  const [nfcScanning, setNfcScanning] = useState(false);
+  const [nfcError, setNfcError] = useState(null);
+  const [nfcSaving, setNfcSaving] = useState(false);
 
   // Local state for Factory
   const [localFactoryName, setLocalFactoryName] = useState("");
@@ -106,6 +116,8 @@ function PropertiesPanel() {
     } else if (selectedItem?.type === "seat" && selectedData) {
       setLocalSeatCode(selectedData.seatCode || "");
       setLocalSeatIsActive(selectedData.isActive !== false);
+      setLocalNfcTagUid(selectedData.nfcTagUid || "");
+      setNfcError(null);
     } else if (selectedItem?.type === "factory" && selectedData) {
       setLocalFactoryName(selectedData.factoryName || "");
       setLocalFactoryColor(selectedData.color || "#9CA3AF");
@@ -188,50 +200,45 @@ function PropertiesPanel() {
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
 
+    // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
+    const apiPayload = {
+      ...updated,
+      positionX: Math.max(0, updated.positionX ?? 0),
+      positionY: Math.max(0, updated.positionY ?? 0),
+    };
+
     // API call in background (non-blocking)
-    updateArea(selectedData.areaId, updated).catch(e => {
+    updateArea(selectedData.areaId, apiPayload).catch(e => {
       console.error("Failed to update area:", e);
     });
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleZoneChange = (field, value) => {
     // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_ZONE, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateZone(selectedData.zoneId, updated).catch(e => {
-      console.error("Failed to update zone:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleSeatChange = (field, value) => {
     const payload = buildSeatPayload(selectedData, { [field]: value });
 
     // Update UI immediately
     dispatch({ type: actions.UPDATE_SEAT, payload: { ...selectedData, [field]: value } });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateSeat(selectedData.seatId, payload).catch(e => {
-      console.error("Failed to update seat:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
-  // OPTIMISTIC UPDATE: Update UI immediately, API in background
+  // Update UI immediately, wait for Save button to persist
   const handleFactoryChange = (field, value) => {
     // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_FACTORY, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // API call in background (non-blocking)
-    updateAreaFactory(selectedData.factoryId, updated).catch(e => {
-      console.error("Failed to update factory:", e);
-    });
+    // API call will be made when user clicks Save button
   };
 
   /* ================= SAVE FUNCTIONS ================= */
@@ -269,7 +276,7 @@ function PropertiesPanel() {
   const handleAddAmenity = async (amenityName) => {
     const name = amenityName || addAmenityName.trim();
     if (!name) {
-      alert("Vui lòng nhập tên tiện ích");
+      toast.warning("Vui lòng nhập tên tiện ích");
       return;
     }
 
@@ -290,7 +297,7 @@ function PropertiesPanel() {
       setAddAmenityName("");
     } catch (e) {
       console.error("Failed to add amenity:", e);
-      alert("Thêm tiện ích thất bại");
+      toast.error("Thêm tiện ích thất bại");
     }
   };
 
@@ -307,7 +314,7 @@ function PropertiesPanel() {
       setDeleteAmenityId(null);
     } catch (e) {
       console.error("Failed to delete amenity:", e);
-      alert("Xóa tiện ích thất bại");
+      toast.error("Xóa tiện ích thất bại");
       setDeleteAmenityId(null);
     }
   };
@@ -442,7 +449,7 @@ function PropertiesPanel() {
       dispatch({ type: actions.SELECT_ITEM, payload: null });
     } catch (e) {
       console.error("Delete error:", e);
-      alert(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
+      toast.error(`Lỗi xóa: ${e.response?.data?.message || e.message}`);
     }
   };
 
@@ -1030,7 +1037,7 @@ function PropertiesPanel() {
                     color: localSeatIsActive ? '#166534' : '#64748B'
                   }}
                 >
-                  ✓ Hoạt động
+                  Hoạt động
                 </button>
                 <button
                   onClick={() => {
@@ -1048,7 +1055,7 @@ function PropertiesPanel() {
                     color: !localSeatIsActive ? '#DC2626' : '#64748B'
                   }}
                 >
-                  🔧 Bảo trì
+                  Bảo trì
                 </button>
               </div>
             </div>
@@ -1069,7 +1076,7 @@ function PropertiesPanel() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                ℹ️ Thông tin
+                Thông tin
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1083,6 +1090,228 @@ function PropertiesPanel() {
                   <span style={{ fontWeight: '600', fontSize: '13px' }}>{selectedData.columnNumber || 1}</span>
                 </div>
               </div>
+            </div>
+
+            {/* NFC Tag UID Mapping */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid #E2E8F0'
+            }}>
+              <label style={{
+                display: 'block',
+                fontSize: '11px',
+                fontWeight: '700',
+                color: '#64748B',
+                marginBottom: '12px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Thẻ NFC
+              </label>
+
+              {/* NFC Status Display */}
+              <div style={{
+                backgroundColor: localNfcTagUid ? '#ECFDF5' : '#FEF3C7',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '12px',
+                border: localNfcTagUid ? '1px solid #22C55E' : '1px solid #FCD34D',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <div style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  backgroundColor: localNfcTagUid ? '#22C55E' : '#F59E0B'
+                }} />
+                <span style={{
+                  fontWeight: '600',
+                  fontSize: '13px',
+                  color: localNfcTagUid ? '#166534' : '#92400E'
+                }}>
+                  Trạng thái: {localNfcTagUid ? 'Đã gán NFC' : 'Chưa gán NFC'}
+                </span>
+              </div>
+
+              {/* Buttons based on NFC status */}
+              {localNfcTagUid ? (
+                // Already assigned - Show "Gán thẻ mới" and "Xóa"
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={async () => {
+                      setNfcScanning(true);
+                      setNfcError(null);
+                      try {
+                        const response = await fetch('http://localhost:5050/scan-uid', {
+                          method: 'GET',
+                          headers: { 'Accept': 'application/json' }
+                        });
+                        const data = await response.json();
+
+                        if (data.success && data.uid) {
+                          setNfcSaving(true);
+                          try {
+                            await updateSeatNfcUid(selectedData.seatId, data.uid);
+                            setLocalNfcTagUid(data.uid);
+                            dispatch({
+                              type: actions.UPDATE_SEAT,
+                              payload: { ...selectedData, nfcTagUid: data.uid }
+                            });
+                            dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                          } catch (saveErr) {
+                            setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
+                          } finally {
+                            setNfcSaving(false);
+                          }
+                        } else {
+                          setNfcError(data.error || 'Không đọc được thẻ NFC');
+                        }
+                      } catch (err) {
+                        if (err.message?.includes('Failed to fetch')) {
+                          setNfcError('Không kết nối được NFC Bridge Server (cổng 5050)');
+                        } else {
+                          setNfcError(err.message || 'Lỗi quét NFC');
+                        }
+                      } finally {
+                        setNfcScanning(false);
+                      }
+                    }}
+                    disabled={nfcScanning || nfcSaving}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: nfcScanning
+                        ? '#FFF7ED'
+                        : 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                      cursor: nfcScanning || nfcSaving ? 'wait' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: nfcScanning ? '#EA580C' : 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {nfcScanning ? 'Đang chờ thẻ...' : nfcSaving ? 'Đang lưu...' : 'Gán thẻ mới'}
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Bạn có chắc muốn xóa NFC khỏi ghế này?')) return;
+                      setNfcSaving(true);
+                      try {
+                        await clearSeatNfcUid(selectedData.seatId);
+                        setLocalNfcTagUid('');
+                        dispatch({
+                          type: actions.UPDATE_SEAT,
+                          payload: { ...selectedData, nfcTagUid: null }
+                        });
+                        dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                      } catch (err) {
+                        setNfcError(err.response?.data?.error || 'Lỗi khi xóa NFC');
+                      } finally {
+                        setNfcSaving(false);
+                      }
+                    }}
+                    disabled={nfcSaving}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      border: '2px solid #EF4444',
+                      background: 'white',
+                      cursor: nfcSaving ? 'wait' : 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#EF4444'
+                    }}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              ) : (
+                // Not assigned - Show "Thêm thẻ NFC"
+                <button
+                  onClick={async () => {
+                    setNfcScanning(true);
+                    setNfcError(null);
+                    try {
+                      const response = await fetch('http://localhost:5050/scan-uid', {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json' }
+                      });
+                      const data = await response.json();
+
+                      if (data.success && data.uid) {
+                        setNfcSaving(true);
+                        try {
+                          await updateSeatNfcUid(selectedData.seatId, data.uid);
+                          setLocalNfcTagUid(data.uid);
+                          dispatch({
+                            type: actions.UPDATE_SEAT,
+                            payload: { ...selectedData, nfcTagUid: data.uid }
+                          });
+                          dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                        } catch (saveErr) {
+                          setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
+                        } finally {
+                          setNfcSaving(false);
+                        }
+                      } else {
+                        setNfcError(data.error || 'Không đọc được thẻ NFC');
+                      }
+                    } catch (err) {
+                      if (err.message?.includes('Failed to fetch')) {
+                        setNfcError('Không kết nối được NFC Bridge Server (cổng 5050)');
+                      } else {
+                        setNfcError(err.message || 'Lỗi quét NFC');
+                      }
+                    } finally {
+                      setNfcScanning(false);
+                    }
+                  }}
+                  disabled={nfcScanning || nfcSaving}
+                  style={{
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: nfcScanning
+                      ? '#FFF7ED'
+                      : 'linear-gradient(135deg, #FF751F 0%, #E85A00 100%)',
+                    cursor: nfcScanning || nfcSaving ? 'wait' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: nfcScanning ? '#EA580C' : 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {nfcScanning ? 'Đang chờ thẻ...' : nfcSaving ? 'Đang lưu...' : 'Thêm thẻ NFC'}
+                </button>
+              )}
+
+              {/* Error Display */}
+              {nfcError && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px 12px',
+                  backgroundColor: '#FEE2E2',
+                  borderRadius: '8px',
+                  color: '#DC2626',
+                  fontSize: '12px'
+                }}>
+                  {nfcError}
+                </div>
+              )}
             </div>
           </>
         )}

@@ -6,7 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.dto.users.StudentProfileResponse;
 import slib.com.example.entity.users.User;
-import slib.com.example.service.StudentProfileService;
+import slib.com.example.service.users.StudentProfileService;
 
 import java.util.UUID;
 

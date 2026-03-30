@@ -9,7 +9,7 @@
 /* ===== PAGE TITLE ===== */
 .nt-page-title {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 600;
   background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -45,7 +45,7 @@
 
 .nt-stat-card {
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 20px;
+  border-radius: 12px;
   padding: 24px 28px;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@
 .nt-icon-circle {
   width: 60px;
   height: 60px;
-  border-radius: 16px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -134,7 +134,7 @@
 
 .nt-stat-num {
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 600;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -345,6 +345,27 @@
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
+.nt-btn-pin {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #64748b;
+}
+
+.nt-btn-pin:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+}
+
+.nt-btn-pin-active {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(146, 64, 14, 0.2);
+}
+
+.nt-btn-pin-active:hover {
+  background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+  box-shadow: 0 4px 12px rgba(146, 64, 14, 0.3);
+}
+
 /* ===== FORM STYLES ===== */
 .nt-create-panel {
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -463,7 +484,7 @@
 .nt-dropzone {
   flex: 1;
   border: 2px dashed #e2e8f0;
-  border-radius: 16px;
+  border-radius: 10px;
   background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
   display: flex;
   align-items: center;
@@ -543,6 +564,53 @@
   font-size: 14px;
   color: #94a3b8;
   font-style: italic;
+}
+
+/* ===== STATUS & CATEGORY BADGES ===== */
+.nt-category-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.nt-pin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nt-status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.nt-status-badge.draft {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.nt-status-badge.scheduled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.nt-status-badge.published {
+  background: #dcfce7;
+  color: #166534;
 }
 
 /* ===== RESPONSIVE ===== */

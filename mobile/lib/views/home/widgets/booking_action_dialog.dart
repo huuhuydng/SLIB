@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
-import 'package:slib/services/booking_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 import 'package:slib/views/home/widgets/nfc_seat_verification_screen.dart';
 
 class BookingActionDialog extends StatefulWidget {
@@ -43,11 +43,18 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     return now.isBefore(cancelDeadline);
   }
 
-  /// Check if booking can be confirmed (within 15 mins before start to end)
+  /// Check if booking can be confirmed (within 15 mins before start to end AND not already confirmed)
   bool get _canConfirm {
     final now = DateTime.now();
     final checkInStart = widget.booking.startTime.subtract(const Duration(minutes: 15));
-    return now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
+    final isWithinTimeWindow = now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
+    final isNotConfirmed = widget.booking.status.toUpperCase() != 'CONFIRMED';
+    return isWithinTimeWindow && isNotConfirmed;
+  }
+  
+  /// Check if booking is already confirmed
+  bool get _isAlreadyConfirmed {
+    return widget.booking.status.toUpperCase() == 'CONFIRMED';
   }
 
   Future<void> _handleCancel() async {
@@ -207,32 +214,20 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
       final result = await NfcVerificationDialog.show(
         rootContext,
         seatCode: widget.booking.seatCode,
+        seatId: widget.booking.seatId,
         reservationId: widget.booking.reservationId,
       );
       
       if (result == true) {
-        // NFC verification successful - update booking status to CONFIRMED
-        try {
-          await bookingService.updateStatus(widget.booking.reservationId, "CONFIRMED");
-          
-          widget.onActionComplete();
-          if (rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              const SnackBar(
-                content: Text('Xác nhận thành công!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (rootContext.mounted) {
-            ScaffoldMessenger.of(rootContext).showSnackBar(
-              SnackBar(
-                content: Text('Lỗi xác nhận: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        // NFC screen already confirmed via confirmSeatWithNfcUid — just refresh UI
+        widget.onActionComplete();
+        if (rootContext.mounted) {
+          ScaffoldMessenger.of(rootContext).showSnackBar(
+            const SnackBar(
+              content: Text('Xác nhận thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       }
     } catch (e) {
@@ -342,14 +337,16 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               
               const SizedBox(height: 12),
               
-              // 2. NFC confirm button
+              // 2. NFC confirm button - ẩn hoặc hiển thị "Đã xác nhận"
               _buildActionButton(
-                icon: Icons.nfc,
-                label: 'Xác nhận chỗ ngồi',
-                subtitle: _canConfirm 
-                    ? 'Chạm thẻ NFC trên bàn để check-in'
-                    : 'Có thể check-in từ 15 phút trước giờ đặt',
-                color: Colors.green,
+                icon: _isAlreadyConfirmed ? Icons.check_circle : Icons.nfc,
+                label: _isAlreadyConfirmed ? 'Đã xác nhận chỗ ngồi' : 'Xác nhận chỗ ngồi',
+                subtitle: _isAlreadyConfirmed 
+                    ? 'Bạn đã check-in thành công'
+                    : (_canConfirm 
+                        ? 'Chạm thẻ NFC trên bàn để check-in'
+                        : 'Có thể check-in từ 15 phút trước giờ đặt'),
+                color: _isAlreadyConfirmed ? Colors.blue : Colors.green,
                 enabled: _canConfirm && !_isLoading,
                 onTap: _handleNfcConfirm,
               ),

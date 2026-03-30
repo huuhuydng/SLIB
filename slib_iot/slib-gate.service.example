@@ -1,0 +1,22 @@
+# SLIB Gate Service – Raspberry Pi 4 + ACR122U
+# Copy to /etc/systemd/system/slib-gate.service
+# Then: sudo systemctl daemon-reload && sudo systemctl enable slib-gate && sudo systemctl start slib-gate
+
+[Unit]
+Description=SLIB HCE Gate Scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/slib_iot
+EnvironmentFile=/home/pi/slib_iot/.env
+ExecStart=/usr/bin/python3 /home/pi/slib_iot/slib_gate.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

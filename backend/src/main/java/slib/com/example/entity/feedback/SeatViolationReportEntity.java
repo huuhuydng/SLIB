@@ -75,6 +75,9 @@ public class SeatViolationReportEntity {
         UNAUTHORIZED_USE,
         LEFT_BELONGINGS,
         NOISE,
+        FEET_ON_SEAT,
+        FOOD_DRINK,
+        SLEEPING,
         OTHER
     }
 

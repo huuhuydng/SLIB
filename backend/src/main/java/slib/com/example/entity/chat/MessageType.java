@@ -1,7 +1,8 @@
 package slib.com.example.entity.chat;
 
 public enum MessageType {
-    TEXT,   
+    TEXT,
     IMAGE,
-    FILE   
+    FILE,
+    SYSTEM // System messages like chat ended notification
 }

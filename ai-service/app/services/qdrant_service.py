@@ -247,6 +247,102 @@ class QdrantService:
                 "last_updated": None
             }
     
+    def get_all_vectors(self, limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+        """
+        Get all vectors with metadata for admin display
+        
+        Returns:
+            Dict with vectors list and stats grouped by source
+        """
+        try:
+            # Scroll through all points
+            results, next_offset = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=limit,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False  # Don't return vectors to save bandwidth
+            )
+            
+            # Group by source
+            sources_map = {}
+            for point in results:
+                source = point.payload.get("source", "unknown") if point.payload else "unknown"
+                if source not in sources_map:
+                    sources_map[source] = {
+                        "source": source,
+                        "count": 0,
+                        "category": point.payload.get("category", "") if point.payload else "",
+                        "chunks": []
+                    }
+                sources_map[source]["count"] += 1
+                sources_map[source]["chunks"].append({
+                    "id": str(point.id),
+                    "content_preview": (point.payload.get("content", "")[:150] + "...") if point.payload else "",
+                    "chunk_index": point.payload.get("chunk_index", 0) if point.payload else 0,
+                    "created_at": point.payload.get("created_at", "") if point.payload else ""
+                })
+            
+            # Get total count
+            info = self.client.get_collection(self.collection_name)
+            total_count = info.points_count or 0
+            
+            return {
+                "success": True,
+                "total_vectors": total_count,
+                "sources": list(sources_map.values()),
+                "has_more": next_offset is not None
+            }
+            
+        except Exception as e:
+            logger.error(f"[QdrantService] Error getting all vectors: {e}")
+            return {"success": False, "error": str(e), "total_vectors": 0, "sources": []}
+    
+    def delete_by_source_prefix(self, prefix: str) -> Dict[str, Any]:
+        """
+        Delete all vectors where source starts with prefix
+        Used for deleting all vectors from a Knowledge Store
+        
+        Args:
+            prefix: Source prefix to match (e.g., "KnowledgeStore_")
+            
+        Returns:
+            Dict with success status and deleted count
+        """
+        try:
+            # First get all sources that match the prefix
+            results, _ = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=1000,
+                with_payload=["source"],
+                with_vectors=False
+            )
+            
+            # Find unique sources matching prefix
+            matching_sources = set()
+            for point in results:
+                source = point.payload.get("source", "") if point.payload else ""
+                if source.startswith(prefix):
+                    matching_sources.add(source)
+            
+            # Delete each matching source
+            deleted_count = 0
+            for source in matching_sources:
+                self.delete_by_source(source)
+                deleted_count += 1
+            
+            logger.info(f"[QdrantService] Deleted {deleted_count} sources with prefix: {prefix}")
+            return {
+                "success": True,
+                "prefix": prefix,
+                "sources_deleted": deleted_count,
+                "sources": list(matching_sources)
+            }
+            
+        except Exception as e:
+            logger.error(f"[QdrantService] Error deleting by prefix: {e}")
+            return {"success": False, "error": str(e), "sources_deleted": 0}
+    
     def delete_collection(self) -> bool:
         """Delete the entire collection"""
         try:

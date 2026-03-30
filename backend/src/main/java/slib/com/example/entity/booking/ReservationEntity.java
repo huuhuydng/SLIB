@@ -18,6 +18,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.FetchType;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 
@@ -35,11 +36,11 @@ public class ReservationEntity {
     @Column(name = "reservation_id", nullable = false, updatable = false)
     private UUID reservationId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seat_id", nullable = false)
     private SeatEntity seat;
 
@@ -48,6 +49,9 @@ public class ReservationEntity {
 
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
 
     @Column(name = "status", nullable = false)
     private String status;

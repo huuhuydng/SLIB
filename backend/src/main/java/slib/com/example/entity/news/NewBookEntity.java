@@ -42,8 +42,14 @@ public class NewBookEntity {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "category", length = 100)
+    @Column(name = "category", length = 255)
     private String category;
+
+    @Column(name = "source_url", columnDefinition = "TEXT")
+    private String sourceUrl;
+
+    @Column(name = "publisher", length = 255)
+    private String publisher;
 
     @Column(name = "publish_date")
     private LocalDate publishDate;
@@ -55,6 +61,10 @@ public class NewBookEntity {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Builder.Default
+    @Column(name = "is_pinned", nullable = false)
+    private Boolean isPinned = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

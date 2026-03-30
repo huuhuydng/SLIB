@@ -1,15 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:slib/assets/colors.dart';
-import 'package:slib/services/nfc_service.dart';
+import 'package:slib/services/nfc/nfc_uid_service.dart';
+import 'package:slib/services/booking/booking_service.dart';
 
 /// Screen for verifying seat reservation via NFC scanning.
 ///
 /// This screen allows users to tap their phone on an NFC tag attached to
-/// a library seat to confirm their reservation.
+/// a library seat to confirm their reservation. Uses UID Mapping strategy:
+/// reads NFC tag UID -> hashes it -> looks up seat in backend.
 class NfcSeatVerificationScreen extends StatefulWidget {
   /// The expected seat code (e.g., "A01") that the user has reserved.
   final String expectedSeatCode;
+
+  /// The expected seat ID that the user has reserved.
+  final int expectedSeatId;
 
   /// The reservation ID for updating status after verification.
   final String reservationId;
@@ -23,6 +28,7 @@ class NfcSeatVerificationScreen extends StatefulWidget {
   const NfcSeatVerificationScreen({
     super.key,
     required this.expectedSeatCode,
+    required this.expectedSeatId,
     required this.reservationId,
     this.onVerificationSuccess,
     this.onCancel,
@@ -35,10 +41,12 @@ class NfcSeatVerificationScreen extends StatefulWidget {
 
 class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     with SingleTickerProviderStateMixin {
-  final NfcSeatService _nfcService = NfcSeatService();
+  final NfcUidService _nfcUidService = NfcUidService();
+  final BookingService _bookingService = BookingService();
 
   bool _isScanning = false;
   bool _isNfcAvailable = true;
+  bool _isLookingUp = false; // Looking up seat from backend
   String? _errorMessage;
   bool _verificationSuccess = false;
   bool _isClosed = false; // Prevent multiple closes
@@ -72,13 +80,17 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
   }
 
   Future<void> _checkNfcAndStartScan() async {
-    final isAvailable = await _nfcService.isNfcAvailable();
-    if (!isAvailable) {
-      setState(() {
-        _isNfcAvailable = false;
-        _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
-      });
-      return;
+    // On iOS, skip pre-check — go straight to scan.
+    // iOS native dialog will appear if NFC is supported.
+    if (!Platform.isIOS) {
+      final isAvailable = await _nfcUidService.isNfcAvailable();
+      if (!isAvailable) {
+        setState(() {
+          _isNfcAvailable = false;
+          _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
+        });
+        return;
+      }
     }
 
     await _startNfcScan();
@@ -87,12 +99,13 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
   Future<void> _startNfcScan() async {
     setState(() {
       _isScanning = true;
+      _isLookingUp = false;
       _errorMessage = null;
       _verificationSuccess = false;
     });
 
-    final success = await _nfcService.startNFCScan(
-      onSeatFound: _handleSeatFound,
+    final success = await _nfcUidService.startUidScan(
+      onUidFound: _handleUidFound,
       onError: _handleError,
       onNfcUnavailable: () {
         setState(() {
@@ -104,34 +117,67 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     );
 
     if (!success && mounted) {
-      setState(() => _isScanning = false);
+      setState(() {
+        _isScanning = false;
+        // If start failed on iOS, NFC is truly unavailable
+        if (Platform.isIOS) {
+          _isNfcAvailable = false;
+          _errorMessage = 'Thiết bị không hỗ trợ NFC hoặc NFC bị tắt';
+        }
+      });
     }
   }
 
-  void _handleSeatFound(String seatId) {
+  /// Handle NFC UID found — confirm booking via backend using raw UID.
+  /// Backend hashes UID, resolves seat, validates, and confirms booking atomically.
+  Future<void> _handleUidFound(String uid) async {
     if (!mounted) return;
 
-    final seatCode = _nfcService.getSeatCodeFromId(seatId);
+    debugPrint('NfcVerification: Found UID: $uid');
 
     setState(() {
       _isScanning = false;
+      _isLookingUp = true;
+      _errorMessage = null;
     });
 
-    // Verify if scanned seat matches expected seat
-    if (seatCode == widget.expectedSeatCode) {
-      setState(() => _verificationSuccess = true);
-      _pulseController.stop();
+    try {
+      // Call backend to confirm booking with raw NFC UID
+      // Backend handles: hash UID → find seat → validate match → confirm booking
+      await _bookingService.confirmSeatWithNfcUid(
+        widget.reservationId,
+        uid,
+        widget.expectedSeatId,
+      );
 
-      // Show success and call callback
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          widget.onVerificationSuccess?.call(seatId);
-        }
-      });
-    } else {
+      debugPrint('NfcVerification: Booking confirmed successfully');
+
+      if (!mounted) return;
+
       setState(() {
-        _errorMessage =
-            'Ghế quét ($seatCode) không khớp với ghế đã đặt (${widget.expectedSeatCode}).\nVui lòng quét đúng ghế.';
+        _isLookingUp = false;
+        _verificationSuccess = true;
+      });
+      _pulseController.stop();
+    } catch (e) {
+      debugPrint('NfcVerification: Error confirming booking: $e');
+      
+      if (!mounted) return;
+
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+      
+      // Provide user-friendly messages
+      if (errorMsg.contains('không tìm thấy') || errorMsg.contains('404')) {
+        errorMsg = 'Thẻ NFC này chưa được gán cho ghế nào.\nVui lòng liên hệ quản trị viên.';
+      } else if (errorMsg.contains('không khớp')) {
+        // Seat mismatch — message already good from backend
+      } else if (errorMsg.contains('check-in')) {
+        // Time window error — message already good from backend
+      }
+
+      setState(() {
+        _isLookingUp = false;
+        _errorMessage = errorMsg;
       });
 
       // Allow retry on Android
@@ -150,15 +196,13 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
 
     setState(() {
       _isScanning = false;
+      _isLookingUp = false;
       _errorMessage = errorMessage;
     });
-
-    // Don't auto-close on cancel - let user see the error and manually close
-    // This prevents double-pop issues
   }
 
   Future<void> _stopNfcScan() async {
-    await _nfcService.stopNFCScan();
+    await _nfcUidService.stopUidScan();
   }
 
   void _cancel() {
@@ -488,6 +532,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
         width: double.infinity,
         child: ElevatedButton(
           onPressed: () {
+            // Đóng dialog và trả về true để cập nhật status
             Navigator.pop(context, true);
           },
           style: ElevatedButton.styleFrom(
@@ -641,11 +686,14 @@ class NfcVerificationDialog {
   static Future<bool?> show(
     BuildContext context, {
     required String seatCode,
+    required int seatId,
     required String reservationId,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.transparent,
       builder: (dialogContext) => Container(
         height: MediaQuery.of(dialogContext).size.height * 0.85,
@@ -655,12 +703,9 @@ class NfcVerificationDialog {
         ),
         child: NfcSeatVerificationScreen(
           expectedSeatCode: seatCode,
+          expectedSeatId: seatId,
           reservationId: reservationId,
-          onVerificationSuccess: (seatId) {
-            if (Navigator.canPop(dialogContext)) {
-              Navigator.pop(dialogContext, true);
-            }
-          },
+          onVerificationSuccess: null, // Không dùng callback - dùng Navigator.pop với result
           onCancel: () {
             if (Navigator.canPop(dialogContext)) {
               Navigator.pop(dialogContext, false);

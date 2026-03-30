@@ -10,7 +10,7 @@ import axios from "axios";
  * - /api/v1/ingest/* - Document Ingestion
  */
 const pythonAiApi = axios.create({
-    baseURL: "http://localhost:8001",
+    baseURL: "",
     headers: {
         "Content-Type": "application/json",
     },
@@ -18,7 +18,7 @@ const pythonAiApi = axios.create({
 
 // File upload API (multipart/form-data)
 const uploadApi = axios.create({
-    baseURL: "http://localhost:8001",
+    baseURL: "",
 });
 
 // Request interceptor
@@ -44,7 +44,7 @@ pythonAiApi.interceptors.response.use(
 /**
  * HEALTH CHECK
  */
-export const healthCheck = () => axios.get("http://localhost:8001/health");
+export const healthCheck = () => axios.get("/health");
 
 /* ========================== AI CONFIG ========================= */
 
@@ -105,6 +105,19 @@ export const testRAGService = () => pythonAiApi.get("/api/v1/chat/test");
 export const clearChatSession = (sessionId) =>
     pythonAiApi.delete(`/api/v1/chat/session/${sessionId}`);
 
+/**
+ * GET CHAT HISTORY - Load previous messages from MongoDB
+ * @param {string} sessionId - Session ID to load history for
+ * @param {number} limit - Max number of messages to return
+ */
+export const getChatHistory = (sessionId, limit = 50) =>
+    pythonAiApi.get(`/api/v1/chat/history/${sessionId}`, { params: { limit } });
+
+/**
+ * GET CHAT STATS - Get chat storage statistics
+ */
+export const getChatStats = () => pythonAiApi.get("/api/v1/chat/stats");
+
 /* ========================== DOCUMENT INGESTION ========================= */
 
 /**
@@ -143,6 +156,20 @@ export const getKnowledgeStats = () => pythonAiApi.get("/api/v1/ingest/stats");
  */
 export const deleteSource = (source) =>
     pythonAiApi.delete(`/api/v1/ingest/source/${encodeURIComponent(source)}`);
+
+/**
+ * GET ALL QDRANT VECTORS - For admin display
+ * @param {number} limit - Max number of vectors to return
+ */
+export const getQdrantVectors = (limit = 100) =>
+    pythonAiApi.get(`/api/v1/ingest/vectors`, { params: { limit } });
+
+/**
+ * DELETE KNOWLEDGE STORE VECTORS - Delete all vectors for a KS
+ * @param {string} ksName - Knowledge Store name prefix
+ */
+export const deleteKnowledgeStoreVectors = (ksName) =>
+    pythonAiApi.delete(`/api/v1/ingest/knowledge-store/${encodeURIComponent(ksName)}`);
 
 /* ========================== LEGACY KNOWLEDGE ========================= */
 
@@ -206,6 +233,25 @@ export const sendTestMessage = (message, sessionId = null) =>
             confidence: res.data.similarity_score,
             action: res.data.action,
             sources: res.data.sources || []
+        }
+    }));
+
+/**
+ * SEND TEST MESSAGE WITH DEBUG INFO (for admin deep testing)
+ * Uses debug endpoint with full RAG processing details
+ */
+export const sendTestMessageWithDebug = (message, sessionId = null) =>
+    pythonAiApi.post("/api/v1/chat/debug", {
+        message,
+        session_id: sessionId,
+        include_sources: true
+    }).then(res => ({
+        data: {
+            success: res.data.success,
+            reply: res.data.reply,
+            sessionId: res.data.session_id,
+            action: res.data.action,
+            debug: res.data.debug || {}
         }
     }));
 

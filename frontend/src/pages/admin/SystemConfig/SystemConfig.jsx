@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../../components/common/ToastProvider';
+import { useConfirm } from '../../../components/common/ConfirmDialog';
 import {
   Settings,
   Clock,
@@ -17,35 +19,42 @@ import {
   Award,
   MinusCircle,
   PlusCircle,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock,
+  Power
 } from 'lucide-react';
-import Header from '../../../components/shared/Header';
 
-const API_BASE_URL = 'http://localhost:8080/slib/settings';
 
-// Mock Data
-const VIOLATION_RULES = [
-  { id: 1, name: 'Gây ồn ào', points: -10, description: 'Vi phạm quy định về tiếng ồn trong thư viện' },
-  { id: 2, name: 'No-show (không đến)', points: -15, description: 'Đặt chỗ nhưng không đến check-in' },
-  { id: 3, name: 'Ngủ trong thư viện', points: -5, description: 'Ngủ tại bàn học quá 30 phút' },
-  { id: 4, name: 'Ăn uống', points: -8, description: 'Mang đồ ăn/nước uống vào khu vực cấm' },
-  { id: 5, name: 'Sử dụng điện thoại gây ồn', points: -5, description: 'Nghe gọi điện thoại trong khu yên tĩnh' },
-  { id: 6, name: 'Hủy đặt chỗ muộn', points: -3, description: 'Hủy đặt chỗ trong vòng 30 phút trước giờ hẹn' },
-];
+import { API_BASE_URL as BASE } from '../../../config/apiConfig';
 
-const REWARD_RULES = [
-  { id: 1, name: 'Check-in đúng giờ', points: 2, description: 'Check-in trong vòng 10 phút sau khi đặt' },
-  { id: 2, name: 'Sử dụng đủ thời gian', points: 3, description: 'Sử dụng ít nhất 80% thời gian đã đặt' },
-  { id: 3, name: 'Không vi phạm trong tuần', points: 10, description: 'Bonus cuối tuần nếu không vi phạm' },
-];
+const API_BASE_URL = `${BASE}/slib/settings`;
+const REPUTATION_API_URL = `${BASE}/slib/admin/reputation-rules`;
+
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 const SystemConfig = () => {
+  const toast = useToast();
+  const { confirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('library');
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [ruleType, setRuleType] = useState('violation');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  // Reputation Rules State
+  const [reputationRules, setReputationRules] = useState([]);
+  const [rulesLoading, setRulesLoading] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ ruleCode: '', ruleName: '', description: '', points: '', ruleType: 'PENALTY', isActive: true });
+
+  // Library Lock State
+  const [libraryClosed, setLibraryClosed] = useState(false);
+  const [closedReason, setClosedReason] = useState('');
 
   // Library Config State
   const [libraryConfig, setLibraryConfig] = useState({
@@ -56,15 +65,20 @@ const SystemConfig = () => {
     maxHoursPerDay: 4,
     maxBookingDays: 14,
     workingDays: '2,3,4,5,6',
+    autoCancelMinutes: 15,
+    autoCancelOnLeaveMinutes: 30,
+    minReputation: 0,
   });
 
   // Load settings from API on mount
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/library`);
+        const response = await fetch(`${API_BASE_URL}/library`, { headers: getAuthHeaders() });
         if (response.ok) {
           const data = await response.json();
+          setLibraryClosed(data.libraryClosed || false);
+          setClosedReason(data.closedReason || '');
           setLibraryConfig({
             openTime: data.openTime || '07:00',
             closeTime: data.closeTime || '22:00',
@@ -73,6 +87,15 @@ const SystemConfig = () => {
             maxHoursPerDay: data.maxHoursPerDay || 4,
             maxBookingDays: data.maxBookingDays || 14,
             workingDays: data.workingDays || '2,3,4,5,6',
+            autoCancelMinutes: data.autoCancelMinutes ?? 15,
+            autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? 30,
+            minReputation: data.minReputation ?? 0,
+            notifyBookingSuccess: data.notifyBookingSuccess ?? true,
+            notifyCheckinReminder: data.notifyCheckinReminder ?? true,
+            notifyTimeExpiry: data.notifyTimeExpiry ?? true,
+            notifyViolation: data.notifyViolation ?? true,
+            notifyWeeklyReport: data.notifyWeeklyReport ?? false,
+            notifyDeviceAlert: data.notifyDeviceAlert ?? true,
           });
         }
       } catch (error) {
@@ -84,23 +107,116 @@ const SystemConfig = () => {
     fetchSettings();
   }, []);
 
+  // Fetch reputation rules from API
+  const fetchReputationRules = async () => {
+    setRulesLoading(true);
+    try {
+      const response = await fetch(REPUTATION_API_URL, { headers: getAuthHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        setReputationRules(data);
+      }
+    } catch (error) {
+      console.error('Error fetching reputation rules:', error);
+    } finally {
+      setRulesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reputation') fetchReputationRules();
+  }, [activeTab]);
+
+  const handleOpenRuleModal = (type, rule = null) => {
+    setRuleType(type);
+    if (rule) {
+      setEditingRule(rule);
+      setRuleForm({
+        ruleCode: rule.ruleCode || '',
+        ruleName: rule.ruleName || '',
+        description: rule.description || '',
+        points: Math.abs(rule.points),
+        ruleType: rule.ruleType || (type === 'violation' ? 'PENALTY' : 'REWARD'),
+        isActive: rule.isActive !== false,
+      });
+    } else {
+      setEditingRule(null);
+      setRuleForm({ ruleCode: '', ruleName: '', description: '', points: '', ruleType: type === 'violation' ? 'PENALTY' : 'REWARD', isActive: true });
+    }
+    setShowRuleModal(true);
+  };
+
+  const handleSaveRule = async () => {
+    const payload = {
+      ruleCode: ruleForm.ruleCode,
+      ruleName: ruleForm.ruleName,
+      description: ruleForm.description,
+      points: ruleForm.ruleType === 'PENALTY' ? -Math.abs(parseInt(ruleForm.points)) : Math.abs(parseInt(ruleForm.points)),
+      ruleType: ruleForm.ruleType,
+      isActive: ruleForm.isActive,
+    };
+    try {
+      const url = editingRule ? `${REPUTATION_API_URL}/${editingRule.id}` : REPUTATION_API_URL;
+      const method = editingRule ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        setShowRuleModal(false);
+        fetchReputationRules();
+      } else {
+        toast.error(editingRule ? 'Lỗi khi cập nhật quy tắc' : 'Lỗi khi tạo quy tắc (mã đã tồn tại?)');
+      }
+    } catch (error) {
+      console.error('Error saving rule:', error);
+      toast.error('Lỗi kết nối server');
+    }
+  };
+
+  const handleToggleRule = async (ruleId) => {
+    try {
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}/toggle`, { method: 'PATCH', headers: getAuthHeaders() });
+      if (response.ok) fetchReputationRules();
+    } catch (error) {
+      console.error('Error toggling rule:', error);
+    }
+  };
+
+  const handleDeleteRule = async (ruleId) => {
+    const confirmed = await confirm({
+      title: 'Xóa quy tắc',
+      message: 'Bạn có chắc muốn xóa quy tắc này?',
+      variant: 'danger',
+      confirmText: 'Xoá',
+    });
+    if (!confirmed) return;
+    try {
+      const response = await fetch(`${REPUTATION_API_URL}/${ruleId}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (response.ok) fetchReputationRules();
+    } catch (error) {
+      console.error('Error deleting rule:', error);
+    }
+  };
+
   // Save settings to API
   const handleSave = async () => {
     setSaving(true);
     try {
       const response = await fetch(`${API_BASE_URL}/library`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(libraryConfig),
       });
       if (response.ok) {
-        alert('Lưu cài đặt thành công!');
+        toast.success('Lưu cài đặt thành công!');
       } else {
-        alert('Lỗi khi lưu cài đặt');
+        toast.error('Lỗi khi lưu cài đặt');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Lỗi kết nối server');
+      toast.error('Lỗi kết nối server');
     } finally {
       setSaving(false);
     }
@@ -116,11 +232,38 @@ const SystemConfig = () => {
     setLibraryConfig(prev => ({ ...prev, [key]: value }));
   };
 
+  // Toggle library lock
+  const handleToggleLock = async () => {
+    const newClosed = !libraryClosed;
+    if (newClosed && !closedReason.trim()) {
+      toast.warning('Vui lòng nhập lý do đóng thư viện');
+      return;
+    }
+    setToggling(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library/toggle-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ closed: newClosed, reason: newClosed ? closedReason.trim() : null }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setLibraryClosed(data.libraryClosed || false);
+        setClosedReason(data.closedReason || '');
+        toast.success(newClosed ? 'Đã khoá thư viện!' : 'Đã mở khoá thư viện!');
+      } else {
+        toast.error('Lỗi khi thay đổi trạng thái thư viện');
+      }
+    } catch (error) {
+      console.error('Error toggling lock:', error);
+      toast.error('Lỗi kết nối server');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <>
-      <Header
-        searchPlaceholder="Tìm kiếm cài đặt..."
-      />
 
       <div style={{
         padding: '0 24px 32px',
@@ -136,7 +279,7 @@ const SystemConfig = () => {
           marginBottom: '24px'
         }}>
           <div>
-            <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
               Cấu hình hệ thống
             </h1>
             <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -168,7 +311,7 @@ const SystemConfig = () => {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 20px',
-                background: saving ? '#ccc' : '#FF751F',
+                background: saving ? '#ccc' : '#e8600a',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '14px',
@@ -190,9 +333,9 @@ const SystemConfig = () => {
             width: '280px',
             flexShrink: 0,
             background: '#fff',
-            borderRadius: '16px',
+            borderRadius: '10px',
             padding: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
             height: 'fit-content'
           }}>
             {tabs.map((tab) => (
@@ -205,12 +348,12 @@ const SystemConfig = () => {
                   alignItems: 'center',
                   gap: '12px',
                   padding: '14px 16px',
-                  background: activeTab === tab.id ? '#FFF7F2' : 'transparent',
-                  border: activeTab === tab.id ? '2px solid #FF751F' : '2px solid transparent',
+                  background: activeTab === tab.id ? '#fef6f0' : 'transparent',
+                  border: activeTab === tab.id ? '2px solid #e8600a' : '2px solid transparent',
                   borderRadius: '12px',
                   fontSize: '14px',
                   fontWeight: activeTab === tab.id ? '600' : '500',
-                  color: activeTab === tab.id ? '#FF751F' : '#4A5568',
+                  color: activeTab === tab.id ? '#e8600a' : '#4A5568',
                   cursor: 'pointer',
                   marginBottom: '8px',
                   textAlign: 'left',
@@ -230,12 +373,12 @@ const SystemConfig = () => {
             {activeTab === 'library' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                     Tham số thư viện
                   </h2>
                   <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -243,10 +386,108 @@ const SystemConfig = () => {
                   </p>
                 </div>
                 <div style={{ padding: '24px' }}>
+                  {/* Library Lock Toggle */}
+                  <div style={{
+                    marginBottom: '32px',
+                    padding: '20px',
+                    background: libraryClosed ? 'linear-gradient(135deg, #FFF5F5, #FED7D7)' : 'linear-gradient(135deg, #F0FFF4, #C6F6D5)',
+                    borderRadius: '16px',
+                    border: libraryClosed ? '2px solid #FC8181' : '2px solid #68D391',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          background: libraryClosed ? '#FC8181' : '#68D391',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'background 0.3s ease'
+                        }}>
+                          {libraryClosed ? <Lock size={22} color="#fff" /> : <Unlock size={22} color="#fff" />}
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: '700', color: libraryClosed ? '#C53030' : '#276749', margin: '0 0 2px 0' }}>
+                            {libraryClosed ? 'Thư viện đang tạm đóng' : 'Thư viện đang hoạt động'}
+                          </h3>
+                          <p style={{ fontSize: '13px', color: libraryClosed ? '#E53E3E' : '#38A169', margin: 0, fontWeight: '500' }}>
+                            {libraryClosed ? 'Sinh viên không thể đặt chỗ' : 'Sinh viên có thể đặt chỗ bình thường'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleToggleLock}
+                        disabled={toggling}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '10px 20px',
+                          background: libraryClosed ? '#38A169' : '#E53E3E',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: toggling ? 'not-allowed' : 'pointer',
+                          opacity: toggling ? 0.7 : 1,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Power size={16} />}
+                        {libraryClosed ? 'Mở khoá thư viện' : 'Khoá thư viện'}
+                      </button>
+                    </div>
+                    {/* Reason input - show when open and about to close */}
+                    {!libraryClosed && (
+                      <div style={{ marginTop: '12px' }}>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
+                          Lý do khoá (bắt buộc khi khoá)
+                        </label>
+                        <input
+                          type="text"
+                          value={closedReason}
+                          onChange={(e) => setClosedReason(e.target.value)}
+                          placeholder="VD: Sự kiện đặc biệt, Bảo trì hệ thống..."
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            background: '#fff',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      </div>
+                    )}
+                    {/* Show reason when closed */}
+                    {libraryClosed && closedReason && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '10px 14px',
+                        background: 'rgba(255,255,255,0.7)',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <AlertTriangle size={16} color="#E53E3E" />
+                        <span style={{ fontSize: '13px', color: '#742A2A', fontWeight: '500' }}>
+                          Lý do: {closedReason}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Operating Hours */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={18} color="#FF751F" />
+                      <Clock size={18} color="#e8600a" />
                       Giờ hoạt động
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -292,7 +533,7 @@ const SystemConfig = () => {
                   {/* Booking Rules */}
                   <div style={{ marginBottom: '32px' }}>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Calendar size={18} color="#FF751F" />
+                      <Calendar size={18} color="#e8600a" />
                       Quy định đặt chỗ
                     </h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -390,10 +631,83 @@ const SystemConfig = () => {
                     </div>
                   </div>
 
+                  {/* Tự động hủy & Uy tín */}
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Timer size={18} color="#e8600a" />
+                      Tự động hủy & Uy tín
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tự hủy sau (phút) nếu không check-in
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.autoCancelMinutes}
+                          onChange={(e) => handleConfigChange('autoCancelMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Đặt chỗ sẽ bị hủy nếu không check-in sau số phút này
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tự hủy sau (phút) khi rời chỗ
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.autoCancelOnLeaveMinutes}
+                          onChange={(e) => handleConfigChange('autoCancelOnLeaveMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Đặt chỗ sẽ bị hủy nếu rời chỗ quá lâu
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Điểm uy tín tối thiểu để đặt chỗ
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.minReputation}
+                          onChange={(e) => handleConfigChange('minReputation', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          0 = không giới hạn. Sinh viên cần đạt mức tối thiểu để đặt chỗ
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Auto Checkout */}
                   <div>
                     <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Timer size={18} color="#FF751F" />
+                      <Timer size={18} color="#e8600a" />
                       Tự động check-out
                     </h3>
                     <div style={{
@@ -423,7 +737,7 @@ const SystemConfig = () => {
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          background: libraryConfig.autoCheckoutEnabled ? '#FF751F' : '#E2E8F0',
+                          background: libraryConfig.autoCheckoutEnabled ? '#e8600a' : '#E2E8F0',
                           borderRadius: '14px',
                           transition: 'all 0.3s'
                         }}>
@@ -471,13 +785,13 @@ const SystemConfig = () => {
             {activeTab === 'reputation' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                       Quy tắc điểm uy tín
                     </h2>
                     <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -485,13 +799,13 @@ const SystemConfig = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => { setRuleType('violation'); setEditingRule(null); setShowRuleModal(true); }}
+                    onClick={() => handleOpenRuleModal('violation')}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 16px',
-                      background: '#FF751F',
+                      background: '#e8600a',
                       border: 'none',
                       borderRadius: '10px',
                       fontSize: '13px',
@@ -506,95 +820,156 @@ const SystemConfig = () => {
                 </div>
 
                 <div style={{ padding: '24px' }}>
-                  {/* Violation Rules */}
-                  <div style={{ marginBottom: '32px' }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#DC2626', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <MinusCircle size={18} />
-                      Quy tắc trừ điểm (Vi phạm)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {VIOLATION_RULES.map((rule) => (
-                        <div key={rule.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '16px',
-                          background: '#FEF2F2',
-                          borderRadius: '12px',
-                          border: '1px solid #FECACA'
-                        }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
-                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              background: '#DC2626',
-                              borderRadius: '20px',
-                              fontSize: '14px',
-                              fontWeight: '700',
-                              color: '#fff'
-                            }}>{rule.points}</span>
-                            <button style={{
-                              padding: '8px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '8px',
-                              cursor: 'pointer'
-                            }}>
-                              <Edit size={16} color="#4A5568" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                  {rulesLoading ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>
+                      <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                      Đang tải...
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Violation Rules */}
+                      <div style={{ marginBottom: '32px' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#DC2626', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <MinusCircle size={18} />
+                          Quy tắc trừ điểm (Vi phạm)
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {reputationRules.filter(r => r.ruleType === 'PENALTY').length === 0 && (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '14px' }}>Chưa có quy tắc trừ điểm</div>
+                          )}
+                          {reputationRules.filter(r => r.ruleType === 'PENALTY').map((rule) => (
+                            <div key={rule.id} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '16px',
+                              background: rule.isActive ? '#FEF2F2' : '#F7FAFC',
+                              borderRadius: '12px',
+                              border: `1px solid ${rule.isActive ? '#FECACA' : '#E2E8F0'}`,
+                              opacity: rule.isActive ? 1 : 0.6
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {rule.ruleName}
+                                  {!rule.isActive && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E2E8F0', borderRadius: '6px', color: '#4A5568' }}>Tắt</span>}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                                <div style={{ fontSize: '11px', color: '#CBD5E0', marginTop: '4px' }}>Mã: {rule.ruleCode}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{
+                                  padding: '6px 14px',
+                                  background: '#DC2626',
+                                  borderRadius: '10px',
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#fff'
+                                }}>{rule.points}</span>
+                                <button onClick={() => handleToggleRule(rule.id)} title={rule.isActive ? 'Tắt quy tắc' : 'Bật quy tắc'} style={{
+                                  padding: '8px',
+                                  background: rule.isActive ? '#ECFDF5' : '#FEF2F2',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  {rule.isActive ? <AlertTriangle size={16} color="#059669" /> : <AlertTriangle size={16} color="#DC2626" />}
+                                </button>
+                                <button onClick={() => handleOpenRuleModal('violation', rule)} style={{
+                                  padding: '8px',
+                                  background: '#fff',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Edit size={16} color="#4A5568" />
+                                </button>
+                                <button onClick={() => handleDeleteRule(rule.id)} style={{
+                                  padding: '8px',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Trash2 size={16} color="#DC2626" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Reward Rules */}
-                  <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <PlusCircle size={18} />
-                      Quy tắc cộng điểm (Thưởng)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {REWARD_RULES.map((rule) => (
-                        <div key={rule.id} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '16px',
-                          background: '#ECFDF5',
-                          borderRadius: '12px',
-                          border: '1px solid #A7F3D0'
-                        }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>{rule.name}</div>
-                            <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              background: '#059669',
-                              borderRadius: '20px',
-                              fontSize: '14px',
-                              fontWeight: '700',
-                              color: '#fff'
-                            }}>+{rule.points}</span>
-                            <button style={{
-                              padding: '8px',
-                              background: '#fff',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: '8px',
-                              cursor: 'pointer'
+                      {/* Reward Rules */}
+                      <div>
+                        <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#059669', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <PlusCircle size={18} />
+                          Quy tắc cộng điểm (Thưởng)
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {reputationRules.filter(r => r.ruleType === 'REWARD').length === 0 && (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '14px' }}>Chưa có quy tắc thưởng điểm</div>
+                          )}
+                          {reputationRules.filter(r => r.ruleType === 'REWARD').map((rule) => (
+                            <div key={rule.id} style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '16px',
+                              background: rule.isActive ? '#ECFDF5' : '#F7FAFC',
+                              borderRadius: '12px',
+                              border: `1px solid ${rule.isActive ? '#A7F3D0' : '#E2E8F0'}`,
+                              opacity: rule.isActive ? 1 : 0.6
                             }}>
-                              <Edit size={16} color="#4A5568" />
-                            </button>
-                          </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {rule.ruleName}
+                                  {!rule.isActive && <span style={{ fontSize: '11px', padding: '2px 8px', background: '#E2E8F0', borderRadius: '6px', color: '#4A5568' }}>Tắt</span>}
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{rule.description}</div>
+                                <div style={{ fontSize: '11px', color: '#CBD5E0', marginTop: '4px' }}>Mã: {rule.ruleCode}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{
+                                  padding: '6px 14px',
+                                  background: '#059669',
+                                  borderRadius: '10px',
+                                  fontSize: '14px',
+                                  fontWeight: '600',
+                                  color: '#fff'
+                                }}>+{rule.points}</span>
+                                <button onClick={() => handleToggleRule(rule.id)} title={rule.isActive ? 'Tắt quy tắc' : 'Bật quy tắc'} style={{
+                                  padding: '8px',
+                                  background: rule.isActive ? '#ECFDF5' : '#FEF2F2',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  {rule.isActive ? <AlertTriangle size={16} color="#059669" /> : <AlertTriangle size={16} color="#DC2626" />}
+                                </button>
+                                <button onClick={() => handleOpenRuleModal('reward', rule)} style={{
+                                  padding: '8px',
+                                  background: '#fff',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Edit size={16} color="#4A5568" />
+                                </button>
+                                <button onClick={() => handleDeleteRule(rule.id)} style={{
+                                  padding: '8px',
+                                  background: '#FEF2F2',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer'
+                                }}>
+                                  <Trash2 size={16} color="#DC2626" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -603,12 +978,12 @@ const SystemConfig = () => {
             {activeTab === 'notifications' && (
               <div style={{
                 background: '#fff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 overflow: 'hidden'
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: '0 0 4px 0' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
                     Cấu hình thông báo
                   </h2>
                   <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
@@ -617,54 +992,62 @@ const SystemConfig = () => {
                 </div>
                 <div style={{ padding: '24px' }}>
                   {[
-                    { label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công', enabled: true },
-                    { label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt', enabled: true },
-                    { label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt', enabled: true },
-                    { label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm', enabled: true },
-                    { label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin', enabled: false },
-                    { label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố', enabled: true },
-                  ].map((item, idx) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px',
-                      background: '#F7FAFC',
-                      borderRadius: '12px',
-                      marginBottom: '12px'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.label}</div>
-                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{item.description}</div>
-                      </div>
-                      <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
-                        <input type="checkbox" defaultChecked={item.enabled} style={{ opacity: 0, width: 0, height: 0 }} />
-                        <span style={{
-                          position: 'absolute',
-                          cursor: 'pointer',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          background: item.enabled ? '#FF751F' : '#E2E8F0',
-                          borderRadius: '14px',
-                          transition: 'all 0.3s'
-                        }}>
+                    { key: 'notifyBookingSuccess', label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công' },
+                    { key: 'notifyCheckinReminder', label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt' },
+                    { key: 'notifyTimeExpiry', label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt' },
+                    { key: 'notifyViolation', label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm' },
+                    { key: 'notifyWeeklyReport', label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin' },
+                    { key: 'notifyDeviceAlert', label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố' },
+                  ].map((item) => {
+                    const isEnabled = libraryConfig[item.key] !== false;
+                    return (
+                      <div key={item.key} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '16px',
+                        background: '#F7FAFC',
+                        borderRadius: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.label}</div>
+                          <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{item.description}</div>
+                        </div>
+                        <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => handleConfigChange(item.key, e.target.checked)}
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                          />
                           <span style={{
                             position: 'absolute',
-                            height: '22px',
-                            width: '22px',
-                            left: item.enabled ? '25px' : '3px',
-                            bottom: '3px',
-                            background: '#fff',
-                            borderRadius: '50%',
-                            transition: 'all 0.3s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }} />
-                        </span>
-                      </label>
-                    </div>
-                  ))}
+                            cursor: 'pointer',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: isEnabled ? '#e8600a' : '#E2E8F0',
+                            borderRadius: '14px',
+                            transition: 'all 0.3s'
+                          }}>
+                            <span style={{
+                              position: 'absolute',
+                              height: '22px',
+                              width: '22px',
+                              left: isEnabled ? '25px' : '3px',
+                              bottom: '3px',
+                              background: '#fff',
+                              borderRadius: '50%',
+                              transition: 'all 0.3s',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }} />
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -688,7 +1071,7 @@ const SystemConfig = () => {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: '20px',
+            borderRadius: '10px',
             width: '500px',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
           }}>
@@ -699,7 +1082,7 @@ const SystemConfig = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>
                 {editingRule ? 'Sửa quy tắc' : 'Thêm quy tắc mới'}
               </h2>
               <button onClick={() => setShowRuleModal(false)} style={{
@@ -719,7 +1102,7 @@ const SystemConfig = () => {
                 </label>
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button
-                    onClick={() => setRuleType('violation')}
+                    onClick={() => { setRuleType('violation'); setRuleForm(f => ({ ...f, ruleType: 'PENALTY' })); }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -736,7 +1119,7 @@ const SystemConfig = () => {
                     Trừ điểm
                   </button>
                   <button
-                    onClick={() => setRuleType('reward')}
+                    onClick={() => { setRuleType('reward'); setRuleForm(f => ({ ...f, ruleType: 'REWARD' })); }}
                     style={{
                       flex: 1,
                       padding: '12px',
@@ -754,46 +1137,69 @@ const SystemConfig = () => {
                   </button>
                 </div>
               </div>
+              {!editingRule && (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                    Mã quy tắc (UPPER_SNAKE_CASE)
+                  </label>
+                  <input type="text" placeholder="VD: NO_SHOW, NOISE_VIOLATION" value={ruleForm.ruleCode}
+                    onChange={(e) => setRuleForm(f => ({ ...f, ruleCode: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '2px solid #E2E8F0',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }} />
+                </div>
+              )}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
                   Tên quy tắc
                 </label>
-                <input type="text" placeholder="Nhập tên quy tắc" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }} />
+                <input type="text" placeholder="Nhập tên quy tắc" value={ruleForm.ruleName}
+                  onChange={(e) => setRuleForm(f => ({ ...f, ruleName: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }} />
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
-                  Số điểm
+                  Số điểm (số dương, hệ thống tự thêm dấu âm cho phạt)
                 </label>
-                <input type="number" placeholder="Nhập số điểm" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }} />
+                <input type="number" placeholder="VD: 10" value={ruleForm.points} min="1"
+                  onChange={(e) => setRuleForm(f => ({ ...f, points: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }} />
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
                   Mô tả
                 </label>
-                <textarea placeholder="Mô tả chi tiết quy tắc" style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  outline: 'none',
-                  resize: 'none',
-                  height: '80px'
-                }} />
+                <textarea placeholder="Mô tả chi tiết quy tắc" value={ruleForm.description}
+                  onChange={(e) => setRuleForm(f => ({ ...f, description: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    resize: 'none',
+                    height: '80px'
+                  }} />
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button onClick={() => setShowRuleModal(false)} style={{
@@ -807,17 +1213,17 @@ const SystemConfig = () => {
                   color: '#4A5568',
                   cursor: 'pointer'
                 }}>Hủy</button>
-                <button style={{
+                <button onClick={handleSaveRule} style={{
                   flex: 1,
                   padding: '14px',
-                  background: '#FF751F',
+                  background: '#e8600a',
                   border: 'none',
                   borderRadius: '12px',
                   fontSize: '14px',
                   fontWeight: '600',
                   color: '#fff',
                   cursor: 'pointer'
-                }}>Lưu quy tắc</button>
+                }}>{editingRule ? 'Cập nhật' : 'Lưu quy tắc'}</button>
               </div>
             </div>
           </div>

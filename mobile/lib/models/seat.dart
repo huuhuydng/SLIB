@@ -6,6 +6,8 @@ class Seat {
   final String seatStatus;
   final int rowNumber;
   final int columnNumber;
+  final bool isActive;
+  final String? reservationEndTime; // ISO datetime, null nếu AVAILABLE
 
   Seat({
     required this.seatId,
@@ -14,6 +16,8 @@ class Seat {
     required this.seatStatus,
     required this.rowNumber,
     required this.columnNumber,
+    this.isActive = true,
+    this.reservationEndTime,
   });
 
   factory Seat.fromJson(Map<String, dynamic> json) {
@@ -24,6 +28,8 @@ class Seat {
       seatStatus: json['seatStatus'] ?? 'UNAVAILABLE',
       rowNumber: json['rowNumber'] ?? 1,
       columnNumber: json['columnNumber'] ?? 1,
+      isActive: json['isActive'] ?? true,
+      reservationEndTime: json['reservationEndTime'] as String?,
     );
   }
 
@@ -35,14 +41,22 @@ class Seat {
       'seatStatus': seatStatus,
       'rowNumber': rowNumber,
       'columnNumber': columnNumber,
+      'isActive': isActive,
+      'reservationEndTime': reservationEndTime,
     };
   }
 
   /// Kiểm tra ghế có available hay không
-  bool get isAvailable => seatStatus == 'AVAILABLE';
+  bool get isAvailable => seatStatus == 'AVAILABLE' && isActive;
 
   /// Kiểm tra ghế đã được đặt hay chưa
   bool get isBooked => seatStatus == 'BOOKED';
+
+  /// Kiểm tra ghế bị hạn chế (admin đã disable)
+  bool get isUnavailable => seatStatus == 'UNAVAILABLE' || !isActive;
+
+  /// Kiểm tra ghế đang được giữ
+  bool get isHolding => seatStatus == 'HOLDING';
 
   /// Tính position X dựa trên columnNumber (mỗi ghế 44px + 4px margin)
   double get positionX => (columnNumber - 1) * 48.0;
@@ -54,3 +68,4 @@ class Seat {
   static const double seatWidth = 44.0;
   static const double seatHeight = 44.0;
 }
+

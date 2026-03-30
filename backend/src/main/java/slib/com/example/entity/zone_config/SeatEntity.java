@@ -34,7 +34,7 @@ public class SeatEntity {
 
     @ManyToOne
     @JoinColumn(name = "zone_id", nullable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "seats" })
     private ZoneEntity zone;
 
     @Column(name = "seat_code", nullable = false)
@@ -51,7 +51,23 @@ public class SeatEntity {
     @Builder.Default
     private Boolean isActive = true;
 
-    @OneToMany(mappedBy = "seat")
+    // Dynamic seat status (AVAILABLE, BOOKED, HOLDING)
+    // Column đã bị xóa khỏi DB (V10, V15) - giờ tính dynamic từ reservations
+    // Giữ field để dùng in-memory trong SeatService
+    @jakarta.persistence.Transient
+    @Builder.Default
+    private SeatStatus seatStatus = SeatStatus.AVAILABLE;
+
+    // NFC Tag UID for seat verification (UID Mapping Strategy)
+    // Stored as SHA-256 hash of the raw UID
+    @Column(name = "nfc_tag_uid", unique = true)
+    private String nfcTagUid;
+
+    // Timestamp of last NFC UID assignment/change
+    @Column(name = "nfc_tag_uid_updated_at")
+    private java.time.LocalDateTime nfcTagUidUpdatedAt;
+
+    @OneToMany(mappedBy = "seat", fetch = jakarta.persistence.FetchType.LAZY)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private List<ReservationEntity> reservation;
 }
