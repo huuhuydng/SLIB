@@ -6,6 +6,14 @@ class ApiConstants {
   // 📱 EMULATOR: Dùng 10.0.2.2 (uncomment nếu chạy emulator)
   // static const String domain = "http://10.0.2.2:8080";
   
+  // AI Service URL (port 8001)
+  // ⚠️ REAL DEVICE: Cần expose AI Service qua ngrok hoặc dùng IP local
+  // 📱 EMULATOR: http://10.0.2.2:8001
+  // 🖥️  LOCAL NETWORK: http://<YOUR_MAC_IP>:8001 (e.g., http://192.168.1.100:8001)
+  static const String aiDomain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+
+
+  
   static const String authUrl = "$domain/slib/users";
   static const String authBaseUrl = "$domain/slib/auth";
 
@@ -28,4 +36,8 @@ class ApiConstants {
   static const String studentProfileUrl = "$domain/slib/student-profile";
 
   static const String activityUrl = "$domain/slib/activities";
+
+  // Chat URLs
+  static const String chatUrl = "$domain/slib/chat";
+  static const String aiChatUrl = "$aiDomain/api/ai/chat";
 }

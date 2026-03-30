@@ -14,4 +14,4 @@ COMMENT ON COLUMN library_settings.max_bookings_per_day IS 'Số lần đặt t�
 
 COMMENT ON COLUMN library_settings.max_hours_per_day IS 'Số giờ tối đa được đặt trong 1 ngày';
 
-ALTER  TABLE users DROP COLUMN supabase_uid;
+ALTER TABLE users DROP COLUMN IF EXISTS supabase_uid;

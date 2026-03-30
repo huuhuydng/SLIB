@@ -16,6 +16,7 @@ import ChatManagement from "../components/ChatManagement";
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
+import AccountSettings from "../components/AccountSettings";
 
 
 function LibrarianRoutes() {
@@ -59,6 +60,10 @@ function LibrarianRoutes() {
         <Route path="notification/create" element={<NewCreate />} />
         <Route path="notification/edit/:id" element={<NewCreate />} />
         <Route path="notification/view/:id" element={<NewsDetailView />} />
+
+        {/* Cài đặt tài khoản */}
+        <Route path="settings" element={<AccountSettings />} />
+        <Route path="setting" element={<Navigate to="/librarian/settings" replace />} />
       </Route>
 
       {/* Redirect any unmatched routes */}

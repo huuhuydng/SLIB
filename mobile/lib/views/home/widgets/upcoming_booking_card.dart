@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/models/upcoming_booking.dart';
@@ -17,6 +18,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   UpcomingBooking? _upcomingBooking;
   bool _isLoading = true;
   bool _hasError = false;
+  Timer? _expiryTimer;
 
   final BookingService _bookingService = BookingService();
 
@@ -29,6 +31,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
 
   @override
   void dispose() {
+    _expiryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -49,6 +52,9 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
   }
 
   Future<void> _loadUpcomingBooking() async {
+    // Cancel any existing expiry timer
+    _expiryTimer?.cancel();
+    
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
@@ -65,8 +71,15 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     try {
       final data = await _bookingService.getUpcomingBooking(user.id);
       if (mounted) {
+        final booking = data != null ? UpcomingBooking.fromJson(data) : null;
+        
+        // Set up timer to refresh when booking expires
+        if (booking != null) {
+          _scheduleExpiryRefresh(booking.endTime);
+        }
+        
         setState(() {
-          _upcomingBooking = data != null ? UpcomingBooking.fromJson(data) : null;
+          _upcomingBooking = booking;
           _isLoading = false;
           _hasError = false;
         });
@@ -82,13 +95,48 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     }
   }
 
+  /// Schedule a timer to auto-refresh when the booking expires
+  void _scheduleExpiryRefresh(DateTime endTime) {
+    final now = DateTime.now();
+    final duration = endTime.difference(now);
+    
+    // If booking already expired, don't schedule anything - just let it show empty
+    if (duration.isNegative) {
+      debugPrint("Booking already expired, not scheduling refresh");
+      // Clear the booking so it shows empty state
+      if (mounted) {
+        setState(() {
+          _upcomingBooking = null;
+        });
+      }
+      return;
+    }
+    
+    debugPrint("Scheduling refresh in ${duration.inMinutes} minutes");
+    // Schedule refresh when booking expires (add 1 second buffer)
+    _expiryTimer = Timer(duration + const Duration(seconds: 1), () {
+      if (mounted) {
+        debugPrint("Booking expired timer fired, refreshing...");
+        refresh();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return _buildLoadingCard();
     }
 
+    // Only check if booking exists and status is not EXPIRED/CANCEL/COMPLETED
     if (_hasError || _upcomingBooking == null) {
+      return _buildEmptyCard();
+    }
+    
+    // Filter out expired/cancelled/completed bookings
+    final status = _upcomingBooking!.status.toUpperCase();
+    if (status == 'EXPIRED' || status == 'CANCEL' || status == 'COMPLETED') {
+      debugPrint("Hiding booking with status: $status");
       return _buildEmptyCard();
     }
 

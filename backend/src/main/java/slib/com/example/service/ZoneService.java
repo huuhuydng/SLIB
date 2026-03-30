@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.dto.zone_config.ZoneOccupancyDTO;
 import slib.com.example.dto.zone_config.ZoneResponse;
-import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.AreaEntity;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.ZoneEntity;
@@ -197,14 +196,21 @@ public class ZoneService {
      */
     public List<ZoneOccupancyDTO> getZoneOccupancy(Long areaId) {
         List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(areaId);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
         return zones.stream().map(zone -> {
-            // Count total seats in zone
-            long totalSeats = seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.AVAILABLE)
-                    + seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.BOOKED);
+            // Get all active seats in zone
+            List<SeatEntity> activeSeats = seatRepository.findByZone_ZoneIdAndIsActiveTrue(zone.getZoneId());
+            long totalSeats = activeSeats.size();
 
-            // Count occupied (booked) seats
-            long occupiedSeats = seatRepository.countByZone_ZoneIdAndSeatStatus(zone.getZoneId(), SeatStatus.BOOKED);
+            // Count occupied seats (those with active reservations right now)
+            long occupiedSeats = activeSeats.stream()
+                    .filter(seat -> {
+                        var overlapping = reservationRepository.findOverlappingReservations(
+                                seat.getSeatId(), now, now.plusMinutes(1));
+                        return !overlapping.isEmpty();
+                    })
+                    .count();
 
             // Calculate occupancy rate (0.0 to 1.0)
             double occupancyRate = totalSeats > 0 ? (double) occupiedSeats / totalSeats : 0.0;

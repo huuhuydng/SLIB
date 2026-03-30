@@ -40,7 +40,7 @@ public class NewsScheduler {
      */
     @EventListener(ContextRefreshedEvent.class)
     public void onApplicationStart() {
-        System.out.println("📰 [NewsScheduler] Initializing real-time news scheduler...");
+        System.out.println("[NewsScheduler] Initializing real-time news scheduler...");
         loadAndScheduleAllPendingNews();
     }
 
@@ -58,7 +58,7 @@ public class NewsScheduler {
 
         // Tìm tin chưa đến giờ -> schedule
         List<News> futureNews = newsRepository.findFutureScheduledNews(now);
-        System.out.println("📰 [NewsScheduler] Found " + futureNews.size() + " future scheduled news");
+        System.out.println("[NewsScheduler] Found " + futureNews.size() + " future scheduled news");
 
         for (News news : futureNews) {
             scheduleNewsPublication(news);
@@ -85,7 +85,7 @@ public class NewsScheduler {
         // Tính delay đến thời điểm publish
         long delayMillis = Duration.between(now, publishTime).toMillis();
 
-        System.out.println("⏰ [NewsScheduler] Scheduling news ID " + news.getId()
+        System.out.println("[NewsScheduler] Scheduling news ID " + news.getId()
                 + " '" + news.getTitle() + "' to publish at " + publishTime
                 + " (in " + (delayMillis / 1000) + " seconds)");
 
@@ -108,7 +108,7 @@ public class NewsScheduler {
         ScheduledFuture<?> existingTask = scheduledTasks.remove(newsId);
         if (existingTask != null && !existingTask.isDone()) {
             existingTask.cancel(false);
-            System.out.println("🚫 [NewsScheduler] Cancelled scheduled task for news ID " + newsId);
+            System.out.println("[NewsScheduler] Cancelled scheduled task for news ID " + newsId);
         }
     }
 
@@ -119,7 +119,7 @@ public class NewsScheduler {
     public void publishNewsImmediately(News news) {
         news.setIsPublished(true);
         newsRepository.save(news);
-        System.out.println("✅ [NewsScheduler] Published immediately: " + news.getTitle());
+        System.out.println("[NewsScheduler] Published immediately: " + news.getTitle());
 
         // Thông báo qua WebSocket
         notifyNewsPublished(news);
@@ -138,13 +138,13 @@ public class NewsScheduler {
             if (news != null && !news.getIsPublished()) {
                 news.setIsPublished(true);
                 newsRepository.save(news);
-                System.out.println("✅ [NewsScheduler] Published on schedule: " + news.getTitle());
+                System.out.println("[NewsScheduler] Published on schedule: " + news.getTitle());
 
                 // Thông báo qua WebSocket
                 notifyNewsPublished(news);
             }
         } catch (Exception e) {
-            System.err.println("❌ [NewsScheduler] Error publishing news ID " + newsId + ": " + e.getMessage());
+            System.err.println("[NewsScheduler] Error publishing news ID " + newsId + ": " + e.getMessage());
         } finally {
             scheduledTasks.remove(newsId);
         }
@@ -162,9 +162,9 @@ public class NewsScheduler {
                         "title", news.getTitle(),
                         "publishedAt", news.getPublishedAt().toString());
                 messagingTemplate.convertAndSend("/topic/news", payload);
-                System.out.println("📡 [NewsScheduler] WebSocket notification sent for: " + news.getTitle());
+                System.out.println("[NewsScheduler] WebSocket notification sent for: " + news.getTitle());
             } catch (Exception e) {
-                System.err.println("⚠️ [NewsScheduler] WebSocket notification failed: " + e.getMessage());
+                System.err.println("[NewsScheduler] WebSocket notification failed: " + e.getMessage());
             }
         }
     }
@@ -174,7 +174,7 @@ public class NewsScheduler {
      */
     @PreDestroy
     public void shutdown() {
-        System.out.println("🛑 [NewsScheduler] Shutting down scheduler...");
+        System.out.println("[NewsScheduler] Shutting down scheduler...");
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {

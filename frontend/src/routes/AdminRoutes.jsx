@@ -13,6 +13,7 @@ import DeviceManagement from "../pages/admin/DeviceManagement/DeviceManagement";
 import SystemConfig from "../pages/admin/SystemConfig/SystemConfig";
 import SystemHealth from "../pages/admin/SystemHealth/SystemHealth";
 import AIConfig from "../pages/admin/AIConfig/AIConfig";
+import AccountSettings from "../components/AccountSettings";
 
 function AdminRoutes() {
   return (
@@ -36,6 +37,10 @@ function AdminRoutes() {
         <Route path="config" element={<SystemConfig />} />
         <Route path="health" element={<SystemHealth />} />
         <Route path="ai-config" element={<AIConfig />} />
+
+        {/* Cài đặt tài khoản */}
+        <Route path="settings" element={<AccountSettings />} />
+        <Route path="setting" element={<Navigate to="/admin/settings" replace />} />
       </Route>
 
       {/* Redirect any unmatched routes */}
