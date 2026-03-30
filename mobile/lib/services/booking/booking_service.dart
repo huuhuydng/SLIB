@@ -11,7 +11,6 @@ import 'package:slib/models/seat.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:slib/utils/nfc_uid_hasher.dart';
 
 class BookingService {
   final _storage = const FlutterSecureStorage();
@@ -375,5 +374,18 @@ class BookingService {
       final errorMsg = utf8.decode(response.bodyBytes);
       throw Exception(errorMsg);
     }
+  }
+
+  /// Legacy deep link check-in flow from iOS background NFC scanning.
+  ///
+  /// The old mobile flow expected a dedicated backend endpoint that accepted
+  /// `seatId` plus an HMAC `signature`. That endpoint no longer exists in the
+  /// current backend, so the app should fail gracefully instead of breaking
+  /// compilation or showing a generic network error.
+  Future<void> confirmSeatByDeepLink(int seatId, String signature) async {
+    throw Exception(
+      'Tính năng xác nhận qua liên kết NFC hiện chưa khả dụng. '
+      'Vui lòng mở ứng dụng và quét NFC trực tiếp để check-in.',
+    );
   }
 }
