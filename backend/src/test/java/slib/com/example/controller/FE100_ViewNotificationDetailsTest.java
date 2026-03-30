@@ -69,11 +69,16 @@ class FE100_ViewNotificationDetailsTest {
                 NotificationEntity notification = new NotificationEntity();
                 notification.setTitle("Thong bao lich hen");
                 notification.setContent("Ban co lich hen luc 10:00");
+                slib.com.example.dto.notification.NotificationDTO dto = slib.com.example.dto.notification.NotificationDTO.builder()
+                                .title("Thong bao lich hen")
+                                .content("Ban co lich hen luc 10:00")
+                                .build();
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
                 when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
                                 .thenReturn(List.of(notification));
+                when(pushNotificationService.toDTO(notification)).thenReturn(dto);
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
@@ -93,11 +98,19 @@ class FE100_ViewNotificationDetailsTest {
                 n1.setTitle("Thong bao 1");
                 NotificationEntity n2 = new NotificationEntity();
                 n2.setTitle("Thong bao 2");
+                slib.com.example.dto.notification.NotificationDTO dto1 = slib.com.example.dto.notification.NotificationDTO.builder()
+                                .title("Thong bao 1")
+                                .build();
+                slib.com.example.dto.notification.NotificationDTO dto2 = slib.com.example.dto.notification.NotificationDTO.builder()
+                                .title("Thong bao 2")
+                                .build();
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
                 when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
                                 .thenReturn(List.of(n1, n2));
+                when(pushNotificationService.toDTO(n1)).thenReturn(dto1);
+                when(pushNotificationService.toDTO(n2)).thenReturn(dto2);
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
@@ -115,11 +128,15 @@ class FE100_ViewNotificationDetailsTest {
         void viewNotificationDetails_withCustomLimit_returns200() throws Exception {
                 NotificationEntity notification = new NotificationEntity();
                 notification.setTitle("Thong bao gioi han");
+                slib.com.example.dto.notification.NotificationDTO dto = slib.com.example.dto.notification.NotificationDTO.builder()
+                                .title("Thong bao gioi han")
+                                .build();
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
                 when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), eq(10)))
                                 .thenReturn(List.of(notification));
+                when(pushNotificationService.toDTO(notification)).thenReturn(dto);
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID)
                                 .param("limit", "10"))
