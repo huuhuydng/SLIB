@@ -4,15 +4,15 @@ import AuthPage from '../components/AuthPage';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Login Page wrapper
- * Handles login success and redirect
+ * Login Page wrapper.
+ * Handles login success and redirect.
  */
 const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { login, isAuthenticated } = useAuth();
 
-    // If already logged in, redirect to dashboard
+    // If already logged in, redirect to dashboard.
     React.useEffect(() => {
         if (isAuthenticated) {
             const from = location.state?.from?.pathname || '/dashboard';
@@ -22,7 +22,7 @@ const LoginPage = () => {
 
     const handleLogin = () => {
         login();
-        // Navigate to the page they tried to access, or dashboard
+        // Navigate to the page they tried to access, or dashboard.
         const from = location.state?.from?.pathname || '/dashboard';
         navigate(from, { replace: true });
     };

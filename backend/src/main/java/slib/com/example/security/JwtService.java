@@ -36,7 +36,7 @@ public class JwtService {
     // ==========================================
 
     /**
-     * Generate access token for user
+     * Generate access token for user.
      */
     public String generateAccessToken(User user) {
         Map<String, Object> claims = new HashMap<>();
@@ -49,7 +49,7 @@ public class JwtService {
     }
 
     /**
-     * Generate refresh token for user
+     * Generate refresh token for user.
      */
     public String generateRefreshToken(User user) {
         Map<String, Object> claims = new HashMap<>();
@@ -142,7 +142,7 @@ public class JwtService {
     }
 
     /**
-     * Hash a token for storage (we don't store raw refresh tokens)
+     * Hash a token for storage (we don't store raw refresh tokens).
      */
     public String hashToken(String token) {
         try {

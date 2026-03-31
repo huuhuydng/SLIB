@@ -95,7 +95,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        // Always return email for JWT consistency (JWT subject uses email)
+        // Always return email for JWT consistency (JWT subject uses email).
         return this.email;
     }
 

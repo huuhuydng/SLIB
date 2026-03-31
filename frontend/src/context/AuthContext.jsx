@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Check for existing token on mount
+    // Check for existing token on mount.
     useEffect(() => {
         const storedToken = localStorage.getItem('librarian_token');
         const storedUser = localStorage.getItem('librarian_user');
@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
                 setUser(JSON.parse(storedUser));
             } catch (error) {
                 console.error('Error parsing stored user:', error);
-                // Clear invalid data
+                // Clear invalid data.
                 localStorage.removeItem('librarian_token');
                 localStorage.removeItem('librarian_user');
             }
@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = () => {
-        // Called after successful Google login
+        // Called after successful Google login.
         const storedToken = localStorage.getItem('librarian_token');
         const storedUser = localStorage.getItem('librarian_user');
 
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
         librarianService.logout();
         setUser(null);
         setToken(null);
-        // Redirect to login
+        // Redirect to login.
         window.location.href = '/login';
     };
 

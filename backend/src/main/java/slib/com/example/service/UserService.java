@@ -43,7 +43,7 @@ public class UserService {
     private final AuthService authService;
 
     /**
-     * Get current user profile by email
+     * Get current user profile by email.
      */
     public UserProfileResponse getMyProfile(String email) {
         User user = userRepository.findByEmail(email)
@@ -65,14 +65,14 @@ public class UserService {
     }
 
     /**
-     * Get all users (admin only)
+     * Get all users (admin only).
      */
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
     /**
-     * Update user (e.g., FCM token for notifications)
+     * Update user (e.g., FCM token for notifications).
      */
     public User updateUser(UUID userId, User req) {
         User existingUser = userRepository.findById(userId)
@@ -97,7 +97,7 @@ public class UserService {
     }
 
     /**
-     * Update user profile (for mobile/frontend)
+     * Update user profile (for mobile/frontend).
      */
     public User updateUserProfile(UUID userId, String fullName, String phone, String avtUrl) {
         User existingUser = userRepository.findById(userId)
@@ -117,7 +117,7 @@ public class UserService {
 
     /**
      * 👇👇👇 HÀM MỚI THÊM VÀO CHO CHAT CONTROLLER 👇👇👇
-     * Get user by email (Throw exception if not found)
+     * Get user by email (Throw exception if not found).
      * Dùng hàm này an toàn hơn vì nó đảm bảo trả về User hoặc báo lỗi ngay.
      */
     public User getUserByEmail(String email) {
@@ -126,21 +126,21 @@ public class UserService {
     }
 
     /**
-     * Find user by email
+     * Find user by email.
      */
     public User findByEmail(String email) {
         return userRepository.findByEmail(email).orElse(null);
     }
 
     /**
-     * Check if user exists by email
+     * Check if user exists by email.
      */
     public boolean existsByEmail(String email) {
         return userRepository.findByEmail(email).isPresent();
     }
 
     /**
-     * Import users in bulk (Admin only)
+     * Import users in bulk (Admin only).
      * Returns a map with:
      * - "success": List of successfully imported users
      * - "failed": List of failed imports with reasons

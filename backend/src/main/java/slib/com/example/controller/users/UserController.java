@@ -26,7 +26,7 @@ public class UserController {
     private final AuthService authService;
 
     /**
-     * Login with Google ID Token
+     * Login with Google ID Token.
      * Note: This endpoint wraps the new AuthService for backward compatibility.
      * Consider migrating clients to use /slib/auth/google directly.
      */
@@ -88,9 +88,9 @@ public class UserController {
     }
 
     /**
-     * Delete user by ID (Admin/Librarian only)
+     * Delete user by ID (Admin/Librarian only).
      * This will delete all related data (reservations, access logs, chat sessions,
-     * etc.)
+     * etc.).
      */
     @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
     @DeleteMapping("/{userId}")

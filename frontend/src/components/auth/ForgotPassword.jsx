@@ -65,7 +65,7 @@ function ForgotPassword({ onSwitch }) {
 
       if (err.response) {
         if (err.response.status === 400) {
-          // Business errors from backend (email not found, no email, etc.)
+          // Business errors from backend (email not found, no email, etc.).
           errorMessage = err.response.data?.message || "Email không hợp lệ";
         } else if (err.response.status === 403) {
           errorMessage = "Lỗi xác thực. Vui lòng thử lại.";

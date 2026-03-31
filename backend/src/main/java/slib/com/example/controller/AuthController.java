@@ -18,7 +18,7 @@ public class AuthController {
     private final AuthService authService;
 
     /**
-     * Login with Google ID token
+     * Login with Google ID token.
      * 
      * Request body:
      * {
@@ -44,7 +44,7 @@ public class AuthController {
     }
 
     /**
-     * Refresh access token
+     * Refresh access token.
      * 
      * Request body:
      * {
@@ -64,7 +64,7 @@ public class AuthController {
     }
 
     /**
-     * Logout - revoke current refresh token
+     * Logout - revoke current refresh token.
      * 
      * Request body:
      * {
