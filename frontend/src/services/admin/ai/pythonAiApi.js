@@ -24,7 +24,9 @@ const uploadApi = axios.create({
 
 const attachAuthHeader = (config) => {
     const token =
+        sessionStorage.getItem("librarian_token") ||
         localStorage.getItem("librarian_token") ||
+        sessionStorage.getItem("token") ||
         localStorage.getItem("token");
 
     if (token) {
