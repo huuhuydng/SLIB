@@ -157,6 +157,16 @@ const AIConfig = () => {
     } catch { setApiStatus('error'); }
   };
 
+  const thresholdForDebug = (debug) =>
+    debug?.retrieval?.effective_threshold
+    ?? debug?.retrieval?.similarity_threshold
+    ?? 0;
+
+  const usedChunksForDebug = (debug) =>
+    debug?.generation?.used_chunks_count
+    ?? debug?.retrieval?.chunks_used
+    ?? 0;
+
   const loadMaterials = async () => {
     try {
       const res = await getMaterials();
@@ -726,13 +736,18 @@ const AIConfig = () => {
                               <div>
                                 <div style={{ color: '#A0AEC0', fontSize: '10px' }}>Ngưỡng tối thiểu</div>
                                 <div style={{ fontSize: '16px', fontWeight: '600', color: '#4A5568' }}>
-                                  {((selectedDebugInfo.retrieval?.threshold || 0) * 100).toFixed(0)}%
+                                  {(thresholdForDebug(selectedDebugInfo) * 100).toFixed(0)}%
                                 </div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#4A5568' }}>
                               <span>Tìm thấy: <b>{selectedDebugInfo.retrieval?.chunks_found || 0}</b></span>
-                              <span>Sử dụng: <b>{selectedDebugInfo.retrieval?.chunks_used || 0}</b></span>
+                              <span>Sử dụng: <b>{usedChunksForDebug(selectedDebugInfo)}</b></span>
+                              {selectedDebugInfo.retrieval?.used_relaxed_faq_threshold && (
+                                <span style={{ background: '#DBEAFE', color: '#2563EB', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                                  FAQ nới ngưỡng
+                                </span>
+                              )}
                               <span style={{ marginLeft: 'auto', background: selectedDebugInfo.retrieval?.passed_threshold ? '#D1FAE5' : '#FEE2E2', color: selectedDebugInfo.retrieval?.passed_threshold ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
                                 {selectedDebugInfo.retrieval?.passed_threshold ? 'ĐẠT' : 'KHÔNG ĐẠT'}
                               </span>
@@ -755,7 +770,7 @@ const AIConfig = () => {
                                   <div key={i} style={{ background: i === 0 ? '#fef6f0' : '#F7FAFC', borderRadius: '8px', padding: '10px', marginBottom: '8px', border: i === 0 ? '1px solid #FFE4D6' : '1px solid #E2E8F0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                                       <span style={{ fontWeight: '600', color: '#4A5568' }}>#{chunk.rank} {i === 0 && '⭐ Phù hợp nhất'}</span>
-                                      <span style={{ background: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#D1FAE5' : '#FEE2E2', color: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>
+                                      <span style={{ background: chunk.score >= thresholdForDebug(selectedDebugInfo) ? '#D1FAE5' : '#FEE2E2', color: chunk.score >= thresholdForDebug(selectedDebugInfo) ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>
                                         {(chunk.score * 100).toFixed(1)}%
                                       </span>
                                     </div>

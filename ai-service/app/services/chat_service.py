@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Điểm < 0.35: Coi là spam/gõ bậy -> Giới thiệu lại bản thân (Giống MoMo case "hdjdhdiirhfh")
 SPAM_THRESHOLD = 0.35 
 STRICT_GROUNDED_SCORE_THRESHOLD = 0.62
+RELAXED_FAQ_SCORE_THRESHOLD = 0.60
 
 # Điểm >= 0.75 (Lấy từ settings): Mới được coi là tìm thấy thông tin
 # Khoảng giữa (0.35 - 0.75): Coi là câu hỏi khó/không có data -> Xin lỗi nhẹ nhàng
@@ -448,6 +449,28 @@ class RAGChatService:
             return (chunk.get("similarity_score", 0.0) + bonus, chunk.get("similarity_score", 0.0))
 
         return sorted(chunks, key=rank, reverse=True)
+
+    def _should_use_relaxed_faq_threshold(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> bool:
+        if best_score < RELAXED_FAQ_SCORE_THRESHOLD or not chunks:
+            return False
+
+        top_chunk = chunks[0]
+        source = (top_chunk.get("source") or "").lower()
+        if not any(tag in source for tag in ("08_cau_hoi_thuong_gap", "faq", "01_gioi_thieu_thu_vien")):
+            return False
+
+        query_keywords = self._extract_keywords(query)
+        if not query_keywords:
+            return False
+
+        evidence_text = self._normalize_for_match(top_chunk.get("content", ""))
+        matched_keywords = [keyword for keyword in query_keywords if keyword in evidence_text]
+        return len(matched_keywords) >= min(2, len(query_keywords))
 
     def _try_answer_hours_from_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> Optional[str]:
         if not self._is_library_hours_query(query) or not chunks:
@@ -942,8 +965,11 @@ class RAGChatService:
             logger.info("[Query] Realtime query detected, fetching live data...")
             live_data = self._fetch_live_context()
 
+        use_relaxed_faq_threshold = self._should_use_relaxed_faq_threshold(message, chunks, best_score)
+        effective_threshold = RELAXED_FAQ_SCORE_THRESHOLD if use_relaxed_faq_threshold else self.similarity_threshold
+
         # 5a. Check Low Confidence (Score lửng lơ)
-        if best_score < self.similarity_threshold:
+        if best_score < effective_threshold:
             # Nếu là câu hỏi realtime hoặc có history -> vẫn generate
             if (is_realtime and live_data) or chat_history:
                 logger.info(f"[Query] Low score but realtime/follow-up — using live data + history to answer")
@@ -972,7 +998,7 @@ class RAGChatService:
                     }
 
             # Không phải realtime hoặc LLM trả IDK -> escalate
-            logger.info(f"[Query] Low confidence ({best_score:.4f} < {self.similarity_threshold}). Escalating.")
+            logger.info(f"[Query] Low confidence ({best_score:.4f} < {effective_threshold}). Escalating.")
             return {
                 "success": True,
                 "reply": self._build_no_info_reply(message),
@@ -982,7 +1008,9 @@ class RAGChatService:
             }
 
         # 6. Generate Response (Score cao)
-        relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
+        if not relevant_chunks and use_relaxed_faq_threshold:
+            relevant_chunks = chunks[:2]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
@@ -1146,8 +1174,14 @@ class RAGChatService:
             live_data = self._fetch_live_context()
             debug["generation"]["is_realtime_query"] = True
 
+        use_relaxed_faq_threshold = self._should_use_relaxed_faq_threshold(message, chunks, best_score)
+        effective_threshold = RELAXED_FAQ_SCORE_THRESHOLD if use_relaxed_faq_threshold else self.similarity_threshold
+        debug["retrieval"]["effective_threshold"] = effective_threshold
+        debug["retrieval"]["used_relaxed_faq_threshold"] = use_relaxed_faq_threshold
+        debug["retrieval"]["passed_threshold"] = best_score >= effective_threshold
+
         # 5a. Check Low Confidence
-        if best_score < self.similarity_threshold:
+        if best_score < effective_threshold:
             # If realtime query -> try with live data
             if is_realtime and live_data:
                 debug["generation"]["used_llm"] = True
@@ -1172,7 +1206,7 @@ class RAGChatService:
                         "debug": debug
                     }
 
-            debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {self.similarity_threshold}"
+            debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {effective_threshold}"
             return {
                 "success": True,
                 "reply": self._build_no_info_reply(message),
@@ -1181,7 +1215,9 @@ class RAGChatService:
             }
 
         # 6. Generate with LLM
-        relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
+        if not relevant_chunks and use_relaxed_faq_threshold:
+            relevant_chunks = chunks[:2]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
