@@ -5,12 +5,14 @@ and real-time statistics queries.
 """
 
 import logging
+import os
 import re
 import unicodedata
 import hashlib
 import httpx
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from urllib.parse import urlparse, urlunparse
 
 from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
@@ -216,7 +218,7 @@ class RAGChatService:
             logger.warning(f"[RAGChatService] Cannot refresh AI config from backend: {exc}")
             return
 
-        next_url = config.get("ollamaUrl") or self.settings.ollama_url
+        next_url = self._normalize_ollama_url(config.get("ollamaUrl") or self.settings.ollama_url)
         next_model = config.get("ollamaModel") or self.settings.ollama_model
         next_temperature = min(config.get("temperature", self.settings.default_temperature), 0.15)
         next_max_tokens = config.get("maxTokens", self.settings.default_max_tokens)
@@ -240,6 +242,27 @@ class RAGChatService:
             self.model,
             self.ollama_url,
         )
+
+    def _normalize_ollama_url(self, raw_url: str) -> str:
+        normalized = (raw_url or self.settings.ollama_url).strip()
+        if not normalized:
+            return self.settings.ollama_url
+
+        parsed = urlparse(normalized)
+        if not os.path.exists("/.dockerenv"):
+            return normalized
+
+        if parsed.hostname not in {"localhost", "127.0.0.1"}:
+            return normalized
+
+        env_url = (self.settings.ollama_url or "").strip()
+        env_parsed = urlparse(env_url) if env_url else None
+        if env_parsed and env_parsed.hostname not in {"", None, "localhost", "127.0.0.1"}:
+            return env_url
+
+        port = parsed.port or 11434
+        replacement_netloc = f"host.docker.internal:{port}"
+        return urlunparse(parsed._replace(netloc=replacement_netloc))
 
     def _model_matches(self, available_model: str) -> bool:
         requested = (self.model or "").strip()
