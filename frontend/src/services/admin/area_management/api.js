@@ -1,8 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../../config/apiConfig";
 
 const api = axios.create({
-  // Base points to Vite proxy prefix; individual endpoints stay relative (no duplicate /slib)
-  baseURL: "/slib",
+  baseURL: `${API_BASE_URL}/slib`,
   headers: {
     "Content-Type": "application/json",
   },
@@ -10,7 +10,10 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('librarian_token') || localStorage.getItem('kiosk_device_token');
+  const token =
+    sessionStorage.getItem('librarian_token') ||
+    localStorage.getItem('librarian_token') ||
+    localStorage.getItem('kiosk_device_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
