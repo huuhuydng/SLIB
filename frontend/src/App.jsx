@@ -42,6 +42,22 @@ function App() {
     const [userRole, setUserRole] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
 
+    const getDefaultRedirect = React.useCallback(() => {
+        if (!isLoggedIn) {
+            return "/login";
+        }
+
+        if (userRole === "ADMIN") {
+            return "/admin";
+        }
+
+        if (userRole === "LIBRARIAN") {
+            return "/librarian";
+        }
+
+        return "/login";
+    }, [isLoggedIn, userRole]);
+
     // Hàm xóa toàn bộ token và logout
     const performLogout = React.useCallback(() => {
         localStorage.removeItem('librarian_token');
