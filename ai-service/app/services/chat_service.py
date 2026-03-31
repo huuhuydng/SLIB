@@ -472,6 +472,47 @@ class RAGChatService:
         matched_keywords = [keyword for keyword in query_keywords if keyword in evidence_text]
         return len(matched_keywords) >= min(2, len(query_keywords))
 
+    def _try_answer_faq_from_top_chunk(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> Optional[str]:
+        if not self._should_use_relaxed_faq_threshold(query, chunks, best_score):
+            return None
+
+        top_chunk = chunks[0]
+        source = (top_chunk.get("source") or "").lower()
+        if "08_cau_hoi_thuong_gap" not in source and "faq" not in source:
+            return None
+
+        raw_content = (top_chunk.get("content") or "").strip()
+        if not raw_content:
+            return None
+
+        lines = [line.strip() for line in raw_content.splitlines() if line.strip()]
+        if not lines:
+            return None
+
+        if lines[0].startswith("#"):
+            lines = lines[1:]
+
+        cleaned_lines = []
+        for line in lines:
+            normalized_line = re.sub(r"^\s*[-*]\s*", "- ", line)
+            cleaned_lines.append(normalized_line)
+
+        if not cleaned_lines:
+            return None
+
+        if any(re.match(r"^\d+\.", line) for line in cleaned_lines):
+            return "Bạn có thể làm theo các bước sau:\n" + "\n".join(cleaned_lines)
+
+        if cleaned_lines[0].lower().startswith("nếu "):
+            return "\n".join(cleaned_lines)
+
+        return "Thông tin bạn cần như sau:\n" + "\n".join(cleaned_lines)
+
     def _try_answer_hours_from_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> Optional[str]:
         if not self._is_library_hours_query(query) or not chunks:
             return None
@@ -947,6 +988,19 @@ class RAGChatService:
                 ]
             }
 
+        faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
+        if faq_response:
+            return {
+                "success": True,
+                "reply": faq_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
         # 5. Check realtime query BEFORE low confidence check
         is_realtime = self._detect_realtime_query(message)
 
@@ -1163,6 +1217,16 @@ class RAGChatService:
             return {
                 "success": True,
                 "reply": grounded_hours_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
+
+        faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
+        if faq_response:
+            debug["generation"]["action_reason"] = "Answered directly from FAQ chunk"
+            return {
+                "success": True,
+                "reply": faq_response,
                 "action": ActionType.NONE,
                 "debug": debug
             }
