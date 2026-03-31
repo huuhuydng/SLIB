@@ -211,7 +211,7 @@ async def test_api_connection(_: dict = Depends(require_admin_access)):
         return TestConnectionResponse(
             success=result["success"],
             message=result["message"],
-            model=get_settings().ollama_model
+            model=result.get("model") or get_settings().ollama_model
         )
     except Exception as e:
         return TestConnectionResponse(
