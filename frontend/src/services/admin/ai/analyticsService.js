@@ -1,17 +1,29 @@
 import axios from 'axios';
-import { AI_API_BASE_URL } from '../../../config/apiConfig';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 const aiAnalyticsService = axios.create({
-  baseURL: AI_API_BASE_URL,
+  baseURL: `${API_BASE_URL}/slib/ai/analytics`,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+aiAnalyticsService.interceptors.request.use((config) => {
+  const token =
+    sessionStorage.getItem('librarian_token') ||
+    localStorage.getItem('librarian_token');
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 // Lấy phân tích hành vi sinh viên
 export const getStudentBehaviorAnalytics = async (userId, days = 30) => {
   try {
-    const response = await aiAnalyticsService.post('/api/ai/analytics/student-behavior', {
+    const response = await aiAnalyticsService.post('/student-behavior', {
       user_id: userId,
       days: days,
     });
@@ -25,7 +37,7 @@ export const getStudentBehaviorAnalytics = async (userId, days = 30) => {
 // Lấy dự đoán mật độ
 export const getDensityPrediction = async (zoneId = null, days = 7) => {
   try {
-    const response = await aiAnalyticsService.get('/api/ai/analytics/density-prediction', {
+    const response = await aiAnalyticsService.get('/density-prediction', {
       params: { zone_id: zoneId, days },
     });
     return response.data;
@@ -38,7 +50,7 @@ export const getDensityPrediction = async (zoneId = null, days = 7) => {
 // Lấy gợi ý chỗ ngồi
 export const getSeatRecommendation = async (userId, zonePreference = null, timeSlot = null) => {
   try {
-    const response = await aiAnalyticsService.get('/api/ai/analytics/seat-recommendation', {
+    const response = await aiAnalyticsService.get('/seat-recommendation', {
       params: {
         user_id: userId,
         zone_preference: zonePreference,
@@ -55,7 +67,7 @@ export const getSeatRecommendation = async (userId, zonePreference = null, timeS
 // Lấy thống kê sử dụng
 export const getUsageStatistics = async (period = 'week') => {
   try {
-    const response = await aiAnalyticsService.get('/api/ai/analytics/usage-statistics', {
+    const response = await aiAnalyticsService.get('/usage-statistics', {
       params: { period },
     });
     return response.data;
@@ -68,7 +80,7 @@ export const getUsageStatistics = async (period = 'week') => {
 // Lấy sức chứa thời gian thực
 export const getRealtimeCapacity = async () => {
   try {
-    const response = await aiAnalyticsService.get('/api/ai/analytics/realtime-capacity');
+    const response = await aiAnalyticsService.get('/realtime-capacity');
     return response.data;
   } catch (error) {
     console.error('Error fetching realtime capacity:', error);
@@ -79,7 +91,7 @@ export const getRealtimeCapacity = async () => {
 // Lấy tổng hợp behavior của tất cả sinh viên
 export const getBehaviorSummary = async (days = 7) => {
   try {
-    const response = await aiAnalyticsService.get('/api/ai/analytics/behavior-summary', {
+    const response = await aiAnalyticsService.get('/behavior-summary', {
       params: { days },
     });
     return response.data;

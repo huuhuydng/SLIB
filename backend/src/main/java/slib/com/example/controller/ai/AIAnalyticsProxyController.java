@@ -34,12 +34,18 @@ public class AIAnalyticsProxyController {
      */
     @GetMapping("/analytics/density-prediction")
     public ResponseEntity<?> getDensityPrediction(
-            @RequestParam(required = false) String zone_id) {
-        String url = aiServiceUrl + "/api/ai/analytics/density-prediction";
+            @RequestParam(required = false) String zone_id,
+            @RequestParam(required = false) Integer days) {
+        StringBuilder url = new StringBuilder(aiServiceUrl + "/api/ai/analytics/density-prediction");
+        boolean hasParam = false;
         if (zone_id != null) {
-            url += "?zone_id=" + zone_id;
+            url.append("?zone_id=").append(zone_id);
+            hasParam = true;
         }
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, buildInternalRequest(), Map.class);
+        if (days != null) {
+            url.append(hasParam ? "&" : "?").append("days=").append(days);
+        }
+        ResponseEntity<Map> response = restTemplate.exchange(url.toString(), HttpMethod.GET, buildInternalRequest(), Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
@@ -60,6 +66,23 @@ public class AIAnalyticsProxyController {
     public ResponseEntity<?> getRealtimeCapacity() {
         String url = aiServiceUrl + "/api/ai/analytics/realtime-capacity";
         ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, buildInternalRequest(), Map.class);
+        return ResponseEntity.ok(response.getBody());
+    }
+
+    /**
+     * Proxy: /slib/ai/analytics/behavior-summary
+     */
+    @GetMapping("/analytics/behavior-summary")
+    public ResponseEntity<?> getBehaviorSummary(@RequestParam(required = false) Integer days) {
+        StringBuilder url = new StringBuilder(aiServiceUrl + "/api/ai/analytics/behavior-summary");
+        if (days != null) {
+            url.append("?days=").append(days);
+        }
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url.toString(),
+                HttpMethod.GET,
+                buildInternalRequest(),
+                Map.class);
         return ResponseEntity.ok(response.getBody());
     }
 
