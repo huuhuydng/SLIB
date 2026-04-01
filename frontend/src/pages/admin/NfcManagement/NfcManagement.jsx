@@ -593,11 +593,7 @@ const NfcManagement = () => {
                   setNfcCheckError(null);
                   setNfcCheckResult(null);
                   try {
-                    const scanResponse = await fetch('http://localhost:5050/scan-uid', {
-                      method: 'GET',
-                      headers: { 'Accept': 'application/json' }
-                    });
-                    const scanData = await scanResponse.json();
+                    const scanData = await nfcManagementService.scanNfcFromBridge();
                     if (scanData.success && scanData.uid) {
                       try {
                         const seatResponse = await getSeatByNfcUid(scanData.uid);
@@ -620,11 +616,7 @@ const NfcManagement = () => {
                       setNfcCheckError(scanData.error || 'Không đọc được thẻ NFC');
                     }
                   } catch (err) {
-                    if (err.message?.includes('Failed to fetch')) {
-                      setNfcCheckError('Không kết nối được NFC Bridge Server (cổng 5050)');
-                    } else {
-                      setNfcCheckError(err.message || 'Lỗi quét NFC');
-                    }
+                    setNfcCheckError(err.message || 'Lỗi quét NFC');
                   } finally {
                     setNfcCheckScanning(false);
                   }

@@ -18,6 +18,7 @@ import {
   updateSeatNfcUid,
   clearSeatNfcUid,
 } from "../../../services/admin/area_management/api";
+import nfcManagementService from "../../../services/admin/nfcManagementService";
 import "../../../styles/admin/properties.css";
 
 // Predefined amenities for quick add
@@ -1146,11 +1147,7 @@ function PropertiesPanel() {
                       setNfcScanning(true);
                       setNfcError(null);
                       try {
-                        const response = await fetch('http://localhost:5050/scan-uid', {
-                          method: 'GET',
-                          headers: { 'Accept': 'application/json' }
-                        });
-                        const data = await response.json();
+                        const data = await nfcManagementService.scanNfcFromBridge();
 
                         if (data.success && data.uid) {
                           setNfcSaving(true);
@@ -1171,11 +1168,7 @@ function PropertiesPanel() {
                           setNfcError(data.error || 'Không đọc được thẻ NFC');
                         }
                       } catch (err) {
-                        if (err.message?.includes('Failed to fetch')) {
-                          setNfcError('Không kết nối được NFC Bridge Server (cổng 5050)');
-                        } else {
-                          setNfcError(err.message || 'Lỗi quét NFC');
-                        }
+                        setNfcError(err.message || 'Lỗi quét NFC');
                       } finally {
                         setNfcScanning(false);
                       }
@@ -1242,11 +1235,7 @@ function PropertiesPanel() {
                     setNfcScanning(true);
                     setNfcError(null);
                     try {
-                      const response = await fetch('http://localhost:5050/scan-uid', {
-                        method: 'GET',
-                        headers: { 'Accept': 'application/json' }
-                      });
-                      const data = await response.json();
+                      const data = await nfcManagementService.scanNfcFromBridge();
 
                       if (data.success && data.uid) {
                         setNfcSaving(true);
@@ -1267,11 +1256,7 @@ function PropertiesPanel() {
                         setNfcError(data.error || 'Không đọc được thẻ NFC');
                       }
                     } catch (err) {
-                      if (err.message?.includes('Failed to fetch')) {
-                        setNfcError('Không kết nối được NFC Bridge Server (cổng 5050)');
-                      } else {
-                        setNfcError(err.message || 'Lỗi quét NFC');
-                      }
+                      setNfcError(err.message || 'Lỗi quét NFC');
                     } finally {
                       setNfcScanning(false);
                     }

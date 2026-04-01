@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL as API_BASE } from '../../config/apiConfig';
+import { API_BASE_URL as API_BASE, NFC_BRIDGE_URL } from '../../config/apiConfig';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
@@ -81,18 +81,18 @@ const nfcManagementService = {
     },
 
     /**
-     * Quét NFC từ bridge tool (localhost:5050)
+     * Quét NFC từ bridge tool cục bộ trên máy thủ thư
      */
     scanNfcFromBridge: async () => {
         try {
-            const res = await axios.get('http://localhost:5050/scan-uid', {
+            const res = await axios.get(`${NFC_BRIDGE_URL}/scan-uid`, {
                 timeout: 30000
             });
             return res.data;
         } catch (e) {
             console.error('Error scanning NFC from bridge:', e);
             if (e.code === 'ECONNREFUSED' || e.code === 'ERR_NETWORK') {
-                throw { message: 'NFC Bridge không hoạt động. Hãy khởi động tools/nfc-bridge trước.' };
+                throw { message: 'NFC Bridge không hoạt động trên máy này. Hãy khởi động bridge trước khi quét thẻ.' };
             }
             throw e.response?.data || { message: 'Lỗi khi quét NFC' };
         }
