@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
-  Nfc, RefreshCw, CheckCircle, XCircle, Plus, Trash2, Wifi,
+  Nfc, RefreshCw, CheckCircle, XCircle, Plus, Trash2, Wifi, Download,
   ZoomIn, ZoomOut, Maximize2, Info, X
 } from "lucide-react";
 import { useConfirm } from "../../../components/common/ConfirmDialog";
 import { getAreas, getZonesByArea, getSeats, getAreaFactoriesByArea, getSeatByNfcUid } from "../../../services/admin/area_management/api";
 import { calculateDynamicSeatLayout } from "../../../utils/admin/seatLayout";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
+import { NFC_BRIDGE_URL } from "../../../config/apiConfig";
 import "./NfcManagement.css";
 
 const NfcManagement = () => {
@@ -28,6 +29,16 @@ const NfcManagement = () => {
   const [scanLoading, setScanLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [bridgeStatus, setBridgeStatus] = useState({
+    online: false,
+    readerConnected: false,
+    status: "checking",
+    bridgeUrl: NFC_BRIDGE_URL,
+    readerName: null,
+    message: "Đang kiểm tra NFC Bridge..."
+  });
+  const [bridgeChecking, setBridgeChecking] = useState(false);
+  const [showBridgeGuide, setShowBridgeGuide] = useState(false);
 
   // ===== NFC CHECK STATE =====
   const [showNfcCheckModal, setShowNfcCheckModal] = useState(false);
@@ -47,6 +58,23 @@ const NfcManagement = () => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  const checkBridgeConnection = useCallback(async (notify = false) => {
+    setBridgeChecking(true);
+    try {
+      const status = await nfcManagementService.checkBridgeConnection();
+      setBridgeStatus(status);
+
+      if (notify) {
+        showToast(
+          status.message,
+          status.online && status.readerConnected ? "success" : "error"
+        );
+      }
+    } finally {
+      setBridgeChecking(false);
+    }
+  }, []);
 
   // ===== LOAD ALL DATA =====
   const loadData = useCallback(async () => {
@@ -140,6 +168,7 @@ const NfcManagement = () => {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { checkBridgeConnection(false); }, [checkBridgeConnection]);
 
   // ===== STATS =====
   const stats = useMemo(() => {
@@ -290,6 +319,15 @@ const NfcManagement = () => {
   const areaZones = zones.filter(z => z.areaId === selectedAreaId);
   const areaFactories = factories.filter(f => f.areaId === selectedAreaId);
 
+  const bridgeDownloadUrl = "/downloads/slib-nfc-bridge.zip";
+  const bridgeStatusLabel = bridgeStatus.status === "ready"
+    ? "Sẵn sàng"
+    : bridgeStatus.status === "bridge_only"
+      ? "Chưa thấy đầu đọc"
+      : bridgeStatus.status === "offline"
+        ? "Chưa chạy"
+        : "Đang kiểm tra";
+
   // ===== RENDER =====
   return (
     <div className="nfc-map-page">
@@ -305,6 +343,41 @@ const NfcManagement = () => {
           </div>
         </div>
         <div className="nfc-map-header__right">
+          <div className={`nfc-bridge-card nfc-bridge-card--${bridgeStatus.status}`}>
+            <div className="nfc-bridge-card__main">
+              <div className="nfc-bridge-card__status">
+                <span className={`nfc-bridge-card__dot nfc-bridge-card__dot--${bridgeStatus.status}`}></span>
+                <span className="nfc-bridge-card__label">NFC Bridge: {bridgeStatusLabel}</span>
+              </div>
+              <div className="nfc-bridge-card__message">{bridgeStatus.message}</div>
+              <div className="nfc-bridge-card__meta">Địa chỉ: {bridgeStatus.bridgeUrl}</div>
+            </div>
+            <div className="nfc-bridge-card__actions">
+              <a
+                className="nfc-bridge-btn nfc-bridge-btn--primary"
+                href={bridgeDownloadUrl}
+                download
+              >
+                <Download size={14} />
+                Tải công cụ NFC
+              </a>
+              <button
+                className="nfc-bridge-btn"
+                onClick={() => setShowBridgeGuide(true)}
+              >
+                <Info size={14} />
+                Hướng dẫn cài
+              </button>
+              <button
+                className="nfc-bridge-btn"
+                onClick={() => checkBridgeConnection(true)}
+                disabled={bridgeChecking}
+              >
+                <RefreshCw size={14} className={bridgeChecking ? "spin" : ""} />
+                Kiểm tra kết nối
+              </button>
+            </div>
+          </div>
           <button
             className="nfc-check-btn"
             onClick={() => { setShowNfcCheckModal(true); setNfcCheckResult(null); setNfcCheckError(null); }}
@@ -675,6 +748,70 @@ const NfcManagement = () => {
                   Quét thẻ khác
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBridgeGuide && (
+        <div className="nfc-check-overlay" onClick={() => setShowBridgeGuide(false)}>
+          <div className="nfc-check-modal nfc-bridge-guide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="nfc-check-modal__title">
+              <Info size={20} color="#e8600a" />
+              Hướng dẫn cài NFC Bridge
+            </h3>
+
+            <div className="nfc-bridge-guide__body">
+              <p className="nfc-bridge-guide__intro">
+                Máy nào cần quét thẻ NFC thì máy đó phải cài và chạy NFC Bridge cục bộ. Web chỉ gọi bridge trên chính máy đang mở trình duyệt.
+              </p>
+
+              <ol className="nfc-bridge-guide__steps">
+                <li>Tải gói <strong>SLIB NFC Bridge</strong> bằng nút <strong>Tải công cụ NFC</strong>.</li>
+                <li>Giải nén file zip vào một thư mục cố định trên máy.</li>
+                <li>Cài <strong>Node.js 18+</strong> nếu máy chưa có.</li>
+                <li>Cắm đầu đọc <strong>ACR122U</strong> vào máy.</li>
+                <li>Chạy file <strong>start-nfc-bridge.bat</strong> trên Windows hoặc <strong>start-nfc-bridge.command</strong> trên macOS/Linux.</li>
+                <li>Quay lại trang này và bấm <strong>Kiểm tra kết nối</strong>.</li>
+              </ol>
+
+              <div className="nfc-bridge-guide__box">
+                <div className="nfc-bridge-guide__box-title">Khi nào bridge sẵn sàng?</div>
+                <ul className="nfc-bridge-guide__list">
+                  <li>Bridge chạy ở <strong>{NFC_BRIDGE_URL}</strong>.</li>
+                  <li>Trạng thái hiển thị <strong>Sẵn sàng</strong>.</li>
+                  <li>Nếu hiện <strong>Chưa thấy đầu đọc</strong>, hãy kiểm tra lại cáp USB hoặc driver ACR122U.</li>
+                </ul>
+              </div>
+
+              <div className="nfc-bridge-guide__actions">
+                <a
+                  className="nfc-bridge-btn nfc-bridge-btn--primary"
+                  href={bridgeDownloadUrl}
+                  download
+                >
+                  <Download size={14} />
+                  Tải công cụ NFC
+                </a>
+                <a
+                  className="nfc-bridge-btn"
+                  href="https://nodejs.org/en/download"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Info size={14} />
+                  Tải Node.js
+                </a>
+              </div>
+            </div>
+
+            <div className="nfc-check-modal__actions">
+              <button
+                className="nfc-check-modal__close-btn"
+                onClick={() => setShowBridgeGuide(false)}
+              >
+                Đóng
+              </button>
             </div>
           </div>
         </div>
