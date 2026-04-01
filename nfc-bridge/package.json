@@ -2,7 +2,7 @@
     "name": "slib-nfc-bridge",
     "version": "1.0.0",
     "description": "Local NFC bridge server for SLIB Admin Portal - ACR122U USB reader",
-    "main": "nfc-bridge-server.js",
+    "main": "index.js",
     "scripts": {
         "start": "node nfc-bridge-server.js",
         "dev": "node nfc-bridge-server.js"

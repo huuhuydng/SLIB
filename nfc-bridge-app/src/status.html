@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLIB NFC Bridge</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fff7ed;
+      --card: #ffffff;
+      --line: #fed7aa;
+      --text: #1f2937;
+      --muted: #64748b;
+      --brand: #ea580c;
+      --brand-dark: #c2410c;
+      --ok: #16a34a;
+      --warn: #f59e0b;
+      --off: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "SF Pro Display", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(234, 88, 12, 0.14), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.18), transparent 24%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 22px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.65);
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
+      border-radius: 24px;
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .status__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .status__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .status__badge--ready {
+      color: var(--ok);
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    .status__badge--bridge-only {
+      color: var(--warn);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .status__badge--offline {
+      color: var(--off);
+      background: rgba(220, 38, 38, 0.12);
+    }
+
+    .status__row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+      border-top: 1px solid #f1f5f9;
+      font-size: 14px;
+    }
+
+    .status__row:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .status__label {
+      color: var(--muted);
+    }
+
+    .status__value {
+      text-align: right;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 14px;
+      height: 46px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid #e2e8f0;
+    }
+
+    .footer {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>SLIB NFC Bridge</h1>
+    <p>Bridge cục bộ để web quản trị SLIB đọc đầu đọc ACR122U bằng một lần cài đặt.</p>
+
+    <section class="status">
+      <div id="statusBadge" class="status__badge status__badge--offline">
+        <span class="status__dot"></span>
+        <span id="statusBadgeText">Đang tải trạng thái...</span>
+      </div>
+
+      <div class="status__row">
+        <span class="status__label">Bridge URL</span>
+        <span id="bridgeUrl" class="status__value">http://127.0.0.1:5050</span>
+      </div>
+      <div class="status__row">
+        <span class="status__label">Trạng thái đầu đọc</span>
+        <span id="readerState" class="status__value">Chưa kết nối</span>
+      </div>
+      <div class="status__row">
+        <span class="status__label">Tên đầu đọc</span>
+        <span id="readerName" class="status__value">Không có</span>
+      </div>
+      <div class="status__row">
+        <span class="status__label">Cập nhật gần nhất</span>
+        <span id="updatedAt" class="status__value">-</span>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="restartButton" class="btn-primary">Khởi động lại Bridge</button>
+      <button id="openAdminButton" class="btn-secondary">Mở trang quản lý NFC</button>
+    </div>
+
+    <p class="footer">
+      Ứng dụng này sẽ tự chạy cùng hệ điều hành sau khi cài đặt. Web có thể mở nó qua liên kết
+      <strong>slib-nfc-bridge://open</strong>.
+    </p>
+  </div>
+
+  <script>
+    const statusBadge = document.getElementById('statusBadge');
+    const statusBadgeText = document.getElementById('statusBadgeText');
+    const bridgeUrl = document.getElementById('bridgeUrl');
+    const readerState = document.getElementById('readerState');
+    const readerName = document.getElementById('readerName');
+    const updatedAt = document.getElementById('updatedAt');
+    const restartButton = document.getElementById('restartButton');
+    const openAdminButton = document.getElementById('openAdminButton');
+
+    function renderStatus(status) {
+      const ready = Boolean(status?.readerConnected);
+      const online = Boolean(status?.online);
+      const badgeClass = ready ? 'status__badge--ready' : online ? 'status__badge--bridge-only' : 'status__badge--offline';
+
+      statusBadge.className = `status__badge ${badgeClass}`;
+      statusBadgeText.textContent = ready ? 'Sẵn sàng quét NFC' : online ? 'Bridge đang chạy, chưa thấy đầu đọc' : 'Bridge chưa khởi động';
+      bridgeUrl.textContent = status?.bridgeUrl || 'http://127.0.0.1:5050';
+      readerState.textContent = ready ? 'Đã kết nối' : 'Chưa kết nối';
+      readerName.textContent = status?.readerName || 'Không có';
+      updatedAt.textContent = status?.timestamp ? new Date(status.timestamp).toLocaleString('vi-VN') : '-';
+    }
+
+    async function loadStatus() {
+      const status = await window.slibNfcBridge.getStatus();
+      renderStatus(status);
+    }
+
+    restartButton.addEventListener('click', async () => {
+      restartButton.disabled = true;
+      restartButton.textContent = 'Đang khởi động lại...';
+      try {
+        const status = await window.slibNfcBridge.restart();
+        renderStatus(status);
+      } finally {
+        restartButton.disabled = false;
+        restartButton.textContent = 'Khởi động lại Bridge';
+      }
+    });
+
+    openAdminButton.addEventListener('click', async () => {
+      await window.slibNfcBridge.openAdmin();
+    });
+
+    window.slibNfcBridge.onStatusUpdated(renderStatus);
+    loadStatus();
+  </script>
+</body>
+</html>

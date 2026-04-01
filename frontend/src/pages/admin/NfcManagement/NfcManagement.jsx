@@ -38,6 +38,7 @@ const NfcManagement = () => {
     message: "Đang kiểm tra NFC Bridge..."
   });
   const [bridgeChecking, setBridgeChecking] = useState(false);
+  const [bridgeLaunching, setBridgeLaunching] = useState(false);
   const [showBridgeGuide, setShowBridgeGuide] = useState(false);
   const [showBridgeDropdown, setShowBridgeDropdown] = useState(false);
   const bridgeDropdownRef = useRef(null);
@@ -77,6 +78,17 @@ const NfcManagement = () => {
       setBridgeChecking(false);
     }
   }, []);
+
+  const handleOpenBridgeApp = useCallback(() => {
+    nfcManagementService.openBridgeApp();
+    setBridgeLaunching(true);
+    showToast("Đã gửi yêu cầu mở công cụ NFC trên máy này.");
+    setShowBridgeDropdown(false);
+
+    window.setTimeout(() => checkBridgeConnection(false), 1500);
+    window.setTimeout(() => checkBridgeConnection(false), 4000);
+    window.setTimeout(() => setBridgeLaunching(false), 4500);
+  }, [checkBridgeConnection]);
 
   // ===== LOAD ALL DATA =====
   const loadData = useCallback(async () => {
@@ -380,8 +392,16 @@ const NfcManagement = () => {
                 )}
                 <div className="nfc-bridge-dropdown__divider"></div>
                 <div className="nfc-bridge-dropdown__actions">
-                  <a
+                  <button
                     className="nfc-bridge-btn nfc-bridge-btn--primary"
+                    onClick={handleOpenBridgeApp}
+                    disabled={bridgeLaunching}
+                  >
+                    <Wifi size={14} />
+                    {bridgeLaunching ? "Đang mở công cụ..." : "Mở công cụ NFC"}
+                  </button>
+                  <a
+                    className="nfc-bridge-btn"
                     href={bridgeDownloadUrl}
                     download
                   >
@@ -801,6 +821,7 @@ const NfcManagement = () => {
                 <li>Cài <strong>Node.js 18+</strong> nếu máy chưa có.</li>
                 <li>Cắm đầu đọc <strong>ACR122U</strong> vào máy.</li>
                 <li>Chạy file <strong>start-nfc-bridge.bat</strong> trên Windows hoặc <strong>start-nfc-bridge.command</strong> trên macOS/Linux.</li>
+                <li>Sau khi cài app desktop phiên bản mới, anh/chị có thể bấm trực tiếp <strong>Mở công cụ NFC</strong> trên web.</li>
                 <li>Quay lại trang này và bấm <strong>Kiểm tra kết nối</strong>.</li>
               </ol>
 
@@ -814,8 +835,16 @@ const NfcManagement = () => {
               </div>
 
               <div className="nfc-bridge-guide__actions">
-                <a
+                <button
                   className="nfc-bridge-btn nfc-bridge-btn--primary"
+                  onClick={handleOpenBridgeApp}
+                  disabled={bridgeLaunching}
+                >
+                  <Wifi size={14} />
+                  {bridgeLaunching ? "Đang mở công cụ..." : "Mở công cụ NFC"}
+                </button>
+                <a
+                  className="nfc-bridge-btn"
                   href={bridgeDownloadUrl}
                   download
                 >

@@ -7,6 +7,12 @@ const getAuthHeaders = () => {
 };
 
 const nfcManagementService = {
+    openBridgeApp: (action = 'open') => {
+        if (typeof window === 'undefined') return false;
+        window.location.href = `slib-nfc-bridge://${action}`;
+        return true;
+    },
+
     /**
      * Kiểm tra NFC Bridge cục bộ và trạng thái đầu đọc.
      */
