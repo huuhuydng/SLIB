@@ -149,6 +149,7 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.2
       - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@slib-postgres:5432/${POSTGRES_DB}
       - JAVA_BACKEND_URL=http://slib-backend:8080/slib
       - REDIS_URL=redis://slib-redis:6379
