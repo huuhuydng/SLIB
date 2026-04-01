@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Nfc, RefreshCw, CheckCircle, XCircle, Plus, Trash2, Wifi, Download,
-  ZoomIn, ZoomOut, Maximize2, Info, X
+  ZoomIn, ZoomOut, Maximize2, Info, X, ChevronDown
 } from "lucide-react";
 import { useConfirm } from "../../../components/common/ConfirmDialog";
 import { getAreas, getZonesByArea, getSeats, getAreaFactoriesByArea, getSeatByNfcUid } from "../../../services/admin/area_management/api";
@@ -39,6 +39,8 @@ const NfcManagement = () => {
   });
   const [bridgeChecking, setBridgeChecking] = useState(false);
   const [showBridgeGuide, setShowBridgeGuide] = useState(false);
+  const [showBridgeDropdown, setShowBridgeDropdown] = useState(false);
+  const bridgeDropdownRef = useRef(null);
 
   // ===== NFC CHECK STATE =====
   const [showNfcCheckModal, setShowNfcCheckModal] = useState(false);
@@ -237,6 +239,19 @@ const NfcManagement = () => {
     }
   }, [areas, loading, handleFitToView]);
 
+  // Close bridge dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (bridgeDropdownRef.current && !bridgeDropdownRef.current.contains(e.target)) {
+        setShowBridgeDropdown(false);
+      }
+    };
+    if (showBridgeDropdown) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showBridgeDropdown]);
+
   // ===== NFC ACTIONS =====
   const handleViewInfo = async (seat) => {
     setSelectedSeat(seat);
@@ -343,40 +358,54 @@ const NfcManagement = () => {
           </div>
         </div>
         <div className="nfc-map-header__right">
-          <div className={`nfc-bridge-card nfc-bridge-card--${bridgeStatus.status}`}>
-            <div className="nfc-bridge-card__main">
-              <div className="nfc-bridge-card__status">
-                <span className={`nfc-bridge-card__dot nfc-bridge-card__dot--${bridgeStatus.status}`}></span>
-                <span className="nfc-bridge-card__label">NFC Bridge: {bridgeStatusLabel}</span>
+          <div className="nfc-bridge-wrapper" ref={bridgeDropdownRef}>
+            <button
+              className={`nfc-bridge-chip nfc-bridge-chip--${bridgeStatus.status}`}
+              onClick={() => setShowBridgeDropdown(prev => !prev)}
+            >
+              <span className={`nfc-bridge-chip__dot nfc-bridge-chip__dot--${bridgeStatus.status}`}></span>
+              <span className="nfc-bridge-chip__text">NFC Bridge: {bridgeStatusLabel}</span>
+              <ChevronDown size={14} className={`nfc-bridge-chip__arrow ${showBridgeDropdown ? "nfc-bridge-chip__arrow--open" : ""}`} />
+            </button>
+            {showBridgeDropdown && (
+              <div className="nfc-bridge-dropdown">
+                <div className="nfc-bridge-dropdown__header">
+                  <span className={`nfc-bridge-card__dot nfc-bridge-card__dot--${bridgeStatus.status}`}></span>
+                  <span className="nfc-bridge-dropdown__title">NFC Bridge: {bridgeStatusLabel}</span>
+                </div>
+                <p className="nfc-bridge-dropdown__message">{bridgeStatus.message}</p>
+                <p className="nfc-bridge-dropdown__meta">Địa chỉ: {bridgeStatus.bridgeUrl}</p>
+                {bridgeStatus.readerName && (
+                  <p className="nfc-bridge-dropdown__meta">Đầu đọc: {bridgeStatus.readerName}</p>
+                )}
+                <div className="nfc-bridge-dropdown__divider"></div>
+                <div className="nfc-bridge-dropdown__actions">
+                  <a
+                    className="nfc-bridge-btn nfc-bridge-btn--primary"
+                    href={bridgeDownloadUrl}
+                    download
+                  >
+                    <Download size={14} />
+                    Tải công cụ NFC
+                  </a>
+                  <button
+                    className="nfc-bridge-btn"
+                    onClick={() => { setShowBridgeGuide(true); setShowBridgeDropdown(false); }}
+                  >
+                    <Info size={14} />
+                    Hướng dẫn cài
+                  </button>
+                  <button
+                    className="nfc-bridge-btn"
+                    onClick={() => checkBridgeConnection(true)}
+                    disabled={bridgeChecking}
+                  >
+                    <RefreshCw size={14} className={bridgeChecking ? "spin" : ""} />
+                    Kiểm tra kết nối
+                  </button>
+                </div>
               </div>
-              <div className="nfc-bridge-card__message">{bridgeStatus.message}</div>
-              <div className="nfc-bridge-card__meta">Địa chỉ: {bridgeStatus.bridgeUrl}</div>
-            </div>
-            <div className="nfc-bridge-card__actions">
-              <a
-                className="nfc-bridge-btn nfc-bridge-btn--primary"
-                href={bridgeDownloadUrl}
-                download
-              >
-                <Download size={14} />
-                Tải công cụ NFC
-              </a>
-              <button
-                className="nfc-bridge-btn"
-                onClick={() => setShowBridgeGuide(true)}
-              >
-                <Info size={14} />
-                Hướng dẫn cài
-              </button>
-              <button
-                className="nfc-bridge-btn"
-                onClick={() => checkBridgeConnection(true)}
-                disabled={bridgeChecking}
-              >
-                <RefreshCw size={14} className={bridgeChecking ? "spin" : ""} />
-                Kiểm tra kết nối
-              </button>
-            </div>
+            )}
           </div>
           <button
             className="nfc-check-btn"
