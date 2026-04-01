@@ -48,11 +48,58 @@ function App() {
         }
 
         if (userRole === "ADMIN") {
-            return "/admin";
+            return "/admin/dashboard";
         }
 
         if (userRole === "LIBRARIAN") {
-            return "/librarian";
+            return "/librarian/dashboard";
+        }
+
+        return "/login";
+    }, [isLoggedIn, userRole]);
+
+    const getLegacyRedirect = React.useCallback((legacyPath) => {
+        if (!isLoggedIn) {
+            return "/login";
+        }
+
+        if (userRole === "ADMIN") {
+            const adminRouteMap = {
+                "/dashboard": "/admin/dashboard",
+                "/library-map": "/admin/library-map",
+                "/users": "/admin/users",
+                "/devices": "/admin/devices",
+                "/config": "/admin/config",
+                "/health": "/admin/health",
+                "/ai-config": "/admin/ai-config",
+                "/nfc-management": "/admin/nfc-management",
+                "/kiosk": "/admin/kiosk",
+                "/settings": "/admin/settings",
+            };
+
+            return adminRouteMap[legacyPath] || "/admin/dashboard";
+        }
+
+        if (userRole === "LIBRARIAN") {
+            const librarianRouteMap = {
+                "/dashboard": "/librarian/dashboard",
+                "/chat": "/librarian/chat",
+                "/checkinout": "/librarian/checkinout",
+                "/seatmanage": "/librarian/seatmanage",
+                "/bookings": "/librarian/bookings",
+                "/students": "/librarian/students",
+                "/violation": "/librarian/violation",
+                "/support-requests": "/librarian/support-requests",
+                "/complaints": "/librarian/complaints",
+                "/seat-status-reports": "/librarian/seat-status-reports",
+                "/feedback": "/librarian/feedback",
+                "/statistic": "/librarian/statistic",
+                "/news": "/librarian/news",
+                "/new-books": "/librarian/new-books",
+                "/settings": "/librarian/settings",
+            };
+
+            return librarianRouteMap[legacyPath] || "/librarian/dashboard";
         }
 
         return "/login";
@@ -173,6 +220,29 @@ function App() {
 
                             {/* Root redirects based on role */}
                             <Route path="/" element={<Navigate to={getDefaultRedirect()} replace />} />
+
+                            {/* Legacy bare routes - keep old bookmarks working */}
+                            <Route path="/dashboard" element={<Navigate to={getLegacyRedirect("/dashboard")} replace />} />
+                            <Route path="/library-map" element={<Navigate to={getLegacyRedirect("/library-map")} replace />} />
+                            <Route path="/users" element={<Navigate to={getLegacyRedirect("/users")} replace />} />
+                            <Route path="/devices" element={<Navigate to={getLegacyRedirect("/devices")} replace />} />
+                            <Route path="/config" element={<Navigate to={getLegacyRedirect("/config")} replace />} />
+                            <Route path="/health" element={<Navigate to={getLegacyRedirect("/health")} replace />} />
+                            <Route path="/ai-config" element={<Navigate to={getLegacyRedirect("/ai-config")} replace />} />
+                            <Route path="/chat" element={<Navigate to={getLegacyRedirect("/chat")} replace />} />
+                            <Route path="/checkinout" element={<Navigate to={getLegacyRedirect("/checkinout")} replace />} />
+                            <Route path="/seatmanage" element={<Navigate to={getLegacyRedirect("/seatmanage")} replace />} />
+                            <Route path="/bookings" element={<Navigate to={getLegacyRedirect("/bookings")} replace />} />
+                            <Route path="/students" element={<Navigate to={getLegacyRedirect("/students")} replace />} />
+                            <Route path="/violation" element={<Navigate to={getLegacyRedirect("/violation")} replace />} />
+                            <Route path="/support-requests" element={<Navigate to={getLegacyRedirect("/support-requests")} replace />} />
+                            <Route path="/complaints" element={<Navigate to={getLegacyRedirect("/complaints")} replace />} />
+                            <Route path="/seat-status-reports" element={<Navigate to={getLegacyRedirect("/seat-status-reports")} replace />} />
+                            <Route path="/feedback" element={<Navigate to={getLegacyRedirect("/feedback")} replace />} />
+                            <Route path="/statistic" element={<Navigate to={getLegacyRedirect("/statistic")} replace />} />
+                            <Route path="/news" element={<Navigate to={getLegacyRedirect("/news")} replace />} />
+                            <Route path="/new-books" element={<Navigate to={getLegacyRedirect("/new-books")} replace />} />
+                            <Route path="/nfc-management" element={<Navigate to={getLegacyRedirect("/nfc-management")} replace />} />
 
                             {/* Error Pages */}
                             <Route path="/session-expired" element={<SessionExpired />} />

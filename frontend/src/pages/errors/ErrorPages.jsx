@@ -126,6 +126,24 @@ const btnSecondary = {
     fontFamily: "'Be Vietnam Pro', 'Segoe UI', sans-serif",
 };
 
+const resolveHomePath = () => {
+    const userStr = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
+
+    if (!userStr) {
+        return '/login';
+    }
+
+    try {
+        const user = JSON.parse(userStr);
+        if (user?.role === 'ADMIN') return '/admin/dashboard';
+        if (user?.role === 'LIBRARIAN') return '/librarian/dashboard';
+    } catch (error) {
+        console.error('Không đọc được thông tin người dùng từ storage', error);
+    }
+
+    return '/login';
+};
+
 const svgContainer = {
     width: '200px',
     height: '200px',
@@ -278,6 +296,7 @@ export const TokenExpired = () => {
 // ============ 3. NOT FOUND (404) ============
 export const NotFound = () => {
     const navigate = useNavigate();
+    const homePath = resolveHomePath();
     return (
         <div style={containerStyle}>
             <style>{keyframes}</style>
@@ -332,7 +351,7 @@ export const NotFound = () => {
                 <button style={btnSecondary}
                     onMouseEnter={e => { e.target.style.borderColor = BRAND; e.target.style.color = BRAND; }}
                     onMouseLeave={e => { e.target.style.borderColor = '#E5E7EB'; e.target.style.color = GRAY_700; }}
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate(homePath, { replace: true })}
                 >
                     Về trang chủ
                 </button>
