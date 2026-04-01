@@ -20,8 +20,13 @@ class WebSocketService {
   }
 
   connect(onConnected, onError) {
-    if (this.connected) {
+    if (this.client?.connected) {
+      this.connected = true;
       if (onConnected) onConnected();
+      return;
+    }
+
+    if (this.client?.active && !this.client.connected) {
       return;
     }
 
@@ -57,6 +62,7 @@ class WebSocketService {
 
       this.client.onWebSocketClose = () => {
         this.connected = false;
+        this.subscriptions.clear();
       };
 
       // Activate the client
@@ -68,16 +74,17 @@ class WebSocketService {
   }
 
   disconnect() {
-    if (this.client && this.connected) {
+    if (this.client) {
       this.client.deactivate();
       this.connected = false;
       this.subscriptions.clear();
       this.callbacks.clear();
+      this.client = null;
     }
   }
 
   subscribe(topic, callback) {
-    if (!this.client || !this.connected) {
+    if (!this.client?.connected) {
       return null;
     }
 
@@ -153,7 +160,7 @@ class WebSocketService {
   }
 
   isConnected() {
-    return this.connected;
+    return !!this.client?.connected;
   }
 }
 

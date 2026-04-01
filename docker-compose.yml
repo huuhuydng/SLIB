@@ -117,13 +117,12 @@ services:
       - REDIS_HOST=slib-redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GATE_SECRET=${GATE_SECRET}
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
     volumes:
       - maven-repo:/root/.m2
     networks:
@@ -143,19 +142,22 @@ services:
     container_name: slib-ai-service
     ports:
       - "8001:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - AI_PROVIDER=ollama
       - OLLAMA_URL=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.2
       - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@slib-postgres:5432/${POSTGRES_DB}
       - JAVA_BACKEND_URL=http://slib-backend:8080/slib
-      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - REDIS_URL=redis://slib-redis:6379
       - QDRANT_URL=http://slib-qdrant:6333
       - QDRANT_COLLECTION=slib_knowledge
       - SIMILARITY_THRESHOLD=0.45
       - MONGODB_URL=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@slib-mongo:27017/slib_chat?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
       - DEBUG=false
     networks:
       - slib-network

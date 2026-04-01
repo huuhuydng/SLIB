@@ -64,6 +64,136 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nfc-bridge-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  min-width: 380px;
+  max-width: 620px;
+}
+
+.nfc-bridge-card--ready {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.nfc-bridge-card--bridge_only {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.nfc-bridge-card--offline {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.nfc-bridge-card__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.nfc-bridge-card__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.nfc-bridge-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.nfc-bridge-card__dot--ready {
+  background: #16a34a;
+}
+
+.nfc-bridge-card__dot--bridge_only {
+  background: #ea580c;
+}
+
+.nfc-bridge-card__dot--offline {
+  background: #dc2626;
+}
+
+.nfc-bridge-card__dot--checking {
+  background: #64748b;
+}
+
+.nfc-bridge-card__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.nfc-bridge-card__message {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.nfc-bridge-card__meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+  word-break: break-all;
+}
+
+.nfc-bridge-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nfc-bridge-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nfc-bridge-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.nfc-bridge-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nfc-bridge-btn--primary {
+  border-color: #f97316;
+  background: linear-gradient(135deg, #ea580c, #f97316);
+  color: #fff;
+}
+
+.nfc-bridge-btn--primary:hover {
+  border-color: #c2410c;
+  background: linear-gradient(135deg, #c2410c, #ea580c);
 }
 
 .nfc-map-btn {
@@ -622,6 +752,64 @@
   animation: nfc-slide-up 0.25s ease;
 }
 
+.nfc-bridge-guide {
+  max-width: 680px;
+}
+
+.nfc-bridge-guide__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nfc-bridge-guide__intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.nfc-bridge-guide__steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.nfc-bridge-guide__box {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+}
+
+.nfc-bridge-guide__box-title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.nfc-bridge-guide__list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #7c2d12;
+}
+
+.nfc-bridge-guide__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 @keyframes nfc-slide-up {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -760,4 +948,22 @@
 
 .nfc-check-modal__rescan-btn:hover {
   box-shadow: 0 4px 14px rgba(232, 96, 10, 0.3);
+}
+
+@media (max-width: 1100px) {
+  .nfc-bridge-card {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .nfc-map-header__right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .nfc-bridge-card__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }

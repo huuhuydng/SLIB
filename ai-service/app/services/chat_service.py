@@ -5,11 +5,14 @@ and real-time statistics queries.
 """
 
 import logging
+import os
 import re
 import unicodedata
 import hashlib
+import httpx
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from urllib.parse import urlparse, urlunparse
 
 from langchain_community.llms import Ollama
 from langchain_core.prompts import PromptTemplate
@@ -19,6 +22,7 @@ from app.config.settings import get_settings
 from app.services.embedding_service import get_embedding_service
 from app.models.schemas import ActionType
 from app.services.qdrant_service import get_qdrant_service
+from app.services.java_backend_client import get_java_client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Điểm < 0.35: Coi là spam/gõ bậy -> Giới thiệu lại bản thân (Giống MoMo case "hdjdhdiirhfh")
 SPAM_THRESHOLD = 0.35 
 STRICT_GROUNDED_SCORE_THRESHOLD = 0.62
+RELAXED_FAQ_SCORE_THRESHOLD = 0.60
 
 # Điểm >= 0.75 (Lấy từ settings): Mới được coi là tìm thấy thông tin
 # Khoảng giữa (0.35 - 0.75): Coi là câu hỏi khó/không có data -> Xin lỗi nhẹ nhàng
@@ -172,21 +177,20 @@ class RAGChatService:
     
     def __init__(self):
         settings = get_settings()
+        self.settings = settings
+        self.java_client = get_java_client()
         
         self.similarity_threshold = settings.similarity_threshold
         self.max_chunks = settings.max_retrieved_chunks
         self.ollama_url = settings.ollama_url
         self.model = settings.ollama_model
+        self.temperature = min(settings.default_temperature, 0.15)
+        self.max_tokens = settings.default_max_tokens
         
         self.embedding_service = get_embedding_service()
         
         # Initialize LangChain Ollama LLM
-        self.llm = Ollama(
-            model=self.model,
-            base_url=self.ollama_url,
-            temperature=min(settings.default_temperature, 0.15),
-            num_predict=settings.default_max_tokens
-        )
+        self.llm = self._build_llm()
         
         # Prompt template
         self.prompt_template = PromptTemplate(
@@ -197,6 +201,84 @@ class RAGChatService:
         logger.info(
             f"[RAGChatService] Initialized. Model={self.model}, "
             f"Threshold={self.similarity_threshold}, SpamThreshold={SPAM_THRESHOLD}"
+        )
+
+    def _build_llm(self) -> Ollama:
+        return Ollama(
+            model=self.model,
+            base_url=self.ollama_url,
+            temperature=self.temperature,
+            num_predict=self.max_tokens
+        )
+
+    def _refresh_runtime_config(self) -> None:
+        """Sync runtime model/url with the AI config managed in the Java backend."""
+        try:
+            config = self.java_client.get_ai_config(force_refresh=True)
+        except Exception as exc:
+            logger.warning(f"[RAGChatService] Cannot refresh AI config from backend: {exc}")
+            return
+
+        next_url = self._normalize_ollama_url(config.get("ollamaUrl") or self.settings.ollama_url)
+        next_model = config.get("ollamaModel") or self.settings.ollama_model
+        next_temperature = min(config.get("temperature", self.settings.default_temperature), 0.15)
+        next_max_tokens = config.get("maxTokens", self.settings.default_max_tokens)
+
+        if (
+            next_url == self.ollama_url
+            and next_model == self.model
+            and next_temperature == self.temperature
+            and next_max_tokens == self.max_tokens
+        ):
+            return
+
+        self.ollama_url = next_url
+        self.model = next_model
+        self.temperature = next_temperature
+        self.max_tokens = next_max_tokens
+        self.llm = self._build_llm()
+
+        logger.info(
+            "[RAGChatService] Refreshed runtime config: model=%s url=%s",
+            self.model,
+            self.ollama_url,
+        )
+
+    def _normalize_ollama_url(self, raw_url: str) -> str:
+        normalized = (raw_url or self.settings.ollama_url).strip()
+        if not normalized:
+            return self.settings.ollama_url
+
+        parsed = urlparse(normalized)
+        if not os.path.exists("/.dockerenv"):
+            return normalized
+
+        if parsed.hostname not in {"localhost", "127.0.0.1"}:
+            return normalized
+
+        env_url = (self.settings.ollama_url or "").strip()
+        env_parsed = urlparse(env_url) if env_url else None
+        if env_parsed and env_parsed.hostname not in {"", None, "localhost", "127.0.0.1"}:
+            return env_url
+
+        port = parsed.port or 11434
+        replacement_netloc = f"host.docker.internal:{port}"
+        return urlunparse(parsed._replace(netloc=replacement_netloc))
+
+    def _model_matches(self, available_model: str) -> bool:
+        requested = (self.model or "").strip()
+        available = (available_model or "").strip()
+        if not requested or not available:
+            return False
+
+        requested_base = requested.split(":")[0]
+        available_base = available.split(":")[0]
+
+        return (
+            available == requested
+            or available == f"{requested}:latest"
+            or available.startswith(f"{requested}:")
+            or requested_base == available_base
         )
     
     def _check_greeting(self, message: str) -> Optional[str]:
@@ -367,6 +449,69 @@ class RAGChatService:
             return (chunk.get("similarity_score", 0.0) + bonus, chunk.get("similarity_score", 0.0))
 
         return sorted(chunks, key=rank, reverse=True)
+
+    def _should_use_relaxed_faq_threshold(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> bool:
+        if best_score < RELAXED_FAQ_SCORE_THRESHOLD or not chunks:
+            return False
+
+        top_chunk = chunks[0]
+        source = (top_chunk.get("source") or "").lower()
+        if not any(tag in source for tag in ("08_cau_hoi_thuong_gap", "faq", "01_gioi_thieu_thu_vien")):
+            return False
+
+        query_keywords = self._extract_keywords(query)
+        if not query_keywords:
+            return False
+
+        evidence_text = self._normalize_for_match(top_chunk.get("content", ""))
+        matched_keywords = [keyword for keyword in query_keywords if keyword in evidence_text]
+        return len(matched_keywords) >= min(2, len(query_keywords))
+
+    def _try_answer_faq_from_top_chunk(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> Optional[str]:
+        if not self._should_use_relaxed_faq_threshold(query, chunks, best_score):
+            return None
+
+        top_chunk = chunks[0]
+        source = (top_chunk.get("source") or "").lower()
+        if "08_cau_hoi_thuong_gap" not in source and "faq" not in source:
+            return None
+
+        raw_content = (top_chunk.get("content") or "").strip()
+        if not raw_content:
+            return None
+
+        lines = [line.strip() for line in raw_content.splitlines() if line.strip()]
+        if not lines:
+            return None
+
+        if lines[0].startswith("#"):
+            lines = lines[1:]
+
+        cleaned_lines = []
+        for line in lines:
+            normalized_line = re.sub(r"^\s*[-*]\s*", "- ", line)
+            cleaned_lines.append(normalized_line)
+
+        if not cleaned_lines:
+            return None
+
+        if any(re.match(r"^\d+\.", line) for line in cleaned_lines):
+            return "Bạn có thể làm theo các bước sau:\n" + "\n".join(cleaned_lines)
+
+        if cleaned_lines[0].lower().startswith("nếu "):
+            return "\n".join(cleaned_lines)
+
+        return "Thông tin bạn cần như sau:\n" + "\n".join(cleaned_lines)
 
     def _try_answer_hours_from_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> Optional[str]:
         if not self._is_library_hours_query(query) or not chunks:
@@ -729,6 +874,7 @@ class RAGChatService:
     def generate_response(self, query: str, context_chunks: List[Dict[str, Any]], live_data: str = "", chat_history: List[Dict[str, str]] = None) -> str:
         """Generate response using LLM with context, optional live data, and chat history"""
         try:
+            self._refresh_runtime_config()
             context_parts = []
             for chunk in context_chunks:
                 source = chunk.get("source", "Tài liệu thư viện")
@@ -842,6 +988,19 @@ class RAGChatService:
                 ]
             }
 
+        faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
+        if faq_response:
+            return {
+                "success": True,
+                "reply": faq_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
         # 5. Check realtime query BEFORE low confidence check
         is_realtime = self._detect_realtime_query(message)
 
@@ -860,8 +1019,11 @@ class RAGChatService:
             logger.info("[Query] Realtime query detected, fetching live data...")
             live_data = self._fetch_live_context()
 
+        use_relaxed_faq_threshold = self._should_use_relaxed_faq_threshold(message, chunks, best_score)
+        effective_threshold = RELAXED_FAQ_SCORE_THRESHOLD if use_relaxed_faq_threshold else self.similarity_threshold
+
         # 5a. Check Low Confidence (Score lửng lơ)
-        if best_score < self.similarity_threshold:
+        if best_score < effective_threshold:
             # Nếu là câu hỏi realtime hoặc có history -> vẫn generate
             if (is_realtime and live_data) or chat_history:
                 logger.info(f"[Query] Low score but realtime/follow-up — using live data + history to answer")
@@ -890,7 +1052,7 @@ class RAGChatService:
                     }
 
             # Không phải realtime hoặc LLM trả IDK -> escalate
-            logger.info(f"[Query] Low confidence ({best_score:.4f} < {self.similarity_threshold}). Escalating.")
+            logger.info(f"[Query] Low confidence ({best_score:.4f} < {effective_threshold}). Escalating.")
             return {
                 "success": True,
                 "reply": self._build_no_info_reply(message),
@@ -900,7 +1062,9 @@ class RAGChatService:
             }
 
         # 6. Generate Response (Score cao)
-        relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
+        if not relevant_chunks and use_relaxed_faq_threshold:
+            relevant_chunks = chunks[:2]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
@@ -1056,6 +1220,16 @@ class RAGChatService:
                 "action": ActionType.NONE,
                 "debug": debug
             }
+
+        faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
+        if faq_response:
+            debug["generation"]["action_reason"] = "Answered directly from FAQ chunk"
+            return {
+                "success": True,
+                "reply": faq_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
             
         # 5. Check realtime query BEFORE low confidence
         is_realtime = self._detect_realtime_query(message)
@@ -1064,8 +1238,14 @@ class RAGChatService:
             live_data = self._fetch_live_context()
             debug["generation"]["is_realtime_query"] = True
 
+        use_relaxed_faq_threshold = self._should_use_relaxed_faq_threshold(message, chunks, best_score)
+        effective_threshold = RELAXED_FAQ_SCORE_THRESHOLD if use_relaxed_faq_threshold else self.similarity_threshold
+        debug["retrieval"]["effective_threshold"] = effective_threshold
+        debug["retrieval"]["used_relaxed_faq_threshold"] = use_relaxed_faq_threshold
+        debug["retrieval"]["passed_threshold"] = best_score >= effective_threshold
+
         # 5a. Check Low Confidence
-        if best_score < self.similarity_threshold:
+        if best_score < effective_threshold:
             # If realtime query -> try with live data
             if is_realtime and live_data:
                 debug["generation"]["used_llm"] = True
@@ -1090,7 +1270,7 @@ class RAGChatService:
                         "debug": debug
                     }
 
-            debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {self.similarity_threshold}"
+            debug["generation"]["action_reason"] = f"Score {best_score:.4f} < Threshold {effective_threshold}"
             return {
                 "success": True,
                 "reply": self._build_no_info_reply(message),
@@ -1099,7 +1279,9 @@ class RAGChatService:
             }
 
         # 6. Generate with LLM
-        relevant_chunks = [c for c in chunks if c["similarity_score"] >= self.similarity_threshold]
+        relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
+        if not relevant_chunks and use_relaxed_faq_threshold:
+            relevant_chunks = chunks[:2]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
@@ -1158,24 +1340,49 @@ class RAGChatService:
     def test_connection(self) -> Dict[str, Any]:
         """Test RAG service connections"""
         try:
+            self._refresh_runtime_config()
+
             # Test embedding
             embed_result = self.embedding_service.test_connection()
             if not embed_result["success"]:
                 return embed_result
-            
-            # Test LLM
-            test_response = self.llm.invoke("Say 'OK'")
-            
+
+            qdrant_service = get_qdrant_service()
+            qdrant_service.client.get_collection(qdrant_service.collection_name)
+
+            tags_response = httpx.get(f"{self.ollama_url}/api/tags", timeout=15.0)
+            tags_response.raise_for_status()
+            tags_data = tags_response.json()
+            available_models = [
+                model.get("name", "")
+                for model in tags_data.get("models", [])
+                if model.get("name")
+            ]
+
+            if available_models and not any(self._model_matches(model) for model in available_models):
+                return {
+                    "success": False,
+                    "message": (
+                        f"Không tìm thấy model đang cấu hình ({self.model}) trên Ollama. "
+                        "Vui lòng kiểm tra lại cấu hình model trong AI Config."
+                    ),
+                    "model": self.model,
+                    "available_models": available_models,
+                }
+
             return {
                 "success": True,
                 "message": f"RAG ready. Model: {self.model}",
-                "embedding_dims": embed_result.get("dimensions", 768)
+                "embedding_dims": embed_result.get("dimensions", 768),
+                "model": self.model,
+                "available_models": available_models,
             }
             
         except Exception as e:
             return {
                 "success": False,
-                "message": f"RAG service error: {str(e)}"
+                "message": f"RAG service error: {str(e)}",
+                "model": self.model,
             }
 
 

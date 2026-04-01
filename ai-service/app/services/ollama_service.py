@@ -6,11 +6,14 @@ Uses local Ollama server with configuration from Java backend
 import httpx
 import json
 import logging
+import os
 from typing import List, Optional, Dict, Any
+from urllib.parse import urlparse, urlunparse
 
 from app.models.schemas import GeminiResponse, ChatMessage
 from app.services.knowledge_base import knowledge_base_service
 from app.services.java_backend_client import get_java_client
+from app.config.settings import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,8 +39,11 @@ class OllamaService:
     def _load_config(self):
         """Load configuration from Java backend"""
         config = self.java_client.get_ai_config()
+        settings = get_settings()
         
-        self.ollama_url = config.get("ollamaUrl", "http://localhost:11434")
+        self.ollama_url = self._normalize_ollama_url(
+            config.get("ollamaUrl") or settings.ollama_url
+        )
         self.model = config.get("ollamaModel", "llama3.2")
         self.temperature = config.get("temperature", 0.7)
         self.max_tokens = config.get("maxTokens", 1024)
@@ -49,6 +55,28 @@ class OllamaService:
         self.enable_history = config.get("enableHistory", True)
         
         logger.info(f"[OllamaService] Loaded config: model={self.model}, url={self.ollama_url}")
+
+    def _normalize_ollama_url(self, raw_url: str) -> str:
+        normalized = (raw_url or "").strip()
+        if not normalized:
+            return "http://localhost:11434"
+
+        parsed = urlparse(normalized)
+        if not os.path.exists("/.dockerenv"):
+            return normalized
+
+        if parsed.hostname not in {"localhost", "127.0.0.1"}:
+            return normalized
+
+        settings = get_settings()
+        env_url = (settings.ollama_url or "").strip()
+        env_parsed = urlparse(env_url) if env_url else None
+        if env_parsed and env_parsed.hostname not in {"", None, "localhost", "127.0.0.1"}:
+            return env_url
+
+        port = parsed.port or 11434
+        replacement_netloc = f"host.docker.internal:{port}"
+        return urlunparse(parsed._replace(netloc=replacement_netloc))
     
     def refresh_config(self):
         """Refresh configuration from Java backend"""

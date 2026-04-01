@@ -29,6 +29,7 @@ import '../../../styles/librarian/NewsCreate.css';
 import { handleLogout } from "../../../utils/auth";
 import { createNews, updateNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
 import { createNewsTemplate } from '../../../utils/newsTemplate';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 const NewCreate = () => {
   const LRM = '\u200E'; // Anchor to force LTR context inside contentEditable
@@ -362,9 +363,11 @@ const NewCreate = () => {
         try {
           const formDataToUpload = new FormData();
           formDataToUpload.append('file', thumbnailFile);
+          const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
           
-          const uploadResponse = await fetch('http://localhost:8080/slib/cloudinary/upload-news-image', {
+          const uploadResponse = await fetch(`${API_BASE_URL}/slib/cloudinary/upload-news-image`, {
             method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
             body: formDataToUpload
           });
           

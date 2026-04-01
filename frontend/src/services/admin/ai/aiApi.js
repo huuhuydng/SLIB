@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_BASE_URL } from "../../../config/apiConfig";
 
 const api = axios.create({
-    baseURL: "/slib/ai",
+    baseURL: `${API_BASE_URL}/slib/ai`,
     headers: {
         "Content-Type": "application/json",
     },
@@ -9,7 +10,7 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('librarian_token');
+    const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }

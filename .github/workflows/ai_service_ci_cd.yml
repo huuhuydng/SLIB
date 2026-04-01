@@ -103,36 +103,3 @@ jobs:
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ====================================================
-  # JOB 2: DEPLOY AWS EC2 (Optional)
-  # ====================================================
-  deploy-aws:
-    name: Deploy AI Service to AWS
-    needs: test-and-build
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: SSH and Deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "AWS: Deploying AI Service..."
-            sudo docker rm -f slib-ai-service || true
-            sudo docker rmi huuhuydng/slib-ai-service:latest || true
-            sudo docker pull huuhuydng/slib-ai-service:latest
-            sudo docker run -d \
-              --name slib-ai-service \
-              -p 8001:8001 \
-              --restart always \
-              -e DATABASE_URL="${{ secrets.AI_DATABASE_URL }}" \
-              -e OLLAMA_URL="${{ secrets.OLLAMA_URL }}" \
-              -e AI_PROVIDER=ollama \
-              -e JAVA_BACKEND_URL="http://slib-api:8080/slib" \
-              --network host \
-              huuhuydng/slib-ai-service:latest
-            echo "AWS: AI Service Deployed!"

@@ -48,9 +48,7 @@ const SlideshowManagement = () => {
   const fetchImages = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/slideshow/images`, {
-        headers: authHeaders(),
-      });
+      const response = await fetch(`${API_BASE_URL}/api/slideshow/images`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

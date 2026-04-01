@@ -222,6 +222,7 @@ docker-compose.yml
 .antigravity/
 .gemini/
 .claude/
+.deploy/
 CLAUDE.md
 .agents
 

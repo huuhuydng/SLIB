@@ -6,7 +6,7 @@ import {
   FolderOpen, Package, Layers, Edit, ChevronDown, ChevronRight, Eye, Save
 } from 'lucide-react';
 
-import { testAPIConnection, sendTestMessageWithDebug, getChatHistory, clearChatSession, getQdrantVectors } from '../../../services/admin/ai/pythonAiApi';
+import { testAPIConnection, sendTestMessageWithDebug, getChatHistory, clearChatSession } from '../../../services/admin/ai/pythonAiApi';
 import {
   getMaterials, createMaterial, updateMaterial, deleteMaterial, addTextItem, addFileItem, deleteItem, updateItem,
   getKnowledgeStores, createKnowledgeStore, updateKnowledgeStore, deleteKnowledgeStore, syncKnowledgeStore
@@ -23,13 +23,6 @@ const STATUS_STYLES = {
   SYNCING: { bg: '#DBEAFE', color: '#2563EB', label: 'Đang đồng bộ...' },
   SYNCED: { bg: '#D1FAE5', color: '#059669', label: 'Đã đồng bộ' },
   ERROR: { bg: '#FEE2E2', color: '#DC2626', label: 'Lỗi' },
-};
-
-const RUNTIME_STATUS_STYLES = {
-  PRESENT: { bg: '#D1FAE5', color: '#059669', label: 'Có trong AI' },
-  PARTIAL: { bg: '#FEF3C7', color: '#D97706', label: 'Thiếu một phần' },
-  MISSING: { bg: '#FEE2E2', color: '#DC2626', label: 'Chưa có trong AI' },
-  UNKNOWN: { bg: '#E2E8F0', color: '#64748B', label: 'Chưa kiểm tra được' },
 };
 
 // CSS animation cho loading dots
@@ -59,7 +52,6 @@ const AIConfig = () => {
 
   // Knowledge Store State
   const [knowledgeStores, setKnowledgeStores] = useState([]);
-  const [runtimeInventory, setRuntimeInventory] = useState({ sources: [], totalVectors: 0, hasMore: false, error: false });
   const [showKSModal, setShowKSModal] = useState(false);
   const [ksForm, setKsForm] = useState({ name: '', description: '', itemIds: [] });
   const [selectedMaterialForKS, setSelectedMaterialForKS] = useState(null);
@@ -103,7 +95,7 @@ const AIConfig = () => {
   }, []);
 
   const loadAllData = async () => {
-    await Promise.all([checkHealth(), loadMaterials(), loadKnowledgeStores(), loadRuntimeInventory()]);
+    await Promise.all([checkHealth(), loadMaterials(), loadKnowledgeStores()]);
   };
 
   // Load chat history from MongoDB
@@ -157,6 +149,16 @@ const AIConfig = () => {
     } catch { setApiStatus('error'); }
   };
 
+  const thresholdForDebug = (debug) =>
+    debug?.retrieval?.effective_threshold
+    ?? debug?.retrieval?.similarity_threshold
+    ?? 0;
+
+  const usedChunksForDebug = (debug) =>
+    debug?.generation?.used_chunks_count
+    ?? debug?.retrieval?.chunks_used
+    ?? 0;
+
   const loadMaterials = async () => {
     try {
       const res = await getMaterials();
@@ -171,28 +173,13 @@ const AIConfig = () => {
     } catch (e) { console.error('Lỗi tải kho tri thức:', e); }
   };
 
-  const loadRuntimeInventory = async () => {
-    try {
-      const res = await getQdrantVectors(1000);
-      setRuntimeInventory({
-        sources: res.data?.sources || [],
-        totalVectors: res.data?.total_vectors || 0,
-        hasMore: Boolean(res.data?.has_more),
-        error: !(res.data?.success ?? true),
-      });
-    } catch (e) {
-      console.error('Lỗi tải inventory runtime AI:', e);
-      setRuntimeInventory({ sources: [], totalVectors: 0, hasMore: false, error: true });
-    }
-  };
-
   // Material Handlers
   const handleCreateMaterial = async () => {
     try {
       await createMaterial(materialForm);
       setShowMaterialModal(false);
       setMaterialForm({ name: '', description: '' });
-      await Promise.all([loadMaterials(), loadRuntimeInventory()]);
+      await loadMaterials();
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -200,7 +187,7 @@ const AIConfig = () => {
     try {
       await updateMaterial(editingMaterial.id, { name: editingMaterial.name, description: editingMaterial.description });
       setEditingMaterial(null);
-      await Promise.all([loadMaterials(), loadRuntimeInventory()]);
+      await loadMaterials();
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -208,7 +195,7 @@ const AIConfig = () => {
     if (!confirm('Bạn có chắc muốn xóa tài liệu này?')) return;
     try {
       await deleteMaterial(id);
-      await Promise.all([loadMaterials(), loadKnowledgeStores(), loadRuntimeInventory()]);
+      await Promise.all([loadMaterials(), loadKnowledgeStores()]);
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -222,7 +209,7 @@ const AIConfig = () => {
       }
       setShowItemModal(false);
       setItemForm({ name: '', type: 'TEXT', content: '', file: null });
-      await Promise.all([loadMaterials(), loadKnowledgeStores(), loadRuntimeInventory()]);
+      await Promise.all([loadMaterials(), loadKnowledgeStores()]);
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -230,7 +217,7 @@ const AIConfig = () => {
     try {
       await updateItem(editingItem.materialId, editingItem.id, { name: editingItem.name, content: editingItem.content });
       setEditingItem(null);
-      await Promise.all([loadMaterials(), loadKnowledgeStores(), loadRuntimeInventory()]);
+      await Promise.all([loadMaterials(), loadKnowledgeStores()]);
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -248,7 +235,7 @@ const AIConfig = () => {
       await createKnowledgeStore(ksForm);
       setShowKSModal(false);
       setKsForm({ name: '', description: '', itemIds: [] });
-      await Promise.all([loadKnowledgeStores(), loadRuntimeInventory()]);
+      await loadKnowledgeStores();
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -257,7 +244,7 @@ const AIConfig = () => {
       const itemIds = editingKS.items?.map(i => i.id) || [];
       await updateKnowledgeStore(editingKS.id, { name: editingKS.name, description: editingKS.description, itemIds });
       setEditingKS(null);
-      await Promise.all([loadKnowledgeStores(), loadRuntimeInventory()]);
+      await loadKnowledgeStores();
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -265,7 +252,7 @@ const AIConfig = () => {
     if (!confirm('Bạn có chắc muốn xóa kho tri thức này?')) return;
     try {
       await deleteKnowledgeStore(id);
-      await Promise.all([loadKnowledgeStores(), loadRuntimeInventory()]);
+      await loadKnowledgeStores();
     } catch (e) { toast.error('Lỗi: ' + e.message); }
   };
 
@@ -274,7 +261,7 @@ const AIConfig = () => {
     try {
       const res = await syncKnowledgeStore(id);
       toast.success(`Đồng bộ thành công! Số chunks: ${res.data.chunksCreated}`);
-      await Promise.all([loadKnowledgeStores(), loadRuntimeInventory()]);
+      await loadKnowledgeStores();
     } catch (e) {
       toast.error('Đồng bộ thất bại: ' + e.message);
     } finally {
@@ -332,75 +319,6 @@ const AIConfig = () => {
 
   // Get all items from all materials for KS selection
   const allItems = materials.flatMap(m => (m.items || []).map(item => ({ ...item, materialName: m.name, materialId: m.id })));
-  const runtimeSourceMap = new Map((runtimeInventory.sources || []).map(source => [source.source, source]));
-  const materialUsageMap = new Map();
-
-  knowledgeStores.forEach(store => {
-    (store.items || []).forEach(item => {
-      if (!materialUsageMap.has(item.id)) {
-        materialUsageMap.set(item.id, []);
-      }
-      materialUsageMap.get(item.id).push({
-        storeId: store.id,
-        storeName: store.name,
-        expectedSource: `${store.name}_${item.name}`,
-      });
-    });
-  });
-
-  const enrichedKnowledgeStores = knowledgeStores.map(store => {
-    const expectedSources = (store.items || []).map(item => `${store.name}_${item.name}`);
-    const foundSources = expectedSources.filter(source => runtimeSourceMap.has(source));
-    const runtimeChunkCount = foundSources.reduce((total, source) => total + (runtimeSourceMap.get(source)?.count || 0), 0);
-
-    let runtimeStatus = 'UNKNOWN';
-    if (!runtimeInventory.error) {
-      if (expectedSources.length === 0) {
-        runtimeStatus = 'MISSING';
-      } else if (foundSources.length === expectedSources.length) {
-        runtimeStatus = 'PRESENT';
-      } else if (foundSources.length > 0) {
-        runtimeStatus = 'PARTIAL';
-      } else {
-        runtimeStatus = 'MISSING';
-      }
-    }
-
-    return {
-      ...store,
-      expectedSources,
-      foundSources,
-      runtimeChunkCount,
-      runtimeStatus,
-    };
-  });
-
-  const materialRuntimeUsage = materials.reduce((acc, material) => {
-    (material.items || []).forEach(item => {
-      const linkedSources = materialUsageMap.get(item.id) || [];
-      const activeSources = linkedSources.filter(link => runtimeSourceMap.has(link.expectedSource));
-      acc[item.id] = {
-        linkedStores: linkedSources,
-        activeSources,
-        runtimeCount: activeSources.reduce((total, link) => total + (runtimeSourceMap.get(link.expectedSource)?.count || 0), 0),
-        status: runtimeInventory.error
-          ? 'UNKNOWN'
-          : activeSources.length > 0
-            ? 'PRESENT'
-            : linkedSources.length > 0
-              ? 'MISSING'
-              : 'UNKNOWN',
-      };
-    });
-    return acc;
-  }, {});
-
-  const runtimeReadyStores = enrichedKnowledgeStores.filter(store => store.runtimeStatus === 'PRESENT').length;
-  const runtimePartialStores = enrichedKnowledgeStores.filter(store => store.runtimeStatus === 'PARTIAL').length;
-  const runtimeMissingStores = enrichedKnowledgeStores.filter(store => store.runtimeStatus === 'MISSING').length;
-  const expectedRuntimeSources = new Set(enrichedKnowledgeStores.flatMap(store => store.expectedSources));
-  const linkedRuntimeSources = (runtimeInventory.sources || []).filter(source => expectedRuntimeSources.has(source.source));
-  const detachedRuntimeSources = (runtimeInventory.sources || []).filter(source => !expectedRuntimeSources.has(source.source));
 
   return (
     <>
@@ -438,37 +356,6 @@ const AIConfig = () => {
               </div>
             </div>
 
-            <div style={{ background: runtimeInventory.error ? '#FFF7ED' : '#EFF6FF', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: `1px solid ${runtimeInventory.error ? '#FED7AA' : '#BFDBFE'}` }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: runtimeInventory.error ? '#C2410C' : '#1D4ED8', marginBottom: '10px' }}>
-                Đối chiếu runtime AI
-              </div>
-              {runtimeInventory.error ? (
-                <div style={{ fontSize: '12px', color: '#9A3412', lineHeight: '1.5' }}>
-                  Không lấy được inventory từ AI service. Trạng thái runtime bên dưới chỉ là dữ liệu DB.
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#1D4ED8' }}>{linkedRuntimeSources.length}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>Nguồn khớp DB</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '18px', fontWeight: '600', color: '#0F766E' }}>{runtimeInventory.totalVectors}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>Chunks runtime</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#475569', lineHeight: '1.6' }}>
-                    <div>Đủ trong AI: {runtimeReadyStores}</div>
-                    <div>Thiếu một phần: {runtimePartialStores}</div>
-                    <div>Chưa có trong AI: {runtimeMissingStores}</div>
-                    {detachedRuntimeSources.length > 0 && <div>Nguồn runtime ngoài DB: {detachedRuntimeSources.length}</div>}
-                    {runtimeInventory.hasMore && <div>Inventory đang bị rút gọn, cần tăng giới hạn nếu muốn thấy đầy đủ.</div>}
-                  </div>
-                </>
-              )}
-            </div>
-
             {TABS.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px',
@@ -493,9 +380,6 @@ const AIConfig = () => {
                   <button onClick={() => setShowMaterialModal(true)} style={btnPrimary}><Plus size={18} /> Thêm tài liệu</button>
                 </div>
                 <div style={{ padding: '24px' }}>
-                  <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', fontSize: '13px', color: '#9A3412' }}>
-                    Tab này hiển thị tài liệu gốc trong database. Trạng thái trên từng mục cho biết mục đó đã thực sự được dùng trong AI runtime hay chưa.
-                  </div>
                   {materials.length === 0 ? (
                     <p style={{ color: '#A0AEC0', textAlign: 'center', padding: '40px' }}>Chưa có tài liệu nào</p>
                   ) : materials.map(m => (
@@ -522,19 +406,12 @@ const AIConfig = () => {
                           {(!m.items || m.items.length === 0) ? (
                             <p style={{ color: '#A0AEC0', fontSize: '13px' }}>Chưa có mục nào</p>
                           ) : m.items.map(item => {
-                            const runtimeInfo = materialRuntimeUsage[item.id] || { status: 'UNKNOWN', runtimeCount: 0, activeSources: [], linkedStores: [] };
-                            const runtimeStyle = RUNTIME_STATUS_STYLES[runtimeInfo.status] || RUNTIME_STATUS_STYLES.UNKNOWN;
                             return (
                             <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', marginBottom: '8px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                                 {item.type === 'FILE' ? <Upload size={16} color="#2563EB" /> : <FileText size={16} color="#059669" />}
                                 <span style={{ fontSize: '13px' }}>{item.name}</span>
                                 <span style={{ fontSize: '11px', color: '#A0AEC0', background: '#F7FAFC', padding: '2px 8px', borderRadius: '4px' }}>{item.type === 'FILE' ? 'Tệp' : 'Văn bản'}</span>
-                                <span style={{ fontSize: '11px', fontWeight: '600', color: runtimeStyle.color, background: runtimeStyle.bg, padding: '2px 8px', borderRadius: '999px' }}>
-                                  {runtimeInfo.status === 'PRESENT'
-                                    ? `Trong AI${runtimeInfo.runtimeCount ? ` (${runtimeInfo.runtimeCount})` : ''}`
-                                    : runtimeStyle.label}
-                                </span>
                               </div>
                               <div style={{ display: 'flex', gap: '4px' }}>
                                 <button onClick={() => setViewingItem({ ...item, materialId: m.id })} style={{ ...btnIcon, padding: '4px' }} title="Xem chi tiết"><Eye size={14} color="#2563EB" /></button>
@@ -564,19 +441,10 @@ const AIConfig = () => {
                   <button onClick={() => setShowKSModal(true)} style={btnPrimary}><Plus size={18} /> Thêm kho</button>
                 </div>
                 <div style={{ padding: '24px' }}>
-                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', fontSize: '13px', color: '#1D4ED8' }}>
-                    Tab này đối chiếu trực tiếp với inventory đang có trong AI runtime. Kho nào hiện "Có trong AI" nghĩa là toàn bộ source mong đợi đã xuất hiện trong Qdrant.
-                  </div>
-                  {!runtimeInventory.error && detachedRuntimeSources.length > 0 && (
-                    <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '12px', padding: '14px 16px', marginBottom: '16px', fontSize: '13px', color: '#9A3412' }}>
-                      AI runtime hiện còn {detachedRuntimeSources.length} nguồn không map với kho tri thức đang có trong DB. Đây thường là nguồn markdown hệ thống hoặc dữ liệu cũ chưa dọn khỏi runtime.
-                    </div>
-                  )}
-                  {enrichedKnowledgeStores.length === 0 ? (
+                  {knowledgeStores.length === 0 ? (
                     <p style={{ color: '#A0AEC0', textAlign: 'center', padding: '40px' }}>Chưa có kho tri thức nào</p>
-                  ) : enrichedKnowledgeStores.map(ks => {
+                  ) : knowledgeStores.map(ks => {
                     const statusStyle = STATUS_STYLES[ks.status] || STATUS_STYLES.CHANGED;
-                    const runtimeStyle = RUNTIME_STATUS_STYLES[ks.runtimeStatus] || RUNTIME_STATUS_STYLES.UNKNOWN;
                     return (
                       <div key={ks.id} style={{ border: '2px solid #E2E8F0', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -585,30 +453,17 @@ const AIConfig = () => {
                               <Layers size={20} color="#2563EB" />
                               <span style={{ fontSize: '16px', fontWeight: '600' }}>{ks.name}</span>
                               <span style={{ fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: '10px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span>
-                              <span style={{ fontSize: '11px', fontWeight: '600', padding: '4px 10px', borderRadius: '10px', background: runtimeStyle.bg, color: runtimeStyle.color }}>{runtimeStyle.label}</span>
                             </div>
                             {ks.description && <p style={{ margin: '0 0 8px', color: '#4A5568', fontSize: '13px' }}>{ks.description}</p>}
                             <div style={{ fontSize: '12px', color: '#A0AEC0' }}>
                               {ks.itemCount || 0} mục • Tạo bởi {ks.createdBy}
                               {ks.lastSyncedAt && ` • Đồng bộ lần cuối: ${new Date(ks.lastSyncedAt).toLocaleString('vi-VN')}`}
                             </div>
-                            {!runtimeInventory.error && (
-                              <div style={{ fontSize: '12px', color: '#64748B', marginTop: '8px' }}>
-                                Runtime: {ks.foundSources.length}/{ks.expectedSources.length} source • {ks.runtimeChunkCount} chunks
-                              </div>
-                            )}
-                            {!runtimeInventory.error && ks.runtimeStatus !== 'PRESENT' && (
-                              <div style={{ marginTop: '12px', background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '10px', padding: '10px 12px', fontSize: '12px', color: '#9A3412' }}>
-                                {ks.runtimeStatus === 'PARTIAL'
-                                  ? 'Kho này mới vào AI một phần. Cần đồng bộ lại để đủ toàn bộ mục.'
-                                  : 'Kho này mới có ở database, chưa xuất hiện đầy đủ trong AI runtime.'}
-                              </div>
-                            )}
                           </div>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button onClick={() => setViewingKS(ks)} style={btnIcon} title="Xem chi tiết"><Eye size={16} color="#2563EB" /></button>
                             <button onClick={() => setEditingKS({ ...ks })} style={btnIcon} title="Chỉnh sửa"><Edit size={16} color="#059669" /></button>
-                            {(ks.status === 'CHANGED' || ks.runtimeStatus !== 'PRESENT') && (
+                            {ks.status === 'CHANGED' && (
                               <button onClick={() => handleSync(ks.id)} disabled={isSyncing[ks.id]}
                                 style={{ ...btnPrimary, padding: '8px 16px', opacity: isSyncing[ks.id] ? 0.6 : 1 }}>
                                 {isSyncing[ks.id] ? <RefreshCw size={16} className="spin" /> : <Database size={16} />}
@@ -726,13 +581,18 @@ const AIConfig = () => {
                               <div>
                                 <div style={{ color: '#A0AEC0', fontSize: '10px' }}>Ngưỡng tối thiểu</div>
                                 <div style={{ fontSize: '16px', fontWeight: '600', color: '#4A5568' }}>
-                                  {((selectedDebugInfo.retrieval?.threshold || 0) * 100).toFixed(0)}%
+                                  {(thresholdForDebug(selectedDebugInfo) * 100).toFixed(0)}%
                                 </div>
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: '#4A5568' }}>
                               <span>Tìm thấy: <b>{selectedDebugInfo.retrieval?.chunks_found || 0}</b></span>
-                              <span>Sử dụng: <b>{selectedDebugInfo.retrieval?.chunks_used || 0}</b></span>
+                              <span>Sử dụng: <b>{usedChunksForDebug(selectedDebugInfo)}</b></span>
+                              {selectedDebugInfo.retrieval?.used_relaxed_faq_threshold && (
+                                <span style={{ background: '#DBEAFE', color: '#2563EB', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                                  FAQ nới ngưỡng
+                                </span>
+                              )}
                               <span style={{ marginLeft: 'auto', background: selectedDebugInfo.retrieval?.passed_threshold ? '#D1FAE5' : '#FEE2E2', color: selectedDebugInfo.retrieval?.passed_threshold ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontWeight: '600' }}>
                                 {selectedDebugInfo.retrieval?.passed_threshold ? 'ĐẠT' : 'KHÔNG ĐẠT'}
                               </span>
@@ -755,7 +615,7 @@ const AIConfig = () => {
                                   <div key={i} style={{ background: i === 0 ? '#fef6f0' : '#F7FAFC', borderRadius: '8px', padding: '10px', marginBottom: '8px', border: i === 0 ? '1px solid #FFE4D6' : '1px solid #E2E8F0' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                                       <span style={{ fontWeight: '600', color: '#4A5568' }}>#{chunk.rank} {i === 0 && '⭐ Phù hợp nhất'}</span>
-                                      <span style={{ background: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#D1FAE5' : '#FEE2E2', color: chunk.score >= (selectedDebugInfo.retrieval?.threshold || 0) ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>
+                                      <span style={{ background: chunk.score >= thresholdForDebug(selectedDebugInfo) ? '#D1FAE5' : '#FEE2E2', color: chunk.score >= thresholdForDebug(selectedDebugInfo) ? '#059669' : '#DC2626', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>
                                         {(chunk.score * 100).toFixed(1)}%
                                       </span>
                                     </div>
@@ -885,11 +745,6 @@ const AIConfig = () => {
       {viewingItem && (
         <div style={modalOverlay}>
           <div style={{ ...modalContent, width: '600px' }}>
-            {(() => {
-              const runtimeInfo = materialRuntimeUsage[viewingItem.id] || { status: 'UNKNOWN', runtimeCount: 0, activeSources: [], linkedStores: [] };
-              const runtimeStyle = RUNTIME_STATUS_STYLES[runtimeInfo.status] || RUNTIME_STATUS_STYLES.UNKNOWN;
-              return (
-                <>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {viewingItem.type === 'FILE' ? <Upload size={20} color="#2563EB" /> : <FileText size={20} color="#059669" />}
@@ -906,29 +761,6 @@ const AIConfig = () => {
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Loại</label>
                 <span style={{ fontSize: '12px', background: viewingItem.type === 'FILE' ? '#DBEAFE' : '#D1FAE5', color: viewingItem.type === 'FILE' ? '#2563EB' : '#059669', padding: '4px 12px', borderRadius: '10px' }}>{viewingItem.type === 'FILE' ? 'Tệp' : 'Văn bản'}</span>
               </div>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Trạng thái trong AI runtime</label>
-                <span style={{ fontSize: '12px', fontWeight: '600', background: runtimeStyle.bg, color: runtimeStyle.color, padding: '4px 12px', borderRadius: '10px' }}>
-                  {runtimeInfo.status === 'PRESENT'
-                    ? `Có trong AI${runtimeInfo.runtimeCount ? ` (${runtimeInfo.runtimeCount} chunks)` : ''}`
-                    : runtimeStyle.label}
-                </span>
-              </div>
-              {runtimeInfo.linkedStores.length > 0 && (
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Đang thuộc kho</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {runtimeInfo.linkedStores.map(link => {
-                      const isLive = runtimeInfo.activeSources.some(active => active.expectedSource === link.expectedSource);
-                      return (
-                        <span key={link.expectedSource} style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '999px', background: isLive ? '#D1FAE5' : '#FEE2E2', color: isLive ? '#059669' : '#DC2626' }}>
-                          {link.storeName}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               {viewingItem.type === 'FILE' && (
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Tên tệp</label>
@@ -944,9 +776,6 @@ const AIConfig = () => {
               )}
             </div>
             <button onClick={() => setViewingItem(null)} style={{ ...btnSecondary, width: '100%', justifyContent: 'center' }}>Đóng</button>
-                </>
-              );
-            })()}
           </div>
         </div>
       )}
@@ -1022,10 +851,6 @@ const AIConfig = () => {
               <button onClick={() => setViewingKS(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             <div style={{ background: '#F7FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              {(() => {
-                const runtimeStyle = RUNTIME_STATUS_STYLES[viewingKS.runtimeStatus] || RUNTIME_STATUS_STYLES.UNKNOWN;
-                return (
-                  <>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Tên</label>
                 <div style={{ fontWeight: '600' }}>{viewingKS.name}</div>
@@ -1040,15 +865,6 @@ const AIConfig = () => {
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Trạng thái</label>
                 <span style={{ fontSize: '12px', fontWeight: '600', padding: '4px 12px', borderRadius: '10px', background: STATUS_STYLES[viewingKS.status]?.bg, color: STATUS_STYLES[viewingKS.status]?.color }}>{STATUS_STYLES[viewingKS.status]?.label}</span>
               </div>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '4px' }}>Tình trạng trong AI runtime</label>
-                <span style={{ fontSize: '12px', fontWeight: '600', padding: '4px 12px', borderRadius: '10px', background: runtimeStyle.bg, color: runtimeStyle.color }}>{runtimeStyle.label}</span>
-                {!runtimeInventory.error && (
-                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#64748B' }}>
-                    Đã có {viewingKS.foundSources?.length || 0}/{viewingKS.expectedSources?.length || 0} source • {viewingKS.runtimeChunkCount || 0} chunks
-                  </div>
-                )}
-              </div>
               <div>
                 <label style={{ fontSize: '12px', color: '#A0AEC0', display: 'block', marginBottom: '8px' }}>Danh sách mục ({viewingKS.items?.length || 0})</label>
                 {viewingKS.items?.length > 0 ? (
@@ -1058,27 +874,11 @@ const AIConfig = () => {
                         {item.type === 'FILE' ? <Upload size={14} color="#2563EB" /> : <FileText size={14} color="#059669" />}
                         <span style={{ fontSize: '13px' }}>{item.name}</span>
                         <span style={{ fontSize: '11px', color: '#A0AEC0' }}>{item.type === 'FILE' ? 'Tệp' : 'Văn bản'}</span>
-                        {!runtimeInventory.error && (
-                          <span style={{
-                            marginLeft: 'auto',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            background: runtimeSourceMap.has(`${viewingKS.name}_${item.name}`) ? '#D1FAE5' : '#FEE2E2',
-                            color: runtimeSourceMap.has(`${viewingKS.name}_${item.name}`) ? '#059669' : '#DC2626',
-                          }}>
-                            {runtimeSourceMap.has(`${viewingKS.name}_${item.name}`) ? 'Đã có' : 'Chưa có'}
-                          </span>
-                        )}
                       </div>
                     ))}
                   </div>
                 ) : <p style={{ color: '#A0AEC0', fontSize: '13px' }}>Chưa có mục nào</p>}
               </div>
-                  </>
-                );
-              })()}
             </div>
             <button onClick={() => setViewingKS(null)} style={{ ...btnSecondary, width: '100%', justifyContent: 'center' }}>Đóng</button>
           </div>

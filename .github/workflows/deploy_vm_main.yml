@@ -1,0 +1,95 @@
+name: Deploy Main To VM
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-main-vm
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.VPS_SSH_KEY }}" | tr -d '\r' > ~/.ssh/slib_vm_deploy
+          chmod 600 ~/.ssh/slib_vm_deploy
+          ssh-keygen -y -f ~/.ssh/slib_vm_deploy > /dev/null
+
+      - name: Deploy latest main on VM
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" <<'EOF'
+            set -e
+
+            cd /opt/SLIB
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+
+            cd frontend
+            npm ci
+            npm run build
+            rsync -a --delete dist/ /var/www/slib/
+            cd ..
+
+            docker compose up -d --build slib-backend slib-ai-service
+
+            backend_health_file="$(mktemp)"
+            ai_health_file="$(mktemp)"
+            ai_smoke_file="$(mktemp)"
+
+            for _ in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:8080/actuator/health > "${backend_health_file}" && grep -q '"status":"UP"' "${backend_health_file}"; then
+                break
+              fi
+              sleep 10
+            done
+
+            for _ in $(seq 1 18); do
+              if curl -fsS http://127.0.0.1:8001/health > "${ai_health_file}" && grep -q '"status":"healthy"' "${ai_health_file}"; then
+                break
+              fi
+              sleep 10
+            done
+
+            echo "Backend health:"
+            cat "${backend_health_file}"
+            echo
+            echo "AI health:"
+            cat "${ai_health_file}"
+
+            grep -q '"status":"UP"' "${backend_health_file}"
+            grep -q '"status":"healthy"' "${ai_health_file}"
+
+            curl -fsS -X POST http://127.0.0.1:8001/api/ai/chat \
+              -H 'Content-Type: application/json' \
+              -d '{"message":"Thư viện mở cửa đến mấy giờ?","session_id":"github-actions-smoke"}' > "${ai_smoke_file}"
+
+            echo
+            echo "AI smoke test:"
+            cat "${ai_smoke_file}"
+
+            grep -q '"success":true' "${ai_smoke_file}"
+            ! grep -q '"sources":\[\]' "${ai_smoke_file}"
+          EOF

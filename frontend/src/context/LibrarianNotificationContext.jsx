@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import websocketService from '../services/shared/websocketService';
 import { ClipboardCheck } from 'lucide-react';
+import { API_BASE_URL } from '../config/apiConfig';
 
 const LibrarianNotificationContext = createContext(null);
 
@@ -14,12 +15,12 @@ export function useLibrarianNotification() {
 
 // API endpoints map cho từng category
 const PENDING_API_MAP = {
-    SUPPORT_REQUEST: '/slib/support-requests?status=PENDING',
-    COMPLAINT: '/slib/complaints?status=PENDING',
-    FEEDBACK: '/slib/feedbacks?status=NEW',
-    SEAT_STATUS_REPORT: '/slib/seat-status-reports?status=PENDING',
-    CHAT: '/slib/chat/conversations/waiting',
-    VIOLATION: '/slib/violation-reports?status=PENDING',
+    SUPPORT_REQUEST: `${API_BASE_URL}/slib/support-requests?status=PENDING`,
+    COMPLAINT: `${API_BASE_URL}/slib/complaints?status=PENDING`,
+    FEEDBACK: `${API_BASE_URL}/slib/feedbacks?status=NEW`,
+    SEAT_STATUS_REPORT: `${API_BASE_URL}/slib/seat-status-reports?status=PENDING`,
+    CHAT: `${API_BASE_URL}/slib/chat/conversations/waiting`,
+    VIOLATION: `${API_BASE_URL}/slib/violation-reports?status=PENDING`,
 };
 
 const NOTIF_ICON_MAP = {
@@ -68,7 +69,7 @@ export function LibrarianNotificationProvider({ children }) {
         try {
             const token = getToken();
             if (!token) return;
-            const res = await fetch('/slib/librarian/pending-counts', {
+            const res = await fetch(`${API_BASE_URL}/slib/librarian/pending-counts`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
@@ -88,7 +89,7 @@ export function LibrarianNotificationProvider({ children }) {
         try {
             const token = getToken();
             if (!token) return;
-            const res = await fetch('/slib/librarian/unread-chat-count', {
+            const res = await fetch(`${API_BASE_URL}/slib/librarian/unread-chat-count`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',

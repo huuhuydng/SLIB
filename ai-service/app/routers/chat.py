@@ -151,8 +151,8 @@ async def chat(request: ChatRequest):
         if should_escalate:
             # User explicitly wants to talk to human
             escalation_message = (
-                "Tôi sẽ chuyển yêu cầu của bạn đến thủ thư. "
-                "Vui lòng chờ trong giây lát để được hỗ trợ."
+                "Tôi sẽ chuyển bạn đến thủ thư ngay. "
+                "Vui lòng chờ trong giây lát, thủ thư sẽ tiếp nhận và hỗ trợ bạn! 👋"
             )
             
             # Call backend to escalate if we have conversation/student info
@@ -195,7 +195,13 @@ async def chat(request: ChatRequest):
         # Determine if needs review based on action
         needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
 
+        # Add escalation hint if needed
         reply = result["reply"]
+        if needs_review:
+            reply += (
+                "\n\n💡 *Nếu bạn cần hỗ trợ thêm, hãy nói 'cho em gặp thủ thư' "
+                "để được kết nối với nhân viên thư viện.*"
+            )
         
         # Calculate confidence score based on similarity
         confidence_score = min(result["similarity_score"], 1.0)

@@ -42,3 +42,15 @@ function resolveAiApiBaseUrl() {
 }
 
 export const AI_API_BASE_URL = resolveAiApiBaseUrl();
+
+function resolveNfcBridgeUrl() {
+  const envUrl = import.meta.env.VITE_NFC_BRIDGE_URL;
+
+  if (envUrl) {
+    return envUrl;
+  }
+
+  return 'http://127.0.0.1:5050';
+}
+
+export const NFC_BRIDGE_URL = resolveNfcBridgeUrl();

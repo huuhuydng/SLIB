@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     # Database Configuration
     database_url: str = os.getenv(
         "DATABASE_URL", 
-        "postgresql://postgres:@localhost:5434/slib"
+        "postgresql://postgres:Slib123@localhost:5432/slib"
     )
     
     # RAG Configuration
