@@ -19,6 +19,8 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findByEndTimeBeforeAndStatus(LocalDateTime time, String status);
 
+        List<ReservationEntity> findByStatusAndEndTimeBetween(String status, LocalDateTime start, LocalDateTime end);
+
         List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
 
         List<ReservationEntity> findByStatus(String status);
