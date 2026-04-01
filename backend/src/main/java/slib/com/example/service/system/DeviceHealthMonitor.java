@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.entity.hce.HceDeviceEntity;
 import slib.com.example.entity.library.LibrarySetting;
@@ -41,7 +40,6 @@ public class DeviceHealthMonitor {
     private final Set<String> alertedDevices = ConcurrentHashMap.newKeySet();
 
     @Scheduled(fixedRate = 120000) // Moi 2 phut
-    @Transactional(readOnly = true)
     public void checkDeviceHealth() {
         try {
             LibrarySetting settings = librarySettingService.getSettings();

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
@@ -15,7 +14,7 @@ import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Set;
+import java.util.List;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
@@ -42,7 +41,6 @@ public class WeeklyReportScheduler {
      * Thong ke 7 ngay truoc do: tong dat cho, tong check-in, tong vi pham.
      */
     @Scheduled(cron = "0 0 8 * * MON")
-    @Transactional(readOnly = true)
     public void sendWeeklyReport() {
         try {
             LibrarySetting settings = librarySettingService.getSettings();
@@ -54,18 +52,11 @@ public class WeeklyReportScheduler {
             LocalDateTime weekEnd = LocalDate.now().atStartOfDay();
             LocalDateTime weekStart = weekEnd.minusDays(7);
 
-            // Thong ke tuan
-            var reservations = reservationRepository.findAll();
-            long totalBookings = reservations.stream()
-                    .filter(r -> r.getStartTime() != null)
-                    .filter(r -> !r.getStartTime().isBefore(weekStart) && r.getStartTime().isBefore(weekEnd))
-                    .filter(r -> Set.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED")
-                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
-                    .count();
-            long totalCheckIns = reservations.stream()
-                    .filter(r -> r.getConfirmedAt() != null)
-                    .filter(r -> !r.getConfirmedAt().isBefore(weekStart) && r.getConfirmedAt().isBefore(weekEnd))
-                    .count();
+            long totalBookings = reservationRepository.countByStartTimeBetweenAndStatusIn(
+                    weekStart,
+                    weekEnd,
+                    List.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED"));
+            long totalCheckIns = reservationRepository.countByConfirmedAtBetween(weekStart, weekEnd);
             long totalViolations = violationReportRepository.countByCreatedAtBetween(weekStart, weekEnd);
 
             // Dinh dang khoang ngay
