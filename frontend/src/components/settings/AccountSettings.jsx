@@ -21,8 +21,11 @@ import {
 } from 'lucide-react';
 import '../../styles/AccountSettings.css';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
+import { handleLogout as performLogout } from '../../utils/auth';
 
 const API_BASE_URL = `${BASE}/slib`;
+const getStoredToken = () => localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+const getStoredUser = () => localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
 
 const AccountSettings = () => {
     const navigate = useNavigate();
@@ -69,10 +72,10 @@ const AccountSettings = () => {
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
-                const token = localStorage.getItem('librarian_token');
+                const token = getStoredToken();
 
                 // First load from localStorage for quick display
-                const userStr = localStorage.getItem('librarian_user');
+                const userStr = getStoredUser();
                 if (userStr) {
                     const user = JSON.parse(userStr);
                     setUserData({
@@ -109,7 +112,7 @@ const AccountSettings = () => {
                     }));
 
                     // Save full profile to localStorage for session persistence
-                    const currentUser = JSON.parse(localStorage.getItem('librarian_user') || '{}');
+                    const currentUser = JSON.parse(getStoredUser() || '{}');
                     const updatedUser = {
                         ...currentUser,
                         fullName: profileData.fullName || currentUser.fullName,
@@ -178,7 +181,7 @@ const AccountSettings = () => {
         setError(null);
 
         try {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStoredToken();
 
             // Call API to update profile
             const response = await axios.put(
@@ -197,7 +200,7 @@ const AccountSettings = () => {
             );
 
             // Update localStorage with new data
-            const currentUser = JSON.parse(localStorage.getItem('librarian_user') || '{}');
+            const currentUser = JSON.parse(getStoredUser() || '{}');
             const updatedUser = {
                 ...currentUser,
                 fullName: userData.name,
@@ -229,7 +232,7 @@ const AccountSettings = () => {
     const handleCancel = () => {
         setIsEditing(false);
         setPreviewAvatar(null);
-        const userStr = localStorage.getItem('librarian_user');
+        const userStr = getStoredUser();
         if (userStr) {
             const user = JSON.parse(userStr);
             setUserData({
@@ -267,7 +270,7 @@ const AccountSettings = () => {
         setPasswordLoading(true);
 
         try {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStoredToken();
 
             // Call API to change password
             await axios.post(
@@ -325,13 +328,7 @@ const AccountSettings = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('librarian_token');
-        localStorage.removeItem('librarian_user');
-        localStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('librarian_token');
-        sessionStorage.removeItem('librarian_user');
-        sessionStorage.removeItem('refresh_token');
-        navigate('/login');
+        performLogout();
     };
 
     return (
