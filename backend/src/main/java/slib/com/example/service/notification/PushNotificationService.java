@@ -501,6 +501,31 @@ public class PushNotificationService {
         notificationRepository.markAllAsReadByUserId(userId);
     }
 
+    @Transactional
+    public int markAllAsReadByCategory(UUID userId, String category) {
+        String normalizedCategory = category == null ? "" : category.trim().toUpperCase();
+        if (normalizedCategory.isEmpty()) {
+            return 0;
+        }
+
+        List<NotificationEntity> unreadNotifications = notificationRepository.findUnreadByUserId(userId);
+        List<NotificationEntity> matchingNotifications = unreadNotifications.stream()
+                .filter(notification -> normalizedCategory.equals(
+                        resolveCategory(
+                                notification.getNotificationType(),
+                                notification.getTitle(),
+                                notification.getContent())))
+                .peek(notification -> notification.setIsRead(true))
+                .toList();
+
+        if (matchingNotifications.isEmpty()) {
+            return 0;
+        }
+
+        notificationRepository.saveAll(matchingNotifications);
+        return matchingNotifications.size();
+    }
+
     /**
      * Delete a notification (only if it belongs to the user)
      */

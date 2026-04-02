@@ -98,6 +98,23 @@ public class NotificationController {
     }
 
     /**
+     * Mark all notifications as read for a user by category
+     */
+    @PutMapping("/mark-all-read/{userId}/category/{category}")
+    public ResponseEntity<Map<String, Object>> markAllAsReadByCategory(@PathVariable UUID userId,
+            @PathVariable String category,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        int updated = pushNotificationService.markAllAsReadByCategory(resolvedUserId, category);
+        long remainingUnread = pushNotificationService.getUnreadCount(resolvedUserId);
+
+        return ResponseEntity.ok(Map.of(
+                "updated", updated,
+                "category", category.toUpperCase(),
+                "remainingUnread", remainingUnread));
+    }
+
+    /**
      * Delete a notification
      */
     @DeleteMapping("/{notificationId}")
