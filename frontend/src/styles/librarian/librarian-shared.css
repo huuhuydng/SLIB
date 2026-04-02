@@ -1217,6 +1217,27 @@
     color: var(--lib-text, #1f2937);
 }
 
+.sr-status-text--pending {
+    color: #92400e;
+}
+
+.sr-status-text--in-progress,
+.sr-status-text--verified,
+.sr-status-text--reviewed {
+    color: #1d4ed8;
+}
+
+.sr-status-text--resolved,
+.sr-status-text--accepted,
+.sr-status-text--acted {
+    color: #15803d;
+}
+
+.sr-status-text--rejected,
+.sr-status-text--denied {
+    color: #b91c1c;
+}
+
 .sr-status-dot {
     width: 7px;
     height: 7px;

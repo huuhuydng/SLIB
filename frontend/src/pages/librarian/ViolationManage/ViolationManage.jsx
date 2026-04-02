@@ -457,8 +457,9 @@ function ViolationManage() {
             RESOLVED: '#3b82f6',
             REJECTED: '#ef4444',
         };
+        const tone = status?.toLowerCase() || 'unknown';
         return (
-            <span className="sr-status-text">
+            <span className={`sr-status-text sr-status-text--${tone}`}>
                 <span className="sr-status-dot" style={{ background: dotColors[status] || '#94a3b8' }} />
                 {STATUS_LABELS[status] || status}
             </span>

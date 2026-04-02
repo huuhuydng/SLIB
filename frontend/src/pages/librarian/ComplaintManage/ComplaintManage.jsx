@@ -223,6 +223,16 @@ function ComplaintManage() {
         }
     };
 
+    const renderStatus = (status) => {
+        const tone = status?.toLowerCase() || "unknown";
+        return (
+            <span className={`sr-status-text sr-status-text--${tone}`}>
+                <span className="sr-status-dot" style={{ background: getStatusDot(status) }} />
+                {STATUS_LABELS[status] || status}
+            </span>
+        );
+    };
+
     const getComplaintValue = (complaint, field) => {
         switch (field) {
             case "student": return complaint.studentName || "";
@@ -318,6 +328,78 @@ function ComplaintManage() {
         return sortDir === "asc" ? <ArrowUp size={13} /> : <ArrowDown size={13} />;
     };
 
+    const handleFilterChange = (field, value) => {
+        setColumnFilters(prev => ({ ...prev, [field]: value }));
+    };
+
+    const clearColumnFilter = (field) => {
+        setColumnFilters(prev => ({ ...prev, [field]: "" }));
+        setOpenFilter(null);
+    };
+
+    const renderColumnHeader = (column, label) => {
+        const hasFilter = !!columnFilters[column];
+
+        return (
+            <th key={column}>
+                <div className="cio-th-content">
+                    <span className="cio-th-label">{label}</span>
+                    <div className="cio-th-actions">
+                        <button
+                            className={`cio-th-btn${sortField === column ? " active" : ""}`}
+                            onClick={(e) => { e.stopPropagation(); handleSort(column); }}
+                            title="Sắp xếp"
+                        >
+                            <SortIcon field={column} />
+                        </button>
+                        {column !== "content" && (
+                            <button
+                                className={`cio-th-btn${hasFilter ? " active" : ""}${openFilter === column ? " open" : ""}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenFilter(openFilter === column ? null : column);
+                                }}
+                                title="Lọc"
+                            >
+                                <Filter size={13} className={hasFilter ? "cio-filter-active" : ""} />
+                            </button>
+                        )}
+                    </div>
+                    {openFilter === column && column !== "content" && (
+                        <div className="cio-filter-dropdown" ref={filterRef} onClick={(e) => e.stopPropagation()}>
+                            {column === "status" ? (
+                                <select
+                                    value={columnFilters.status}
+                                    onChange={(e) => { handleFilterChange("status", e.target.value); setOpenFilter(null); }}
+                                    autoFocus
+                                    className="cio-filter-input"
+                                >
+                                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                            ) : (
+                                <>
+                                    <input
+                                        type="text"
+                                        className="cio-filter-input"
+                                        placeholder={`Lọc ${label.toLowerCase()}...`}
+                                        value={columnFilters[column] || ""}
+                                        onChange={(e) => handleFilterChange(column, e.target.value)}
+                                        autoFocus
+                                    />
+                                    {hasFilter && (
+                                        <button className="cio-filter-clear" onClick={() => clearColumnFilter(column)}>
+                                            <X size={12} /> Xóa lọc
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </th>
+        );
+    };
+
     // Column defs
     const columns = [
         { key: "student", label: "Sinh viên" },
@@ -409,54 +491,7 @@ function ComplaintManage() {
                                                 onChange={toggleSelectAll}
                                             />
                                         </th>
-                                        {columns.filter(c => visibleColumns[c.key]).map(col => (
-                                            <th key={col.key}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                    <span style={{ cursor: "pointer" }} onClick={() => handleSort(col.key)}>
-                                                        {col.label}
-                                                    </span>
-                                                    <span style={{ cursor: "pointer" }} onClick={() => handleSort(col.key)}>
-                                                        <SortIcon field={col.key} />
-                                                    </span>
-                                                    {col.key !== "content" && (
-                                                        <span style={{ cursor: "pointer", position: "relative" }} ref={openFilter === col.key ? filterRef : null}>
-                                                            <Filter
-                                                                size={13}
-                                                                style={{ opacity: columnFilters[col.key] ? 1 : 0.3 }}
-                                                                onClick={() => setOpenFilter(openFilter === col.key ? null : col.key)}
-                                                            />
-                                                            {openFilter === col.key && (
-                                                                <div className="cio-filter-dropdown" style={{ position: "absolute", top: "100%", left: 0, zIndex: 10 }}>
-                                                                    {col.key === "status" ? (
-                                                                        <select
-                                                                            value={columnFilters.status}
-                                                                            onChange={(e) => setColumnFilters(prev => ({ ...prev, status: e.target.value }))}
-                                                                            autoFocus
-                                                                            className="cio-filter-input"
-                                                                        >
-                                                                            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                                                        </select>
-                                                                    ) : (
-                                                                        <input
-                                                                            type="text"
-                                                                            placeholder={`Lọc ${col.label.toLowerCase()}...`}
-                                                                            value={columnFilters[col.key] || ""}
-                                                                            onChange={(e) => setColumnFilters(prev => ({ ...prev, [col.key]: e.target.value }))}
-                                                                            autoFocus
-                                                                        />
-                                                                    )}
-                                                                    {columnFilters[col.key] && (
-                                                                        <button onClick={() => setColumnFilters(prev => ({ ...prev, [col.key]: "" }))}>
-                                                                            <X size={12} /> Xoá
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </th>
-                                        ))}
+                                        {columns.filter(c => visibleColumns[c.key]).map(col => renderColumnHeader(col.key, col.label))}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -486,12 +521,7 @@ function ComplaintManage() {
                                                 <td><div className="sr-desc-cell">{c.content || "-"}</div></td>
                                             )}
                                             {visibleColumns.status && (
-                                                <td>
-                                                    <span className="sr-status-text">
-                                                        <span className="sr-status-dot" style={{ background: getStatusDot(c.status) }} />
-                                                        {STATUS_LABELS[c.status] || c.status}
-                                                    </span>
-                                                </td>
+                                                <td>{renderStatus(c.status)}</td>
                                             )}
                                             {visibleColumns.createdAt && (
                                                 <td className="sr-date-cell">{formatDate(c.createdAt)}</td>
@@ -532,10 +562,7 @@ function ComplaintManage() {
                                             <div className="sr-student-code">{c.studentCode}</div>
                                         </div>
                                     </div>
-                                    <span className="sr-status-text">
-                                        <span className="sr-status-dot" style={{ background: getStatusDot(c.status) }} />
-                                        {STATUS_LABELS[c.status] || c.status}
-                                    </span>
+                                    {renderStatus(c.status)}
                                 </div>
 
                                 <div className="cm-complaint-content">
@@ -575,10 +602,7 @@ function ComplaintManage() {
                             <div className="sr-modal-section">
                                 <div className="sr-modal-label">Trạng thái</div>
                                 <div className="sr-modal-value">
-                                    <span className="sr-status-text">
-                                        <span className="sr-status-dot" style={{ background: getStatusDot(selectedComplaint.status) }} />
-                                        {STATUS_LABELS[selectedComplaint.status] || selectedComplaint.status}
-                                    </span>
+                                    {renderStatus(selectedComplaint.status)}
                                 </div>
                             </div>
 
