@@ -554,132 +554,136 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="dashboard-ops-row">
-          <section className="dashboard-panel panel-elevated quick-actions-panel">
-            <div className="panel-header">
-              <h3 className="panel-title">Thao tác nhanh</h3>
-            </div>
-            <div className="quick-actions-grid">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <a key={action.label} href={action.href} className="quick-action-card">
-                    <span className="quick-action-icon">
-                      <Icon size={18} />
-                    </span>
-                    <span className="quick-action-body">
-                      <span className="quick-action-label">{action.label}</span>
-                      <span className="quick-action-note">{action.note}</span>
-                    </span>
-                    <ChevronRight size={16} className="quick-action-arrow" />
-                  </a>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="dashboard-panel panel-elevated urgent-panel">
-            <div className="panel-header">
-              <h3 className="panel-title">Cần xử lý ngay</h3>
-            </div>
-            {urgentItems.length === 0 ? (
-              <div className="empty-section">Hiện chưa có việc gấp cần xử lý</div>
-            ) : (
-              <div className="urgent-list">
-                {urgentItems.map((item) => (
-                  <a key={item.key} href={item.href} className={`urgent-item urgent-item--${item.tone}`}>
-                    <div className="urgent-item-main">
-                      <span className="urgent-item-title">{item.label}</span>
-                      <span className="urgent-item-hint">{item.hint}</span>
-                    </div>
-                    <div className="urgent-item-side">
-                      <span className="urgent-item-count">{item.count}</span>
-                      <ChevronRight size={15} />
-                    </div>
-                  </a>
-                ))}
+        <div className="dashboard-overview-grid">
+          <div className="dashboard-overview-col">
+            <section className="dashboard-panel panel-elevated quick-actions-panel">
+              <div className="panel-header">
+                <h3 className="panel-title">Thao tác nhanh</h3>
               </div>
-            )}
-          </section>
-        </div>
+              <div className="quick-actions-grid">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <a key={action.label} href={action.href} className="quick-action-card">
+                      <span className="quick-action-icon">
+                        <Icon size={18} />
+                      </span>
+                      <span className="quick-action-body">
+                        <span className="quick-action-label">{action.label}</span>
+                        <span className="quick-action-note">{action.note}</span>
+                      </span>
+                      <ChevronRight size={16} className="quick-action-arrow" />
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
 
-        {/* Top section: Stats Cards (2x2) + Zone Status */}
-        <div className="dashboard-top-row">
-          {/* Left: 4 stat cards in 2x2 grid */}
-          <div className="stats-grid-compact">
-            {compactCards.map((card) => {
-              const Icon = card.icon;
-              return (
-                <a key={card.key} href={card.href} className="compact-card compact-card--link">
-                  <div className={`compact-card-icon ${card.iconClass}`}><Icon size={20} /></div>
-                  <div className="compact-card-value">{card.value}</div>
-                  <div className="compact-card-label">{card.label}</div>
-                </a>
-              );
-            })}
+            <section className="dashboard-panel panel-elevated stats-panel">
+              <div className="panel-header">
+                <h3 className="panel-title">Chỉ số nhanh</h3>
+              </div>
+              <div className="stats-grid-compact">
+                {compactCards.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <a key={card.key} href={card.href} className="compact-card compact-card--link">
+                      <div className={`compact-card-icon ${card.iconClass}`}><Icon size={20} /></div>
+                      <div className="compact-card-value">{card.value}</div>
+                      <div className="compact-card-label">{card.label}</div>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
           </div>
 
-          {/* Right: Zone status */}
-          <section className="dashboard-panel panel-elevated zone-status-side">
-            <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 className="panel-title">Trạng thái khu vực</h3>
+          <div className="dashboard-overview-col">
+            <section className="dashboard-panel panel-elevated urgent-panel">
+              <div className="panel-header">
+                <h3 className="panel-title">Cần xử lý ngay</h3>
               </div>
-              {realtimeCapacity && (
-                <span className="dashboard-live-pill">
-                  {realtimeCapacity.currently_occupied ?? stats.currentlyInLibrary}/{realtimeCapacity.total_capacity ?? stats.totalSeats} đang dùng
-                </span>
-              )}
-            </div>
-
-            <div className="legend">
-              <span className="legend-item">
-                <i className="dot dotGreen" />
-                Trống
-              </span>
-              <span className="legend-item">
-                <i className="dot dotYellow" />
-                Khá đông
-              </span>
-              <span className="legend-item">
-                <i className="dot dotRed" />
-                Đầy
-              </span>
-            </div>
-
-            {Object.keys(zonesByArea).length === 0 ? (
-              <div className="empty-section">Chưa có dữ liệu khu vực</div>
-            ) : (
-              Object.entries(zonesByArea).map(([areaName, zones]) => (
-                <div key={areaName} className="zone-area-group">
-                  <div className="zone-area-header">
-                    <MapPin size={13} />
-                    <span>{areaName}</span>
-                  </div>
-                  {zones.map((zone, idx) => (
-                    <div key={idx} className="area-row zone-row">
-                      <div className="area-top">
-                        <span className="area-name">{zone.zoneName}</span>
-                        <span className="area-stats">
-                          {zone.occupiedSeats}/{zone.totalSeats} ({zone.occupancyPercentage}%)
-                        </span>
+              {urgentItems.length === 0 ? (
+                <div className="empty-section">Hiện chưa có việc gấp cần xử lý</div>
+              ) : (
+                <div className="urgent-list">
+                  {urgentItems.map((item) => (
+                    <a key={item.key} href={item.href} className={`urgent-item urgent-item--${item.tone}`}>
+                      <div className="urgent-item-main">
+                        <span className="urgent-item-title">{item.label}</span>
+                        <span className="urgent-item-hint">{item.hint}</span>
                       </div>
-                      <div className="area-bar">
-                        <div
-                          className="area-bar-fill"
-                          style={{
-                            width: `${zone.occupancyPercentage}%`,
-                            background: zone.occupancyPercentage >= 90 ? '#ef4444'
-                              : zone.occupancyPercentage >= 60 ? '#fbbf24' : '#22c55e'
-                          }}
-                        />
+                      <div className="urgent-item-side">
+                        <span className="urgent-item-count">{item.count}</span>
+                        <ChevronRight size={15} />
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
-              ))
-            )}
-          </section>
+              )}
+            </section>
+
+            <section className="dashboard-panel panel-elevated zone-status-side">
+              <div className="panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 className="panel-title">Trạng thái khu vực</h3>
+                </div>
+                {realtimeCapacity && (
+                  <span className="dashboard-live-pill">
+                    {realtimeCapacity.currently_occupied ?? stats.currentlyInLibrary}/{realtimeCapacity.total_capacity ?? stats.totalSeats} đang dùng
+                  </span>
+                )}
+              </div>
+
+              <div className="legend">
+                <span className="legend-item">
+                  <i className="dot dotGreen" />
+                  Trống
+                </span>
+                <span className="legend-item">
+                  <i className="dot dotYellow" />
+                  Khá đông
+                </span>
+                <span className="legend-item">
+                  <i className="dot dotRed" />
+                  Đầy
+                </span>
+              </div>
+
+              {Object.keys(zonesByArea).length === 0 ? (
+                <div className="empty-section">Chưa có dữ liệu khu vực</div>
+              ) : (
+                Object.entries(zonesByArea).map(([areaName, zones]) => (
+                  <div key={areaName} className="zone-area-group">
+                    <div className="zone-area-header">
+                      <MapPin size={13} />
+                      <span>{areaName}</span>
+                    </div>
+                    {zones.map((zone, idx) => (
+                      <div key={idx} className="area-row zone-row">
+                        <div className="area-top">
+                          <span className="area-name">{zone.zoneName}</span>
+                          <span className="area-stats">
+                            {zone.occupiedSeats}/{zone.totalSeats} ({zone.occupancyPercentage}%)
+                          </span>
+                        </div>
+                        <div className="area-bar">
+                          <div
+                            className="area-bar-fill"
+                            style={{
+                              width: `${zone.occupancyPercentage}%`,
+                              background: zone.occupancyPercentage >= 90 ? '#ef4444'
+                                : zone.occupancyPercentage >= 60 ? '#fbbf24' : '#22c55e'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </section>
+          </div>
         </div>
 
         {/* Analytics Chart + AI Panel */}
