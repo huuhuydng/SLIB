@@ -51,6 +51,19 @@
   gap: 8px;
 }
 
+.dashboard-ops-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-ops-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .last-updated {
   display: flex;
   align-items: center;
@@ -116,6 +129,11 @@
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.compact-card--link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .compact-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
@@ -174,6 +192,157 @@
 /* Zone status side panel */
 .zone-status-side {
   height: 100%;
+}
+
+.dashboard-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .quick-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quick-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff, #fffaf5);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  border-color: #fdba74;
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.10);
+}
+
+.quick-action-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #ea580c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.quick-action-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.quick-action-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.quick-action-note {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.quick-action-arrow {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.urgent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.urgent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.urgent-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+}
+
+.urgent-item--orange { border-color: #fed7aa; background: #fff7ed; }
+.urgent-item--blue { border-color: #bfdbfe; background: #eff6ff; }
+.urgent-item--red { border-color: #fecaca; background: #fef2f2; }
+.urgent-item--amber { border-color: #fde68a; background: #fffbeb; }
+.urgent-item--green { border-color: #bbf7d0; background: #f0fdf4; }
+
+.urgent-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.urgent-item-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.urgent-item-hint {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.urgent-item-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.urgent-item-count {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
 }
 
 /* Dark card variant (reference design) */
@@ -881,6 +1050,55 @@
   color: #94a3b8;
   font-weight: 600;
   margin-bottom: 14px;
+}
+
+.insights-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.insights-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.insight-item {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.insight-item--warning {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.insight-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.insight-message {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.6;
 }
 
 .empty-section {
@@ -2027,6 +2245,89 @@
 .news-panel .news-card-clickable:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-grid-bottom {
+  margin-top: 18px;
+}
+
+.book-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.book-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.book-row:hover {
+  transform: translateY(-1px);
+  border-color: #fdba74;
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.08);
+}
+
+.book-row-cover {
+  width: 52px;
+  height: 68px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.book-row-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.book-row-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.book-row-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.book-row-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.book-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.book-row-date {
+  font-size: 12px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
 }
 
 /* =================== DETAIL MODAL =================== */

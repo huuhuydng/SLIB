@@ -12,6 +12,7 @@ import {
 import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
 import librarianService from "../../../services/librarian/librarianService";
 import dashboardService from "../../../services/librarian/dashboardService";
+import { getAllNewBooksForAdmin } from "../../../services/librarian/newBookService";
 import { getBehaviorSummary, getDensityPrediction, getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
 import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
@@ -24,6 +25,7 @@ const Dashboard = () => {
   const [accessLogs, setAccessLogs] = useState([]);
   const [dashStats, setDashStats] = useState(null);
   const [recentNews, setRecentNews] = useState([]);
+  const [recentNewBooks, setRecentNewBooks] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +81,14 @@ const Dashboard = () => {
     return formatDate(dateTimeString);
   };
 
+  const sortByNewest = (items = []) => {
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a?.publishedAt || a?.createdAt || a?.updatedAt || 0).getTime();
+      const bTime = new Date(b?.publishedAt || b?.createdAt || b?.updatedAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
+
   const getStatusConfig = (status) => {
     switch (status) {
       case 'CONFIRMED': return { label: 'Đã xác nhận', bg: '#d1fae5', color: '#065f46' };
@@ -132,9 +142,10 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [stats, news] = await Promise.all([
+      const [stats, news, newBooks] = await Promise.all([
         dashboardService.getDashboardStats(),
-        dashboardService.getRecentNews()
+        dashboardService.getRecentNews(),
+        getAllNewBooksForAdmin().catch(() => [])
       ]);
 
       if (stats) {
@@ -145,6 +156,7 @@ const Dashboard = () => {
         setLastUpdated(stats.serverTime ? new Date(stats.serverTime) : new Date());
       }
       setRecentNews(news || []);
+      setRecentNewBooks(sortByNewest(newBooks || []).slice(0, 5));
 
       // Fetch pending counts from new APIs
       const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
@@ -374,6 +386,141 @@ const Dashboard = () => {
     }
   };
 
+  const quickActions = useMemo(() => ([
+    {
+      label: 'Chat sinh viên',
+      href: '/librarian/chat',
+      icon: MessageSquare,
+      note: `${pendingCounts.supportPending + pendingCounts.supportInProgress} yêu cầu đang hoạt động`,
+    },
+    {
+      label: 'Xử lý hỗ trợ',
+      href: '/librarian/support-requests',
+      icon: LifeBuoy,
+      note: `${pendingCounts.supportPending} chờ nhận`,
+    },
+    {
+      label: 'Kiểm tra ghế',
+      href: '/librarian/seat-status-reports',
+      icon: FileText,
+      note: 'Rà soát báo cáo ghế',
+    },
+    {
+      label: 'Quản lý đặt chỗ',
+      href: '/librarian/bookings',
+      icon: CalendarCheck,
+      note: `${stats.activeBookings} lượt đang hiệu lực`,
+    },
+    {
+      label: 'Đăng tin tức',
+      href: '/librarian/news/create',
+      icon: Bell,
+      note: 'Tạo thông báo mới',
+    },
+    {
+      label: 'Cập nhật sách mới',
+      href: '/librarian/new-books',
+      icon: BookOpen,
+      note: `${recentNewBooks.length} mục gần nhất`,
+    },
+  ]), [
+    pendingCounts.supportPending,
+    pendingCounts.supportInProgress,
+    stats.activeBookings,
+    recentNewBooks.length,
+  ]);
+
+  const urgentItems = useMemo(() => {
+    const items = [
+      {
+        key: 'support-pending',
+        label: 'Yêu cầu hỗ trợ chờ nhận',
+        count: pendingCounts.supportPending,
+        href: '/librarian/support-requests?status=PENDING',
+        tone: 'orange',
+        hint: stats.recentSupportRequests?.[0]?.description || 'Ưu tiên nhận ca hỗ trợ mới',
+      },
+      {
+        key: 'support-processing',
+        label: 'Yêu cầu đang xử lý',
+        count: pendingCounts.supportInProgress,
+        href: '/librarian/support-requests?status=IN_PROGRESS',
+        tone: 'blue',
+        hint: 'Theo dõi các cuộc hỗ trợ chưa đóng',
+      },
+      {
+        key: 'violations',
+        label: 'Vi phạm chưa xử lý',
+        count: stats.pendingViolations,
+        href: '/librarian/violation',
+        tone: 'red',
+        hint: stats.recentViolations?.[0]?.violatorName
+          ? `${stats.recentViolations[0].violatorName} vừa có báo cáo mới`
+          : 'Kiểm tra các báo cáo vi phạm mới',
+      },
+      {
+        key: 'complaints',
+        label: 'Khiếu nại chờ xử lý',
+        count: pendingCounts.complaintPending,
+        href: '/librarian/complaints?status=PENDING',
+        tone: 'amber',
+        hint: stats.recentComplaints?.[0]?.subject || 'Phản hồi khiếu nại đang chờ',
+      },
+      {
+        key: 'feedback',
+        label: 'Phản hồi chưa xem',
+        count: pendingCounts.feedbackNew,
+        href: '/librarian/feedback?status=NEW',
+        tone: 'green',
+        hint: 'Nắm bắt góp ý mới từ sinh viên',
+      },
+    ];
+
+    return items.filter((item) => item.count > 0);
+  }, [pendingCounts, stats.pendingViolations, stats.recentSupportRequests, stats.recentViolations, stats.recentComplaints]);
+
+  const compactCards = [
+    {
+      key: 'in-library',
+      value: stats.currentlyInLibrary,
+      label: 'Đang trong thư viện',
+      iconClass: 'compact-icon--orange',
+      icon: Users,
+      href: '/librarian/checkinout',
+    },
+    {
+      key: 'bookings',
+      value: stats.totalBookingsToday,
+      label: 'Đặt chỗ hôm nay',
+      iconClass: 'compact-icon--blue',
+      icon: CalendarCheck,
+      href: '/librarian/bookings',
+    },
+    {
+      key: 'pending',
+      value:
+        (pendingCounts.complaintPending || 0) +
+        (pendingCounts.supportPending || 0) +
+        (pendingCounts.supportInProgress || 0) +
+        (pendingCounts.feedbackNew || 0) +
+        (stats.pendingViolations || 0),
+      label: 'Cần xử lý',
+      iconClass: 'compact-icon--red',
+      icon: AlertCircle,
+      href: '/librarian/support-requests',
+    },
+    {
+      key: 'feedback',
+      value: pendingCounts.feedbackNew,
+      label: 'Phản hồi mới',
+      iconClass: 'compact-icon--green',
+      icon: ThumbsUp,
+      href: '/librarian/feedback',
+    },
+  ];
+
+  const displayInsights = useMemo(() => insights.slice(0, 3), [insights]);
+
   return (
     <>
       <div className="dashboard-container">
@@ -396,39 +543,69 @@ const Dashboard = () => {
           </div>
         </div>
 
+        <div className="dashboard-ops-row">
+          <section className="dashboard-panel panel-elevated quick-actions-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Thao tác nhanh</h3>
+            </div>
+            <div className="quick-actions-grid">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <a key={action.label} href={action.href} className="quick-action-card">
+                    <span className="quick-action-icon">
+                      <Icon size={18} />
+                    </span>
+                    <span className="quick-action-body">
+                      <span className="quick-action-label">{action.label}</span>
+                      <span className="quick-action-note">{action.note}</span>
+                    </span>
+                    <ChevronRight size={16} className="quick-action-arrow" />
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="dashboard-panel panel-elevated urgent-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Cần xử lý ngay</h3>
+            </div>
+            {urgentItems.length === 0 ? (
+              <div className="empty-section">Hiện chưa có việc gấp cần xử lý</div>
+            ) : (
+              <div className="urgent-list">
+                {urgentItems.map((item) => (
+                  <a key={item.key} href={item.href} className={`urgent-item urgent-item--${item.tone}`}>
+                    <div className="urgent-item-main">
+                      <span className="urgent-item-title">{item.label}</span>
+                      <span className="urgent-item-hint">{item.hint}</span>
+                    </div>
+                    <div className="urgent-item-side">
+                      <span className="urgent-item-count">{item.count}</span>
+                      <ChevronRight size={15} />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+
         {/* Top section: Stats Cards (2x2) + Zone Status */}
         <div className="dashboard-top-row">
           {/* Left: 4 stat cards in 2x2 grid */}
           <div className="stats-grid-compact">
-            <div className="compact-card">
-              <div className="compact-card-icon compact-icon--orange"><Users size={20} /></div>
-              <div className="compact-card-value">{stats.currentlyInLibrary}</div>
-              <div className="compact-card-label">Đang trong thư viện</div>
-            </div>
-
-            <div className="compact-card">
-              <div className="compact-card-icon compact-icon--blue"><CalendarCheck size={20} /></div>
-              <div className="compact-card-value">{stats.totalBookingsToday}</div>
-              <div className="compact-card-label">Đặt chỗ hôm nay</div>
-            </div>
-
-            <div className="compact-card">
-              <div className="compact-card-icon compact-icon--red"><AlertCircle size={20} /></div>
-              <div className="compact-card-value">{
-                (pendingCounts.complaintPending || 0) +
-                (pendingCounts.supportPending || 0) +
-                (pendingCounts.supportInProgress || 0) +
-                (pendingCounts.feedbackNew || 0) +
-                (stats.pendingViolations || 0)
-              }</div>
-              <div className="compact-card-label">Cần xử lý</div>
-            </div>
-
-            <div className="compact-card">
-              <div className="compact-card-icon compact-icon--green"><ThumbsUp size={20} /></div>
-              <div className="compact-card-value">{stats.recentFeedbacks.length}</div>
-              <div className="compact-card-label">Phản hồi hôm nay</div>
-            </div>
+            {compactCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <a key={card.key} href={card.href} className="compact-card compact-card--link">
+                  <div className={`compact-card-icon ${card.iconClass}`}><Icon size={20} /></div>
+                  <div className="compact-card-value">{card.value}</div>
+                  <div className="compact-card-label">{card.label}</div>
+                </a>
+              );
+            })}
           </div>
 
           {/* Right: Zone status */}
@@ -437,6 +614,11 @@ const Dashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h3 className="panel-title">Trạng thái khu vực</h3>
               </div>
+              {realtimeCapacity && (
+                <span className="dashboard-live-pill">
+                  {realtimeCapacity.currently_occupied ?? stats.currentlyInLibrary}/{realtimeCapacity.total_capacity ?? stats.totalSeats} đang dùng
+                </span>
+              )}
             </div>
 
             <div className="legend">
@@ -602,6 +784,23 @@ const Dashboard = () => {
             {quietHours.length > 0 && (
               <div className="peak-quiet-note">
                 Giờ vắng: {quietHours.map(h => h.label).join(', ')}
+              </div>
+            )}
+
+            {displayInsights.length > 0 && (
+              <div className="insights-section">
+                <div className="insights-header">
+                  <Sparkles size={14} color="#f59e0b" />
+                  <span>Gợi ý vận hành</span>
+                </div>
+                <div className="insights-list">
+                  {displayInsights.map((insight, idx) => (
+                    <div key={`${insight.title}-${idx}`} className={`insight-item insight-item--${insight.type || 'info'}`}>
+                      <div className="insight-title">{insight.title}</div>
+                      <div className="insight-message">{insight.message}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -966,20 +1165,19 @@ const Dashboard = () => {
           </div>
         </section >
 
-        {/* Bottom section: News */}
-        < section className="dashboard-panel panel-elevated news-panel" >
-          <div className="panel-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Bell size={16} color="#6b7280" />
-              <h3 className="panel-title">Tin tức gần đây</h3>
+        <div className="dashboard-grid-two dashboard-grid-bottom">
+          <section className="dashboard-panel panel-elevated news-panel">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bell size={16} color="#6b7280" />
+                <h3 className="panel-title">Tin tức gần đây</h3>
+              </div>
+              <a href="/librarian/news" className="panel-link">
+                Xem tất cả <ChevronRight size={14} />
+              </a>
             </div>
-            <a href="/librarian/news" className="panel-link">
-              Xem tất cả <ChevronRight size={14} />
-            </a>
-          </div>
 
-          {
-            recentNews.length === 0 ? (
+            {recentNews.length === 0 ? (
               <div className="empty-section">Chưa có tin tức</div>
             ) : (
               <div className="news-cards-grid">
@@ -1016,9 +1214,52 @@ const Dashboard = () => {
                   </div>
                 ))}
               </div>
-            )
-          }
-        </section >
+            )}
+          </section>
+
+          <section className="dashboard-panel panel-elevated books-panel">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={16} color="#6b7280" />
+                <h3 className="panel-title">Sách mới gần đây</h3>
+              </div>
+              <a href="/librarian/new-books" className="panel-link">
+                Xem tất cả <ChevronRight size={14} />
+              </a>
+            </div>
+
+            {recentNewBooks.length === 0 ? (
+              <div className="empty-section">Chưa có sách mới</div>
+            ) : (
+              <div className="book-list">
+                {recentNewBooks.map((book, idx) => {
+                  const title = book.title || book.bookTitle || book.name || 'Chưa có tiêu đề';
+                  const author = book.author || book.authorName || book.publisher || 'Chưa có thông tin';
+                  const cover = book.coverImage || book.coverUrl || book.imageUrl || null;
+                  return (
+                    <a
+                      key={book.id || `${title}-${idx}`}
+                      href={`/librarian/new-books${book.id ? `/edit/${book.id}` : ''}`}
+                      className="book-row"
+                    >
+                      <div className="book-row-cover">
+                        {cover ? <img src={cover} alt={title} /> : <BookOpen size={18} />}
+                      </div>
+                      <div className="book-row-main">
+                        <span className="book-row-title">{title}</span>
+                        <span className="book-row-meta">{author}</span>
+                      </div>
+                      <div className="book-row-side">
+                        <span className="book-row-date">{formatDate(book.createdAt || book.updatedAt || book.publishedAt)}</span>
+                        <ChevronRight size={14} />
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       </div >
 
       {/* Student Detail Modal */}
