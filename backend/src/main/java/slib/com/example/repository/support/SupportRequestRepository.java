@@ -6,6 +6,7 @@ import slib.com.example.entity.support.SupportRequest;
 import slib.com.example.entity.support.SupportRequestStatus;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
@@ -17,7 +18,11 @@ public interface SupportRequestRepository extends JpaRepository<SupportRequest, 
 
     List<SupportRequest> findByStatusOrderByCreatedAtDesc(SupportRequestStatus status);
 
+    List<SupportRequest> findByStatusInOrderByCreatedAtDesc(Collection<SupportRequestStatus> statuses);
+
     long countByStatus(SupportRequestStatus status);
+
+    long countByStatusIn(Collection<SupportRequestStatus> statuses);
 
     // Dashboard: lấy 5 yêu cầu hỗ trợ gần đây nhất
     List<SupportRequest> findTop5ByOrderByCreatedAtDesc();

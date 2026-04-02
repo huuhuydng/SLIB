@@ -8,6 +8,8 @@ class WebSocketService {
     this.connected = false;
     this.subscriptions = new Map(); // Map<topic, subscription>
     this.callbacks = new Map(); // Map<topic, Set<callback>>
+    this.onConnectedCallbacks = new Set();
+    this.onErrorCallbacks = new Set();
   }
 
   getAuthHeaders() {
@@ -20,6 +22,13 @@ class WebSocketService {
   }
 
   connect(onConnected, onError) {
+    if (onConnected) {
+      this.onConnectedCallbacks.add(onConnected);
+    }
+    if (onError) {
+      this.onErrorCallbacks.add(onError);
+    }
+
     if (this.client?.connected) {
       this.connected = true;
       if (onConnected) onConnected();
@@ -52,12 +61,25 @@ class WebSocketService {
       // Set up connection handlers
       this.client.onConnect = () => {
         this.connected = true;
-        if (onConnected) onConnected();
+        this.resubscribeAll();
+        this.onConnectedCallbacks.forEach((callback) => {
+          try {
+            callback();
+          } catch (error) {
+            console.error('WebSocket onConnected callback error:', error);
+          }
+        });
       };
 
       this.client.onStompError = (frame) => {
         this.connected = false;
-        if (onError) onError(frame);
+        this.onErrorCallbacks.forEach((callback) => {
+          try {
+            callback(frame);
+          } catch (error) {
+            console.error('WebSocket onError callback error:', error);
+          }
+        });
       };
 
       this.client.onWebSocketClose = () => {
@@ -98,30 +120,7 @@ class WebSocketService {
 
     // Only subscribe to STOMP topic once
     if (!this.subscriptions.has(topic)) {
-      try {
-        const subscription = this.client.subscribe(topic, (message) => {
-          try {
-            const data = JSON.parse(message.body);
-
-            // Notify all registered callbacks for this topic
-            const topicCallbacks = this.callbacks.get(topic);
-            if (topicCallbacks) {
-              topicCallbacks.forEach(cb => {
-                try {
-                  cb(data);
-                } catch (error) {
-                  console.error('WebSocket callback error:', error);
-                }
-              });
-            }
-          } catch (error) {
-            console.error('WebSocket parse error:', error);
-          }
-        });
-
-        this.subscriptions.set(topic, subscription);
-      } catch (error) {
-        console.error('WebSocket subscribe error:', error);
+      if (!this.ensureTopicSubscription(topic)) {
         return null;
       }
     }
@@ -130,6 +129,46 @@ class WebSocketService {
     return () => {
       this.unsubscribeCallback(topic, callback);
     };
+  }
+
+  ensureTopicSubscription(topic) {
+    if (!this.client?.connected || this.subscriptions.has(topic)) {
+      return !!this.subscriptions.get(topic);
+    }
+
+    try {
+      const subscription = this.client.subscribe(topic, (message) => {
+        try {
+          const data = JSON.parse(message.body);
+
+          // Notify all registered callbacks for this topic
+          const topicCallbacks = this.callbacks.get(topic);
+          if (topicCallbacks) {
+            topicCallbacks.forEach(cb => {
+              try {
+                cb(data);
+              } catch (error) {
+                console.error('WebSocket callback error:', error);
+              }
+            });
+          }
+        } catch (error) {
+          console.error('WebSocket parse error:', error);
+        }
+      });
+
+      this.subscriptions.set(topic, subscription);
+      return true;
+    } catch (error) {
+      console.error('WebSocket subscribe error:', error);
+      return false;
+    }
+  }
+
+  resubscribeAll() {
+    for (const topic of this.callbacks.keys()) {
+      this.ensureTopicSubscription(topic);
+    }
   }
 
   unsubscribeCallback(topic, callback) {

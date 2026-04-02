@@ -6,6 +6,7 @@ import slib.com.example.entity.feedback.SeatStatusReportEntity;
 import slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus;
 
 import java.util.List;
+import java.util.Collection;
 import java.util.UUID;
 
 @Repository
@@ -15,4 +16,8 @@ public interface SeatStatusReportRepository extends JpaRepository<SeatStatusRepo
     List<SeatStatusReportEntity> findAllByOrderByCreatedAtDesc();
 
     List<SeatStatusReportEntity> findByStatusOrderByCreatedAtDesc(ReportStatus status);
+
+    List<SeatStatusReportEntity> findByStatusInOrderByCreatedAtDesc(Collection<ReportStatus> statuses);
+
+    long countByStatusIn(Collection<ReportStatus> statuses);
 }
