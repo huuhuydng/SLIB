@@ -7,10 +7,20 @@ on:
         description: "Tên branch cần deploy lên VM"
         required: true
         default: "feature/ver-01-04-2026"
-      rebuild_ai:
-        description: "Build lại AI service"
+      deploy_frontend:
+        description: "Build và deploy frontend"
         required: true
         default: true
+        type: boolean
+      deploy_backend:
+        description: "Build và deploy backend"
+        required: true
+        default: true
+        type: boolean
+      deploy_ai:
+        description: "Build và deploy AI service"
+        required: true
+        default: false
         type: boolean
 
 permissions:
@@ -44,14 +54,21 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           TARGET_BRANCH: ${{ github.event.inputs.branch }}
-          REBUILD_AI: ${{ github.event.inputs.rebuild_ai }}
+          DEPLOY_FRONTEND: ${{ github.event.inputs.deploy_frontend }}
+          DEPLOY_BACKEND: ${{ github.event.inputs.deploy_backend }}
+          DEPLOY_AI: ${{ github.event.inputs.deploy_ai }}
         run: |
           ssh -i ~/.ssh/slib_vm_deploy \
             -o StrictHostKeyChecking=no \
             -o ConnectTimeout=15 \
             "${VPS_USER}@${VPS_HOST}" \
-            "TARGET_BRANCH='${TARGET_BRANCH}' REBUILD_AI='${REBUILD_AI}' bash -s" <<'EOF'
+            "TARGET_BRANCH='${TARGET_BRANCH}' DEPLOY_FRONTEND='${DEPLOY_FRONTEND}' DEPLOY_BACKEND='${DEPLOY_BACKEND}' DEPLOY_AI='${DEPLOY_AI}' bash -s" <<'EOF'
             set -euo pipefail
+
+            if [ "${DEPLOY_FRONTEND}" != "true" ] && [ "${DEPLOY_BACKEND}" != "true" ] && [ "${DEPLOY_AI}" != "true" ]; then
+              echo "Cần chọn ít nhất một thành phần để deploy"
+              exit 1
+            fi
 
             cd /opt/SLIB
 
@@ -61,35 +78,44 @@ jobs:
             echo "Deploying branch: ${TARGET_BRANCH}"
             echo "HEAD: $(git rev-parse HEAD)"
 
-            cd frontend
-            npm ci
-            npm run build
-            rsync -a --delete dist/ /var/www/slib/
-            cd ..
-
-            services="slib-backend"
-            if [ "${REBUILD_AI}" = "true" ]; then
-              services="slib-backend slib-ai-service"
+            if [ "${DEPLOY_FRONTEND}" = "true" ]; then
+              cd frontend
+              npm ci
+              npm run build
+              rsync -a --delete dist/ /var/www/slib/
+              cd ..
             fi
 
-            docker compose up -d --build ${services}
+            services=""
+            if [ "${DEPLOY_BACKEND}" = "true" ]; then
+              services="slib-backend"
+            fi
+            if [ "${DEPLOY_AI}" = "true" ]; then
+              services="${services} slib-ai-service"
+            fi
+
+            if [ -n "${services}" ]; then
+              docker compose up -d --build ${services}
+            fi
 
             backend_health_file="$(mktemp)"
             ai_health_file="$(mktemp)"
 
-            for _ in $(seq 1 36); do
-              if curl -fsS http://127.0.0.1:8080/actuator/health > "${backend_health_file}" && grep -q '"status":"UP"' "${backend_health_file}"; then
-                break
-              fi
-              sleep 10
-            done
+            if [ "${DEPLOY_BACKEND}" = "true" ]; then
+              for _ in $(seq 1 36); do
+                if curl -fsS http://127.0.0.1:8080/actuator/health > "${backend_health_file}" && grep -q '"status":"UP"' "${backend_health_file}"; then
+                  break
+                fi
+                sleep 10
+              done
 
-            echo "Backend health:"
-            cat "${backend_health_file}"
-            echo
-            grep -q '"status":"UP"' "${backend_health_file}"
+              echo "Backend health:"
+              cat "${backend_health_file}"
+              echo
+              grep -q '"status":"UP"' "${backend_health_file}"
+            fi
 
-            if [ "${REBUILD_AI}" = "true" ]; then
+            if [ "${DEPLOY_AI}" = "true" ]; then
               for _ in $(seq 1 24); do
                 if curl -fsS http://127.0.0.1:8001/health > "${ai_health_file}" && grep -q '"status":"healthy"' "${ai_health_file}"; then
                   break
