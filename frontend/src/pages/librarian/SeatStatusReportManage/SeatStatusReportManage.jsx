@@ -86,6 +86,7 @@ function SeatStatusReportManage() {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const filterRef = useRef(null);
   const columnMenuRef = useRef(null);
+  const syncingStatusRef = useRef(false);
 
   // Selection for batch delete
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -179,6 +180,11 @@ function SeatStatusReportManage() {
 
   useEffect(() => {
     const nextStatus = normalizeStatus(searchParams.get("status"));
+    if (syncingStatusRef.current && nextStatus === statusFilter) {
+      syncingStatusRef.current = false;
+      return;
+    }
+
     if (nextStatus !== statusFilter) {
       setStatusFilter(nextStatus);
     }
@@ -193,6 +199,7 @@ function SeatStatusReportManage() {
     }
 
     if (nextParams.toString() !== searchParams.toString()) {
+      syncingStatusRef.current = true;
       setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams, statusFilter]);
