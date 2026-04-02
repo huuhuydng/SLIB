@@ -91,6 +91,7 @@ function refreshTray() {
 function showStatusWindow() {
     if (statusWindow && !statusWindow.isDestroyed()) {
         statusWindow.show();
+        statusWindow.restore();
         statusWindow.focus();
         return;
     }
@@ -102,6 +103,7 @@ function showStatusWindow() {
         resizable: false,
         autoHideMenuBar: true,
         title: 'SLIB NFC Bridge',
+        skipTaskbar: false,
         webPreferences: {
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js'),
@@ -190,14 +192,19 @@ app.whenReady().then(async () => {
     app.setAsDefaultProtocolClient('slib-nfc-bridge');
 
     if (process.platform === 'darwin' && app.dock) {
-        app.dock.hide();
+        app.dock.show();
     }
 
     tray = new Tray(buildTrayIcon());
+    tray.on('click', showStatusWindow);
     tray.on('double-click', showStatusWindow);
     refreshTray();
 
     await startBridge();
+    showStatusWindow();
+});
+
+app.on('activate', () => {
     showStatusWindow();
 });
 

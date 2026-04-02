@@ -834,17 +834,20 @@ const NfcManagement = () => {
                 </ul>
               </div>
 
-              <div className="nfc-bridge-guide__actions">
+            </div>
+
+            <div className="nfc-bridge-guide__footer">
+              <div className="nfc-bridge-guide__footer-links">
                 <button
-                  className="nfc-bridge-btn nfc-bridge-btn--primary"
+                  className="nfc-bridge-guide__footer-btn nfc-bridge-guide__footer-btn--primary"
                   onClick={handleOpenBridgeApp}
                   disabled={bridgeLaunching}
                 >
                   <Wifi size={14} />
-                  {bridgeLaunching ? "Đang mở công cụ..." : "Mở công cụ NFC"}
+                  {bridgeLaunching ? "Đang mở..." : "Mở công cụ NFC"}
                 </button>
                 <a
-                  className="nfc-bridge-btn"
+                  className="nfc-bridge-guide__footer-btn"
                   href={bridgeDownloadUrl}
                   download
                 >
@@ -852,7 +855,7 @@ const NfcManagement = () => {
                   Tải công cụ NFC
                 </a>
                 <a
-                  className="nfc-bridge-btn"
+                  className="nfc-bridge-guide__footer-btn"
                   href="https://nodejs.org/en/download"
                   target="_blank"
                   rel="noreferrer"
@@ -861,11 +864,8 @@ const NfcManagement = () => {
                   Tải Node.js
                 </a>
               </div>
-            </div>
-
-            <div className="nfc-check-modal__actions">
               <button
-                className="nfc-check-modal__close-btn"
+                className="nfc-bridge-guide__close-btn"
                 onClick={() => setShowBridgeGuide(false)}
               >
                 Đóng

@@ -236,3 +236,8 @@ doc/Report/ScreenCapture/
 doc/Report/ScreenCapture.zip
 skills-lock.json
 .playwright-mcp/
+
+# NFC bridge app artifacts
+/nfc-bridge-app/build/
+/nfc-bridge-app/release/
+/nfc-bridge-app/node_modules/

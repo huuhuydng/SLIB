@@ -21,6 +21,7 @@
   "build": {
     "appId": "site.slib.nfcbridge",
     "productName": "SLIB NFC Bridge",
+    "icon": "build/icon.png",
     "files": [
       "src/**/*",
       "node_modules/**/*",
@@ -38,12 +39,14 @@
       }
     ],
     "mac": {
+      "icon": "build/icon.png",
       "target": [
         "dmg"
       ],
       "category": "public.app-category.utilities"
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         "nsis"
       ]

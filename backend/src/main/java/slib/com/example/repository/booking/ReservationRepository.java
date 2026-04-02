@@ -19,6 +19,8 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findByEndTimeBeforeAndStatus(LocalDateTime time, String status);
 
+        List<ReservationEntity> findByStatusAndEndTimeBetween(String status, LocalDateTime start, LocalDateTime end);
+
         List<ReservationEntity> findByCreatedAtBeforeAndStatus(LocalDateTime time, String status);
 
         List<ReservationEntity> findByStatus(String status);
@@ -125,6 +127,10 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
         List<ReservationEntity> findByStatusAndStartTimeBetween(String status, LocalDateTime start, LocalDateTime end);
 
         List<ReservationEntity> findByStatusIn(List<String> statuses);
+
+        long countByStartTimeBetweenAndStatusIn(LocalDateTime start, LocalDateTime end, List<String> statuses);
+
+        long countByConfirmedAtBetween(LocalDateTime start, LocalDateTime end);
 
         long countByUserIdAndStartTimeBetweenAndStatusIn(UUID userId, LocalDateTime start, LocalDateTime end, List<String> statuses);
 
