@@ -180,15 +180,18 @@ function SeatStatusReportManage() {
 
   useEffect(() => {
     const nextStatus = normalizeStatus(searchParams.get("status"));
-    if (syncingStatusRef.current && nextStatus === statusFilter) {
-      syncingStatusRef.current = false;
-      return;
-    }
 
-    if (nextStatus !== statusFilter) {
-      setStatusFilter(nextStatus);
+    setStatusFilter((previous) => {
+      if (previous === nextStatus) {
+        return previous;
+      }
+      return nextStatus;
+    });
+
+    if (syncingStatusRef.current) {
+      syncingStatusRef.current = false;
     }
-  }, [searchParams, statusFilter]);
+  }, [searchParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
