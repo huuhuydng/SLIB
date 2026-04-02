@@ -15,6 +15,7 @@ import slib.com.example.entity.chat.MessageType;
 // import slib.com.example.entity.users.User; // Không cần dùng nữa nếu chỉ lấy ID
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -137,6 +138,8 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
                      @Param("sessionId") UUID sessionId,
                      @Param("currentHumanSession") Integer currentHumanSession);
 
+       Optional<Message> findTopByConversationIdOrderByCreatedAtDesc(UUID conversationId);
+
        // 13b. Lấy messages gần đây có humanSessionId IS NULL (tin nhắn AI/STUDENT chưa
        // gán session)
        // Dùng khi cần hiện context AI cho thủ thư trong escalation
@@ -226,4 +229,8 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
        @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :conversationId " +
                      "AND m.senderType = 'LIBRARIAN' AND m.isRead = false")
        long countUnreadLibrarianMessagesInConversation(@Param("conversationId") UUID conversationId);
+
+       @Query("SELECT COUNT(m) FROM Message m WHERE m.conversation.id = :conversationId " +
+                     "AND m.senderType = 'STUDENT' AND m.isRead = false")
+       long countUnreadStudentMessagesInConversation(@Param("conversationId") UUID conversationId);
 }

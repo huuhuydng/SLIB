@@ -45,6 +45,47 @@ const ChatManage = () => {
   const selectedConversationIdRef = useRef(selectedConversationId);
   const fetchIdRef = useRef(0);
 
+  const getAuthToken = () =>
+    sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+
+  const getConversationActivityTimestamp = (conv) => {
+    const rawTime = conv?.lastMessage?.createdAt || conv?.updatedAt || conv?.escalatedAt || conv?.createdAt;
+    const timestamp = rawTime ? new Date(rawTime).getTime() : 0;
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+
+  const sortByLatestActivity = (items) => [...items].sort(
+    (a, b) => getConversationActivityTimestamp(b) - getConversationActivityTimestamp(a)
+  );
+
+  const updateConversationPreview = useCallback((conversationId, message, options = {}) => {
+    const { incrementUnread = false, resetUnread = false } = options;
+    const createdAt = message?.createdAt || new Date().toISOString();
+
+    setConversations((prev) => prev.map((conv) => {
+      if (conv.id !== conversationId) {
+        return conv;
+      }
+
+      const nextUnread = resetUnread
+        ? 0
+        : incrementUnread
+          ? (conv.unreadCount || 0) + 1
+          : (conv.unreadCount || 0);
+
+      return {
+        ...conv,
+        updatedAt: createdAt,
+        lastMessage: {
+          ...(conv.lastMessage || {}),
+          ...message,
+          createdAt,
+        },
+        unreadCount: nextUnread,
+      };
+    }));
+  }, []);
+
   // Notification context for badge updates & chat toast
   const { refreshUnreadChatCount } = useLibrarianNotification();
   // Keep ref in sync with state
@@ -55,7 +96,7 @@ const ChatManage = () => {
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/slib/chat/conversations/all`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -65,10 +106,11 @@ const ChatManage = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setConversations(data);
+        const sortedData = sortByLatestActivity(data);
+        setConversations(sortedData);
         // Only auto-select if no conversation is currently selected
         if (data.length > 0 && !selectedConversationIdRef.current && !urlConversationId) {
-          setSelectedConversationId(data[0].id);
+          setSelectedConversationId(sortedData[0].id);
         }
       } else {
         console.error('Failed to fetch conversations:', response.status);
@@ -79,7 +121,7 @@ const ChatManage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [urlConversationId]);
 
   // Fetch messages for selected conversation
   const fetchMessages = useCallback(async (conversationId) => {
@@ -88,7 +130,7 @@ const ChatManage = () => {
     const myFetchId = ++fetchIdRef.current;
 
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/slib/chat/conversations/${conversationId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -122,7 +164,7 @@ const ChatManage = () => {
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!conversationId) return;
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/slib/librarian/chat/${conversationId}/mark-read`, {
         method: 'POST',
         headers: {
@@ -132,6 +174,11 @@ const ChatManage = () => {
       });
 
       if (response.ok) {
+        setConversations(prev => prev.map(conv =>
+          conv.id === conversationId
+            ? { ...conv, unreadCount: 0 }
+            : conv
+        ));
         refreshUnreadChatCount?.();
       }
     } catch (err) {
@@ -142,7 +189,7 @@ const ChatManage = () => {
   // Take over conversation
   const handleTakeOver = async (conversationId) => {
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/slib/chat/conversations/${conversationId}/take-over`, {
         method: 'POST',
         headers: {
@@ -188,7 +235,7 @@ const ChatManage = () => {
     }
 
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
 
       if (currentFile) {
         // Upload ảnh kèm message
@@ -244,7 +291,7 @@ const ChatManage = () => {
   // End chat with confirmation
   const handleEndChat = async (conversationId) => {
     try {
-      const token = localStorage.getItem('librarian_token');
+      const token = getAuthToken();
       const response = await fetch(`${API_BASE}/slib/chat/conversations/${conversationId}/resolve`, {
         method: 'POST',
         headers: {
@@ -320,7 +367,7 @@ const ChatManage = () => {
           } else if (data.id) {
             setConversations(prev => {
               if (prev.some(c => c.id === data.id)) return prev;
-              return [data, ...prev];
+              return sortByLatestActivity([data, ...prev]);
             });
           }
         });
@@ -329,6 +376,14 @@ const ChatManage = () => {
         client.subscribe('/topic/librarian-notifications', (message) => {
           const data = JSON.parse(message.body);
           if (data.type === 'CHAT_NEW_MESSAGE') {
+            updateConversationPreview(data.conversationId, {
+              content: data.content,
+              createdAt: data.timestamp,
+              senderType: 'STUDENT',
+            }, {
+              incrementUnread: data.conversationId !== selectedConversationIdRef.current,
+              resetUnread: data.conversationId === selectedConversationIdRef.current,
+            });
             // Refresh messages if viewing this conversation (no toast here — context handles it)
             if (data.conversationId === selectedConversationIdRef.current) {
               fetchMessages(data.conversationId);
@@ -353,7 +408,7 @@ const ChatManage = () => {
       stompClientRef.current = null;
       if (client) client.deactivate();
     };
-  }, []);
+  }, [fetchConversations, fetchMessages, markConversationAsRead, updateConversationPreview]);
 
   // Subscribe to conversation topic
   const subscribeToConversation = useCallback((conversationId) => {
@@ -396,12 +451,17 @@ const ChatManage = () => {
           return [...prev, newMessage];
         });
 
+        updateConversationPreview(conversationId, newMessage, {
+          resetUnread: newMessage.senderType !== 'STUDENT' || conversationId === selectedConversationIdRef.current,
+        });
+
         if (newMessage.senderType === 'STUDENT') {
           markConversationAsRead(conversationId);
+          updateConversationPreview(conversationId, newMessage, { resetUnread: true });
         }
       }
     );
-  }, [markConversationAsRead]);
+  }, [markConversationAsRead, updateConversationPreview]);
 
   useEffect(() => {
     if (selectedConversationId && wsConnected) {
@@ -428,6 +488,32 @@ const ChatManage = () => {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatConversationTime = (timeStr) => {
+    if (!timeStr) return '';
+
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMessageDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    if (startOfMessageDay.getTime() === startOfToday.getTime()) {
+      return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    const startOfWeek = new Date(startOfToday);
+    const dayOffset = (startOfWeek.getDay() + 6) % 7;
+    startOfWeek.setDate(startOfWeek.getDate() - dayOffset);
+
+    if (startOfMessageDay >= startOfWeek) {
+      const weekLabels = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7'];
+      return weekLabels[date.getDay()];
+    }
+
+    return `${date.getDate()} thg ${date.getMonth() + 1}`;
+  };
+
   const getWaitDuration = (escalatedAt) => {
     if (!escalatedAt) return null;
     const now = new Date();
@@ -450,7 +536,7 @@ const ChatManage = () => {
       case 'QUEUE_WAITING':
         return <span className="cm-status-badge waiting">Chờ xử lý</span>;
       case 'HUMAN_CHATTING':
-        return <span className="cm-status-badge active">Đang chat</span>;
+        return <span className="cm-status-badge active">Đang hỗ trợ</span>;
       case 'RESOLVED':
       case 'AI_HANDLING':
         return <span className="cm-status-badge resolved">Đã kết thúc</span>;
@@ -459,42 +545,85 @@ const ChatManage = () => {
     }
   };
 
+  const getConversationPreview = (conv) => {
+    const lastMessage = conv.lastMessage;
+    const rawContent = lastMessage?.content?.trim();
+
+    if (!rawContent) {
+      return conv.escalationReason || 'Chưa có tin nhắn';
+    }
+
+    const senderPrefix = lastMessage?.senderType === 'LIBRARIAN'
+      ? 'Bạn: '
+      : lastMessage?.senderType === 'AI'
+        ? 'AI: '
+        : '';
+
+    if (rawContent.includes('[IMAGES]') || lastMessage?.attachmentUrl) {
+      return `${senderPrefix}Đã gửi hình ảnh`;
+    }
+
+    const cleanedContent = rawContent
+      .replace('[YÊU CẦU HỖ TRỢ]', '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanedContent) {
+      return `${senderPrefix}Tin nhắn mới`;
+    }
+
+    const preview = cleanedContent.length > 64
+      ? `${cleanedContent.slice(0, 64)}...`
+      : cleanedContent;
+
+    return `${senderPrefix}${preview}`;
+  };
+
+  const handleSelectConversation = (conversationId) => {
+    setSelectedConversationId(conversationId);
+    setConversations(prev => prev.map(conv =>
+      conv.id === conversationId
+        ? { ...conv, unreadCount: 0 }
+        : conv
+    ));
+  };
+
   // Separate and filter conversations
   const waitingConvs = conversations.filter(c => c.status === 'QUEUE_WAITING');
   const activeConvs = conversations.filter(c => c.status === 'HUMAN_CHATTING');
   const otherConvs = conversations.filter(c => c.status !== 'QUEUE_WAITING' && c.status !== 'HUMAN_CHATTING');
 
   const filteredWaiting = useMemo(() => {
-    if (!searchTerm) return waitingConvs;
+    if (!searchTerm) return sortByLatestActivity(waitingConvs);
     const q = searchTerm.toLowerCase();
-    return waitingConvs.filter(c =>
+    return sortByLatestActivity(waitingConvs.filter(c =>
       (c.studentName || '').toLowerCase().includes(q) ||
       (c.studentCode || '').toLowerCase().includes(q)
-    );
+    ));
   }, [waitingConvs, searchTerm]);
 
   const filteredActive = useMemo(() => {
-    if (!searchTerm) return activeConvs;
+    if (!searchTerm) return sortByLatestActivity(activeConvs);
     const q = searchTerm.toLowerCase();
-    return activeConvs.filter(c =>
+    return sortByLatestActivity(activeConvs.filter(c =>
       (c.studentName || '').toLowerCase().includes(q) ||
       (c.studentCode || '').toLowerCase().includes(q)
-    );
+    ));
   }, [activeConvs, searchTerm]);
 
   const filteredOther = useMemo(() => {
-    if (!searchTerm) return otherConvs;
+    if (!searchTerm) return sortByLatestActivity(otherConvs);
     const q = searchTerm.toLowerCase();
-    return otherConvs.filter(c =>
+    return sortByLatestActivity(otherConvs.filter(c =>
       (c.studentName || '').toLowerCase().includes(q) ||
       (c.studentCode || '').toLowerCase().includes(q)
-    );
+    ));
   }, [otherConvs, searchTerm]);
 
   const renderConvItem = (conv) => (
     <div
       key={conv.id}
-      onClick={() => setSelectedConversationId(conv.id)}
+      onClick={() => handleSelectConversation(conv.id)}
       className={`cm-conv-item ${selectedConversationId === conv.id ? 'active' : ''}`}
     >
       <div className="cm-conv-avatar">
@@ -505,16 +634,21 @@ const ChatManage = () => {
       <div className="cm-conv-info">
         <div className="cm-conv-name-row">
           <span className="cm-conv-name">{conv.studentName || 'Sinh viên'}</span>
-          <span className="cm-conv-time">
-            {formatTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
-          </span>
+          <div className="cm-conv-meta">
+            <span className={`cm-conv-time ${conv.unreadCount > 0 && selectedConversationId !== conv.id ? 'unread' : ''}`}>
+              {formatConversationTime(conv.lastMessage?.createdAt || conv.updatedAt || conv.createdAt)}
+            </span>
+            {conv.unreadCount > 0 && selectedConversationId !== conv.id && (
+              <span className="cm-conv-unread-badge">{conv.unreadCount}</span>
+            )}
+          </div>
         </div>
         {conv.studentCode && (
           <span className="cm-conv-code">{conv.studentCode}</span>
         )}
-        {conv.escalationReason && (
-          <span className="cm-conv-reason">{conv.escalationReason}</span>
-        )}
+        <span className={`cm-conv-reason ${conv.unreadCount > 0 && selectedConversationId !== conv.id ? 'unread' : ''}`}>
+          {getConversationPreview(conv)}
+        </span>
         <div className="cm-conv-bottom">
           {conv.status === 'QUEUE_WAITING' && conv.escalatedAt && (
             <span className="cm-conv-wait-time">
@@ -644,7 +778,7 @@ const ChatManage = () => {
                         </span>
                         <span className="cm-chat-header-sub">
                           {currentConversation.status === 'HUMAN_CHATTING'
-                            ? 'Đang trò chuyện'
+                            ? 'Đang hỗ trợ'
                             : currentConversation.status === 'QUEUE_WAITING'
                               ? 'Đang chờ hỗ trợ'
                               : 'Hội thoại đã kết thúc'}
