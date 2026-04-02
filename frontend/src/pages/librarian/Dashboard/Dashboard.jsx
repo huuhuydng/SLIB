@@ -526,9 +526,20 @@ const Dashboard = () => {
       <div className="dashboard-container">
         {/* Title row */}
         <div className="dashboard-title-row">
-          <div>
+          <div className="dashboard-title-copy">
             <h1 className="dashboard-title">{getGreeting()}</h1>
-            <p className="dashboard-subtitle">Tổng quan hoạt động thư viện hôm nay</p>
+            <p className="dashboard-subtitle">Tổng quan vận hành thư viện trong ngày, tập trung vào các việc cần phản hồi nhanh và khu vực cần theo dõi sát.</p>
+            <div className="dashboard-inline-metrics">
+              <span className="dashboard-inline-pill">
+                Công suất hiện tại {Math.round(Number(stats.occupancyRate || 0))}%
+              </span>
+              <span className="dashboard-inline-pill">
+                {compactCards[2].value} mục cần xử lý
+              </span>
+              <span className="dashboard-inline-pill">
+                {stats.activeBookings} lượt đặt đang hiệu lực
+              </span>
+            </div>
           </div>
           <div className="dashboard-meta">
             {lastUpdated && (
