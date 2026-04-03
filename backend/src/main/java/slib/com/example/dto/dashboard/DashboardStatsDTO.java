@@ -36,6 +36,10 @@ public class DashboardStatsDTO {
     // Support request stats
     private long pendingSupportRequests;
     private long inProgressSupportRequests;
+    private long overdueSupportRequests;
+
+    // Seat status report stats
+    private long pendingSeatStatusReports;
 
     // User stats
     private long totalUsers;
@@ -64,8 +68,14 @@ public class DashboardStatsDTO {
     // Recent feedbacks
     private List<FeedbackItemDTO> recentFeedbacks;
 
+    // Recent seat status reports
+    private List<SeatStatusReportItemDTO> recentSeatStatusReports;
+
     // Zone occupancy
     private List<ZoneOccupancyDTO> zoneOccupancies;
+
+    // Today vs yesterday trends
+    private TrendSummaryDTO trendSummary;
 
     // Server time for frontend display
     private LocalDateTime serverTime;
@@ -189,6 +199,24 @@ public class DashboardStatsDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class SeatStatusReportItemDTO {
+        private UUID id;
+        private String userName;
+        private String userCode;
+        private String seatCode;
+        private String zoneName;
+        private String areaName;
+        private String issueType;
+        private String status;
+        private String description;
+        private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class ZoneOccupancyDTO {
         private Integer zoneId;
         private String zoneName;
@@ -196,5 +224,21 @@ public class DashboardStatsDTO {
         private long totalSeats;
         private long occupiedSeats;
         private double occupancyPercentage;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TrendSummaryDTO {
+        private long checkInsToday;
+        private long checkInsYesterday;
+        private long bookingsToday;
+        private long bookingsYesterday;
+        private long violationsToday;
+        private long violationsYesterday;
+        private long feedbackToday;
+        private long feedbackYesterday;
     }
 }

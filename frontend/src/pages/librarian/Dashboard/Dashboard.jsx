@@ -7,7 +7,8 @@ import {
   MessageSquare, TrendingUp, RefreshCw,
   Star, ShieldAlert, LifeBuoy, Award, UserX,
   ThumbsUp, FileText, Eye, BarChart3,
-  MapPin, Layers, X, ExternalLink
+  MapPin, Layers, X, ExternalLink, MonitorPlay,
+  Wifi, WifiOff, ShieldCheck, Siren, Activity
 } from "lucide-react";
 import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
 import librarianService from "../../../services/librarian/librarianService";
@@ -37,6 +38,7 @@ const Dashboard = () => {
   const [accessFilter, setAccessFilter] = useState('all');
   const [topStudentsRange, setTopStudentsRange] = useState('month');
   const [topStudentsData, setTopStudentsData] = useState([]);
+  const [wsConnected, setWsConnected] = useState(false);
   const [pendingCounts, setPendingCounts] = useState({
     feedbackNew: 0, complaintPending: 0, supportPending: 0, supportInProgress: 0
   });
@@ -46,6 +48,20 @@ const Dashboard = () => {
   const [densityHours, setDensityHours] = useState([]);
   const [behaviorIssues, setBehaviorIssues] = useState([]);
   const [erroredViolationAvatars, setErroredViolationAvatars] = useState(new Set());
+  const [chatOverview, setChatOverview] = useState({
+    pendingReplies: 0,
+    latestPending: null,
+    totalActive: 0,
+  });
+  const [serviceSignals, setServiceSignals] = useState({
+    websocket: false,
+    aiAnalytics: true,
+    realtimeCapacity: true,
+    accessFeedFresh: true,
+  });
+
+  const getAuthToken = () =>
+    sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
 
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '';
@@ -160,9 +176,54 @@ const Dashboard = () => {
     }
   };
 
+  const fetchChatOverview = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/slib/chat/conversations/all`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Không thể tải tổng quan chat');
+      }
+
+      const data = await response.json();
+      const sortedData = sortByNewest(data || []);
+      const actionableConversations = sortedData.filter((conv) => {
+        const status = conv?.status;
+        const senderType = conv?.lastMessage?.senderType;
+        const unreadCount = Number(conv?.unreadCount || 0);
+
+        if (status === 'QUEUE_WAITING') return true;
+        if (status === 'HUMAN_CHATTING' && unreadCount > 0) return true;
+        return status === 'HUMAN_CHATTING' && senderType === 'STUDENT';
+      });
+
+      setChatOverview({
+        pendingReplies: actionableConversations.length,
+        latestPending: actionableConversations[0] || null,
+        totalActive: sortedData.filter((conv) => conv?.status === 'HUMAN_CHATTING' || conv?.status === 'QUEUE_WAITING')
+          .length,
+      });
+    } catch (error) {
+      console.warn('Could not fetch chat overview:', error);
+      setChatOverview({
+        pendingReplies: 0,
+        latestPending: null,
+        totalActive: 0,
+      });
+    }
+  };
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      let analyticsHealthy = true;
       const [stats, news, newBooks] = await Promise.all([
         dashboardService.getDashboardStats(),
         dashboardService.getRecentNews(),
@@ -202,8 +263,10 @@ const Dashboard = () => {
       try {
         const capacity = await getRealtimeCapacity();
         setRealtimeCapacity(capacity);
+        setServiceSignals((prev) => ({ ...prev, realtimeCapacity: true }));
       } catch (e) {
         console.warn('Could not fetch realtime capacity:', e);
+        setServiceSignals((prev) => ({ ...prev, realtimeCapacity: false }));
       }
 
       // Fetch AI Analytics data
@@ -212,20 +275,24 @@ const Dashboard = () => {
         const peakData = peakRes?.data || {};
         setPeakHours(Array.isArray(peakData.peak_hours) ? peakData.peak_hours.slice(0, 3) : []);
         setQuietHours(Array.isArray(peakData.quiet_hours) ? peakData.quiet_hours : []);
-      } catch (e) { console.warn('Could not fetch peak hours:', e); }
+      } catch (e) { analyticsHealthy = false; console.warn('Could not fetch peak hours:', e); }
 
       try {
         const densityData = await getDensityPrediction();
         setDensityHours(Array.isArray(densityData?.hourly_predictions) ? densityData.hourly_predictions : []);
-      } catch (e) { console.warn('Could not fetch density:', e); }
+      } catch (e) { analyticsHealthy = false; console.warn('Could not fetch density:', e); }
 
       try {
         const behaviorData = await getBehaviorSummary();
         setBehaviorIssues(Array.isArray(behaviorData?.students) ? behaviorData.students : []);
-      } catch (e) { console.warn('Could not fetch behavior issues:', e); }
+      } catch (e) { analyticsHealthy = false; console.warn('Could not fetch behavior issues:', e); }
+
+      await fetchChatOverview();
+      setServiceSignals((prev) => ({ ...prev, aiAnalytics: analyticsHealthy }));
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
       setInsights([]);
+      setServiceSignals((prev) => ({ ...prev, aiAnalytics: false }));
     } finally {
       setLoading(false);
     }
@@ -252,6 +319,8 @@ const Dashboard = () => {
     const unsubscribers = [];
     websocketService.connect(
       () => {
+        setWsConnected(true);
+        setServiceSignals((prev) => ({ ...prev, websocket: true }));
         // Subscribe access-logs (check-in/out real-time)
         unsubscribers.push(websocketService.subscribe('/topic/access-logs', (message) => {
           if (message.type === 'CHECK_IN' || message.type === 'CHECK_OUT') {
@@ -297,16 +366,24 @@ const Dashboard = () => {
         }));
       },
       (error) => {
+        setWsConnected(false);
+        setServiceSignals((prev) => ({ ...prev, websocket: false }));
         console.error('[Dashboard] WebSocket error:', error);
       }
     );
-    return () => { unsubscribers.forEach(unsub => { if (unsub) unsub(); }); };
+    return () => {
+      setWsConnected(false);
+      setServiceSignals((prev) => ({ ...prev, websocket: false }));
+      unsubscribers.forEach(unsub => { if (unsub) unsub(); });
+    };
   }, []);
 
   // Fallback polling 60s - đảm bảo dashboard cập nhật khi WebSocket message không đến
   useEffect(() => {
     const interval = setInterval(() => {
       refreshStatsOnly();
+      fetchChatOverview();
+      setServiceSignals((prev) => ({ ...prev, websocket: websocketService.isConnected() }));
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -346,6 +423,8 @@ const Dashboard = () => {
     pendingViolations: dashStats?.pendingViolations || 0,
     pendingSupportRequests: dashStats?.pendingSupportRequests || 0,
     inProgressSupportRequests: dashStats?.inProgressSupportRequests || 0,
+    overdueSupportRequests: dashStats?.overdueSupportRequests || 0,
+    pendingSeatStatusReports: dashStats?.pendingSeatStatusReports || 0,
     totalUsers: dashStats?.totalUsers || 0,
     recentBookings: dashStats?.recentBookings || [],
     areaOccupancies: dashStats?.areaOccupancies || [],
@@ -355,7 +434,9 @@ const Dashboard = () => {
     recentSupportRequests: dashStats?.recentSupportRequests || [],
     recentComplaints: dashStats?.recentComplaints || [],
     recentFeedbacks: dashStats?.recentFeedbacks || [],
-    zoneOccupancies: dashStats?.zoneOccupancies || []
+    recentSeatStatusReports: dashStats?.recentSeatStatusReports || [],
+    zoneOccupancies: dashStats?.zoneOccupancies || [],
+    trendSummary: dashStats?.trendSummary || {}
   };
 
   // Greeting based on time of day
@@ -415,6 +496,12 @@ const Dashboard = () => {
       note: `${pendingCounts.supportPending + pendingCounts.supportInProgress} yêu cầu đang hoạt động`,
     },
     {
+      label: 'Check-in / Check-out',
+      href: '/librarian/checkinout',
+      icon: MonitorPlay,
+      note: `${stats.totalCheckInsToday} lượt vào hôm nay`,
+    },
+    {
       label: 'Xử lý hỗ trợ',
       href: '/librarian/support-requests',
       icon: LifeBuoy,
@@ -439,6 +526,12 @@ const Dashboard = () => {
       note: 'Tạo thông báo mới',
     },
     {
+      label: 'Slideshow / Kiosk',
+      href: '/librarian/slideshow-management',
+      icon: Layers,
+      note: 'Cập nhật slide hiển thị',
+    },
+    {
       label: 'Cập nhật sách mới',
       href: '/librarian/new-books',
       icon: BookOpen,
@@ -447,58 +540,10 @@ const Dashboard = () => {
   ]), [
     pendingCounts.supportPending,
     pendingCounts.supportInProgress,
+    stats.totalCheckInsToday,
     stats.activeBookings,
     recentNewBooks.length,
   ]);
-
-  const urgentItems = useMemo(() => {
-    const items = [
-      {
-        key: 'support-pending',
-        label: 'Yêu cầu hỗ trợ chờ nhận',
-        count: pendingCounts.supportPending,
-        href: '/librarian/support-requests?status=PENDING',
-        tone: 'orange',
-        hint: stats.recentSupportRequests?.[0]?.description || 'Ưu tiên nhận ca hỗ trợ mới',
-      },
-      {
-        key: 'support-processing',
-        label: 'Yêu cầu đang xử lý',
-        count: pendingCounts.supportInProgress,
-        href: '/librarian/support-requests?status=IN_PROGRESS',
-        tone: 'blue',
-        hint: 'Theo dõi các cuộc hỗ trợ chưa đóng',
-      },
-      {
-        key: 'violations',
-        label: 'Vi phạm chưa xử lý',
-        count: stats.pendingViolations,
-        href: '/librarian/violation',
-        tone: 'red',
-        hint: stats.recentViolations?.[0]?.violatorName
-          ? `${stats.recentViolations[0].violatorName} vừa có báo cáo mới`
-          : 'Kiểm tra các báo cáo vi phạm mới',
-      },
-      {
-        key: 'complaints',
-        label: 'Khiếu nại chờ xử lý',
-        count: pendingCounts.complaintPending,
-        href: '/librarian/complaints?status=PENDING',
-        tone: 'amber',
-        hint: stats.recentComplaints?.[0]?.subject || 'Phản hồi khiếu nại đang chờ',
-      },
-      {
-        key: 'feedback',
-        label: 'Phản hồi chưa xem',
-        count: pendingCounts.feedbackNew,
-        href: '/librarian/feedback?status=NEW',
-        tone: 'green',
-        hint: 'Nắm bắt góp ý mới từ sinh viên',
-      },
-    ];
-
-    return items.filter((item) => item.count > 0);
-  }, [pendingCounts, stats.pendingViolations, stats.recentSupportRequests, stats.recentViolations, stats.recentComplaints]);
 
   const compactCards = [
     {
@@ -541,6 +586,281 @@ const Dashboard = () => {
   ];
 
   const displayInsights = useMemo(() => insights.slice(0, 3), [insights]);
+
+  const todayPriorityItems = useMemo(() => {
+    const items = [
+      {
+        key: 'support-overdue',
+        label: 'Hỗ trợ chờ quá 10 phút',
+        count: stats.overdueSupportRequests,
+        href: '/librarian/support-requests?status=PENDING',
+        tone: 'orange',
+        hint: stats.recentSupportRequests?.[0]?.description || 'Ưu tiên nhận các yêu cầu mới bị tồn.',
+      },
+      {
+        key: 'seat-status-pending',
+        label: 'Ghế lỗi chưa xác minh',
+        count: stats.pendingSeatStatusReports,
+        href: '/librarian/seat-status-reports?status=PENDING',
+        tone: 'amber',
+        hint: stats.recentSeatStatusReports?.[0]
+          ? `${stats.recentSeatStatusReports[0].seatCode} - ${stats.recentSeatStatusReports[0].issueType}`
+          : 'Kiểm tra các báo cáo ghế mới nhất.',
+      },
+      {
+        key: 'complaint-new',
+        label: 'Khiếu nại mới',
+        count: pendingCounts.complaintPending,
+        href: '/librarian/complaints?status=PENDING',
+        tone: 'red',
+        hint: stats.recentComplaints?.[0]?.subject || 'Có khiếu nại đang cần phản hồi.',
+      },
+      {
+        key: 'violation-new',
+        label: 'Vi phạm mới',
+        count: stats.pendingViolations,
+        href: '/librarian/violation',
+        tone: 'blue',
+        hint: stats.recentViolations?.[0]?.violatorName
+          ? `${stats.recentViolations[0].violatorName} vừa bị ghi nhận.`
+          : 'Theo dõi các báo cáo vi phạm mới.',
+      },
+    ];
+
+    return items.filter((item) => item.count > 0);
+  }, [
+    stats.overdueSupportRequests,
+    stats.pendingSeatStatusReports,
+    stats.pendingViolations,
+    pendingCounts.complaintPending,
+    stats.recentSupportRequests,
+    stats.recentSeatStatusReports,
+    stats.recentComplaints,
+    stats.recentViolations,
+  ]);
+
+  const chatReplySummary = useMemo(() => {
+    const latest = chatOverview.latestPending;
+    return {
+      count: chatOverview.pendingReplies,
+      active: chatOverview.totalActive,
+      href: latest?.id
+        ? `/librarian/chat?conversationId=${latest.id}`
+        : '/librarian/chat',
+      studentName: latest?.studentName || 'Chưa có cuộc chat cần phản hồi',
+      preview: latest?.lastMessage?.content || latest?.escalationReason || 'Theo dõi các cuộc trò chuyện đang chờ thư viện phản hồi.',
+      time: latest?.lastMessage?.createdAt || latest?.updatedAt || latest?.createdAt || null,
+      status: latest?.status || null,
+    };
+  }, [chatOverview]);
+
+  const trendCards = useMemo(() => {
+    const compareMetric = (todayValue, yesterdayValue, positiveWhenUp = true) => {
+      const delta = Number(todayValue || 0) - Number(yesterdayValue || 0);
+      const pct = yesterdayValue > 0
+        ? Math.round((delta / yesterdayValue) * 100)
+        : (todayValue > 0 ? 100 : 0);
+
+      let direction = 'flat';
+      if (delta > 0) direction = positiveWhenUp ? 'up' : 'down';
+      if (delta < 0) direction = positiveWhenUp ? 'down' : 'up';
+
+      return {
+        todayValue: Number(todayValue || 0),
+        yesterdayValue: Number(yesterdayValue || 0),
+        delta,
+        pct,
+        direction,
+      };
+    };
+
+    const trend = stats.trendSummary || {};
+
+    return [
+      {
+        key: 'checkins',
+        label: 'Check-in',
+        href: '/librarian/checkinout',
+        icon: Users,
+        tone: 'blue',
+        ...compareMetric(trend.checkInsToday, trend.checkInsYesterday, true),
+      },
+      {
+        key: 'bookings',
+        label: 'Đặt chỗ',
+        href: '/librarian/bookings',
+        icon: CalendarCheck,
+        tone: 'orange',
+        ...compareMetric(trend.bookingsToday, trend.bookingsYesterday, true),
+      },
+      {
+        key: 'violations',
+        label: 'Vi phạm',
+        href: '/librarian/violation',
+        icon: ShieldAlert,
+        tone: 'red',
+        ...compareMetric(trend.violationsToday, trend.violationsYesterday, false),
+      },
+      {
+        key: 'feedback',
+        label: 'Phản hồi',
+        href: '/librarian/feedback',
+        icon: ThumbsUp,
+        tone: 'green',
+        ...compareMetric(trend.feedbackToday, trend.feedbackYesterday, true),
+      },
+    ];
+  }, [stats.trendSummary]);
+
+  const areaAttentionItems = useMemo(() => {
+    const reportCountByZone = (stats.recentSeatStatusReports || []).reduce((acc, item) => {
+      const key = item.zoneName || item.areaName || 'Khác';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return [...(stats.zoneOccupancies || [])]
+      .map((zone) => {
+        const issueCount = reportCountByZone[zone.zoneName] || 0;
+        const occupancy = Number(zone.occupancyPercentage || 0);
+        const score = occupancy + issueCount * 18;
+        let tone = 'green';
+        if (occupancy >= 85 || issueCount >= 2) tone = 'red';
+        else if (occupancy >= 65 || issueCount >= 1) tone = 'amber';
+
+        const hints = [];
+        if (occupancy >= 60) hints.push(`công suất ${Math.round(occupancy)}%`);
+        if (issueCount > 0) hints.push(`${issueCount} báo cáo ghế mới`);
+        if (hints.length === 0) hints.push('đang vận hành ổn định');
+
+        return {
+          key: `${zone.areaName}-${zone.zoneName}`,
+          title: zone.zoneName,
+          subtitle: zone.areaName,
+          tone,
+          score,
+          href: issueCount > 0 ? '/librarian/seat-status-reports' : '/librarian/checkinout',
+          hint: hints.join(' · '),
+          occupancy,
+          issueCount,
+        };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4);
+  }, [stats.zoneOccupancies, stats.recentSeatStatusReports]);
+
+  const activityFeedItems = useMemo(() => {
+    const feed = [];
+
+    accessLogs.slice(0, 6).forEach((log) => {
+      const time = log.action === 'CHECK_IN' ? log.checkInTime : log.checkOutTime;
+      feed.push({
+        key: `access-${log.logId}-${log.action}`,
+        time,
+        title: `${log.userName} ${log.action === 'CHECK_IN' ? 'vừa vào thư viện' : 'vừa rời thư viện'}`,
+        description: log.userCode || 'Bản ghi check-in/out',
+        icon: log.action === 'CHECK_IN' ? ArrowUpRight : ArrowDownLeft,
+        tone: log.action === 'CHECK_IN' ? 'green' : 'slate',
+        href: '/librarian/checkinout',
+      });
+    });
+
+    (stats.recentSupportRequests || []).slice(0, 3).forEach((item) => {
+      feed.push({
+        key: `support-${item.id}`,
+        time: item.createdAt,
+        title: `${item.studentName} gửi yêu cầu hỗ trợ`,
+        description: item.description || 'Yêu cầu hỗ trợ mới',
+        icon: LifeBuoy,
+        tone: 'orange',
+        href: '/librarian/support-requests',
+      });
+    });
+
+    (stats.recentSeatStatusReports || []).slice(0, 3).forEach((item) => {
+      feed.push({
+        key: `seat-status-${item.id}`,
+        time: item.createdAt,
+        title: `${item.seatCode} có báo cáo ${item.issueType?.toLowerCase() || 'sự cố'}`,
+        description: `${item.zoneName} · ${item.userName}`,
+        icon: FileText,
+        tone: 'amber',
+        href: '/librarian/seat-status-reports',
+      });
+    });
+
+    (stats.recentViolations || []).slice(0, 3).forEach((item) => {
+      feed.push({
+        key: `violation-${item.id}`,
+        time: item.createdAt,
+        title: `${item.violatorName} bị báo vi phạm`,
+        description: getViolationLabel(item.violationType),
+        icon: ShieldAlert,
+        tone: 'red',
+        href: '/librarian/violation',
+      });
+    });
+
+    return feed
+      .filter((item) => item.time)
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 8);
+  }, [accessLogs, stats.recentSupportRequests, stats.recentSeatStatusReports, stats.recentViolations]);
+
+  const systemAlerts = useMemo(() => {
+    const alerts = [];
+
+    if (!serviceSignals.websocket) {
+      alerts.push({
+        key: 'ws-offline',
+        tone: 'red',
+        title: 'Kênh realtime đang gián đoạn',
+        description: 'Badge và cập nhật tức thời có thể đến chậm hơn bình thường.',
+        icon: WifiOff,
+      });
+    }
+
+    if (!serviceSignals.realtimeCapacity || !serviceSignals.aiAnalytics) {
+      alerts.push({
+        key: 'ai-analytics',
+        tone: 'amber',
+        title: 'Phân tích AI chưa phản hồi đầy đủ',
+        description: 'Kiểm tra lại AI analytics nếu card công suất hoặc gợi ý vận hành bị trống.',
+        icon: Sparkles,
+      });
+    }
+
+    if (stats.pendingSeatStatusReports >= 5) {
+      alerts.push({
+        key: 'seat-buildup',
+        tone: 'orange',
+        title: 'Báo cáo ghế đang dồn',
+        description: `${stats.pendingSeatStatusReports} báo cáo ghế đang chờ xác minh hoặc xử lý.`,
+        icon: Siren,
+      });
+    }
+
+    if (alerts.length === 0) {
+      alerts.push(
+        {
+          key: 'ws-ok',
+          tone: 'green',
+          title: 'Realtime ổn định',
+          description: 'WebSocket đang hoạt động, dashboard nhận dữ liệu mới bình thường.',
+          icon: Wifi,
+        },
+        {
+          key: 'system-ok',
+          tone: 'blue',
+          title: 'Các dịch vụ giám sát đang sẵn sàng',
+          description: 'AI analytics, dữ liệu công suất và bảng điều hành đều phản hồi tốt.',
+          icon: ShieldCheck,
+        }
+      );
+    }
+
+    return alerts.slice(0, 3);
+  }, [serviceSignals, stats.pendingSeatStatusReports]);
 
   return (
     <>
@@ -622,13 +942,13 @@ const Dashboard = () => {
           <div className="dashboard-overview-col">
             <section className="dashboard-panel panel-elevated urgent-panel">
               <div className="panel-header">
-                <h3 className="panel-title">Cần xử lý ngay</h3>
+                <h3 className="panel-title">Công việc ưu tiên hôm nay</h3>
               </div>
-              {urgentItems.length === 0 ? (
+              {todayPriorityItems.length === 0 ? (
                 <div className="empty-section">Hiện chưa có việc gấp cần xử lý</div>
               ) : (
                 <div className="urgent-list">
-                  {urgentItems.map((item) => (
+                  {todayPriorityItems.map((item) => (
                     <a key={item.key} href={item.href} className={`urgent-item urgent-item--${item.tone}`}>
                       <div className="urgent-item-main">
                         <span className="urgent-item-title">{item.label}</span>
@@ -644,10 +964,133 @@ const Dashboard = () => {
               )}
             </section>
 
-            <section className="dashboard-panel panel-elevated zone-status-side">
+            <section className="dashboard-panel panel-elevated chat-response-panel">
               <div className="panel-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 className="panel-title">Trạng thái khu vực</h3>
+                  <MessageSquare size={16} color="#2563eb" />
+                  <h3 className="panel-title">Chat cần phản hồi</h3>
+                </div>
+                <a href={chatReplySummary.href} className="panel-link">
+                  Vào chat <ChevronRight size={14} />
+                </a>
+              </div>
+
+              <div className="chat-response-card">
+                <div className="chat-response-top">
+                  <div>
+                    <div className="chat-response-count">{chatReplySummary.count}</div>
+                    <div className="chat-response-label">cuộc chat đang chờ thư viện phản hồi</div>
+                  </div>
+                  <div className="chat-response-meta">
+                    <span className="dashboard-inline-pill">{chatReplySummary.active} đang hoạt động</span>
+                  </div>
+                </div>
+
+                <a href={chatReplySummary.href} className="chat-response-highlight">
+                  <div className="chat-response-highlight-copy">
+                    <span className="chat-response-student">{chatReplySummary.studentName}</span>
+                    <span className="chat-response-preview">{chatReplySummary.preview}</span>
+                  </div>
+                  <div className="chat-response-highlight-side">
+                    <span className="chat-response-time">{formatRelativeTime(chatReplySummary.time)}</span>
+                    <ChevronRight size={15} />
+                  </div>
+                </a>
+              </div>
+            </section>
+
+            <section className="dashboard-panel panel-elevated system-alerts-panel">
+              <div className="panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Siren size={16} color="#ef4444" />
+                  <h3 className="panel-title">Cảnh báo hệ thống</h3>
+                </div>
+              </div>
+              <div className="system-alert-list">
+                {systemAlerts.map((alert) => {
+                  const Icon = alert.icon;
+                  return (
+                    <div key={alert.key} className={`system-alert-card system-alert-card--${alert.tone}`}>
+                      <span className="system-alert-icon"><Icon size={16} /></span>
+                      <div className="system-alert-copy">
+                        <span className="system-alert-title">{alert.title}</span>
+                        <span className="system-alert-description">{alert.description}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div className="dashboard-grid-three">
+          <section className="dashboard-panel panel-elevated trend-panel">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={16} color="#ea580c" />
+                <h3 className="panel-title">Xu hướng hôm nay so với hôm qua</h3>
+              </div>
+            </div>
+
+            <div className="trend-grid">
+              {trendCards.map((item) => {
+                const Icon = item.icon;
+                const deltaPrefix = item.delta > 0 ? '+' : '';
+                const deltaLabel = item.delta === 0 ? 'Không đổi' : `${deltaPrefix}${item.pct}%`;
+                return (
+                  <a key={item.key} href={item.href} className={`trend-card trend-card--${item.tone}`}>
+                    <div className="trend-card-head">
+                      <span className="trend-card-icon"><Icon size={16} /></span>
+                      <span className={`trend-card-badge trend-card-badge--${item.direction}`}>
+                        {item.direction === 'up' && <ArrowUpRight size={13} />}
+                        {item.direction === 'down' && <ArrowDownLeft size={13} />}
+                        {item.direction === 'flat' && <Activity size={13} />}
+                        {deltaLabel}
+                      </span>
+                    </div>
+                    <div className="trend-card-value">{item.todayValue}</div>
+                    <div className="trend-card-label">{item.label}</div>
+                    <div className="trend-card-foot">Hôm qua: {item.yesterdayValue}</div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="dashboard-panel panel-elevated area-attention-panel">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={16} color="#0f766e" />
+                <h3 className="panel-title">Khu vực cần chú ý</h3>
+              </div>
+            </div>
+
+            {areaAttentionItems.length === 0 ? (
+              <div className="empty-section">Chưa có khu vực nào cần chú ý thêm</div>
+            ) : (
+              <div className="attention-list">
+                {areaAttentionItems.map((item) => (
+                  <a key={item.key} href={item.href} className={`attention-card attention-card--${item.tone}`}>
+                    <div className="attention-card-main">
+                      <span className="attention-card-title">{item.title}</span>
+                      <span className="attention-card-subtitle">{item.subtitle}</span>
+                      <span className="attention-card-hint">{item.hint}</span>
+                    </div>
+                    <div className="attention-card-side">
+                      <span className="attention-card-occupancy">{Math.round(item.occupancy)}%</span>
+                      <ChevronRight size={14} />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="dashboard-panel panel-elevated zone-status-side">
+              <div className="panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 className="panel-title">Toàn cảnh khu vực</h3>
                 </div>
                 {realtimeCapacity && (
                   <span className="dashboard-live-pill">
@@ -704,7 +1147,6 @@ const Dashboard = () => {
                 ))
               )}
             </section>
-          </div>
         </div>
 
         {/* Analytics Chart + AI Panel */}
@@ -1118,88 +1560,118 @@ const Dashboard = () => {
         </div >
 
         {/* Requests Tabs Section */}
-        < section className="dashboard-panel panel-elevated requests-panel" >
-          <div className="panel-header">
-            <h3 className="panel-title">Yêu cầu và phản hồi</h3>
-          </div>
-          <div className="request-tabs">
-            <button
-              className={`request-tab ${activeRequestTab === 'support' ? 'active' : ''}`}
-              onClick={() => setActiveRequestTab('support')}
-            >
-              <LifeBuoy size={14} />
-              Hỗ trợ ({stats.recentSupportRequests.length})
-            </button>
-            <button
-              className={`request-tab ${activeRequestTab === 'violation' ? 'active' : ''}`}
-              onClick={() => setActiveRequestTab('violation')}
-            >
-              <ShieldAlert size={14} />
-              Vi phạm ({stats.recentViolations.length})
-            </button>
-            <button
-              className={`request-tab ${activeRequestTab === 'complaint' ? 'active' : ''}`}
-              onClick={() => setActiveRequestTab('complaint')}
-            >
-              <FileText size={14} />
-              Khiếu nại ({stats.recentComplaints.length})
-            </button>
-            <button
-              className={`request-tab ${activeRequestTab === 'feedback' ? 'active' : ''}`}
-              onClick={() => setActiveRequestTab('feedback')}
-            >
-              <ThumbsUp size={14} />
-              Phản hồi ({stats.recentFeedbacks.length})
-            </button>
-          </div>
-
-          <div className="request-list">
-            {getActiveRequestData().length === 0 ? (
-              <div className="empty-section">Không có dữ liệu</div>
+        <div className="dashboard-grid-two dashboard-grid-balance">
+          <section className="dashboard-panel panel-elevated activity-panel">
+            <div className="panel-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={16} color="#475569" />
+                <h3 className="panel-title">Lịch hoạt động gần nhất</h3>
+              </div>
+            </div>
+            {activityFeedItems.length === 0 ? (
+              <div className="empty-section">Chưa có hoạt động mới</div>
             ) : (
-              getActiveRequestData().map((item, idx) => {
-                const statusCfg = getStatusConfig(item.status);
-                return (
-                  <div key={idx} className="request-item request-item-clickable" onClick={() => setDetailModal({ type: activeRequestTab, data: item })}>
-                    <div className="request-item-main">
-                      <div className="request-item-user">
-                        <span className="request-item-name">
-                          {item.studentName || item.violatorName || item.userName || 'N/A'}
-                        </span>
-                        <span className="request-item-code">
-                          {item.studentCode || item.violatorCode || item.userCode || ''}
-                        </span>
+              <div className="activity-feed">
+                {activityFeedItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a key={item.key} href={item.href} className={`activity-item activity-item--${item.tone}`}>
+                      <span className="activity-icon"><Icon size={15} /></span>
+                      <div className="activity-copy">
+                        <span className="activity-title">{item.title}</span>
+                        <span className="activity-description">{item.description}</span>
                       </div>
-                      <p className="request-item-desc">
-                        {activeRequestTab === 'violation'
-                          ? getViolationLabel(item.violationType)
-                          : activeRequestTab === 'complaint'
-                            ? item.subject
-                            : activeRequestTab === 'feedback'
-                              ? (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  {item.rating && [...Array(5)].map((_, i) => (
-                                    <Star key={i} size={12} fill={i < item.rating ? '#f59e0b' : 'none'} color={i < item.rating ? '#f59e0b' : '#d1d5db'} />
-                                  ))}
-                                  <span style={{ marginLeft: '6px' }}>{item.content}</span>
-                                </span>
-                              )
-                              : item.description
-                        }
-                      </p>
-                    </div>
-                    <div className="request-item-meta">
-                      <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color }}>
-                        {statusCfg.label}
-                      </span>
-                      <span className="request-item-time">{formatRelativeTime(item.createdAt)}</span>
-                    </div>
-                  </div>
-                );
-              })
+                      <span className="activity-time">{formatRelativeTime(item.time)}</span>
+                    </a>
+                  );
+                })}
+              </div>
             )}
-          </div>
-        </section >
+          </section>
+
+          <section className="dashboard-panel panel-elevated requests-panel">
+            <div className="panel-header">
+              <h3 className="panel-title">Yêu cầu và phản hồi</h3>
+            </div>
+            <div className="request-tabs">
+              <button
+                className={`request-tab ${activeRequestTab === 'support' ? 'active' : ''}`}
+                onClick={() => setActiveRequestTab('support')}
+              >
+                <LifeBuoy size={14} />
+                Hỗ trợ ({stats.recentSupportRequests.length})
+              </button>
+              <button
+                className={`request-tab ${activeRequestTab === 'violation' ? 'active' : ''}`}
+                onClick={() => setActiveRequestTab('violation')}
+              >
+                <ShieldAlert size={14} />
+                Vi phạm ({stats.recentViolations.length})
+              </button>
+              <button
+                className={`request-tab ${activeRequestTab === 'complaint' ? 'active' : ''}`}
+                onClick={() => setActiveRequestTab('complaint')}
+              >
+                <FileText size={14} />
+                Khiếu nại ({stats.recentComplaints.length})
+              </button>
+              <button
+                className={`request-tab ${activeRequestTab === 'feedback' ? 'active' : ''}`}
+                onClick={() => setActiveRequestTab('feedback')}
+              >
+                <ThumbsUp size={14} />
+                Phản hồi ({stats.recentFeedbacks.length})
+              </button>
+            </div>
+
+            <div className="request-list">
+              {getActiveRequestData().length === 0 ? (
+                <div className="empty-section">Không có dữ liệu</div>
+              ) : (
+                getActiveRequestData().map((item, idx) => {
+                  const statusCfg = getStatusConfig(item.status);
+                  return (
+                    <div key={idx} className="request-item request-item-clickable" onClick={() => setDetailModal({ type: activeRequestTab, data: item })}>
+                      <div className="request-item-main">
+                        <div className="request-item-user">
+                          <span className="request-item-name">
+                            {item.studentName || item.violatorName || item.userName || 'N/A'}
+                          </span>
+                          <span className="request-item-code">
+                            {item.studentCode || item.violatorCode || item.userCode || ''}
+                          </span>
+                        </div>
+                        <p className="request-item-desc">
+                          {activeRequestTab === 'violation'
+                            ? getViolationLabel(item.violationType)
+                            : activeRequestTab === 'complaint'
+                              ? item.subject
+                              : activeRequestTab === 'feedback'
+                                ? (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    {item.rating && [...Array(5)].map((_, i) => (
+                                      <Star key={i} size={12} fill={i < item.rating ? '#f59e0b' : 'none'} color={i < item.rating ? '#f59e0b' : '#d1d5db'} />
+                                    ))}
+                                    <span style={{ marginLeft: '6px' }}>{item.content}</span>
+                                  </span>
+                                )
+                                : item.description
+                          }
+                        </p>
+                      </div>
+                      <div className="request-item-meta">
+                        <span className="status-badge" style={{ background: statusCfg.bg, color: statusCfg.color }}>
+                          {statusCfg.label}
+                        </span>
+                        <span className="request-item-time">{formatRelativeTime(item.createdAt)}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        </div>
 
         <div className="dashboard-grid-two dashboard-grid-bottom">
           <section className="dashboard-panel panel-elevated news-panel">

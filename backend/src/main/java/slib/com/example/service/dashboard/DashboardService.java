@@ -15,6 +15,7 @@ import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
+import slib.com.example.repository.feedback.SeatStatusReportRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
@@ -49,6 +50,7 @@ public class DashboardService {
     private final AccessLogRepository accessLogRepository;
     private final ComplaintRepository complaintRepository;
     private final FeedbackRepository feedbackRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
 
     public DashboardStatsDTO getDashboardStats() {
         try {
@@ -88,11 +90,20 @@ public class DashboardService {
             // 5. Support requests
             long pendingSupportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.PENDING);
             long inProgressSupportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.IN_PROGRESS);
+            long overdueSupportRequests = supportRequestRepository.countByStatusAndCreatedAtBefore(
+                    SupportRequestStatus.PENDING,
+                    LocalDateTime.now().minusMinutes(10));
 
-            // 6. Total users
+            // 6b. Seat status reports
+            long pendingSeatStatusReports = seatStatusReportRepository.countByStatusIn(
+                    Set.of(
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED));
+
+            // 7. Total users
             long totalUsers = userRepository.count();
 
-            // 7. Recent bookings (top 7)
+            // 8. Recent bookings (top 7)
             List<ReservationEntity> recentReservations = reservationRepository.findTop9ByOrderByCreatedAtDesc();
             List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentReservations.stream()
                     .map(r -> DashboardStatsDTO.RecentBookingDTO.builder()
@@ -110,29 +121,35 @@ public class DashboardService {
                             .build())
                     .collect(Collectors.toList());
 
-            // 8. Area occupancy (real data)
+            // 9. Area occupancy (real data)
             List<DashboardStatsDTO.AreaOccupancyDTO> areaOccupancies = getAreaOccupancies();
 
-            // 9. Weekly stats (7 days)
+            // 10. Weekly stats (7 days)
             List<DashboardStatsDTO.WeeklyStatsDTO> weeklyStats = getWeeklyStats();
 
-            // 10. Recent violations (top 5)
+            // 11. Recent violations (top 5)
             List<DashboardStatsDTO.ViolationItemDTO> recentViolations = getRecentViolations();
 
-            // 11. Top students
+            // 12. Top students
             List<DashboardStatsDTO.TopStudentDTO> topStudents = getTopStudents();
 
-            // 12. Recent support requests
+            // 13. Recent support requests
             List<DashboardStatsDTO.SupportRequestItemDTO> recentSupportRequests = getRecentSupportRequests();
 
-            // 13. Recent complaints
+            // 14. Recent complaints
             List<DashboardStatsDTO.ComplaintItemDTO> recentComplaints = getRecentComplaints();
 
-            // 14. Recent feedbacks
+            // 15. Recent feedbacks
             List<DashboardStatsDTO.FeedbackItemDTO> recentFeedbacks = getRecentFeedbacks();
 
-            // 15. Zone occupancy
+            // 16. Recent seat status reports
+            List<DashboardStatsDTO.SeatStatusReportItemDTO> recentSeatStatusReports = getRecentSeatStatusReports();
+
+            // 17. Zone occupancy
             List<DashboardStatsDTO.ZoneOccupancyDTO> zoneOccupancies = getZoneOccupancies();
+
+            // 18. Trend summary
+            DashboardStatsDTO.TrendSummaryDTO trendSummary = getTrendSummary();
 
             return DashboardStatsDTO.builder()
                     .totalCheckInsToday(accessStats.getTotalCheckInsToday())
@@ -148,6 +165,8 @@ public class DashboardService {
                     .pendingViolations(pendingViolations)
                     .pendingSupportRequests(pendingSupportRequests)
                     .inProgressSupportRequests(inProgressSupportRequests)
+                    .overdueSupportRequests(overdueSupportRequests)
+                    .pendingSeatStatusReports(pendingSeatStatusReports)
                     .totalUsers(totalUsers)
                     .recentBookings(recentBookings)
                     .areaOccupancies(areaOccupancies)
@@ -157,7 +176,9 @@ public class DashboardService {
                     .recentSupportRequests(recentSupportRequests)
                     .recentComplaints(recentComplaints)
                     .recentFeedbacks(recentFeedbacks)
+                    .recentSeatStatusReports(recentSeatStatusReports)
                     .zoneOccupancies(zoneOccupancies)
+                    .trendSummary(trendSummary)
                     .serverTime(LocalDateTime.now())
                     .build();
 
@@ -172,6 +193,7 @@ public class DashboardService {
                     .recentSupportRequests(Collections.emptyList())
                     .recentComplaints(Collections.emptyList())
                     .recentFeedbacks(Collections.emptyList())
+                    .recentSeatStatusReports(Collections.emptyList())
                     .zoneOccupancies(Collections.emptyList())
                     .build();
         }
@@ -476,6 +498,67 @@ public class DashboardService {
         } catch (Exception e) {
             log.error("Error fetching recent feedbacks: {}", e.getMessage());
             return Collections.emptyList();
+        }
+    }
+
+    private List<DashboardStatsDTO.SeatStatusReportItemDTO> getRecentSeatStatusReports() {
+        try {
+            return seatStatusReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                    .map(report -> DashboardStatsDTO.SeatStatusReportItemDTO.builder()
+                            .id(report.getId())
+                            .userName(report.getUser() != null ? report.getUser().getFullName() : "N/A")
+                            .userCode(report.getUser() != null ? report.getUser().getUserCode() : "N/A")
+                            .seatCode(report.getSeat() != null ? report.getSeat().getSeatCode() : "N/A")
+                            .zoneName(report.getSeat() != null && report.getSeat().getZone() != null
+                                    ? report.getSeat().getZone().getZoneName()
+                                    : "N/A")
+                            .areaName(report.getSeat() != null && report.getSeat().getZone() != null
+                                    && report.getSeat().getZone().getArea() != null
+                                            ? report.getSeat().getZone().getArea().getAreaName()
+                                            : "N/A")
+                            .issueType(report.getIssueType() != null ? report.getIssueType().name() : "OTHER")
+                            .status(report.getStatus() != null ? report.getStatus().name() : "N/A")
+                            .description(report.getDescription())
+                            .createdAt(report.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error fetching recent seat status reports: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private DashboardStatsDTO.TrendSummaryDTO getTrendSummary() {
+        try {
+            LocalDate today = LocalDate.now();
+            LocalDate yesterday = today.minusDays(1);
+
+            LocalDateTime startOfToday = today.atStartOfDay();
+            LocalDateTime endOfToday = today.atTime(LocalTime.MAX);
+            LocalDateTime startOfYesterday = yesterday.atStartOfDay();
+            LocalDateTime endOfYesterday = yesterday.atTime(LocalTime.MAX);
+
+            List<String> bookingStatuses = List.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED");
+
+            return DashboardStatsDTO.TrendSummaryDTO.builder()
+                    .checkInsToday(accessLogRepository.countByCheckInTimeBetween(startOfToday, endOfToday))
+                    .checkInsYesterday(accessLogRepository.countByCheckInTimeBetween(startOfYesterday, endOfYesterday))
+                    .bookingsToday(reservationRepository.countByStartTimeBetweenAndStatusIn(
+                            startOfToday,
+                            endOfToday,
+                            bookingStatuses))
+                    .bookingsYesterday(reservationRepository.countByStartTimeBetweenAndStatusIn(
+                            startOfYesterday,
+                            endOfYesterday,
+                            bookingStatuses))
+                    .violationsToday(violationReportRepository.countByCreatedAtBetween(startOfToday, endOfToday))
+                    .violationsYesterday(violationReportRepository.countByCreatedAtBetween(startOfYesterday, endOfYesterday))
+                    .feedbackToday(feedbackRepository.countByCreatedAtBetween(startOfToday, endOfToday))
+                    .feedbackYesterday(feedbackRepository.countByCreatedAtBetween(startOfYesterday, endOfYesterday))
+                    .build();
+        } catch (Exception e) {
+            log.error("Error calculating trend summary: {}", e.getMessage());
+            return DashboardStatsDTO.TrendSummaryDTO.builder().build();
         }
     }
 
