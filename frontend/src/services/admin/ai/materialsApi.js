@@ -39,6 +39,12 @@ export const addFileItem = (materialId, file, name) => {
 export const deleteItem = (materialId, itemId) =>
     api.delete(`/materials/${materialId}/items/${itemId}`);
 
+export const updateItem = (materialId, itemId, data) =>
+    api.put(`/materials/${materialId}/items/${itemId}`, data);
+
+export const getItemById = (materialId, itemId) =>
+    api.get(`/materials/${materialId}/items/${itemId}`);
+
 // ==================== KNOWLEDGE STORES ====================
 
 export const getKnowledgeStores = () => api.get("/knowledge-stores");
@@ -59,6 +65,8 @@ export default {
     addTextItem,
     addFileItem,
     deleteItem,
+    updateItem,
+    getItemById,
     // Knowledge Stores
     getKnowledgeStores,
     getKnowledgeStoreById,

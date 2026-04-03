@@ -14,7 +14,7 @@
   "dependencies": {
     "@google/genai": "^1.34.0",
     "@react-oauth/google": "^0.13.4",
-    "@stomp/stompjs": "^7.2.1",
+    "@stomp/stompjs": "^7.3.0",
     "@tiptap/extension-color": "^3.16.0",
     "@tiptap/extension-heading": "^3.16.0",
     "@tiptap/extension-highlight": "^3.16.0",
@@ -41,6 +41,7 @@
     "react-rnd": "^10.5.2",
     "react-router-dom": "^7.11.0",
     "sockjs-client": "^1.6.1",
+    "stompjs": "^2.3.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -60,5 +61,8 @@
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.1",
     "vitest": "^4.0.17"
+  },
+  "optionalDependencies": {
+    "@floating-ui/dom": "^1.7.5"
   }
 }

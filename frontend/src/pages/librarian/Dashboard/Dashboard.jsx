@@ -1,19 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Users, Armchair, AlertCircle, Sparkles, Clock, Bell, Calendar, ChevronRight, Wrench, BookOpen } from "lucide-react";
 import StatCard from "./StatCard";
 import Header from "../../../components/shared/Header";
 import { getLibraryInsights } from "../../../services/geminiService.jsx";
 import { handleLogout } from "../../../utils/auth";
+import librarianService from "../../../services/librarianService";
+import websocketService from "../../../services/websocketService";
 
 import "../../../styles/librarian/Dashboard.css";
-
-const MOCK_STUDENTS = [
-  { id: "1", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check in", time: "12:21:10", date: "15/12/2025" },
-  { id: "2", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check out", time: "12:21:10", date: "15/12/2025" },
-  { id: "3", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check out", time: "12:21:10", date: "15/12/2025" },
-  { id: "4", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check out", time: "12:21:10", date: "15/12/2025" },
-  { id: "5", name: "Nguyễn Hoàng Phúc", studentId: "DE170706", action: "Check out", time: "12:21:10", date: "15/12/2025" },
-];
 
 const MOCK_NOTIFICATIONS = [
   { 
@@ -42,35 +36,140 @@ const AREA = [
   { name: "Khu tự học", percentage: 70 },
 ];
 
-const DASHBOARD_STATS = { currentUsers: 69, occupancyRate: 69, violations: 9 };
+// TODO: Get actual total seats from backend
+const TOTAL_SEATS = 100;
 
 const Dashboard = () => {
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
+  const [accessLogs, setAccessLogs] = useState([]);
+  const [stats, setStats] = useState({ 
+    totalCheckInsToday: 0, 
+    totalCheckOutsToday: 0, 
+    currentlyInLibrary: 0 
+  });
 
-  React.useEffect(() => {
-    (async () => {
+  // Format datetime like CheckInOut page
+  const formatDateTime = (dateTimeString) => {
+    if (!dateTimeString) return '';
+    const date = new Date(dateTimeString);
+    const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const dateStr = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `${time} ${dateStr}`;
+  };
+
+  useEffect(() => {
+    const fetchStats = async () => {
       try {
-        const data = await getLibraryInsights(DASHBOARD_STATS);
+        const statsData = await librarianService.getAccessLogStats();
+        console.log('Stats data from API:', statsData);
+        setStats(statsData);
+        const data = await getLibraryInsights(statsData);
         setInsights(Array.isArray(data) ? data : []);
       } catch (e) {
-        console.error(e);
+        console.error('Error fetching stats:', e);
         setInsights([]);
       }
-    })();
+    };
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const fetchAccessLogs = async () => {
+      try {
+        const logs = await librarianService.getAllAccessLogs();
+        // Get only 5 most recent logs
+        setAccessLogs(logs.slice(0, 5));
+      } catch (error) {
+        console.error('Failed to fetch access logs:', error);
+        setAccessLogs([]);
+      }
+    };
+
+    fetchAccessLogs();
+    // Auto refresh every 30 seconds (fallback)
+    const interval = setInterval(fetchAccessLogs, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // WebSocket real-time updates
+  useEffect(() => {
+    console.log('🔌 [Dashboard] Connecting to WebSocket...');
+    let unsubscribe = null;
+    
+    // Connect to WebSocket
+    websocketService.connect(
+      () => {
+        console.log('✅ [Dashboard] WebSocket connected');
+        
+        // Subscribe to access-logs topic
+        unsubscribe = websocketService.subscribe('/topic/access-logs', (message) => {
+          console.log('📨 [Dashboard] Received update:', message);
+          
+          // Add new record without full refresh
+          if (message.type === 'CHECK_IN' || message.type === 'CHECK_OUT') {
+            const newLog = {
+              logId: `${message.userId}-${message.type}-${Date.now()}`,
+              userId: message.userId,
+              userName: message.userName,
+              userCode: message.userCode,
+              action: message.type,
+              checkInTime: message.type === 'CHECK_IN' ? message.timestamp : null,
+              checkOutTime: message.type === 'CHECK_OUT' ? message.timestamp : null
+            };
+            
+            // Check for duplicates and keep only 5 most recent
+            setAccessLogs(prevLogs => {
+              const isDuplicate = prevLogs.some(log => 
+                log.userId === newLog.userId && 
+                log.action === newLog.action &&
+                Math.abs(new Date(log.checkInTime || log.checkOutTime) - new Date(newLog.checkInTime || newLog.checkOutTime)) < 2000
+              );
+              
+              if (isDuplicate) {
+                console.log('⚠️ [Dashboard] Duplicate detected, skipping...');
+                return prevLogs;
+              }
+              
+              return [newLog, ...prevLogs].slice(0, 5);
+            });
+            
+            // Update stats
+            setStats(prevStats => ({
+              ...prevStats,
+              totalCheckInsToday: message.type === 'CHECK_IN' ? prevStats.totalCheckInsToday + 1 : prevStats.totalCheckInsToday,
+              totalCheckOutsToday: message.type === 'CHECK_OUT' ? prevStats.totalCheckOutsToday + 1 : prevStats.totalCheckOutsToday,
+              currentlyInLibrary: message.type === 'CHECK_IN' 
+                ? prevStats.currentlyInLibrary + 1 
+                : prevStats.currentlyInLibrary - 1
+            }));
+          }
+        });
+      },
+      (error) => {
+        console.error('❌ [Dashboard] WebSocket error:', error);
+      }
+    );
+
+    return () => {
+      console.log('🔌 [Dashboard] Unsubscribing from WebSocket...');
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const filteredStudents = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    if (!q) return MOCK_STUDENTS;
-    return MOCK_STUDENTS.filter((s) => {
+    if (!q) return accessLogs;
+    return accessLogs.filter((log) => {
       return (
-        s.name.toLowerCase().includes(q) ||
-        s.studentId.toLowerCase().includes(q) ||
-        s.action.toLowerCase().includes(q)
+        log.userName.toLowerCase().includes(q) ||
+        log.userCode.toLowerCase().includes(q) ||
+        log.action.toLowerCase().includes(q)
       );
     });
-  }, [searchText]);
+  }, [searchText, accessLogs]);
 
   const fillClass = (p) => (p >= 90 ? "fillRed" : p >= 60 ? "fillYellow" : "fillGreen");
 
@@ -96,21 +195,21 @@ const Dashboard = () => {
       <div className="statsRow" style={{ marginBottom: '24px' }}>
         <StatCard
           icon={<Users size={20} />}
-          value={DASHBOARD_STATS.currentUsers}
+          value={stats.currentlyInLibrary}
           label="Đang trong thư viện"
           bg="#EDE9FE"
           color="#7C3AED"
         />
         <StatCard
           icon={<Armchair size={20} />}
-          value={`${DASHBOARD_STATS.occupancyRate}%`}
+          value={`${TOTAL_SEATS > 0 ? Math.round((stats.currentlyInLibrary / TOTAL_SEATS) * 100) : 0}%`}
           label="Chỗ ngồi đã có người"
           bg="#DCFCE7"
           color="#16A34A"
         />
         <StatCard
           icon={<AlertCircle size={20} />}
-          value={`0${DASHBOARD_STATS.violations}`}
+          value="00"
           label="Vi phạm xảy ra hôm nay"
           bg="#FEE2E2"
           color="#EF4444"
@@ -133,26 +232,37 @@ const Dashboard = () => {
             </thead>
 
             <tbody>
-              {filteredStudents.map((s, index) => (
-                <tr key={s.id} style={{ borderBottom: index === filteredStudents.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '14px 12px', fontSize: '13px', color: '#111827', fontWeight: '500' }}>{s.name}</td>
-                  <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>{s.studentId}</td>
-                  <td style={{ padding: '14px 12px' }}>
-                    <span className={`badge ${s.action === "Check in" ? "badgeIn" : "badgeOut"}`} style={{ 
-                      padding: '6px 14px', 
-                      borderRadius: '6px', 
-                      fontSize: '12px', 
-                      fontWeight: '700',
-                      display: 'inline-block'
-                    }}>
-                      {s.action}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>
-                    {s.time} {s.date}
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
+                    Không có dữ liệu
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredStudents.map((log, index) => (
+                  <tr key={`${log.logId}-${log.action}`} style={{ borderBottom: index === filteredStudents.length - 1 ? 'none' : '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#111827', fontWeight: '500' }}>{log.userName}</td>
+                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>{log.userCode}</td>
+                    <td style={{ padding: '14px 12px' }}>
+                      <span className={`badge ${log.action === "CHECK_IN" ? "badgeIn" : "badgeOut"}`} style={{ 
+                        padding: '6px 14px', 
+                        borderRadius: '6px', 
+                        fontSize: '12px', 
+                        fontWeight: '700',
+                        display: 'inline-block'
+                      }}>
+                        {log.action === 'CHECK_IN' ? 'Check in' : 'Check out'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 12px', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>
+                      {log.action === 'CHECK_IN' 
+                        ? formatDateTime(log.checkInTime)
+                        : (log.checkOutTime ? formatDateTime(log.checkOutTime) : '-')
+                      }
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </section>

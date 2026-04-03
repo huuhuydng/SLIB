@@ -153,6 +153,24 @@ public class MaterialService {
         log.info("Deleted item {} from material {}", itemId, materialId);
     }
 
+    @Transactional
+    public MaterialDTO.ItemResponse updateItem(Long materialId, Long itemId, MaterialDTO.ItemRequest request) {
+        MaterialItemEntity item = materialItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
+
+        // Only allow updating TEXT items' content
+        if (request.getName() != null) {
+            item.setName(request.getName());
+        }
+        if (item.getType() == MaterialItemEntity.ItemType.TEXT && request.getContent() != null) {
+            item.setContent(request.getContent());
+        }
+
+        item = materialItemRepository.save(item);
+        log.info("Updated item {} in material {}", itemId, materialId);
+        return toItemResponse(item);
+    }
+
     public List<MaterialDTO.ItemResponse> getItemsByMaterialId(Long materialId) {
         return materialItemRepository.findByMaterialId(materialId)
                 .stream()

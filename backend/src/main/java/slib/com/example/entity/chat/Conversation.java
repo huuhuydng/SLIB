@@ -58,6 +58,11 @@ public class Conversation {
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
 
+    // Counter for librarian conversation rounds (1, 2, 3, ...)
+    @Column(name = "current_human_session")
+    @Builder.Default
+    private Integer currentHumanSession = 0;
+
     @OneToMany(mappedBy = "conversation", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Message> messages = new ArrayList<>();

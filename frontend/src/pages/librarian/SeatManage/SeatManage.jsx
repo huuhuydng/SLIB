@@ -282,11 +282,11 @@ const SeatManage = () => {
     }
 
     // ✅ Xác định CSS class dựa vào status
-    let statusClass = "seatManage__seat--empty"; // AVAILABLE → xanh lá
+    let statusClass = "seatManage__seat--empty"; // AVAILABLE → xanh dương
     if (status === 'UNAVAILABLE') {
-      statusClass = "seatManage__seat--restricted"; // UNAVAILABLE → đỏ
+      statusClass = "seatManage__seat--restricted"; // UNAVAILABLE → xám
     } else if (status === 'BOOKED') {
-      statusClass = "seatManage__seat--occupied"; // BOOKED → vàng/cam
+      statusClass = "seatManage__seat--occupied"; // BOOKED → cam
     }
 
     return (

@@ -6,17 +6,19 @@ import MainLayout from "../layouts/librarian/MainLayout";
 // Librarian Pages
 import Dashboard from "../pages/librarian/Dashboard/Dashboard";
 import CheckInOut from "../pages/librarian/CheckInOut/CheckInOut";
-import HeatMap from "../pages/librarian/HeatMap/HeatMap";
 import LibrarianAreas from "../pages/librarian/LibrarianAreas/LibrarianAreas";
 import StudentsManage from "../pages/librarian/StudentsManage/StudentsManage";
 import ViolationManage from "../pages/librarian/ViolationManage/ViolationManage";
 import ChatManage from "../pages/librarian/ChatManage/ChatManage";
 import Statistic from "../pages/librarian/Statistic/Statistic";
-import ChatManagement from "../components/ChatManagement";
+
 import NotificationManage from "../pages/librarian/NewsManage/NotificationManage";
 import NewCreate from "../pages/librarian/NewsManage/NewCreate";
 import NewsDetailView from "../pages/librarian/NewsManage/NewsDetailView";
 import AccountSettings from "../components/AccountSettings";
+import HeatMap from "../pages/librarian/HeatMap/HeatMap";
+import SupportRequestManage from "../pages/librarian/SupportRequest/SupportRequestManage";
+import Attendance from "../pages/AttendanceWaitingScreen";
 
 
 function LibrarianRoutes() {
@@ -31,6 +33,9 @@ function LibrarianRoutes() {
         {/* Check In/Out */}
         <Route path="checkinout" element={<CheckInOut />} />
 
+
+
+
         {/* Sơ đồ nhiệt */}
         <Route path="areas" element={<HeatMap />} />
 
@@ -43,8 +48,11 @@ function LibrarianRoutes() {
         {/* Vi phạm */}
         <Route path="violation" element={<ViolationManage />} />
 
-        {/* Trò chuyện */}
-        <Route path="chat" element={<ChatManagement />} />
+        {/* Tro chuyen */}
+        <Route path="chat" element={<ChatManage />} />
+
+        {/* Yeu cau ho tro */}
+        <Route path="support-requests" element={<SupportRequestManage />} />
 
         {/* Thống kê */}
         <Route path="statistic" element={<Statistic />} />
@@ -65,6 +73,9 @@ function LibrarianRoutes() {
         <Route path="settings" element={<AccountSettings />} />
         <Route path="setting" element={<Navigate to="/librarian/settings" replace />} />
       </Route>
+
+      {/* Check In/Out */}
+      <Route path="attendance" element={<Attendance />} />
 
       {/* Redirect any unmatched routes */}
       <Route path="*" element={<Navigate to="dashboard" replace />} />
