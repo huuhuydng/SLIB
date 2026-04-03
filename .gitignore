@@ -241,3 +241,6 @@ skills-lock.json
 /nfc-bridge-app/build/
 /nfc-bridge-app/release/
 /nfc-bridge-app/node_modules/
+/nfc-bridge/node_modules/
+/nfc-bridge-app/release/
+/nfc-bridge-app/node_modules/

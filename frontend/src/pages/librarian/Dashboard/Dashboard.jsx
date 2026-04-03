@@ -45,6 +45,7 @@ const Dashboard = () => {
   const [quietHours, setQuietHours] = useState([]);
   const [densityHours, setDensityHours] = useState([]);
   const [behaviorIssues, setBehaviorIssues] = useState([]);
+  const [erroredViolationAvatars, setErroredViolationAvatars] = useState(new Set());
 
   const formatDateTime = (dateTimeString) => {
     if (!dateTimeString) return '';
@@ -123,6 +124,26 @@ const Dashboard = () => {
       case 'OTHER': return 'Khác';
       default: return type;
     }
+  };
+
+  const renderViolationAvatar = (avatarUrl, name) => {
+    const initial = name?.charAt(0)?.toUpperCase() || '?';
+    if (avatarUrl && !erroredViolationAvatars.has(avatarUrl)) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={name || 'Sinh viên'}
+          className="violation-avatar-image"
+          onError={() => setErroredViolationAvatars((previous) => new Set(previous).add(avatarUrl))}
+        />
+      );
+    }
+
+    return (
+      <div className="violation-avatar violation-avatar-fallback">
+        {initial}
+      </div>
+    );
   };
 
   // Hàm nhẹ chỉ refresh stats (không gọi AI insights hay news) - dùng cho real-time updates
@@ -890,7 +911,7 @@ const Dashboard = () => {
         </div>
 
         {/* Middle section: Access logs table */}
-        <div className="dashboard-grid-mid">
+        <div className="dashboard-grid-mid dashboard-grid-equal-height">
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -987,7 +1008,7 @@ const Dashboard = () => {
         </div>
 
         {/* Top students + Recent violations */}
-        <div className="dashboard-grid-two">
+        <div className="dashboard-grid-two dashboard-grid-equal-height">
           {/* Top 5 students */}
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
@@ -1009,9 +1030,9 @@ const Dashboard = () => {
                 Chưa có dữ liệu
               </div>
             ) : (
-              <div className="top-students-list">
+              <div className="top-students-list dashboard-entity-list">
                 {topStudentsData.map((student, idx) => (
-                  <div key={idx} className="top-student-item">
+                  <div key={idx} className="top-student-item dashboard-entity-item">
                     <div className={`top-student-rank rank-${idx + 1}`}>
                       {idx + 1}
                     </div>
@@ -1067,14 +1088,14 @@ const Dashboard = () => {
               stats.recentViolations.length === 0 ? (
                 <div className="empty-section">Không có vi phạm nào</div>
               ) : (
-                <div className="violations-list">
+                <div className="violations-list dashboard-entity-list">
                   {stats.recentViolations.map((v, idx) => {
                     const statusCfg = getStatusConfig(v.status);
                     return (
-                      <div key={idx} className="violation-item violation-item-clickable" onClick={() => setDetailModal({ type: 'violation', data: v })}>
+                        <div key={idx} className="violation-item violation-item-clickable dashboard-entity-item" onClick={() => setDetailModal({ type: 'violation', data: v })}>
                         <div className="violation-item-left">
-                          <div className="violation-avatar">
-                            <UserX size={14} />
+                          <div className="violation-avatar-shell">
+                            {renderViolationAvatar(v.avatarUrl, v.violatorName)}
                           </div>
                           <div className="violation-info">
                             <span className="violation-name">{v.violatorName}</span>
@@ -1195,32 +1216,36 @@ const Dashboard = () => {
             {recentNews.length === 0 ? (
               <div className="empty-section">Chưa có tin tức</div>
             ) : (
-              <div className="news-cards-grid">
+              <div className="dashboard-media-list">
                 {recentNews.map((news, idx) => (
-                  <div key={idx} className="news-card news-card-clickable" onClick={() => setDetailModal({ type: 'news', data: news })}>
-                    <div className="news-card-image">
+                  <div
+                    key={idx}
+                    className="dashboard-media-item dashboard-media-item--news news-card-clickable"
+                    onClick={() => setDetailModal({ type: 'news', data: news })}
+                  >
+                    <div className="dashboard-media-thumb">
                       {news.imageUrl ? (
                         <img src={news.imageUrl} alt={news.title} />
                       ) : (
-                        <div className="news-card-placeholder">
+                        <div className="dashboard-media-placeholder">
                           <BookOpen size={24} />
                         </div>
                       )}
                       {news.categoryName && (
-                        <span className="news-card-category">{news.categoryName}</span>
+                        <span className="dashboard-media-badge">{news.categoryName}</span>
                       )}
                     </div>
-                    <div className="news-card-body">
-                      <h4 className="news-card-title">{news.title}</h4>
+                    <div className="dashboard-media-body">
+                      <h4 className="dashboard-media-title">{news.title}</h4>
                       {news.summary && (
-                        <p className="news-card-summary">{news.summary}</p>
+                        <p className="dashboard-media-summary">{news.summary}</p>
                       )}
-                      <div className="news-card-footer">
-                        <div className="news-card-meta">
+                      <div className="dashboard-media-footer">
+                        <div className="dashboard-media-meta">
                           <Calendar size={11} />
                           <span>{news.publishedAt ? formatDate(news.publishedAt) : (news.createdAt ? formatDate(news.createdAt) : '')}</span>
                         </div>
-                        <div className="news-card-views">
+                        <div className="dashboard-media-meta dashboard-media-meta--right">
                           <Eye size={11} />
                           <span>{news.viewCount || 0}</span>
                         </div>
@@ -1246,7 +1271,7 @@ const Dashboard = () => {
             {recentNewBooks.length === 0 ? (
               <div className="empty-section">Chưa có sách mới</div>
             ) : (
-              <div className="book-list">
+              <div className="dashboard-media-list">
                 {recentNewBooks.map((book, idx) => {
                   const title = book.title || book.bookTitle || book.name || 'Chưa có tiêu đề';
                   const author = book.author || book.authorName || book.publisher || 'Chưa có thông tin';
@@ -1255,18 +1280,24 @@ const Dashboard = () => {
                     <a
                       key={book.id || `${title}-${idx}`}
                       href={`/librarian/new-books${book.id ? `/edit/${book.id}` : ''}`}
-                      className="book-row"
+                      className="dashboard-media-item dashboard-media-item--book"
                     >
-                      <div className="book-row-cover">
+                      <div className="dashboard-media-thumb dashboard-media-thumb--book">
                         {cover ? <img src={cover} alt={title} /> : <BookOpen size={18} />}
                       </div>
-                      <div className="book-row-main">
-                        <span className="book-row-title">{title}</span>
-                        <span className="book-row-meta">{author}</span>
+                      <div className="dashboard-media-body">
+                        <h4 className="dashboard-media-title">{title}</h4>
+                        <p className="dashboard-media-summary">{author}</p>
                       </div>
-                      <div className="book-row-side">
-                        <span className="book-row-date">{formatDate(book.createdAt || book.updatedAt || book.publishedAt)}</span>
-                        <ChevronRight size={14} />
+                      <div className="dashboard-media-footer dashboard-media-footer--book">
+                        <div className="dashboard-media-meta">
+                          <Calendar size={11} />
+                          <span>{formatDate(book.createdAt || book.updatedAt || book.publishedAt)}</span>
+                        </div>
+                        <div className="dashboard-media-meta dashboard-media-meta--right">
+                          <BookOpen size={11} />
+                          <span>Sách mới</span>
+                        </div>
                       </div>
                     </a>
                   );

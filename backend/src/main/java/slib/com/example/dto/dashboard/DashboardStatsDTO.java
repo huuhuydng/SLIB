@@ -121,6 +121,7 @@ public class DashboardStatsDTO {
         private UUID id;
         private String violatorName;
         private String violatorCode;
+        private String avatarUrl;
         private String violationType;
         private String status;
         private LocalDateTime createdAt;

@@ -372,6 +372,7 @@ public class DashboardService {
                             .id(v.getId())
                             .violatorName(v.getViolator() != null ? v.getViolator().getFullName() : "N/A")
                             .violatorCode(v.getViolator() != null ? v.getViolator().getUserCode() : "N/A")
+                            .avatarUrl(v.getViolator() != null ? v.getViolator().getAvtUrl() : null)
                             .violationType(v.getViolationType() != null ? v.getViolationType().name() : "N/A")
                             .status(v.getStatus() != null ? v.getStatus().name() : "N/A")
                             .createdAt(v.getCreatedAt())
