@@ -97,14 +97,13 @@ public class DashboardService {
             // 6b. Seat status reports
             long pendingSeatStatusReports = seatStatusReportRepository.countByStatusIn(
                     Set.of(
-                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
-                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED));
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING));
 
             // 7. Total users
             long totalUsers = userRepository.count();
 
-            // 8. Recent bookings (top 7)
-            List<ReservationEntity> recentReservations = reservationRepository.findTop9ByOrderByCreatedAtDesc();
+            // 8. Recent bookings (today only)
+            List<ReservationEntity> recentReservations = reservationRepository.findByStartTimeBetweenOrderByCreatedAtDesc(startOfDay, endOfDay);
             List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentReservations.stream()
                     .map(r -> DashboardStatsDTO.RecentBookingDTO.builder()
                             .reservationId(r.getReservationId())
@@ -389,7 +388,9 @@ public class DashboardService {
 
     private List<DashboardStatsDTO.ViolationItemDTO> getRecentViolations() {
         try {
-            return violationReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
+            return violationReportRepository.findByStatusOrderByCreatedAtDesc(
+                    SeatViolationReportEntity.ReportStatus.PENDING
+            ).stream()
                     .map(v -> DashboardStatsDTO.ViolationItemDTO.builder()
                             .id(v.getId())
                             .violatorName(v.getViolator() != null ? v.getViolator().getFullName() : "N/A")
@@ -401,7 +402,7 @@ public class DashboardService {
                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching recent violations: {}", e.getMessage());
+            log.error("Error fetching pending violations: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
@@ -444,7 +445,9 @@ public class DashboardService {
 
     private List<DashboardStatsDTO.SupportRequestItemDTO> getRecentSupportRequests() {
         try {
-            return supportRequestRepository.findTop5ByOrderByCreatedAtDesc().stream()
+            return supportRequestRepository.findByStatusInOrderByCreatedAtDesc(
+                    Set.of(SupportRequestStatus.PENDING, SupportRequestStatus.IN_PROGRESS)
+            ).stream()
                     .map(sr -> DashboardStatsDTO.SupportRequestItemDTO.builder()
                             .id(sr.getId())
                             .studentName(sr.getStudent() != null ? sr.getStudent().getFullName() : "N/A")
@@ -457,14 +460,16 @@ public class DashboardService {
                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching recent support requests: {}", e.getMessage());
+            log.error("Error fetching pending support requests: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
 
     private List<DashboardStatsDTO.ComplaintItemDTO> getRecentComplaints() {
         try {
-            return complaintRepository.findTop5ByOrderByCreatedAtDesc().stream()
+            return complaintRepository.findByStatusOrderByCreatedAtDesc(
+                    slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus.PENDING
+            ).stream()
                     .map(c -> DashboardStatsDTO.ComplaintItemDTO.builder()
                             .id(c.getId())
                             .userName(c.getUser() != null ? c.getUser().getFullName() : "N/A")
@@ -475,14 +480,16 @@ public class DashboardService {
                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching recent complaints: {}", e.getMessage());
+            log.error("Error fetching pending complaints: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
 
     private List<DashboardStatsDTO.FeedbackItemDTO> getRecentFeedbacks() {
         try {
-            return feedbackRepository.findTop5ByOrderByCreatedAtDesc().stream()
+            return feedbackRepository.findByStatusOrderByCreatedAtDesc(
+                    slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus.NEW
+            ).stream()
                     .map(f -> DashboardStatsDTO.FeedbackItemDTO.builder()
                             .id(f.getId())
                             .userName(f.getUser() != null ? f.getUser().getFullName() : "N/A")
@@ -496,14 +503,15 @@ public class DashboardService {
                             .build())
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("Error fetching recent feedbacks: {}", e.getMessage());
+            log.error("Error fetching new feedbacks: {}", e.getMessage());
             return Collections.emptyList();
         }
     }
 
     private List<DashboardStatsDTO.SeatStatusReportItemDTO> getRecentSeatStatusReports() {
         try {
-            return seatStatusReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
+            return seatStatusReportRepository.findByStatusInOrderByCreatedAtDesc(
+                    Set.of(slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING)).stream()
                     .map(report -> DashboardStatsDTO.SeatStatusReportItemDTO.builder()
                             .id(report.getId())
                             .userName(report.getUser() != null ? report.getUser().getFullName() : "N/A")

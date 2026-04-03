@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, LayoutGrid, LayoutList, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ComplaintManage.css";
@@ -26,6 +27,7 @@ const STATUS_OPTIONS = [
 function ComplaintManage() {
     const toast = useToast();
     const { confirm } = useConfirm();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedComplaint, setSelectedComplaint] = useState(null);
@@ -97,6 +99,21 @@ function ComplaintManage() {
     useEffect(() => {
         fetchComplaints();
     }, [fetchComplaints]);
+
+    // Auto-open detail modal from URL param (e.g. ?detail=<id>)
+    useEffect(() => {
+        if (loading || complaints.length === 0) return;
+        const detailId = searchParams.get("detail");
+        if (detailId) {
+            const target = complaints.find((c) => String(c.id) === detailId);
+            if (target) {
+                setSelectedComplaint(target);
+            }
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("detail");
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [loading, complaints, searchParams, setSearchParams]);
 
     // Close dropdowns on outside click
     useEffect(() => {

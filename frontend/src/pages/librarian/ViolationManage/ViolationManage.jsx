@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, LayoutGrid, LayoutList, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ViolationManage.css";
@@ -37,6 +38,7 @@ const VIOLATION_TYPE_LABELS = {
 function ViolationManage() {
     const toast = useToast();
     const { confirm } = useConfirm();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedReport, setSelectedReport] = useState(null);
@@ -102,6 +104,21 @@ function ViolationManage() {
     useEffect(() => {
         fetchReports();
     }, [fetchReports]);
+
+    // Auto-open detail modal from URL param (e.g. ?detail=<id>)
+    useEffect(() => {
+        if (loading || reports.length === 0) return;
+        const detailId = searchParams.get("detail");
+        if (detailId) {
+            const target = reports.find((r) => String(r.id) === detailId);
+            if (target) {
+                setSelectedReport(target);
+            }
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("detail");
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [loading, reports, searchParams, setSearchParams]);
 
     // Close filter dropdown on outside click
     useEffect(() => {

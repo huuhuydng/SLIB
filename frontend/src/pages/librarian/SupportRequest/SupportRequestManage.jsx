@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, LayoutGrid, LayoutList, Trash2 } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
@@ -27,6 +27,7 @@ const STATUS_OPTIONS = [
 
 function SupportRequestManage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
     const { confirm } = useConfirm();
     const [requests, setRequests] = useState([]);
@@ -93,6 +94,22 @@ function SupportRequestManage() {
     useEffect(() => {
         fetchRequests();
     }, [fetchRequests]);
+
+    // Auto-open detail modal from URL param (e.g. ?detail=<id>)
+    useEffect(() => {
+        if (loading || requests.length === 0) return;
+        const detailId = searchParams.get("detail");
+        if (detailId) {
+            const target = requests.find((r) => String(r.id) === detailId);
+            if (target) {
+                setSelectedRequest(target);
+                setResponseText(target.adminResponse || "");
+            }
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.delete("detail");
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [loading, requests, searchParams, setSearchParams]);
 
     // Close filter dropdown on outside click
     useEffect(() => {

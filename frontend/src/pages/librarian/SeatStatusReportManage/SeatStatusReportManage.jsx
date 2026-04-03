@@ -178,6 +178,22 @@ function SeatStatusReportManage() {
     fetchReports();
   }, [fetchReports]);
 
+  // Auto-open detail modal from URL param (e.g. ?detail=<id>)
+  useEffect(() => {
+    if (loading || reports.length === 0) return;
+    const detailId = searchParams.get("detail");
+    if (detailId) {
+      const target = reports.find((r) => r.id === detailId);
+      if (target) {
+        setSelectedReport(target);
+      }
+      // Remove detail param after opening
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("detail");
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [loading, reports, searchParams, setSearchParams]);
+
   useEffect(() => {
     const nextStatus = normalizeStatus(searchParams.get("status"));
 

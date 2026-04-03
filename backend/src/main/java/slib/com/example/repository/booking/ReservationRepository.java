@@ -64,6 +64,8 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findTop9ByOrderByCreatedAtDesc();
 
+        List<ReservationEntity> findByStartTimeBetweenOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end);
+
         List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
         // Đếm tổng đặt chỗ trong ngày (tất cả trừ CANCELLED - không giảm khi đổi

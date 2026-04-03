@@ -27,7 +27,9 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
     // Dashboard: count violations in a date range
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
-    // Dashboard: lấy 5 vi phạm gần đây nhất
+    // Dashboard: lấy vi phạm chờ xử lý (PENDING + VERIFIED)
+    List<SeatViolationReportEntity> findByStatusInOrderByCreatedAtDesc(java.util.Collection<ReportStatus> statuses);
+
     List<SeatViolationReportEntity> findTop5ByOrderByCreatedAtDesc();
 
     // Statistic: phân bổ vi phạm theo loại trong range

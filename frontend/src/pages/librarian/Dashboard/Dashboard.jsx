@@ -300,8 +300,9 @@ const Dashboard = () => {
 
   const fetchAccessLogs = async () => {
     try {
-      const logs = await librarianService.getAllAccessLogs();
-      setAccessLogs(logs.slice(0, 10));
+      const today = new Date().toISOString().split('T')[0];
+      const logs = await librarianService.getAccessLogsByDateRange(today, today);
+      setAccessLogs(logs.slice(0, 15));
     } catch (error) {
       console.error('Failed to fetch access logs:', error);
       setAccessLogs([]);
@@ -493,48 +494,56 @@ const Dashboard = () => {
       label: 'Chat sinh viên',
       href: '/librarian/chat',
       icon: MessageSquare,
+      iconClass: 'quick-action-icon--chat',
       note: `${pendingCounts.supportPending + pendingCounts.supportInProgress} yêu cầu đang hoạt động`,
     },
     {
       label: 'Check-in / Check-out',
       href: '/librarian/checkinout',
       icon: MonitorPlay,
+      iconClass: 'quick-action-icon--checkin',
       note: `${stats.totalCheckInsToday} lượt vào hôm nay`,
     },
     {
       label: 'Xử lý hỗ trợ',
       href: '/librarian/support-requests',
       icon: LifeBuoy,
+      iconClass: 'quick-action-icon--support',
       note: `${pendingCounts.supportPending} chờ nhận`,
     },
     {
       label: 'Kiểm tra ghế',
       href: '/librarian/seat-status-reports',
       icon: FileText,
+      iconClass: 'quick-action-icon--seat',
       note: 'Rà soát báo cáo ghế',
     },
     {
       label: 'Quản lý đặt chỗ',
       href: '/librarian/bookings',
       icon: CalendarCheck,
+      iconClass: 'quick-action-icon--booking',
       note: `${stats.activeBookings} lượt đang hiệu lực`,
     },
     {
       label: 'Đăng tin tức',
       href: '/librarian/news/create',
       icon: Bell,
+      iconClass: 'quick-action-icon--news',
       note: 'Tạo thông báo mới',
     },
     {
       label: 'Slideshow / Kiosk',
       href: '/librarian/slideshow-management',
       icon: Layers,
+      iconClass: 'quick-action-icon--slideshow',
       note: 'Cập nhật slide hiển thị',
     },
     {
       label: 'Cập nhật sách mới',
       href: '/librarian/new-books',
       icon: BookOpen,
+      iconClass: 'quick-action-icon--book',
       note: `${recentNewBooks.length} mục gần nhất`,
     },
   ]), [
@@ -588,41 +597,54 @@ const Dashboard = () => {
   const displayInsights = useMemo(() => insights.slice(0, 3), [insights]);
 
   const todayPriorityItems = useMemo(() => {
+    const firstSupport = stats.recentSupportRequests?.[0];
+    const firstSeatStatus = stats.recentSeatStatusReports?.[0];
+    const firstComplaint = stats.recentComplaints?.[0];
+    const firstViolation = stats.recentViolations?.[0];
+
     const items = [
       {
         key: 'support-overdue',
         label: 'Hỗ trợ chờ quá 10 phút',
         count: stats.overdueSupportRequests,
-        href: '/librarian/support-requests?status=PENDING',
+        href: firstSupport
+          ? `/librarian/support-requests?detail=${firstSupport.id}`
+          : '/librarian/support-requests?status=PENDING',
         tone: 'orange',
-        hint: stats.recentSupportRequests?.[0]?.description || 'Ưu tiên nhận các yêu cầu mới bị tồn.',
+        hint: firstSupport?.description || 'Ưu tiên nhận các yêu cầu mới bị tồn.',
       },
       {
         key: 'seat-status-pending',
         label: 'Ghế lỗi chưa xác minh',
         count: stats.pendingSeatStatusReports,
-        href: '/librarian/seat-status-reports?status=PENDING',
+        href: firstSeatStatus
+          ? `/librarian/seat-status-reports?status=PENDING&detail=${firstSeatStatus.id}`
+          : '/librarian/seat-status-reports?status=PENDING',
         tone: 'amber',
-        hint: stats.recentSeatStatusReports?.[0]
-          ? `${stats.recentSeatStatusReports[0].seatCode} - ${stats.recentSeatStatusReports[0].issueType}`
+        hint: firstSeatStatus
+          ? `${firstSeatStatus.seatCode} - ${firstSeatStatus.issueType}`
           : 'Kiểm tra các báo cáo ghế mới nhất.',
       },
       {
         key: 'complaint-new',
         label: 'Khiếu nại mới',
         count: pendingCounts.complaintPending,
-        href: '/librarian/complaints?status=PENDING',
+        href: firstComplaint
+          ? `/librarian/complaints?detail=${firstComplaint.id}`
+          : '/librarian/complaints?status=PENDING',
         tone: 'red',
-        hint: stats.recentComplaints?.[0]?.subject || 'Có khiếu nại đang cần phản hồi.',
+        hint: firstComplaint?.subject || 'Có khiếu nại đang cần phản hồi.',
       },
       {
         key: 'violation-new',
         label: 'Vi phạm mới',
         count: stats.pendingViolations,
-        href: '/librarian/violation',
+        href: firstViolation
+          ? `/librarian/violation?detail=${firstViolation.id}`
+          : '/librarian/violation',
         tone: 'blue',
-        hint: stats.recentViolations?.[0]?.violatorName
-          ? `${stats.recentViolations[0].violatorName} vừa bị ghi nhận.`
+        hint: firstViolation?.violatorName
+          ? `${firstViolation.violatorName} vừa bị ghi nhận.`
           : 'Theo dõi các báo cáo vi phạm mới.',
       },
     ];
@@ -864,6 +886,20 @@ const Dashboard = () => {
 
   return (
     <>
+      {loading ? (
+        <div className="dashboard-skeleton">
+          <div className="skeleton-title-row" />
+          <div className="skeleton-grid">
+            <div className="skeleton-block skeleton-block--lg" />
+            <div className="skeleton-block skeleton-block--lg" />
+          </div>
+          <div className="skeleton-grid" style={{ gridTemplateColumns: '1.05fr 0.95fr 0.9fr' }}>
+            <div className="skeleton-block skeleton-block--md" />
+            <div className="skeleton-block skeleton-block--md" />
+            <div className="skeleton-block skeleton-block--md" />
+          </div>
+        </div>
+      ) : (
       <div className="dashboard-container">
         {/* Title row */}
         <div className="dashboard-title-row">
@@ -889,7 +925,7 @@ const Dashboard = () => {
                 Cập nhật: {lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
-            <button className="refresh-btn" onClick={fetchDashboardData} title="Làm mới dữ liệu">
+            <button className="refresh-btn" onClick={fetchDashboardData} title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -906,7 +942,7 @@ const Dashboard = () => {
                   const Icon = action.icon;
                   return (
                     <a key={action.label} href={action.href} className="quick-action-card">
-                      <span className="quick-action-icon">
+                      <span className={`quick-action-icon ${action.iconClass || ''}`}>
                         <Icon size={18} />
                       </span>
                       <span className="quick-action-body">
@@ -999,32 +1035,10 @@ const Dashboard = () => {
               </div>
             </section>
 
-            <section className="dashboard-panel panel-elevated system-alerts-panel">
-              <div className="panel-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Siren size={16} color="#ef4444" />
-                  <h3 className="panel-title">Cảnh báo hệ thống</h3>
-                </div>
-              </div>
-              <div className="system-alert-list">
-                {systemAlerts.map((alert) => {
-                  const Icon = alert.icon;
-                  return (
-                    <div key={alert.key} className={`system-alert-card system-alert-card--${alert.tone}`}>
-                      <span className="system-alert-icon"><Icon size={16} /></span>
-                      <div className="system-alert-copy">
-                        <span className="system-alert-title">{alert.title}</span>
-                        <span className="system-alert-description">{alert.description}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
           </div>
         </div>
 
-        <div className="dashboard-grid-three">
+        <div className="dashboard-grid-two dashboard-grid-equal-height">
           <section className="dashboard-panel panel-elevated trend-panel">
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1056,35 +1070,6 @@ const Dashboard = () => {
                 );
               })}
             </div>
-          </section>
-
-          <section className="dashboard-panel panel-elevated area-attention-panel">
-            <div className="panel-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MapPin size={16} color="#0f766e" />
-                <h3 className="panel-title">Khu vực cần chú ý</h3>
-              </div>
-            </div>
-
-            {areaAttentionItems.length === 0 ? (
-              <div className="empty-section">Chưa có khu vực nào cần chú ý thêm</div>
-            ) : (
-              <div className="attention-list">
-                {areaAttentionItems.map((item) => (
-                  <a key={item.key} href={item.href} className={`attention-card attention-card--${item.tone}`}>
-                    <div className="attention-card-main">
-                      <span className="attention-card-title">{item.title}</span>
-                      <span className="attention-card-subtitle">{item.subtitle}</span>
-                      <span className="attention-card-hint">{item.hint}</span>
-                    </div>
-                    <div className="attention-card-side">
-                      <span className="attention-card-occupancy">{Math.round(item.occupancy)}%</span>
-                      <ChevronRight size={14} />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
           </section>
 
           <section className="dashboard-panel panel-elevated zone-status-side">
@@ -1357,7 +1342,7 @@ const Dashboard = () => {
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Sinh viên ra vào gần đây</h3>
+                <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Sinh viên ra vào hôm nay</h3>
                 <select
                   className="chart-range-select"
                   value={accessFilter}
@@ -1372,7 +1357,7 @@ const Dashboard = () => {
             </div>
             {filteredStudents.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
-                Không có dữ liệu
+                Hiện chưa có sinh viên nào ra vào thư viện
               </div>
             ) : (
               <div className="table-wrapper">
@@ -1416,13 +1401,13 @@ const Dashboard = () => {
           {/* Recent bookings */}
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
-              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Đặt chỗ gần đây</h3>
+              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Đặt chỗ hôm nay</h3>
               <a href="/librarian/bookings" className="view-all-link">Xem tất cả</a>
             </div>
 
             {stats.recentBookings.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
-                Chưa có đặt chỗ nào
+                Hiện chưa có đặt chỗ nào hôm nay
               </div>
             ) : (
               <div className="booking-list">
@@ -1519,7 +1504,7 @@ const Dashboard = () => {
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <UserX size={16} color="#ef4444" />
-                <h3 className="panel-title">Vi phạm gần đây</h3>
+                <h3 className="panel-title">Vi phạm chờ xử lý</h3>
               </div>
               <a href="/librarian/violation" className="panel-link">
                 Xem tất cả <ChevronRight size={14} />
@@ -1528,7 +1513,7 @@ const Dashboard = () => {
 
             {
               stats.recentViolations.length === 0 ? (
-                <div className="empty-section">Không có vi phạm nào</div>
+                <div className="empty-section">Không có vi phạm nào cần xử lý</div>
               ) : (
                 <div className="violations-list dashboard-entity-list">
                   {stats.recentViolations.map((v, idx) => {
@@ -1591,7 +1576,7 @@ const Dashboard = () => {
 
           <section className="dashboard-panel panel-elevated requests-panel">
             <div className="panel-header">
-              <h3 className="panel-title">Yêu cầu và phản hồi</h3>
+              <h3 className="panel-title">Yêu cầu chờ xử lý</h3>
             </div>
             <div className="request-tabs">
               <button
@@ -1626,7 +1611,7 @@ const Dashboard = () => {
 
             <div className="request-list">
               {getActiveRequestData().length === 0 ? (
-                <div className="empty-section">Không có dữ liệu</div>
+                <div className="empty-section">Không có yêu cầu nào cần xử lý</div>
               ) : (
                 getActiveRequestData().map((item, idx) => {
                   const statusCfg = getStatusConfig(item.status);
@@ -1779,6 +1764,7 @@ const Dashboard = () => {
           </section>
         </div>
       </div >
+      )}
 
       {/* Student Detail Modal */}
       {
