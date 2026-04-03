@@ -14,11 +14,13 @@ import java.util.UUID;
 public class StatisticDTO {
 
     private OverviewDTO overview;
+    private OverviewComparisonDTO comparison;
     private BookingAnalysisDTO bookingAnalysis;
     private List<ViolationTypeStatDTO> violationsByType;
     private FeedbackSummaryDTO feedbackSummary;
     private List<ZoneUsageDTO> zoneUsage;
     private List<PeakHourDTO> peakHours;
+    private List<InsightDTO> insights;
 
     // ---- Overview ----
     @Getter
@@ -32,6 +34,31 @@ public class StatisticDTO {
         private long totalViolations;
         private long totalFeedbacks;
         private long totalComplaints;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class OverviewComparisonDTO {
+        private MetricDeltaDTO checkIns;
+        private MetricDeltaDTO bookings;
+        private MetricDeltaDTO violations;
+        private MetricDeltaDTO feedbacks;
+        private MetricDeltaDTO complaints;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class MetricDeltaDTO {
+        private long currentValue;
+        private long previousValue;
+        private long changeValue;
+        private double changePercent;
     }
 
     // ---- Booking Analysis ----
@@ -125,5 +152,17 @@ public class StatisticDTO {
     public static class PeakHourDTO {
         private int hour;
         private long count;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class InsightDTO {
+        private String type;
+        private String title;
+        private String description;
+        private String tone;
     }
 }
