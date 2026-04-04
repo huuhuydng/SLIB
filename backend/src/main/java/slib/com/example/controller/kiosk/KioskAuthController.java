@@ -74,6 +74,27 @@ public class KioskAuthController {
     }
 
     /**
+     * Heartbeat định kỳ từ kiosk đã kích hoạt để cập nhật trạng thái online.
+     * POST /slib/kiosk/session/heartbeat
+     */
+    @PostMapping("/session/heartbeat")
+    @PreAuthorize("hasRole('KIOSK')")
+    public ResponseEntity<Map<String, Object>> heartbeat(Authentication authentication) {
+        if (!(authentication instanceof KioskDevicePrincipal kioskPrincipal)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Khong co quyen truy cap kiosk"));
+        }
+
+        kioskTokenService.updateLastActive(kioskPrincipal.getKioskId());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "kioskId", kioskPrincipal.getKioskId(),
+                "kioskCode", kioskPrincipal.getKioskCode(),
+                "timestamp", LocalDateTime.now(),
+                "message", "Heartbeat thanh cong"));
+    }
+
+    /**
      * Kich hoat kiosk bang ma kich hoat ngan (6 ky tu).
      * POST /slib/kiosk/session/activate-code
      * Body: { "code": "A3F9K2" }

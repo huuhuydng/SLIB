@@ -2,6 +2,7 @@ package slib.com.example.controller.kiosk;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -35,6 +36,9 @@ public class KioskAdminController {
     private final KioskConfigRepository kioskConfigRepository;
     private final KioskActivationCodeRepository kioskActivationCodeRepository;
 
+    @Value("${app.frontend-url:https://slibsystem.site}")
+    private String frontendUrl;
+
     /**
      * Tao device token cho kiosk.
      * POST /slib/kiosk/admin/token/{kioskId}
@@ -42,13 +46,20 @@ public class KioskAdminController {
     @PostMapping("/token/{kioskId}")
     public ResponseEntity<Map<String, Object>> generateToken(
             @PathVariable Integer kioskId,
+            @RequestParam(defaultValue = "false") boolean force,
             Authentication authentication) {
-
-        UUID issuedByUserId = extractUserId(authentication);
-        String token = kioskTokenService.generateDeviceToken(kioskId, issuedByUserId);
 
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
                 .orElseThrow(() -> new BadRequestException("Khong tim thay kiosk"));
+
+        if (kioskTokenService.hasValidToken(kiosk) && !force) {
+            throw new BadRequestException("Kiosk dang co token con hieu luc. Chi cap lai khi thuc su can thiet.");
+        }
+
+        UUID issuedByUserId = extractUserId(authentication);
+        String token = kioskTokenService.generateDeviceToken(kioskId, issuedByUserId);
+        kioskActivationCodeRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+        kioskActivationCodeRepository.deleteByKioskIdAndUsedFalse(kioskId);
 
         // Tao ma kich hoat ngan 6 ky tu
         String activationCode = generateActivationCode();
@@ -65,7 +76,7 @@ public class KioskAdminController {
         response.put("kioskCode", kiosk.getKioskCode());
         response.put("token", token);
         response.put("expiresAt", kiosk.getDeviceTokenExpiresAt());
-        response.put("activationUrl", "/kiosk/?token=" + token);
+        response.put("activationUrl", frontendUrl + "/kiosk/?token=" + token);
         response.put("activationCode", activationCode);
 
         log.info("Da tao device token va ma kich hoat {} cho kiosk {} boi {}", activationCode, kiosk.getKioskCode(), issuedByUserId);
@@ -102,12 +113,10 @@ public class KioskAdminController {
             item.put("deviceTokenIssuedAt", kiosk.getDeviceTokenIssuedAt());
             item.put("deviceTokenExpiresAt", kiosk.getDeviceTokenExpiresAt());
             item.put("lastActiveAt", kiosk.getLastActiveAt());
-
-            // Kiem tra token con hieu luc khong
-            boolean tokenValid = kiosk.getDeviceToken() != null
-                    && kiosk.getDeviceTokenExpiresAt() != null
-                    && kiosk.getDeviceTokenExpiresAt().isAfter(LocalDateTime.now());
+            boolean tokenValid = kioskTokenService.hasValidToken(kiosk);
             item.put("tokenValid", tokenValid);
+            item.put("online", kioskTokenService.isOnline(kiosk));
+            item.put("runtimeStatus", kioskTokenService.getRuntimeStatus(kiosk));
 
             return item;
         }).collect(Collectors.toList());
@@ -260,11 +269,10 @@ public class KioskAdminController {
         item.put("deviceTokenIssuedAt", kiosk.getDeviceTokenIssuedAt());
         item.put("deviceTokenExpiresAt", kiosk.getDeviceTokenExpiresAt());
         item.put("lastActiveAt", kiosk.getLastActiveAt());
-
-        boolean tokenValid = kiosk.getDeviceToken() != null
-                && kiosk.getDeviceTokenExpiresAt() != null
-                && kiosk.getDeviceTokenExpiresAt().isAfter(LocalDateTime.now());
+        boolean tokenValid = kioskTokenService.hasValidToken(kiosk);
         item.put("tokenValid", tokenValid);
+        item.put("online", kioskTokenService.isOnline(kiosk));
+        item.put("runtimeStatus", kioskTokenService.getRuntimeStatus(kiosk));
 
         item.put("createdAt", kiosk.getCreatedAt());
         item.put("updatedAt", kiosk.getUpdatedAt());

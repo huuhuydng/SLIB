@@ -37,17 +37,23 @@ import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 const getAdminToken = () =>
   localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
 
-const TOKEN_STATUS = {
-  ACTIVE: { label: 'Đang hoạt động', css: 'online' },
-  EXPIRED: { label: 'Hết hạn', css: 'offline' },
+const RUNTIME_STATUS = {
+  READY: { label: 'Sẵn sàng', css: 'online' },
+  STALE: { label: 'Mất kết nối', css: 'offline' },
+  PENDING: { label: 'Chưa kết nối', css: 'inactive' },
+  TOKEN_EXPIRED: { label: 'Token hết hạn', css: 'offline' },
   INACTIVE: { label: 'Chưa kích hoạt', css: 'inactive' },
+  DISABLED: { label: 'Đã vô hiệu hóa', css: 'inactive' },
 };
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
-  { value: 'ACTIVE', label: 'Đang hoạt động' },
-  { value: 'EXPIRED', label: 'Hết hạn' },
+  { value: 'READY', label: 'Sẵn sàng' },
+  { value: 'STALE', label: 'Mất kết nối' },
+  { value: 'PENDING', label: 'Chưa kết nối' },
+  { value: 'TOKEN_EXPIRED', label: 'Token hết hạn' },
   { value: 'INACTIVE', label: 'Chưa kích hoạt' },
+  { value: 'DISABLED', label: 'Đã vô hiệu hóa' },
 ];
 
 const KIOSK_TYPE_MAP = {
@@ -73,6 +79,7 @@ function KioskManagement() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [toast, setToast] = useState(null);
   const [activatingId, setActivatingId] = useState(null);
@@ -129,8 +136,10 @@ function KioskManagement() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
+  const fetchSessions = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/sessions`, {
@@ -142,15 +151,26 @@ function KioskManagement() {
       }
       const data = await res.json();
       setSessions(Array.isArray(data) ? data : (data.content || data.data || []));
+      setLastUpdatedAt(new Date());
     } catch (err) {
       setError(err.message || 'Lỗi kết nối đến máy chủ');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchSessions();
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchSessions({ silent: true });
+    }, 30000);
+
+    return () => clearInterval(timer);
   }, [fetchSessions]);
 
   // Close filter dropdown on outside click
@@ -272,10 +292,19 @@ function KioskManagement() {
 
   // ========== TOKEN HANDLERS ==========
 
-  const handleActivate = async (kioskId) => {
+  const handleActivate = async (session) => {
+    const kioskId = session.id;
+    const forceReissue = session?.tokenValid && window.confirm(
+      `Kiosk ${session.kioskCode} đang có token còn hiệu lực. Cấp lại token sẽ làm token cũ mất hiệu lực.\n\nBạn có chắc muốn tiếp tục không?`
+    );
+
+    if (session?.tokenValid && !forceReissue) {
+      return;
+    }
+
     setActivatingId(kioskId);
     try {
-      const res = await fetch(`${API_BASE}/slib/kiosk/admin/token/${encodeURIComponent(kioskId)}`, {
+      const res = await fetch(`${API_BASE}/slib/kiosk/admin/token/${encodeURIComponent(kioskId)}?force=${forceReissue ? 'true' : 'false'}`, {
         method: 'POST',
         headers: authHeaders(),
       });
@@ -284,11 +313,9 @@ function KioskManagement() {
         throw new Error(body.message || 'Không thể tạo token kiosk');
       }
       const data = await res.json();
-      const baseUrl = window.location.origin;
-      const activationUrl = `${baseUrl}/kiosk/?token=${data.token}`;
       setActivationResult({
         activationCode: data.activationCode,
-        activationUrl,
+        activationUrl: data.activationUrl,
         kioskCode: data.kioskCode,
       });
       setCopied(null);
@@ -334,11 +361,8 @@ function KioskManagement() {
 
   // ========== HELPERS ==========
 
-  const getTokenStatus = (session) => {
-    if (!session.tokenValid && !session.hasDeviceToken) return 'INACTIVE';
-    if (session.tokenValid) return 'ACTIVE';
-    if (session.hasDeviceToken && !session.tokenValid) return 'EXPIRED';
-    return 'INACTIVE';
+  const getRuntimeStatus = (session) => {
+    return session.runtimeStatus || 'INACTIVE';
   };
 
   const formatDate = (dateStr) => {
@@ -362,8 +386,8 @@ function KioskManagement() {
   };
 
   const statusConfig = (session) => {
-    const key = getTokenStatus(session);
-    return TOKEN_STATUS[key] || TOKEN_STATUS.INACTIVE;
+    const key = getRuntimeStatus(session);
+    return RUNTIME_STATUS[key] || RUNTIME_STATUS.INACTIVE;
   };
 
   // ========== SORT / FILTER / PAGINATION ==========
@@ -373,7 +397,7 @@ function KioskManagement() {
       case 'kioskCode': return session.kioskCode || session.id || '';
       case 'kioskType': return KIOSK_TYPE_MAP[session.kioskType]?.label || session.kioskType || '';
       case 'location': return session.location || '';
-      case 'status': return getTokenStatus(session);
+      case 'status': return getRuntimeStatus(session);
       case 'expiresAt': return session.deviceTokenExpiresAt || '';
       case 'lastActive': return session.lastActiveAt || '';
       default: return '';
@@ -398,7 +422,7 @@ function KioskManagement() {
       const fq = filterVal.toLowerCase();
 
       if (col === 'status') {
-        list = list.filter(s => getTokenStatus(s) === filterVal);
+        list = list.filter(s => getRuntimeStatus(s) === filterVal);
       } else if (col === 'kioskType') {
         list = list.filter(s => s.kioskType === filterVal);
       } else if (col === 'kioskCode') {
@@ -685,7 +709,7 @@ function KioskManagement() {
                       { key: 'kioskCode', label: 'Thiết bị' },
                       { key: 'kioskType', label: 'Loại' },
                       { key: 'location', label: 'Vị trí' },
-                      { key: 'status', label: 'Trạng thái token' },
+                      { key: 'status', label: 'Trạng thái vận hành' },
                       { key: 'expiresAt', label: 'Hết hạn' },
                       { key: 'lastActive', label: 'Hoạt động cuối' },
                     ].map(col => (
@@ -712,6 +736,11 @@ function KioskManagement() {
             </span>
 
             <div className="cio-toolbar-right">
+              {lastUpdatedAt && (
+                <span className="cio-result-count" style={{ marginRight: 4 }}>
+                  Cập nhật: <strong>{lastUpdatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
+                </span>
+              )}
               <button className="um-toolbar-btn" onClick={fetchSessions} disabled={loading}>
                 <RefreshCw size={14} className={loading ? 'sm-spinner' : ''} />
                 Làm mới
@@ -749,7 +778,7 @@ function KioskManagement() {
                     {visibleColumns.kioskCode && renderColumnHeader('kioskCode', 'Thiết bị')}
                     {visibleColumns.kioskType && renderColumnHeader('kioskType', 'Loại')}
                     {visibleColumns.location && renderColumnHeader('location', 'Vị trí')}
-                    {visibleColumns.status && renderColumnHeader('status', 'Trạng thái token')}
+                    {visibleColumns.status && renderColumnHeader('status', 'Trạng thái vận hành')}
                     {visibleColumns.expiresAt && renderColumnHeader('expiresAt', 'Hết hạn lúc')}
                     {visibleColumns.lastActive && renderColumnHeader('lastActive', 'Hoạt động cuối')}
                     <th style={{ textAlign: 'center' }}>
@@ -773,7 +802,7 @@ function KioskManagement() {
                       const status = statusConfig(session);
                       const kioskId = session.id;
                       const isActivating = activatingId === kioskId;
-                      const tokenStatusKey = getTokenStatus(session);
+                      const runtimeStatusKey = getRuntimeStatus(session);
                       const typeInfo = KIOSK_TYPE_MAP[session.kioskType] || { label: session.kioskType, color: '#6B7280', bg: '#F3F4F6' };
 
                       return (
@@ -832,7 +861,7 @@ function KioskManagement() {
                               <button
                                 className="um-toolbar-btn primary"
                                 style={{ fontSize: 12, padding: '6px 12px' }}
-                                onClick={() => handleActivate(kioskId)}
+                                onClick={() => handleActivate(session)}
                                 disabled={isActivating}
                                 title="Kích hoạt token"
                               >
@@ -841,7 +870,7 @@ function KioskManagement() {
                                   : <><Power size={13} /> Kích hoạt</>
                                 }
                               </button>
-                              {tokenStatusKey === 'ACTIVE' && (
+                              {session.hasDeviceToken && (
                                 <button
                                   className="um-toolbar-btn"
                                   style={{ fontSize: 12, padding: '6px 12px', color: '#DC2626', borderColor: '#FCA5A5' }}
@@ -887,7 +916,6 @@ function KioskManagement() {
                   const status = statusConfig(session);
                   const kioskId = session.id;
                   const isActivating = activatingId === kioskId;
-                  const tokenStatusKey = getTokenStatus(session);
                   const typeInfo = KIOSK_TYPE_MAP[session.kioskType] || { label: session.kioskType, color: '#6B7280', bg: '#F3F4F6' };
 
                   return (
@@ -938,7 +966,7 @@ function KioskManagement() {
                       <div className="hce-station-card__actions">
                         <button
                           className="hce-station-card__action-btn"
-                          onClick={e => { e.stopPropagation(); handleActivate(kioskId); }}
+                          onClick={e => { e.stopPropagation(); handleActivate(session); }}
                           disabled={isActivating}
                           style={isActivating ? { opacity: 0.6 } : { color: '#e8600a', borderColor: '#fed7aa' }}
                         >

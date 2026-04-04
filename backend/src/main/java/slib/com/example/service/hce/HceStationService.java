@@ -59,6 +59,8 @@ public class HceStationService {
             }
         }
 
+        final HceDeviceEntity.DeviceStatus selectedStatus = statusEnum;
+        final HceDeviceEntity.DeviceType selectedType = typeEnum;
         String normalizedSearch = normalizeSearch(search);
         LocalDateTime startOfDay = LocalDateTime.now(VIETNAM_ZONE).toLocalDate().atStartOfDay();
         Map<String, Long> todayScanCounts = accessLogRepository.countTodayScansByDevice(startOfDay).stream()
@@ -72,8 +74,8 @@ public class HceStationService {
                         row -> ((java.sql.Timestamp) row[1]).toLocalDateTime()));
 
         List<HceDeviceEntity> stations = hceDeviceRepository.findAllWithArea().stream()
-                .filter(station -> statusEnum == null || station.getStatus() == statusEnum)
-                .filter(station -> typeEnum == null || station.getDeviceType() == typeEnum)
+                .filter(station -> selectedStatus == null || station.getStatus() == selectedStatus)
+                .filter(station -> selectedType == null || station.getDeviceType() == selectedType)
                 .filter(station -> matchesSearch(station, normalizedSearch))
                 .toList();
 
