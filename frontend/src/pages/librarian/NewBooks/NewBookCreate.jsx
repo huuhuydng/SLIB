@@ -396,7 +396,7 @@ const NewBookCreate = () => {
                   {uploadingCover ? 'Đang tải ảnh...' : 'Chọn ảnh từ máy'}
                 </button>
                 <span className="lib-book-cover-hint">
-                  Ảnh sẽ được tải thẳng lên Cloudinary để lưu ổn định.
+                  Ảnh sẽ được tải lên hệ thống và lưu tự động.
                 </span>
               </div>
               <input

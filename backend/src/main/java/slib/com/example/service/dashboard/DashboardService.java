@@ -39,6 +39,8 @@ import slib.com.example.service.hce.CheckInService;
 @Transactional(readOnly = true)
 public class DashboardService {
 
+    private static final long SUPPORT_OVERDUE_MINUTES = 30;
+
     private final CheckInService checkInService;
     private final ReservationRepository reservationRepository;
     private final SeatRepository seatRepository;
@@ -54,56 +56,65 @@ public class DashboardService {
 
     public DashboardStatsDTO getDashboardStats() {
         try {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDate today = now.toLocalDate();
+            LocalDateTime startOfDay = today.atStartOfDay();
+            LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+            List<String> activeBookingStatuses = List.of("BOOKED", "CONFIRMED");
+            List<String> bookingStatuses = List.of("PROCESSING", "BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED");
+
             // 1. Check-in/out stats
             AccessLogStatsDTO accessStats = checkInService.getTodayStats();
 
             // 2. Seat stats
-            long totalSeats = seatRepository.count();
+            long totalSeats = seatRepository.countByIsActiveTrue();
             long currentlyInLibrary = Math.max(0, accessStats.getCurrentlyInLibrary());
+            long activeBookings = reservationRepository.countActiveReservationsAtTime(now, activeBookingStatuses);
             double occupancyRate = totalSeats > 0
-                    ? Math.round((double) currentlyInLibrary / totalSeats * 10000.0) / 100.0
+                    ? Math.round((double) activeBookings / totalSeats * 10000.0) / 100.0
                     : 0;
 
             // 3. Booking stats
-            LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-            LocalDateTime endOfDay = LocalDate.now().atTime(LocalTime.MAX);
-            List<ReservationEntity> reservations = reservationRepository.findAll();
-            long totalBookingsToday = reservations.stream()
-                    .filter(r -> r.getStartTime() != null)
-                    .filter(r -> !r.getStartTime().isBefore(startOfDay) && !r.getStartTime().isAfter(endOfDay))
-                    .filter(r -> Set.of("BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED")
-                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
-                    .count();
-            long activeBookings = reservations.stream()
-                    .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
-                    .count();
-            long pendingBookings = reservations.stream()
-                    .filter(r -> Set.of("BOOKED", "PROCESSING")
-                            .contains(r.getStatus() != null ? r.getStatus().toUpperCase() : ""))
-                    .count();
+            long totalBookingsToday = reservationRepository.countByStartTimeBetweenAndStatusIn(
+                    startOfDay,
+                    endOfDay,
+                    bookingStatuses);
+            long pendingBookings = reservationRepository.countUpcomingReservationsBetween(
+                    now,
+                    endOfDay,
+                    List.of("PROCESSING", "BOOKED"));
 
             // 4. Violations today
             long violationsToday = violationReportRepository.countByCreatedAtBetween(startOfDay, endOfDay);
-            long pendingViolations = violationReportRepository.countByStatus(
-                    SeatViolationReportEntity.ReportStatus.PENDING);
+            long pendingViolations = violationReportRepository.countByStatusIn(
+                    Set.of(
+                            SeatViolationReportEntity.ReportStatus.PENDING,
+                            SeatViolationReportEntity.ReportStatus.VERIFIED));
 
             // 5. Support requests
             long pendingSupportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.PENDING);
             long inProgressSupportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.IN_PROGRESS);
             long overdueSupportRequests = supportRequestRepository.countByStatusAndCreatedAtBefore(
                     SupportRequestStatus.PENDING,
-                    LocalDateTime.now().minusMinutes(10));
+                    now.minusMinutes(SUPPORT_OVERDUE_MINUTES));
 
-            // 6b. Seat status reports
+            // 6. Seat status reports and complaints
             long pendingSeatStatusReports = seatStatusReportRepository.countByStatusIn(
                     Set.of(
                             slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING));
+            long pendingComplaints = complaintRepository.countByStatus(
+                    slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus.PENDING);
 
             // 7. Total users
             long totalUsers = userRepository.count();
 
             // 8. Recent bookings (today only)
-            List<ReservationEntity> recentReservations = reservationRepository.findByStartTimeBetweenOrderByCreatedAtDesc(startOfDay, endOfDay);
+            List<ReservationEntity> recentReservations = reservationRepository.findByStartTimeBetweenOrderByCreatedAtDesc(startOfDay, endOfDay)
+                    .stream()
+                    .sorted(Comparator
+                            .comparing(ReservationEntity::getStartTime, Comparator.nullsLast(Comparator.naturalOrder()))
+                            .thenComparing(ReservationEntity::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                    .collect(Collectors.toList());
             List<DashboardStatsDTO.RecentBookingDTO> recentBookings = recentReservations.stream()
                     .map(r -> DashboardStatsDTO.RecentBookingDTO.builder()
                             .reservationId(r.getReservationId())
@@ -121,7 +132,8 @@ public class DashboardService {
                     .collect(Collectors.toList());
 
             // 9. Area occupancy (real data)
-            List<DashboardStatsDTO.AreaOccupancyDTO> areaOccupancies = getAreaOccupancies();
+            List<DashboardStatsDTO.ZoneOccupancyDTO> zoneOccupancies = getZoneOccupancies(now);
+            List<DashboardStatsDTO.AreaOccupancyDTO> areaOccupancies = getAreaOccupancies(zoneOccupancies);
 
             // 10. Weekly stats (7 days)
             List<DashboardStatsDTO.WeeklyStatsDTO> weeklyStats = getWeeklyStats();
@@ -144,10 +156,7 @@ public class DashboardService {
             // 16. Recent seat status reports
             List<DashboardStatsDTO.SeatStatusReportItemDTO> recentSeatStatusReports = getRecentSeatStatusReports();
 
-            // 17. Zone occupancy
-            List<DashboardStatsDTO.ZoneOccupancyDTO> zoneOccupancies = getZoneOccupancies();
-
-            // 18. Trend summary
+            // 17. Trend summary
             DashboardStatsDTO.TrendSummaryDTO trendSummary = getTrendSummary();
 
             return DashboardStatsDTO.builder()
@@ -155,7 +164,7 @@ public class DashboardService {
                     .totalCheckOutsToday(accessStats.getTotalCheckOutsToday())
                     .currentlyInLibrary(currentlyInLibrary)
                     .totalSeats(totalSeats)
-                    .occupiedSeats(currentlyInLibrary)
+                    .occupiedSeats(activeBookings)
                     .occupancyRate(occupancyRate)
                     .totalBookingsToday(totalBookingsToday)
                     .activeBookings(activeBookings)
@@ -166,6 +175,7 @@ public class DashboardService {
                     .inProgressSupportRequests(inProgressSupportRequests)
                     .overdueSupportRequests(overdueSupportRequests)
                     .pendingSeatStatusReports(pendingSeatStatusReports)
+                    .pendingComplaints(pendingComplaints)
                     .totalUsers(totalUsers)
                     .recentBookings(recentBookings)
                     .areaOccupancies(areaOccupancies)
@@ -178,7 +188,7 @@ public class DashboardService {
                     .recentSeatStatusReports(recentSeatStatusReports)
                     .zoneOccupancies(zoneOccupancies)
                     .trendSummary(trendSummary)
-                    .serverTime(LocalDateTime.now())
+                    .serverTime(now)
                     .build();
 
         } catch (Exception e) {
@@ -278,7 +288,34 @@ public class DashboardService {
         try {
             LocalDate today = LocalDate.now();
 
-            if ("year".equalsIgnoreCase(range)) {
+            if ("day".equalsIgnoreCase(range)) {
+                LocalDateTime dayStartTime = today.atStartOfDay();
+
+                List<Object[]> checkInData = accessLogRepository.countCheckInsByHour(dayStartTime);
+                Map<Integer, Long> checkInByHour = new HashMap<>();
+                for (Object[] row : checkInData) {
+                    int hour = ((Number) row[0]).intValue();
+                    checkInByHour.put(hour, ((Number) row[1]).longValue());
+                }
+
+                List<Object[]> bookingData = reservationRepository.countBookingsByHour(dayStartTime);
+                Map<Integer, Long> bookingByHour = new HashMap<>();
+                for (Object[] row : bookingData) {
+                    int hour = ((Number) row[0]).intValue();
+                    bookingByHour.put(hour, ((Number) row[1]).longValue());
+                }
+
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (int h = 6; h <= 22; h++) {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("label", String.format("%02d:00", h));
+                    item.put("checkInCount", checkInByHour.getOrDefault(h, 0L));
+                    item.put("bookingCount", bookingByHour.getOrDefault(h, 0L));
+                    result.add(item);
+                }
+                return result;
+
+            } else if ("year".equalsIgnoreCase(range)) {
                 // 12 months aggregation
                 List<Map<String, Object>> result = new ArrayList<>();
                 String[] monthNames = { "Th 1", "Th 2", "Th 3", "Th 4", "Th 5", "Th 6",
@@ -388,9 +425,12 @@ public class DashboardService {
 
     private List<DashboardStatsDTO.ViolationItemDTO> getRecentViolations() {
         try {
-            return violationReportRepository.findByStatusOrderByCreatedAtDesc(
-                    SeatViolationReportEntity.ReportStatus.PENDING
-            ).stream()
+            return violationReportRepository.findByStatusInOrderByCreatedAtDesc(
+                    Set.of(
+                            SeatViolationReportEntity.ReportStatus.PENDING,
+                            SeatViolationReportEntity.ReportStatus.VERIFIED))
+                    .stream()
+                    .limit(5)
                     .map(v -> DashboardStatsDTO.ViolationItemDTO.builder()
                             .id(v.getId())
                             .violatorName(v.getViolator() != null ? v.getViolator().getFullName() : "N/A")
@@ -425,8 +465,7 @@ public class DashboardService {
                 days = 30;
             }
             LocalDateTime since = LocalDateTime.now().minusDays(days);
-            // Dùng reservation time (CONFIRMED/COMPLETED) thay vì access log
-            List<Object[]> data = reservationRepository.findTopStudentsByReservationTime(since);
+            List<Object[]> data = accessLogRepository.findTopStudentsByStudyTime(since);
             return data.stream()
                     .map(row -> DashboardStatsDTO.TopStudentDTO.builder()
                             .userId((UUID) row[0])
@@ -448,6 +487,7 @@ public class DashboardService {
             return supportRequestRepository.findByStatusInOrderByCreatedAtDesc(
                     Set.of(SupportRequestStatus.PENDING, SupportRequestStatus.IN_PROGRESS)
             ).stream()
+                    .limit(5)
                     .map(sr -> DashboardStatsDTO.SupportRequestItemDTO.builder()
                             .id(sr.getId())
                             .studentName(sr.getStudent() != null ? sr.getStudent().getFullName() : "N/A")
@@ -470,6 +510,7 @@ public class DashboardService {
             return complaintRepository.findByStatusOrderByCreatedAtDesc(
                     slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus.PENDING
             ).stream()
+                    .limit(5)
                     .map(c -> DashboardStatsDTO.ComplaintItemDTO.builder()
                             .id(c.getId())
                             .userName(c.getUser() != null ? c.getUser().getFullName() : "N/A")
@@ -490,6 +531,7 @@ public class DashboardService {
             return feedbackRepository.findByStatusOrderByCreatedAtDesc(
                     slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus.NEW
             ).stream()
+                    .limit(5)
                     .map(f -> DashboardStatsDTO.FeedbackItemDTO.builder()
                             .id(f.getId())
                             .userName(f.getUser() != null ? f.getUser().getFullName() : "N/A")
@@ -512,6 +554,7 @@ public class DashboardService {
         try {
             return seatStatusReportRepository.findByStatusInOrderByCreatedAtDesc(
                     Set.of(slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING)).stream()
+                    .limit(5)
                     .map(report -> DashboardStatsDTO.SeatStatusReportItemDTO.builder()
                             .id(report.getId())
                             .userName(report.getUser() != null ? report.getUser().getFullName() : "N/A")
@@ -561,8 +604,8 @@ public class DashboardService {
                             bookingStatuses))
                     .violationsToday(violationReportRepository.countByCreatedAtBetween(startOfToday, endOfToday))
                     .violationsYesterday(violationReportRepository.countByCreatedAtBetween(startOfYesterday, endOfYesterday))
-                    .feedbackToday(feedbackRepository.countByCreatedAtBetween(startOfToday, endOfToday))
-                    .feedbackYesterday(feedbackRepository.countByCreatedAtBetween(startOfYesterday, endOfYesterday))
+                    .supportToday(supportRequestRepository.countByCreatedAtBetween(startOfToday, endOfToday))
+                    .supportYesterday(supportRequestRepository.countByCreatedAtBetween(startOfYesterday, endOfYesterday))
                     .build();
         } catch (Exception e) {
             log.error("Error calculating trend summary: {}", e.getMessage());
@@ -570,44 +613,31 @@ public class DashboardService {
         }
     }
 
-    private List<DashboardStatsDTO.ZoneOccupancyDTO> getZoneOccupancies() {
+    private List<DashboardStatsDTO.ZoneOccupancyDTO> getZoneOccupancies(LocalDateTime now) {
         try {
-            var areas = areaRepository.findAll();
             List<DashboardStatsDTO.ZoneOccupancyDTO> result = new ArrayList<>();
-            LocalDateTime now = LocalDateTime.now();
+            List<Object[]> snapshots = reservationRepository.getZoneOccupancySnapshot(now);
 
-            for (var area : areas) {
-                List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(area.getAreaId());
+            for (Object[] row : snapshots) {
+                int zoneId = ((Number) row[0]).intValue();
+                String zoneName = (String) row[1];
+                String areaName = (String) row[2];
+                long totalSeats = ((Number) row[3]).longValue();
+                long occupiedSeats = ((Number) row[4]).longValue();
+                double percentage = totalSeats > 0
+                        ? Math.round((double) occupiedSeats / totalSeats * 10000.0) / 100.0
+                        : 0;
 
-                for (ZoneEntity zone : zones) {
-                    List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zone.getZoneId());
-                    long zoneTotalSeats = seats.size();
-                    long zoneOccupiedSeats = 0;
-
-                    for (SeatEntity seat : seats) {
-                        // Chỉ đếm ghế có reservation CONFIRMED (đã check-in thực tế)
-                        List<ReservationEntity> confirmedReservations = reservationRepository
-                                .findConfirmedReservationsForSeat(seat.getSeatId(), now.minusHours(1),
-                                        now.plusHours(1));
-                        if (!confirmedReservations.isEmpty()) {
-                            zoneOccupiedSeats++;
-                        }
-                    }
-
-                    double percentage = zoneTotalSeats > 0
-                            ? Math.round((double) zoneOccupiedSeats / zoneTotalSeats * 10000.0) / 100.0
-                            : 0;
-
-                    result.add(DashboardStatsDTO.ZoneOccupancyDTO.builder()
-                            .zoneId(zone.getZoneId())
-                            .zoneName(zone.getZoneName())
-                            .areaName(area.getAreaName())
-                            .totalSeats(zoneTotalSeats)
-                            .occupiedSeats(zoneOccupiedSeats)
-                            .occupancyPercentage(percentage)
-                            .build());
-                }
+                result.add(DashboardStatsDTO.ZoneOccupancyDTO.builder()
+                        .zoneId(zoneId)
+                        .zoneName(zoneName)
+                        .areaName(areaName)
+                        .totalSeats(totalSeats)
+                        .occupiedSeats(occupiedSeats)
+                        .occupancyPercentage(percentage)
+                        .build());
             }
+
             return result;
         } catch (Exception e) {
             log.error("Error calculating zone occupancies: {}", e.getMessage());
@@ -615,44 +645,36 @@ public class DashboardService {
         }
     }
 
-    private List<DashboardStatsDTO.AreaOccupancyDTO> getAreaOccupancies() {
+    private List<DashboardStatsDTO.AreaOccupancyDTO> getAreaOccupancies(
+            List<DashboardStatsDTO.ZoneOccupancyDTO> zoneOccupancies) {
         try {
-            var areas = areaRepository.findAll();
-            List<DashboardStatsDTO.AreaOccupancyDTO> result = new ArrayList<>();
+            Map<String, List<DashboardStatsDTO.ZoneOccupancyDTO>> byArea = zoneOccupancies.stream()
+                    .collect(Collectors.groupingBy(DashboardStatsDTO.ZoneOccupancyDTO::getAreaName));
 
-            for (var area : areas) {
-                List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(area.getAreaId());
-                long areaTotalSeats = 0;
-                long areaOccupiedSeats = 0;
+            List<DashboardStatsDTO.AreaOccupancyDTO> result = areaRepository.findAll().stream()
+                    .map(area -> {
+                        List<DashboardStatsDTO.ZoneOccupancyDTO> zones = byArea.getOrDefault(
+                                area.getAreaName(),
+                                Collections.emptyList());
+                        long areaTotalSeats = zones.stream()
+                                .mapToLong(DashboardStatsDTO.ZoneOccupancyDTO::getTotalSeats)
+                                .sum();
+                        long areaOccupiedSeats = zones.stream()
+                                .mapToLong(DashboardStatsDTO.ZoneOccupancyDTO::getOccupiedSeats)
+                                .sum();
+                        double percentage = areaTotalSeats > 0
+                                ? Math.round((double) areaOccupiedSeats / areaTotalSeats * 10000.0) / 100.0
+                                : 0;
 
-                for (ZoneEntity zone : zones) {
-                    List<SeatEntity> seats = seatRepository.findByZone_ZoneId(zone.getZoneId());
-                    areaTotalSeats += seats.size();
-
-                    LocalDateTime now = LocalDateTime.now();
-                    for (SeatEntity seat : seats) {
-                        // Chỉ đếm ghế có reservation CONFIRMED (đã check-in thực tế)
-                        List<ReservationEntity> confirmedReservations = reservationRepository
-                                .findConfirmedReservationsForSeat(seat.getSeatId(), now.minusHours(1),
-                                        now.plusHours(1));
-                        if (!confirmedReservations.isEmpty()) {
-                            areaOccupiedSeats++;
-                        }
-                    }
-                }
-
-                double percentage = areaTotalSeats > 0
-                        ? Math.round((double) areaOccupiedSeats / areaTotalSeats * 10000.0) / 100.0
-                        : 0;
-
-                result.add(DashboardStatsDTO.AreaOccupancyDTO.builder()
-                        .areaId(area.getAreaId())
-                        .areaName(area.getAreaName())
-                        .totalSeats(areaTotalSeats)
-                        .occupiedSeats(areaOccupiedSeats)
-                        .occupancyPercentage(percentage)
-                        .build());
-            }
+                        return DashboardStatsDTO.AreaOccupancyDTO.builder()
+                                .areaId(area.getAreaId())
+                                .areaName(area.getAreaName())
+                                .totalSeats(areaTotalSeats)
+                                .occupiedSeats(areaOccupiedSeats)
+                                .occupancyPercentage(percentage)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
 
             return result;
         } catch (Exception e) {

@@ -29,6 +29,8 @@ public interface SupportRequestRepository extends JpaRepository<SupportRequest, 
 
     long countByStatusAndCreatedAtBetween(SupportRequestStatus status, LocalDateTime start, LocalDateTime end);
 
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
     // Dashboard: lấy 5 yêu cầu hỗ trợ gần đây nhất
     List<SupportRequest> findTop5ByOrderByCreatedAtDesc();
 }

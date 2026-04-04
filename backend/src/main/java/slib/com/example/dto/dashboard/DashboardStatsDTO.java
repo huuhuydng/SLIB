@@ -41,6 +41,9 @@ public class DashboardStatsDTO {
     // Seat status report stats
     private long pendingSeatStatusReports;
 
+    // Complaint stats
+    private long pendingComplaints;
+
     // User stats
     private long totalUsers;
 
@@ -238,7 +241,7 @@ public class DashboardStatsDTO {
         private long bookingsYesterday;
         private long violationsToday;
         private long violationsYesterday;
-        private long feedbackToday;
-        private long feedbackYesterday;
+        private long supportToday;
+        private long supportYesterday;
     }
 }

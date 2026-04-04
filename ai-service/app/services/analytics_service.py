@@ -168,7 +168,16 @@ class AnalyticsAIService:
         """
         Get usage statistics for librarian dashboard (real data)
         """
-        days = 1 if period == "day" else 7 if period == "week" else 30
+        if period == "day":
+            days = 1
+        elif period == "week":
+            days = 7
+        elif period == "month":
+            days = 30
+        elif period == "year":
+            days = 365
+        else:
+            days = 30
         try:
             from app.core.database import engine
             from sqlalchemy import text

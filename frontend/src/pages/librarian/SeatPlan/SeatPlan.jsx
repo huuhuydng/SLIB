@@ -403,7 +403,7 @@ function SeatPlanContent() {
           </div>
         )}
 
-        {loading && <div className="sp-loading">Đang tải dữ liệu...</div>}
+        {loading && <div className="sp-loading">Đang tải sơ đồ ghế...</div>}
 
         {/* Sử dụng canvas giống admin để hiển thị sơ đồ 100% giống nhau */}
         <div style={{ display: 'flex', gap: '20px', padding: '20px' }}>

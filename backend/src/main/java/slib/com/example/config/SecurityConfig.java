@@ -47,6 +47,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cho thủ thư)
                         .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        // AI analytics endpoints are internal librarian/admin tools
+                        .requestMatchers("/slib/ai/analytics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated
                         .requestMatchers("/slib/ai/**").authenticated()
                         .requestMatchers("/slib/system/**").hasRole("ADMIN")
@@ -54,6 +56,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
                         .requestMatchers("/slib/files/**").authenticated()
                         .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
+                        .requestMatchers("/slib/dashboard/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/statistics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/hce/access-logs/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/hce/latest-logs").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/hce/student-detail/**").hasAnyRole("ADMIN", "LIBRARIAN")

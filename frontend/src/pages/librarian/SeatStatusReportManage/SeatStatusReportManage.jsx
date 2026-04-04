@@ -680,7 +680,7 @@ function SeatStatusReportManage() {
         {loading ? (
           <div className="ssr-loading-state">
             <Loader2 size={26} className="ssr-spin" />
-            <span>Đang tải dữ liệu báo cáo...</span>
+            <span>Đang tải báo cáo tình trạng ghế...</span>
           </div>
         ) : viewMode === "table" ? (
           <div className="sr-table-wrapper">

@@ -549,7 +549,7 @@ const NewCreate = () => {
           <div className="news-form-right">
             {/* Thumbnail Upload */}
             <div className="news-form-group">
-              <label className="news-form-label">Ảnh bìa (Thumbnail)</label>
+              <label className="news-form-label">Ảnh bìa</label>
               {imagePreview ? (
                 <div className="news-image-preview">
                   <img src={imagePreview} alt="Thumbnail" />

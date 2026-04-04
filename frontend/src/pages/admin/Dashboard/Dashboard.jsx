@@ -20,63 +20,132 @@ import {
   Award,
   RefreshCw,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Server,
+  Wifi,
+  Monitor,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
 import StatCard from "./StatCard";
-import dashboardService from "../../../services/librarian/dashboardService";
+import dashboardService from "../../../services/admin/dashboardService";
 import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
+import systemHealthService from "../../../services/admin/systemHealthService";
+import hceStationService from "../../../services/admin/hceStationService";
 import "../../../styles/Dashboard.css";
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
+  const [topStudents, setTopStudents] = useState([]);
+  const [topStudentsRange, setTopStudentsRange] = useState("month");
   const [news, setNews] = useState([]);
+  const [recentNewBooks, setRecentNewBooks] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [chartRange, setChartRange] = useState("week");
   const [aiCapacity, setAiCapacity] = useState(null);
+  const [systemInfo, setSystemInfo] = useState(null);
+  const [stations, setStations] = useState([]);
+  const [kioskSessions, setKioskSessions] = useState([]);
+  const [sourceStatus, setSourceStatus] = useState({
+    ai: "idle",
+    system: "idle",
+    stations: "idle",
+    kiosk: "idle",
+    topStudents: "idle",
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchAll = useCallback(async (isRefresh = false) => {
+  const fetchOverview = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
 
-      const [statsData, newsData, chart] = await Promise.all([
+      const [statsResult, newsResult, newBooksResult, aiResult, systemResult, stationResult, kioskResult] = await Promise.allSettled([
         dashboardService.getDashboardStats(),
         dashboardService.getRecentNews(),
-        dashboardService.getChartStats(chartRange),
+        dashboardService.getRecentNewBooks(),
+        getRealtimeCapacity(),
+        systemHealthService.getSystemInfo(),
+        hceStationService.getAllStations(),
+        dashboardService.getKioskSessions(),
       ]);
 
-      if (statsData) setStats(statsData);
-      setNews(newsData || []);
-      setChartData(chart || []);
+      const statsData = statsResult.status === "fulfilled" ? statsResult.value : null;
+      if (!statsData) {
+        throw new Error("Không thể tải dữ liệu tổng quan");
+      }
 
-      // AI realtime capacity (includes zone data + AI analysis)
-      try {
-        const capacityData = await getRealtimeCapacity();
-        setAiCapacity(capacityData);
-      } catch { setAiCapacity(null); }
+      setSourceStatus((prev) => ({
+        ...prev,
+        ai: aiResult.status === "fulfilled" ? "ready" : "error",
+        system: systemResult.status === "fulfilled" ? "ready" : "error",
+        stations: stationResult.status === "fulfilled" ? "ready" : "error",
+        kiosk: kioskResult.status === "fulfilled" ? "ready" : "error",
+      }));
+      setStats(statsData);
+      setNews(newsResult.status === "fulfilled" ? newsResult.value || [] : []);
+      setRecentNewBooks(newBooksResult.status === "fulfilled" ? newBooksResult.value || [] : []);
+      setAiCapacity(aiResult.status === "fulfilled" ? aiResult.value : null);
+      setSystemInfo(systemResult.status === "fulfilled" ? systemResult.value : null);
+      setStations(stationResult.status === "fulfilled" ? stationResult.value || [] : []);
+      setKioskSessions(kioskResult.status === "fulfilled" ? kioskResult.value || [] : []);
     } catch (e) {
       console.error("Dashboard fetch error:", e);
-      setError("Không thể tải dữ liệu dashboard");
+      setError("Không thể tải dữ liệu tổng quan quản trị");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, []);
+
+  const fetchChart = useCallback(async () => {
+    try {
+      const chart = await dashboardService.getChartStats(chartRange);
+      setChartData(chart || []);
+    } catch (e) {
+      console.error("Chart fetch error:", e);
+      setChartData([]);
+    }
   }, [chartRange]);
 
+  const fetchTopStudents = useCallback(async () => {
+    try {
+      const data = await dashboardService.getTopStudents(topStudentsRange);
+      setTopStudents(data || []);
+      setSourceStatus((prev) => ({ ...prev, topStudents: "ready" }));
+    } catch (e) {
+      console.error("Top students fetch error:", e);
+      setTopStudents([]);
+      setSourceStatus((prev) => ({ ...prev, topStudents: "error" }));
+    }
+  }, [topStudentsRange]);
+
   useEffect(() => {
-    fetchAll();
-    const interval = setInterval(() => fetchAll(true), 60000);
+    fetchOverview();
+    const interval = setInterval(() => fetchOverview(true), 60000);
     return () => clearInterval(interval);
-  }, [fetchAll]);
+  }, [fetchOverview]);
 
-  // Reload chart when range changes
   useEffect(() => {
-    dashboardService.getChartStats(chartRange).then(d => setChartData(d || []));
-  }, [chartRange]);
+    fetchChart();
+  }, [fetchChart]);
+
+  useEffect(() => {
+    fetchTopStudents();
+  }, [fetchTopStudents]);
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchChart(), 60000);
+    return () => clearInterval(interval);
+  }, [fetchChart]);
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchTopStudents(), 60000);
+    return () => clearInterval(interval);
+  }, [fetchTopStudents]);
 
   const getOccupancyColor = (pct) => {
     if (pct >= 90) return "#D32F2F";
@@ -114,6 +183,19 @@ const Dashboard = () => {
     return map[(status || "").toUpperCase()] || status;
   };
 
+  const translateViolationType = (type) => {
+    const map = {
+      UNAUTHORIZED_USE: "Sử dụng ghế không đúng",
+      LEFT_BELONGINGS: "Để đồ giữ chỗ",
+      NOISE: "Gây ồn ào",
+      FEET_ON_SEAT: "Gác chân lên ghế/bàn",
+      FOOD_DRINK: "Ăn uống trong thư viện",
+      SLEEPING: "Ngủ tại chỗ ngồi",
+      OTHER: "Khác",
+    };
+    return map[(type || "").toUpperCase()] || type || "Không xác định";
+  };
+
   const formatTime = (dt) => {
     if (!dt) return "";
     try {
@@ -143,12 +225,174 @@ const Dashboard = () => {
     return name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2);
   };
 
+  const getSystemHealthMeta = () => {
+    if (!systemInfo) {
+      return {
+        value: "Chưa tải",
+        trend: "neutral",
+        trendValue: "Chưa lấy được trạng thái máy chủ",
+      };
+    }
+
+    const cpu = Number(systemInfo.cpu || 0);
+    const memory = Number(systemInfo.memory || 0);
+    const disk = Number(systemInfo.disk || 0);
+    const maxLoad = Math.max(cpu, memory, disk);
+
+    if (maxLoad >= 90) {
+      return {
+        value: "Tải rất cao",
+        trend: "down",
+        trendValue: `CPU ${cpu}% · RAM ${memory}% · Đĩa ${disk}%`,
+      };
+    }
+
+    if (maxLoad >= 70) {
+      return {
+        value: "Tải cao, cần theo dõi",
+        trend: "neutral",
+        trendValue: `CPU ${cpu}% · RAM ${memory}% · Đĩa ${disk}%`,
+      };
+    }
+
+    return {
+      value: "Vận hành bình thường",
+      trend: "up",
+      trendValue: `CPU ${cpu}% · RAM ${memory}% · Đĩa ${disk}%`,
+    };
+  };
+
+  const hceOnlineCount = stations.filter((station) => station.online).length;
+  const hceOfflineCount = stations.filter((station) => !station.online && station.status !== "MAINTENANCE").length;
+  const hceMaintenanceCount = stations.filter((station) => station.status === "MAINTENANCE").length;
+  const activeKioskCount = kioskSessions.filter((session) => session.isActive).length;
+  const validKioskCount = kioskSessions.filter((session) => session.isActive && session.tokenValid).length;
+  const expiredKioskCount = kioskSessions.filter((session) => session.hasDeviceToken && !session.tokenValid).length;
+  const systemHealthMeta = getSystemHealthMeta();
+  const pendingBacklogCount =
+    (stats?.pendingSupportRequests || 0) +
+    (stats?.inProgressSupportRequests || 0) +
+    (stats?.pendingViolations || 0) +
+    (stats?.pendingSeatStatusReports || 0) +
+    (stats?.pendingComplaints || 0);
+  const systemNeedsAttention = sourceStatus.system === "ready" && systemHealthMeta.trend !== "up" ? 1 : 0;
+  const adminAttentionCount =
+    pendingBacklogCount +
+    (sourceStatus.stations === "ready" ? hceOfflineCount : 0) +
+    (sourceStatus.kiosk === "ready" ? expiredKioskCount : 0) +
+    systemNeedsAttention;
+
+  const formatDelta = (todayValue = 0, yesterdayValue = 0) => {
+    const delta = todayValue - yesterdayValue;
+    if (delta === 0) {
+      return { icon: <Activity size={16} />, badge: "Không đổi", tone: "neutral" };
+    }
+
+    return {
+      icon: delta > 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />,
+      badge: `${delta > 0 ? "Tăng" : "Giảm"} ${Math.abs(delta)}`,
+      tone: delta > 0 ? "up" : "down",
+    };
+  };
+
+  const getChartSummary = () => {
+    if (chartRange === "month") {
+      return {
+        title: "Biến động hoạt động",
+        subtitle: "Lượt vào thư viện và đặt chỗ theo từng tuần trong tháng này.",
+      };
+    }
+
+    if (chartRange === "year") {
+      return {
+        title: "Biến động hoạt động",
+        subtitle: "Lượt vào thư viện và đặt chỗ theo từng tháng trong năm nay.",
+      };
+    }
+
+    return {
+      title: "Biến động hoạt động",
+      subtitle: "Lượt vào thư viện và đặt chỗ trong 7 ngày gần đây.",
+    };
+  };
+
+  const chartSummary = getChartSummary();
+  const sourceErrorLabels = [
+    sourceStatus.system === "error" ? "máy chủ thư viện" : null,
+    sourceStatus.stations === "error" ? "trạm quét HCE" : null,
+    sourceStatus.kiosk === "error" ? "kiosk thư viện" : null,
+    sourceStatus.ai === "error" ? "dịch vụ AI" : null,
+    sourceStatus.topStudents === "error" ? "thống kê sinh viên nổi bật" : null,
+  ].filter(Boolean);
+  const systemCard = sourceStatus.system === "error"
+    ? {
+        title: "Tình trạng máy chủ",
+        value: "Không rõ",
+        detail: "Không lấy được trạng thái máy chủ",
+        tone: "down",
+        icon: <Server size={18} />,
+        warning: "Lỗi nguồn dữ liệu",
+      }
+    : {
+        title: "Tình trạng máy chủ",
+        value: systemHealthMeta.value,
+        detail: systemHealthMeta.trendValue,
+        tone: systemHealthMeta.trend,
+        icon: <Server size={18} />,
+      };
+  const hceCard = sourceStatus.stations === "error"
+    ? {
+        title: "Trạm quét HCE",
+        value: "Không rõ",
+        detail: "Không lấy được trạng thái trạm",
+        tone: "down",
+        icon: <Wifi size={18} />,
+        warning: "Lỗi nguồn dữ liệu",
+      }
+    : {
+        title: "Trạm quét HCE",
+        value: stations.length > 0 ? `${hceOnlineCount}/${stations.length}` : "Chưa có",
+        detail: stations.length > 0
+          ? `${hceMaintenanceCount} trạm bảo trì, ${hceOfflineCount} trạm ngoại tuyến`
+          : "Chưa khai báo trạm quét",
+        tone: stations.length > 0 && hceOfflineCount > 0 ? "down" : "neutral",
+        icon: <Wifi size={18} />,
+      };
+  const kioskCard = sourceStatus.kiosk === "error"
+    ? {
+        title: "Kiosk thư viện",
+        value: "Không rõ",
+        detail: "Không lấy được trạng thái kiosk",
+        tone: "down",
+        icon: <Monitor size={18} />,
+        warning: "Lỗi nguồn dữ liệu",
+      }
+    : {
+        title: "Kiosk thư viện",
+        value: activeKioskCount > 0 ? `${validKioskCount}/${activeKioskCount}` : "Chưa có",
+        detail: activeKioskCount > 0
+          ? `${expiredKioskCount} kiosk hết hiệu lực`
+          : "Chưa có kiosk đang hoạt động",
+        tone: expiredKioskCount > 0 ? "down" : "up",
+        icon: <Monitor size={18} />,
+      };
+  const topStudentsRangeLabel = {
+    week: "Tuần này",
+    month: "Tháng này",
+    year: "Năm nay",
+  };
+  const topStudentsSubtitle = {
+    week: "Những sinh viên có thời lượng sử dụng cao trong 7 ngày gần đây.",
+    month: "Những sinh viên có thời lượng sử dụng cao trong 30 ngày gần đây.",
+    year: "Những sinh viên có thời lượng sử dụng cao trong 12 tháng gần đây.",
+  };
+
   // ===== LOADING STATE =====
   if (loading) {
     return (
       <div className="dashboard-page dashboard-loading">
         <div className="dashboard-page-header">
-          <div><h1>Tổng quan</h1><p>Đang tải dữ liệu...</p></div>
+          <div><h1>Bảng điều hành thư viện</h1><p>Đang tải dữ liệu điều hành...</p></div>
         </div>
         <div className="statsRow">
           {[...Array(6)].map((_, i) => <div key={i} className="skeleton skeleton--stat" />)}
@@ -170,12 +414,12 @@ const Dashboard = () => {
     return (
       <div className="dashboard-page">
         <div className="dashboard-page-header">
-          <div><h1>Tổng quan</h1></div>
+          <div><h1>Bảng điều hành thư viện</h1></div>
         </div>
         <div className="panel" style={{ textAlign: "center", padding: "60px 24px" }}>
           <AlertTriangle size={48} color="#D32F2F" style={{ marginBottom: 16, opacity: 0.6 }} />
           <p style={{ fontSize: 16, color: "#4A5568", marginBottom: 16 }}>{error}</p>
-          <button className="slib-btn slib-btn--primary" onClick={() => fetchAll()}>
+          <button className="slib-btn slib-btn--primary" onClick={() => fetchOverview()}>
             <RefreshCw size={16} /> Thử lại
           </button>
         </div>
@@ -190,13 +434,13 @@ const Dashboard = () => {
       {/* Page Header */}
       <div className="dashboard-page-header">
         <div>
-          <h1>Tổng quan</h1>
-          <p>Xin chào! Đây là tổng quan hoạt động thư viện hôm nay.</p>
+          <h1>Bảng điều hành thư viện</h1>
+          <p>Theo dõi vận hành, tồn đọng xử lý và tình trạng hệ thống của thư viện tại thời điểm hiện tại.</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             className="slib-btn slib-btn--ghost"
-            onClick={() => fetchAll(true)}
+            onClick={() => fetchOverview(true)}
             disabled={refreshing}
             title="Làm mới"
           >
@@ -211,56 +455,179 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== STAT CARDS (6 cards) ===== */}
-      <div className="statsRow">
+      {sourceErrorLabels.length > 0 && (
+        <div className="dashboard-source-alert">
+          <div className="dashboard-source-alert__icon">
+            <AlertTriangle size={18} />
+          </div>
+          <div className="dashboard-source-alert__body">
+            <strong>Một số nguồn dữ liệu chưa phản hồi</strong>
+            <span>
+              Dashboard chưa lấy được dữ liệu từ {sourceErrorLabels.join(", ")}. Các ô liên quan có thể hiển thị
+              `Không rõ` thay vì số thực tế.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ===== PRIMARY ADMIN CARDS ===== */}
+      <div className="statsRow statsRow--four">
         <StatCard
           icon={<Users size={22} />}
           value={stats?.currentlyInLibrary ?? 0}
-          label="Sinh viên trong thư viện"
+          label="Sinh viên đang có mặt"
           bg="#F3E8FF" color="#7C3AED"
           trend={stats?.currentlyInLibrary > 0 ? "up" : "neutral"}
-          trendValue={`${stats?.totalCheckInsToday ?? 0} check-in hôm nay`}
+          trendValue={`${stats?.totalCheckInsToday ?? 0} lượt vào hôm nay`}
         />
         <StatCard
           icon={<Armchair size={22} />}
           value={`${stats?.occupancyRate ?? 0}%`}
-          label="Tỷ lệ lấp đầy chỗ ngồi"
+          label="Ghế đang có người sử dụng"
           bg="#E8F5E9" color="#388E3C"
           trend={stats?.occupancyRate >= 80 ? "up" : "neutral"}
-          trendValue={`${stats?.occupiedSeats ?? 0} / ${stats?.totalSeats ?? 0} ghế`}
+          trendValue={`${stats?.occupiedSeats ?? 0} / ${stats?.totalSeats ?? 0} ghế đang có người`}
         />
         <StatCard
           icon={<BarChart3 size={22} />}
           value={stats?.totalBookingsToday ?? 0}
-          label="Đặt chỗ hôm nay"
+          label="Đặt chỗ bắt đầu hôm nay"
           bg="#E3F2FD" color="#0054A6"
           trend="neutral"
-          trendValue={`${stats?.activeBookings ?? 0} đang hoạt động`}
+          trendValue={`${stats?.activeBookings ?? 0} lượt đang diễn ra`}
         />
         <StatCard
-          icon={<AlertCircle size={22} />}
-          value={stats?.violationsToday ?? 0}
-          label="Vi phạm hôm nay"
-          bg="#FFEBEE" color="#D32F2F"
-          trend={stats?.violationsToday > 0 ? "down" : "neutral"}
-          trendValue={`${stats?.pendingViolations ?? 0} chờ xử lý`}
+          icon={<AlertTriangle size={22} />}
+          value={adminAttentionCount}
+          label="Mục cần theo dõi"
+          bg="#FFF1F2" color="#D32F2F"
+          trend={adminAttentionCount > 0 ? "down" : "up"}
+          trendValue={`${stats?.overdueSupportRequests ?? 0} hỗ trợ quá hạn`}
         />
-        <StatCard
-          icon={<Headphones size={22} />}
-          value={stats?.pendingSupportRequests ?? 0}
-          label="Yêu cầu hỗ trợ chờ"
-          bg="#FFF3E0" color="#E65100"
-          trend={stats?.pendingSupportRequests > 0 ? "up" : "neutral"}
-          trendValue={`${stats?.inProgressSupportRequests ?? 0} đang xử lý`}
-        />
-        <StatCard
-          icon={<Users size={22} />}
-          value={stats?.totalUsers ?? 0}
-          label="Tổng người dùng"
-          bg="#EDE7F6" color="#5E35B1"
-          trend="neutral"
-          trendValue="Tất cả hệ thống"
-        />
+      </div>
+
+      <div className="dashboard-admin-strip">
+        {[
+          systemCard,
+          hceCard,
+          kioskCard,
+          {
+            icon: <Users size={18} />,
+            title: "Tài khoản trong hệ thống",
+            value: `${stats?.totalUsers ?? 0}`,
+            detail: "Sinh viên, thủ thư và quản trị viên",
+            tone: "neutral",
+          },
+        ].map((item) => (
+          <div key={item.title} className={`dashboard-admin-mini dashboard-admin-mini--${item.tone}`}>
+            <div className="dashboard-admin-mini__icon">{item.icon}</div>
+            <div className="dashboard-admin-mini__body">
+              <div className="dashboard-admin-mini__header">
+                <span className="dashboard-admin-mini__title">{item.title}</span>
+                {item.warning && <span className="dashboard-admin-mini__badge">{item.warning}</span>}
+              </div>
+              <strong className="dashboard-admin-mini__value">{item.value}</strong>
+              <span className="dashboard-admin-mini__detail">{item.detail}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="dashboard-insight-grid">
+        <div className="panel dashboard-trend-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div
+                className="panelHeader__icon"
+                style={{ background: "#FFF3E8", color: "#EA6A1B" }}
+              >
+                <TrendingUp size={18} />
+              </div>
+              <div>
+                <h3 className="panelTitle">Xu hướng hôm nay so với hôm qua</h3>
+                <p className="panelSubtitle">Biến động lượt vào thư viện, đặt chỗ, vi phạm và yêu cầu hỗ trợ mới.</p>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-trend-grid">
+            {[
+              {
+                label: "Lượt vào",
+                today: stats?.trendSummary?.checkInsToday ?? 0,
+                yesterday: stats?.trendSummary?.checkInsYesterday ?? 0,
+                icon: <Users size={20} />,
+                accent: "checkin",
+              },
+              {
+                label: "Đặt chỗ",
+                today: stats?.trendSummary?.bookingsToday ?? 0,
+                yesterday: stats?.trendSummary?.bookingsYesterday ?? 0,
+                icon: <Calendar size={20} />,
+                accent: "booking",
+              },
+              {
+                label: "Vi phạm",
+                today: stats?.trendSummary?.violationsToday ?? 0,
+                yesterday: stats?.trendSummary?.violationsYesterday ?? 0,
+                icon: <Shield size={20} />,
+                accent: "violation",
+              },
+              {
+                label: "Yêu cầu hỗ trợ",
+                today: stats?.trendSummary?.supportToday ?? 0,
+                yesterday: stats?.trendSummary?.supportYesterday ?? 0,
+                icon: <Headphones size={20} />,
+                accent: "support",
+              },
+            ].map((item) => {
+              const delta = formatDelta(item.today, item.yesterday);
+              return (
+                <div key={item.label} className={`dashboard-trend-item dashboard-trend-item--${item.accent}`}>
+                  <div className="dashboard-trend-item__top">
+                    <div className={`dashboard-trend-item__icon dashboard-trend-item__icon--${item.accent}`}>
+                      {item.icon}
+                    </div>
+                    <span className={`dashboard-trend-item__badge dashboard-trend-item__badge--${delta.tone}`}>
+                      {delta.icon}
+                      {delta.badge}
+                    </span>
+                  </div>
+                  <strong className="dashboard-trend-item__value">{item.today}</strong>
+                  <span className="dashboard-trend-item__label">{item.label}</span>
+                  <span className="dashboard-trend-item__subtext">Hôm qua: {item.yesterday}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="panel dashboard-workload-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div>
+                <h3 className="panelTitle">Việc đang chờ xử lý</h3>
+                <p className="panelSubtitle">Các vi phạm, hỗ trợ, khiếu nại và báo cáo ghế đang chờ phản hồi hoặc xử lý.</p>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-workload-list">
+            {[
+              { label: "Vi phạm cần xử lý", value: stats?.pendingViolations ?? 0, tone: "danger" },
+              { label: "Yêu cầu hỗ trợ đang chờ", value: stats?.pendingSupportRequests ?? 0, tone: "warning" },
+              { label: "Yêu cầu hỗ trợ đang xử lý", value: stats?.inProgressSupportRequests ?? 0, tone: "warning" },
+              { label: "Khiếu nại đang chờ", value: stats?.pendingComplaints ?? 0, tone: "warning" },
+              { label: "Báo cáo ghế đang chờ", value: stats?.pendingSeatStatusReports ?? 0, tone: "warning" },
+              { label: "Hỗ trợ quá hạn", value: stats?.overdueSupportRequests ?? 0, tone: "danger" },
+            ].map((item) => (
+              <div key={item.label} className="dashboard-workload-item">
+                <span className="dashboard-workload-item__label">{item.label}</span>
+                <span className={`dashboard-workload-item__value dashboard-workload-item__value--${item.tone}`}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ===== ROW 1: Recent Bookings + Weekly Chart ===== */}
@@ -270,8 +637,8 @@ const Dashboard = () => {
           <div className="panelHeader" style={{ padding: "20px 24px" }}>
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Đặt chỗ gần đây</h3>
-                <p className="panelSubtitle">Cập nhật theo thời gian thực</p>
+                <h3 className="panelTitle">Lịch đặt chỗ trong ngày</h3>
+                <p className="panelSubtitle">Các lượt đặt chỗ có giờ bắt đầu trong hôm nay.</p>
               </div>
             </div>
             {stats?.recentBookings?.length > 0 && (
@@ -341,8 +708,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Hoạt động</h3>
-                <p className="panelSubtitle">Check-in & Đặt chỗ</p>
+                <h3 className="panelTitle">{chartSummary.title}</h3>
+                <p className="panelSubtitle">{chartSummary.subtitle}</p>
               </div>
             </div>
             <select
@@ -366,7 +733,7 @@ const Dashboard = () => {
                       <div
                         className="chart-bar chart-bar--checkin"
                         style={{ height: `${Math.max(4, (d.checkInCount / maxChartVal) * 100)}%` }}
-                        title={`Check-in: ${d.checkInCount}`}
+                        title={`Lượt vào: ${d.checkInCount}`}
                       />
                       <div
                         className="chart-bar chart-bar--booking"
@@ -379,10 +746,10 @@ const Dashboard = () => {
                 ))}
               </div>
               <div className="chart-legend">
-                <div className="chart-legend__item">
-                  <div className="chart-legend__dot" style={{ background: "var(--slib-primary)" }} />
-                  Check-in
-                </div>
+                  <div className="chart-legend__item">
+                    <div className="chart-legend__dot" style={{ background: "var(--slib-primary)" }} />
+                    Lượt vào
+                  </div>
                 <div className="chart-legend__item">
                   <div className="chart-legend__dot" style={{ background: "var(--slib-accent-blue)" }} />
                   Đặt chỗ
@@ -405,8 +772,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Trạng thái khu vực</h3>
-                <p className="panelSubtitle">Mức độ lấp đầy theo thời gian thực</p>
+                <h3 className="panelTitle">Khu vực đang có người sử dụng</h3>
+                <p className="panelSubtitle">Tỷ lệ ghế có đặt chỗ còn hiệu lực theo từng khu vực.</p>
               </div>
             </div>
           </div>
@@ -465,12 +832,17 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">AI Phân tích</h3>
-                <p className="panelSubtitle">Phân tích công suất thời gian thực</p>
+                <h3 className="panelTitle">Đánh giá nhanh tình trạng chỗ ngồi</h3>
+                <p className="panelSubtitle">Tóm tắt mức sử dụng ghế và dự báo ngắn hạn từ dữ liệu hiện tại.</p>
               </div>
             </div>
           </div>
-          {aiCapacity ? (
+          {sourceStatus.ai === "error" ? (
+            <div className="empty-state empty-state--warning">
+              <AlertTriangle size={32} />
+              <p>Không lấy được dữ liệu AI lúc này</p>
+            </div>
+          ) : aiCapacity ? (
             <>
               <div className="list-item" style={{
                 background: aiCapacity.occupancy_rate >= 70 ? "var(--slib-status-warning-bg)" : "var(--slib-status-info-bg)",
@@ -500,7 +872,7 @@ const Dashboard = () => {
                   <p className="list-item__name" style={{ marginBottom: 4 }}>Dự báo 1 giờ tới</p>
                   <p className="list-item__desc">
                     Có {aiCapacity.upcoming_1h || 0} lượt đặt chỗ sắp tới.
-                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế ({aiCapacity.occupancy_rate || 0}%)
+                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế đang có người sử dụng ({aiCapacity.occupancy_rate || 0}%)
                   </p>
                 </div>
               </div>
@@ -508,7 +880,7 @@ const Dashboard = () => {
           ) : (
             <div className="empty-state">
               <Sparkles size={32} />
-              <p>Đang phân tích dữ liệu...</p>
+              <p>Đang tổng hợp dữ liệu hiện tại...</p>
             </div>
           )}
         </div>
@@ -518,37 +890,65 @@ const Dashboard = () => {
       <div className="gridTriple">
         {/* Top Students */}
         <div className="panel">
-          <div className="panelHeader">
-            <div className="panelHeader__left">
-              <div>
-                <h3 className="panelTitle">Sinh viên tích cực</h3>
-                <p className="panelSubtitle">Top đặt chỗ trong tháng</p>
+            <div className="panelHeader">
+              <div className="panelHeader__left">
+                <div>
+                  <h3 className="panelTitle">Sinh viên sử dụng nổi bật</h3>
+                  <p className="panelSubtitle">{topStudentsSubtitle[topStudentsRange]}</p>
+                </div>
               </div>
+              <select
+                className="slib-input"
+                value={topStudentsRange}
+                onChange={(e) => setTopStudentsRange(e.target.value)}
+                style={{ width: "auto", padding: "6px 12px", fontSize: 12 }}
+              >
+                {Object.entries(topStudentsRangeLabel).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </div>
-          </div>
-          {(stats?.topStudents || []).length === 0 ? (
+          {sourceStatus.topStudents === "error" ? (
+            <div className="empty-state empty-state--warning">
+              <AlertTriangle size={32} />
+              <p>Không lấy được dữ liệu sử dụng sinh viên</p>
+            </div>
+          ) : topStudents.length === 0 ? (
             <div className="empty-state">
               <Award size={32} />
               <p>Chưa có dữ liệu</p>
             </div>
-          ) : stats.topStudents.map((s, i) => {
+          ) : topStudents.map((s, i) => {
             const rankClass = i < 3 ? `top-student__rank--${i + 1}` : "top-student__rank--other";
+            const avatarClass = i === 0 ? "top-student__avatar--gold" : i === 1 ? "top-student__avatar--accent" : "top-student__avatar--neutral";
             return (
               <div key={s.userId || i} className="top-student">
                 <div className={`top-student__rank ${rankClass}`}>{i + 1}</div>
+                <div className={`top-student__avatar ${avatarClass}`}>
+                  {s.avatarUrl ? (
+                    <img
+                      src={s.avatarUrl}
+                      alt={s.fullName}
+                      className="top-student__avatar-image"
+                    />
+                  ) : (
+                    getInitials(s.fullName)
+                  )}
+                </div>
                 <div className="top-student__info">
                   <div className="top-student__name">{s.fullName}</div>
                   <div className="top-student__code">{s.userCode}</div>
                 </div>
                 <div className="top-student__stats">
-                  <div className="top-student__visits">{s.totalVisits} lần</div>
                   <div className="top-student__hours">
                     {s.totalMinutes >= 60
                       ? `${Math.floor(s.totalMinutes / 60)}h${s.totalMinutes % 60 > 0 ? s.totalMinutes % 60 + "p" : ""}`
                       : `${s.totalMinutes}p`
                     }
                   </div>
+                  <div className="top-student__visits">{s.totalVisits} lần</div>
                 </div>
+                <ChevronRight size={18} className="top-student__chevron" />
               </div>
             );
           })}
@@ -559,8 +959,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Vi phạm gần đây</h3>
-                <p className="panelSubtitle">{stats?.violationsToday || 0} hôm nay</p>
+                <h3 className="panelTitle">Vi phạm cần xử lý</h3>
+                <p className="panelSubtitle">{stats?.pendingViolations || 0} cần xử lý</p>
               </div>
             </div>
           </div>
@@ -580,7 +980,7 @@ const Dashboard = () => {
                   <span className={`badge ${getBadgeClass(v.status)}`}>{translateStatus(v.status)}</span>
                 </div>
                 <span className="list-item__code">{v.violatorCode}</span>
-                <p className="list-item__desc" style={{ marginTop: 4 }}>{v.violationType}</p>
+                <p className="list-item__desc" style={{ marginTop: 4 }}>{translateViolationType(v.violationType)}</p>
                 <div className="list-item__time">
                   <Clock size={10} />
                   {formatDateTime(v.createdAt)}
@@ -595,8 +995,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Yêu cầu hỗ trợ</h3>
-                <p className="panelSubtitle">{stats?.pendingSupportRequests || 0} đang chờ</p>
+                <h3 className="panelTitle">Yêu cầu hỗ trợ đang mở</h3>
+                <p className="panelSubtitle">{stats?.pendingSupportRequests || 0} đang chờ, {stats?.overdueSupportRequests || 0} quá hạn</p>
               </div>
             </div>
           </div>
@@ -634,8 +1034,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Khiếu nại gần đây</h3>
-                <p className="panelSubtitle">Phản hồi từ người dùng</p>
+                <h3 className="panelTitle">Khiếu nại đang chờ</h3>
+                <p className="panelSubtitle">{stats?.pendingComplaints || 0} khiếu nại đang chờ phản hồi</p>
               </div>
             </div>
           </div>
@@ -670,8 +1070,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Đánh giá gần đây</h3>
-                <p className="panelSubtitle">Phản hồi chất lượng</p>
+                <h3 className="panelTitle">Đánh giá mới nhận</h3>
+                <p className="panelSubtitle">Những phản hồi mới nhất từ người dùng thư viện.</p>
               </div>
             </div>
           </div>
@@ -707,22 +1107,28 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ===== NEWS (if any) ===== */}
+      {/* ===== NEWS / NEW BOOKS ===== */}
+      {(news.length > 0 || recentNewBooks.length > 0) && (
+        <>
       {news.length > 0 && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Tin tức mới nhất</h3>
-                <p className="panelSubtitle">Cập nhật từ hệ thống</p>
+                <h3 className="panelTitle">Tin đang hiển thị</h3>
+                <p className="panelSubtitle">Các bản tin hiện đang phát trong hệ thống.</p>
               </div>
             </div>
             <span className="panelHeader__badge">{news.length} mới</span>
           </div>
           {news.map((n, i) => (
             <div key={n.id || i} className="list-item">
-              <div className="list-item__icon" style={{ background: "#E3F2FD", color: "#0054A6" }}>
-                <BookOpen size={16} />
+              <div className="list-item__icon list-item__icon--news">
+                {n.imageUrl ? (
+                  <img src={n.imageUrl} alt={n.title} className="list-item__cover" />
+                ) : (
+                  <BookOpen size={16} />
+                )}
               </div>
               <div className="list-item__body">
                 <p className="list-item__name">{n.title}</p>
@@ -736,6 +1142,50 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
+      )}
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panelHeader">
+          <div className="panelHeader__left">
+            <div>
+              <h3 className="panelTitle">Sách đang hiển thị</h3>
+              <p className="panelSubtitle">Các đầu sách mới đang được hiển thị trong hệ thống.</p>
+            </div>
+          </div>
+          <span className="panelHeader__badge">{recentNewBooks.length}</span>
+        </div>
+        {recentNewBooks.length === 0 ? (
+          <div className="empty-state">
+            <BookOpen size={32} />
+            <p>Chưa có sách nào đang hiển thị</p>
+          </div>
+        ) : recentNewBooks.map((book, i) => {
+          const title = book.title || "Chưa có tiêu đề";
+          const author = book.author || book.publisher || "Chưa có thông tin tác giả";
+          const cover = book.coverUrl || null;
+          return (
+            <div key={book.id || i} className="list-item">
+              <div className="list-item__icon list-item__icon--book">
+                {cover ? (
+                  <img src={cover} alt={title} className="list-item__cover" />
+                ) : (
+                  <BookOpen size={16} />
+                )}
+              </div>
+              <div className="list-item__body">
+                <p className="list-item__name">{title}</p>
+                <p className="list-item__desc" style={{ marginTop: 4 }}>{author}</p>
+                <div className="list-item__time">
+                  <Calendar size={10} />
+                  {formatDateTime(book.updatedAt || book.createdAt || book.arrivalDate)}
+                </div>
+              </div>
+              <ChevronRight size={18} color="var(--slib-text-muted)" style={{ flexShrink: 0, alignSelf: "center" }} />
+            </div>
+          );
+        })}
+      </div>
+        </>
       )}
     </div>
   );

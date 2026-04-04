@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { API_BASE_URL as API_BASE } from '../../config/apiConfig';
+import { getStaffAuthHeaders, getStaffAuthToken } from '../shared/staffAuth';
 
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const getAuthHeaders = () => getStaffAuthHeaders();
 
 const systemHealthService = {
     // =========================================
@@ -55,7 +53,7 @@ const systemHealthService = {
     },
 
     downloadBackup: (backupId) => {
-        const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+        const token = getStaffAuthToken();
         window.open(`${API_BASE}/slib/system/backup/download/${backupId}?token=${token}`, '_blank');
     },
 

@@ -24,6 +24,8 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
 
     long countByStatus(ReportStatus status);
 
+    long countByStatusIn(java.util.Collection<ReportStatus> statuses);
+
     // Dashboard: count violations in a date range
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 

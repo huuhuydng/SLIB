@@ -753,7 +753,7 @@ const Dashboard = () => {
         const hints = [];
         if (occupancy >= 60) hints.push(`công suất ${Math.round(occupancy)}%`);
         if (issueCount > 0) hints.push(`${issueCount} báo cáo ghế mới`);
-        if (hints.length === 0) hints.push('đang vận hành ổn định');
+        if (hints.length === 0) hints.push('chưa có dấu hiệu bất thường');
 
         return {
           key: `${zone.areaName}-${zone.zoneName}`,
@@ -780,7 +780,7 @@ const Dashboard = () => {
         key: `access-${log.logId}-${log.action}`,
         time,
         title: `${log.userName} ${log.action === 'CHECK_IN' ? 'vừa vào thư viện' : 'vừa rời thư viện'}`,
-        description: log.userCode || 'Bản ghi check-in/out',
+        description: log.userCode || 'Bản ghi ra vào thư viện',
         icon: log.action === 'CHECK_IN' ? ArrowUpRight : ArrowDownLeft,
         tone: log.action === 'CHECK_IN' ? 'green' : 'slate',
         href: '/librarian/checkinout',
@@ -846,8 +846,8 @@ const Dashboard = () => {
       alerts.push({
         key: 'ai-analytics',
         tone: 'amber',
-        title: 'Phân tích AI chưa phản hồi đầy đủ',
-        description: 'Kiểm tra lại AI analytics nếu card công suất hoặc gợi ý vận hành bị trống.',
+        title: 'Dữ liệu phân tích chưa phản hồi đầy đủ',
+        description: 'Kiểm tra lại dữ liệu phân tích nếu thẻ công suất hoặc nhận định vận hành chưa hiển thị.',
         icon: Sparkles,
       });
     }
@@ -867,15 +867,15 @@ const Dashboard = () => {
         {
           key: 'ws-ok',
           tone: 'green',
-          title: 'Realtime ổn định',
-          description: 'WebSocket đang hoạt động, dashboard nhận dữ liệu mới bình thường.',
+          title: 'Kết nối thời gian thực ổn định',
+          description: 'WebSocket đang hoạt động, bảng điều hành đang nhận dữ liệu mới bình thường.',
           icon: Wifi,
         },
         {
           key: 'system-ok',
           tone: 'blue',
-          title: 'Các dịch vụ giám sát đang sẵn sàng',
-          description: 'AI analytics, dữ liệu công suất và bảng điều hành đều phản hồi tốt.',
+          title: 'Các dịch vụ hỗ trợ đang hoạt động bình thường',
+          description: 'Dữ liệu công suất, phân tích hỗ trợ và bảng điều hành đều phản hồi tốt.',
           icon: ShieldCheck,
         }
       );
@@ -905,7 +905,7 @@ const Dashboard = () => {
         <div className="dashboard-title-row">
           <div className="dashboard-title-copy">
             <h1 className="dashboard-title">{getGreeting()}</h1>
-            <p className="dashboard-subtitle">Tổng quan vận hành thư viện trong ngày, tập trung vào các việc cần phản hồi nhanh và khu vực cần theo dõi sát.</p>
+            <p className="dashboard-subtitle">Theo dõi tình hình vận hành thư viện trong ngày, các việc cần xử lý sớm và những khu vực cần chú ý.</p>
             <div className="dashboard-inline-metrics">
               <span className="dashboard-inline-pill">
                 Công suất hiện tại {Math.round(Number(stats.occupancyRate || 0))}%
@@ -1100,7 +1100,7 @@ const Dashboard = () => {
               </div>
 
               {Object.keys(zonesByArea).length === 0 ? (
-                <div className="empty-section">Chưa có dữ liệu khu vực</div>
+                <div className="empty-section">Chưa có dữ liệu công suất theo khu vực</div>
               ) : (
                 Object.entries(zonesByArea).map(([areaName, zones]) => (
                   <div key={areaName} className="zone-area-group">
@@ -1148,7 +1148,7 @@ const Dashboard = () => {
                 >
                   <option value="week">Tuần này</option>
                   <option value="month">Tháng này</option>
-                  <option value="year">Năm này</option>
+                  <option value="year">Năm nay</option>
                 </select>
               </div>
               <div className="chart-legend">
@@ -1217,7 +1217,7 @@ const Dashboard = () => {
           {/* AI Analytics */}
           <section className="dashboard-panel panel-elevated ai-panel">
             <div className="panel-header">
-              <h3 className="panel-title">Thống kê bằng AI</h3>
+              <h3 className="panel-title">Nhận định hỗ trợ</h3>
             </div>
 
             {/* Peak hours horizontal bars */}
@@ -1240,7 +1240,7 @@ const Dashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="empty-section">Chưa đủ dữ liệu</div>
+              <div className="empty-section">Chưa đủ dữ liệu để hiển thị</div>
             )}
 
             {/* Quiet hours note */}
@@ -1300,7 +1300,7 @@ const Dashboard = () => {
               <div className="behavior-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <AlertTriangle size={14} color="#f59e0b" />
-                  <span className="behavior-title">SV cần lưu ý</span>
+                  <span className="behavior-title">Sinh viên cần lưu ý</span>
                 </div>
                 {behaviorIssues.length > 0 && (
                   <span className="behavior-count">{behaviorIssues.length}</span>
@@ -1309,7 +1309,7 @@ const Dashboard = () => {
 
               {behaviorIssues.length === 0 ? (
                 <div className="behavior-ok">
-                  <span>✓ Không có sinh viên nào cần lưu ý</span>
+                  <span>✓ Chưa có sinh viên nào cần lưu ý</span>
                 </div>
               ) : (
                 <div className="behavior-list">
@@ -1407,7 +1407,7 @@ const Dashboard = () => {
 
             {stats.recentBookings.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
-                Hiện chưa có đặt chỗ nào hôm nay
+                Chưa có lượt đặt chỗ nào hôm nay
               </div>
             ) : (
               <div className="booking-list">
@@ -1439,7 +1439,7 @@ const Dashboard = () => {
           {/* Top 5 students */}
           <section className="dashboard-panel panel-elevated">
             <div className="panel-header">
-              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Top 5 sinh viên xuất sắc</h3>
+              <h3 className="panel-title" style={{ whiteSpace: 'nowrap' }}>Sinh viên sử dụng nổi bật</h3>
               <select
                 className="chart-range-select"
                 style={{ width: 'auto', flexShrink: 0 }}
@@ -1448,13 +1448,13 @@ const Dashboard = () => {
               >
                 <option value="week">Tuần này</option>
                 <option value="month">Tháng này</option>
-                <option value="year">Năm này</option>
+                <option value="year">Năm nay</option>
               </select>
             </div>
 
             {topStudentsData.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '200px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
-                Chưa có dữ liệu
+                Chưa có dữ liệu sinh viên nổi bật
               </div>
             ) : (
               <div className="top-students-list dashboard-entity-list">
@@ -1513,7 +1513,7 @@ const Dashboard = () => {
 
             {
               stats.recentViolations.length === 0 ? (
-                <div className="empty-section">Không có vi phạm nào cần xử lý</div>
+                <div className="empty-section">Chưa có vi phạm cần xử lý</div>
               ) : (
                 <div className="violations-list dashboard-entity-list">
                   {stats.recentViolations.map((v, idx) => {
@@ -1550,7 +1550,7 @@ const Dashboard = () => {
             <div className="panel-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={16} color="#475569" />
-                <h3 className="panel-title">Lịch hoạt động gần nhất</h3>
+                <h3 className="panel-title">Hoạt động gần đây</h3>
               </div>
             </div>
             {activityFeedItems.length === 0 ? (
@@ -1611,7 +1611,7 @@ const Dashboard = () => {
 
             <div className="request-list">
               {getActiveRequestData().length === 0 ? (
-                <div className="empty-section">Không có yêu cầu nào cần xử lý</div>
+                <div className="empty-section">Chưa có yêu cầu cần xử lý</div>
               ) : (
                 getActiveRequestData().map((item, idx) => {
                   const statusCfg = getStatusConfig(item.status);

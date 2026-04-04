@@ -306,7 +306,7 @@ const NewsCreate = ({ onBack, onSubmit }) => {
             {/* Right Column */}
             <div>
               <div style={formGroupStyle}>
-                <label style={labelStyle}>Ảnh bìa (Thumbnail)</label>
+                <label style={labelStyle}>Ảnh bìa</label>
                 <div style={uploadZoneStyle}>
                   <CloudUpload size={40} color="#a0aec0" style={{ marginBottom: '12px' }} />
                   <div style={{ color: '#718096', fontSize: '15px', marginBottom: '5px' }}>
@@ -393,9 +393,9 @@ const NewsCreate = ({ onBack, onSubmit }) => {
                   value={formData.status}
                   onChange={handleInputChange}
                 >
-                  <option value="public">Công khai (Public)</option>
-                  <option value="draft">Nháp (Draft)</option>
-                  <option value="private">Ẩn (Private)</option>
+                  <option value="public">Công khai</option>
+                  <option value="draft">Nháp</option>
+                  <option value="private">Ẩn</option>
                 </select>
               </div>
             </div>

@@ -11,8 +11,6 @@ import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.hce.AccessLogRepository;
-import slib.com.example.repository.system.SystemLogRepository;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -268,6 +266,9 @@ public class StatisticService {
     private List<StatisticDTO.ZoneUsageDTO> buildZoneUsage(LocalDateTime startDate) {
         try {
             List<Object[]> data = reservationRepository.countBookingsByZone(startDate);
+            long totalBookingsInRange = data.stream()
+                    .mapToLong(row -> ((Number) row[3]).longValue())
+                    .sum();
             return data.stream()
                     .map(row -> {
                         int zoneId = ((Number) row[0]).intValue();
@@ -275,8 +276,8 @@ public class StatisticService {
                         String areaName = (String) row[2];
                         long bookingCount = ((Number) row[3]).longValue();
                         long totalSeats = ((Number) row[4]).longValue();
-                        double usagePercent = totalSeats > 0
-                                ? Math.round(bookingCount * 10000.0 / totalSeats) / 100.0
+                        double usagePercent = totalBookingsInRange > 0
+                                ? Math.round(bookingCount * 10000.0 / totalBookingsInRange) / 100.0
                                 : 0;
                         return StatisticDTO.ZoneUsageDTO.builder()
                                 .zoneId(zoneId)

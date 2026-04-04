@@ -117,7 +117,7 @@ const ChatManage = () => {
       }
     } catch (err) {
       console.error('Error fetching conversations:', err);
-      setError('Không thể tải danh sách hội thoại');
+      setError('Không thể tải danh sách cuộc trò chuyện');
     } finally {
       setLoading(false);
     }
@@ -682,7 +682,7 @@ const ChatManage = () => {
         {loading ? (
           <div className="cm-loading">
             <div className="cm-loading-spinner" />
-            <p>Đang tải dữ liệu...</p>
+            <p>Đang tải cuộc trò chuyện...</p>
           </div>
         ) : error ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--lib-red)' }}>
@@ -692,7 +692,7 @@ const ChatManage = () => {
         ) : conversations.length === 0 ? (
           <div className="lib-panel cm-empty-state-big">
             <MessageCircle size={52} color="#d1d5db" />
-            <p>Không có cuộc hội thoại nào</p>
+            <p>Chưa có cuộc trò chuyện nào</p>
           </div>
         ) : (
           <div className="cm-chat-container">
@@ -880,7 +880,7 @@ const ChatManage = () => {
                             {isAI && (
                               <div className="cm-ai-label">
                                 <Bot size={11} />
-                                SLIB AI
+                                AI hỗ trợ
                               </div>
                             )}
                             {parsed.text && <span>{parsed.text}</span>}
@@ -945,7 +945,7 @@ const ChatManage = () => {
               ) : (
                 <div className="cm-empty-state">
                   <MessageCircle size={48} className="cm-empty-state-icon" />
-                  <p>Chọn một cuộc hội thoại để bắt đầu</p>
+                  <p>Chọn một cuộc trò chuyện để xem nội dung</p>
                 </div>
               )}
             </div>

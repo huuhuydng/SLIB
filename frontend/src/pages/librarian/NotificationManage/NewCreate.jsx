@@ -378,7 +378,7 @@ const NewCreate = () => {
           finalImageUrl = await uploadResponse.text();
           console.log('✅ Uploaded image URL:', finalImageUrl);
         } catch (uploadErr) {
-          setError('Không thể upload ảnh lên Cloudinary');
+          setError('Không thể tải ảnh bìa lên hệ thống');
           console.error(uploadErr);
           return;
         }
@@ -591,7 +591,7 @@ const NewCreate = () => {
               {/* RIGHT COLUMN */}
               <div className="col-right">
                 <div className="news-form-group">
-                  <label className="news-form-label">Ảnh bìa (Thumbnail)</label>
+                  <label className="news-form-label">Ảnh bìa</label>
                   
                   {imagePreview ? (
                     <div className="news-image-preview">

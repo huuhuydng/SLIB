@@ -102,6 +102,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   font-family: inherit;
   font-size: inherit;
   overflow: visible;
@@ -166,6 +167,16 @@
 .sidebar__item:hover {
   background: #f3f4f6;
   color: #1f2937;
+}
+
+.sidebar__item:focus,
+.sidebar__item:focus-visible,
+.sidebar__subitem:focus,
+.sidebar__subitem:focus-visible,
+.sidebar__helpItem:focus,
+.sidebar__helpItem:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .sidebar__item--active {

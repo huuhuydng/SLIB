@@ -282,7 +282,7 @@ const Statistic = () => {
       <div className="st-header">
         <div className="st-header-left">
           <h1 className="st-title">THỐNG KÊ</h1>
-          <p className="st-subtitle">Tổng hợp xu hướng sử dụng thư viện, phản hồi và hành vi nổi bật theo từng giai đoạn.</p>
+          <p className="st-subtitle">Theo dõi tình hình sử dụng thư viện, đặt chỗ, vi phạm và phản hồi theo từng giai đoạn.</p>
         </div>
         <div className="st-header-right">
           <div className="st-range-selector">
@@ -305,59 +305,66 @@ const Statistic = () => {
       {!!error && !!data && (
         <div className="st-inline-warning">
           <TriangleAlert size={16} />
-          <span>Một phần dữ liệu đang tải chưa đầy đủ. Nội dung hiển thị có thể thiếu vài biểu đồ phụ.</span>
+          <span>Một số dữ liệu chưa tải được. Một vài biểu đồ có thể chưa hiển thị đầy đủ.</span>
         </div>
       )}
 
-      <div className="st-overview-grid">
-        {overviewCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.key} className="st-overview-card">
-              <div className={`st-ov-icon st-ov-${card.tone}`}>
-                <Icon size={20} />
-              </div>
-              <div className="st-ov-info">
-                <div className="st-ov-topline">
-                  <div className="st-ov-value">{card.value}</div>
-                  {renderDelta(card.comparison, card.positiveIsGood)}
+      {/* ── TỔNG QUAN ── */}
+      <div className="st-group-card">
+        <div className="st-overview-grid">
+          {overviewCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div key={card.key} className="st-overview-card">
+                <div className={`st-ov-icon st-ov-${card.tone}`}>
+                  <Icon size={20} />
                 </div>
-                <div className="st-ov-label">{card.label}</div>
-                <div className="st-ov-meta">So với {periodLabel}: {card.comparison?.previousValue ?? 0}</div>
+                <div className="st-ov-info">
+                  <div className="st-ov-topline">
+                    <div className="st-ov-value">{card.value}</div>
+                    {renderDelta(card.comparison, card.positiveIsGood)}
+                  </div>
+                  <div className="st-ov-label">{card.label}</div>
+                  <div className="st-ov-meta">So với {periodLabel}: {card.comparison?.previousValue ?? 0}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="st-insight-strip">
+          {(insights.length ? insights : [
+            {
+              type: 'fallback',
+              title: 'Chưa đủ dữ liệu để rút ra điểm đáng chú ý',
+              description: 'Các nhận định tổng quan sẽ xuất hiện khi hệ thống ghi nhận thêm dữ liệu trong giai đoạn này.',
+              tone: 'neutral',
+            },
+          ]).map((insight, index) => (
+            <div key={`${insight.type}-${index}`} className={`st-insight-card ${insight.tone || 'neutral'}`}>
+              <div className="st-insight-icon">
+                <Sparkles size={16} />
+              </div>
+              <div className="st-insight-content">
+                <div className="st-insight-title">{insight.title}</div>
+                <div className="st-insight-description">{insight.description}</div>
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      <div className="st-insight-strip">
-        {(insights.length ? insights : [
-          {
-            type: 'fallback',
-            title: 'Đang theo dõi thêm dữ liệu',
-            description: 'Hệ thống sẽ sinh insight khi đủ dữ liệu hoạt động trong giai đoạn này.',
-            tone: 'neutral',
-          },
-        ]).map((insight, index) => (
-          <div key={`${insight.type}-${index}`} className={`st-insight-card ${insight.tone || 'neutral'}`}>
-            <div className="st-insight-icon">
-              <Sparkles size={16} />
-            </div>
-            <div className="st-insight-content">
-              <div className="st-insight-title">{insight.title}</div>
-              <div className="st-insight-description">{insight.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="st-section-label">Sử dụng & đặt chỗ</div>
-      <div className="st-row-2col">
+      {/* ── SỬ DỤNG & ĐẶT CHỖ ── */}
+      <div className="st-group-card">
+        <div className="st-group-header">
+          <span>Sử dụng & đặt chỗ</span>
+        </div>
+        <div className="st-row-2col st-booking-row">
         <div className="lib-panel st-chart-panel">
           <div className="st-panel-header">
             <div>
-              <h3 className="lib-panel-title">Lượt vào & Đặt chỗ</h3>
-              <p className="st-panel-caption">So sánh trực quan nhu cầu ra vào và đặt chỗ theo từng mốc trong giai đoạn đã chọn.</p>
+              <h3 className="lib-panel-title">Lượt check-in và đặt chỗ</h3>
+              <p className="st-panel-caption">So sánh số lượt vào thư viện và đặt chỗ theo từng mốc trong giai đoạn đã chọn.</p>
             </div>
             <div className="st-chart-legend">
               <span className="st-legend-item">
@@ -372,7 +379,7 @@ const Statistic = () => {
           </div>
           <div className="st-chart-container">
             {chartData.length === 0 ? (
-              renderPanelEmpty('Chưa có dữ liệu biểu đồ cho giai đoạn này')
+              renderPanelEmpty('Chưa có dữ liệu cho biểu đồ này trong giai đoạn đã chọn')
             ) : (
               <div className="st-bar-chart">
                 <div className="st-chart-y">
@@ -423,11 +430,11 @@ const Statistic = () => {
           </div>
         </div>
 
-        <div className="lib-panel">
+        <div className="lib-panel st-zone-panel">
           <div className="st-panel-header">
             <div>
               <h3 className="lib-panel-title">Phân tích đặt chỗ</h3>
-              <p className="st-panel-caption">Theo dõi mức sử dụng thực tế, hủy chỗ và tỷ lệ không đến để điều chỉnh vận hành.</p>
+              <p className="st-panel-caption">Theo dõi số lượt đã sử dụng, đã hủy và không đến để điều chỉnh vận hành.</p>
             </div>
           </div>
 
@@ -437,9 +444,15 @@ const Statistic = () => {
           </div>
 
           <div className="st-booking-bar">
-            <div className="st-booking-seg st-seg-green" style={{ width: `${booking.usedPercent || 0}%` }}></div>
-            <div className="st-booking-seg st-seg-yellow" style={{ width: `${booking.cancelledPercent || 0}%` }}></div>
-            <div className="st-booking-seg st-seg-gray" style={{ width: `${booking.expiredPercent || 0}%` }}></div>
+            {(booking.usedPercent || booking.cancelledPercent || booking.expiredPercent) ? (
+              <>
+                <div className="st-booking-seg st-seg-green" style={{ width: `${booking.usedPercent || 0}%` }}></div>
+                <div className="st-booking-seg st-seg-yellow" style={{ width: `${booking.cancelledPercent || 0}%` }}></div>
+                <div className="st-booking-seg st-seg-gray" style={{ width: `${booking.expiredPercent || 0}%` }}></div>
+              </>
+            ) : (
+              <div className="st-booking-seg st-seg-empty" style={{ width: '100%' }}></div>
+            )}
           </div>
 
           <div className="st-booking-metrics">
@@ -468,30 +481,34 @@ const Statistic = () => {
 
           <div className={`st-callout ${booking.expiredPercent >= 20 ? 'warning' : 'info'}`}>
             <div className="st-callout-title">
-              {booking.expiredPercent >= 20 ? 'Cần lưu ý tỷ lệ không đến' : 'Tình trạng đặt chỗ đang ổn định'}
+              {booking.expiredPercent >= 20 ? 'Cần lưu ý tỷ lệ không đến' : 'Tỷ lệ không đến đang ở mức thấp'}
             </div>
             <div className="st-callout-body">
               {booking.expiredNoShow > 0
-                ? `Có ${booking.expiredNoShow} lượt không đến trong giai đoạn này. Đây là tín hiệu nên rà soát khung giờ hoặc nhắc nhở sinh viên sớm hơn.`
+                ? `Có ${booking.expiredNoShow} lượt không đến trong giai đoạn này. Nên rà soát lại khung giờ và nhắc nhở sinh viên sớm hơn.`
                 : 'Chưa ghi nhận lượt đặt chỗ không đến trong giai đoạn đang xem.'}
             </div>
           </div>
         </div>
+        </div>
       </div>
-
-      <div className="st-section-label">Vi phạm & phản hồi</div>
-      <div className="st-row-2col">
+      {/* ── PHÂN TÍCH CHI TIẾT ── */}
+      <div className="st-group-card">
+        <div className="st-group-header">
+          <span>Vi phạm & phản hồi</span>
+        </div>
+        <div className="st-row-2col st-equal-height-row">
         <div className="lib-panel">
           <div className="st-panel-header">
             <div>
-              <h3 className="lib-panel-title">Giờ cao điểm</h3>
+              <h3 className="lib-panel-title">Khung giờ đông nhất</h3>
               <p className="st-panel-caption">Xác định khung giờ đông nhất để chủ động bố trí nhân sự và hỗ trợ.</p>
             </div>
             <Clock size={16} color="var(--lib-muted)" />
           </div>
           <div className="st-peak-chart">
             {peakHours.length === 0
-              ? renderPanelEmpty('Chưa có dữ liệu lưu lượng check-in')
+              ? renderPanelEmpty('Chưa có dữ liệu lượt vào thư viện trong giai đoạn này')
               : peakHours.map((item, index) => (
                   <div key={`${item.hour}-${index}`} className="st-peak-row">
                     <span className="st-peak-label">{item.hour}:00</span>
@@ -507,7 +524,7 @@ const Statistic = () => {
           </div>
           <div className="st-inline-summary">
             {peakInsight.count > 0
-              ? `Khung ${peakInsight.hour}:00 đang là thời điểm đông nhất với ${peakInsight.count} lượt check-in.`
+              ? `Khung ${peakInsight.hour}:00 có nhiều lượt check-in nhất với ${peakInsight.count} lượt.`
               : 'Chưa đủ dữ liệu để xác định khung giờ cao điểm.'}
           </div>
         </div>
@@ -521,7 +538,7 @@ const Statistic = () => {
             <AlertTriangle size={16} color="var(--lib-red)" />
           </div>
           {violations.length === 0 ? (
-            renderPanelEmpty('Không có vi phạm trong giai đoạn này')
+            renderPanelEmpty('Chưa ghi nhận vi phạm trong giai đoạn này')
           ) : (
             <div className="st-violation-list">
               {violations.map((item, index) => (
@@ -546,14 +563,16 @@ const Statistic = () => {
               : 'Chưa ghi nhận loại vi phạm nổi bật trong giai đoạn này.'}
           </div>
         </div>
-      </div>
+        </div>
 
-      <div className="st-row-2col">
+        <div className="st-group-divider"></div>
+
+        <div className="st-row-2col st-equal-height-row">
         <div className="lib-panel st-feedback-panel">
           <div className="st-panel-header">
             <div>
               <h3 className="lib-panel-title">Phản hồi sinh viên</h3>
-              <p className="st-panel-caption">Tổng hợp điểm đánh giá và trích xuất những phản hồi mới nhất từ sinh viên.</p>
+              <p className="st-panel-caption">Tổng hợp điểm đánh giá và các phản hồi mới nhất từ sinh viên.</p>
             </div>
             <Star size={16} color="#fbbf24" />
           </div>
@@ -636,13 +655,13 @@ const Statistic = () => {
         <div className="lib-panel">
           <div className="st-panel-header">
             <div>
-              <h3 className="lib-panel-title">Khu vực sử dụng nhiều nhất</h3>
-              <p className="st-panel-caption">Nhận diện khu vực đang được ưu tiên sử dụng để điều phối không gian tốt hơn.</p>
+              <h3 className="lib-panel-title">Khu vực có nhiều lượt đặt chỗ nhất</h3>
+              <p className="st-panel-caption">Theo dõi tỷ trọng đặt chỗ theo khu vực để nhận diện nơi đang có nhu cầu cao nhất.</p>
             </div>
             <MapPin size={16} color="var(--lib-muted)" />
           </div>
           {zones.length === 0 ? (
-            renderPanelEmpty('Chưa có dữ liệu sử dụng khu vực')
+            renderPanelEmpty('Chưa có dữ liệu đặt chỗ theo khu vực trong giai đoạn này')
           ) : (
             <div className="st-zone-list-new">
               {zones.map((zone, index) => {
@@ -663,11 +682,14 @@ const Statistic = () => {
                         <span className="st-zone-seats">{zone.totalSeats} ghế</span>
                       </div>
                     </div>
-                    <div className="st-zone-bar-bg-new">
-                      <div
-                        className="st-zone-bar-fill-new"
-                        style={{ width: `${Math.min(usagePercent, 100)}%`, background: color }}
-                      ></div>
+                    <div className="st-zone-progress">
+                      <div className="st-zone-bar-bg-new">
+                        <div
+                          className="st-zone-bar-fill-new"
+                          style={{ width: `${Math.min(usagePercent, 100)}%`, background: color }}
+                        ></div>
+                      </div>
+                      <span className="st-zone-percent">{Math.round(usagePercent)}%</span>
                     </div>
                   </div>
                 );
@@ -676,15 +698,21 @@ const Statistic = () => {
           )}
           <div className="st-inline-summary">
             {topZone.usagePercent > 0
-              ? `${topZone.zoneName} đang là khu vực bận nhất với khoảng ${Math.round(topZone.usagePercent)}% mức sử dụng.`
+              ? `${topZone.zoneName} đang chiếm khoảng ${Math.round(topZone.usagePercent)}% tổng lượt đặt chỗ trong giai đoạn này.`
               : 'Chưa ghi nhận khu vực nổi bật trong giai đoạn này.'}
           </div>
         </div>
       </div>
+      </div>
 
-      <div className="st-section-label">AI phân tích</div>
-      <div className="lib-panel st-ai-panel-wrapper">
-        <AIAnalyticsPanel period={range === 'year' ? 'month' : range} />
+      {/* ── AI PHÂN TÍCH ── */}
+      <div className="st-group-card st-group-ai">
+        <div className="st-group-header">
+          <span>AI phân tích</span>
+        </div>
+        <div className="st-ai-panel-wrapper">
+          <AIAnalyticsPanel period={range} />
+        </div>
       </div>
     </div>
   );
