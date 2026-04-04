@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Armchair,
@@ -25,7 +26,11 @@ import {
   Wifi,
   Monitor,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  ScanLine,
+  Settings2,
+  Siren,
+  ClipboardList
 } from "lucide-react";
 import StatCard from "./StatCard";
 import dashboardService from "../../../services/admin/dashboardService";
@@ -35,6 +40,7 @@ import hceStationService from "../../../services/admin/hceStationService";
 import "../../../styles/Dashboard.css";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [topStudents, setTopStudents] = useState([]);
   const [topStudentsRange, setTopStudentsRange] = useState("month");
@@ -225,6 +231,22 @@ const Dashboard = () => {
     return name.split(" ").map(w => w[0]).join("").toUpperCase().substring(0, 2);
   };
 
+  const formatRelativeTime = (dt) => {
+    if (!dt) return "Vừa xong";
+    try {
+      const diffMs = Date.now() - new Date(dt).getTime();
+      const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+      if (diffMinutes < 1) return "Vừa xong";
+      if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+      const diffHours = Math.floor(diffMinutes / 60);
+      if (diffHours < 24) return `${diffHours} giờ trước`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays} ngày trước`;
+    } catch {
+      return "";
+    }
+  };
+
   const getSystemHealthMeta = () => {
     if (!systemInfo) {
       return {
@@ -317,6 +339,10 @@ const Dashboard = () => {
   };
 
   const chartSummary = getChartSummary();
+  const priorityTasks = stats?.priorityTasks || [];
+  const chatAttention = stats?.chatAttention || null;
+  const attentionZones = stats?.attentionZones || [];
+  const recentActivities = stats?.recentActivities || [];
   const sourceErrorLabels = [
     sourceStatus.system === "error" ? "máy chủ thư viện" : null,
     sourceStatus.stations === "error" ? "trạm quét HCE" : null,
@@ -386,6 +412,88 @@ const Dashboard = () => {
     month: "Những sinh viên có thời lượng sử dụng cao trong 30 ngày gần đây.",
     year: "Những sinh viên có thời lượng sử dụng cao trong 12 tháng gần đây.",
   };
+  const adminQuickActions = [
+    { title: "Người dùng", desc: "Quản lý tài khoản và phân quyền", icon: <Users size={18} />, path: "/admin/users", tone: "purple" },
+    { title: "Trạm quét NFC", desc: "Theo dõi và cấu hình thiết bị cổng", icon: <ScanLine size={18} />, path: "/admin/devices", tone: "blue" },
+    { title: "Kiosk thư viện", desc: "Kiểm tra kết nối và cấp mã kích hoạt", icon: <Monitor size={18} />, path: "/admin/kiosk", tone: "orange" },
+    { title: "Bản đồ thư viện", desc: "Điều chỉnh khu vực, ghế và mặt bằng", icon: <MapPin size={18} />, path: "/admin/library-map", tone: "green" },
+    { title: "Cấu hình thư viện", desc: "Lịch phục vụ và quy tắc vận hành", icon: <Settings2 size={18} />, path: "/admin/config", tone: "teal" },
+    { title: "AI và kho tri thức", desc: "Nhà cung cấp AI, tài liệu và đồng bộ", icon: <Sparkles size={18} />, path: "/admin/ai-config", tone: "pink" },
+    { title: "Sức khỏe hệ thống", desc: "Giám sát máy chủ, nhật ký và sao lưu", icon: <Server size={18} />, path: "/admin/health", tone: "slate" },
+    { title: "NFC Bridge", desc: "Công cụ cục bộ cho máy quét NFC", icon: <Wifi size={18} />, path: "/admin/nfc-management", tone: "gold" },
+  ];
+
+  const serviceAlerts = [];
+  if (sourceStatus.system === "error") {
+    serviceAlerts.push({
+      key: "system-fetch",
+      severity: "critical",
+      title: "Không lấy được trạng thái hạ tầng",
+      detail: "Dashboard chưa đọc được tình trạng máy chủ và các dịch vụ lõi.",
+      action: "/admin/health",
+    });
+  } else if (systemInfo?.services) {
+    Object.values(systemInfo.services)
+      .filter((service) => service?.status && service.status !== "UP")
+      .forEach((service) => {
+        serviceAlerts.push({
+          key: `service-${service.label}`,
+          severity: service.status === "DOWN" ? "critical" : "warning",
+          title: `${service.label} đang ${service.status === "DOWN" ? "mất kết nối" : "phản hồi bất thường"}`,
+          detail: service.detail,
+          action: "/admin/health",
+        });
+      });
+  }
+  if (sourceStatus.stations === "ready" && hceOfflineCount > 0) {
+    serviceAlerts.push({
+      key: "hce-offline",
+      severity: "warning",
+      title: `${hceOfflineCount} trạm quét đang ngoại tuyến`,
+      detail: `Có ${hceMaintenanceCount} trạm đang bảo trì và cần rà lại kết nối của các trạm còn lại.`,
+      action: "/admin/devices",
+    });
+  }
+  if (sourceStatus.kiosk === "ready" && expiredKioskCount > 0) {
+    serviceAlerts.push({
+      key: "kiosk-expired",
+      severity: "warning",
+      title: `${expiredKioskCount} kiosk cần cấp lại mã kích hoạt`,
+      detail: "Một số kiosk đang còn cấu hình nhưng mã kích hoạt đã hết hiệu lực hoặc mất kết nối.",
+      action: "/admin/kiosk",
+    });
+  }
+  if (chatAttention?.waitingCount > 0) {
+    serviceAlerts.push({
+      key: "chat-waiting",
+      severity: chatAttention.oldestWaitingMinutes >= 10 ? "critical" : "warning",
+      title: `${chatAttention.waitingCount} phiên chat đang chờ thủ thư`,
+      detail: chatAttention.oldestWaitingMinutes > 0
+        ? `Phiên chờ lâu nhất đã đợi ${chatAttention.oldestWaitingMinutes} phút.`
+        : "Có sinh viên đang yêu cầu hỗ trợ trực tiếp từ thủ thư.",
+      action: null,
+    });
+  }
+  if (priorityTasks.some((task) => task.key === "support-overdue" && task.count > 0)) {
+    const overdueTask = priorityTasks.find((task) => task.key === "support-overdue");
+    serviceAlerts.push({
+      key: "support-overdue",
+      severity: "critical",
+      title: `${overdueTask.count} yêu cầu hỗ trợ quá ngưỡng theo dõi`,
+      detail: "Cần phối hợp thủ thư để nhận xử lý sớm các yêu cầu này.",
+      action: null,
+    });
+  }
+  if (sourceStatus.ai === "ready" && aiCapacity?.occupancy_rate >= 85) {
+    serviceAlerts.push({
+      key: "ai-occupancy",
+      severity: "warning",
+      title: "AI dự báo thư viện đang rất đông",
+      detail: `${aiCapacity.occupied_seats || 0}/${aiCapacity.total_seats || 0} ghế đang được sử dụng, dự báo tiếp tục tăng trong 1 giờ tới.`,
+      action: "/admin/ai-config",
+    });
+  }
+  const adminAlerts = serviceAlerts.slice(0, 5);
 
   // ===== LOADING STATE =====
   if (loading) {
@@ -469,6 +577,83 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      <div className="dashboard-ops-grid">
+        <div className="panel dashboard-alert-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div className="panelHeader__icon" style={{ background: "#FFF1F2", color: "#D32F2F" }}>
+                <Siren size={18} />
+              </div>
+              <div>
+                <h3 className="panelTitle">Trung tâm cảnh báo quản trị</h3>
+                <p className="panelSubtitle">Những tín hiệu cần quản trị viên kiểm tra trước trong ca vận hành hiện tại.</p>
+              </div>
+            </div>
+            <span className="panelHeader__badge">{adminAlerts.length}</span>
+          </div>
+          {adminAlerts.length > 0 ? (
+            <div className="dashboard-alert-list">
+              {adminAlerts.map((alert) => (
+                <button
+                  type="button"
+                  key={alert.key}
+                  className={`dashboard-alert-item dashboard-alert-item--${alert.severity}`}
+                  onClick={() => alert.action && navigate(alert.action)}
+                  disabled={!alert.action}
+                >
+                  <div className="dashboard-alert-item__body">
+                    <div className="dashboard-alert-item__header">
+                      <strong>{alert.title}</strong>
+                      <span className={`dashboard-alert-item__badge dashboard-alert-item__badge--${alert.severity}`}>
+                        {alert.severity === "critical" ? "Ưu tiên cao" : "Cần theo dõi"}
+                      </span>
+                    </div>
+                    <p>{alert.detail}</p>
+                  </div>
+                  {alert.action && <ChevronRight size={16} />}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state dashboard-empty-lite">
+              <Shield size={28} />
+              <p>Hiện chưa có cảnh báo quản trị nghiêm trọng nào cần can thiệp.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="panel dashboard-quick-action-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div className="panelHeader__icon" style={{ background: "#EEF2FF", color: "#4F46E5" }}>
+                <ClipboardList size={18} />
+              </div>
+              <div>
+                <h3 className="panelTitle">Lối tắt quản trị</h3>
+                <p className="panelSubtitle">Các màn admin cần dùng thường xuyên trong quá trình kiểm tra và cấu hình.</p>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-quick-action-grid">
+            {adminQuickActions.map((action) => (
+              <button
+                key={action.path}
+                type="button"
+                className={`dashboard-quick-action dashboard-quick-action--${action.tone}`}
+                onClick={() => navigate(action.path)}
+              >
+                <div className="dashboard-quick-action__icon">{action.icon}</div>
+                <div className="dashboard-quick-action__body">
+                  <strong>{action.title}</strong>
+                  <span>{action.desc}</span>
+                </div>
+                <ChevronRight size={15} />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* ===== PRIMARY ADMIN CARDS ===== */}
       <div className="statsRow statsRow--four">
@@ -605,29 +790,168 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Việc đang chờ xử lý</h3>
-                <p className="panelSubtitle">Các vi phạm, hỗ trợ, khiếu nại và báo cáo ghế đang chờ phản hồi hoặc xử lý.</p>
+                <h3 className="panelTitle">Công việc ưu tiên hôm nay</h3>
+                <p className="panelSubtitle">Những đầu việc admin cần theo dõi sát để tránh lan thành sự cố vận hành.</p>
               </div>
             </div>
           </div>
-          <div className="dashboard-workload-list">
-            {[
-              { label: "Vi phạm cần xử lý", value: stats?.pendingViolations ?? 0, tone: "danger" },
-              { label: "Yêu cầu hỗ trợ đang chờ", value: stats?.pendingSupportRequests ?? 0, tone: "warning" },
-              { label: "Yêu cầu hỗ trợ đang xử lý", value: stats?.inProgressSupportRequests ?? 0, tone: "warning" },
-              { label: "Khiếu nại đang chờ", value: stats?.pendingComplaints ?? 0, tone: "warning" },
-              { label: "Báo cáo ghế đang chờ", value: stats?.pendingSeatStatusReports ?? 0, tone: "warning" },
-              { label: "Hỗ trợ quá hạn", value: stats?.overdueSupportRequests ?? 0, tone: "danger" },
-            ].map((item) => (
-              <div key={item.label} className="dashboard-workload-item">
-                <span className="dashboard-workload-item__label">{item.label}</span>
-                <span className={`dashboard-workload-item__value dashboard-workload-item__value--${item.tone}`}>
-                  {item.value}
-                </span>
+          {priorityTasks.length > 0 ? (
+            <div className="dashboard-priority-list">
+              {priorityTasks.map((task) => (
+                <div key={task.key} className={`dashboard-priority-item dashboard-priority-item--${task.severity}`}>
+                  <div className="dashboard-priority-item__body">
+                    <div className="dashboard-priority-item__header">
+                      <strong>{task.title}</strong>
+                      <span className={`dashboard-priority-item__count dashboard-priority-item__count--${task.severity}`}>
+                        {task.count}
+                      </span>
+                    </div>
+                    <p>{task.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state dashboard-empty-lite">
+              <Shield size={28} />
+              <p>Hiện không có đầu việc ưu tiên nào vượt ngưỡng theo dõi.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="dashboard-focus-grid">
+        <div className="panel dashboard-chat-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div className="panelHeader__icon" style={{ background: "#EFF6FF", color: "#2563EB" }}>
+                <MessageSquare size={18} />
+              </div>
+              <div>
+                <h3 className="panelTitle">Chat cần phản hồi</h3>
+                <p className="panelSubtitle">Theo dõi hàng chờ hỗ trợ giữa sinh viên và thủ thư để tránh bỏ sót.</p>
+              </div>
+            </div>
+            <span className="panelHeader__badge">{(chatAttention?.waitingCount || 0) + (chatAttention?.activeCount || 0)}</span>
+          </div>
+          <div className="dashboard-chat-summary">
+            <div className="dashboard-chat-summary__card">
+              <span className="dashboard-chat-summary__label">Đang chờ tiếp nhận</span>
+              <strong>{chatAttention?.waitingCount || 0}</strong>
+              <span className="dashboard-chat-summary__subtext">
+                {chatAttention?.oldestWaitingMinutes
+                  ? `Phiên chờ lâu nhất ${chatAttention.oldestWaitingMinutes} phút`
+                  : "Chưa có phiên nào vượt ngưỡng"}
+              </span>
+            </div>
+            <div className="dashboard-chat-summary__card">
+              <span className="dashboard-chat-summary__label">Đang được thủ thư hỗ trợ</span>
+              <strong>{chatAttention?.activeCount || 0}</strong>
+              <span className="dashboard-chat-summary__subtext">Các phiên đang trong vòng hỗ trợ trực tiếp</span>
+            </div>
+          </div>
+          <div className="dashboard-chat-preview">
+            <div className="dashboard-chat-preview__title">Cập nhật gần nhất</div>
+            {chatAttention?.latestStudentName ? (
+              <div className="dashboard-chat-preview__body">
+                <div className="dashboard-chat-preview__avatar">{getInitials(chatAttention.latestStudentName)}</div>
+                <div className="dashboard-chat-preview__content">
+                  <strong>{chatAttention.latestStudentName}</strong>
+                  <span>{chatAttention.latestStudentCode || "Không có mã số"}</span>
+                  <p>{chatAttention.latestMessagePreview || "Có cập nhật mới trong cuộc hội thoại."}</p>
+                </div>
+                <span className="dashboard-chat-preview__time">{formatRelativeTime(chatAttention.latestMessageAt)}</span>
+              </div>
+            ) : (
+              <div className="empty-state dashboard-empty-lite">
+                <MessageSquare size={28} />
+                <p>Hiện chưa có phiên chat thủ thư nào đang chờ phản hồi.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="panel dashboard-zone-panel">
+          <div className="panelHeader">
+            <div className="panelHeader__left">
+              <div className="panelHeader__icon" style={{ background: "#ECFDF3", color: "#15803D" }}>
+                <MapPin size={18} />
+              </div>
+              <div>
+                <h3 className="panelTitle">Khu vực cần chú ý</h3>
+                <p className="panelSubtitle">Khu vực đang đông bất thường hoặc phát sinh nhiều báo cáo cần xử lý.</p>
+              </div>
+            </div>
+          </div>
+          {attentionZones.length > 0 ? (
+            <div className="dashboard-zone-list">
+              {attentionZones.map((zone) => (
+                <div key={`${zone.zoneId}-${zone.zoneName}`} className={`dashboard-zone-item dashboard-zone-item--${zone.severity}`}>
+                  <div className="dashboard-zone-item__header">
+                    <div>
+                      <strong>{zone.zoneName}</strong>
+                      <span>{zone.areaName || "Chưa gán khu vực"}</span>
+                    </div>
+                    <span className={`dashboard-zone-item__badge dashboard-zone-item__badge--${zone.severity}`}>
+                      {Math.round(zone.occupancyPercentage)}%
+                    </span>
+                  </div>
+                  <p>{zone.reason}</p>
+                  <div className="dashboard-zone-item__meta">
+                    <span>{zone.occupiedSeats}/{zone.totalSeats} ghế đang sử dụng</span>
+                    <span>{zone.pendingSeatReports} báo cáo ghế</span>
+                    <span>{zone.pendingViolations} vi phạm</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state dashboard-empty-lite">
+              <MapPin size={28} />
+              <p>Chưa có khu vực nào vượt ngưỡng cảnh báo trong thời điểm hiện tại.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="panel dashboard-activity-panel">
+        <div className="panelHeader">
+          <div className="panelHeader__left">
+            <div className="panelHeader__icon" style={{ background: "#FFF7ED", color: "#EA6A1B" }}>
+              <Activity size={18} />
+            </div>
+            <div>
+              <h3 className="panelTitle">Lịch hoạt động gần nhất</h3>
+              <p className="panelSubtitle">Dòng thời gian các biến động mới nhất để admin nắm nhanh nhịp vận hành toàn thư viện.</p>
+            </div>
+          </div>
+        </div>
+        {recentActivities.length > 0 ? (
+          <div className="dashboard-activity-list">
+            {recentActivities.map((activity, index) => (
+              <div key={`${activity.type}-${activity.createdAt}-${index}`} className="dashboard-activity-item">
+                <div className={`dashboard-activity-item__dot dashboard-activity-item__dot--${activity.severity || "info"}`} />
+                <div className="dashboard-activity-item__body">
+                  <div className="dashboard-activity-item__header">
+                    <strong>{activity.title}</strong>
+                    <span>{formatRelativeTime(activity.createdAt)}</span>
+                  </div>
+                  <p>{activity.description}</p>
+                  <div className="dashboard-activity-item__meta">
+                    <span>{activity.actorName || "Hệ thống"}</span>
+                    {activity.actorCode && <span>{activity.actorCode}</span>}
+                    {activity.createdAt && <span>{formatDateTime(activity.createdAt)}</span>}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        ) : (
+          <div className="empty-state dashboard-empty-lite">
+            <Activity size={28} />
+            <p>Chưa có biến động vận hành mới trong dòng thời gian gần nhất.</p>
+          </div>
+        )}
       </div>
 
       {/* ===== ROW 1: Recent Bookings + Weekly Chart ===== */}

@@ -80,6 +80,12 @@ public class DashboardStatsDTO {
     // Today vs yesterday trends
     private TrendSummaryDTO trendSummary;
 
+    // Admin operation panels
+    private List<PriorityTaskDTO> priorityTasks;
+    private ChatAttentionDTO chatAttention;
+    private List<AttentionZoneDTO> attentionZones;
+    private List<ActivityFeedItemDTO> recentActivities;
+
     // Server time for frontend display
     private LocalDateTime serverTime;
 
@@ -243,5 +249,69 @@ public class DashboardStatsDTO {
         private long violationsYesterday;
         private long supportToday;
         private long supportYesterday;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PriorityTaskDTO {
+        private String key;
+        private String title;
+        private String description;
+        private long count;
+        private String severity;
+        private String targetPath;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ChatAttentionDTO {
+        private long waitingCount;
+        private long activeCount;
+        private String latestStudentName;
+        private String latestStudentCode;
+        private String latestMessagePreview;
+        private LocalDateTime latestMessageAt;
+        private long oldestWaitingMinutes;
+        private String targetPath;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class AttentionZoneDTO {
+        private Integer zoneId;
+        private String zoneName;
+        private String areaName;
+        private long occupiedSeats;
+        private long totalSeats;
+        private double occupancyPercentage;
+        private long pendingSeatReports;
+        private long pendingViolations;
+        private String severity;
+        private String reason;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ActivityFeedItemDTO {
+        private String type;
+        private String title;
+        private String description;
+        private String actorName;
+        private String actorCode;
+        private String severity;
+        private String targetPath;
+        private LocalDateTime createdAt;
     }
 }

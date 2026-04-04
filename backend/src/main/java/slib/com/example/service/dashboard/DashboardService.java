@@ -2,17 +2,22 @@ package slib.com.example.service.dashboard;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import slib.com.example.dto.dashboard.DashboardStatsDTO;
+import slib.com.example.entity.chat.Conversation;
+import slib.com.example.entity.chat.ConversationStatus;
+import slib.com.example.entity.chat.Message;
 import slib.com.example.dto.hce.AccessLogStatsDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.feedback.SeatViolationReportEntity;
+import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.entity.support.SupportRequestStatus;
-import slib.com.example.entity.zone_config.SeatEntity;
-import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.chat.ConversationRepository;
+import slib.com.example.repository.chat.MessageRepository;
 import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.feedback.SeatStatusReportRepository;
@@ -22,7 +27,6 @@ import slib.com.example.repository.support.SupportRequestRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.zone_config.AreaRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
-import slib.com.example.repository.zone_config.ZoneRepository;
 import java.sql.Date;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -40,6 +44,7 @@ import slib.com.example.service.hce.CheckInService;
 public class DashboardService {
 
     private static final long SUPPORT_OVERDUE_MINUTES = 30;
+    private static final long ADMIN_PRIORITY_SUPPORT_MINUTES = 10;
 
     private final CheckInService checkInService;
     private final ReservationRepository reservationRepository;
@@ -48,11 +53,12 @@ public class DashboardService {
     private final SeatViolationReportRepository violationReportRepository;
     private final SupportRequestRepository supportRequestRepository;
     private final AreaRepository areaRepository;
-    private final ZoneRepository zoneRepository;
     private final AccessLogRepository accessLogRepository;
     private final ComplaintRepository complaintRepository;
     private final FeedbackRepository feedbackRepository;
     private final SeatStatusReportRepository seatStatusReportRepository;
+    private final ConversationRepository conversationRepository;
+    private final MessageRepository messageRepository;
 
     public DashboardStatsDTO getDashboardStats() {
         try {
@@ -159,6 +165,18 @@ public class DashboardService {
             // 17. Trend summary
             DashboardStatsDTO.TrendSummaryDTO trendSummary = getTrendSummary();
 
+            // 18. Priority tasks for admin
+            List<DashboardStatsDTO.PriorityTaskDTO> priorityTasks = getPriorityTasks(now);
+
+            // 19. Chat attention summary
+            DashboardStatsDTO.ChatAttentionDTO chatAttention = getChatAttention();
+
+            // 20. Zones that need attention
+            List<DashboardStatsDTO.AttentionZoneDTO> attentionZones = getAttentionZones(zoneOccupancies);
+
+            // 21. Recent operational activity feed
+            List<DashboardStatsDTO.ActivityFeedItemDTO> recentActivities = getRecentActivities();
+
             return DashboardStatsDTO.builder()
                     .totalCheckInsToday(accessStats.getTotalCheckInsToday())
                     .totalCheckOutsToday(accessStats.getTotalCheckOutsToday())
@@ -188,6 +206,10 @@ public class DashboardService {
                     .recentSeatStatusReports(recentSeatStatusReports)
                     .zoneOccupancies(zoneOccupancies)
                     .trendSummary(trendSummary)
+                    .priorityTasks(priorityTasks)
+                    .chatAttention(chatAttention)
+                    .attentionZones(attentionZones)
+                    .recentActivities(recentActivities)
                     .serverTime(now)
                     .build();
 
@@ -204,6 +226,10 @@ public class DashboardService {
                     .recentFeedbacks(Collections.emptyList())
                     .recentSeatStatusReports(Collections.emptyList())
                     .zoneOccupancies(Collections.emptyList())
+                    .priorityTasks(Collections.emptyList())
+                    .attentionZones(Collections.emptyList())
+                    .recentActivities(Collections.emptyList())
+                    .chatAttention(DashboardStatsDTO.ChatAttentionDTO.builder().targetPath("/librarian/chat").build())
                     .build();
         }
     }
@@ -681,5 +707,391 @@ public class DashboardService {
             log.error("Error calculating area occupancies: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    private List<DashboardStatsDTO.PriorityTaskDTO> getPriorityTasks(LocalDateTime now) {
+        try {
+            long overdueSupport10m = supportRequestRepository.countByStatusAndCreatedAtBefore(
+                    SupportRequestStatus.PENDING,
+                    now.minusMinutes(ADMIN_PRIORITY_SUPPORT_MINUTES));
+            long waitingChats = conversationRepository.countByStatus(ConversationStatus.QUEUE_WAITING);
+            long pendingViolations = violationReportRepository.countByStatusIn(
+                    Set.of(
+                            SeatViolationReportEntity.ReportStatus.PENDING,
+                            SeatViolationReportEntity.ReportStatus.VERIFIED));
+            long pendingSeatReports = seatStatusReportRepository.countByStatusIn(
+                    Set.of(
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED));
+            long pendingComplaints = complaintRepository.countByStatus(
+                    slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus.PENDING);
+            long newFeedbacks = feedbackRepository.countByStatus(
+                    slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus.NEW);
+
+            List<DashboardStatsDTO.PriorityTaskDTO> tasks = new ArrayList<>();
+            tasks.add(buildPriorityTask(
+                    "support-overdue",
+                    "Yêu cầu hỗ trợ quá 10 phút",
+                    "Các yêu cầu hỗ trợ mới chưa được nhận xử lý trong ngưỡng theo dõi.",
+                    overdueSupport10m,
+                    overdueSupport10m > 0 ? "critical" : "normal",
+                    null));
+            tasks.add(buildPriorityTask(
+                    "chat-waiting",
+                    "Phiên chat đang chờ thủ thư",
+                    "Sinh viên đã yêu cầu gặp thủ thư nhưng chưa có người tiếp nhận.",
+                    waitingChats,
+                    waitingChats > 0 ? "critical" : "normal",
+                    null));
+            tasks.add(buildPriorityTask(
+                    "seat-status",
+                    "Báo cáo ghế chưa xác minh",
+                    "Các sự cố ghế hoặc thiết bị đang chờ xác minh tại hiện trường.",
+                    pendingSeatReports,
+                    pendingSeatReports > 0 ? "warning" : "normal",
+                    null));
+            tasks.add(buildPriorityTask(
+                    "violations",
+                    "Vi phạm chưa khép lại",
+                    "Các báo cáo vi phạm còn đang chờ xác minh hoặc xử lý tiếp theo.",
+                    pendingViolations,
+                    pendingViolations > 0 ? "warning" : "normal",
+                    null));
+            tasks.add(buildPriorityTask(
+                    "complaints",
+                    "Khiếu nại chờ phản hồi",
+                    "Các đơn khiếu nại mới từ sinh viên chưa có quyết định cuối cùng.",
+                    pendingComplaints,
+                    pendingComplaints > 0 ? "warning" : "normal",
+                    null));
+            tasks.add(buildPriorityTask(
+                    "feedback",
+                    "Phản hồi mới chưa xem",
+                    "Các góp ý mới đang chờ bộ phận vận hành đọc và phản hồi.",
+                    newFeedbacks,
+                    newFeedbacks > 0 ? "normal" : "normal",
+                    null));
+
+            return tasks.stream()
+                    .sorted(Comparator
+                            .comparingInt((DashboardStatsDTO.PriorityTaskDTO task) -> prioritySeverityScore(task.getSeverity()))
+                            .reversed()
+                            .thenComparing(DashboardStatsDTO.PriorityTaskDTO::getCount, Comparator.reverseOrder()))
+                    .limit(6)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error building priority tasks: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private DashboardStatsDTO.PriorityTaskDTO buildPriorityTask(
+            String key,
+            String title,
+            String description,
+            long count,
+            String severity,
+            String targetPath) {
+        return DashboardStatsDTO.PriorityTaskDTO.builder()
+                .key(key)
+                .title(title)
+                .description(description)
+                .count(count)
+                .severity(severity)
+                .targetPath(targetPath)
+                .build();
+    }
+
+    private int prioritySeverityScore(String severity) {
+        return switch ((severity == null ? "" : severity).toLowerCase(Locale.ROOT)) {
+            case "critical" -> 3;
+            case "warning" -> 2;
+            default -> 1;
+        };
+    }
+
+    private DashboardStatsDTO.ChatAttentionDTO getChatAttention() {
+        try {
+            long waitingCount = conversationRepository.countByStatus(ConversationStatus.QUEUE_WAITING);
+            long activeCount = conversationRepository.countByStatus(ConversationStatus.HUMAN_CHATTING);
+
+            Conversation latestConversation = conversationRepository.findByStatusIn(
+                    List.of(ConversationStatus.QUEUE_WAITING, ConversationStatus.HUMAN_CHATTING)).stream()
+                    .findFirst()
+                    .orElse(null);
+
+            String latestStudentName = null;
+            String latestStudentCode = null;
+            String latestMessagePreview = null;
+            LocalDateTime latestMessageAt = null;
+
+            if (latestConversation != null) {
+                latestStudentName = latestConversation.getStudent() != null
+                        ? latestConversation.getStudent().getFullName()
+                        : null;
+                latestStudentCode = latestConversation.getStudent() != null
+                        ? latestConversation.getStudent().getUserCode()
+                        : null;
+
+                Optional<Message> latestMessage = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(
+                        latestConversation.getId());
+                if (latestMessage.isPresent()) {
+                    latestMessagePreview = abbreviateMessage(latestMessage.get().getContent(), latestMessage.get().getAttachmentUrl());
+                    latestMessageAt = latestMessage.get().getCreatedAt();
+                } else {
+                    latestMessagePreview = latestConversation.getEscalationReason();
+                    latestMessageAt = latestConversation.getUpdatedAt();
+                }
+            }
+
+            long oldestWaitingMinutes = conversationRepository.findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING)
+                    .stream()
+                    .findFirst()
+                    .map(conversation -> {
+                        LocalDateTime anchor = conversation.getEscalatedAt() != null
+                                ? conversation.getEscalatedAt()
+                                : conversation.getCreatedAt();
+                        return Math.max(0L, java.time.Duration.between(anchor, LocalDateTime.now()).toMinutes());
+                    })
+                    .orElse(0L);
+
+            return DashboardStatsDTO.ChatAttentionDTO.builder()
+                    .waitingCount(waitingCount)
+                    .activeCount(activeCount)
+                    .latestStudentName(latestStudentName)
+                    .latestStudentCode(latestStudentCode)
+                    .latestMessagePreview(latestMessagePreview)
+                    .latestMessageAt(latestMessageAt)
+                    .oldestWaitingMinutes(oldestWaitingMinutes)
+                    .targetPath("/librarian/chat")
+                    .build();
+        } catch (Exception e) {
+            log.error("Error building chat attention: {}", e.getMessage());
+            return DashboardStatsDTO.ChatAttentionDTO.builder()
+                    .targetPath("/librarian/chat")
+                    .build();
+        }
+    }
+
+    private String abbreviateMessage(String content, String attachmentUrl) {
+        if (content != null && !content.isBlank()) {
+            return content.length() > 96 ? content.substring(0, 96) + "..." : content;
+        }
+        if (attachmentUrl != null && !attachmentUrl.isBlank()) {
+            return "Sinh viên vừa gửi một tệp đính kèm.";
+        }
+        return "Có cập nhật mới trong phiên chat.";
+    }
+
+    private String translateViolationType(String type) {
+        return switch ((type == null ? "OTHER" : type).toUpperCase(Locale.ROOT)) {
+            case "UNAUTHORIZED_USE" -> "Sử dụng ghế không đúng quy định";
+            case "LEFT_BELONGINGS" -> "Để đồ giữ chỗ";
+            case "NOISE" -> "Gây ồn ào";
+            case "FEET_ON_SEAT" -> "Gác chân lên ghế";
+            case "FOOD_DRINK" -> "Ăn uống trong thư viện";
+            case "SLEEPING" -> "Ngủ tại chỗ ngồi";
+            default -> "Vi phạm nội quy";
+        };
+    }
+
+    private List<DashboardStatsDTO.AttentionZoneDTO> getAttentionZones(
+            List<DashboardStatsDTO.ZoneOccupancyDTO> zoneOccupancies) {
+        try {
+            Map<Integer, Long> pendingSeatReportsByZone = seatStatusReportRepository
+                    .findByStatusInOrderByCreatedAtDesc(
+                            Set.of(
+                                    slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
+                                    slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED))
+                    .stream()
+                    .filter(report -> report.getSeat() != null && report.getSeat().getZone() != null)
+                    .collect(Collectors.groupingBy(
+                            report -> report.getSeat().getZone().getZoneId(),
+                            Collectors.counting()));
+
+            Map<Integer, Long> pendingViolationsByZone = violationReportRepository
+                    .findByStatusInOrderByCreatedAtDesc(
+                            Set.of(
+                                    SeatViolationReportEntity.ReportStatus.PENDING,
+                                    SeatViolationReportEntity.ReportStatus.VERIFIED))
+                    .stream()
+                    .filter(report -> report.getSeat() != null && report.getSeat().getZone() != null)
+                    .collect(Collectors.groupingBy(
+                            report -> report.getSeat().getZone().getZoneId(),
+                            Collectors.counting()));
+
+            return zoneOccupancies.stream()
+                    .map(zone -> {
+                        long pendingSeatReports = pendingSeatReportsByZone.getOrDefault(zone.getZoneId(), 0L);
+                        long pendingViolations = pendingViolationsByZone.getOrDefault(zone.getZoneId(), 0L);
+                        double occupancy = zone.getOccupancyPercentage();
+                        String severity = resolveAttentionZoneSeverity(occupancy, pendingSeatReports, pendingViolations);
+                        if ("normal".equals(severity)) {
+                            return null;
+                        }
+
+                        return DashboardStatsDTO.AttentionZoneDTO.builder()
+                                .zoneId(zone.getZoneId())
+                                .zoneName(zone.getZoneName())
+                                .areaName(zone.getAreaName())
+                                .occupiedSeats(zone.getOccupiedSeats())
+                                .totalSeats(zone.getTotalSeats())
+                                .occupancyPercentage(occupancy)
+                                .pendingSeatReports(pendingSeatReports)
+                                .pendingViolations(pendingViolations)
+                                .severity(severity)
+                                .reason(buildAttentionZoneReason(occupancy, pendingSeatReports, pendingViolations))
+                                .build();
+                    })
+                    .filter(Objects::nonNull)
+                    .sorted(Comparator
+                            .comparingInt((DashboardStatsDTO.AttentionZoneDTO zone) -> prioritySeverityScore(zone.getSeverity()))
+                            .reversed()
+                            .thenComparing(DashboardStatsDTO.AttentionZoneDTO::getOccupancyPercentage, Comparator.reverseOrder())
+                            .thenComparing(DashboardStatsDTO.AttentionZoneDTO::getPendingSeatReports, Comparator.reverseOrder())
+                            .thenComparing(DashboardStatsDTO.AttentionZoneDTO::getPendingViolations, Comparator.reverseOrder()))
+                    .limit(4)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error building attention zones: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private String resolveAttentionZoneSeverity(double occupancy, long pendingSeatReports, long pendingViolations) {
+        if (occupancy >= 90 || pendingSeatReports >= 3 || pendingViolations >= 2) {
+            return "critical";
+        }
+        if (occupancy >= 75 || pendingSeatReports > 0 || pendingViolations > 0) {
+            return "warning";
+        }
+        return "normal";
+    }
+
+    private String buildAttentionZoneReason(double occupancy, long pendingSeatReports, long pendingViolations) {
+        List<String> reasons = new ArrayList<>();
+        if (occupancy >= 90) {
+            reasons.add(String.format(Locale.US, "Mật độ sử dụng %.0f%%", occupancy));
+        } else if (occupancy >= 75) {
+            reasons.add(String.format(Locale.US, "Đang sử dụng %.0f%% số ghế", occupancy));
+        }
+        if (pendingSeatReports > 0) {
+            reasons.add(pendingSeatReports + " báo cáo ghế chờ xử lý");
+        }
+        if (pendingViolations > 0) {
+            reasons.add(pendingViolations + " vi phạm chưa khép lại");
+        }
+        if (reasons.isEmpty()) {
+            return "Khu vực đang cần theo dõi kỹ hơn.";
+        }
+        return String.join(" · ", reasons);
+    }
+
+    private List<DashboardStatsDTO.ActivityFeedItemDTO> getRecentActivities() {
+        try {
+            List<DashboardStatsDTO.ActivityFeedItemDTO> items = new ArrayList<>();
+
+            accessLogRepository.findRecentLogs(PageRequest.of(0, 6)).forEach(logItem -> items.add(
+                    DashboardStatsDTO.ActivityFeedItemDTO.builder()
+                            .type(resolveAccessLogType(logItem))
+                            .title(resolveAccessLogTitle(logItem))
+                            .description(resolveAccessLogDescription(logItem))
+                            .actorName(logItem.getUser() != null ? logItem.getUser().getFullName() : "Sinh viên")
+                            .actorCode(logItem.getUser() != null ? logItem.getUser().getUserCode() : null)
+                            .severity("info")
+                            .targetPath(null)
+                            .createdAt(resolveAccessLogTime(logItem))
+                            .build()));
+
+            supportRequestRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                    .limit(3)
+                    .forEach(request -> items.add(DashboardStatsDTO.ActivityFeedItemDTO.builder()
+                            .type("support")
+                            .title("Yêu cầu hỗ trợ mới")
+                            .description(truncate(request.getDescription(), 92))
+                            .actorName(request.getStudent() != null ? request.getStudent().getFullName() : "Sinh viên")
+                            .actorCode(request.getStudent() != null ? request.getStudent().getUserCode() : null)
+                            .severity("warning")
+                            .createdAt(request.getCreatedAt())
+                            .build()));
+
+            seatStatusReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                    .limit(3)
+                    .forEach(report -> items.add(DashboardStatsDTO.ActivityFeedItemDTO.builder()
+                            .type("seat-report")
+                            .title("Báo cáo tình trạng ghế")
+                            .description(String.format(
+                                    "%s tại %s",
+                                    report.getSeat() != null ? report.getSeat().getSeatCode() : "Ghế không xác định",
+                                    report.getSeat() != null && report.getSeat().getZone() != null
+                                            ? report.getSeat().getZone().getZoneName()
+                                            : "khu vực chưa rõ"))
+                            .actorName(report.getUser() != null ? report.getUser().getFullName() : "Sinh viên")
+                            .actorCode(report.getUser() != null ? report.getUser().getUserCode() : null)
+                            .severity("warning")
+                            .createdAt(report.getCreatedAt())
+                            .build()));
+
+            complaintRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                    .limit(2)
+                    .forEach(complaint -> items.add(DashboardStatsDTO.ActivityFeedItemDTO.builder()
+                            .type("complaint")
+                            .title("Khiếu nại mới")
+                            .description(truncate(complaint.getSubject(), 92))
+                            .actorName(complaint.getUser() != null ? complaint.getUser().getFullName() : "Sinh viên")
+                            .actorCode(complaint.getUser() != null ? complaint.getUser().getUserCode() : null)
+                            .severity("info")
+                            .createdAt(complaint.getCreatedAt())
+                            .build()));
+
+            violationReportRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                    .limit(2)
+                    .forEach(violation -> items.add(DashboardStatsDTO.ActivityFeedItemDTO.builder()
+                            .type("violation")
+                            .title("Vi phạm mới được ghi nhận")
+                            .description(translateViolationType(violation.getViolationType() != null
+                                    ? violation.getViolationType().name()
+                                    : "OTHER"))
+                            .actorName(violation.getViolator() != null ? violation.getViolator().getFullName() : "Sinh viên")
+                            .actorCode(violation.getViolator() != null ? violation.getViolator().getUserCode() : null)
+                            .severity("critical")
+                            .createdAt(violation.getCreatedAt())
+                            .build()));
+
+            return items.stream()
+                    .filter(item -> item.getCreatedAt() != null)
+                    .sorted(Comparator.comparing(DashboardStatsDTO.ActivityFeedItemDTO::getCreatedAt).reversed())
+                    .limit(8)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("Error building recent activities: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private String resolveAccessLogType(AccessLog accessLog) {
+        return accessLog.getCheckOutTime() != null ? "check-out" : "check-in";
+    }
+
+    private String resolveAccessLogTitle(AccessLog accessLog) {
+        return accessLog.getCheckOutTime() != null ? "Sinh viên rời thư viện" : "Sinh viên vào thư viện";
+    }
+
+    private String resolveAccessLogDescription(AccessLog accessLog) {
+        if (accessLog.getDeviceId() == null || accessLog.getDeviceId().isBlank()) {
+            return "Nhật ký ra vào vừa được ghi nhận.";
+        }
+        return "Ghi nhận từ thiết bị " + accessLog.getDeviceId() + ".";
+    }
+
+    private LocalDateTime resolveAccessLogTime(AccessLog accessLog) {
+        return accessLog.getCheckOutTime() != null ? accessLog.getCheckOutTime() : accessLog.getCheckInTime();
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.length() > maxLength ? value.substring(0, maxLength) + "..." : value;
     }
 }
