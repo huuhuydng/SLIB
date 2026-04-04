@@ -27,6 +27,7 @@ import {
   Trash2
 } from 'lucide-react';
 import hceStationService from '../../../services/admin/hceStationService';
+import { getAreas } from '../../../services/admin/area_management/api';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
@@ -61,7 +62,10 @@ const TYPE_OPTIONS = [
 const DeviceManagement = () => {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [areas, setAreas] = useState([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -114,21 +118,43 @@ const DeviceManagement = () => {
   }, []);
 
   // Fetch stations
-  const fetchStations = useCallback(async () => {
-    setLoading(true);
+  const fetchStations = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
-      const data = await hceStationService.getAllStations();
-      setStations(Array.isArray(data) ? data : []);
+      const [stationData, areasRes] = await Promise.all([
+        hceStationService.getAllStations(),
+        getAreas()
+      ]);
+      setStations(Array.isArray(stationData) ? stationData : []);
+      setAreas(Array.isArray(areasRes?.data) ? areasRes.data : []);
+      setLastUpdatedAt(new Date());
     } catch (err) {
-      showToast(err.message || 'Lỗi tải danh sách trạm quét', 'error');
-      setStations([]);
+      if (!silent) {
+        showToast(err.message || 'Lỗi tải danh sách trạm quét', 'error');
+        setStations([]);
+      }
     } finally {
-      setLoading(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [showToast]);
 
   useEffect(() => {
     fetchStations();
+  }, [fetchStations]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      fetchStations({ silent: true });
+    }, 30000);
+    return () => window.clearInterval(intervalId);
   }, [fetchStations]);
 
   // Close filter dropdown on outside click
@@ -374,8 +400,7 @@ const DeviceManagement = () => {
     setFormLoading(true);
     try {
       const payload = { ...formData };
-      if (!payload.areaId) delete payload.areaId;
-      else payload.areaId = Number(payload.areaId);
+      payload.areaId = payload.areaId ? Number(payload.areaId) : 0;
       await hceStationService.createStation(payload);
       showToast('Tạo trạm quét thành công!');
       setShowCreateModal(false);
@@ -394,8 +419,7 @@ const DeviceManagement = () => {
     setFormLoading(true);
     try {
       const payload = { ...formData };
-      if (!payload.areaId) delete payload.areaId;
-      else payload.areaId = Number(payload.areaId);
+      payload.areaId = payload.areaId ? Number(payload.areaId) : 0;
       await hceStationService.updateStation(selectedStation.id, payload);
       showToast('Cập nhật trạm quét thành công!');
       setShowEditModal(false);
@@ -550,6 +574,21 @@ const DeviceManagement = () => {
         />
       </div>
       <div className="hce-form-group">
+        <label className="hce-form-label">Khu vực</label>
+        <select
+          className="hce-form-input"
+          value={formData.areaId}
+          onChange={e => handleFormChange('areaId', e.target.value)}
+        >
+          <option value="">Chưa gán khu vực</option>
+          {areas.map(area => (
+            <option key={area.areaId} value={area.areaId}>
+              {area.areaName}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="hce-form-group">
         <label className="hce-form-label">Trạng thái</label>
         <select
           className="hce-form-input"
@@ -652,8 +691,11 @@ const DeviceManagement = () => {
             </span>
 
             <div className="cio-toolbar-right">
-              <button className="um-toolbar-btn" onClick={fetchStations} disabled={loading}>
-                <RefreshCw size={14} className={loading ? 'sm-spinner' : ''} />
+              <span className="cio-result-count" style={{ marginRight: 4, color: '#64748b' }}>
+                {lastUpdatedAt ? `Cập nhật ${lastUpdatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Chưa cập nhật'}
+              </span>
+              <button className="um-toolbar-btn" onClick={() => fetchStations()} disabled={loading}>
+                <RefreshCw size={14} className={loading || isRefreshing ? 'sm-spinner' : ''} />
                 Làm mới
               </button>
               <button className="um-toolbar-btn primary" onClick={() => { resetForm(); setShowCreateModal(true); }}>

@@ -1,5 +1,6 @@
 package slib.com.example.service.hce;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import slib.com.example.dto.hce.HceStationRequest;
@@ -14,6 +15,8 @@ import slib.com.example.repository.hce.HceDeviceRepository;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,7 +32,9 @@ public class HceStationService {
     private AccessLogRepository accessLogRepository;
 
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final int HEARTBEAT_TIMEOUT_SECONDS = 120;
+
+    @Value("${slib.hce.offline-threshold-seconds:300}")
+    private int offlineThresholdSeconds;
 
     /**
      * Lấy danh sách tất cả trạm quét với bộ lọc
@@ -54,12 +59,26 @@ public class HceStationService {
             }
         }
 
-        String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        String normalizedSearch = normalizeSearch(search);
+        LocalDateTime startOfDay = LocalDateTime.now(VIETNAM_ZONE).toLocalDate().atStartOfDay();
+        Map<String, Long> todayScanCounts = accessLogRepository.countTodayScansByDevice(startOfDay).stream()
+                .collect(Collectors.toMap(
+                        row -> String.valueOf(row[0]),
+                        row -> ((Number) row[1]).longValue()));
+        Map<String, LocalDateTime> lastAccessTimes = accessLogRepository.findLastAccessTimeByDevice().stream()
+                .filter(row -> row[0] != null && row[1] != null)
+                .collect(Collectors.toMap(
+                        row -> String.valueOf(row[0]),
+                        row -> ((java.sql.Timestamp) row[1]).toLocalDateTime()));
 
-        List<HceDeviceEntity> stations = hceDeviceRepository.findAllWithFilters(searchParam, statusEnum, typeEnum);
+        List<HceDeviceEntity> stations = hceDeviceRepository.findAllWithArea().stream()
+                .filter(station -> statusEnum == null || station.getStatus() == statusEnum)
+                .filter(station -> typeEnum == null || station.getDeviceType() == typeEnum)
+                .filter(station -> matchesSearch(station, normalizedSearch))
+                .toList();
 
         return stations.stream()
-                .map(this::toResponse)
+                .map(station -> toResponse(station, todayScanCounts, lastAccessTimes))
                 .collect(Collectors.toList());
     }
 
@@ -69,7 +88,10 @@ public class HceStationService {
     public HceStationResponse getStationById(Integer id) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
-        return toResponse(station);
+        return toResponse(
+                station,
+                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
+                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
     }
 
     /**
@@ -113,7 +135,7 @@ public class HceStationService {
 
         // Validate area if provided
         AreaEntity area = null;
-        if (request.getAreaId() != null) {
+        if (request.getAreaId() != null && request.getAreaId() > 0) {
             area = areaRepository.findById(request.getAreaId())
                     .orElseThrow(
                             () -> new RuntimeException("Khu vực với ID " + request.getAreaId() + " không tồn tại"));
@@ -172,11 +194,13 @@ public class HceStationService {
             }
         }
 
-        if (request.getAreaId() != null) {
+        if (request.getAreaId() != null && request.getAreaId() > 0) {
             AreaEntity area = areaRepository.findById(request.getAreaId())
                     .orElseThrow(
                             () -> new RuntimeException("Khu vực với ID " + request.getAreaId() + " không tồn tại"));
             station.setArea(area);
+        } else if (request.getAreaId() != null && request.getAreaId() == 0) {
+            station.setArea(null);
         }
 
         HceDeviceEntity saved = hceDeviceRepository.save(station);
@@ -263,8 +287,29 @@ public class HceStationService {
         if (station.getLastHeartbeat() == null) {
             return false;
         }
-        LocalDateTime threshold = LocalDateTime.now(VIETNAM_ZONE).minusSeconds(HEARTBEAT_TIMEOUT_SECONDS);
+        LocalDateTime threshold = LocalDateTime.now(VIETNAM_ZONE).minusSeconds(offlineThresholdSeconds);
         return station.getLastHeartbeat().isAfter(threshold);
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) {
+            return null;
+        }
+        String normalized = search.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean matchesSearch(HceDeviceEntity station, String normalizedSearch) {
+        if (normalizedSearch == null) {
+            return true;
+        }
+        return containsIgnoreCase(station.getDeviceId(), normalizedSearch)
+                || containsIgnoreCase(station.getDeviceName(), normalizedSearch)
+                || containsIgnoreCase(station.getLocation(), normalizedSearch);
+    }
+
+    private boolean containsIgnoreCase(String source, String normalizedSearch) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(normalizedSearch);
     }
 
     /**
@@ -301,7 +346,9 @@ public class HceStationService {
     /**
      * Convert entity to response DTO
      */
-    private HceStationResponse toResponse(HceDeviceEntity station) {
+    private HceStationResponse toResponse(HceDeviceEntity station,
+            Map<String, Long> todayScanCounts,
+            Map<String, LocalDateTime> lastAccessTimes) {
         return HceStationResponse.builder()
                 .id(station.getId())
                 .deviceId(station.getDeviceId())
@@ -315,8 +362,8 @@ public class HceStationService {
                 .areaName(station.getArea() != null ? station.getArea().getAreaName() : null)
                 .createdAt(station.getCreatedAt())
                 .updatedAt(station.getUpdatedAt())
-                .todayScanCount(getTodayScanCount(station.getDeviceId()))
-                .lastAccessTime(getLastAccessTime(station.getDeviceId()))
+                .todayScanCount(todayScanCounts.getOrDefault(station.getDeviceId(), 0L))
+                .lastAccessTime(lastAccessTimes.computeIfAbsent(station.getDeviceId(), this::getLastAccessTime))
                 .build();
     }
 }

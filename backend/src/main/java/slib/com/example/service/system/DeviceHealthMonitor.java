@@ -2,6 +2,7 @@ package slib.com.example.service.system;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +35,9 @@ public class DeviceHealthMonitor {
     private final SystemLogService systemLogService;
 
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-    private static final int OFFLINE_THRESHOLD_SECONDS = 300; // 5 phut
+
+    @Value("${slib.hce.offline-threshold-seconds:300}")
+    private int offlineThresholdSeconds;
 
     // Tap hop cac deviceId da gui canh bao, tranh gui trung lap
     private final Set<String> alertedDevices = ConcurrentHashMap.newKeySet();
@@ -48,7 +51,7 @@ public class DeviceHealthMonitor {
             }
 
             LocalDateTime threshold = LocalDateTime.now(VIETNAM_ZONE)
-                    .minusSeconds(OFFLINE_THRESHOLD_SECONDS);
+                    .minusSeconds(offlineThresholdSeconds);
 
             List<HceDeviceEntity> activeDevices = hceDeviceRepository
                     .findByStatus(HceDeviceEntity.DeviceStatus.ACTIVE);

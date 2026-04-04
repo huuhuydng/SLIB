@@ -21,6 +21,17 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         @Query("SELECT a FROM AccessLog a WHERE a.checkInTime >= :startOfDay")
         List<AccessLog> findLogsFromStartOfDay(@Param("startOfDay") LocalDateTime startOfDay);
 
+        @Query(value = "SELECT device_id, COUNT(*) " +
+                        "FROM access_logs " +
+                        "WHERE check_in_time >= :startOfDay " +
+                        "GROUP BY device_id", nativeQuery = true)
+        List<Object[]> countTodayScansByDevice(@Param("startOfDay") LocalDateTime startOfDay);
+
+        @Query(value = "SELECT device_id, MAX(COALESCE(check_out_time, check_in_time)) " +
+                        "FROM access_logs " +
+                        "GROUP BY device_id", nativeQuery = true)
+        List<Object[]> findLastAccessTimeByDevice();
+
         // Tìm phiên đang hoạt động (chưa quẹt thẻ ra)
         @Query("SELECT a FROM AccessLog a WHERE a.user.id = :userId AND a.checkOutTime IS NULL ORDER BY a.checkInTime DESC")
         Optional<AccessLog> checkInUser(UUID userId);
