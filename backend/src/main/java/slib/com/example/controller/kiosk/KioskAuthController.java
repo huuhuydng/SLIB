@@ -39,25 +39,25 @@ public class KioskAuthController {
     private final UserService userService;
 
     /**
-     * Kich hoat kiosk bang device token.
+     * Kích hoạt kiosk bằng token thiết bị.
      * POST /slib/kiosk/session/activate
      * Body: { "token": "eyJ..." }
      *
-     * Endpoint nay la permitAll - kiosk goi khi khoi dong de xac thuc.
+     * Endpoint này là permitAll - kiosk gọi khi khởi động để xác thực.
      */
     @PostMapping("/session/activate")
     public ResponseEntity<?> activateDevice(@RequestBody Map<String, String> request) {
         String token = request.get("token");
         if (token == null || token.isBlank()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Token khong duoc de trong"));
+            return ResponseEntity.status(401).body(Map.of("error", "Token không được để trống"));
         }
 
         KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(token);
         if (kiosk == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Token khong hop le, da het han hoac da bi thu hoi"));
+            return ResponseEntity.status(401).body(Map.of("error", "Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi"));
         }
 
-        // Cap nhat thoi gian hoat dong cuoi
+        // Cập nhật thời gian hoạt động cuối
         kioskTokenService.updateLastActive(kiosk.getId());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -67,9 +67,9 @@ public class KioskAuthController {
         response.put("kioskType", kiosk.getKioskType());
         response.put("location", kiosk.getLocation());
         response.put("isActive", kiosk.getIsActive());
-        response.put("message", "Kich hoat kiosk thanh cong");
+        response.put("message", "Kích hoạt kiosk thành công");
 
-        log.info("Kiosk {} da kich hoat thanh cong", kiosk.getKioskCode());
+        log.info("Kiosk {} đã kích hoạt thành công", kiosk.getKioskCode());
         return ResponseEntity.ok(response);
     }
 
@@ -81,7 +81,7 @@ public class KioskAuthController {
     @PreAuthorize("hasRole('KIOSK')")
     public ResponseEntity<Map<String, Object>> heartbeat(Authentication authentication) {
         if (!(authentication instanceof KioskDevicePrincipal kioskPrincipal)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Khong co quyen truy cap kiosk"));
+            return ResponseEntity.status(403).body(Map.of("error", "Không có quyền truy cập kiosk"));
         }
 
         kioskTokenService.updateLastActive(kioskPrincipal.getKioskId());
@@ -91,49 +91,49 @@ public class KioskAuthController {
                 "kioskId", kioskPrincipal.getKioskId(),
                 "kioskCode", kioskPrincipal.getKioskCode(),
                 "timestamp", LocalDateTime.now(),
-                "message", "Heartbeat thanh cong"));
+                "message", "Heartbeat thành công"));
     }
 
     /**
-     * Kich hoat kiosk bang ma kich hoat ngan (6 ky tu).
+     * Kích hoạt kiosk bằng mã kích hoạt ngắn (6 ký tự).
      * POST /slib/kiosk/session/activate-code
      * Body: { "code": "A3F9K2" }
      *
-     * Endpoint nay la permitAll - kiosk goi khi nhap ma kich hoat tren man hinh khoa.
+     * Endpoint này là permitAll - kiosk gọi khi nhập mã kích hoạt trên màn hình khóa.
      */
     @PostMapping("/session/activate-code")
     @Transactional
     public ResponseEntity<?> activateByCode(@RequestBody Map<String, String> request) {
         String code = request.get("code");
         if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Ma kich hoat khong duoc de trong"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Mã kích hoạt không được để trống"));
         }
 
-        // Tim ma kich hoat chua su dung
+        // Tìm mã kích hoạt chưa sử dụng
         KioskActivationCodeEntity activationCode = kioskActivationCodeRepository
                 .findByCodeAndUsedFalse(code.toUpperCase().trim())
                 .orElse(null);
 
         if (activationCode == null || activationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Ma kich hoat khong hop le hoac da het han"
+                    "error", "Mã kích hoạt không hợp lệ hoặc đã hết hạn"
             ));
         }
 
-        // Danh dau da su dung
+        // Đánh dấu đã sử dụng
         activationCode.setUsed(true);
         kioskActivationCodeRepository.save(activationCode);
 
-        // Xac thuc bang device token (cung logic nhu /session/activate)
+        // Xác thực bằng token thiết bị (cùng logic như /session/activate)
         String deviceToken = activationCode.getDeviceToken();
         KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(deviceToken);
         if (kiosk == null) {
             return ResponseEntity.status(401).body(Map.of(
-                    "error", "Token khong hop le, da het han hoac da bi thu hoi"
+                    "error", "Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi"
             ));
         }
 
-        // Cap nhat thoi gian hoat dong cuoi
+        // Cập nhật thời gian hoạt động cuối
         kioskTokenService.updateLastActive(kiosk.getId());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -144,9 +144,9 @@ public class KioskAuthController {
         response.put("kioskType", kiosk.getKioskType());
         response.put("location", kiosk.getLocation());
         response.put("isActive", kiosk.getIsActive());
-        response.put("message", "Kich hoat kiosk thanh cong");
+        response.put("message", "Kích hoạt kiosk thành công");
 
-        log.info("Kiosk {} da kich hoat thanh cong bang ma kich hoat {}", kiosk.getKioskCode(), code);
+        log.info("Kiosk {} đã kích hoạt thành công bằng mã kích hoạt {}", kiosk.getKioskCode(), code);
         return ResponseEntity.ok(response);
     }
 
@@ -323,7 +323,7 @@ public class KioskAuthController {
         // User JWT -> userId phai khop
         if (auth.getPrincipal() instanceof User user) {
             if (!user.getId().equals(requestedUserId)) {
-                return ResponseEntity.status(403).body(Map.of("error", "Khong co quyen truy cap tai nguyen cua nguoi dung khac"));
+                return ResponseEntity.status(403).body(Map.of("error", "Không có quyền truy cập tài nguyên của người dùng khác"));
             }
             return null;
         }
@@ -349,7 +349,7 @@ public class KioskAuthController {
         if (auth.getPrincipal() instanceof User user) {
             if (!user.getId().equals(requestedUserId)) {
                 @SuppressWarnings("unchecked")
-                Map<String, T> error = (Map<String, T>) Map.of("error", "Khong co quyen truy cap tai nguyen cua nguoi dung khac");
+                Map<String, T> error = (Map<String, T>) Map.of("error", "Không có quyền truy cập tài nguyên của người dùng khác");
                 return ResponseEntity.status(403).body(error);
             }
             return null;

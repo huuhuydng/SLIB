@@ -58,7 +58,7 @@ public class KioskTokenService {
     @Transactional
     public String generateDeviceToken(Integer kioskId, UUID issuedByUserId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi ID: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với ID: " + kioskId));
 
         if (!Boolean.TRUE.equals(kiosk.getIsActive())) {
             throw new BadRequestException("Kiosk hien dang bi vo hieu hoa, khong the tao token");
@@ -117,7 +117,7 @@ public class KioskTokenService {
             String kioskCode = claims.getSubject();
             KioskConfigEntity kiosk = kioskConfigRepository.findByKioskCode(kioskCode).orElse(null);
             if (kiosk == null) {
-                log.warn("Khong tim thay kiosk voi code: {}", kioskCode);
+                log.warn("Không tìm thấy kiosk với code: {}", kioskCode);
                 return null;
             }
 
@@ -173,7 +173,7 @@ public class KioskTokenService {
     @Transactional
     public void revokeDeviceToken(Integer kioskId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi ID: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với ID: " + kioskId));
 
         kiosk.setDeviceToken(null);
         kiosk.setDeviceTokenIssuedAt(null);

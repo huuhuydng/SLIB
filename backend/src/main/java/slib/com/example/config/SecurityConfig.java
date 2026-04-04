@@ -67,9 +67,11 @@ public class SecurityConfig {
                         .requestMatchers("/slib/new-books/public/**").permitAll()
                         .requestMatchers("/slib/new-books/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/news-categories").permitAll()
-                        // Settings public endpoints
-                        .requestMatchers("/slib/settings/library").permitAll()
-                        .requestMatchers("/slib/settings/time-slots").permitAll()
+                        // Settings read endpoints
+                        .requestMatchers(HttpMethod.GET, "/slib/settings/library").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/slib/settings/time-slots").permitAll()
+                        // Settings write endpoints
+                        .requestMatchers("/slib/settings/**").hasRole("ADMIN")
                         // Slideshow public endpoints (cho kiosk)
                         .requestMatchers("/api/slideshow/config").permitAll()
                         .requestMatchers("/api/slideshow/images").permitAll()

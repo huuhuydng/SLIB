@@ -526,7 +526,7 @@ const DeviceManagement = () => {
   const renderForm = (isEdit = false) => (
     <>
       <div className="hce-form-group">
-        <label className="hce-form-label">Mã trạm (Device ID) *</label>
+        <label className="hce-form-label">Mã trạm quét *</label>
         <input
           type="text"
           className="hce-form-input"
@@ -537,7 +537,7 @@ const DeviceManagement = () => {
         />
         <div className="hce-form-helper hce-form-helper--info">
           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>Mã trạm phải trùng với <code>SLIB_GATE_ID</code> cấu hình trên Raspberry Pi</span>
+          <span>Mã trạm phải trùng với <code>SLIB_GATE_ID</code> đã cấu hình trên thiết bị Raspberry Pi</span>
         </div>
       </div>
       <div className="hce-form-group">
@@ -557,7 +557,7 @@ const DeviceManagement = () => {
           value={formData.deviceType}
           onChange={e => handleFormChange('deviceType', e.target.value)}
         >
-          <option value="">Chọn loại trạm</option>
+          <option value="">Chọn loại trạm quét</option>
           <option value="ENTRY_GATE">Cổng vào</option>
           <option value="EXIT_GATE">Cổng ra</option>
           <option value="SEAT_READER">Đầu đọc ghế</option>
@@ -615,7 +615,7 @@ const DeviceManagement = () => {
 
       <div className="lib-container">
         <div className="lib-page-title" style={{ marginBottom: '20px' }}>
-          <h1>QUẢN LÝ TRẠM QUÉT HCE</h1>
+          <h1>QUẢN LÝ TRẠM QUÉT NFC</h1>
         </div>
 
         <div className="lib-panel">
@@ -832,7 +832,7 @@ const DeviceManagement = () => {
                   <Router size={48} className="hce-station-empty__icon" />
                   <div className="hce-station-empty__title">Chưa có trạm quét nào</div>
                   <div className="hce-station-empty__text">
-                    Nhấn "Thêm trạm quét" để đăng ký một trạm quét HCE mới
+                    Nhấn "Thêm trạm quét" để đăng ký một trạm quét mới
                   </div>
                 </div>
               ) : (
@@ -873,7 +873,7 @@ const DeviceManagement = () => {
                         <div className="hce-station-card__meta-row">
                           <Activity size={14} className="hce-station-card__meta-icon" />
                           <span className="hce-station-card__meta-text hce-station-card__meta-text--muted">
-                            Heartbeat: {formatTime(station.lastHeartbeat)}
+                            Nhịp kết nối cuối: {formatTime(station.lastHeartbeat)}
                           </span>
                         </div>
                         <div className="hce-station-card__meta-row">
@@ -1051,7 +1051,7 @@ const DeviceManagement = () => {
                   <span className="hce-detail-row__value">{selectedStation.areaName || '—'}</span>
                 </div>
                 <div className="hce-detail-row">
-                  <span className="hce-detail-row__label">Heartbeat cuối</span>
+                  <span className="hce-detail-row__label">Nhịp kết nối cuối</span>
                   <span className="hce-detail-row__value">
                     {formatTime(selectedStation.lastHeartbeat)}
                   </span>
