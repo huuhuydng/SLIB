@@ -94,6 +94,21 @@ const AIConfig = () => {
     }
   }, []);
 
+  const getErrorMessage = (error, fallback = 'Đã xảy ra lỗi') => {
+    const validationErrors = error?.response?.data?.errors;
+    if (validationErrors && typeof validationErrors === 'object') {
+      const firstValidationMessage = Object.values(validationErrors)[0];
+      if (firstValidationMessage) {
+        return firstValidationMessage;
+      }
+    }
+
+    return error?.response?.data?.message
+      || error?.response?.data?.detail
+      || error?.message
+      || fallback;
+  };
+
   const loadAllData = async () => {
     await Promise.all([checkHealth(), loadMaterials(), loadKnowledgeStores()]);
   };
@@ -180,7 +195,7 @@ const AIConfig = () => {
       setShowMaterialModal(false);
       setMaterialForm({ name: '', description: '' });
       await loadMaterials();
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể tạo nhóm tài liệu')); }
   };
 
   const handleUpdateMaterial = async () => {
@@ -188,7 +203,7 @@ const AIConfig = () => {
       await updateMaterial(editingMaterial.id, { name: editingMaterial.name, description: editingMaterial.description });
       setEditingMaterial(null);
       await loadMaterials();
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể cập nhật nhóm tài liệu')); }
   };
 
   const handleDeleteMaterial = async (id) => {
@@ -196,7 +211,7 @@ const AIConfig = () => {
     try {
       await deleteMaterial(id);
       await Promise.all([loadMaterials(), loadKnowledgeStores()]);
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể xóa nhóm tài liệu')); }
   };
 
   // Item Handlers
@@ -210,7 +225,7 @@ const AIConfig = () => {
       setShowItemModal(false);
       setItemForm({ name: '', type: 'TEXT', content: '', file: null });
       await Promise.all([loadMaterials(), loadKnowledgeStores()]);
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể thêm mục tài liệu')); }
   };
 
   const handleUpdateItem = async () => {
@@ -218,15 +233,15 @@ const AIConfig = () => {
       await updateItem(editingItem.materialId, editingItem.id, { name: editingItem.name, content: editingItem.content });
       setEditingItem(null);
       await Promise.all([loadMaterials(), loadKnowledgeStores()]);
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể cập nhật mục tài liệu')); }
   };
 
   const handleDeleteItem = async (materialId, itemId) => {
     if (!confirm('Bạn có chắc muốn xóa mục này?')) return;
     try {
       await deleteItem(materialId, itemId);
-      await Promise.all([loadMaterials(), loadKnowledgeStores(), loadRuntimeInventory()]);
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+      await Promise.all([loadMaterials(), loadKnowledgeStores()]);
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể xóa mục tài liệu')); }
   };
 
   // Knowledge Store Handlers
@@ -236,7 +251,7 @@ const AIConfig = () => {
       setShowKSModal(false);
       setKsForm({ name: '', description: '', itemIds: [] });
       await loadKnowledgeStores();
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể tạo kho tri thức')); }
   };
 
   const handleUpdateKS = async () => {
@@ -245,7 +260,7 @@ const AIConfig = () => {
       await updateKnowledgeStore(editingKS.id, { name: editingKS.name, description: editingKS.description, itemIds });
       setEditingKS(null);
       await loadKnowledgeStores();
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể cập nhật kho tri thức')); }
   };
 
   const handleDeleteKS = async (id) => {
@@ -253,7 +268,7 @@ const AIConfig = () => {
     try {
       await deleteKnowledgeStore(id);
       await loadKnowledgeStores();
-    } catch (e) { toast.error('Lỗi: ' + e.message); }
+    } catch (e) { toast.error(getErrorMessage(e, 'Không thể xóa kho tri thức')); }
   };
 
   const handleSync = async (id) => {
@@ -263,7 +278,7 @@ const AIConfig = () => {
       toast.success(`Đồng bộ thành công! Số chunks: ${res.data.chunksCreated}`);
       await loadKnowledgeStores();
     } catch (e) {
-      toast.error('Đồng bộ thất bại: ' + e.message);
+      toast.error(getErrorMessage(e, 'Đồng bộ kho tri thức thất bại'));
     } finally {
       setIsSyncing(prev => ({ ...prev, [id]: false }));
     }

@@ -46,8 +46,8 @@ public class SecurityConfig {
                         // Open WebSocket endpoints (important for realtime)
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/ws-mobile/**").permitAll()
-                        // AI Admin endpoints (cho thủ thư)
-                        .requestMatchers("/slib/ai/admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        // AI Admin endpoints (cấu hình tri thức, đồng bộ vector)
+                        .requestMatchers("/slib/ai/admin/**").hasRole("ADMIN")
                         // AI analytics endpoints are internal librarian/admin tools
                         .requestMatchers("/slib/ai/analytics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated

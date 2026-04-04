@@ -1,5 +1,7 @@
 package slib.com.example.dto.ai;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import slib.com.example.entity.ai.MaterialItemEntity;
 
@@ -14,7 +16,11 @@ public class MaterialDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MaterialRequest {
+        @NotBlank(message = "Tên nhóm tài liệu không được để trống")
+        @Size(max = 255, message = "Tên nhóm tài liệu không được vượt quá 255 ký tự")
         private String name;
+
+        @Size(max = 5000, message = "Mô tả nhóm tài liệu không được vượt quá 5000 ký tự")
         private String description;
     }
 
@@ -39,8 +45,11 @@ public class MaterialDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ItemRequest {
+        @Size(max = 255, message = "Tên mục tài liệu không được vượt quá 255 ký tự")
         private String name;
         private MaterialItemEntity.ItemType type;
+
+        @Size(max = 200000, message = "Nội dung mục tài liệu không được vượt quá 200000 ký tự")
         private String content; // For TEXT type
     }
 
