@@ -11,6 +11,9 @@ import {
   deleteSeat,
   deleteZone,
   getAreas,
+  getAreaFactories,
+  getSeats,
+  getZones,
   updateAreaFactory,
   updateSeat,
   updateZone,
@@ -51,9 +54,27 @@ function CanvasBoard() {
 
     (async () => {
       try {
-        const res = await getAreas();
-        const raw = Array.isArray(res?.data) ? res.data : [];
-        const areasNormalized = raw.map((a) => ({
+        const [areasResult, zonesResult, seatsResult, factoriesResult] = await Promise.allSettled([
+          getAreas(),
+          getZones(),
+          getSeats(),
+          getAreaFactories(),
+        ]);
+
+        const areasRaw = areasResult.status === "fulfilled" && Array.isArray(areasResult.value?.data)
+          ? areasResult.value.data
+          : [];
+        const zonesRaw = zonesResult.status === "fulfilled" && Array.isArray(zonesResult.value?.data)
+          ? zonesResult.value.data
+          : [];
+        const seatsRaw = seatsResult.status === "fulfilled" && Array.isArray(seatsResult.value?.data)
+          ? seatsResult.value.data
+          : [];
+        const factoriesRaw = factoriesResult.status === "fulfilled" && Array.isArray(factoriesResult.value?.data)
+          ? factoriesResult.value.data
+          : [];
+
+        const areasNormalized = areasRaw.map((a) => ({
           areaId: a.area_id ?? a.areaId,
           areaName: a.area_name ?? a.areaName,
           positionX: a.position_x ?? a.positionX ?? 0,
@@ -63,6 +84,53 @@ function CanvasBoard() {
           locked: a.locked ?? a.is_locked ?? false,
           isActive: a.is_active ?? a.isActive ?? true,
         }));
+        const zonesNormalized = zonesRaw.map((z) => ({
+          zoneId: z.zone_id ?? z.zoneId,
+          zoneName: z.zone_name ?? z.zoneName,
+          zoneDes: z.zone_des ?? z.zoneDes ?? "",
+          areaId: z.area_id ?? z.areaId,
+          positionX: z.position_x ?? z.positionX ?? 0,
+          positionY: z.position_y ?? z.positionY ?? 0,
+          width: z.width ?? 120,
+          height: z.height ?? 100,
+          color: z.color ?? "#9CA3AF",
+          isLocked: z.is_locked ?? z.isLocked ?? false,
+        }));
+        const seatsNormalized = seatsRaw.map((s) => ({
+          seatId: s.seat_id ?? s.seatId,
+          zoneId: s.zone_id ?? s.zoneId,
+          seatCode: s.seat_code ?? s.seatCode,
+          width: s.width ?? 30,
+          height: s.height ?? 30,
+          rowNumber: s.row_number ?? s.rowNumber,
+          columnNumber: s.column_number ?? s.columnNumber,
+          positionX: s.position_x ?? s.positionX ?? 0,
+          positionY: s.position_y ?? s.positionY ?? 0,
+          isActive: (s.is_active ?? s.isActive) ?? true,
+          nfcTagUid: s.nfc_tag_uid ?? s.nfcTagUid ?? "",
+        }));
+        const factoriesNormalized = factoriesRaw.map((f) => ({
+          factoryId: f.factory_id ?? f.factoryId,
+          factoryName: f.factory_name ?? f.factoryName,
+          positionX: f.position_x ?? f.positionX ?? 0,
+          positionY: f.position_y ?? f.positionY ?? 0,
+          width: f.width ?? 120,
+          height: f.height ?? 80,
+          color: f.color ?? "#9CA3AF",
+          areaId: f.area_id ?? f.areaId,
+          isLocked: f.is_locked ?? f.isLocked ?? false,
+        }));
+
+        dispatch({ type: actions.SET_ZONES, payload: zonesNormalized });
+        dispatch({ type: actions.SET_SEATS, payload: seatsNormalized });
+        dispatch({ type: actions.SET_FACTORIES, payload: factoriesNormalized });
+        dispatch({
+          type: actions.SET_LAYOUT_HYDRATED,
+          payload:
+            zonesResult.status === "fulfilled" &&
+            seatsResult.status === "fulfilled" &&
+            factoriesResult.status === "fulfilled",
+        });
 
         if (areasNormalized.length > 0) {
           dispatch({
@@ -79,6 +147,10 @@ function CanvasBoard() {
       } catch (err) {
         console.error("Load areas failed", err);
         dispatch({ type: actions.SET_AREAS, payload: [] });
+        dispatch({ type: actions.SET_ZONES, payload: [] });
+        dispatch({ type: actions.SET_SEATS, payload: [] });
+        dispatch({ type: actions.SET_FACTORIES, payload: [] });
+        dispatch({ type: actions.SET_LAYOUT_HYDRATED, payload: false });
       } finally {
         setIsLoadingAreas(false);
       }
@@ -358,6 +430,15 @@ function CanvasBoard() {
   const totalSeats = seats.length;
   const activeSeats = seats.filter(s => s.isActive !== false).length;
   const totalZones = zones.length;
+  const createEmptyPendingChanges = () => ({
+    newZones: [],
+    newFactories: [],
+    newSeats: [],
+    deletedZones: [],
+    deletedFactories: [],
+    deletedSeats: [],
+    updatedSeats: [],
+  });
 
   // Handle Save - batch save all changes to API
   const handleSave = async () => {
@@ -367,6 +448,8 @@ function CanvasBoard() {
 
     try {
       const { pendingChanges } = state;
+      const failures = [];
+      const remainingPendingChanges = createEmptyPendingChanges();
 
       // 1. Create new zones FIRST (pending with negative IDs)
       // Zones must be created before seats that belong to them
@@ -426,7 +509,9 @@ function CanvasBoard() {
           return { tempId: zone.zoneId, realId };
         } catch (e) {
           console.error(`Failed to create zone ${zone.zoneName}:`, e);
-          return null;
+          failures.push(`zone:${zone.zoneId}`);
+          remainingPendingChanges.newZones.push(zone);
+          return { tempId: zone.zoneId, realId: null };
         }
       });
 
@@ -486,7 +571,9 @@ function CanvasBoard() {
           return { tempId: factory.factoryId, realId };
         } catch (e) {
           console.error(`Failed to create factory ${factory.factoryName}:`, e);
-          return null;
+          failures.push(`factory:${factory.factoryId}`);
+          remainingPendingChanges.newFactories.push(factory);
+          return { tempId: factory.factoryId, realId: null };
         }
       });
 
@@ -495,99 +582,142 @@ function CanvasBoard() {
 
       // 3. Create new seats AFTER zones (so we can map pending zoneIds to real IDs)
       const newSeatPromises = (pendingChanges?.newSeats || []).map(async (seat) => {
+        const currentSeat = seats.find((item) => item.seatId === seat.seatId) || seat;
         try {
           // Map zoneId: if seat belongs to a pending zone, use the real ID
-          const realZoneId = seat.zoneId < 0 ? zoneIdMapping.get(seat.zoneId) : seat.zoneId;
+          const realZoneId = currentSeat.zoneId < 0 ? zoneIdMapping.get(currentSeat.zoneId) : currentSeat.zoneId;
 
           if (!realZoneId) {
-            console.error(`Cannot create seat ${seat.seatCode}: zoneId ${seat.zoneId} not found in mapping`);
-            return null;
+            console.error(`Cannot create seat ${currentSeat.seatCode}: zoneId ${currentSeat.zoneId} not found in mapping`);
+            failures.push(`seat:${currentSeat.seatId}`);
+            remainingPendingChanges.newSeats.push(currentSeat);
+            return { tempId: currentSeat.seatId, realId: null };
           }
 
           const res = await createSeat({
-            seatCode: seat.seatCode,
+            seatCode: currentSeat.seatCode,
             zoneId: realZoneId,  // Use mapped real zoneId
-            rowNumber: seat.rowNumber,
-            columnNumber: seat.columnNumber,
-            seatStatus: seat.seatStatus || 'AVAILABLE',
+            rowNumber: currentSeat.rowNumber,
+            columnNumber: currentSeat.columnNumber,
+            seatStatus: currentSeat.seatStatus || 'AVAILABLE',
+            isActive: currentSeat.isActive,
           });
           // Build real seat from API response
           const realSeat = {
             seatId: res.data?.seat_id ?? res.data?.seatId,
-            seatCode: res.data?.seat_code ?? res.data?.seatCode ?? seat.seatCode,
+            seatCode: res.data?.seat_code ?? res.data?.seatCode ?? currentSeat.seatCode,
             zoneId: res.data?.zone_id ?? res.data?.zoneId ?? realZoneId,
-            rowNumber: res.data?.row_number ?? res.data?.rowNumber ?? seat.rowNumber,
-            columnNumber: res.data?.column_number ?? res.data?.columnNumber ?? seat.columnNumber,
-            seatStatus: res.data?.seat_status ?? res.data?.seatStatus ?? seat.seatStatus ?? 'AVAILABLE',
+            rowNumber: res.data?.row_number ?? res.data?.rowNumber ?? currentSeat.rowNumber,
+            columnNumber: res.data?.column_number ?? res.data?.columnNumber ?? currentSeat.columnNumber,
+            seatStatus: res.data?.seat_status ?? res.data?.seatStatus ?? currentSeat.seatStatus ?? 'AVAILABLE',
+            isActive: (res.data?.is_active ?? res.data?.isActive) ?? currentSeat.isActive ?? true,
+            nfcTagUid: res.data?.nfc_tag_uid ?? res.data?.nfcTagUid ?? "",
           };
           // Replace temp seat with real seat
           dispatch({
             type: actions.REPLACE_SEAT_BY_TEMP_ID,
-            payload: { tempId: seat.seatId, realSeat },
+            payload: { tempId: currentSeat.seatId, realSeat },
           });
-          return { tempId: seat.seatId, realId: realSeat.seatId };
+          return { tempId: currentSeat.seatId, realId: realSeat.seatId };
         } catch (e) {
-          console.error(`Failed to create seat ${seat.seatCode}:`, e);
-          return null;
+          console.error(`Failed to create seat ${currentSeat.seatCode}:`, e);
+          failures.push(`seat:${currentSeat.seatId}`);
+          remainingPendingChanges.newSeats.push(currentSeat);
+          return { tempId: currentSeat.seatId, realId: null };
         }
       });
 
       // Wait for seats to be created
       await Promise.all(newSeatPromises);
 
-      // 3. Update existing zones (those with positive IDs)
+      // 4. Update existing zones (those with positive IDs)
       const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
-      const updateZonePromises = existingZones.map(zone =>
-        updateZone(zone.zoneId, {
-          zoneName: zone.zoneName,
-          positionX: Math.round(zone.positionX || 0),
-          positionY: Math.round(zone.positionY || 0),
-          width: Math.round(zone.width || 250),
-          height: Math.round(zone.height || 200),
-          color: zone.color,
-        }).catch(e => console.error(`Failed to update zone ${zone.zoneId}:`, e))
-      );
+      const updateZonePromises = existingZones.map(async (zone) => {
+        try {
+          await updateZone(zone.zoneId, {
+            zoneName: zone.zoneName,
+            positionX: Math.round(zone.positionX || 0),
+            positionY: Math.round(zone.positionY || 0),
+            width: Math.round(zone.width || 250),
+            height: Math.round(zone.height || 200),
+            color: zone.color,
+          });
+        } catch (e) {
+          console.error(`Failed to update zone ${zone.zoneId}:`, e);
+          failures.push(`zone-update:${zone.zoneId}`);
+        }
+      });
 
-      // 4. Update existing factories (those with positive IDs)
+      // 5. Update existing factories (those with positive IDs)
       const existingFactories = factories.filter(f => f.factoryId > 0 && !f.isPending);
-      const updateFactoryPromises = existingFactories.map(factory =>
-        updateAreaFactory(factory.factoryId, {
-          factoryId: factory.factoryId,
-          factoryName: factory.factoryName,
-          positionX: factory.positionX,
-          positionY: factory.positionY,
-          width: factory.width,
-          height: factory.height,
-          color: factory.color,
-          areaId: factory.areaId,
-        }).catch(e => console.error(`Failed to update factory ${factory.factoryId}:`, e))
-      );
+      const updateFactoryPromises = existingFactories.map(async (factory) => {
+        try {
+          await updateAreaFactory(factory.factoryId, {
+            factoryId: factory.factoryId,
+            factoryName: factory.factoryName,
+            positionX: factory.positionX,
+            positionY: factory.positionY,
+            width: factory.width,
+            height: factory.height,
+            color: factory.color,
+            areaId: factory.areaId,
+          });
+        } catch (e) {
+          console.error(`Failed to update factory ${factory.factoryId}:`, e);
+          failures.push(`factory-update:${factory.factoryId}`);
+        }
+      });
 
-      // 5. Delete pending deleted seats
-      const deletePromises = (pendingChanges?.deletedSeats || []).map(seatId =>
-        deleteSeat(seatId).catch(e => console.error(`Failed to delete seat ${seatId}:`, e))
-      );
+      // 6. Delete pending deleted seats
+      const deletePromises = (pendingChanges?.deletedSeats || []).map(async (seatId) => {
+        try {
+          await deleteSeat(seatId);
+        } catch (e) {
+          console.error(`Failed to delete seat ${seatId}:`, e);
+          failures.push(`seat-delete:${seatId}`);
+          remainingPendingChanges.deletedSeats.push(seatId);
+        }
+      });
 
-      // 6. Delete zones marked for deletion
-      const deleteZonePromises = (pendingChanges?.deletedZones || []).map(zoneId =>
-        deleteZone(zoneId).catch(e => console.error(`Failed to delete zone ${zoneId}:`, e))
-      );
+      // 7. Delete zones marked for deletion
+      const deleteZonePromises = (pendingChanges?.deletedZones || []).map(async (zoneId) => {
+        try {
+          await deleteZone(zoneId);
+        } catch (e) {
+          console.error(`Failed to delete zone ${zoneId}:`, e);
+          failures.push(`zone-delete:${zoneId}`);
+          remainingPendingChanges.deletedZones.push(zoneId);
+        }
+      });
 
-      // 7. Delete factories marked for deletion
-      const deleteFactoryPromises = (pendingChanges?.deletedFactories || []).map(factoryId =>
-        deleteAreaFactory(factoryId).catch(e => console.error(`Failed to delete factory ${factoryId}:`, e))
-      );
+      // 8. Delete factories marked for deletion
+      const deleteFactoryPromises = (pendingChanges?.deletedFactories || []).map(async (factoryId) => {
+        try {
+          await deleteAreaFactory(factoryId);
+        } catch (e) {
+          console.error(`Failed to delete factory ${factoryId}:`, e);
+          failures.push(`factory-delete:${factoryId}`);
+          remainingPendingChanges.deletedFactories.push(factoryId);
+        }
+      });
 
-      // 6. Update pending updated seats
-      const updateSeatPromises = (pendingChanges?.updatedSeats || []).map(seat =>
-        updateSeat(seat.seatId, {
-          seatId: seat.seatId,
-          seatCode: seat.seatCode,
-          columnNumber: seat.columnNumber,
-          positionX: seat.positionX,
-          rowNumber: seat.rowNumber,
-        }).catch(e => console.error(`Failed to update seat ${seat.seatId}:`, e))
-      );
+      // 9. Update pending updated seats
+      const updateSeatPromises = (pendingChanges?.updatedSeats || []).map(async (seat) => {
+        try {
+          await updateSeat(seat.seatId, {
+            seatId: seat.seatId,
+            zoneId: seat.zoneId,
+            seatCode: seat.seatCode,
+            columnNumber: seat.columnNumber,
+            rowNumber: seat.rowNumber,
+            isActive: seat.isActive,
+          });
+        } catch (e) {
+          console.error(`Failed to update seat ${seat.seatId}:`, e);
+          failures.push(`seat-update:${seat.seatId}`);
+          remainingPendingChanges.updatedSeats.push(seat);
+        }
+      });
 
       await Promise.all([
         ...updateZonePromises,
@@ -598,9 +728,17 @@ function CanvasBoard() {
         ...updateSeatPromises,
       ]);
 
-      // Clear position cache after successful save
-      clearAllPositionCache();
-      dispatch({ type: actions.MARK_SAVED });
+      if (failures.length === 0) {
+        clearAllPositionCache();
+        dispatch({ type: actions.MARK_SAVED });
+        toast.success("Đã lưu sơ đồ thư viện");
+        return;
+      }
+
+      dispatch({ type: actions.REPLACE_PENDING_CHANGES, payload: remainingPendingChanges });
+      dispatch({ type: actions.SET_SAVING, payload: false });
+      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+      toast.error(`Lưu chưa hoàn tất. ${failures.length} thao tác chưa ghi được.`);
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));
@@ -689,7 +827,7 @@ function CanvasBoard() {
           <span style={{ color: '#CBD5E1' }}>|</span>
           <span><strong>{totalZones}</strong> Khu vực</span>
           <span style={{ color: '#CBD5E1' }}>|</span>
-          <span><strong>{activeSeats}/{totalSeats}</strong> Ghế</span>
+          <span><strong>{activeSeats}/{totalSeats}</strong> ghế hoạt động</span>
         </div>
 
         {/* Right: Tools */}
@@ -698,6 +836,7 @@ function CanvasBoard() {
           {!isPreviewMode && (
             <button
               onClick={() => setPanMode(!panMode)}
+              aria-label={panMode ? "Tắt chế độ kéo canvas" : "Bật chế độ kéo canvas"}
               title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
               style={{
                 width: '40px',
@@ -731,6 +870,7 @@ function CanvasBoard() {
           }}>
             <button
               onClick={handleZoomOut}
+              aria-label="Thu nhỏ sơ đồ"
               title="Thu nhỏ"
               style={{
                 width: '36px',
@@ -764,6 +904,7 @@ function CanvasBoard() {
 
             <button
               onClick={handleZoomIn}
+              aria-label="Phóng to sơ đồ"
               title="Phóng to"
               style={{
                 width: '36px',
@@ -789,6 +930,7 @@ function CanvasBoard() {
           {/* Fit to View */}
           <button
             onClick={handleFitToView}
+            aria-label="Căn sơ đồ vừa màn hình"
             title="Vừa với màn hình"
             style={{
               width: '40px',
@@ -811,6 +953,7 @@ function CanvasBoard() {
           {/* Fullscreen Toggle */}
           <button
             onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
+            aria-label={state.isCanvasFullscreen ? "Thoát toàn màn hình canvas" : "Mở toàn màn hình canvas"}
             title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
             style={{
               width: '40px',

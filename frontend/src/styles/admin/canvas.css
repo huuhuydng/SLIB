@@ -93,6 +93,13 @@
   gap: 8px;
 }
 
+@media (max-width: 1200px) {
+  .canvas-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+}
+
 /* ================================
    Canvas Board
    ================================ */

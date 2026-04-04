@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "../../../config/apiConfig";
+import { getStaffAuthToken } from "../../shared/staffAuth";
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/slib`,
@@ -10,10 +11,7 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-  const token =
-    sessionStorage.getItem('librarian_token') ||
-    localStorage.getItem('librarian_token') ||
-    localStorage.getItem('kiosk_device_token');
+  const token = getStaffAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -107,6 +105,9 @@ export const deleteArea = (areaId) =>
  */
 export const getZonesByArea = (areaId) =>
   api.get(`/zones`, { params: { areaId } });
+
+export const getZones = () =>
+  api.get(`/zones`);
 
 /**
  * CREATE ZONE
@@ -240,6 +241,9 @@ export const getSeatByNfcUid = (nfcTagUid) =>
  */
 export const getAreaFactoriesByArea = (areaId) =>
   api.get(`/area_factories/area/${areaId}`);
+
+export const getAreaFactories = () =>
+  api.get(`/area_factories`);
 
 /**
  * CREATE FACTORY IN AREA

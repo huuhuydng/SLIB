@@ -6,7 +6,6 @@ import {
   updateAreaLocked,
   updateAreaIsActive,
   updateZone,
-  updateSeat,
   updateAreaFactory,
   deleteArea,
   deleteZone,
@@ -199,7 +198,6 @@ function PropertiesPanel() {
     // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
-    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
 
     // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
     const apiPayload = {
@@ -208,9 +206,11 @@ function PropertiesPanel() {
       positionY: Math.max(0, updated.positionY ?? 0),
     };
 
-    // API call in background (non-blocking)
-    updateArea(selectedData.areaId, apiPayload).catch(e => {
+    // Area changes are persisted immediately, so they should not mark the editor dirty.
+    return updateArea(selectedData.areaId, apiPayload).catch(e => {
       console.error("Failed to update area:", e);
+      dispatch({ type: actions.UPDATE_AREA, payload: selectedData });
+      toast.error("Cập nhật phòng thất bại");
     });
   };
 
@@ -225,10 +225,19 @@ function PropertiesPanel() {
 
   // Update UI immediately, wait for Save button to persist
   const handleSeatChange = (field, value) => {
-    const payload = buildSeatPayload(selectedData, { [field]: value });
+    const updatedSeat = {
+      ...selectedData,
+      [field]: value,
+    };
 
     // Update UI immediately
-    dispatch({ type: actions.UPDATE_SEAT, payload: { ...selectedData, [field]: value } });
+    dispatch({ type: actions.UPDATE_SEAT, payload: updatedSeat });
+    if (updatedSeat.seatId > 0) {
+      dispatch({
+        type: actions.ADD_PENDING_SEAT_UPDATE,
+        payload: buildSeatPayload(updatedSeat),
+      });
+    }
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
     // API call will be made when user clicks Save button
   };
@@ -1158,7 +1167,6 @@ function PropertiesPanel() {
                               type: actions.UPDATE_SEAT,
                               payload: { ...selectedData, nfcTagUid: data.uid }
                             });
-                            dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                           } catch (saveErr) {
                             setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
                           } finally {
@@ -1206,7 +1214,6 @@ function PropertiesPanel() {
                           type: actions.UPDATE_SEAT,
                           payload: { ...selectedData, nfcTagUid: null }
                         });
-                        dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                       } catch (err) {
                         setNfcError(err.response?.data?.error || 'Lỗi khi xóa NFC');
                       } finally {
@@ -1246,7 +1253,6 @@ function PropertiesPanel() {
                             type: actions.UPDATE_SEAT,
                             payload: { ...selectedData, nfcTagUid: data.uid }
                           });
-                          dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                         } catch (saveErr) {
                           setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
                         } finally {

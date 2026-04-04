@@ -75,6 +75,7 @@ public class SeatService {
                 .rowNumber(rowNumber)
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
+                .isActive(req.getIsActive() != null ? req.getIsActive() : true)
                 .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
                 .build();
 
@@ -97,6 +98,9 @@ public class SeatService {
         }
         if (req.getRowNumber() != null) {
             seat.setRowNumber(req.getRowNumber());
+        }
+        if (req.getIsActive() != null) {
+            seat.setIsActive(req.getIsActive());
         }
 
         return toResponse(seatRepository.save(seat));

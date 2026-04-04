@@ -42,6 +42,7 @@ const initialState = {
   isPreviewMode: false, // Preview mode: view-only, no editing
   hasUnsavedChanges: false,
   isSaving: false,
+  isLayoutHydrated: false,
 
   // ===== PENDING CHANGES (for batch save) =====
   pendingChanges: {
@@ -123,6 +124,7 @@ export const ACTIONS = {
   SET_UNSAVED_CHANGES: "SET_UNSAVED_CHANGES",
   SET_SAVING: "SET_SAVING",
   MARK_SAVED: "MARK_SAVED",
+  SET_LAYOUT_HYDRATED: "SET_LAYOUT_HYDRATED",
 
   // ===== PENDING CHANGES =====
   ADD_PENDING_SEAT_DELETE: "ADD_PENDING_SEAT_DELETE",
@@ -132,6 +134,7 @@ export const ACTIONS = {
   ADD_PENDING_FACTORY: "ADD_PENDING_FACTORY",
   ADD_PENDING_FACTORY_DELETE: "ADD_PENDING_FACTORY_DELETE",
   CLEAR_PENDING_CHANGES: "CLEAR_PENDING_CHANGES",
+  REPLACE_PENDING_CHANGES: "REPLACE_PENDING_CHANGES",
 
   // ===== UNDO/REDO =====
   UNDO: "UNDO",
@@ -313,6 +316,10 @@ function layoutReducer(state, action) {
         seats: state.seats.map((s) =>
           s.seatId === seatTempId ? { ...realSeat, isPending: false } : s
         ),
+        selectedItem:
+          state.selectedItem?.type === "seat" && state.selectedItem.id === seatTempId
+            ? { type: "seat", id: realSeat.seatId }
+            : state.selectedItem,
       };
 
     case ACTIONS.DELETE_SEAT:
@@ -392,6 +399,24 @@ function layoutReducer(state, action) {
         zones: state.zones.map((z) =>
           z.zoneId === zoneTempId ? { ...realZone, isPending: false } : z
         ),
+        seats: state.seats.map((s) =>
+          s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+        ),
+        selectedItem:
+          state.selectedItem?.type === "zone" && state.selectedItem.id === zoneTempId
+            ? { type: "zone", id: realZone.zoneId }
+            : state.selectedItem,
+        selectedZoneId:
+          state.selectedZoneId === zoneTempId ? realZone.zoneId : state.selectedZoneId,
+        pendingChanges: {
+          ...state.pendingChanges,
+          newSeats: state.pendingChanges.newSeats.map((s) =>
+            s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+          ),
+          updatedSeats: state.pendingChanges.updatedSeats.map((s) =>
+            s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+          ),
+        },
       };
 
     // Replace temp factory with real factory after API creation (matches by tempId)
@@ -402,6 +427,10 @@ function layoutReducer(state, action) {
         factories: state.factories.map((f) =>
           f.factoryId === factoryTempId ? { ...realFactory, isPending: false } : f
         ),
+        selectedItem:
+          state.selectedItem?.type === "factory" && state.selectedItem.id === factoryTempId
+            ? { type: "factory", id: realFactory.factoryId }
+            : state.selectedItem,
       };
 
     // ===== SELECTION =====
@@ -469,6 +498,12 @@ function layoutReducer(state, action) {
       return {
         ...state,
         isSaving: action.payload,
+      };
+
+    case ACTIONS.SET_LAYOUT_HYDRATED:
+      return {
+        ...state,
+        isLayoutHydrated: action.payload,
       };
 
     case ACTIONS.MARK_SAVED:
@@ -573,6 +608,12 @@ function layoutReducer(state, action) {
           deletedSeats: [],
           updatedSeats: [],
         },
+      };
+
+    case ACTIONS.REPLACE_PENDING_CHANGES:
+      return {
+        ...state,
+        pendingChanges: action.payload,
       };
 
     // ===== UNDO/REDO =====

@@ -6,7 +6,7 @@ import { getZonesByArea, getAreaFactoriesByArea, updateAreaPosition, updateAreaD
 import { Rnd } from 'react-rnd';
 function Area({ area }) {
   const { state, dispatch, actions } = useLayout();
-  const { zones, factories, selectedItem, canvas, isPreviewMode } = state;
+  const { zones, factories, selectedItem, canvas, isPreviewMode, isLayoutHydrated } = state;
   // Start with loading=true to prevent rendering before API data arrives
   const [loadingZones, setLoadingZones] = useState(true);
   const [loadingFactories, setLoadingFactories] = useState(true);
@@ -14,6 +14,10 @@ function Area({ area }) {
   // Load zones for this area
   useEffect(() => {
     if (!area?.areaId) return;
+    if (isLayoutHydrated) {
+      setLoadingZones(false);
+      return;
+    }
     setLoadingZones(true);
     (async () => {
       try {
@@ -45,11 +49,15 @@ function Area({ area }) {
         setLoadingZones(false);
       }
     })();
-  }, [area?.areaId]);
+  }, [area?.areaId, isLayoutHydrated]);
 
   // Load factories for this area
   useEffect(() => {
     if (!area?.areaId) return;
+    if (isLayoutHydrated) {
+      setLoadingFactories(false);
+      return;
+    }
     setLoadingFactories(true);
     (async () => {
       try {
@@ -82,7 +90,7 @@ function Area({ area }) {
         setLoadingFactories(false);
       }
     })();
-  }, [area?.areaId]);
+  }, [area?.areaId, isLayoutHydrated]);
 
   // Filter zones for this area
   const areaZones = zones.filter((z) => z.areaId === area.areaId);

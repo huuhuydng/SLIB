@@ -7,7 +7,7 @@ import { Rnd } from 'react-rnd';
 
 function ZoneSimple({ zone, area }) {
   const { state, dispatch, actions } = useLayout();
-  const { selectedItem, selectedItems, seats, canvas, isPreviewMode } = state;
+  const { selectedItem, selectedItems, seats, canvas, isPreviewMode, isLayoutHydrated } = state;
   const zoneSeats = (seats || []).filter((s) => String(s.zoneId) === String(zone.zoneId));
 
   // Check if this zone is selected (either single or multi-select)
@@ -31,6 +31,7 @@ function ZoneSimple({ zone, area }) {
   // Load seats for this zone
   useEffect(() => {
     if (!zone?.zoneId) return;
+    if (isLayoutHydrated) return;
     (async () => {
       try {
         const res = await getSeats(zone.zoneId);
@@ -49,7 +50,7 @@ function ZoneSimple({ zone, area }) {
         console.error('Failed to load seats for zone', zone.zoneId, e);
       }
     })();
-  }, [zone?.zoneId, dispatch, actions]);
+  }, [zone?.zoneId, dispatch, actions, isLayoutHydrated]);
 
   const saveTimerRef = useRef(null);
   const dragStartPos = useRef({ x: 0, y: 0 }); // Track start position for multi-select drag
