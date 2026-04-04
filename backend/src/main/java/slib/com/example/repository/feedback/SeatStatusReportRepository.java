@@ -27,4 +27,6 @@ public interface SeatStatusReportRepository extends JpaRepository<SeatStatusRepo
     long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     List<SeatStatusReportEntity> findTop5ByOrderByCreatedAtDesc();
+
+    void deleteBySeat_SeatId(Integer seatId);
 }

@@ -12,7 +12,10 @@ import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.zone_config.AreaRepository;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
+import slib.com.example.repository.zone_config.AmenityRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
+import slib.com.example.repository.feedback.SeatStatusReportRepository;
+import slib.com.example.repository.feedback.SeatViolationReportRepository;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -26,7 +29,9 @@ public class ZoneService {
     private final AreaRepository areaRepository;
     private final SeatRepository seatRepository;
     private final ReservationRepository reservationRepository;
-
+    private final AmenityRepository amenityRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
+    private final SeatViolationReportRepository seatViolationReportRepository;
     // GET zones theo areaId
     public List<ZoneResponse> getZonesByAreaId(Long areaId) {
         return zoneRepository.findByArea_AreaId(areaId)
@@ -164,12 +169,17 @@ public class ZoneService {
         // 2. Delete all reservations for each seat first
         for (SeatEntity seat : seatsInZone) {
             reservationRepository.deleteBySeat_SeatId(seat.getSeatId());
+            seatStatusReportRepository.deleteBySeat_SeatId(seat.getSeatId());
+            seatViolationReportRepository.deleteBySeat_SeatId(seat.getSeatId());
         }
 
-        // 3. Delete all seats in this zone
+        // 3. Delete all amenities in this zone
+        amenityRepository.deleteByZone_ZoneId(id);
+
+        // 4. Delete all seats in this zone
         seatRepository.deleteByZone_ZoneId(id);
 
-        // 4. Now delete the zone
+        // 5. Now delete the zone
         zoneRepository.deleteById(id);
     }
 

@@ -88,9 +88,11 @@
 /* ── Layout ── */
 .appLayout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   padding-top: 52px;
+  box-sizing: border-box;
   background-color: #f4f5f7;
+  overflow: hidden;
 }
 
 .main {
@@ -99,15 +101,16 @@
   padding: 24px;
   overflow-y: auto;
   overflow-x: hidden;
-  height: calc(100vh - 52px);
+  height: 100%;
+  min-height: 0;
 }
 
 @media (max-width: 768px) {
   .main { margin-left: 0; }
 }
 
-.main:has(.library-map-page) { padding: 0; overflow: hidden; }
-.library-map-page { height: calc(100vh - 52px); width: 100%; }
+.main:has(.library-map-page) { padding: 0; overflow: hidden; min-height: 0; }
+.library-map-page { height: 100%; min-height: 0; width: 100%; }
 
 @media (max-width: 768px) {
   .top-header { padding-left: 24px; }

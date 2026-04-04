@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
@@ -7,6 +7,7 @@ import {
   createAreaFactoryInArea,
   createSeat,
   createZone,
+  deleteArea,
   deleteAreaFactory,
   deleteSeat,
   deleteZone,
@@ -42,15 +43,14 @@ function CanvasBoard() {
 
   // ===== FIGMA-STYLE LOADING =====
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
-  const [isCanvasReady, setIsCanvasReady] = useState(false);
-
   /* =============================
      LOAD AREA FROM BACKEND
   ============================== */
   useEffect(() => {
     setIsLoadingAreas(true);
-    setIsCanvasReady(false);
     setDidAutoFit(false);
+    dispatch({ type: actions.SET_ZOOM, payload: 1 });
+    dispatch({ type: actions.SET_PAN, payload: { x: 0, y: 0 } });
 
     (async () => {
       try {
@@ -367,6 +367,8 @@ function CanvasBoard() {
   /* =============================
      FIT TO VIEW
   ============================== */
+  const isCanvasReady = !isLoadingAreas;
+
   const handleFitToView = () => {
     if (!areas.length || !boardRef.current) return;
 
@@ -384,13 +386,13 @@ function CanvasBoard() {
       maxY = Math.max(maxY, (a.positionY || 0) + (a.height || 250));
     });
 
-    const contentW = maxX - minX + 100;
-    const contentH = maxY - minY + 100;
+    const contentW = maxX - minX + 160;
+    const contentH = maxY - minY + 160;
 
     const scale = Math.min(
       boardRect.width / contentW,
       boardRect.height / contentH,
-      1
+      0.9
     );
 
     const centerX = (minX + maxX) / 2;
@@ -406,25 +408,31 @@ function CanvasBoard() {
     });
   };
 
-  // Auto fit once when areas are loaded/changed, then mark canvas as ready
-  useEffect(() => {
-    if (!didAutoFit && !isLoadingAreas && areas && areas.length > 0 && boardRef.current) {
-      // Use requestAnimationFrame to ensure DOM is ready
+  // Auto fit once when areas are loaded/changed.
+  useLayoutEffect(() => {
+    if (!isLoadingAreas && areas && areas.length === 0) return;
+
+    if (didAutoFit || isLoadingAreas || !areas?.length || !boardRef.current) return;
+
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         handleFitToView();
         setDidAutoFit(true);
 
-        // Wait a bit more for all Area components to load their zones
-        // then mark canvas as ready
-        setTimeout(() => {
-          setIsCanvasReady(true);
-        }, 300);
+        // Fit once more after the first paint to avoid stale measurements.
+        requestAnimationFrame(() => {
+          handleFitToView();
+        });
       });
-    } else if (!isLoadingAreas && areas && areas.length === 0) {
-      // No areas - still mark as ready
-      setIsCanvasReady(true);
-    }
+    });
   }, [areas, didAutoFit, isLoadingAreas]);
+
+  useEffect(() => {
+    if (!didAutoFit) return;
+    const onResize = () => handleFitToView();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [didAutoFit, areas]);
 
   // Calculate statistics
   const totalSeats = seats.length;
@@ -434,11 +442,37 @@ function CanvasBoard() {
     newZones: [],
     newFactories: [],
     newSeats: [],
+    deletedAreas: [],
     deletedZones: [],
     deletedFactories: [],
     deletedSeats: [],
     updatedSeats: [],
   });
+
+  const describeFailures = (items) => {
+    const labels = new Map([
+      ['zone', 'tạo khu vực'],
+      ['factory', 'tạo vật cản'],
+      ['seat', 'tạo ghế'],
+      ['zone-update', 'cập nhật khu vực'],
+      ['factory-update', 'cập nhật vật cản'],
+      ['seat-update', 'cập nhật ghế'],
+      ['area-delete', 'xóa phòng'],
+      ['zone-delete', 'xóa khu vực'],
+      ['factory-delete', 'xóa vật cản'],
+      ['seat-delete', 'xóa ghế'],
+    ]);
+
+    const counts = items.reduce((acc, item) => {
+      const [type] = item.split(':');
+      acc.set(type, (acc.get(type) || 0) + 1);
+      return acc;
+    }, new Map());
+
+    return [...counts.entries()]
+      .map(([type, count]) => `${labels.get(type) || type} (${count})`)
+      .join(', ');
+  };
 
   // Handle Save - batch save all changes to API
   const handleSave = async () => {
@@ -668,7 +702,18 @@ function CanvasBoard() {
         }
       });
 
-      // 6. Delete pending deleted seats
+      // 6. Delete areas marked for deletion
+      const deleteAreaPromises = (pendingChanges?.deletedAreas || []).map(async (areaId) => {
+        try {
+          await deleteArea(areaId);
+        } catch (e) {
+          console.error(`Failed to delete area ${areaId}:`, e);
+          failures.push(`area-delete:${areaId}`);
+          remainingPendingChanges.deletedAreas.push(areaId);
+        }
+      });
+
+      // 7. Delete pending deleted seats
       const deletePromises = (pendingChanges?.deletedSeats || []).map(async (seatId) => {
         try {
           await deleteSeat(seatId);
@@ -679,7 +724,7 @@ function CanvasBoard() {
         }
       });
 
-      // 7. Delete zones marked for deletion
+      // 8. Delete zones marked for deletion
       const deleteZonePromises = (pendingChanges?.deletedZones || []).map(async (zoneId) => {
         try {
           await deleteZone(zoneId);
@@ -690,7 +735,7 @@ function CanvasBoard() {
         }
       });
 
-      // 8. Delete factories marked for deletion
+      // 9. Delete factories marked for deletion
       const deleteFactoryPromises = (pendingChanges?.deletedFactories || []).map(async (factoryId) => {
         try {
           await deleteAreaFactory(factoryId);
@@ -701,7 +746,7 @@ function CanvasBoard() {
         }
       });
 
-      // 9. Update pending updated seats
+      // 10. Update pending updated seats
       const updateSeatPromises = (pendingChanges?.updatedSeats || []).map(async (seat) => {
         try {
           await updateSeat(seat.seatId, {
@@ -722,6 +767,7 @@ function CanvasBoard() {
       await Promise.all([
         ...updateZonePromises,
         ...updateFactoryPromises,
+        ...deleteAreaPromises,
         ...deletePromises,
         ...deleteZonePromises,
         ...deleteFactoryPromises,
@@ -738,7 +784,7 @@ function CanvasBoard() {
       dispatch({ type: actions.REPLACE_PENDING_CHANGES, payload: remainingPendingChanges });
       dispatch({ type: actions.SET_SAVING, payload: false });
       dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-      toast.error(`Lưu chưa hoàn tất. ${failures.length} thao tác chưa ghi được.`);
+      toast.error(`Lưu chưa hoàn tất: ${describeFailures(failures)}.`);
     } catch (error) {
       console.error('Failed to save:', error);
       toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));

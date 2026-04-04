@@ -3,10 +3,14 @@ package slib.com.example.service.users;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.ImportUserRequest;
+import slib.com.example.dto.users.AdminCreateUserRequest;
+import slib.com.example.dto.users.AdminUserListItemResponse;
 import slib.com.example.dto.users.UserProfileResponse;
+import slib.com.example.dto.users.UserListItemResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserSetting;
@@ -28,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.Locale;
 import slib.com.example.service.notification.EmailService;
 import slib.com.example.service.auth.AuthService;
 
@@ -80,8 +86,47 @@ public class UserService {
     /**
      * Get all users (admin only)
      */
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserListItemResponse> getAllUsers(Role role, Boolean isActive, String search) {
+        return findFilteredUsers(role, isActive, search).stream()
+                .map(this::toUserListItemResponse)
+                .toList();
+    }
+
+    public List<AdminUserListItemResponse> getAdminUsers(Role role, Boolean isActive, String search) {
+        return findFilteredUsers(role, isActive, search).stream()
+                .map(this::toAdminUserListItemResponse)
+                .toList();
+    }
+
+    private List<User> findFilteredUsers(Role role, Boolean isActive, String search) {
+        String normalizedSearch = normalizeSearch(search);
+
+        return userRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
+                .filter(user -> role == null || user.getRole() == role)
+                .filter(user -> isActive == null || user.getIsActive().equals(isActive))
+                .filter(user -> matchesSearch(user, normalizedSearch))
+                .toList();
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) {
+            return null;
+        }
+        String normalized = search.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean matchesSearch(User user, String normalizedSearch) {
+        if (normalizedSearch == null) {
+            return true;
+        }
+        return containsIgnoreCase(user.getFullName(), normalizedSearch)
+                || containsIgnoreCase(user.getEmail(), normalizedSearch)
+                || containsIgnoreCase(user.getUserCode(), normalizedSearch);
+    }
+
+    private boolean containsIgnoreCase(String source, String normalizedSearch) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(normalizedSearch);
     }
 
     /**
@@ -162,6 +207,47 @@ public class UserService {
      */
     public boolean existsByEmail(String email) {
         return userRepository.findByEmail(email).isPresent();
+    }
+
+    @Transactional
+    public AdminUserListItemResponse createUser(AdminCreateUserRequest request) {
+        String fullName = normalizeRequired(request.getFullName(), "Họ và tên");
+        String email = normalizeRequired(request.getEmail(), "Email").toLowerCase();
+        String userCode = normalizeRequired(request.getUserCode(), "Mã người dùng").toUpperCase();
+        String phone = normalizeOptional(request.getPhone());
+        Role role = request.getRole() != null ? request.getRole() : Role.STUDENT;
+
+        validateUniqueUserFields(email, userCode, phone, null);
+
+        User user = User.builder()
+                .userCode(userCode)
+                .username(userCode)
+                .email(email)
+                .fullName(fullName)
+                .phone(phone)
+                .dob(request.getDob())
+                .role(role)
+                .password(authService.encodeDefaultPassword())
+                .passwordChanged(false)
+                .isActive(true)
+                .build();
+
+        UserSetting setting = UserSetting.builder()
+                .user(user)
+                .isHceEnabled(true)
+                .isAiRecommendEnabled(true)
+                .isBookingRemindEnabled(true)
+                .themeMode("light")
+                .languageCode("vi")
+                .build();
+        user.setSettings(setting);
+
+        User saved = userRepository.save(user);
+        sendWelcomeEmails(List.of(Map.of(
+                "email", saved.getEmail(),
+                "fullName", saved.getFullName(),
+                "role", saved.getRole().name())));
+        return toAdminUserListItemResponse(saved);
     }
 
     /**
@@ -399,8 +485,18 @@ public class UserService {
         User existingUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + user.getId()));
 
+        validateManagedUser(user, existingUser.getId());
         ensureAdminWillRemain(existingUser, user.getIsActive(), user.getRole());
         return userRepository.save(user);
+    }
+
+    public long countActiveOrUpcomingBookings(UUID userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+        return reservationRepository.countByUser_IdAndStatusInAndEndTimeAfter(
+                userId,
+                List.of("PROCESSING", "BOOKED", "CONFIRMED"),
+                LocalDateTime.now());
     }
 
     public User getActiveStudentByUserCode(String userCode) {
@@ -443,5 +539,91 @@ public class UserService {
         if (activeAdmins <= 1) {
             throw new RuntimeException("Phải luôn còn ít nhất một quản trị viên đang hoạt động");
         }
+    }
+
+    private AdminUserListItemResponse toAdminUserListItemResponse(User user) {
+        return AdminUserListItemResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .userCode(user.getUserCode())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .isActive(user.getIsActive())
+                .avtUrl(user.getAvtUrl())
+                .passwordChanged(user.getPasswordChanged())
+                .phone(user.getPhone())
+                .dob(user.getDob())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+
+    private UserListItemResponse toUserListItemResponse(User user) {
+        return UserListItemResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .userCode(user.getUserCode())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .isActive(user.getIsActive())
+                .avtUrl(user.getAvtUrl())
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    private void validateManagedUser(User user, UUID currentUserId) {
+        String fullName = normalizeRequired(user.getFullName(), "Họ và tên");
+        String email = normalizeRequired(user.getEmail(), "Email").toLowerCase();
+        String userCode = normalizeRequired(user.getUserCode(), "Mã người dùng").toUpperCase();
+        String phone = normalizeOptional(user.getPhone());
+
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setUserCode(userCode);
+        user.setUsername(userCode);
+        user.setPhone(phone);
+
+        validateUniqueUserFields(email, userCode, phone, currentUserId);
+    }
+
+    private void validateUniqueUserFields(String email, String userCode, String phone, UUID currentUserId) {
+        boolean duplicateEmail = currentUserId == null
+                ? userRepository.existsByEmail(email)
+                : userRepository.existsByEmailAndIdNot(email, currentUserId);
+        if (duplicateEmail) {
+            throw new RuntimeException("Email đã được sử dụng");
+        }
+
+        boolean duplicateUserCode = currentUserId == null
+                ? userRepository.existsByUserCode(userCode)
+                : userRepository.existsByUserCodeAndIdNot(userCode, currentUserId);
+        if (duplicateUserCode) {
+            throw new RuntimeException("Mã người dùng đã tồn tại");
+        }
+
+        if (phone != null && !phone.isBlank()) {
+            boolean duplicatePhone = currentUserId == null
+                    ? userRepository.existsByPhone(phone)
+                    : userRepository.existsByPhoneAndIdNot(phone, currentUserId);
+            if (duplicatePhone) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
+            }
+        }
+    }
+
+    private String normalizeRequired(String value, String fieldName) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            throw new RuntimeException(fieldName + " không được để trống");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

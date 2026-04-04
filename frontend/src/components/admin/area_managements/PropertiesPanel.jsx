@@ -7,7 +7,6 @@ import {
   updateAreaIsActive,
   updateZone,
   updateAreaFactory,
-  deleteArea,
   deleteZone,
   deleteSeat,
   deleteAreaFactory,
@@ -339,49 +338,20 @@ function PropertiesPanel() {
     try {
       switch (selectedItem.type) {
         case "area":
-          // Get all zones and factories in this area
-          const areaZones = zones.filter(z => z.areaId === selectedItem.id);
-          const areaFactories = factories.filter(f => f.areaId === selectedItem.id);
-
-          // Delete all seats and zones from UI and track for batch delete
-          for (const zone of areaZones) {
-            const zoneSeats = seats.filter(s => s.zoneId === zone.zoneId);
-            for (const seat of zoneSeats) {
-              dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-              if (seat.seatId > 0) {
-                dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
-              }
-            }
-            dispatch({ type: actions.DELETE_ZONE, payload: zone.zoneId });
-            if (zone.zoneId > 0) {
-              dispatch({ type: actions.ADD_PENDING_ZONE_DELETE, payload: zone.zoneId });
-            }
-          }
-
-          // Delete all factories from UI and track for batch delete
-          for (const factory of areaFactories) {
-            dispatch({ type: actions.DELETE_FACTORY, payload: factory.factoryId });
-            if (factory.factoryId > 0) {
-              dispatch({ type: actions.ADD_PENDING_FACTORY_DELETE, payload: factory.factoryId });
-            }
-          }
-
-          // Delete area from UI - Areas are deleted immediately (they're the container)
-          await deleteArea(selectedItem.id);
           dispatch({ type: actions.DELETE_AREA, payload: selectedItem.id });
+          if (selectedItem.id > 0) {
+            dispatch({ type: actions.ADD_PENDING_AREA_DELETE, payload: selectedItem.id });
+          }
           break;
 
         case "zone":
           // Get all seats in this zone
           const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);
 
-          // Delete seats from UI and track for batch delete
+          // Delete seats from UI. Backend deleteZone() already cascades reservations + seats,
+          // so we must not enqueue seat deletes here or the batch save will race/fail.
           for (const seat of zoneSeats) {
             dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-            // Only track real seats (positive IDs) for batch delete
-            if (seat.seatId > 0) {
-              dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
-            }
           }
 
           // Delete zone from UI
@@ -531,11 +501,13 @@ function PropertiesPanel() {
       {/* Content */}
       <div style={{
         flex: 1,
+        minHeight: 0,
         overflow: 'auto',
-        padding: '16px',
+        overscrollBehavior: 'contain',
+        padding: '12px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px'
+        gap: '12px'
       }}>
         {/* ============ AREA ============ */}
         {selectedItem.type === "area" && (
@@ -544,7 +516,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -572,7 +544,7 @@ function PropertiesPanel() {
                 onBlur={() => saveAreaName()}
                 style={{
                   width: '100%',
-                  padding: '12px 14px',
+                  padding: '10px 12px',
                   borderRadius: '10px',
                   border: '2px solid #E2E8F0',
                   fontSize: '14px',
@@ -587,7 +559,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -625,7 +597,7 @@ function PropertiesPanel() {
                   }}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     borderRadius: '10px',
                     border: selectedData.locked ? '2px solid #EF4444' : '2px solid #E2E8F0',
                     backgroundColor: selectedData.locked ? '#FEE2E2' : 'white',
@@ -662,7 +634,7 @@ function PropertiesPanel() {
                   }}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     borderRadius: '10px',
                     border: selectedData.isActive ? '2px solid #22C55E' : '2px solid #EF4444',
                     backgroundColor: selectedData.isActive ? '#ECFDF5' : '#FEE2E2',
@@ -682,7 +654,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -696,25 +668,25 @@ function PropertiesPanel() {
               }}>
                 Thống kê
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{
-                  padding: '14px',
+                  padding: '10px',
                   background: '#ECFDF5',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#166534' }}>
+                  <div style={{ fontSize: '21px', fontWeight: '700', color: '#166534' }}>
                     {zones.filter(z => z.areaId === selectedItem.id).length}
                   </div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#22C55E' }}>Khu vực</div>
                 </div>
                 <div style={{
-                  padding: '14px',
+                  padding: '10px',
                   background: '#EFF6FF',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1E40AF' }}>
+                  <div style={{ fontSize: '21px', fontWeight: '700', color: '#1E40AF' }}>
                     {seats.filter(s => zones.find(z => z.areaId === selectedItem.id && z.zoneId === s.zoneId)).length}
                   </div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#3B82F6' }}>Tổng ghế</div>
@@ -1401,35 +1373,37 @@ function PropertiesPanel() {
             </div>
           </>
         )}
-      </div>
 
-      {/* Footer - Delete Button */}
-      <div style={{
-        padding: '16px',
-        borderTop: '1px solid #E2E8F0',
-        background: '#F8FAFC'
-      }}>
-        <button
-          onClick={handleDelete}
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '12px',
-            border: '2px solid #FECACA',
-            background: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
-            color: '#DC2626',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
-        </button>
+        {/* Delete Button - inside scrollable content */}
+        <div style={{
+          marginTop: '12px',
+          padding: '12px',
+          borderTop: '1px solid #E2E8F0',
+          background: '#F8FAFC',
+          borderRadius: '12px',
+        }}>
+          <button
+            onClick={handleDelete}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '12px',
+              border: '2px solid #FECACA',
+              background: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+              color: '#DC2626',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
+          </button>
+        </div>
       </div>
 
       {/* Add Amenity Modal */}
@@ -1550,7 +1524,7 @@ function PropertiesPanel() {
                 {selectedItem.type === 'area' && (() => {
                   const areaZones = zones.filter(z => z.areaId === selectedItem.id);
                   const areaSeats = seats.filter(s => areaZones.some(z => z.zoneId === s.zoneId));
-                  return `Xóa phòng sẽ xóa ${areaZones.length} khu vực và ${areaSeats.length} ghế bên trong! Thay đổi chỉ được lưu khi bấm nút Lưu.`;
+                  return `Xóa phòng sẽ xóa ${areaZones.length} khu vực và ${areaSeats.length} ghế bên trong. Thay đổi chỉ được ghi khi bấm nút Lưu.`;
                 })()}
                 {selectedItem.type === 'zone' && (() => {
                   const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);

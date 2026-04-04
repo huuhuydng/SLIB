@@ -417,7 +417,10 @@ function Area({ area }) {
           </div>
         )}
 
-        <div className="room" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div
+          className={`room ${isSelected ? 'selected' : ''}`}
+          style={{ width: '100%', height: '100%', position: 'relative' }}
+        >
           <div className="room-header" ref={headerRef}>
             <div className="room-title">
               {area.areaName || 'Unnamed Area'}

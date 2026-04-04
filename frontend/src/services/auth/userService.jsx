@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
+import { getStaffAuthToken } from '../shared/staffAuth';
 
 const API_BASE_URL = `${BASE}/slib`;
 
@@ -16,7 +17,7 @@ const axiosInstance = axios.create({
 // Request interceptor - add auth token
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('librarian_token');
+        const token = getStaffAuthToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,7 +37,7 @@ axiosInstance.interceptors.response.use(
 
         // Check for token expiry (401 Unauthorized or 403 Forbidden)
         if (error.response?.status === 401 || error.response?.status === 403) {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStaffAuthToken();
             if (token) {
                 // Try to decode and check expiry
                 try {
@@ -45,11 +46,6 @@ axiosInstance.interceptors.response.use(
 
                     if (payload.exp && payload.exp < now) {
                         console.warn('[UserService] Token hết hạn! Đăng xuất...');
-                        // Clear storage
-                        localStorage.removeItem('librarian_token');
-                        localStorage.removeItem('librarian_user');
-                        localStorage.removeItem('refresh_token');
-
                         // Redirect tới trang token-expired
                         window.location.href = '/token-expired';
                         return Promise.reject(new Error('Token expired'));
@@ -82,6 +78,24 @@ class UserService {
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] getAllUsers error:', error);
+            throw error;
+        }
+    }
+
+    async getAdminUsers(filters = {}) {
+        try {
+            const params = new URLSearchParams();
+            if (filters.role) params.append('role', filters.role);
+            if (filters.status) params.append('status', filters.status);
+            if (filters.search) params.append('search', filters.search);
+
+            const queryString = params.toString();
+            const url = queryString ? `/users/admin/list?${queryString}` : '/users/admin/list';
+
+            const response = await axiosInstance.get(url);
+            return response.data;
+        } catch (error) {
+            console.error('❌ [UserService] getAdminUsers error:', error);
             throw error;
         }
     }
@@ -307,22 +321,12 @@ class UserService {
     /**
      * Create a new librarian account
      */
-    async createLibrarian(data) {
+    async createUser(data) {
         try {
-            const userData = [{
-                userCode: data.email.split('@')[0].toUpperCase(),
-                email: data.email,
-                fullName: data.fullName,
-                role: data.role || 'LIBRARIAN',
-                phone: data.phone || null
-            }];
-            const response = await axiosInstance.post('/users/import', userData);
-            if (response.data.successCount > 0) {
-                return response.data.success[0];
-            }
-            throw new Error(response.data.failed[0]?.reason || 'Không thể tạo tài khoản');
+            const response = await axiosInstance.post('/users', data);
+            return response.data.user;
         } catch (error) {
-            console.error('❌ [UserService] createLibrarian error:', error);
+            console.error('❌ [UserService] createUser error:', error);
             throw error;
         }
     }
@@ -333,11 +337,9 @@ class UserService {
      * @param {boolean} hardDelete - If true, permanently delete (default: false)
      * @returns {Promise<{success: boolean, message: string}>}
      */
-    async deleteUser(userId, hardDelete = false) {
+    async deleteUser(userId) {
         try {
-            const response = await axiosInstance.delete(`/users/${userId}`, {
-                params: { hard: hardDelete }
-            });
+            const response = await axiosInstance.delete(`/users/${userId}`);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] deleteUser error:', error);

@@ -53,6 +53,19 @@ const STATUS_OPTIONS = [
   { value: 'locked', label: 'Đã khóa' },
 ];
 
+const getStoredStaffUserId = () => {
+  try {
+    const raw =
+      localStorage.getItem('admin_user') ||
+      sessionStorage.getItem('admin_user') ||
+      localStorage.getItem('librarian_user') ||
+      sessionStorage.getItem('librarian_user');
+    return raw ? JSON.parse(raw)?.id : null;
+  } catch {
+    return null;
+  }
+};
+
 const UserManagement = () => {
   const toast = useToast();
   const { confirm } = useConfirm();
@@ -61,9 +74,6 @@ const UserManagement = () => {
   const [error, setError] = useState(null);
 
   const [searchText, setSearchText] = useState('');
-  const [roleFilter, setRoleFilter] = useState('Tất cả');
-  const [statusFilter, setStatusFilter] = useState('Tất cả');
-
   // Sort
   const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
 
@@ -93,7 +103,6 @@ const UserManagement = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showRoleModal, setShowRoleModal] = useState(false);
   const [showLockModal, setShowLockModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -122,19 +131,37 @@ const UserManagement = () => {
   // Track uploaded avatars for cleanup on cancel
   const uploadedAvatarUrlsRef = useRef([]);
 
-  // Add librarian state
-  const [newLibrarian, setNewLibrarian] = useState({ fullName: '', email: '' });
-  const [addingLibrarian, setAddingLibrarian] = useState(false);
+  // Add user state
+  const [newUser, setNewUser] = useState({
+    fullName: '',
+    email: '',
+    userCode: '',
+    phone: '',
+    role: 'LIBRARIAN'
+  });
+  const [addingUser, setAddingUser] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Action states
   const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Fetch users
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await userService.getAllUsers();
+      const data = await userService.getAdminUsers({
+        search: debouncedSearch || undefined,
+        role: columnFilters.role || undefined,
+        status: columnFilters.status || undefined,
+      });
       setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -143,7 +170,7 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [debouncedSearch, columnFilters.role, columnFilters.status]);
 
   useEffect(() => {
     fetchUsers();
@@ -820,29 +847,35 @@ const UserManagement = () => {
     }
   };
 
-  // Handle add librarian
-  const handleAddLibrarian = async () => {
-    if (!newLibrarian.fullName || !newLibrarian.email) {
-      toast.warning('Vui lòng nhập đầy đủ thông tin');
+  // Handle add user
+  const handleAddUser = async () => {
+    if (!newUser.fullName.trim() || !newUser.email.trim() || !newUser.userCode.trim()) {
+      toast.warning('Vui lòng nhập đầy đủ họ tên, email và mã người dùng');
       return;
     }
 
     try {
-      setAddingLibrarian(true);
-      await userService.createLibrarian(newLibrarian);
+      setAddingUser(true);
+      await userService.createUser({
+        fullName: newUser.fullName.trim(),
+        email: newUser.email.trim(),
+        userCode: newUser.userCode.trim().toUpperCase(),
+        phone: newUser.phone.trim() || null,
+        role: newUser.role
+      });
       await fetchUsers();
       setShowAddModal(false);
-      setNewLibrarian({ fullName: '', email: '' });
-      toast.success('Đã tạo tài khoản thủ thư thành công!');
+      setNewUser({ fullName: '', email: '', userCode: '', phone: '', role: 'LIBRARIAN' });
+      toast.success('Đã tạo người dùng mới thành công');
     } catch (err) {
       const errMsg = err.response?.data?.error
         || err.response?.data?.message
         || (typeof err.response?.data === 'string' ? err.response.data : null)
         || err.message
         || 'Không thể tạo tài khoản';
-      toast.error('Lỗi tạo thủ thư: ' + errMsg);
+      toast.error('Lỗi tạo người dùng: ' + errMsg);
     } finally {
-      setAddingLibrarian(false);
+      setAddingUser(false);
     }
   };
 
@@ -950,7 +983,7 @@ const UserManagement = () => {
               </button>
               <button className="um-toolbar-btn primary" onClick={() => setShowAddModal(true)}>
                 <UserPlus size={14} />
-                Thêm Thủ thư
+                Thêm người dùng
               </button>
             </div>
 
@@ -1117,7 +1150,7 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* Add Librarian Modal */}
+      {/* Add User Modal */}
       {showAddModal && (
         <div style={{
           position: 'fixed',
@@ -1146,7 +1179,7 @@ const UserManagement = () => {
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Thêm Thủ thư mới</h2>
+              <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>Thêm người dùng mới</h2>
               <button onClick={() => setShowAddModal(false)} style={{
                 padding: '8px',
                 background: '#F7FAFC',
@@ -1165,8 +1198,8 @@ const UserManagement = () => {
                 <input
                   type="text"
                   placeholder="Nhập họ và tên"
-                  value={newLibrarian.fullName}
-                  onChange={(e) => setNewLibrarian({ ...newLibrarian, fullName: e.target.value })}
+                  value={newUser.fullName}
+                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1185,8 +1218,71 @@ const UserManagement = () => {
                 <input
                   type="email"
                   placeholder="email@fpt.edu.vn"
-                  value={newLibrarian.email}
-                  onChange={(e) => setNewLibrarian({ ...newLibrarian, email: e.target.value })}
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Mã người dùng
+                </label>
+                <input
+                  type="text"
+                  placeholder="VD: TT001 hoặc SE0001"
+                  value={newUser.userCode}
+                  onChange={(e) => setNewUser({ ...newUser, userCode: e.target.value.toUpperCase() })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Vai trò
+                </label>
+                <select
+                  value={newUser.role}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    background: '#fff'
+                  }}
+                >
+                  <option value="LIBRARIAN">Thủ thư</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="STUDENT">Sinh viên</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
+                  Số điện thoại
+                </label>
+                <input
+                  type="text"
+                  placeholder="Tùy chọn"
+                  value={newUser.phone}
+                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1216,7 +1312,7 @@ const UserManagement = () => {
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                 <button
                   onClick={() => setShowAddModal(false)}
-                  disabled={addingLibrarian}
+                  disabled={addingUser}
                   style={{
                     flex: 1,
                     padding: '14px',
@@ -1226,14 +1322,14 @@ const UserManagement = () => {
                     fontSize: '14px',
                     fontWeight: '600',
                     color: '#4A5568',
-                    cursor: addingLibrarian ? 'not-allowed' : 'pointer'
+                    cursor: addingUser ? 'not-allowed' : 'pointer'
                   }}
                 >
                   Hủy
                 </button>
                 <button
-                  onClick={handleAddLibrarian}
-                  disabled={addingLibrarian}
+                  onClick={handleAddUser}
+                  disabled={addingUser}
                   style={{
                     flex: 1,
                     padding: '14px',
@@ -1243,15 +1339,15 @@ const UserManagement = () => {
                     fontSize: '14px',
                     fontWeight: '600',
                     color: '#fff',
-                    cursor: addingLibrarian ? 'not-allowed' : 'pointer',
+                    cursor: addingUser ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    opacity: addingLibrarian ? 0.7 : 1
+                    opacity: addingUser ? 0.7 : 1
                   }}
                 >
-                  {addingLibrarian && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  {addingUser && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
                   Tạo tài khoản
                 </button>
               </div>
@@ -1317,6 +1413,10 @@ const UserManagement = () => {
                     borderRadius: '10px',
                     padding: '48px 24px',
                     textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     background: '#F7FAFC',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -1336,7 +1436,9 @@ const UserManagement = () => {
                         cursor: 'pointer'
                       }}
                     />
-                    <FileSpreadsheet size={48} color="#e8600a" style={{ marginBottom: '16px' }} />
+                    <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
+                      <FileSpreadsheet size={48} color="#e8600a" />
+                    </div>
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 8px' }}>
                       Kéo thả file Excel (.xlsx) hoặc Zip (.zip) vào đây
                     </p>
@@ -1370,7 +1472,17 @@ const UserManagement = () => {
                     color: '#4A5568',
                     lineHeight: '1.8'
                   }}>
-                    <strong style={{ color: '#1A1A1A', fontSize: '14px' }}>📋 Quy định file tải lên:</strong>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '4px'
+                    }}>
+                      <FileSpreadsheet size={16} color="#64748B" />
+                      <strong style={{ color: '#1A1A1A', fontSize: '14px', lineHeight: '20px' }}>
+                        Quy định file tải lên:
+                      </strong>
+                    </div>
                     <ul style={{ margin: '12px 0 0', paddingLeft: '20px' }}>
                       <li><strong>Chỉ nhập thông tin:</strong> Dùng file template .xlsx</li>
                       <li><strong>Nhập kèm ảnh đại diện (Avatar):</strong> Nén file template và toàn bộ hình ảnh vào một file .zip</li>
@@ -2232,7 +2344,7 @@ const UserManagement = () => {
           fetchUsers();
           setSelectedUser(null);
         }}
-        currentUserId={JSON.parse(localStorage.getItem('librarian_user'))?.id}
+        currentUserId={getStoredStaffUserId()}
       />
 
       <style>{`

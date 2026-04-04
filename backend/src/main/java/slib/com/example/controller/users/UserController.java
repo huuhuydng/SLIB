@@ -12,8 +12,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
 import slib.com.example.dto.users.AuthResponse;
+import slib.com.example.dto.users.AdminCreateUserRequest;
+import slib.com.example.dto.users.AdminUserListItemResponse;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
+import slib.com.example.dto.users.UserListItemResponse;
 import slib.com.example.entity.users.ImportJob;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
@@ -105,8 +108,40 @@ public class UserController {
 
     @GetMapping("/getall")
     @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public List<UserListItemResponse> getAllUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+        return userService.getAllUsers(role, parseStatus(status), search);
+    }
+
+    @GetMapping("/admin/list")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<AdminUserListItemResponse> getAdminUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+        return userService.getAdminUsers(role, parseStatus(status), search);
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createUser(
+            @RequestBody AdminCreateUserRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            AdminUserListItemResponse created = userService.createUser(request);
+            systemLogService.logAudit(
+                    "UserController",
+                    "Tạo người dùng mới: " + created.email(),
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã tạo người dùng mới",
+                    "user", created));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**
@@ -175,9 +210,7 @@ public class UserController {
             }
             if (request.containsKey("email")) {
                 String email = (String) request.get("email");
-                if (email != null && !email.trim().isEmpty()) {
-                    existingUser.setEmail(email.trim());
-                }
+                existingUser.setEmail(email != null ? email.trim() : null);
             }
             if (request.containsKey("dob")) {
                 String dobStr = (String) request.get("dob");
@@ -263,10 +296,23 @@ public class UserController {
                     null,
                     userDetails.getUsername());
             return ResponseEntity.ok(Map.of(
-                    "message", "Đã xoá user và tất cả dữ liệu liên quan thành công",
+                    "message", "Đã xóa vĩnh viễn người dùng và dữ liệu liên quan",
                     "userId", userId));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Lỗi xoá user: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{userId}/active-bookings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUserActiveBookings(@PathVariable UUID userId) {
+        try {
+            long count = userService.countActiveOrUpcomingBookings(userId);
+            return ResponseEntity.ok(Map.of(
+                    "count", count,
+                    "hasActiveBookings", count > 0));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -651,5 +697,16 @@ public class UserController {
 
             workbook.write(response.getOutputStream());
         }
+    }
+
+    private Boolean parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return switch (status.trim().toLowerCase()) {
+            case "active", "hoạt động", "hoat dong" -> true;
+            case "locked", "inactive", "đã khóa", "da khoa" -> false;
+            default -> null;
+        };
     }
 }

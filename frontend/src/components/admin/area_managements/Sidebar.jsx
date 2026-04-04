@@ -348,6 +348,14 @@ function Sidebar() {
         </p>
       </div>
 
+      {/* Scrollable Content Wrapper */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden'
+      }}>
+
       {/* Quick Actions */}
       <div style={{
         padding: '16px',
@@ -591,12 +599,10 @@ function Sidebar() {
 
       {/* Zones List */}
       <div style={{
-        padding: '16px',
-        flex: 1,
-        overflow: 'auto'
+        padding: '12px 14px'
       }}>
         <h3 style={{
-          margin: '0 0 12px 0',
+          margin: '0 0 10px 0',
           fontSize: '11px',
           fontWeight: '700',
           textTransform: 'uppercase',
@@ -629,11 +635,11 @@ function Sidebar() {
                 key={zone.zoneId}
                 onClick={() => handleSelectZone(zone.zoneId)}
                 style={{
-                  padding: '12px 14px',
-                  marginBottom: '8px',
+                  padding: '10px 12px',
+                  marginBottom: '6px',
                   borderRadius: '10px',
                   cursor: 'pointer',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: '600',
                   color: isZoneSelected(zone.zoneId) ? '#C2410C' : '#374151',
                   background: isZoneSelected(zone.zoneId)
@@ -650,8 +656,8 @@ function Sidebar() {
               >
                 <span style={{ fontWeight: '600' }}>{zone.zoneName}</span>
                 <span style={{
-                  fontSize: '11px',
-                  padding: '4px 10px',
+                  fontSize: '10px',
+                  padding: '3px 8px',
                   borderRadius: '6px',
                   background: isZoneSelected(zone.zoneId) ? '#e8600a' : '#E2E8F0',
                   color: isZoneSelected(zone.zoneId) ? 'white' : '#64748B',
@@ -691,13 +697,12 @@ function Sidebar() {
         </ul>
       </div>
 
-
-
       {/* Statistics Footer */}
       <div style={{
-        padding: '16px',
+        padding: '12px 14px',
         borderTop: '1px solid #E2E8F0',
-        background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)'
+        background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+        flexShrink: 0
       }}>
         <div style={{
           display: 'grid',
@@ -783,6 +788,8 @@ function Sidebar() {
           </div>
         </div>
       </div>
+
+      </div>{/* End Scrollable Content Wrapper */}
 
       {/* Row Selection Modal */}
       {showRowModal && (

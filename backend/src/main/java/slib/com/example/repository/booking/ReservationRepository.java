@@ -181,6 +181,11 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         long countByUserIdAndStartTimeBetweenAndStatusIn(UUID userId, LocalDateTime start, LocalDateTime end, List<String> statuses);
 
+        long countByUser_IdAndStatusInAndEndTimeAfter(
+                        UUID userId,
+                        List<String> statuses,
+                        LocalDateTime now);
+
         List<ReservationEntity> findTop1ByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
 
         List<ReservationEntity> findByUserIdAndConfirmedAtIsNotNullAndEndTimeBeforeAndStatusInOrderByEndTimeDesc(

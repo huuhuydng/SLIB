@@ -41,4 +41,6 @@ public interface SeatViolationReportRepository extends JpaRepository<SeatViolati
 
     // Statistic: tổng vi phạm trong range
     long countByCreatedAtAfter(LocalDateTime startDate);
+
+    void deleteBySeat_SeatId(Integer seatId);
 }

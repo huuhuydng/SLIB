@@ -396,7 +396,7 @@ function ZoneSimple({ zone, area }) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}>
-            Chong lap
+            Chồng lấp
           </div>
         )}
 
