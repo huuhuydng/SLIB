@@ -75,7 +75,7 @@ public class BackupService {
 
         // Build filename
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String fileName = "slib_backup_" + timestamp + ".sql";
+        String fileName = "slib_backup_" + timestamp + ".dump";
         String filePath = BACKUP_DIR + "/" + fileName;
 
         // Create history entry

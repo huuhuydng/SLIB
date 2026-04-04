@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL as API_BASE } from '../../config/apiConfig';
-import { getStaffAuthHeaders, getStaffAuthToken } from '../shared/staffAuth';
+import { getStaffAuthHeaders } from '../shared/staffAuth';
 
 const getAuthHeaders = () => getStaffAuthHeaders();
 
@@ -52,9 +52,20 @@ const systemHealthService = {
         return res.data;
     },
 
-    downloadBackup: (backupId) => {
-        const token = getStaffAuthToken();
-        window.open(`${API_BASE}/slib/system/backup/download/${backupId}?token=${token}`, '_blank');
+    downloadBackup: async (backupId, fileName = null) => {
+        const res = await axios.get(`${API_BASE}/slib/system/backup/download/${backupId}`, {
+            headers: getAuthHeaders(),
+            responseType: 'blob'
+        });
+
+        const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = fileName || `slib-backup-${backupId}.dump`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(blobUrl);
     },
 
     // =========================================
