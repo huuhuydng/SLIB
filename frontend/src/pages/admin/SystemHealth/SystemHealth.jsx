@@ -33,6 +33,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import systemHealthService from '../../../services/admin/systemHealthService';
+import './SystemHealth.css';
 
 
 const SystemHealth = () => {
@@ -256,53 +257,71 @@ const SystemHealth = () => {
     }
   };
 
+  const tabDefinitions = [
+    { id: 'overview', label: 'Giám sát', icon: Activity },
+    { id: 'logs', label: 'Nhật ký', icon: FileText },
+    { id: 'backup', label: 'Sao lưu', icon: HardDrive },
+  ];
+
+  const activeTabMeta = {
+    overview: {
+      title: 'Giám sát hệ thống',
+      description: 'Theo dõi trạng thái backend, cơ sở dữ liệu, dịch vụ AI và tài nguyên máy chủ để phát hiện sớm các dấu hiệu bất thường.',
+      chips: [
+        systemInfo?.overallStatus ? `Tổng thể: ${getServiceStatusMeta(systemInfo.overallStatus).label}` : 'Đang kiểm tra trạng thái',
+        'Làm mới tự động mỗi 30 giây',
+        'Số liệu ưu tiên cho vận hành thư viện',
+      ],
+      note: 'Tab này phản ánh tình trạng vận hành hiện tại của API, cơ sở dữ liệu, AI Service và tài nguyên máy chủ. Các chỉ số CPU/RAM/đĩa được dùng để phát hiện tải cao hoặc nguy cơ đầy bộ nhớ, đầy dung lượng.'
+    },
+    logs: {
+      title: 'Nhật ký vận hành',
+      description: 'Tra cứu lỗi, cảnh báo, tác vụ nền và hoạt động quản trị để xác định nguyên nhân sự cố và kiểm tra lịch sử thao tác.',
+      chips: [
+        `${logStats.errorsLast24h ?? 0} lỗi trong 24 giờ`,
+        `${logStats.warningsLast24h ?? 0} cảnh báo trong 24 giờ`,
+        'Tìm kiếm theo nội dung, mức độ và loại nhật ký',
+      ],
+      note: 'Nhật ký được lưu theo nhóm lỗi hệ thống, hiệu năng, tích hợp, tác vụ nền và thao tác quản trị. Dùng tab này để truy vết nguyên nhân khi có sự cố vận hành.'
+    },
+    backup: {
+      title: 'Sao lưu dữ liệu',
+      description: 'Quản lý sao lưu thủ công và lịch sao lưu tự động để đảm bảo dữ liệu thư viện có thể khôi phục khi xảy ra sự cố.',
+      chips: [
+        scheduleActive ? 'Lịch sao lưu đang bật' : 'Lịch sao lưu đang tắt',
+        `Giữ tối đa ${scheduleRetainDays} ngày`,
+        'Định dạng tệp PostgreSQL .dump',
+      ],
+      note: 'Bản sao lưu được tạo dưới định dạng PostgreSQL .dump để phục vụ khôi phục hệ thống. Nên kiểm tra định kỳ lịch sao lưu và tải thử một bản khi cần xác nhận quy trình phục hồi.'
+    }
+  }[activeTab];
+
   // =========================================
   // === RENDER ===
   // =========================================
 
   return (
     <>
-      <div style={{
-        padding: '0 24px 32px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        minHeight: 'calc(100vh - 120px)'
-      }}>
+      <div className="sh-page">
         {/* Page Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
+        <div className="sh-hero">
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
-              Giám sát hệ thống
-            </h1>
-            <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
-              Theo dõi sức khỏe và hiệu suất của SLIB
-            </p>
+            <h1 className="sh-hero__title">{activeTabMeta.title}</h1>
+            <p className="sh-hero__desc">{activeTabMeta.description}</p>
+            <div className="sh-hero__chips">
+              {activeTabMeta.chips.map((chip) => (
+                <span key={chip} className="sh-chip">{chip}</span>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="sh-hero__actions">
             <button
               onClick={() => {
                 if (activeTab === 'overview') fetchSystemInfo();
                 if (activeTab === 'logs') fetchLogs();
                 if (activeTab === 'backup') fetchBackupData();
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: 'pointer'
-              }}>
+              className="sh-refresh">
               <RefreshCw size={18} />
               Làm mới
             </button>
@@ -310,43 +329,21 @@ const SystemHealth = () => {
         </div>
 
         {/* Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '24px',
-          background: '#fff',
-          padding: '8px',
-          borderRadius: '14px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          width: 'fit-content'
-        }}>
-          {[
-            { id: 'overview', label: 'Tổng quan', icon: Activity },
-            { id: 'logs', label: 'Nhật ký hệ thống', icon: FileText },
-            { id: 'backup', label: 'Sao lưu dữ liệu', icon: HardDrive },
-          ].map((tab) => (
+        <div className="sh-tabbar">
+          {tabDefinitions.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: activeTab === tab.id ? '#e8600a' : 'transparent',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: activeTab === tab.id ? '#fff' : '#4A5568',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
+              className={`sh-tab${activeTab === tab.id ? ' sh-tab--active' : ''}`}
             >
               <tab.icon size={18} />
               {tab.label}
             </button>
           ))}
+        </div>
+
+        <div className="sh-section-note">
+          <strong>{activeTabMeta.title}:</strong> {activeTabMeta.note}
         </div>
 
         {/* ========== OVERVIEW TAB (FE-55) ========== */}
