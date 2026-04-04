@@ -346,6 +346,16 @@ public class HceStationService {
     /**
      * Convert entity to response DTO
      */
+    private HceStationResponse toResponse(HceDeviceEntity station) {
+        return toResponse(
+                station,
+                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
+                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
+    }
+
+    /**
+     * Convert entity to response DTO with preloaded aggregates
+     */
     private HceStationResponse toResponse(HceDeviceEntity station,
             Map<String, Long> todayScanCounts,
             Map<String, LocalDateTime> lastAccessTimes) {
