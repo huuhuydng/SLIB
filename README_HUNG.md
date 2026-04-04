@@ -19806,3 +19806,4653 @@ C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
 
 ## 1. Tong quan he thong
 
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
+SLIB (Smart Library) la mot he thong quan ly thu vien thong minh theo mo hinh monorepo, gom nhieu thanh phan ung dung va dich vu phoi hop dong bo. He thong cung cap cong cu quan tri thu vien, ung dung di dong cho sinh vien, dich vu AI ho tro hoi dap va leo thang ho tro, cung ha tang realtime cho thong bao va chat.
+
+Muc tieu chinh:
+- Quan tri tai nguyen thu vien, dat cho, check-in/check-out, va ho tro nguoi dung.
+- Dam bao hoat dong realtime thong qua WebSocket STOMP.
+- Tich hop tro ly AI tieng Viet voi co che leo thang ho tro.
+- Don gian hoa quy trinh van hanh va mo rong trong moi truong nhieu thiet bi.
+
+## 2. Kien truc tong the
+
+He thong chia thanh 4 khoi chinh:
+- Backend (Spring Boot 3.4, Java 21): REST API, STOMP WebSocket, xac thuc va nghiep vu chinh.
+- Frontend (React 19 + Vite 7): Cong thong tin cho thu thu va quan tri.
+- Mobile (Flutter): Ung dung cho sinh vien.
+- AI Service (FastAPI): Dich vu tro ly AI va quan ly lich su chat.
+
+Cac thanh phan ho tro:
+- PostgreSQL: co so du lieu quan he chinh.
+- MongoDB: luu lich su chat AI.
+- Qdrant: luu vector embedding cho RAG.
+- Redis: cache va realtime.
+
+## 3. Dinh danh va vai tro
+
+Vai tro he thong:
+- STUDENT: nguoi dung cuoi, su dung ung dung di dong.
+- LIBRARIAN: quan ly nghiep vu thu vien.
+- ADMIN: quan tri he thong.
+
+Quy uoc token trong web:
+- librarian_token
+- librarian_user
+
+## 4. Dinh tuyen va giao thuc
+
+- REST API base path: /slib/
+- WebSocket endpoint: /ws
+- STOMP broker prefix: /topic/*
+- STOMP app prefix: /app/*
+
+## 5. Thanh phan Backend
+
+### 5.1. Vai tro backend
+Backend la trung tam nghiep vu, xu ly:
+- Xac thuc, phan quyen, va quan ly tai khoan.
+- Quan ly dat cho, check-in/check-out, va trang thai cho ngoi.
+- Quan ly thong bao realtime.
+- Dong bo du lieu voi AI Service khi can.
+
+### 5.2. Cong nghe
+- Spring Boot 3.4
+- Java 21
+- JPA, Hibernate
+- Flyway Migration
+- STOMP WebSocket
+
+### 5.3. Tich hop
+- PostgreSQL
+- Redis
+- Cloudinary (neu co)
+- Firebase push (neu co)
+
+## 6. Thanh phan Frontend
+
+### 6.1. Vai tro frontend
+Frontend la cong quan ly thu vien, phuc vu thu thu va quan tri:
+- Quan ly dat cho, thiet bi, ghe ngoai, quy tac, thong bao.
+- Xem bao cao, lich su su dung, va thong ke.
+- Quan ly nguoi dung va vai tro.
+
+### 6.2. Cong nghe
+- React 19
+- Vite 7
+- lucide-react cho icon
+- CSS thong thuong, khong su dung Tailwind hay CSS-in-JS
+
+## 7. Thanh phan Mobile
+
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
+SLIB (Smart Library) la mot he thong quan ly thu vien thong minh theo mo hinh monorepo, gom nhieu thanh phan ung dung va dich vu phoi hop dong bo. He thong cung cap cong cu quan tri thu vien, ung dung di dong cho sinh vien, dich vu AI ho tro hoi dap va leo thang ho tro, cung ha tang realtime cho thong bao va chat.
+
+Muc tieu chinh:
+- Quan tri tai nguyen thu vien, dat cho, check-in/check-out, va ho tro nguoi dung.
+- Dam bao hoat dong realtime thong qua WebSocket STOMP.
+- Tich hop tro ly AI tieng Viet voi co che leo thang ho tro.
+- Don gian hoa quy trinh van hanh va mo rong trong moi truong nhieu thiet bi.
+
+## 2. Kien truc tong the
+
+He thong chia thanh 4 khoi chinh:
+- Backend (Spring Boot 3.4, Java 21): REST API, STOMP WebSocket, xac thuc va nghiep vu chinh.
+- Frontend (React 19 + Vite 7): Cong thong tin cho thu thu va quan tri.
+- Mobile (Flutter): Ung dung cho sinh vien.
+- AI Service (FastAPI): Dich vu tro ly AI va quan ly lich su chat.
+
+Cac thanh phan ho tro:
+- PostgreSQL: co so du lieu quan he chinh.
+- MongoDB: luu lich su chat AI.
+- Qdrant: luu vector embedding cho RAG.
+- Redis: cache va realtime.
+
+## 3. Dinh danh va vai tro
+
+Vai tro he thong:
+- STUDENT: nguoi dung cuoi, su dung ung dung di dong.
+- LIBRARIAN: quan ly nghiep vu thu vien.
+- ADMIN: quan tri he thong.
+
+Quy uoc token trong web:
+- librarian_token
+- librarian_user
+
+## 4. Dinh tuyen va giao thuc
+
+- REST API base path: /slib/
+- WebSocket endpoint: /ws
+- STOMP broker prefix: /topic/*
+- STOMP app prefix: /app/*
+
+## 5. Thanh phan Backend
+
+### 5.1. Vai tro backend
+Backend la trung tam nghiep vu, xu ly:
+- Xac thuc, phan quyen, va quan ly tai khoan.
+- Quan ly dat cho, check-in/check-out, va trang thai cho ngoi.
+- Quan ly thong bao realtime.
+- Dong bo du lieu voi AI Service khi can.
+
+### 5.2. Cong nghe
+- Spring Boot 3.4
+- Java 21
+- JPA, Hibernate
+- Flyway Migration
+- STOMP WebSocket
+
+### 5.3. Tich hop
+- PostgreSQL
+- Redis
+- Cloudinary (neu co)
+- Firebase push (neu co)
+
+## 6. Thanh phan Frontend
+
+### 6.1. Vai tro frontend
+Frontend la cong quan ly thu vien, phuc vu thu thu va quan tri:
+- Quan ly dat cho, thiet bi, ghe ngoai, quy tac, thong bao.
+- Xem bao cao, lich su su dung, va thong ke.
+- Quan ly nguoi dung va vai tro.
+
+### 6.2. Cong nghe
+- React 19
+- Vite 7
+- lucide-react cho icon
+- CSS thong thuong, khong su dung Tailwind hay CSS-in-JS
+
+## 7. Thanh phan Mobile
+
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
+SLIB (Smart Library) la mot he thong quan ly thu vien thong minh theo mo hinh monorepo, gom nhieu thanh phan ung dung va dich vu phoi hop dong bo. He thong cung cap cong cu quan tri thu vien, ung dung di dong cho sinh vien, dich vu AI ho tro hoi dap va leo thang ho tro, cung ha tang realtime cho thong bao va chat.
+
+Muc tieu chinh:
+- Quan tri tai nguyen thu vien, dat cho, check-in/check-out, va ho tro nguoi dung.
+- Dam bao hoat dong realtime thong qua WebSocket STOMP.
+- Tich hop tro ly AI tieng Viet voi co che leo thang ho tro.
+- Don gian hoa quy trinh van hanh va mo rong trong moi truong nhieu thiet bi.
+
+## 2. Kien truc tong the
+
+He thong chia thanh 4 khoi chinh:
+- Backend (Spring Boot 3.4, Java 21): REST API, STOMP WebSocket, xac thuc va nghiep vu chinh.
+- Frontend (React 19 + Vite 7): Cong thong tin cho thu thu va quan tri.
+- Mobile (Flutter): Ung dung cho sinh vien.
+- AI Service (FastAPI): Dich vu tro ly AI va quan ly lich su chat.
+
+Cac thanh phan ho tro:
+- PostgreSQL: co so du lieu quan he chinh.
+- MongoDB: luu lich su chat AI.
+- Qdrant: luu vector embedding cho RAG.
+- Redis: cache va realtime.
+
+## 3. Dinh danh va vai tro
+
+Vai tro he thong:
+- STUDENT: nguoi dung cuoi, su dung ung dung di dong.
+- LIBRARIAN: quan ly nghiep vu thu vien.
+- ADMIN: quan tri he thong.
+
+Quy uoc token trong web:
+- librarian_token
+- librarian_user
+
+## 4. Dinh tuyen va giao thuc
+
+- REST API base path: /slib/
+- WebSocket endpoint: /ws
+- STOMP broker prefix: /topic/*
+- STOMP app prefix: /app/*
+
+## 5. Thanh phan Backend
+
+### 5.1. Vai tro backend
+Backend la trung tam nghiep vu, xu ly:
+- Xac thuc, phan quyen, va quan ly tai khoan.
+- Quan ly dat cho, check-in/check-out, va trang thai cho ngoi.
+- Quan ly thong bao realtime.
+- Dong bo du lieu voi AI Service khi can.
+
+### 5.2. Cong nghe
+- Spring Boot 3.4
+- Java 21
+- JPA, Hibernate
+- Flyway Migration
+- STOMP WebSocket
+
+### 5.3. Tich hop
+- PostgreSQL
+- Redis
+- Cloudinary (neu co)
+- Firebase push (neu co)
+
+## 6. Thanh phan Frontend
+
+### 6.1. Vai tro frontend
+Frontend la cong quan ly thu vien, phuc vu thu thu va quan tri:
+- Quan ly dat cho, thiet bi, ghe ngoai, quy tac, thong bao.
+- Xem bao cao, lich su su dung, va thong ke.
+- Quan ly nguoi dung va vai tro.
+
+### 6.2. Cong nghe
+- React 19
+- Vite 7
+- lucide-react cho icon
+- CSS thong thuong, khong su dung Tailwind hay CSS-in-JS
+
+## 7. Thanh phan Mobile
+
+### 7.1. Vai tro mobile
+Ung dung di dong cho sinh vien:
+- Dat cho va quan ly cho ngoi.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat voi AI ho tro.
+
+### 7.2. Cong nghe
+- Flutter
+- Dart
+
+## 8. Thanh phan AI Service
+
+### 8.1. Vai tro AI Service
+- Ho tro hoi dap dua tren tai lieu noi bo.
+- Co che leo thang khi can nguoi that su ho tro.
+- Luu lich su chat trong MongoDB.
+- RAG voi Qdrant.
+
+### 8.2. Cong nghe
+- FastAPI
+- Python
+
+## 9. Luu trinh nghiep vu tong quan
+
+- Nguoi dung khoi tao yeu cau dat cho tu mobile.
+- Backend kiem tra trang thai cho ngoi.
+- Neu du dieu kien, cap nhat trang thai va tra ve ket qua.
+- Thong bao realtime duoc gui qua STOMP.
+- AI Service tiep nhan yeu cau chat, truy xuat tri thuc va tao phan hoi.
+
+## 10. Quy uoc trang thai
+
+Trang thai dat cho:
+- PROCESSING
+- BOOKED
+- CONFIRMED
+- COMPLETED
+- CANCELLED
+- EXPIRED
+
+Trang thai cho ngoi:
+- AVAILABLE
+- HOLDING
+- BOOKED
+- OCCUPIED
+- MAINTENANCE
+
+## 11. Quy uoc phat trien
+
+Backend:
+- Su dung ResponseEntity<?> trong controller.
+- Su dung Lombok neu da co mau.
+- Quan he JPA uu tien FetchType.LAZY.
+- Flyway migration luu trong db/migration.
+
+Frontend:
+- Theo cac prefix CSS: lib-*, cio-*, sm-*, booking-*, chat-*.
+- Tieu de trang theo phong cach hien co.
+- Van ban UI su dung tieng Viet day du dau.
+
+Mobile:
+- Giu hanh vi luu tin nhan va khoi phuc hoi thoai neu thay doi chat.
+
+AI Service:
+- Su dung logging thay vi print.
+- Giu phong cach tro ly than thien tieng Viet.
+
+## 12. Huong dan chay he thong (tong quan)
+
+Backend:
+- ./mvnw spring-boot:run
+
+Frontend:
+- npm install
+- npm run dev
+
+Mobile:
+- flutter pub get
+- flutter run
+
+AI Service:
+- uvicorn app.main:app --reload --port 8001
+
+## 13. Phu luc A: Bang thuat ngu
+
+- RAG: Retrieval Augmented Generation, ket hop truy xuat tri thuc va sinh noi dung.
+- STOMP: giao thuc thong diep tren WebSocket.
+- JWT: token xac thuc.
+- DTO: doi tuong truyen du lieu.
+- Flyway: cong cu migration CSDL.
+
+## 14. Phu luc B: Mo ta chi tiet theo vai tro
+
+### 14.1. STUDENT
+- Dat cho, huy dat, xem lich su.
+- Check-in/check-out.
+- Nhan thong bao.
+- Chat ho tro.
+
+### 14.2. LIBRARIAN
+- Quan ly dat cho, xu ly yeu cau.
+- Quan ly cho ngoi.
+- Quan ly tai nguyen va thong bao.
+- Bao cao va thong ke.
+
+### 14.3. ADMIN
+- Quan ly nguoi dung va vai tro.
+- Quan ly cau hinh he thong.
+- Giam sat va bao tri.
+
+## 15. Phu luc C: Danh muc dong mo ta he thong (chi muc mo rong)
+
+Cac dong duoi day dung de mo rong mo ta chi tiet theo tung goc nhin. Moi dong la mot muc ghim thong tin, co the dien them khi can. Danh muc nay duoc to chuc thanh nhieu nhom lap lai de dam bao do dai va tinh day du.
+
+C-0001 | Backend | API | Mo ta tong quan ve module API va cach phan tach controller.
+C-0002 | Backend | API | Cach su dung ResponseEntity<?> trong tat ca endpoint.
+C-0003 | Backend | API | Chien luoc phan quyen theo vai tro trong API.
+C-0004 | Backend | API | Quy uoc dat ten endpoint theo nghiep vu.
+C-0005 | Backend | API | Xu ly loi va thong diep loi tieu chuan.
+C-0006 | Backend | API | Cach ghi log theo luong nghiep vu.
+C-0007 | Backend | API | Quy uoc phien ban va bao toan tuong thich.
+C-0008 | Backend | API | Cach dong bo du lieu voi AI Service khi can.
+C-0009 | Backend | API | Mo ta cach su dung pagination va sort.
+C-0010 | Backend | API | Mo ta cach thong bao realtime tu backend.
+C-0011 | Backend | WebSocket | Mo ta endpoint /ws va co che STOMP.
+C-0012 | Backend | WebSocket | Quy uoc /topic/* va /app/*.
+C-0013 | Backend | WebSocket | Cach dang ky va huy dang ky subscription.
+C-0014 | Backend | WebSocket | Chien luoc phan quyen trong realtime.
+C-0015 | Backend | WebSocket | Quy uoc dinh dang payload thong bao.
+C-0016 | Backend | WebSocket | Cach xu ly disconnect va reconnect.
+C-0017 | Backend | WebSocket | Giam sat hieu nang ket noi.
+C-0018 | Backend | WebSocket | Co che heartbeat va timeout.
+C-0019 | Backend | WebSocket | Thong bao theo nhom vai tro.
+C-0020 | Backend | WebSocket | Mo ta thong bao su kien dat cho.
+C-0021 | Backend | Database | Mo ta schema PostgreSQL tong quan.
+C-0022 | Backend | Database | Quy uoc dat ten bang snake_case.
+C-0023 | Backend | Database | Quan he JPA FetchType.LAZY.
+C-0024 | Backend | Database | Quy uoc tuong thich Flyway.
+C-0025 | Backend | Database | Chien luoc index cho truy van nang.
+C-0026 | Backend | Database | Co che transaction cho thao tac ghi.
+C-0027 | Backend | Database | Mo ta audit va thoi gian cap nhat.
+C-0028 | Backend | Database | Quy uoc cascade va orphans.
+C-0029 | Backend | Database | Mo ta phan vung du lieu neu can.
+C-0030 | Backend | Database | Kiem soat tinh toan ven.
+C-0031 | Backend | Security | Mo ta luong xac thuc.
+C-0032 | Backend | Security | Mo ta JWT va thoi han.
+C-0033 | Backend | Security | Quy tac OAuth Google FPT.
+C-0034 | Backend | Security | Chien luoc lam moi token.
+C-0035 | Backend | Security | Kiem soat truy cap theo vai tro.
+C-0036 | Backend | Security | Thiet lap CORS va CSRF.
+C-0037 | Backend | Security | Gioi han tan suat (rate limit).
+C-0038 | Backend | Security | Xu ly login va logout.
+C-0039 | Backend | Security | Bao ve endpoint nhay cam.
+C-0040 | Backend | Security | Xu ly mat khau va ma hoa.
+C-0041 | Backend | Reservation | Mo ta luong dat cho.
+C-0042 | Backend | Reservation | Trang thai PROCESSING den COMPLETED.
+C-0043 | Backend | Reservation | Dieu kien dat va huy dat.
+C-0044 | Backend | Reservation | Gioi han trung lap dat cho.
+C-0045 | Backend | Reservation | Xu ly xung dot dat cho.
+C-0046 | Backend | Reservation | Cap nhat cho ngoi trong dat cho.
+C-0047 | Backend | Reservation | Thong bao realtime khi dat cho.
+C-0048 | Backend | Reservation | Quy uoc lich su va audit.
+C-0049 | Backend | Reservation | Tong hop thong ke dat cho.
+C-0050 | Backend | Reservation | Giam sat quy tac phat vi pham.
+C-0051 | Backend | Seat | Mo ta cac trang thai cho ngoi.
+C-0052 | Backend | Seat | Quy tac AVAILABLE den MAINTENANCE.
+C-0053 | Backend | Seat | Co che giu cho tam thoi.
+C-0054 | Backend | Seat | Doi cho va doi khu vuc.
+C-0055 | Backend | Seat | Kiem soat check-in/check-out.
+C-0056 | Backend | Seat | Lien ket voi lich dat cho.
+C-0057 | Backend | Seat | Cach xu ly noi cap nhat dong bo.
+C-0058 | Backend | Seat | Giam sat hieu suat su dung.
+C-0059 | Backend | Seat | Quy uoc thong bao khi co cho trong.
+C-0060 | Backend | Seat | Kiem tra bao tri va sua chua.
+C-0061 | Backend | Notification | Mo ta he thong thong bao.
+C-0062 | Backend | Notification | Phan loai thong bao theo vai tro.
+C-0063 | Backend | Notification | Tich hop Firebase neu can.
+C-0064 | Backend | Notification | Quy uoc dinh dang noi dung.
+C-0065 | Backend | Notification | Luu lich su thong bao.
+C-0066 | Backend | Notification | Co che xem va danh dau da doc.
+C-0067 | Backend | Notification | Thong bao tu he thong AI.
+C-0068 | Backend | Notification | Thong bao nhac nho check-in.
+C-0069 | Backend | Notification | Thong bao vi pham quy tac.
+C-0070 | Backend | Notification | Thong bao su kien he thong.
+C-0071 | Backend | Reporting | Bao cao tong quan.
+C-0072 | Backend | Reporting | Bao cao dat cho theo thoi gian.
+C-0073 | Backend | Reporting | Bao cao su dung cho ngoi.
+C-0074 | Backend | Reporting | Bao cao vi pham.
+C-0075 | Backend | Reporting | Bao cao tuong tac AI.
+C-0076 | Backend | Reporting | Thong ke theo vai tro.
+C-0077 | Backend | Reporting | Thong ke theo khu vuc.
+C-0078 | Backend | Reporting | Xuat bao cao va dinh dang.
+C-0079 | Backend | Reporting | Bao cao cua thu thu.
+C-0080 | Backend | Reporting | Bao cao quan tri he thong.
+C-0081 | Frontend | Layout | Cau truc tong quan App.jsx.
+C-0082 | Frontend | Layout | Quy uoc chia layout theo vai tro.
+C-0083 | Frontend | Layout | Quan ly routing va bao ve trang.
+C-0084 | Frontend | Layout | He thong sidebar va navigation.
+C-0085 | Frontend | Layout | Mieu ta header va thong bao.
+C-0086 | Frontend | Layout | Quan ly trang thai dang nhap.
+C-0087 | Frontend | Layout | Xu ly nhan du lieu realtime.
+C-0088 | Frontend | Layout | Mo ta xu ly loading va error.
+C-0089 | Frontend | Layout | Thiet ke trang danh rieng.
+C-0090 | Frontend | Layout | Nhung quy uoc truy cap.
+C-0091 | Frontend | Style | Quy uoc CSS prefix.
+C-0092 | Frontend | Style | He thong mau sac va font.
+C-0093 | Frontend | Style | Nguyen tac responsive.
+C-0094 | Frontend | Style | Quy uoc dat ten class.
+C-0095 | Frontend | Style | Chia file CSS theo chuc nang.
+C-0096 | Frontend | Style | Trang thai hover va focus.
+C-0097 | Frontend | Style | Tieu de trang va heading.
+C-0098 | Frontend | Style | Hieu ung can co y nghia.
+C-0099 | Frontend | Style | Bo cuc trang danh sach.
+C-0100 | Frontend | Style | Bo cuc trang chi tiet.
+C-0101 | Frontend | Auth | Luong dang nhap.
+C-0102 | Frontend | Auth | Luu token librarian_token.
+C-0103 | Frontend | Auth | Luu thong tin librarian_user.
+C-0104 | Frontend | Auth | Xu ly logout va het han.
+C-0105 | Frontend | Auth | Bao ve route theo vai tro.
+C-0106 | Frontend | Auth | Hien thi thong bao loi.
+C-0107 | Frontend | Auth | Hien thi thong bao thanh cong.
+C-0108 | Frontend | Auth | Xu ly ghi nho dang nhap.
+C-0109 | Frontend | Auth | Xu ly doi mat khau.
+C-0110 | Frontend | Auth | Quy uoc thong bao canh bao.
+C-0111 | Frontend | Reservation | Trang danh sach dat cho.
+C-0112 | Frontend | Reservation | Trang chi tiet dat cho.
+C-0113 | Frontend | Reservation | Bo loc trang thai.
+C-0114 | Frontend | Reservation | Tim kiem va sap xep.
+C-0115 | Frontend | Reservation | Xu ly cap nhat trang thai.
+C-0116 | Frontend | Reservation | Hien thi thoi gian dat.
+C-0117 | Frontend | Reservation | Hien thi thong bao realtime.
+C-0118 | Frontend | Reservation | Xu ly huy dat cho.
+C-0119 | Frontend | Reservation | Xu ly xac nhan dat cho.
+C-0120 | Frontend | Reservation | Truy cap thong ke dat cho.
+C-0121 | Frontend | Seat | Danh sach cho ngoi.
+C-0122 | Frontend | Seat | Chi tiet cho ngoi.
+C-0123 | Frontend | Seat | Quan ly khu vuc cho ngoi.
+C-0124 | Frontend | Seat | Cap nhat trang thai cho ngoi.
+C-0125 | Frontend | Seat | Thiet lap quy tac cho ngoi.
+C-0126 | Frontend | Seat | Hien thi so do cho ngoi.
+C-0127 | Frontend | Seat | Giao tiep realtime.
+C-0128 | Frontend | Seat | Xu ly bao tri.
+C-0129 | Frontend | Seat | Nhat ky su kien.
+C-0130 | Frontend | Seat | Bao cao su dung.
+C-0131 | Frontend | Notification | Danh sach thong bao.
+C-0132 | Frontend | Notification | Chi tiet thong bao.
+C-0133 | Frontend | Notification | Danh dau da doc.
+C-0134 | Frontend | Notification | Loc theo loai.
+C-0135 | Frontend | Notification | Thong bao realtime.
+C-0136 | Frontend | Notification | Xu ly thong bao he thong.
+C-0137 | Frontend | Notification | Xu ly thong bao dat cho.
+C-0138 | Frontend | Notification | Xu ly thong bao vi pham.
+C-0139 | Frontend | Notification | Cua so thong bao nhanh.
+C-0140 | Frontend | Notification | Bao cao thong bao.
+C-0141 | Frontend | Reporting | Trang tong quan bao cao.
+C-0142 | Frontend | Reporting | Bao cao dat cho.
+C-0143 | Frontend | Reporting | Bao cao cho ngoi.
+C-0144 | Frontend | Reporting | Bao cao tuong tac AI.
+C-0145 | Frontend | Reporting | Xuat file bao cao.
+C-0146 | Frontend | Reporting | Loc theo thoi gian.
+C-0147 | Frontend | Reporting | Loc theo khu vuc.
+C-0148 | Frontend | Reporting | Loc theo vai tro.
+C-0149 | Frontend | Reporting | Bieu do va thong ke.
+C-0150 | Frontend | Reporting | Luu bo loc ua thich.
+C-0151 | Mobile | Auth | Dang nhap va quan ly phien.
+C-0152 | Mobile | Auth | Luu token va thong tin nguoi dung.
+C-0153 | Mobile | Auth | Xu ly het han phien.
+C-0154 | Mobile | Auth | Bao mat thong tin ca nhan.
+C-0155 | Mobile | Auth | Quy uoc thong bao dang nhap.
+C-0156 | Mobile | Auth | Su dung UI than thien.
+C-0157 | Mobile | Auth | Xac thuc voi FPT email.
+C-0158 | Mobile | Auth | Dang xuat va xoa du lieu.
+C-0159 | Mobile | Auth | Dieu huong sau dang nhap.
+C-0160 | Mobile | Auth | Quan ly thong tin ca nhan.
+C-0161 | Mobile | Reservation | Dat cho moi.
+C-0162 | Mobile | Reservation | Lich su dat cho.
+C-0163 | Mobile | Reservation | Huy dat cho.
+C-0164 | Mobile | Reservation | Xem thong tin chi tiet.
+C-0165 | Mobile | Reservation | Kiem tra trang thai.
+C-0166 | Mobile | Reservation | Nhac nho check-in.
+C-0167 | Mobile | Reservation | Thong bao realtime.
+C-0168 | Mobile | Reservation | Kiem tra quy tac vi pham.
+C-0169 | Mobile | Reservation | Thong bao khi het han.
+C-0170 | Mobile | Reservation | Kiem tra khu vuc.
+C-0171 | Mobile | Seat | Xem trang thai cho ngoi.
+C-0172 | Mobile | Seat | Chon cho ngoi.
+C-0173 | Mobile | Seat | Check-in/check-out.
+C-0174 | Mobile | Seat | Xu ly loi check-in.
+C-0175 | Mobile | Seat | Thong bao doi cho.
+C-0176 | Mobile | Seat | Huong dan su dung.
+C-0177 | Mobile | Seat | Hien thi so do.
+C-0178 | Mobile | Seat | Bao tri va thong bao.
+C-0179 | Mobile | Seat | Lich su su dung.
+C-0180 | Mobile | Seat | Quy uoc van hanh.
+C-0181 | Mobile | Chat | Chat voi AI.
+C-0182 | Mobile | Chat | Luu lich su chat.
+C-0183 | Mobile | Chat | Khoi phuc hoi thoai.
+C-0184 | Mobile | Chat | Leo thang ho tro.
+C-0185 | Mobile | Chat | Danh dau yeu cau khan.
+C-0186 | Mobile | Chat | Dinh dang tin nhan.
+C-0187 | Mobile | Chat | Hien thi typing.
+C-0188 | Mobile | Chat | Xu ly loi ket noi.
+C-0189 | Mobile | Chat | Thong bao tu he thong.
+C-0190 | Mobile | Chat | Thong bao tu thu thu.
+C-0191 | AI Service | Chat | Co che RAG.
+C-0192 | AI Service | Chat | Truy xuat tri thuc tu Qdrant.
+C-0193 | AI Service | Chat | Luu lich su trong MongoDB.
+C-0194 | AI Service | Chat | Gioi han ngu canh.
+C-0195 | AI Service | Chat | Xu ly leo thang ho tro.
+C-0196 | AI Service | Chat | Hanh vi chatbot than thien.
+C-0197 | AI Service | Chat | Quan ly prompt.
+C-0198 | AI Service | Chat | Logging va giam sat.
+C-0199 | AI Service | Chat | Tich hop endpoint /api/ai/.
+C-0200 | AI Service | Chat | Tuong thich endpoint cu neu can.
+C-0201 | AI Service | Escalation | Dieu kien leo thang.
+C-0202 | AI Service | Escalation | Thong bao toi backend.
+C-0203 | AI Service | Escalation | Luu su kien leo thang.
+C-0204 | AI Service | Escalation | Tu dong tao ticket ho tro.
+C-0205 | AI Service | Escalation | Thong bao toi thu thu.
+C-0206 | AI Service | Escalation | Ket thuc ho tro.
+C-0207 | AI Service | Escalation | Tinh huong khan cap.
+C-0208 | AI Service | Escalation | Theo doi trang thai.
+C-0209 | AI Service | Escalation | Bao cao leo thang.
+C-0210 | AI Service | Escalation | Giam sat do chinh xac.
+C-0211 | AI Service | Knowledge | Quan ly kho tri thuc.
+C-0212 | AI Service | Knowledge | Cap nhat tai lieu.
+C-0213 | AI Service | Knowledge | Chuan hoa noi dung.
+C-0214 | AI Service | Knowledge | Dinh dang markdown.
+C-0215 | AI Service | Knowledge | Them chu de moi.
+C-0216 | AI Service | Knowledge | Xoa chu de cu.
+C-0217 | AI Service | Knowledge | Dong bo embedding.
+C-0218 | AI Service | Knowledge | Kiem thu chat khi cap nhat.
+C-0219 | AI Service | Knowledge | Bao tri thu vien tri thuc.
+C-0220 | AI Service | Knowledge | Quy trinh phe duyet.
+C-0221 | Infra | Docker | Cac service chinh trong docker-compose.
+C-0222 | Infra | Docker | Quy uoc bien moi truong.
+C-0223 | Infra | Docker | Khoi tao DB va luu tru.
+C-0224 | Infra | Docker | Port map va firewall.
+C-0225 | Infra | Docker | Healthcheck va restart.
+C-0226 | Infra | Docker | Giam sat log container.
+C-0227 | Infra | Docker | Backup volume.
+C-0228 | Infra | Docker | Nang cap phien ban an toan.
+C-0229 | Infra | Docker | Rollback khi loi.
+C-0230 | Infra | Docker | Mo ta luong deploy.
+C-0231 | Infra | Monitoring | Giam sat hieu nang.
+C-0232 | Infra | Monitoring | Canh bao su co.
+C-0233 | Infra | Monitoring | Theo doi CPU va RAM.
+C-0234 | Infra | Monitoring | Theo doi latency.
+C-0235 | Infra | Monitoring | Theo doi loi application.
+C-0236 | Infra | Monitoring | Theo doi chat AI.
+C-0237 | Infra | Monitoring | Theo doi hang doi thong bao.
+C-0238 | Infra | Monitoring | Bao cao hieu suat.
+C-0239 | Infra | Monitoring | Cac chi so quan trong.
+C-0240 | Infra | Monitoring | Quy trinh su co.
+C-0241 | Security | General | Chinh sach bao mat tong the.
+C-0242 | Security | General | Ma hoa du lieu nhay cam.
+C-0243 | Security | General | Chinh sach truy cap.
+C-0244 | Security | General | Quy trinh cap thu hoi quyen.
+C-0245 | Security | General | Danh gia rui ro.
+C-0246 | Security | General | Bao tri phien ban thu vien.
+C-0247 | Security | General | Kiem toan bao mat.
+C-0248 | Security | General | Quy trinh xu ly su co.
+C-0249 | Security | General | Sao luu va khoi phuc.
+C-0250 | Security | General | Chinh sach luu tru log.
+C-0251 | QA | Checklist | Kiem tra dang nhap thanh cong.
+C-0252 | QA | Checklist | Kiem tra dang nhap that bai.
+C-0253 | QA | Checklist | Kiem tra het han token.
+C-0254 | QA | Checklist | Kiem tra refresh token.
+C-0255 | QA | Checklist | Kiem tra phan quyen.
+C-0256 | QA | Checklist | Kiem tra dat cho thanh cong.
+C-0257 | QA | Checklist | Kiem tra dat cho khi het cho.
+C-0258 | QA | Checklist | Kiem tra huy dat cho.
+C-0259 | QA | Checklist | Kiem tra thong bao realtime.
+C-0260 | QA | Checklist | Kiem tra check-in thanh cong.
+C-0261 | QA | Checklist | Kiem tra check-out thanh cong.
+C-0262 | QA | Checklist | Kiem tra check-in tre.
+C-0263 | QA | Checklist | Kiem tra check-out tre.
+C-0264 | QA | Checklist | Kiem tra trang thai cho ngoi.
+C-0265 | QA | Checklist | Kiem tra bao tri cho ngoi.
+C-0266 | QA | Checklist | Kiem tra thong bao vi pham.
+C-0267 | QA | Checklist | Kiem tra bao cao dat cho.
+C-0268 | QA | Checklist | Kiem tra bao cao cho ngoi.
+C-0269 | QA | Checklist | Kiem tra bao cao AI.
+C-0270 | QA | Checklist | Kiem tra thong bao he thong.
+C-0271 | QA | Checklist | Kiem tra chat AI.
+C-0272 | QA | Checklist | Kiem tra leo thang ho tro.
+C-0273 | QA | Checklist | Kiem tra khoi phuc chat.
+C-0274 | QA | Checklist | Kiem tra log loi.
+C-0275 | QA | Checklist | Kiem tra bao mat API.
+C-0276 | QA | Checklist | Kiem tra CORS.
+C-0277 | QA | Checklist | Kiem tra WebSocket.
+C-0278 | QA | Checklist | Kiem tra STOMP topic.
+C-0279 | QA | Checklist | Kiem tra STOMP app.
+C-0280 | QA | Checklist | Kiem tra hieu nang.
+C-0281 | QA | Checklist | Kiem tra thu hoi quyen.
+C-0282 | QA | Checklist | Kiem tra xoa tai khoan.
+C-0283 | QA | Checklist | Kiem tra doi mat khau.
+C-0284 | QA | Checklist | Kiem tra chinh sach FPT.
+C-0285 | QA | Checklist | Kiem tra doc thong bao.
+C-0286 | QA | Checklist | Kiem tra chua doc thong bao.
+C-0287 | QA | Checklist | Kiem tra tim kiem.
+C-0288 | QA | Checklist | Kiem tra sap xep.
+C-0289 | QA | Checklist | Kiem tra loc theo trang thai.
+C-0290 | QA | Checklist | Kiem tra xuat bao cao.
+C-0291 | QA | Checklist | Kiem tra tai lai trang.
+C-0292 | QA | Checklist | Kiem tra ping realtime.
+C-0293 | QA | Checklist | Kiem tra dong bo du lieu.
+C-0294 | QA | Checklist | Kiem tra backup.
+C-0295 | QA | Checklist | Kiem tra khoi phuc.
+C-0296 | QA | Checklist | Kiem tra dung luong.
+C-0297 | QA | Checklist | Kiem tra logging.
+C-0298 | QA | Checklist | Kiem tra thong bao email.
+C-0299 | QA | Checklist | Kiem tra thong bao push.
+C-0300 | QA | Checklist | Kiem tra thong bao WebSocket.
+
+C-0301 | QA | Checklist | Kiem tra phan quyen STUDENT.
+C-0302 | QA | Checklist | Kiem tra phan quyen LIBRARIAN.
+C-0303 | QA | Checklist | Kiem tra phan quyen ADMIN.
+C-0304 | QA | Checklist | Kiem tra truy cap trang cam.
+C-0305 | QA | Checklist | Kiem tra truy cap trang cong khai.
+C-0306 | QA | Checklist | Kiem tra khong ro nguon.
+C-0307 | QA | Checklist | Kiem tra thong bao popup.
+C-0308 | QA | Checklist | Kiem tra thong bao toast.
+C-0309 | QA | Checklist | Kiem tra thong bao ngan.
+C-0310 | QA | Checklist | Kiem tra thong bao dai.
+C-0311 | QA | Checklist | Kiem tra nhan thong bao.
+C-0312 | QA | Checklist | Kiem tra dua thong bao vao lich su.
+C-0313 | QA | Checklist | Kiem tra loc theo ngay.
+C-0314 | QA | Checklist | Kiem tra loc theo khu vuc.
+C-0315 | QA | Checklist | Kiem tra loc theo vai tro.
+C-0316 | QA | Checklist | Kiem tra export CSV.
+C-0317 | QA | Checklist | Kiem tra export PDF.
+C-0318 | QA | Checklist | Kiem tra export Excel.
+C-0319 | QA | Checklist | Kiem tra link tai ve.
+C-0320 | QA | Checklist | Kiem tra page load.
+C-0321 | QA | Checklist | Kiem tra lazy loading.
+C-0322 | QA | Checklist | Kiem tra pagination.
+C-0323 | QA | Checklist | Kiem tra infinite scroll.
+C-0324 | QA | Checklist | Kiem tra giu chon.
+C-0325 | QA | Checklist | Kiem tra bo loc phuc hop.
+C-0326 | QA | Checklist | Kiem tra timeout.
+C-0327 | QA | Checklist | Kiem tra retries.
+C-0328 | QA | Checklist | Kiem tra chong duplicate.
+C-0329 | QA | Checklist | Kiem tra token refresh.
+C-0330 | QA | Checklist | Kiem tra su co DB.
+C-0331 | QA | Checklist | Kiem tra su co Redis.
+C-0332 | QA | Checklist | Kiem tra su co MongoDB.
+C-0333 | QA | Checklist | Kiem tra su co Qdrant.
+C-0334 | QA | Checklist | Kiem tra su co AI Service.
+C-0335 | QA | Checklist | Kiem tra su co WebSocket.
+C-0336 | QA | Checklist | Kiem tra su co login.
+C-0337 | QA | Checklist | Kiem tra su co sign out.
+C-0338 | QA | Checklist | Kiem tra su co cache.
+C-0339 | QA | Checklist | Kiem tra su co migration.
+C-0340 | QA | Checklist | Kiem tra su co memory.
+C-0341 | QA | Checklist | Kiem tra han muc log.
+C-0342 | QA | Checklist | Kiem tra luong nghiep vu dat cho.
+C-0343 | QA | Checklist | Kiem tra luong nghiep vu check-in.
+C-0344 | QA | Checklist | Kiem tra luong nghiep vu check-out.
+C-0345 | QA | Checklist | Kiem tra luong nghiep vu thong bao.
+C-0346 | QA | Checklist | Kiem tra luong nghiep vu chat.
+C-0347 | QA | Checklist | Kiem tra luong nghiep vu leo thang.
+C-0348 | QA | Checklist | Kiem tra luong nghiep vu bao cao.
+C-0349 | QA | Checklist | Kiem tra luong nghiep vu quan tri.
+C-0350 | QA | Checklist | Kiem tra luong nghiep vu xac thuc.
+
+C-0351 | Van hanh | Checklist | Kiem tra dong bo dong gio.
+C-0352 | Van hanh | Checklist | Kiem tra backup hang ngay.
+C-0353 | Van hanh | Checklist | Kiem tra backup hang tuan.
+C-0354 | Van hanh | Checklist | Kiem tra khoi phuc.
+C-0355 | Van hanh | Checklist | Kiem tra dung luong disk.
+C-0356 | Van hanh | Checklist | Kiem tra dung luong DB.
+C-0357 | Van hanh | Checklist | Kiem tra log luu tru.
+C-0358 | Van hanh | Checklist | Kiem tra log rotate.
+C-0359 | Van hanh | Checklist | Kiem tra hieu nang API.
+C-0360 | Van hanh | Checklist | Kiem tra hieu nang WebSocket.
+C-0361 | Van hanh | Checklist | Kiem tra thong bao ca giua.
+C-0362 | Van hanh | Checklist | Kiem tra thoi gian phan hoi.
+C-0363 | Van hanh | Checklist | Kiem tra canh bao.
+C-0364 | Van hanh | Checklist | Kiem tra thong bao het han.
+C-0365 | Van hanh | Checklist | Kiem tra hang doi thong bao.
+C-0366 | Van hanh | Checklist | Kiem tra log loi AI.
+C-0367 | Van hanh | Checklist | Kiem tra tu dong khoi dong lai.
+C-0368 | Van hanh | Checklist | Kiem tra tu dong mo rong.
+C-0369 | Van hanh | Checklist | Kiem tra ket noi DB.
+C-0370 | Van hanh | Checklist | Kiem tra ket noi Redis.
+C-0371 | Van hanh | Checklist | Kiem tra ket noi Qdrant.
+C-0372 | Van hanh | Checklist | Kiem tra ket noi MongoDB.
+C-0373 | Van hanh | Checklist | Kiem tra ket noi AI.
+C-0374 | Van hanh | Checklist | Kiem tra ket noi frontend.
+C-0375 | Van hanh | Checklist | Kiem tra ket noi mobile.
+C-0376 | Van hanh | Checklist | Kiem tra giay phep.
+C-0377 | Van hanh | Checklist | Kiem tra cap nhat phien ban.
+C-0378 | Van hanh | Checklist | Kiem tra rollback.
+C-0379 | Van hanh | Checklist | Kiem tra migration.
+C-0380 | Van hanh | Checklist | Kiem tra bao tri dinh ky.
+
+C-0381 | Quan tri | Policy | Chinh sach truy cap du lieu.
+C-0382 | Quan tri | Policy | Chinh sach luu tru.
+C-0383 | Quan tri | Policy | Chinh sach bao mat.
+C-0384 | Quan tri | Policy | Chinh sach sao luu.
+C-0385 | Quan tri | Policy | Chinh sach xoa du lieu.
+C-0386 | Quan tri | Policy | Chinh sach quyen rieng tu.
+C-0387 | Quan tri | Policy | Chinh sach nhan su.
+C-0388 | Quan tri | Policy | Chinh sach phe duyet.
+C-0389 | Quan tri | Policy | Chinh sach thay doi.
+C-0390 | Quan tri | Policy | Chinh sach bao cao.
+
+C-0391 | Ke hoach | Roadmap | Giai doan 1: Onboarding.
+C-0392 | Ke hoach | Roadmap | Giai doan 2: Dat cho.
+C-0393 | Ke hoach | Roadmap | Giai doan 3: Realtime.
+C-0394 | Ke hoach | Roadmap | Giai doan 4: AI chat.
+C-0395 | Ke hoach | Roadmap | Giai doan 5: Bao cao.
+C-0396 | Ke hoach | Roadmap | Giai doan 6: Toi uu.
+C-0397 | Ke hoach | Roadmap | Giai doan 7: Mo rong.
+C-0398 | Ke hoach | Roadmap | Giai doan 8: Ha tang.
+C-0399 | Ke hoach | Roadmap | Giai doan 9: Bao mat.
+C-0400 | Ke hoach | Roadmap | Giai doan 10: Van hanh.
+
+C-0401 | Mo ta | Mo rong | Kich ban thong thuong 1.
+C-0402 | Mo ta | Mo rong | Kich ban thong thuong 2.
+C-0403 | Mo ta | Mo rong | Kich ban thong thuong 3.
+C-0404 | Mo ta | Mo rong | Kich ban thong thuong 4.
+C-0405 | Mo ta | Mo rong | Kich ban thong thuong 5.
+C-0406 | Mo ta | Mo rong | Kich ban thong thuong 6.
+C-0407 | Mo ta | Mo rong | Kich ban thong thuong 7.
+C-0408 | Mo ta | Mo rong | Kich ban thong thuong 8.
+C-0409 | Mo ta | Mo rong | Kich ban thong thuong 9.
+C-0410 | Mo ta | Mo rong | Kich ban thong thuong 10.
+
+C-0411 | Mo ta | Mo rong | Kich ban bat thuong 1.
+C-0412 | Mo ta | Mo rong | Kich ban bat thuong 2.
+C-0413 | Mo ta | Mo rong | Kich ban bat thuong 3.
+C-0414 | Mo ta | Mo rong | Kich ban bat thuong 4.
+C-0415 | Mo ta | Mo rong | Kich ban bat thuong 5.
+C-0416 | Mo ta | Mo rong | Kich ban bat thuong 6.
+C-0417 | Mo ta | Mo rong | Kich ban bat thuong 7.
+C-0418 | Mo ta | Mo rong | Kich ban bat thuong 8.
+C-0419 | Mo ta | Mo rong | Kich ban bat thuong 9.
+C-0420 | Mo ta | Mo rong | Kich ban bat thuong 10.
+
+C-0421 | Mo ta | Mo rong | Kich ban xu ly loi 1.
+C-0422 | Mo ta | Mo rong | Kich ban xu ly loi 2.
+C-0423 | Mo ta | Mo rong | Kich ban xu ly loi 3.
+C-0424 | Mo ta | Mo rong | Kich ban xu ly loi 4.
+C-0425 | Mo ta | Mo rong | Kich ban xu ly loi 5.
+C-0426 | Mo ta | Mo rong | Kich ban xu ly loi 6.
+C-0427 | Mo ta | Mo rong | Kich ban xu ly loi 7.
+C-0428 | Mo ta | Mo rong | Kich ban xu ly loi 8.
+C-0429 | Mo ta | Mo rong | Kich ban xu ly loi 9.
+C-0430 | Mo ta | Mo rong | Kich ban xu ly loi 10.
+
+C-0431 | Mo ta | Mo rong | Kich ban tai tai 1.
+C-0432 | Mo ta | Mo rong | Kich ban tai tai 2.
+C-0433 | Mo ta | Mo rong | Kich ban tai tai 3.
+C-0434 | Mo ta | Mo rong | Kich ban tai tai 4.
+C-0435 | Mo ta | Mo rong | Kich ban tai tai 5.
+C-0436 | Mo ta | Mo rong | Kich ban tai tai 6.
+C-0437 | Mo ta | Mo rong | Kich ban tai tai 7.
+C-0438 | Mo ta | Mo rong | Kich ban tai tai 8.
+C-0439 | Mo ta | Mo rong | Kich ban tai tai 9.
+C-0440 | Mo ta | Mo rong | Kich ban tai tai 10.
+
+C-0441 | Mo ta | Mo rong | Kich ban failover 1.
+C-0442 | Mo ta | Mo rong | Kich ban failover 2.
+C-0443 | Mo ta | Mo rong | Kich ban failover 3.
+C-0444 | Mo ta | Mo rong | Kich ban failover 4.
+C-0445 | Mo ta | Mo rong | Kich ban failover 5.
+C-0446 | Mo ta | Mo rong | Kich ban failover 6.
+C-0447 | Mo ta | Mo rong | Kich ban failover 7.
+C-0448 | Mo ta | Mo rong | Kich ban failover 8.
+C-0449 | Mo ta | Mo rong | Kich ban failover 9.
+C-0450 | Mo ta | Mo rong | Kich ban failover 10.
+
+C-0451 | Mo ta | Mo rong | Kich ban bao mat 1.
+C-0452 | Mo ta | Mo rong | Kich ban bao mat 2.
+C-0453 | Mo ta | Mo rong | Kich ban bao mat 3.
+C-0454 | Mo ta | Mo rong | Kich ban bao mat 4.
+C-0455 | Mo ta | Mo rong | Kich ban bao mat 5.
+C-0456 | Mo ta | Mo rong | Kich ban bao mat 6.
+C-0457 | Mo ta | Mo rong | Kich ban bao mat 7.
+C-0458 | Mo ta | Mo rong | Kich ban bao mat 8.
+C-0459 | Mo ta | Mo rong | Kich ban bao mat 9.
+C-0460 | Mo ta | Mo rong | Kich ban bao mat 10.
+
+C-0461 | Mo ta | Mo rong | Kich ban phan quyen 1.
+C-0462 | Mo ta | Mo rong | Kich ban phan quyen 2.
+C-0463 | Mo ta | Mo rong | Kich ban phan quyen 3.
+C-0464 | Mo ta | Mo rong | Kich ban phan quyen 4.
+C-0465 | Mo ta | Mo rong | Kich ban phan quyen 5.
+C-0466 | Mo ta | Mo rong | Kich ban phan quyen 6.
+C-0467 | Mo ta | Mo rong | Kich ban phan quyen 7.
+C-0468 | Mo ta | Mo rong | Kich ban phan quyen 8.
+C-0469 | Mo ta | Mo rong | Kich ban phan quyen 9.
+C-0470 | Mo ta | Mo rong | Kich ban phan quyen 10.
+
+C-0471 | Mo ta | Mo rong | Kich ban retry 1.
+C-0472 | Mo ta | Mo rong | Kich ban retry 2.
+C-0473 | Mo ta | Mo rong | Kich ban retry 3.
+C-0474 | Mo ta | Mo rong | Kich ban retry 4.
+C-0475 | Mo ta | Mo rong | Kich ban retry 5.
+C-0476 | Mo ta | Mo rong | Kich ban retry 6.
+C-0477 | Mo ta | Mo rong | Kich ban retry 7.
+C-0478 | Mo ta | Mo rong | Kich ban retry 8.
+C-0479 | Mo ta | Mo rong | Kich ban retry 9.
+C-0480 | Mo ta | Mo rong | Kich ban retry 10.
+
+C-0481 | Mo ta | Mo rong | Kich ban cache 1.
+C-0482 | Mo ta | Mo rong | Kich ban cache 2.
+C-0483 | Mo ta | Mo rong | Kich ban cache 3.
+C-0484 | Mo ta | Mo rong | Kich ban cache 4.
+C-0485 | Mo ta | Mo rong | Kich ban cache 5.
+C-0486 | Mo ta | Mo rong | Kich ban cache 6.
+C-0487 | Mo ta | Mo rong | Kich ban cache 7.
+C-0488 | Mo ta | Mo rong | Kich ban cache 8.
+C-0489 | Mo ta | Mo rong | Kich ban cache 9.
+C-0490 | Mo ta | Mo rong | Kich ban cache 10.
+
+C-0491 | Mo ta | Mo rong | Kich ban data cleanup 1.
+C-0492 | Mo ta | Mo rong | Kich ban data cleanup 2.
+C-0493 | Mo ta | Mo rong | Kich ban data cleanup 3.
+C-0494 | Mo ta | Mo rong | Kich ban data cleanup 4.
+C-0495 | Mo ta | Mo rong | Kich ban data cleanup 5.
+C-0496 | Mo ta | Mo rong | Kich ban data cleanup 6.
+C-0497 | Mo ta | Mo rong | Kich ban data cleanup 7.
+C-0498 | Mo ta | Mo rong | Kich ban data cleanup 8.
+C-0499 | Mo ta | Mo rong | Kich ban data cleanup 9.
+C-0500 | Mo ta | Mo rong | Kich ban data cleanup 10.
+
+C-0501 | Backend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong backend.
+C-0502 | Frontend | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong frontend.
+C-0503 | Mobile | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong mobile.
+C-0504 | AI Service | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong AI service.
+C-0505 | Infra | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ha tang.
+C-0506 | Security | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong bao mat.
+C-0507 | QA | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong kiem thu.
+C-0508 | Van hanh | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong van hanh.
+C-0509 | Quan tri | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong quan tri.
+C-0510 | Ke hoach | Mo ta bo sung | Muc bo sung 1 cho mo ta he thong ke hoach.
+C-0511 | Backend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong backend.
+C-0512 | Frontend | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong frontend.
+C-0513 | Mobile | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong mobile.
+C-0514 | AI Service | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong AI service.
+C-0515 | Infra | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ha tang.
+C-0516 | Security | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong bao mat.
+C-0517 | QA | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong kiem thu.
+C-0518 | Van hanh | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong van hanh.
+C-0519 | Quan tri | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong quan tri.
+C-0520 | Ke hoach | Mo ta bo sung | Muc bo sung 2 cho mo ta he thong ke hoach.
+C-0521 | Backend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong backend.
+C-0522 | Frontend | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong frontend.
+C-0523 | Mobile | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong mobile.
+C-0524 | AI Service | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong AI service.
+C-0525 | Infra | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ha tang.
+C-0526 | Security | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong bao mat.
+C-0527 | QA | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong kiem thu.
+C-0528 | Van hanh | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong van hanh.
+C-0529 | Quan tri | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong quan tri.
+C-0530 | Ke hoach | Mo ta bo sung | Muc bo sung 3 cho mo ta he thong ke hoach.
+C-0531 | Backend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong backend.
+C-0532 | Frontend | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong frontend.
+C-0533 | Mobile | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong mobile.
+C-0534 | AI Service | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong AI service.
+C-0535 | Infra | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ha tang.
+C-0536 | Security | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong bao mat.
+C-0537 | QA | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong kiem thu.
+C-0538 | Van hanh | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong van hanh.
+C-0539 | Quan tri | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong quan tri.
+C-0540 | Ke hoach | Mo ta bo sung | Muc bo sung 4 cho mo ta he thong ke hoach.
+C-0541 | Backend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong backend.
+C-0542 | Frontend | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong frontend.
+C-0543 | Mobile | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong mobile.
+C-0544 | AI Service | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong AI service.
+C-0545 | Infra | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ha tang.
+C-0546 | Security | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong bao mat.
+C-0547 | QA | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong kiem thu.
+C-0548 | Van hanh | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong van hanh.
+C-0549 | Quan tri | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong quan tri.
+C-0550 | Ke hoach | Mo ta bo sung | Muc bo sung 5 cho mo ta he thong ke hoach.
+C-0551 | Backend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong backend.
+C-0552 | Frontend | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong frontend.
+C-0553 | Mobile | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong mobile.
+C-0554 | AI Service | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong AI service.
+C-0555 | Infra | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ha tang.
+C-0556 | Security | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong bao mat.
+C-0557 | QA | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong kiem thu.
+C-0558 | Van hanh | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong van hanh.
+C-0559 | Quan tri | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong quan tri.
+C-0560 | Ke hoach | Mo ta bo sung | Muc bo sung 6 cho mo ta he thong ke hoach.
+C-0561 | Backend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong backend.
+C-0562 | Frontend | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong frontend.
+C-0563 | Mobile | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong mobile.
+C-0564 | AI Service | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong AI service.
+C-0565 | Infra | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ha tang.
+C-0566 | Security | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong bao mat.
+C-0567 | QA | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong kiem thu.
+C-0568 | Van hanh | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong van hanh.
+C-0569 | Quan tri | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong quan tri.
+C-0570 | Ke hoach | Mo ta bo sung | Muc bo sung 7 cho mo ta he thong ke hoach.
+C-0571 | Backend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong backend.
+C-0572 | Frontend | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong frontend.
+C-0573 | Mobile | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong mobile.
+C-0574 | AI Service | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong AI service.
+C-0575 | Infra | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ha tang.
+C-0576 | Security | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong bao mat.
+C-0577 | QA | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong kiem thu.
+C-0578 | Van hanh | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong van hanh.
+C-0579 | Quan tri | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong quan tri.
+C-0580 | Ke hoach | Mo ta bo sung | Muc bo sung 8 cho mo ta he thong ke hoach.
+C-0581 | Backend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong backend.
+C-0582 | Frontend | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong frontend.
+C-0583 | Mobile | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong mobile.
+C-0584 | AI Service | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong AI service.
+C-0585 | Infra | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ha tang.
+C-0586 | Security | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong bao mat.
+C-0587 | QA | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong kiem thu.
+C-0588 | Van hanh | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong van hanh.
+C-0589 | Quan tri | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong quan tri.
+C-0590 | Ke hoach | Mo ta bo sung | Muc bo sung 9 cho mo ta he thong ke hoach.
+C-0591 | Backend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong backend.
+C-0592 | Frontend | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong frontend.
+C-0593 | Mobile | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong mobile.
+C-0594 | AI Service | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong AI service.
+C-0595 | Infra | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ha tang.
+C-0596 | Security | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong bao mat.
+C-0597 | QA | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong kiem thu.
+C-0598 | Van hanh | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong van hanh.
+C-0599 | Quan tri | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong quan tri.
+C-0600 | Ke hoach | Mo ta bo sung | Muc bo sung 10 cho mo ta he thong ke hoach.
+
+
+# README_HUNG
+
+## 1. Tong quan he thong
+
