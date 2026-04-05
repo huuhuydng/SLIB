@@ -2,6 +2,7 @@ package slib.com.example.service.zone_config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -39,19 +40,24 @@ public class LayoutAdminService {
     private final LayoutHistoryRepository layoutHistoryRepository;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
     public LayoutDraftResponse getDraftOrPublishedSnapshot() {
         Optional<LayoutDraftEntity> draft = layoutDraftRepository.findAll().stream().findFirst();
         if (draft.isPresent()) {
             LayoutDraftEntity entity = draft.get();
-            return LayoutDraftResponse.builder()
-                    .hasDraft(true)
-                    .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
-                    .updatedByName(entity.getUpdatedByName())
-                    .updatedAt(entity.getUpdatedAt())
-                    .snapshot(readSnapshot(entity.getSnapshotJson()))
-                    .build();
+            try {
+                return LayoutDraftResponse.builder()
+                        .hasDraft(true)
+                        .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
+                        .updatedByName(entity.getUpdatedByName())
+                        .updatedAt(entity.getUpdatedAt())
+                        .snapshot(readSnapshot(entity.getSnapshotJson()))
+                        .build();
+            } catch (RuntimeException ex) {
+                log.error("Không thể đọc nháp sơ đồ hiện tại, chuyển sang snapshot xuất bản gần nhất: {}", ex.getMessage());
+            }
         }
 
         return LayoutDraftResponse.builder()
@@ -69,7 +75,7 @@ public class LayoutAdminService {
                 .map(history -> LayoutHistoryResponse.builder()
                         .historyId(history.getHistoryId())
                         .actionType(history.getActionType())
-                        .summary(history.getSummary())
+                        .summary(resolveStoredText(history.getSummary(), "layout_history.summary"))
                         .publishedVersion(history.getPublishedVersion())
                         .createdByName(history.getCreatedByName())
                         .createdAt(history.getCreatedAt())
@@ -109,6 +115,23 @@ public class LayoutAdminService {
                 .updatedByName(entity.getUpdatedByName())
                 .updatedAt(entity.getUpdatedAt())
                 .snapshot(normalized)
+                .build();
+    }
+
+    @Transactional
+    public LayoutDraftResponse discardDraft(Authentication authentication) {
+        if (layoutDraftRepository.count() > 0) {
+            ActorInfo actor = resolveActor(authentication);
+            LayoutSnapshotRequest publishedSnapshot = buildCurrentSnapshot();
+            layoutDraftRepository.deleteAllInBatch();
+            recordHistory("DISCARD_DRAFT", "Đã bỏ nháp sơ đồ và quay về bản xuất bản",
+                    publishedSnapshot, layoutHistoryRepository.findLatestPublishedVersion().orElse(0L), actor);
+        }
+
+        return LayoutDraftResponse.builder()
+                .hasDraft(false)
+                .basedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L))
+                .snapshot(buildCurrentSnapshot())
                 .build();
     }
 
@@ -531,10 +554,36 @@ public class LayoutAdminService {
 
     private LayoutSnapshotRequest readSnapshot(String snapshotJson) {
         try {
-            return objectMapper.readValue(snapshotJson, LayoutSnapshotRequest.class);
+            return objectMapper.readValue(resolveStoredText(snapshotJson, "layout snapshot"), LayoutSnapshotRequest.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Không thể đọc dữ liệu nháp sơ đồ", e);
         }
+    }
+
+    private String resolveStoredText(String value, String fieldName) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || !trimmed.matches("^\\d+$")) {
+            return value;
+        }
+
+        try {
+            Object result = entityManager.createNativeQuery(
+                            "SELECT convert_from(lo_get(CAST(:oid AS oid)), 'UTF8')")
+                    .setParameter("oid", Long.parseLong(trimmed))
+                    .getSingleResult();
+            if (result instanceof String decoded && !decoded.isBlank()) {
+                log.warn("Phát hiện dữ liệu legacy dạng OID ở {}: {}, tự động giải mã từ large object", fieldName, trimmed);
+                return decoded;
+            }
+        } catch (Exception ex) {
+            log.warn("Không thể giải mã dữ liệu legacy ở {} từ OID {}: {}", fieldName, trimmed, ex.getMessage());
+        }
+
+        return value;
     }
 
     private String writeSnapshot(LayoutSnapshotRequest snapshot) {

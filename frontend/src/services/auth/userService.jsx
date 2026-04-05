@@ -522,6 +522,9 @@ class UserService {
             'sinh viên': 'STUDENT',
             'sinh vien': 'STUDENT',
             'student': 'STUDENT',
+            'giáo viên': 'TEACHER',
+            'giao vien': 'TEACHER',
+            'teacher': 'TEACHER',
             'thủ thư': 'LIBRARIAN',
             'thu thu': 'LIBRARIAN',
             'librarian': 'LIBRARIAN',
@@ -609,7 +612,7 @@ class UserService {
             }
 
             // Validate role
-            if (!['STUDENT', 'LIBRARIAN', 'ADMIN'].includes(user.role)) {
+            if (!['STUDENT', 'TEACHER', 'LIBRARIAN', 'ADMIN'].includes(user.role)) {
                 userErrors.role = 'Vai trò không hợp lệ';
             }
 

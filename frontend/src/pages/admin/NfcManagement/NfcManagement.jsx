@@ -8,6 +8,7 @@ import { getAreas, getZonesByArea, getSeats, getAreaFactoriesByArea, getSeatByNf
 import { calculateDynamicSeatLayout } from "../../../utils/admin/seatLayout";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
 import { NFC_BRIDGE_URL } from "../../../config/apiConfig";
+import LoadErrorState from "../../../components/common/LoadErrorState";
 import "./NfcManagement.css";
 
 const NfcManagement = () => {
@@ -20,6 +21,7 @@ const NfcManagement = () => {
   const [factories, setFactories] = useState([]);
   const [nfcMap, setNfcMap] = useState({}); // seatId -> nfc mapping data
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   // ===== UI STATE =====
   const [selectedAreaId, setSelectedAreaId] = useState(null);
@@ -93,6 +95,7 @@ const NfcManagement = () => {
   // ===== LOAD ALL DATA =====
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       // 1. Load areas
       const areasRes = await getAreas();
@@ -175,7 +178,9 @@ const NfcManagement = () => {
       } catch (e) { console.error("Load NFC mappings failed", e); }
 
     } catch (e) {
-      showToast("Lỗi tải dữ liệu", "error");
+      const message = e?.message || "Lỗi tải dữ liệu";
+      setLoadError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -497,6 +502,13 @@ const NfcManagement = () => {
               <RefreshCw size={24} className="spin" />
               <span>Đang tải sơ đồ...</span>
             </div>
+          ) : loadError ? (
+            <LoadErrorState
+              title="Không thể tải dữ liệu NFC"
+              message={loadError}
+              onRetry={loadData}
+              compact
+            />
           ) : (
             <div
               className="nfc-map-transform"

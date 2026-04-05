@@ -222,6 +222,7 @@ public class NewsService {
             UUID referenceId = null; // News uses Long id, notifications use UUID
 
             pushNotificationService.sendToRole("STUDENT", title, body, NotificationType.NEWS, referenceId);
+            pushNotificationService.sendToRole("TEACHER", title, body, NotificationType.NEWS, referenceId);
         } catch (Exception e) {
             log.warn("Failed to send news notification for newsId={}", news.getId(), e);
         }

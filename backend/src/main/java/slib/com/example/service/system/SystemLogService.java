@@ -335,6 +335,7 @@ public class SystemLogService {
             case SYSTEM -> "Hệ thống";
             case WEB -> "Web";
             case MOBILE -> "Di động";
+            case HCE -> "Cổng NFC";
             case SCHEDULER -> "Tác vụ nền";
         };
     }

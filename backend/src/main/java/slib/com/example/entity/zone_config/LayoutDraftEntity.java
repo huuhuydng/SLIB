@@ -24,8 +24,7 @@ public class LayoutDraftEntity {
     @Column(name = "draft_id")
     private Long draftId;
 
-    @Lob
-    @Column(name = "snapshot_json", nullable = false)
+    @Column(name = "snapshot_json", nullable = false, columnDefinition = "TEXT")
     private String snapshotJson;
 
     @Column(name = "based_on_published_version")

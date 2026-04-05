@@ -71,11 +71,11 @@ function Login({ onLogin, onForgotPassword }) {
 
   // ============ XỬ LÝ ĐĂNG NHẬP THÀNH CÔNG ============
   const handleLoginSuccess = (role) => {
-    if (role === 'STUDENT') {
+    if (role === 'STUDENT' || role === 'TEACHER') {
       setError({
         type: 'warning',
         title: 'Không có quyền truy cập',
-        message: 'Sinh viên không được phép truy cập hệ thống quản trị. Vui lòng sử dụng ứng dụng mobile SLIB.'
+        message: 'Tài khoản người dùng thư viện không được phép truy cập hệ thống quản trị. Vui lòng sử dụng ứng dụng mobile SLIB.'
       });
       return false;
     }

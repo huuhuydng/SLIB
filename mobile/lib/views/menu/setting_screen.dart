@@ -171,7 +171,7 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildNavTile(
                 icon: Icons.person_outline_rounded,
                 iconColor: Colors.blue,
-                title: "Thông tin sinh viên",
+                title: "Thông tin cá nhân",
                 onTap: () {
                   if (currentUser != null) {
                     Navigator.push(
@@ -345,7 +345,7 @@ class _SettingScreenState extends State<SettingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fullName.isNotEmpty ? fullName : "Sinh viên FPT",
+                  fullName.isNotEmpty ? fullName : "Người dùng SLIB",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

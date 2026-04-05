@@ -189,11 +189,15 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isTeacher = _user.role.toUpperCase() == 'TEACHER';
+    final String profileTitle = isTeacher ? 'Hồ sơ giáo viên' : 'Hồ sơ cá nhân';
+    final String userCodeLabel = isTeacher ? 'Mã giáo viên' : 'Mã người dùng';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text(
-          "Hồ sơ sinh viên",
+        title: Text(
+          profileTitle,
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
         backgroundColor: Colors.white,
@@ -250,7 +254,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
               _buildDivider(),
               _buildInfoRow(
                 Icons.badge_outlined,
-                "Mã sinh viên",
+                userCodeLabel,
                 _user.studentCode,
               ),
               _buildDivider(),
@@ -508,7 +512,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Mã QR sinh viên",
+                  "Mã QR người dùng",
                   style: TextStyle(fontSize: 10, color: Colors.grey[600]),
                 ),
               ],

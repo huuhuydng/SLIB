@@ -12,12 +12,25 @@ class ProfileInfoScreen extends StatelessWidget {
     switch (role.toLowerCase()) {
       case 'student':
         return 'Sinh viên';
+      case 'teacher':
+        return 'Giáo viên';
       case 'librarian':
         return 'Thủ thư';
       case 'admin':
         return 'Quản trị viên';
       default:
         return 'Khách';
+    }
+  }
+
+  String _getUserCodeLabel(String role) {
+    switch (role.toLowerCase()) {
+      case 'student':
+        return 'Mã sinh viên';
+      case 'teacher':
+        return 'Mã giáo viên';
+      default:
+        return 'Mã người dùng';
     }
   }
 
@@ -111,7 +124,7 @@ class ProfileInfoScreen extends StatelessWidget {
               _buildTextField("Họ và tên", user.fullName, Icons.person_outline),
               const Divider(height: 24),
               _buildTextField(
-                "Mã sinh viên",
+                _getUserCodeLabel(user.role),
                 user.studentCode,
                 Icons.badge_outlined,
               ),

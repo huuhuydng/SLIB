@@ -232,6 +232,9 @@ export const validateLayoutSnapshot = (payload) =>
 export const saveLayoutDraft = (payload) =>
   api.post("/layout-admin/draft", payload);
 
+export const discardLayoutDraft = () =>
+  api.delete("/layout-admin/draft");
+
 export const publishLayoutSnapshot = (payload) =>
   api.post("/layout-admin/publish", payload);
 

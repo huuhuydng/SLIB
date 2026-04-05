@@ -33,17 +33,19 @@ import UserDetailsModal from '../../../components/admin/UserDetailsModal';
 import DeleteUserModal from '../../../components/admin/DeleteUserModal';
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import './UserManagement.css';
 
-const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'STUDENT'];
+const ROLES = ['Tất cả', 'ADMIN', 'LIBRARIAN', 'TEACHER', 'STUDENT'];
 const STATUSES = ['Tất cả', 'Hoạt động', 'Đã khóa'];
 
 const ROLE_OPTIONS = [
   { value: '', label: 'Tất cả' },
   { value: 'ADMIN', label: 'Admin' },
   { value: 'LIBRARIAN', label: 'Thủ thư' },
+  { value: 'TEACHER', label: 'Giáo viên' },
   { value: 'STUDENT', label: 'Sinh viên' },
 ];
 
@@ -263,6 +265,7 @@ const UserManagement = () => {
     total: users.length,
     admins: users.filter(u => u.role === 'ADMIN').length,
     librarians: users.filter(u => u.role === 'LIBRARIAN').length,
+    teachers: users.filter(u => u.role === 'TEACHER').length,
     students: users.filter(u => u.role === 'STUDENT').length,
     locked: users.filter(u => u.isActive === false).length,
   }), [users]);
@@ -392,6 +395,7 @@ const UserManagement = () => {
     switch (role) {
       case 'ADMIN': return { bg: '#FEE2E2', color: '#DC2626' };
       case 'LIBRARIAN': return { bg: '#DBEAFE', color: '#2563EB' };
+      case 'TEACHER': return { bg: '#FEF3C7', color: '#D97706' };
       case 'STUDENT': return { bg: '#D1FAE5', color: '#059669' };
       default: return { bg: '#F3F4F6', color: '#6B7280' };
     }
@@ -401,6 +405,7 @@ const UserManagement = () => {
     switch (role) {
       case 'ADMIN': return 'Admin';
       case 'LIBRARIAN': return 'Thủ thư';
+      case 'TEACHER': return 'Giáo viên';
       case 'STUDENT': return 'Sinh viên';
       default: return role;
     }
@@ -911,15 +916,6 @@ const UserManagement = () => {
           <h1>QUẢN LÝ NGƯỜI DÙNG</h1>
         </div>
 
-
-        {/* Error Message */}
-        {error && (
-          <div className="um-error">
-            <AlertTriangle size={18} />
-            <span>{error}</span>
-          </div>
-        )}
-
         {/* Main Panel */}
         <div className="lib-panel">
           {/* Toolbar */}
@@ -996,6 +992,13 @@ const UserManagement = () => {
               <Loader2 size={28} className="sm-spinner" />
               <span style={{ display: 'block', marginTop: '12px', color: '#64748b' }}>Đang tải danh sách người dùng...</span>
             </div>
+          ) : error ? (
+            <LoadErrorState
+              title="Không thể tải danh sách người dùng"
+              message={error}
+              onRetry={fetchUsers}
+              compact
+            />
           ) : (
             <div className="sr-table-wrapper">
               <table className="sr-table">
@@ -1269,9 +1272,10 @@ const UserManagement = () => {
                     background: '#fff'
                   }}
                 >
+                  <option value="STUDENT">Sinh viên</option>
+                  <option value="TEACHER">Giáo viên</option>
                   <option value="LIBRARIAN">Thủ thư</option>
                   <option value="ADMIN">Admin</option>
-                  <option value="STUDENT">Sinh viên</option>
                 </select>
               </div>
               <div style={{ marginBottom: '20px' }}>
@@ -2167,6 +2171,7 @@ const UserManagement = () => {
                   onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
                 >
                   <option value="STUDENT">Sinh viên</option>
+                  <option value="TEACHER">Giáo viên</option>
                   <option value="LIBRARIAN">Thủ thư</option>
                   <option value="ADMIN">Quản trị viên</option>
                 </select>

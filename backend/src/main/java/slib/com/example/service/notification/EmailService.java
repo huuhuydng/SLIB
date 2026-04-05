@@ -95,8 +95,14 @@ public class EmailService {
         try {
             String htmlContent = loadEmailTemplate("templates/welcome-email.html");
 
-            String roleLabel = "LIBRARIAN".equalsIgnoreCase(role) ? "Thủ thư" : "Sinh viên";
-            String loginUrl = "LIBRARIAN".equalsIgnoreCase(role)
+            String normalizedRole = role != null ? role.toUpperCase() : "STUDENT";
+            String roleLabel = switch (normalizedRole) {
+                case "ADMIN" -> "Quản trị viên";
+                case "LIBRARIAN" -> "Thủ thư";
+                case "TEACHER" -> "Giáo viên";
+                default -> "Sinh viên";
+            };
+            String loginUrl = ("LIBRARIAN".equals(normalizedRole) || "ADMIN".equals(normalizedRole))
                     ? "http://localhost:5173/login"
                     : "https://slib.edu.vn";
 

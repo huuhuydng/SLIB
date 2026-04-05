@@ -1,9 +1,11 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
+import { useConfirm } from "../../common/ConfirmDialog";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
 import {
+  discardLayoutDraft,
   getLayoutDraft,
   getLayoutHistory,
   publishLayoutSnapshot,
@@ -15,6 +17,7 @@ import "../../../styles/admin/canvas.css";
 
 function CanvasBoard() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const { state, dispatch, actions } = useLayout();
   const { areas, zones, seats, factories, canvas, selectedAreaId, selectedItem, selectedItems, hasUnsavedChanges, isSaving, isPreviewMode } = state;
 
@@ -36,6 +39,7 @@ function CanvasBoard() {
   const [validationConflicts, setValidationConflicts] = useState([]);
   const [showConflictPanel, setShowConflictPanel] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
 
   const formatDraftMetaTime = (value) => {
     if (!value) return "";
@@ -582,6 +586,38 @@ function CanvasBoard() {
     }
   }, [actions, buildLayoutSnapshot, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadHistoryFeed, runValidation, toast]);
 
+  const handleDiscardDraft = useCallback(async () => {
+    if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing) return;
+
+    const confirmed = await confirm({
+      title: "Bỏ nháp sơ đồ",
+      message: hasUnsavedChanges
+        ? "Nháp hiện tại và cả thay đổi chưa lưu sẽ bị hủy. Bạn có chắc muốn quay về bản xuất bản không?"
+        : "Bạn có chắc muốn bỏ nháp hiện tại và quay về bản xuất bản không?",
+      confirmText: "Bỏ nháp",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    setIsDiscarding(true);
+    try {
+      const res = await discardLayoutDraft();
+      hydrateLayoutSnapshot(res?.data?.snapshot ?? {});
+      clearAllPositionCache();
+      dispatch({ type: actions.MARK_SAVED });
+      setValidationConflicts([]);
+      setShowConflictPanel(false);
+      setDraftMeta(res?.data ?? null);
+      await loadHistoryFeed();
+      toast.success("Đã bỏ nháp và quay về bản xuất bản");
+    } catch (error) {
+      console.error("Discard draft failed:", error);
+      toast.error(error?.response?.data?.message || "Không thể bỏ nháp sơ đồ");
+    } finally {
+      setIsDiscarding(false);
+    }
+  }, [actions, confirm, dispatch, draftMeta?.hasDraft, hasUnsavedChanges, hydrateLayoutSnapshot, isDiscarding, isPublishing, isSaving, loadHistoryFeed, toast]);
+
   handleSaveRef.current = handleSaveDraft;
 
   return (
@@ -701,149 +737,6 @@ function CanvasBoard() {
             </div>
           )}
 
-          {/* Pan Mode - only show in edit mode */}
-          {!isPreviewMode && (
-            <button
-              onClick={() => setPanMode(!panMode)}
-              aria-label={panMode ? "Tắt chế độ kéo canvas" : "Bật chế độ kéo canvas"}
-              title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
-                background: panMode
-                  ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
-                  : 'white',
-                cursor: 'pointer',
-                fontSize: '16px',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: panMode ? '#1E40AF' : '#64748B'
-              }}
-            >
-              ☰
-            </button>
-          )}
-
-          {/* Zoom Controls */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            backgroundColor: '#F1F5F9',
-            borderRadius: '10px',
-            padding: '4px'
-          }}>
-            <button
-              onClick={handleZoomOut}
-              aria-label="Thu nhỏ sơ đồ"
-              title="Thu nhỏ"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#64748B',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-              }}
-            >
-              −
-            </button>
-
-            <span style={{
-              minWidth: '60px',
-              textAlign: 'center',
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#1F2937'
-            }}>
-              {Math.round(canvas.zoom * 100)}%
-            </span>
-
-            <button
-              onClick={handleZoomIn}
-              aria-label="Phóng to sơ đồ"
-              title="Phóng to"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#64748B',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-              }}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Fit to View */}
-          <button
-            onClick={handleFitToView}
-            aria-label="Căn sơ đồ vừa màn hình"
-            title="Vừa với màn hình"
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: '2px solid #E2E8F0',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#64748B'
-            }}
-          >
-            ⬜
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
-            aria-label={state.isCanvasFullscreen ? "Thoát toàn màn hình canvas" : "Mở toàn màn hình canvas"}
-            title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: state.isCanvasFullscreen ? '2px solid #EF4444' : '2px solid #E2E8F0',
-              background: state.isCanvasFullscreen
-                ? 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'
-                : 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: state.isCanvasFullscreen ? '#DC2626' : '#64748B'
-            }}
-          >
-            {state.isCanvasFullscreen ? '✕' : '⛶'}
-          </button>
-
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowHistoryPanel((prev) => !prev)}
@@ -898,7 +791,11 @@ function CanvasBoard() {
                     <div key={item.historyId} style={{ padding: '12px 14px', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                          {item.actionType === 'PUBLISH' ? 'Xuất bản sơ đồ' : 'Lưu nháp sơ đồ'}
+                          {item.actionType === 'PUBLISH'
+                            ? 'Xuất bản sơ đồ'
+                            : item.actionType === 'DISCARD_DRAFT'
+                              ? 'Bỏ nháp sơ đồ'
+                              : 'Lưu nháp sơ đồ'}
                         </div>
                         <div style={{ fontSize: '12px', color: '#64748B' }}>
                           {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
@@ -917,18 +814,43 @@ function CanvasBoard() {
           </div>
 
           {/* Save Button */}
+          {draftMeta?.hasDraft && (
+            <button
+              onClick={handleDiscardDraft}
+              disabled={isDiscarding || isSaving || isPublishing}
+              title="Bỏ nháp hiện tại và quay về bản xuất bản"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #FECACA',
+                background: isDiscarding ? '#FEF2F2' : '#FFF7F7',
+                color: '#B91C1C',
+                cursor: isDiscarding || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                opacity: isDiscarding ? 0.8 : 1,
+              }}
+            >
+              {isDiscarding ? 'Đang bỏ nháp...' : 'Bỏ nháp'}
+            </button>
+          )}
+
           <button
             onClick={handleSaveDraft}
             disabled={!hasUnsavedChanges || isSaving}
-            title={hasUnsavedChanges ? "Lưu nháp thay đổi" : "Không có thay đổi cần lưu"}
+            title={hasUnsavedChanges ? "Lưu nháp thay đổi" : "Nháp hiện tại đã được lưu"}
             style={{
               padding: '8px 16px',
               borderRadius: '10px',
-              border: hasUnsavedChanges ? '2px solid #3B82F6' : '2px solid #E2E8F0',
+              border: hasUnsavedChanges ? '2px solid #3B82F6' : '2px solid #BFDBFE',
               background: hasUnsavedChanges
                 ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
-                : '#F1F5F9',
-              color: hasUnsavedChanges ? 'white' : '#94A3B8',
+                : '#EFF6FF',
+              color: hasUnsavedChanges ? 'white' : '#64748B',
               cursor: hasUnsavedChanges && !isSaving ? 'pointer' : 'not-allowed',
               fontSize: '13px',
               fontWeight: '600',
@@ -939,7 +861,7 @@ function CanvasBoard() {
               opacity: isSaving ? 0.7 : 1,
             }}
           >
-            {isSaving ? 'Đang lưu nháp...' : hasUnsavedChanges ? 'Lưu nháp' : 'Nháp đã lưu'}
+            {isSaving ? 'Đang lưu nháp...' : 'Lưu nháp'}
           </button>
 
           <button
@@ -1076,6 +998,160 @@ function CanvasBoard() {
           width: '100%',
           height: '100%',
         }}>
+          <div style={{
+            position: 'absolute',
+            top: '18px',
+            right: '18px',
+            zIndex: 120,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '10px',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px',
+              borderRadius: '16px',
+              background: 'rgba(255, 255, 255, 0.92)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
+            }}>
+              {!isPreviewMode && (
+                <button
+                  onClick={() => setPanMode(!panMode)}
+                  aria-label={panMode ? "Tắt chế độ kéo canvas" : "Bật chế độ kéo canvas"}
+                  title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    border: panMode ? '1px solid #93C5FD' : '1px solid #E2E8F0',
+                    background: panMode ? '#DBEAFE' : 'white',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: panMode ? '#1D4ED8' : '#64748B'
+                  }}
+                >
+                  ☰
+                </button>
+              )}
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: '#F8FAFC',
+                borderRadius: '12px',
+                padding: '4px'
+              }}>
+                <button
+                  onClick={handleZoomOut}
+                  aria-label="Thu nhỏ sơ đồ"
+                  title="Thu nhỏ"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)'
+                  }}
+                >
+                  −
+                </button>
+
+                <span style={{
+                  minWidth: '56px',
+                  textAlign: 'center',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#1F2937'
+                }}>
+                  {Math.round(canvas.zoom * 100)}%
+                </span>
+
+                <button
+                  onClick={handleZoomIn}
+                  aria-label="Phóng to sơ đồ"
+                  title="Phóng to"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                onClick={handleFitToView}
+                aria-label="Căn sơ đồ vừa màn hình"
+                title="Vừa với màn hình"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748B'
+                }}
+              >
+                ⬜
+              </button>
+
+              <button
+                onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
+                aria-label={state.isCanvasFullscreen ? "Thoát toàn màn hình canvas" : "Mở toàn màn hình canvas"}
+                title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  border: state.isCanvasFullscreen ? '1px solid #FCA5A5' : '1px solid #E2E8F0',
+                  background: state.isCanvasFullscreen ? '#FEF2F2' : 'white',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: state.isCanvasFullscreen ? '#DC2626' : '#64748B'
+                }}
+              >
+                {state.isCanvasFullscreen ? '✕' : '⛶'}
+              </button>
+            </div>
+          </div>
+
           {/* Preview Mode Banner */}
           {isPreviewMode && (
             <div style={{

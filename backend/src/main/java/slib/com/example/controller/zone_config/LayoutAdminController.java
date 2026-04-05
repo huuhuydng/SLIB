@@ -50,6 +50,11 @@ public class LayoutAdminController {
         }
     }
 
+    @DeleteMapping("/draft")
+    public ResponseEntity<LayoutDraftResponse> discardDraft(Authentication authentication) {
+        return ResponseEntity.ok(layoutAdminService.discardDraft(authentication));
+    }
+
     @PostMapping("/publish")
     public ResponseEntity<?> publish(@RequestBody LayoutSnapshotRequest request, Authentication authentication) {
         try {

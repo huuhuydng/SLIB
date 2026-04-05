@@ -37,6 +37,7 @@ import dashboardService from "../../../services/admin/dashboardService";
 import { getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
 import systemHealthService from "../../../services/admin/systemHealthService";
 import hceStationService from "../../../services/admin/hceStationService";
+import LoadErrorState from "../../../components/common/LoadErrorState";
 import "../../../styles/Dashboard.css";
 
 const Dashboard = () => {
@@ -524,12 +525,12 @@ const Dashboard = () => {
         <div className="dashboard-page-header">
           <div><h1>Bảng điều hành thư viện</h1></div>
         </div>
-        <div className="panel" style={{ textAlign: "center", padding: "60px 24px" }}>
-          <AlertTriangle size={48} color="#D32F2F" style={{ marginBottom: 16, opacity: 0.6 }} />
-          <p style={{ fontSize: 16, color: "#4A5568", marginBottom: 16 }}>{error}</p>
-          <button className="slib-btn slib-btn--primary" onClick={() => fetchOverview()}>
-            <RefreshCw size={16} /> Thử lại
-          </button>
+        <div className="panel">
+          <LoadErrorState
+            title="Không thể tải dữ liệu tổng quan quản trị"
+            message={error}
+            onRetry={() => fetchOverview()}
+          />
         </div>
       </div>
     );

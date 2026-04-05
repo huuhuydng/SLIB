@@ -306,6 +306,7 @@ const AccountSettings = () => {
         switch (role?.toUpperCase()) {
             case 'ADMIN': return 'Quản trị viên';
             case 'LIBRARIAN': return 'Thủ thư';
+            case 'TEACHER': return 'Giáo viên';
             case 'STUDENT': return 'Sinh viên';
             default: return role;
         }

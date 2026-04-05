@@ -32,6 +32,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 
 const DEVICE_TYPE_MAP = {
   ENTRY_GATE: { label: 'Cổng vào', color: '#2563EB', bg: '#DBEAFE' },
@@ -63,6 +64,7 @@ const DeviceManagement = () => {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [areas, setAreas] = useState([]);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
@@ -123,6 +125,7 @@ const DeviceManagement = () => {
       setIsRefreshing(true);
     } else {
       setLoading(true);
+      setLoadError(null);
     }
     try {
       const [stationData, areasRes] = await Promise.all([
@@ -134,7 +137,9 @@ const DeviceManagement = () => {
       setLastUpdatedAt(new Date());
     } catch (err) {
       if (!silent) {
-        showToast(err.message || 'Lỗi tải danh sách trạm quét', 'error');
+        const message = err.message || 'Lỗi tải danh sách trạm quét';
+        showToast(message, 'error');
+        setLoadError(message);
         setStations([]);
       }
     } finally {
@@ -711,6 +716,13 @@ const DeviceManagement = () => {
               <Loader2 size={28} className="sm-spinner" />
               <span style={{ display: 'block', marginTop: '12px', color: '#64748b' }}>Đang tải danh sách trạm quét...</span>
             </div>
+          ) : loadError ? (
+            <LoadErrorState
+              title="Không thể tải danh sách trạm quét"
+              message={loadError}
+              onRetry={() => fetchStations()}
+              compact
+            />
           ) : viewMode === 'table' ? (
             /* ========== TABLE VIEW ========== */
             <div className="sr-table-wrapper">

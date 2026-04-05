@@ -499,18 +499,22 @@ public class UserService {
                 LocalDateTime.now());
     }
 
-    public User getActiveStudentByUserCode(String userCode) {
+    public User getActivePatronByUserCode(String userCode) {
         User user = userRepository.findByUserCode(userCode.toUpperCase().trim())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với mã: " + userCode));
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng thư viện với mã: " + userCode));
 
-        if (user.getRole() != Role.STUDENT) {
-            throw new RuntimeException("Mã này không thuộc tài khoản sinh viên");
+        if (user.getRole() == null || !user.getRole().isPatron()) {
+            throw new RuntimeException("Mã này không thuộc tài khoản người dùng thư viện");
         }
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("Tài khoản sinh viên hiện đang bị khóa");
+            throw new RuntimeException("Tài khoản người dùng hiện đang bị khóa");
         }
 
         return user;
+    }
+
+    public User getActiveStudentByUserCode(String userCode) {
+        return getActivePatronByUserCode(userCode);
     }
 
     private void ensureAdminRemovalAllowed(User user) {

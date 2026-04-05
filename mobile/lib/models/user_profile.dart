@@ -59,8 +59,10 @@ class UserProfile {
   }
 
   bool get isStudent => role.toUpperCase() == 'STUDENT';
+  bool get isTeacher => role.toUpperCase() == 'TEACHER';
   bool get isAdmin => role.toUpperCase() == 'ADMIN';
   bool get isLibrarian => role.toUpperCase() == 'LIBRARIAN';
+  bool get isPatron => isStudent || isTeacher;
   bool get needsPasswordChange => !passwordChanged;
   
   Map<String, dynamic> toJson() {

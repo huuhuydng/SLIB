@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import slib.com.example.dto.notification.NotificationDTO;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
-import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
@@ -37,7 +36,7 @@ public class NotificationController {
 
         User currentUser = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.LIBRARIAN) {
+        if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
             return requestedUserId;
         }
         if (!currentUser.getId().equals(requestedUserId)) {

@@ -33,6 +33,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import systemHealthService from '../../../services/admin/systemHealthService';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 import './SystemHealth.css';
 
 
@@ -407,12 +408,14 @@ const SystemHealth = () => {
               <div style={{
                 background: '#fff',
                 borderRadius: '12px',
-                padding: '32px',
-                border: '1px solid #FECACA',
-                color: '#DC2626'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
               }}>
-                <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '8px' }}>Không thể tải tình trạng hệ thống</div>
-                <div style={{ fontSize: '14px' }}>{infoError}</div>
+                <LoadErrorState
+                  title="Không thể tải tình trạng hệ thống"
+                  message={infoError}
+                  onRetry={fetchSystemInfo}
+                  compact
+                />
               </div>
             ) : systemInfo ? (
               <>
@@ -713,7 +716,12 @@ const SystemHealth = () => {
             {/* Logs List */}
             <div style={{ padding: '16px 24px' }}>
               {logsError ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#DC2626' }}>{logsError}</div>
+                <LoadErrorState
+                  title="Không thể tải nhật ký hệ thống"
+                  message={logsError}
+                  onRetry={fetchLogs}
+                  compact
+                />
               ) : loadingLogs ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
               ) : logs.length === 0 ? (
@@ -940,7 +948,14 @@ const SystemHealth = () => {
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
               </div>
               <div style={{ padding: '16px 24px' }}>
-                {loadingBackup ? (
+                {backupError && !loadingBackup && backupHistory.length === 0 ? (
+                  <LoadErrorState
+                    title="Không thể tải dữ liệu sao lưu"
+                    message={backupError}
+                    onRetry={fetchBackupData}
+                    compact
+                  />
+                ) : loadingBackup ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
                 ) : backupHistory.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Chưa có lịch sử sao lưu</div>

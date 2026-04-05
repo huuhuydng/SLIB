@@ -608,7 +608,7 @@ public class UserController {
 
             // ===== Column definitions matching AsyncImportService parser =====
             String[] headers = {
-                    "Mã sinh viên (userCode)", // A
+                    "Mã người dùng (userCode)", // A
                     "Họ và tên (fullName)", // B
                     "Email", // C
                     "Số điện thoại (phone)", // D
@@ -666,22 +666,22 @@ public class UserController {
             int r = 0;
             Row nr = notesSheet.createRow(r++);
             Cell nc = nr.createCell(0);
-            nc.setCellValue("HƯỚNG DẪN IMPORT SINH VIÊN - SLIB");
+            nc.setCellValue("HƯỚNG DẪN IMPORT NGƯỜI DÙNG - SLIB");
             nc.setCellStyle(noteHeaderStyle);
 
             r++;
             String[] notes = {
-                    "1. Điền thông tin sinh viên vào sheet \"Import Users\"",
+                    "1. Điền thông tin người dùng vào sheet \"Import Users\"",
                     "2. Xóa 2 dòng dữ liệu mẫu trước khi import",
-                    "3. Cột A - Mã sinh viên: Bắt buộc, duy nhất (VD: SE123456)",
+                    "3. Cột A - Mã người dùng: Bắt buộc, duy nhất (VD: SE123456)",
                     "4. Cột B - Họ và tên: Bắt buộc",
                     "5. Cột C - Email: Bắt buộc, phải là email hợp lệ, duy nhất",
                     "6. Cột D - Số điện thoại: Không bắt buộc, 10 chữ số",
                     "7. Cột E - Ngày sinh: Không bắt buộc, định dạng dd/MM/yyyy",
-                    "8. Cột F - Vai trò: STUDENT hoặc LIBRARIAN (mặc định: STUDENT)",
+                    "8. Cột F - Vai trò: STUDENT, TEACHER, LIBRARIAN hoặc ADMIN (mặc định: STUDENT)",
                     "",
                     "NHẬP KÈM AVATAR:",
-                    "- Đặt tên file ảnh trùng với mã sinh viên (VD: SE123456.jpg)",
+                    "- Đặt tên file ảnh trùng với mã người dùng (VD: SE123456.jpg)",
                     "- Nén file template + tất cả ảnh vào 1 file .zip rồi upload"
             };
 

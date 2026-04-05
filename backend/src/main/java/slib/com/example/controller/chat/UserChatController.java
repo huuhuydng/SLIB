@@ -498,7 +498,7 @@ public class UserChatController {
         }
         String email = userDetails.getUsername();
         var user = userService.getUserByEmail(email);
-        if (user.getRole() != Role.LIBRARIAN && user.getRole() != Role.ADMIN) {
+        if (user.getRole() == null || !user.getRole().isStaff()) {
             throw new BadRequestException("Chỉ thủ thư mới có quyền thực hiện thao tác này");
         }
         return user.getId();

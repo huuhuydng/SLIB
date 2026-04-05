@@ -31,6 +31,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 
 import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
@@ -761,14 +762,12 @@ function KioskManagement() {
               </span>
             </div>
           ) : error ? (
-            <div className="hce-station-empty">
-              <AlertTriangle size={48} color="#DC2626" className="hce-station-empty__icon" />
-              <div className="hce-station-empty__title">{error}</div>
-              <button className="um-toolbar-btn" onClick={fetchSessions}>
-                <RefreshCw size={14} />
-                Thử lại
-              </button>
-            </div>
+            <LoadErrorState
+              title="Không thể tải danh sách kiosk"
+              message={error}
+              onRetry={fetchSessions}
+              compact
+            />
           ) : viewMode === 'table' ? (
             /* ========== TABLE VIEW ========== */
             <div className="sr-table-wrapper">

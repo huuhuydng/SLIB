@@ -27,12 +27,10 @@ public class LayoutHistoryEntity {
     @Column(name = "action_type", nullable = false, length = 32)
     private String actionType;
 
-    @Lob
-    @Column(name = "summary")
+    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Lob
-    @Column(name = "snapshot_json", nullable = false)
+    @Column(name = "snapshot_json", nullable = false, columnDefinition = "TEXT")
     private String snapshotJson;
 
     @Column(name = "published_version")

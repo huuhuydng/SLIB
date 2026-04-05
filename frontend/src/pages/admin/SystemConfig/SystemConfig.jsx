@@ -24,6 +24,7 @@ import {
   Unlock,
   Power
 } from 'lucide-react';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 
 
 import { API_BASE_URL as BASE } from '../../../config/apiConfig';
@@ -467,35 +468,14 @@ const SystemConfig = () => {
                 background: '#fff',
                 borderRadius: '10px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                padding: '32px 24px',
-                textAlign: 'center'
               }}>
-                <AlertTriangle size={28} color="#E53E3E" style={{ margin: '0 auto 12px' }} />
-                <div style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', marginBottom: '8px' }}>
-                  Không thể tải cấu hình hệ thống
-                </div>
-                <div style={{ fontSize: '14px', color: '#718096', marginBottom: '16px', whiteSpace: 'pre-line' }}>
-                  {settingsError}
-                </div>
-                <button
-                  onClick={() => fetchSettings({ showErrorToast: true })}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 16px',
-                    background: '#e8600a',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: '#fff',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <RotateCcw size={16} />
-                  Tải lại
-                </button>
+                <LoadErrorState
+                  title="Không thể tải cấu hình hệ thống"
+                  message={settingsError}
+                  onRetry={() => fetchSettings({ showErrorToast: true })}
+                  retryLabel="Tải lại"
+                  compact
+                />
               </div>
             )}
 
