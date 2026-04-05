@@ -19,8 +19,8 @@ public class LayoutAdminController {
     private final LayoutAdminService layoutAdminService;
 
     @GetMapping("/draft")
-    public ResponseEntity<LayoutDraftResponse> getDraft() {
-        return ResponseEntity.ok(layoutAdminService.getDraftOrPublishedSnapshot());
+    public ResponseEntity<LayoutDraftResponse> getDraft(Authentication authentication) {
+        return ResponseEntity.ok(layoutAdminService.getDraftOrPublishedSnapshot(authentication));
     }
 
     @GetMapping("/history")
@@ -59,6 +59,10 @@ public class LayoutAdminController {
     public ResponseEntity<?> publish(@RequestBody LayoutSnapshotRequest request, Authentication authentication) {
         try {
             return ResponseEntity.ok(layoutAdminService.publish(request, authentication));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "LAYOUT_VERSION_CONFLICT",
+                    "message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                     "error", "LAYOUT_CONFLICT",

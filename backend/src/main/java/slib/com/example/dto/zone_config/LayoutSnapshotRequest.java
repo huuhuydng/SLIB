@@ -11,6 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LayoutSnapshotRequest {
+    private Long basedOnPublishedVersion;
     private List<AreaResponse> areas = new ArrayList<>();
     private List<ZoneResponse> zones = new ArrayList<>();
     private List<SeatResponse> seats = new ArrayList<>();

@@ -124,6 +124,7 @@ function CanvasBoard() {
   }, [dispatch, actions]);
 
   const buildLayoutSnapshot = useCallback(() => ({
+    basedOnPublishedVersion: draftMeta?.basedOnPublishedVersion ?? 0,
     areas: areas.map((area) => ({
       areaId: area.areaId,
       areaName: area.areaName,
@@ -171,7 +172,7 @@ function CanvasBoard() {
       height: Math.round(factory.height ?? 80),
       isLocked: factory.isLocked ?? false,
     })),
-  }), [areas, zones, seats, factories]);
+  }), [areas, zones, seats, factories, draftMeta?.basedOnPublishedVersion]);
 
   const loadHistoryFeed = useCallback(async () => {
     try {
@@ -181,6 +182,21 @@ function CanvasBoard() {
       console.error("Không thể tải lịch sử sơ đồ", error);
     }
   }, []);
+
+  const loadDraftSnapshot = useCallback(async () => {
+    const [draftRes] = await Promise.all([
+      getLayoutDraft(),
+      loadHistoryFeed(),
+    ]);
+
+    setDraftMeta(draftRes?.data ?? null);
+    hydrateLayoutSnapshot(draftRes?.data?.snapshot ?? {});
+    dispatch({ type: actions.MARK_SAVED });
+    setValidationConflicts([]);
+    setShowConflictPanel(false);
+    clearAllPositionCache();
+    return draftRes?.data ?? null;
+  }, [actions, dispatch, hydrateLayoutSnapshot, loadHistoryFeed]);
 
   // ===== FIGMA-STYLE LOADING =====
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
@@ -195,14 +211,7 @@ function CanvasBoard() {
 
     (async () => {
       try {
-        const [draftRes] = await Promise.all([
-          getLayoutDraft(),
-          loadHistoryFeed(),
-        ]);
-
-        setDraftMeta(draftRes?.data ?? null);
-        hydrateLayoutSnapshot(draftRes?.data?.snapshot ?? {});
-        dispatch({ type: actions.MARK_SAVED });
+        await loadDraftSnapshot();
       } catch (err) {
         console.error("Load areas failed", err);
         dispatch({ type: actions.SET_AREAS, payload: [] });
@@ -214,7 +223,7 @@ function CanvasBoard() {
         setIsLoadingAreas(false);
       }
     })();
-  }, [dispatch, actions, hydrateLayoutSnapshot, loadHistoryFeed]);
+  }, [dispatch, actions, loadDraftSnapshot]);
 
   /* =============================
      ZOOM
@@ -575,6 +584,19 @@ function CanvasBoard() {
       toast.success(`Đã xuất bản sơ đồ thư viện, phiên bản ${res?.data?.publishedVersion}`);
     } catch (error) {
       console.error("Publish layout failed:", error);
+      if (error?.response?.data?.error === 'LAYOUT_VERSION_CONFLICT') {
+        const shouldReload = await confirm({
+          title: "Sơ đồ đã có phiên bản mới",
+          message: "Một người khác đã xuất bản sơ đồ mới trong lúc anh đang chỉnh sửa. Tải lại để lấy phiên bản mới nhất ngay bây giờ?",
+          confirmText: "Tải lại",
+          variant: "warning",
+        });
+        if (shouldReload) {
+          await loadDraftSnapshot();
+          toast.info("Đã tải lại sơ đồ mới nhất từ hệ thống");
+        }
+        return;
+      }
       const validation = extractValidationPayload(error);
       if (validation?.conflicts) {
         setValidationConflicts(validation.conflicts);
@@ -584,7 +606,7 @@ function CanvasBoard() {
     } finally {
       setIsPublishing(false);
     }
-  }, [actions, buildLayoutSnapshot, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadHistoryFeed, runValidation, toast]);
+  }, [actions, buildLayoutSnapshot, confirm, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadDraftSnapshot, loadHistoryFeed, runValidation, toast]);
 
   const handleDiscardDraft = useCallback(async () => {
     if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing) return;
@@ -723,16 +745,16 @@ function CanvasBoard() {
                 textOverflow: 'ellipsis',
                 marginBottom: '2px',
               }}>
-                {draftMeta.hasDraft ? 'Đang mở nháp' : 'Đang xem bản xuất bản'}
+                {draftMeta.hasDraft ? 'Nháp cá nhân' : 'Đang xem bản xuất bản'}
               </div>
               <div style={{
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}>
-                {draftMeta.updatedByName
-                  ? `${draftMeta.updatedByName}${formatDraftMetaTime(draftMeta.updatedAt) ? ` · ${formatDraftMetaTime(draftMeta.updatedAt)}` : ''}`
-                  : 'Chưa có nháp'}
+                {draftMeta.hasDraft
+                  ? `Nháp của bạn${formatDraftMetaTime(draftMeta.updatedAt) ? ` · ${formatDraftMetaTime(draftMeta.updatedAt)}` : ''}`
+                  : `Phiên bản ${draftMeta.basedOnPublishedVersion ?? 0}`}
               </div>
             </div>
           )}

@@ -43,8 +43,9 @@ public class LayoutAdminService {
     private final EntityManager entityManager;
 
     @Transactional(readOnly = true)
-    public LayoutDraftResponse getDraftOrPublishedSnapshot() {
-        Optional<LayoutDraftEntity> draft = layoutDraftRepository.findAll().stream().findFirst();
+    public LayoutDraftResponse getDraftOrPublishedSnapshot(Authentication authentication) {
+        ActorInfo actor = resolveRequiredActor(authentication);
+        Optional<LayoutDraftEntity> draft = layoutDraftRepository.findFirstByUpdatedByUserId(actor.userId());
         if (draft.isPresent()) {
             LayoutDraftEntity entity = draft.get();
             try {
@@ -96,12 +97,14 @@ public class LayoutAdminService {
             throw new IllegalArgumentException("Sơ đồ còn xung đột, vui lòng xử lý trước khi lưu nháp");
         }
 
-        ActorInfo actor = resolveActor(authentication);
-        LayoutDraftEntity entity = layoutDraftRepository.findAll().stream().findFirst()
+        ActorInfo actor = resolveRequiredActor(authentication);
+        LayoutDraftEntity entity = layoutDraftRepository.findFirstByUpdatedByUserId(actor.userId())
                 .orElse(LayoutDraftEntity.builder().build());
+        long latestPublishedVersion = layoutHistoryRepository.findLatestPublishedVersion().orElse(0L);
 
         entity.setSnapshotJson(writeSnapshot(normalized));
-        entity.setBasedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L));
+        entity.setBasedOnPublishedVersion(resolveBasedOnPublishedVersion(normalized, entity.getBasedOnPublishedVersion(),
+                latestPublishedVersion));
         entity.setUpdatedByUserId(actor.userId());
         entity.setUpdatedByName(actor.displayName());
         entity.setUpdatedAt(LocalDateTime.now());
@@ -120,10 +123,10 @@ public class LayoutAdminService {
 
     @Transactional
     public LayoutDraftResponse discardDraft(Authentication authentication) {
-        if (layoutDraftRepository.count() > 0) {
-            ActorInfo actor = resolveActor(authentication);
+        ActorInfo actor = resolveRequiredActor(authentication);
+        if (layoutDraftRepository.findFirstByUpdatedByUserId(actor.userId()).isPresent()) {
             LayoutSnapshotRequest publishedSnapshot = buildCurrentSnapshot();
-            layoutDraftRepository.deleteAllInBatch();
+            layoutDraftRepository.deleteByUpdatedByUserId(actor.userId());
             recordHistory("DISCARD_DRAFT", "Đã bỏ nháp sơ đồ và quay về bản xuất bản",
                     publishedSnapshot, layoutHistoryRepository.findLatestPublishedVersion().orElse(0L), actor);
         }
@@ -143,12 +146,18 @@ public class LayoutAdminService {
             throw new IllegalArgumentException("Sơ đồ còn xung đột, vui lòng xử lý trước khi xuất bản");
         }
 
-        ActorInfo actor = resolveActor(authentication);
+        ActorInfo actor = resolveRequiredActor(authentication);
+        long latestPublishedVersion = layoutHistoryRepository.findLatestPublishedVersion().orElse(0L);
+        long basedOnPublishedVersion = resolveBasedOnPublishedVersion(normalized, null, latestPublishedVersion);
+        if (basedOnPublishedVersion != latestPublishedVersion) {
+            throw new IllegalStateException("Sơ đồ đã được người khác xuất bản phiên bản mới. Vui lòng tải lại trước khi xuất bản tiếp.");
+        }
+
         applySnapshot(normalized);
         LayoutSnapshotRequest publishedSnapshot = buildCurrentSnapshot();
-        long publishedVersion = layoutHistoryRepository.findLatestPublishedVersion().orElse(0L) + 1;
+        long publishedVersion = latestPublishedVersion + 1;
 
-        layoutDraftRepository.deleteAll();
+        layoutDraftRepository.deleteAllInBatch();
         recordHistory("PUBLISH", buildSummary("Đã xuất bản sơ đồ", publishedSnapshot), publishedSnapshot, publishedVersion, actor);
 
         return LayoutPublishResponse.builder()
@@ -367,7 +376,7 @@ public class LayoutAdminService {
                 .map(this::toFactoryResponse)
                 .toList();
 
-        return new LayoutSnapshotRequest(areas, zones, seats, factories);
+        return new LayoutSnapshotRequest(null, areas, zones, seats, factories);
     }
 
     @Transactional
@@ -543,9 +552,10 @@ public class LayoutAdminService {
 
     private LayoutSnapshotRequest normalizeSnapshot(LayoutSnapshotRequest snapshot) {
         if (snapshot == null) {
-            return new LayoutSnapshotRequest(new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+            return new LayoutSnapshotRequest(null, new ArrayList<>(), new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         }
         return new LayoutSnapshotRequest(
+                snapshot.getBasedOnPublishedVersion(),
                 snapshot.getAreas() != null ? snapshot.getAreas() : new ArrayList<>(),
                 snapshot.getZones() != null ? snapshot.getZones() : new ArrayList<>(),
                 snapshot.getSeats() != null ? snapshot.getSeats() : new ArrayList<>(),
@@ -607,6 +617,24 @@ public class LayoutAdminService {
                     ex.getMessage());
             return new ActorInfo(null, authentication.getName());
         }
+    }
+
+    private ActorInfo resolveRequiredActor(Authentication authentication) {
+        ActorInfo actor = resolveActor(authentication);
+        if (actor.userId() == null) {
+            throw new RuntimeException("Không thể xác định tài khoản thao tác sơ đồ");
+        }
+        return actor;
+    }
+
+    private long resolveBasedOnPublishedVersion(LayoutSnapshotRequest snapshot, Long fallbackVersion, long latestPublishedVersion) {
+        if (snapshot != null && snapshot.getBasedOnPublishedVersion() != null) {
+            return snapshot.getBasedOnPublishedVersion();
+        }
+        if (fallbackVersion != null) {
+            return fallbackVersion;
+        }
+        return latestPublishedVersion;
     }
 
     private LayoutConflictResponse conflict(String code, String severity, String entityType, String entityKey,
