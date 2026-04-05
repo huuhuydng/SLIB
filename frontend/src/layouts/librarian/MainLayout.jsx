@@ -450,6 +450,48 @@ const TOAST_DETAIL_MAP = {
   },
 };
 
+const TOAST_SUPPRESSION_RULES = [
+  {
+    source: 'SUPPORT_REQUEST',
+    routeIncludes: '/librarian/support-requests',
+    actions: ['STATUS_CHANGED', 'RESPONDED', 'DELETED'],
+  },
+  {
+    source: 'COMPLAINT',
+    routeIncludes: '/librarian/complaints',
+    actions: ['ACCEPTED', 'DENIED', 'DELETED'],
+  },
+  {
+    source: 'FEEDBACK',
+    routeIncludes: '/librarian/feedback',
+    actions: ['REVIEWED', 'DELETED'],
+  },
+  {
+    source: 'SEAT_STATUS_REPORT',
+    routeIncludes: '/librarian/seat-status-reports',
+    actions: ['VERIFIED', 'REJECTED', 'RESOLVED', 'STATUS_CHANGED', 'DELETED'],
+  },
+  {
+    source: 'VIOLATION',
+    routeIncludes: '/librarian/violation',
+    actions: ['VERIFIED', 'REJECTED', 'STATUS_CHANGED', 'DELETED'],
+  },
+  {
+    source: 'CHAT',
+    routeIncludes: '/librarian/chat',
+    actions: ['TAKEN_OVER', 'RESOLVED', 'STUDENT_RESOLVED', 'CANCELLED'],
+  },
+];
+
+function shouldSuppressRealtimeToast(source, action, pathname) {
+  return TOAST_SUPPRESSION_RULES.some(
+    (rule) =>
+      rule.source === source &&
+      pathname.includes(rule.routeIncludes) &&
+      rule.actions.includes(action)
+  );
+}
+
 // Toast notification component — hiển thị ở góc phải trên khi có notification mới
 function ToastNotifications() {
   const { notifications, pendingCounts } = useLibrarianNotification();
@@ -473,6 +515,18 @@ function ToastNotifications() {
       }
 
       const newNotif = notifications[0];
+      const currentPath = window.location.pathname;
+      const suppressOnCurrentPage = shouldSuppressRealtimeToast(
+        newNotif.source,
+        newNotif.action,
+        currentPath
+      );
+
+      if (suppressOnCurrentPage) {
+        prevCountRef.current = notifications.length;
+        return;
+      }
+
       const config = NOTIF_ICON_MAP[newNotif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
       const route = NOTIF_ROUTE_MAP[newNotif.source] || '/librarian/dashboard';
 

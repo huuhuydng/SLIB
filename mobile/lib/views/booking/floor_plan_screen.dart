@@ -656,6 +656,85 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }
   }
 
+  DateTime? _buildSlotDateTime(DateTime date, String timeValue) {
+    final parts = timeValue.split(':');
+    if (parts.length < 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  int? _getRemainingMinutesForOngoingSlot(DateTime date, String? timeSlot) {
+    if (timeSlot == null) return null;
+
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (!isToday) return null;
+
+    final parts = timeSlot.split(' - ');
+    if (parts.length != 2) return null;
+
+    final slotStart = _buildSlotDateTime(date, parts[0]);
+    final slotEnd = _buildSlotDateTime(date, parts[1]);
+    if (slotStart == null || slotEnd == null) return null;
+
+    if (now.isBefore(slotStart) || !now.isBefore(slotEnd)) return null;
+
+    final remaining = slotEnd.difference(now);
+    if (remaining.inSeconds <= 0) return null;
+
+    return (remaining.inSeconds / 60).ceil();
+  }
+
+  Future<bool> _confirmOngoingTimeSlotIfNeeded() async {
+    final remainingMinutes = _getRemainingMinutesForOngoingSlot(
+      _selectedDate,
+      _selectedTimeSlot,
+    );
+
+    if (remainingMinutes == null) return true;
+    if (!mounted) return false;
+
+    final remainingLabel = remainingMinutes <= 1
+        ? 'chưa đến 1 phút'
+        : '$remainingMinutes phút';
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Khung giờ này đã bắt đầu',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Suất ngồi bạn chọn đang diễn ra. Nếu tiếp tục đặt chỗ, bạn chỉ còn khoảng $remainingLabel sử dụng trong khung giờ ${_selectedTimeSlot!}. Bạn vẫn muốn tiếp tục chứ?',
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Chọn khung giờ khác'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tiếp tục đặt'),
+          ),
+        ],
+      ),
+    );
+
+    return accepted == true;
+  }
+
   void _showLegendDialog() {
     showDialog(
       context: context,
@@ -983,6 +1062,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final confirmed = await _showSeatConfirmPopup(seat, zone);
     if (confirmed != true) return;
     if (!mounted) return;
+
+    final acceptedOngoingSlot = await _confirmOngoingTimeSlotIfNeeded();
+    if (!acceptedOngoingSlot || !mounted) return;
 
     // Kiểm tra user đã đăng nhập
     final user = authService.currentUser;
@@ -2154,6 +2236,40 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
     }
   }
 
+  DateTime? _buildSlotDateTime(DateTime date, String timeValue) {
+    final parts = timeValue.split(':');
+    if (parts.length < 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  int? _getRemainingMinutesForOngoingSlot(DateTime date, String? timeSlot) {
+    if (timeSlot == null) return null;
+
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (!isToday) return null;
+
+    final parts = timeSlot.split(' - ');
+    if (parts.length != 2) return null;
+
+    final slotStart = _buildSlotDateTime(date, parts[0]);
+    final slotEnd = _buildSlotDateTime(date, parts[1]);
+    if (slotStart == null || slotEnd == null) return null;
+
+    if (now.isBefore(slotStart) || !now.isBefore(slotEnd)) return null;
+
+    final remaining = slotEnd.difference(now);
+    if (remaining.inSeconds <= 0) return null;
+
+    return (remaining.inSeconds / 60).ceil();
+  }
+
   Future<void> _confirmBooking() async {
     if (_selectedIndex == null ||
         _selectedTime == null ||
@@ -2174,6 +2290,48 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
     }
 
     final parts = _selectedTime!.split(' - ');
+
+    final remainingMinutes = _getRemainingMinutesForOngoingSlot(
+      _selectedDate!,
+      _selectedTime,
+    );
+    if (remainingMinutes != null) {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Khung giờ này đã bắt đầu',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Suất ngồi bạn chọn đang diễn ra. Nếu tiếp tục đặt chỗ, bạn chỉ còn khoảng ${remainingMinutes <= 1 ? 'chưa đến 1 phút' : '$remainingMinutes phút'} sử dụng trong khung giờ $_selectedTime. Bạn vẫn muốn tiếp tục chứ?',
+            style: const TextStyle(height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Chọn khung giờ khác'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Tiếp tục đặt'),
+            ),
+          ],
+        ),
+      );
+
+      if (accepted != true) {
+        return;
+      }
+    }
+
     try {
       await _bookingService.createBooking(
         userId: userId,

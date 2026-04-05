@@ -972,16 +972,25 @@ public class ConversationService {
                                         conversationId);
 
                         if ("STUDENT".equals(resolvedSenderType)) {
-                                // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
-                                Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
-                                chatNotify.put("type", "CHAT_NEW_MESSAGE");
-                                chatNotify.put("conversationId", conversationId.toString());
-                                chatNotify.put("senderName", sender.getFullName());
-                                chatNotify.put("content", notifyContent);
-                                chatNotify.put("timestamp", java.time.Instant.now().toString());
-                                messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
-                                log.info("[Chat] Sent librarian notification for new student message in conv {}",
-                                                conversationId);
+                                boolean shouldNotifyLibrarians = conv.getStatus() == ConversationStatus.QUEUE_WAITING
+                                                || conv.getStatus() == ConversationStatus.HUMAN_CHATTING;
+
+                                if (shouldNotifyLibrarians) {
+                                        // Student gửi khi đang chờ hoặc đang chat với thủ thư
+                                        Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
+                                        chatNotify.put("type", "CHAT_NEW_MESSAGE");
+                                        chatNotify.put("conversationId", conversationId.toString());
+                                        chatNotify.put("senderName", sender.getFullName());
+                                        chatNotify.put("content", notifyContent);
+                                        chatNotify.put("timestamp", java.time.Instant.now().toString());
+                                        messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
+                                        log.info("[Chat] Sent librarian notification for new student message in conv {}",
+                                                        conversationId);
+                                } else {
+                                        log.debug(
+                                                        "[Chat] Skip librarian notification for student message in conv {} because status is {}",
+                                                        conversationId, conv.getStatus());
+                                }
                         } else if ("LIBRARIAN".equals(resolvedSenderType)) {
                                 // Librarian gửi → push notification cho student qua FCM
                                 UUID studentId = conv.getStudent().getId();

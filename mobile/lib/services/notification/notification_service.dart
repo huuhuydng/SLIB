@@ -580,8 +580,10 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
       if (notificationType == 'CHAT_MESSAGE') {
         // CHAT_MESSAGE: backend gửi data-only FCM (không có notification payload)
-        _unreadChatCount++;
-        notifyListeners();
+        if (!isChatScreenActive) {
+          _unreadChatCount++;
+          notifyListeners();
+        }
 
         // Cập nhật badge chuông từ server (fallback khi WebSocket không kết nối)
         refreshUnreadCount();
@@ -874,7 +876,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
       if (response.statusCode == 200) {
         _notifications = _notifications.map((notification) {
-          if (notification.category == normalizedCategory && !notification.isRead) {
+          if (notification.category == normalizedCategory &&
+              !notification.isRead) {
             return notification.copyWith(isRead: true);
           }
           return notification;
@@ -980,6 +983,22 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void clearChatBadge() {
     if (_unreadChatCount > 0) {
       _unreadChatCount = 0;
+      notifyListeners();
+    }
+  }
+
+  /// Đồng bộ trạng thái màn chat để suppress badge/push hợp lý
+  void setChatScreenActive(bool isActive) {
+    final didChange = isChatScreenActive != isActive;
+    isChatScreenActive = isActive;
+
+    if (isActive && _unreadChatCount > 0) {
+      _unreadChatCount = 0;
+      notifyListeners();
+      return;
+    }
+
+    if (didChange) {
       notifyListeners();
     }
   }

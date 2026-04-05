@@ -127,6 +127,10 @@ public class FeedbackService {
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thủ thư"));
 
+        if (feedback.getStatus() != FeedbackStatus.NEW) {
+            return FeedbackDTO.fromEntity(feedback);
+        }
+
         feedback.setStatus(FeedbackStatus.REVIEWED);
         feedback.setReviewedBy(librarian);
         feedback.setReviewedAt(LocalDateTime.now());
@@ -136,6 +140,37 @@ public class FeedbackService {
         broadcastDashboardUpdate("FEEDBACK_UPDATE", "REVIEWED");
         librarianNotificationService.broadcastPendingCounts("FEEDBACK", "REVIEWED");
         return FeedbackDTO.fromEntity(saved);
+    }
+
+    /**
+     * Thủ thư đánh dấu nhiều phản hồi là đã xem
+     */
+    @Transactional
+    public int markReviewedBatch(List<UUID> feedbackIds, UUID librarianId) {
+        User librarian = userRepository.findById(librarianId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thủ thư"));
+
+        List<FeedbackEntity> feedbacks = feedbackRepository.findAllById(feedbackIds);
+        LocalDateTime reviewedAt = LocalDateTime.now();
+
+        List<FeedbackEntity> reviewableFeedbacks = feedbacks.stream()
+                .filter(feedback -> feedback.getStatus() == FeedbackStatus.NEW)
+                .peek(feedback -> {
+                    feedback.setStatus(FeedbackStatus.REVIEWED);
+                    feedback.setReviewedBy(librarian);
+                    feedback.setReviewedAt(reviewedAt);
+                })
+                .collect(Collectors.toList());
+
+        if (reviewableFeedbacks.isEmpty()) {
+            return 0;
+        }
+
+        feedbackRepository.saveAll(reviewableFeedbacks);
+        log.info("[Feedback] {} phản hồi đã được xem bởi {}", reviewableFeedbacks.size(), librarian.getFullName());
+        broadcastDashboardUpdate("FEEDBACK_UPDATE", "REVIEWED");
+        librarianNotificationService.broadcastPendingCounts("FEEDBACK", "REVIEWED");
+        return reviewableFeedbacks.size();
     }
 
     /**

@@ -14,7 +14,6 @@ import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/chat/chat_service.dart';
 import 'package:slib/services/chat/chat_websocket_service.dart';
 import 'package:slib/views/support/support_request_screen.dart';
-import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 // --- CẤU HÌNH MÀU SẮC ---
@@ -132,13 +131,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Scroll listener: hiện nút scroll-to-bottom khi user cuộn lên xa
     _scrollController.addListener(_onScrollChanged);
     _scrollController.addListener(_onScrollUp);
-    // Suppress push notification khi đang ở chat screen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<NotificationService>(
-        context,
-        listen: false,
-      ).isChatScreenActive = true;
-    });
     _loadSavedState();
   }
 
@@ -887,13 +879,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    // Bật lại push notification khi rời chat screen
-    try {
-      Provider.of<NotificationService>(
-        context,
-        listen: false,
-      ).isChatScreenActive = false;
-    } catch (_) {}
     // Stop all polling loops by resetting guards
     _isAIPollingActive = false;
     _isStatusPollingActive = false;
@@ -3223,7 +3208,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         final authService = Provider.of<AuthService>(context, listen: false);
         final token = await authService.getToken();
         if (token != null) {
-          await _chatService.resetConversationForStudent(_conversationId!, token);
+          await _chatService.resetConversationForStudent(
+            _conversationId!,
+            token,
+          );
         }
       } catch (e) {
         debugPrint('[CHAT] Error syncing reset to backend: $e');

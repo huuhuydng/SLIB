@@ -33,6 +33,7 @@ class MainScreenState extends State<MainScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<NotificationService>().initialize();
+      context.read<NotificationService>().setChatScreenActive(false);
       context.read<LibraryStatusService>().initialize();
       _loadUserInfo();
     });
@@ -60,6 +61,10 @@ class MainScreenState extends State<MainScreen> {
   ];
 
   void _onItemTapped(int index) {
+    try {
+      context.read<NotificationService>().setChatScreenActive(index == 3);
+    } catch (_) {}
+
     // Clear chat badge when switching to chat tab
     if (index == 3) {
       try {

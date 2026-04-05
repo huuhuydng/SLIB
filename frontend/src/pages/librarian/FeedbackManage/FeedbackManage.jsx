@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Search, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, LayoutGrid, LayoutList, Trash2, Star, Eye } from "lucide-react";
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, Filter, X, SlidersHorizontal, LayoutGrid, LayoutList, Trash2, Star, Eye } from "lucide-react";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/FeedbackManage.css";
@@ -126,17 +126,43 @@ function FeedbackManage() {
     }, []);
 
     // Actions
-    const handleMarkReviewed = async (id) => {
+    const reviewableSelectedIds = useMemo(
+        () => [...selectedIds].filter((id) => feedbacks.find((feedback) => feedback.id === id)?.status === "NEW"),
+        [selectedIds, feedbacks]
+    );
+
+    const reviewFeedbacks = useCallback(async (ids) => {
         setSubmitting(true);
         try {
             const token = getToken();
-            const res = await fetch(`${API_BASE}/${id}/review`, {
+            const single = ids.length === 1;
+            const endpoint = single ? `${API_BASE}/${ids[0]}/review` : `${API_BASE}/batch/review`;
+            const res = await fetch(endpoint, {
                 method: "PUT",
-                headers: { Authorization: `Bearer ${token}` },
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    ...(single ? {} : { "Content-Type": "application/json" }),
+                },
+                ...(single ? {} : { body: JSON.stringify({ ids }) }),
             });
             if (res.ok) {
-                toast.success('Đã đánh dấu phản hồi là đã xem');
-                fetchFeedbacks();
+                const data = single ? null : await res.json();
+                const reviewedCount = single ? 1 : data?.reviewed || 0;
+                if (reviewedCount <= 0) {
+                    toast.info('Các phản hồi đã chọn đã ở trạng thái đã xem');
+                } else {
+                    toast.success(
+                        reviewedCount === 1
+                            ? 'Đã đánh dấu phản hồi là đã xem'
+                            : `Đã đánh dấu ${reviewedCount} phản hồi là đã xem`
+                    );
+                }
+                setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    ids.forEach((id) => next.delete(id));
+                    return next;
+                });
+                await fetchFeedbacks();
                 setSelectedFeedback(null);
             } else {
                 toast.error('Không thể đánh dấu phản hồi. Vui lòng thử lại.');
@@ -147,6 +173,19 @@ function FeedbackManage() {
         } finally {
             setSubmitting(false);
         }
+    }, [fetchFeedbacks, toast]);
+
+    const handleMarkReviewed = async (id) => {
+        await reviewFeedbacks([id]);
+    };
+
+    const handleBatchMarkReviewed = async () => {
+        if (reviewableSelectedIds.length === 0) {
+            toast.info('Không có phản hồi mới nào trong phần đã chọn');
+            return;
+        }
+
+        await reviewFeedbacks(reviewableSelectedIds);
     };
 
     const handleBatchDelete = async () => {
@@ -495,8 +534,14 @@ function FeedbackManage() {
                         </div>
                     )}
 
+                    {reviewableSelectedIds.length > 0 && (
+                        <button className="fm-batch-review-btn" onClick={handleBatchMarkReviewed} disabled={submitting}>
+                            <Eye size={14} /> Đánh dấu đã xem {reviewableSelectedIds.length}
+                        </button>
+                    )}
+
                     {selectedIds.size > 0 && (
-                        <button className="sr-delete-btn" onClick={handleBatchDelete} disabled={deleting}>
+                        <button className="sr-delete-btn" onClick={handleBatchDelete} disabled={deleting || submitting}>
                             <Trash2 size={14} /> Xoá {selectedIds.size}
                         </button>
                     )}

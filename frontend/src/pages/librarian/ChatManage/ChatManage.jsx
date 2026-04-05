@@ -39,11 +39,23 @@ const ChatManage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const stompClientRef = useRef(null);
   const subscriptionRef = useRef(null);
   const fileInputRef = useRef(null);
   const selectedConversationIdRef = useRef(selectedConversationId);
   const fetchIdRef = useRef(0);
+  const messagesRef = useRef(messages);
+  const shouldAutoScrollRef = useRef(true);
+
+  const isNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const remainingDistance =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    return remainingDistance <= 120;
+  }, []);
 
   const getAuthToken = () =>
     sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
@@ -93,6 +105,10 @@ const ChatManage = () => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
 
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
     try {
@@ -128,6 +144,7 @@ const ChatManage = () => {
     if (!conversationId) return;
 
     const myFetchId = ++fetchIdRef.current;
+    const shouldKeepBottom = isNearBottom() || messagesRef.current.length === 0;
 
     try {
       const token = getAuthToken();
@@ -146,6 +163,7 @@ const ChatManage = () => {
           ...msg,
           isMine: msg.senderType === 'LIBRARIAN'
         }));
+        shouldAutoScrollRef.current = shouldKeepBottom;
         setMessages(prev => {
           const pendingOptimistic = prev.filter(m =>
             m._optimistic && !serverMessages.some(sm =>
@@ -159,7 +177,7 @@ const ChatManage = () => {
       if (myFetchId !== fetchIdRef.current) return;
       console.error('Error fetching messages:', err);
     }
-  }, []);
+  }, [isNearBottom]);
 
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!conversationId) return;
@@ -222,6 +240,7 @@ const ChatManage = () => {
 
     const shouldAddOptimisticMessage = Boolean(messageContent.trim());
     if (shouldAddOptimisticMessage) {
+      shouldAutoScrollRef.current = true;
       const tempId = `optimistic_${Date.now()}`;
       const optimisticMsg = {
         id: tempId,
@@ -313,7 +332,16 @@ const ChatManage = () => {
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth',
+    });
   };
 
   useEffect(() => {
@@ -324,6 +352,7 @@ const ChatManage = () => {
 
   useEffect(() => {
     if (selectedConversationId) {
+      shouldAutoScrollRef.current = true;
       setMessages([]);
       fetchMessages(selectedConversationId);
       markConversationAsRead(selectedConversationId);
@@ -386,6 +415,7 @@ const ChatManage = () => {
             });
             // Refresh messages if viewing this conversation (no toast here — context handles it)
             if (data.conversationId === selectedConversationIdRef.current) {
+              shouldAutoScrollRef.current = isNearBottom();
               fetchMessages(data.conversationId);
               markConversationAsRead(data.conversationId);
             }
@@ -408,7 +438,7 @@ const ChatManage = () => {
       stompClientRef.current = null;
       if (client) client.deactivate();
     };
-  }, [fetchConversations, fetchMessages, markConversationAsRead, updateConversationPreview]);
+  }, [fetchConversations, fetchMessages, isNearBottom, markConversationAsRead, updateConversationPreview]);
 
   // Subscribe to conversation topic
   const subscribeToConversation = useCallback((conversationId) => {
@@ -432,6 +462,8 @@ const ChatManage = () => {
         if (!newMessage.createdAt) {
           newMessage.createdAt = new Date().toISOString();
         }
+
+        shouldAutoScrollRef.current = newMessage.senderType === 'LIBRARIAN' || isNearBottom();
 
         setMessages(prev => {
           if (prev.some(m => m.id === newMessage.id && !m._optimistic)) return prev;
@@ -461,7 +493,7 @@ const ChatManage = () => {
         }
       }
     );
-  }, [markConversationAsRead, updateConversationPreview]);
+  }, [isNearBottom, markConversationAsRead, updateConversationPreview]);
 
   useEffect(() => {
     if (selectedConversationId && wsConnected) {
@@ -476,7 +508,9 @@ const ChatManage = () => {
   }, [selectedConversationId, wsConnected, subscribeToConversation]);
 
   useEffect(() => {
+    if (!shouldAutoScrollRef.current) return;
     scrollToBottom();
+    shouldAutoScrollRef.current = false;
   }, [messages]);
 
   const currentConversation = conversations.find(c => c.id === selectedConversationId);
@@ -817,7 +851,7 @@ const ChatManage = () => {
                   )}
 
                   {/* Messages */}
-                  <div className="cm-messages-area">
+                  <div ref={messagesContainerRef} className="cm-messages-area">
                     {messages.map((msg, index) => {
                       const isAI = msg.senderType === 'AI';
                       const isLibrarian = msg.senderType === 'LIBRARIAN';

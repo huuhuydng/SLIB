@@ -11,7 +11,6 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
@@ -66,23 +65,20 @@ class FE101_FilterNotificationsTest {
         @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID01: Filter notifications with default limit returns 200 OK")
         void filterNotifications_defaultLimit_returns200() throws Exception {
-                NotificationEntity notification = new NotificationEntity();
-                notification.setTitle("Thong bao mac dinh");
                 slib.com.example.dto.notification.NotificationDTO dto = slib.com.example.dto.notification.NotificationDTO.builder()
                                 .title("Thong bao mac dinh")
                                 .build();
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), eq(50)))
-                                .thenReturn(List.of(notification));
-                when(pushNotificationService.toDTO(notification)).thenReturn(dto);
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), eq(50)))
+                                .thenReturn(List.of(dto));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].title").value("Thong bao mac dinh"));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), eq(50));
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), eq(50));
         }
 
         // =========================================
@@ -92,10 +88,6 @@ class FE101_FilterNotificationsTest {
         @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID02: Filter notifications with positive limit returns 200 OK")
         void filterNotifications_positiveLimit_returns200() throws Exception {
-                NotificationEntity n1 = new NotificationEntity();
-                n1.setTitle("Thong bao 1");
-                NotificationEntity n2 = new NotificationEntity();
-                n2.setTitle("Thong bao 2");
                 slib.com.example.dto.notification.NotificationDTO dto1 = slib.com.example.dto.notification.NotificationDTO.builder()
                                 .title("Thong bao 1")
                                 .build();
@@ -105,17 +97,15 @@ class FE101_FilterNotificationsTest {
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), eq(5)))
-                                .thenReturn(List.of(n1, n2));
-                when(pushNotificationService.toDTO(n1)).thenReturn(dto1);
-                when(pushNotificationService.toDTO(n2)).thenReturn(dto2);
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), eq(5)))
+                                .thenReturn(List.of(dto1, dto2));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID)
                                 .param("limit", "5"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.length()").value(2));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), eq(5));
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), eq(5));
         }
 
         // =========================================
@@ -127,7 +117,7 @@ class FE101_FilterNotificationsTest {
         void filterNotifications_largeLimit_returns200() throws Exception {
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), eq(1000)))
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), eq(1000)))
                                 .thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID)
@@ -135,7 +125,7 @@ class FE101_FilterNotificationsTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.length()").value(0));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), eq(1000));
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), eq(1000));
         }
 
         // =========================================
@@ -147,14 +137,14 @@ class FE101_FilterNotificationsTest {
         void filterNotifications_noResults_returns200() throws Exception {
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
                                 .thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.length()").value(0));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 
         // =========================================
@@ -166,12 +156,12 @@ class FE101_FilterNotificationsTest {
         void filterNotifications_serviceFails_returnsError() throws Exception {
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
                                 .thenThrow(new RuntimeException("Loi truy van co so du lieu"));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isInternalServerError());
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 }

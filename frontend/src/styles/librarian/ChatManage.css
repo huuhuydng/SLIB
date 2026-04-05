@@ -350,6 +350,7 @@
 /* --- Chat Window (Right Column) --- */
 .cm-chat-window {
   flex: 1;
+  min-height: 0;
   background: var(--lib-panel, #fff);
   display: flex;
   flex-direction: column;
@@ -477,11 +478,11 @@
 /* --- Messages Area --- */
 .cm-messages-area {
   flex: 1;
+  min-height: 0;
   padding: 20px 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 12px;
   background: #f8fafc;
 }

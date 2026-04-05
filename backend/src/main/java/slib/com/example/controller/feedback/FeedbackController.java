@@ -111,6 +111,19 @@ public class FeedbackController {
     }
 
     /**
+     * PUT /slib/feedbacks/batch/review
+     * Thủ thư đánh dấu nhiều phản hồi là đã xem
+     */
+    @PutMapping("/batch/review")
+    public ResponseEntity<Map<String, Integer>> markReviewedBatch(
+            @Valid @RequestBody UuidBatchRequest body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID librarianId = getCurrentUserId(userDetails);
+        int reviewed = feedbackService.markReviewedBatch(body.getIds(), librarianId);
+        return ResponseEntity.ok(Map.of("reviewed", reviewed));
+    }
+
+    /**
      * GET /slib/feedbacks/count
      * Đếm phản hồi
      */
