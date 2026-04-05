@@ -165,7 +165,7 @@ class FE27_CRUDZoneAttributeTest {
 
                 mockMvc.perform(post("/slib/zone_amenities")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"name\":\"Test Amenity\",\"zoneId\":1}"))
+                                .content("{\"amenityName\":\"Test Amenity\",\"zoneId\":1}"))
                         .andExpect(status().isInternalServerError());
         }
 }

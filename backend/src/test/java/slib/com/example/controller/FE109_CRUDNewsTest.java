@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.news.NewsController;
 import slib.com.example.dto.news.NewsListDTO;
+import slib.com.example.dto.news.NewsUpsertRequest;
 import slib.com.example.entity.news.News;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.news.NewsService;
@@ -55,16 +56,10 @@ class FE109_CRUDNewsTest {
                 news.setTitle("Tin tuc moi");
                 news.setContent("Noi dung tin tuc moi");
 
-                News savedNews = new News();
-                savedNews.setId(1L);
-                savedNews.setTitle("Tin tuc moi");
-                savedNews.setContent("Noi dung tin tuc moi");
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin tuc moi").build();
 
-                when(newsService.createNews(any(News.class))).thenReturn(savedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.createNews(any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 mockMvc.perform(post("/slib/news/admin")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -73,7 +68,7 @@ class FE109_CRUDNewsTest {
                                 .andExpect(jsonPath("$.id").value(1))
                                 .andExpect(jsonPath("$.title").value("Tin tuc moi"));
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -101,15 +96,10 @@ class FE109_CRUDNewsTest {
         @Test
         @DisplayName("UTCID03: Update existing news returns 200 OK")
         void updateNews_existingNews_returns200() throws Exception {
-                News updatedNews = new News();
-                updatedNews.setId(1L);
-                updatedNews.setTitle("Tin tuc da cap nhat");
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin tuc da cap nhat").build();
 
-                when(newsService.updateNews(eq(1L), any(News.class))).thenReturn(updatedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.updateNews(eq(1L), any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 News newsDetails = new News();
                 newsDetails.setTitle("Tin tuc da cap nhat");
@@ -120,7 +110,7 @@ class FE109_CRUDNewsTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.title").value("Tin tuc da cap nhat"));
 
-                verify(newsService, times(1)).updateNews(eq(1L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(1L), any(NewsUpsertRequest.class));
         }
 
         // =========================================

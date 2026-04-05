@@ -40,6 +40,7 @@ public class SeatService {
 
     // ================= GET =================
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getSeatsByZoneId(Integer zoneId) {
         return seatRepository.findByZone_ZoneId(zoneId)
                 .stream()
@@ -47,6 +48,7 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getAllSeats() {
         return seatRepository.findAll()
                 .stream()
@@ -54,6 +56,7 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SeatResponse getSeatById(Integer id) {
         SeatEntity seat = seatRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
@@ -169,6 +172,7 @@ public class SeatService {
         return res;
     }
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getSeatsByTimeRange(String startTimeStr, String endTimeStr, Integer zoneId) {
         // Parse ISO 8601 time strings (e.g., "2026-01-20T13:00:00")
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);

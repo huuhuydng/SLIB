@@ -66,19 +66,19 @@ class FE18_ViewUserDetailsTest {
         @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: View users list returns 200 OK")
         void viewUserDetails_validRequest_returns200OK() throws Exception {
-                when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+                when(userService.getAllUsers(null, null, null)).thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/users/getall"))
                         .andExpect(status().isOk());
 
-                verify(userService, times(1)).getAllUsers();
+                verify(userService, times(1)).getAllUsers(null, null, null);
         }
 
         @Test
         @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD02: Service error returns 500")
         void viewUserDetails_serviceError_returns500() throws Exception {
-                when(userService.getAllUsers()).thenThrow(new RuntimeException("Database error"));
+                when(userService.getAllUsers(null, null, null)).thenThrow(new RuntimeException("Database error"));
 
                 mockMvc.perform(get("/slib/users/getall"))
                         .andExpect(status().isInternalServerError());

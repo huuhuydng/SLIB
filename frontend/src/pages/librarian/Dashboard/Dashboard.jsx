@@ -495,7 +495,7 @@ const Dashboard = () => {
       href: '/librarian/chat',
       icon: MessageSquare,
       iconClass: 'quick-action-icon--chat',
-      note: `${pendingCounts.supportPending + pendingCounts.supportInProgress} yêu cầu đang hoạt động`,
+      note: `${chatOverview.pendingReplies} phiên cần phản hồi`,
     },
     {
       label: 'Check-in / Check-out',
@@ -506,7 +506,7 @@ const Dashboard = () => {
     },
     {
       label: 'Xử lý hỗ trợ',
-      href: '/librarian/support-requests',
+      href: '/librarian/support-requests?tab=PENDING',
       icon: LifeBuoy,
       iconClass: 'quick-action-icon--support',
       note: `${pendingCounts.supportPending} chờ nhận`,
@@ -547,8 +547,8 @@ const Dashboard = () => {
       note: `${recentNewBooks.length} mục gần nhất`,
     },
   ]), [
+    chatOverview.pendingReplies,
     pendingCounts.supportPending,
-    pendingCounts.supportInProgress,
     stats.totalCheckInsToday,
     stats.activeBookings,
     recentNewBooks.length,

@@ -1,5 +1,6 @@
 package slib.com.example.controller.kiosk;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +9,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.dto.kiosk.CreateKioskRequest;
+import slib.com.example.dto.kiosk.UpdateKioskRequest;
 import slib.com.example.entity.kiosk.KioskActivationCodeEntity;
 import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.entity.users.User;
@@ -132,25 +135,11 @@ public class KioskAdminController {
      */
     @PostMapping("/kiosks")
     @Transactional
-    public ResponseEntity<Map<String, Object>> createKiosk(@RequestBody Map<String, String> request) {
-        String kioskCode = request.get("kioskCode");
-        String kioskName = request.get("kioskName");
-        String kioskType = request.get("kioskType");
-        String location = request.get("location");
-
-        // Validate trường bắt buộc
-        if (kioskCode == null || kioskCode.isBlank()) {
-            throw new BadRequestException("Mã kiosk không được để trống");
-        }
-        if (kioskName == null || kioskName.isBlank()) {
-            throw new BadRequestException("Tên kiosk không được để trống");
-        }
-        if (kioskType == null || kioskType.isBlank()) {
-            throw new BadRequestException("Loại kiosk không được để trống");
-        }
-        if (!kioskType.equals("INTERACTIVE") && !kioskType.equals("MONITORING")) {
-            throw new BadRequestException("Loại kiosk phải là INTERACTIVE hoặc MONITORING");
-        }
+    public ResponseEntity<Map<String, Object>> createKiosk(@Valid @RequestBody CreateKioskRequest request) {
+        String kioskCode = request.getKioskCode().trim().toUpperCase(Locale.ROOT);
+        String kioskName = request.getKioskName().trim();
+        String kioskType = request.getKioskType().trim().toUpperCase(Locale.ROOT);
+        String location = request.getLocation() != null ? request.getLocation().trim() : null;
 
         // Kiểm tra mã kiosk trùng
         if (kioskConfigRepository.existsByKioskCode(kioskCode)) {
@@ -180,37 +169,34 @@ public class KioskAdminController {
     @Transactional
     public ResponseEntity<Map<String, Object>> updateKiosk(
             @PathVariable Integer kioskId,
-            @RequestBody Map<String, Object> request) {
+            @Valid @RequestBody UpdateKioskRequest request) {
 
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với id: " + kioskId));
 
         // Cập nhật các trường được phép (kioskCode không được sửa)
-        if (request.containsKey("kioskName")) {
-            String kioskName = (String) request.get("kioskName");
-            if (kioskName == null || kioskName.isBlank()) {
+        if (request.getKioskName() != null) {
+            String kioskName = request.getKioskName().trim();
+            if (kioskName.isBlank()) {
                 throw new BadRequestException("Tên kiosk không được để trống");
             }
             kiosk.setKioskName(kioskName);
         }
 
-        if (request.containsKey("kioskType")) {
-            String kioskType = (String) request.get("kioskType");
-            if (kioskType == null || kioskType.isBlank()) {
+        if (request.getKioskType() != null) {
+            String kioskType = request.getKioskType().trim().toUpperCase(Locale.ROOT);
+            if (kioskType.isBlank()) {
                 throw new BadRequestException("Loại kiosk không được để trống");
-            }
-            if (!kioskType.equals("INTERACTIVE") && !kioskType.equals("MONITORING")) {
-                throw new BadRequestException("Loại kiosk phải là INTERACTIVE hoặc MONITORING");
             }
             kiosk.setKioskType(kioskType);
         }
 
-        if (request.containsKey("location")) {
-            kiosk.setLocation((String) request.get("location"));
+        if (request.getLocation() != null) {
+            kiosk.setLocation(request.getLocation().trim());
         }
 
-        if (request.containsKey("isActive")) {
-            kiosk.setIsActive((Boolean) request.get("isActive"));
+        if (request.getIsActive() != null) {
+            kiosk.setIsActive(request.getIsActive());
         }
 
         kiosk = kioskConfigRepository.save(kiosk);

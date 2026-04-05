@@ -5,12 +5,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.news.NewsListDTO;
+import slib.com.example.dto.news.NewsUpsertRequest;
+import slib.com.example.entity.news.Category;
 import slib.com.example.entity.news.News;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.repository.news.NewsRepository;
 import slib.com.example.scheduler.NewsScheduler;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.system.HtmlSanitizerService;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,12 +40,17 @@ public class NewsService {
     @Autowired
     private HtmlSanitizerService htmlSanitizerService;
 
+    @Autowired
+    private CategoryService categoryService;
+
+    @Transactional(readOnly = true)
     public List<NewsListDTO> getPublicNews() {
         return newsRepository.getAllPublishedNews().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<NewsListDTO> getPublicNewsByCategory(Long categoryId) {
         return newsRepository.getPublishedNewsByCategory(categoryId).stream()
                 .map(this::toDTO)
@@ -77,6 +85,7 @@ public class NewsService {
 
     // --- ADMIN/LIBRARIAN (WEB PORTAL) ---
 
+    @Transactional(readOnly = true)
     public List<NewsListDTO> getAllNewsForAdmin() {
         return newsRepository
                 .findAll(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
@@ -86,26 +95,23 @@ public class NewsService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public NewsListDTO getNewsDetailForAdmin(Long id) {
         News news = newsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
         return toDTO(news);
     }
 
+    @Transactional(readOnly = true)
     public String getNewsImage(Long id) {
         News news = newsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức"));
         return news.getImageUrl();
     }
 
-    public News createNews(News news) {
-        news.setContent(htmlSanitizerService.sanitizeRichText(news.getContent()));
-        if (Boolean.TRUE.equals(news.getIsPublished())) {
-            news.setPublishedAt(LocalDateTime.now());
-        }
-        if (news.getViewCount() == null) {
-            news.setViewCount(0);
-        }
+    public NewsListDTO createNews(NewsUpsertRequest request) {
+        News news = News.builder().build();
+        applyRequest(news, request, false);
         News savedNews = newsRepository.save(news);
 
         // Send push notification if news is published immediately
@@ -118,18 +124,14 @@ public class NewsService {
             newsScheduler.scheduleNewsPublication(savedNews);
         }
 
-        return savedNews;
+        return toDTO(savedNews);
     }
 
-    public News updateNews(Long id, News newsDetails) {
+    public NewsListDTO updateNews(Long id, NewsUpsertRequest newsDetails) {
         News existingNews = newsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức để sửa!"));
 
         boolean wasPublished = Boolean.TRUE.equals(existingNews.getIsPublished());
-
-        existingNews.setTitle(newsDetails.getTitle());
-        existingNews.setSummary(newsDetails.getSummary());
-        existingNews.setContent(htmlSanitizerService.sanitizeRichText(newsDetails.getContent()));
 
         // Xoa anh cu tren Cloudinary neu imageUrl thay doi
         String oldImageUrl = existingNews.getImageUrl();
@@ -139,16 +141,7 @@ public class NewsService {
             cloudinaryService.deleteImageByUrl(oldImageUrl);
         }
 
-        existingNews.setImageUrl(newsDetails.getImageUrl());
-        existingNews.setCategory(newsDetails.getCategory());
-        existingNews.setIsPinned(newsDetails.getIsPinned());
-        existingNews.setPublishedAt(newsDetails.getPublishedAt());
-
-        if (!existingNews.getIsPublished() && Boolean.TRUE.equals(newsDetails.getIsPublished())) {
-            existingNews.setPublishedAt(LocalDateTime.now());
-        }
-        existingNews.setIsPublished(newsDetails.getIsPublished());
-
+        applyRequest(existingNews, newsDetails, wasPublished);
         News savedNews = newsRepository.save(existingNews);
 
         // Send notification if news was just published
@@ -164,7 +157,7 @@ public class NewsService {
             newsScheduler.cancelScheduledTask(id);
         }
 
-        return savedNews;
+        return toDTO(savedNews);
     }
 
     public void deleteNews(Long id) {
@@ -201,6 +194,32 @@ public class NewsService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tin tức: " + id));
         news.setIsPinned(!Boolean.TRUE.equals(news.getIsPinned()));
         return newsRepository.save(news);
+    }
+
+    private void applyRequest(News entity, NewsUpsertRequest request, boolean wasPublished) {
+        String title = ContentValidationUtil.normalizeRequiredText(request.getTitle(), "Tiêu đề tin tức", 255);
+        String summary = ContentValidationUtil.normalizeOptionalText(request.getSummary(), "Tóm tắt", 1000);
+        String imageUrl = ContentValidationUtil.normalizeOptionalUrl(request.getImageUrl(), "Đường dẫn ảnh", 1000);
+        String content = request.getContent() != null
+                ? htmlSanitizerService.sanitizeRichText(request.getContent())
+                : null;
+        Category category = request.getCategoryId() != null ? categoryService.getCategoryById(request.getCategoryId()) : null;
+        boolean isPublished = Boolean.TRUE.equals(request.getIsPublished());
+
+        entity.setTitle(title);
+        entity.setSummary(summary);
+        entity.setContent(content);
+        entity.setImageUrl(imageUrl);
+        entity.setCategory(category);
+        entity.setIsPinned(Boolean.TRUE.equals(request.getIsPinned()));
+        entity.setViewCount(entity.getViewCount() == null ? 0 : entity.getViewCount());
+
+        LocalDateTime publishedAt = request.getPublishedAt();
+        if (!wasPublished && isPublished) {
+            publishedAt = LocalDateTime.now();
+        }
+        entity.setPublishedAt(publishedAt);
+        entity.setIsPublished(isPublished);
     }
 
     /**

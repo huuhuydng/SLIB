@@ -8,6 +8,7 @@ import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 
 import { API_BASE_URL } from '../../../config/apiConfig';
+import { getApiErrorMessage, normalizeText } from '../../../utils/formValidation';
 
 const API_BASE = `${API_BASE_URL}/slib/support-requests`;
 
@@ -95,6 +96,18 @@ function SupportRequestManage() {
         fetchRequests();
     }, [fetchRequests]);
 
+    useEffect(() => {
+        const requestedStatus = (searchParams.get("status") || searchParams.get("tab") || "").toUpperCase();
+        const isValidStatus = STATUS_OPTIONS.some((option) => option.value === requestedStatus);
+        const nextStatus = isValidStatus ? requestedStatus : '';
+
+        setColumnFilters((prev) => (
+            prev.status === nextStatus
+                ? prev
+                : { ...prev, status: nextStatus }
+        ));
+    }, [searchParams]);
+
     // Auto-open detail modal from URL param (e.g. ?detail=<id>)
     useEffect(() => {
         if (loading || requests.length === 0) return;
@@ -123,7 +136,12 @@ function SupportRequestManage() {
     }, []);
 
     const handleRespond = async () => {
-        if (!responseText.trim() || !selectedRequest) return;
+        const normalizedResponse = normalizeText(responseText);
+        if (!normalizedResponse || !selectedRequest) return;
+        if (normalizedResponse.length > 2000) {
+            toast.error('Phản hồi không được vượt quá 2000 ký tự');
+            return;
+        }
         setSubmitting(true);
         try {
             const token = getToken();
@@ -133,7 +151,7 @@ function SupportRequestManage() {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ response: responseText }),
+                body: JSON.stringify({ response: normalizedResponse }),
             });
             if (res.ok) {
                 toast.success('Đã gửi phản hồi cho sinh viên thành công.');
@@ -142,11 +160,11 @@ function SupportRequestManage() {
                 fetchRequests();
             } else {
                 const errorData = await res.json().catch(() => ({}));
-                toast.error('Gửi phản hồi thất bại: ' + (errorData.message || res.statusText));
+                toast.error(getApiErrorMessage({ response: { data: errorData } }, `Gửi phản hồi thất bại: ${res.statusText}`));
             }
         } catch (err) {
             console.error("Error responding:", err);
-            toast.error('Lỗi: ' + err.message);
+            toast.error(getApiErrorMessage(err, 'Không thể gửi phản hồi'));
         } finally {
             setSubmitting(false);
         }

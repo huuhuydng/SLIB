@@ -34,6 +34,10 @@ import DeleteUserModal from '../../../components/admin/DeleteUserModal';
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 import LoadErrorState from '../../../components/common/LoadErrorState';
+import {
+  getFirstValidationMessage,
+  validateUserPayload,
+} from '../../../utils/userValidation';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import './UserManagement.css';
@@ -822,21 +826,23 @@ const UserManagement = () => {
   // Handle edit user save
   const handleEditUser = async () => {
     if (!selectedUser) return;
-    if (!editForm.fullName.trim()) {
-      toast.warning('Họ và tên không được để trống');
-      return;
-    }
-    if (!editForm.email.trim()) {
-      toast.warning('Email không được để trống');
+
+    const { normalized, errors } = validateUserPayload(editForm, {
+      requireUserCode: false,
+      requireDob: false,
+    });
+    const firstError = getFirstValidationMessage(errors);
+    if (firstError) {
+      toast.warning(firstError);
       return;
     }
 
     try {
       setEditSaving(true);
       await userService.adminUpdateUser(selectedUser.id, {
-        fullName: editForm.fullName.trim(),
-        email: editForm.email.trim(),
-        phone: editForm.phone.trim() || null,
+        fullName: normalized.fullName,
+        email: normalized.email,
+        phone: normalized.phone,
         dob: editForm.dob || null,
         role: editForm.role
       });
@@ -854,18 +860,20 @@ const UserManagement = () => {
 
   // Handle add user
   const handleAddUser = async () => {
-    if (!newUser.fullName.trim() || !newUser.email.trim() || !newUser.userCode.trim()) {
-      toast.warning('Vui lòng nhập đầy đủ họ tên, email và mã người dùng');
+    const { normalized, errors } = validateUserPayload(newUser);
+    const firstError = getFirstValidationMessage(errors);
+    if (firstError) {
+      toast.warning(firstError);
       return;
     }
 
     try {
       setAddingUser(true);
       await userService.createUser({
-        fullName: newUser.fullName.trim(),
-        email: newUser.email.trim(),
-        userCode: newUser.userCode.trim().toUpperCase(),
-        phone: newUser.phone.trim() || null,
+        fullName: normalized.fullName,
+        email: normalized.email,
+        userCode: normalized.userCode,
+        phone: normalized.phone,
         role: newUser.role
       });
       await fetchUsers();

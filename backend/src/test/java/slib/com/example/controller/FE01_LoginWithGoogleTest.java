@@ -191,20 +191,18 @@ class FE01_LoginWithGoogleTest {
         /**
          * UTCD05: Login with missing token
          * Precondition: No precondition
-         * Expected: 500 Internal Server Error (controller throws RuntimeException)
-         * Note: The controller throws RuntimeException("ID token is required")
-         * which is handled by GlobalExceptionHandler as 500
+         * Expected: 400 Bad Request (validation chặn request thiếu idToken)
          */
         @Test
-        @DisplayName("UTCD05: Login with missing token returns 500 Internal Server Error")
-        void loginWithGoogle_missingToken_returns500InternalServerError() throws Exception {
+        @DisplayName("UTCD05: Login with missing token returns 400 Bad Request")
+        void loginWithGoogle_missingToken_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("fullName", "Test User");
 
                 mockMvc.perform(post("/slib/auth/google")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isInternalServerError());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, never()).loginWithGoogle(anyString(), any(), any(), any());
         }

@@ -1,14 +1,21 @@
 package slib.com.example.controller.support;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import slib.com.example.dto.common.UuidBatchRequest;
 import slib.com.example.dto.support.SupportRequestDTO;
+import slib.com.example.dto.support.SupportRequestRespondRequest;
+import slib.com.example.dto.support.SupportRequestStatusUpdateRequest;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
@@ -22,6 +29,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/slib/support-requests")
 @RequiredArgsConstructor
+@Validated
 public class SupportRequestController {
 
     private final SupportRequestService supportRequestService;
@@ -46,7 +54,9 @@ public class SupportRequestController {
      */
     @PostMapping
     public ResponseEntity<SupportRequestDTO> create(
-            @RequestParam("description") String description,
+            @RequestParam("description")
+            @NotBlank(message = "Nội dung hỗ trợ không được để trống")
+            @Size(max = 2000, message = "Nội dung hỗ trợ không được vượt quá 2000 ký tự") String description,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID studentId = getCurrentUserId(userDetails);
@@ -90,19 +100,10 @@ public class SupportRequestController {
     @PutMapping("/{id}/status")
     public ResponseEntity<SupportRequestDTO> updateStatus(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body,
+            @Valid @RequestBody SupportRequestStatusUpdateRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = getCurrentUserId(userDetails);
-        String statusStr = body.get("status");
-        if (statusStr == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        try {
-            SupportRequestStatus status = SupportRequestStatus.valueOf(statusStr.toUpperCase());
-            return ResponseEntity.ok(supportRequestService.updateStatus(id, status, librarianId));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        return ResponseEntity.ok(supportRequestService.updateStatus(id, body.getStatus(), librarianId));
     }
 
     /**
@@ -112,14 +113,10 @@ public class SupportRequestController {
     @PutMapping("/{id}/respond")
     public ResponseEntity<SupportRequestDTO> respond(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body,
+            @Valid @RequestBody SupportRequestRespondRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = getCurrentUserId(userDetails);
-        String response = body.get("response");
-        if (response == null || response.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(supportRequestService.respond(id, response, librarianId));
+        return ResponseEntity.ok(supportRequestService.respond(id, body.getResponse(), librarianId));
     }
 
     /**
@@ -159,13 +156,9 @@ public class SupportRequestController {
      * Thủ thư xoá nhiều yêu cầu hỗ trợ cùng lúc
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+    public ResponseEntity<?> deleteBatch(@Valid @RequestBody UuidBatchRequest body) {
         try {
-            List<String> ids = body.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
-            }
-            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            List<UUID> uuids = body.getIds();
             supportRequestService.deleteBatch(uuids);
             return ResponseEntity.ok(Map.of("deleted", uuids.size()));
         } catch (Exception e) {

@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.news.NewsController;
 import slib.com.example.dto.news.NewsListDTO;
+import slib.com.example.dto.news.NewsUpsertRequest;
 import slib.com.example.entity.news.News;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.news.NewsService;
@@ -53,16 +54,10 @@ class FE111_SetPostTimeTest {
                 news.setTitle("Tin hen gio dang");
                 news.setIsPublished(false);
 
-                News savedNews = new News();
-                savedNews.setId(1L);
-                savedNews.setTitle("Tin hen gio dang");
-                savedNews.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin hen gio dang").isPublished(false).build();
 
-                when(newsService.createNews(any(News.class))).thenReturn(savedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.createNews(any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 mockMvc.perform(post("/slib/news/admin")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -70,7 +65,7 @@ class FE111_SetPostTimeTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.isPublished").value(false));
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -79,16 +74,10 @@ class FE111_SetPostTimeTest {
         @Test
         @DisplayName("UTCID02: Update post time on existing news returns 200 OK with isPublished=false")
         void updateNews_withPostTime_returns200() throws Exception {
-                News updatedNews = new News();
-                updatedNews.setId(1L);
-                updatedNews.setTitle("Tin da cap nhat gio dang");
-                updatedNews.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin da cap nhat gio dang").isPublished(false).build();
 
-                when(newsService.updateNews(eq(1L), any(News.class))).thenReturn(updatedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.updateNews(eq(1L), any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 News newsDetails = new News();
                 newsDetails.setTitle("Tin da cap nhat gio dang");
@@ -100,7 +89,7 @@ class FE111_SetPostTimeTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.isPublished").value(false));
 
-                verify(newsService, times(1)).updateNews(eq(1L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(1L), any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -113,16 +102,10 @@ class FE111_SetPostTimeTest {
                 news.setTitle("Tin dang ngay");
                 news.setIsPublished(true);
 
-                News savedNews = new News();
-                savedNews.setId(2L);
-                savedNews.setTitle("Tin dang ngay");
-                savedNews.setIsPublished(true);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(2L).title("Tin dang ngay").isPublished(true).build();
 
-                when(newsService.createNews(any(News.class))).thenReturn(savedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.createNews(any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 mockMvc.perform(post("/slib/news/admin")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -130,7 +113,7 @@ class FE111_SetPostTimeTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.isPublished").value(true));
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -139,16 +122,10 @@ class FE111_SetPostTimeTest {
         @Test
         @DisplayName("UTCID04: Update news with future post time returns 200 OK with isPublished=false")
         void updateNews_futurePostTime_returns200() throws Exception {
-                News updatedNews = new News();
-                updatedNews.setId(3L);
-                updatedNews.setTitle("Tin hen ngay tuong lai");
-                updatedNews.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(3L).title("Tin hen ngay tuong lai").isPublished(false).build();
 
-                when(newsService.updateNews(eq(3L), any(News.class))).thenReturn(updatedNews);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.updateNews(eq(3L), any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 News newsDetails = new News();
                 newsDetails.setTitle("Tin hen ngay tuong lai");
@@ -160,7 +137,7 @@ class FE111_SetPostTimeTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.isPublished").value(false));
 
-                verify(newsService, times(1)).updateNews(eq(3L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(3L), any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -169,7 +146,7 @@ class FE111_SetPostTimeTest {
         @Test
         @DisplayName("UTCID05: Update post time on non-existent news returns error")
         void updateNews_notFound_returnsError() throws Exception {
-                when(newsService.updateNews(eq(999L), any(News.class)))
+                when(newsService.updateNews(eq(999L), any(NewsUpsertRequest.class)))
                                 .thenThrow(new RuntimeException("Khong tim thay tin tuc"));
 
                 News newsDetails = new News();
@@ -180,6 +157,6 @@ class FE111_SetPostTimeTest {
                                 .content(objectMapper.writeValueAsString(newsDetails)))
                                 .andExpect(status().isInternalServerError());
 
-                verify(newsService, times(1)).updateNews(eq(999L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(999L), any(NewsUpsertRequest.class));
         }
 }

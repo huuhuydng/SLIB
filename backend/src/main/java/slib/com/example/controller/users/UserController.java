@@ -1,5 +1,6 @@
 package slib.com.example.controller.users;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletResponse;
 import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.AdminCreateUserRequest;
+import slib.com.example.dto.users.AdminUpdateUserRequest;
 import slib.com.example.dto.users.AdminUserListItemResponse;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
@@ -127,7 +129,7 @@ public class UserController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createUser(
-            @RequestBody AdminCreateUserRequest request,
+            @Valid @RequestBody AdminCreateUserRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             AdminUserListItemResponse created = userService.createUser(request);
@@ -152,7 +154,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> importUsers(
-            @RequestBody List<ImportUserRequest> requests,
+            @RequestBody List<@Valid ImportUserRequest> requests,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             if (requests == null || requests.isEmpty()) {
@@ -190,7 +192,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> adminUpdateUser(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody AdminUpdateUserRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             User existingUser = userService.getUserById(userId);
@@ -198,33 +200,29 @@ public class UserController {
                 return ResponseEntity.notFound().build();
             }
 
-            if (request.containsKey("fullName")) {
-                String fullName = (String) request.get("fullName");
+            if (request.getFullName() != null) {
+                String fullName = request.getFullName();
                 if (fullName != null && !fullName.trim().isEmpty()) {
                     existingUser.setFullName(fullName.trim());
                 }
             }
-            if (request.containsKey("phone")) {
-                String phone = (String) request.get("phone");
-                existingUser.setPhone(phone);
+            if (request.getPhone() != null) {
+                existingUser.setPhone(request.getPhone());
             }
-            if (request.containsKey("email")) {
-                String email = (String) request.get("email");
+            if (request.getEmail() != null) {
+                String email = request.getEmail();
                 existingUser.setEmail(email != null ? email.trim() : null);
             }
-            if (request.containsKey("dob")) {
-                String dobStr = (String) request.get("dob");
+            if (request.getDob() != null) {
+                String dobStr = request.getDob();
                 if (dobStr != null && !dobStr.isEmpty()) {
                     existingUser.setDob(java.time.LocalDate.parse(dobStr));
                 } else {
                     existingUser.setDob(null);
                 }
             }
-            if (request.containsKey("role")) {
-                String role = (String) request.get("role");
-                if (role != null && !role.isEmpty()) {
-                    existingUser.setRole(Role.valueOf(role));
-                }
+            if (request.getRole() != null) {
+                existingUser.setRole(request.getRole());
             }
 
             User saved = userService.saveUser(existingUser);

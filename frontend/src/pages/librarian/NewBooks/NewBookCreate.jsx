@@ -11,6 +11,7 @@ import {
 } from '../../../services/librarian/newBookService';
 import '../../../styles/librarian/NewsCreate.css';
 import '../../../styles/librarian/NewBookManage.css';
+import { getApiErrorMessage, normalizeText, validateNewBookPayload } from '../../../utils/formValidation';
 
 const emptyForm = {
   title: '',
@@ -107,15 +108,16 @@ const NewBookCreate = () => {
       toast.success('Đã lấy dữ liệu từ OPAC. Bạn có thể chỉnh sửa trước khi lưu.');
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || error.response?.data?.error || 'Không thể lấy dữ liệu từ link OPAC');
+      toast.error(getApiErrorMessage(error, 'Không thể lấy dữ liệu từ link OPAC'));
     } finally {
       setImporting(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!formData.title.trim()) {
-      toast.error('Tiêu đề sách không được để trống');
+    const validationMessage = validateNewBookPayload(formData);
+    if (validationMessage) {
+      toast.error(validationMessage);
       return;
     }
 
@@ -123,6 +125,14 @@ const NewBookCreate = () => {
       setLoading(true);
       const payload = {
         ...formData,
+        title: normalizeText(formData.title),
+        author: normalizeText(formData.author),
+        isbn: normalizeText(formData.isbn),
+        category: normalizeText(formData.category),
+        description: normalizeText(formData.description),
+        sourceUrl: normalizeText(formData.sourceUrl),
+        publisher: normalizeText(formData.publisher),
+        coverUrl: normalizeText(formData.coverUrl),
         publishYear: formData.publishYear ? Number(formData.publishYear) : null,
         arrivalDate: formData.arrivalDate || null,
       };
@@ -137,7 +147,7 @@ const NewBookCreate = () => {
       navigate('/librarian/new-books');
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || 'Không thể lưu sách mới');
+      toast.error(getApiErrorMessage(error, 'Không thể lưu sách mới'));
     } finally {
       setLoading(false);
     }
@@ -160,7 +170,7 @@ const NewBookCreate = () => {
       toast.success('Đã tải ảnh bìa lên hệ thống');
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || error.response?.data?.error || 'Không thể tải ảnh bìa từ máy tính');
+      toast.error(getApiErrorMessage(error, 'Không thể tải ảnh bìa từ máy tính'));
     } finally {
       setUploadingCover(false);
       event.target.value = '';

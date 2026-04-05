@@ -3,6 +3,16 @@ import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
 import { getStaffAuthToken } from '../shared/staffAuth';
+import {
+    normalizeEmail,
+    normalizeFullName,
+    normalizePhone,
+    normalizeUserCode,
+    validateEmail,
+    validateFullName,
+    validatePhone,
+    validateUserCode,
+} from '../../utils/userValidation';
 
 const API_BASE_URL = `${BASE}/slib`;
 
@@ -563,11 +573,11 @@ class UserService {
             const role = roleMapping[rawRole] || 'STUDENT';
 
             const user = {
-                fullName: getValue('fullName'),
-                userCode: getValue('userCode'),
-                email: getValue('email'),
+                fullName: normalizeFullName(getValue('fullName')),
+                userCode: normalizeUserCode(getValue('userCode')),
+                email: normalizeEmail(getValue('email')),
                 role: role,
-                phone: getValue('phone') || null,
+                phone: normalizePhone(getValue('phone')) || null,
                 dob: this.parseDate(getValue('dob')),
                 _rowIndex: rowIndex + 2 // For error reporting (1-indexed + header row)
             };
@@ -591,25 +601,36 @@ class UserService {
 
         users.forEach((user, index) => {
             const userErrors = {};
+            const normalizedUserCode = normalizeUserCode(user.userCode);
+            const normalizedEmail = normalizeEmail(user.email);
+            const normalizedFullName = normalizeFullName(user.fullName);
+            const normalizedPhone = normalizePhone(user.phone);
 
             // Check duplicate userCode within file
-            if (seenUserCodes.has(user.userCode)) {
-                userErrors.userCode = `Mã số bị trùng với dòng ${seenUserCodes.get(user.userCode)}`;
+            if (seenUserCodes.has(normalizedUserCode)) {
+                userErrors.userCode = `Mã số bị trùng với dòng ${seenUserCodes.get(normalizedUserCode)}`;
             } else {
-                seenUserCodes.set(user.userCode, index + 2); // +2 because row 1 is header
+                seenUserCodes.set(normalizedUserCode, index + 2); // +2 because row 1 is header
             }
 
             // Check duplicate email within file
-            if (seenEmails.has(user.email)) {
-                userErrors.email = `Email bị trùng với dòng ${seenEmails.get(user.email)}`;
+            if (seenEmails.has(normalizedEmail)) {
+                userErrors.email = `Email bị trùng với dòng ${seenEmails.get(normalizedEmail)}`;
             } else {
-                seenEmails.set(user.email, index + 2); // +2 because row 1 is header
+                seenEmails.set(normalizedEmail, index + 2); // +2 because row 1 is header
             }
 
-            // Validate email format
-            if (user.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
-                userErrors.email = 'Email không hợp lệ';
-            }
+            const fullNameError = validateFullName(normalizedFullName);
+            if (fullNameError) userErrors.fullName = fullNameError;
+
+            const emailError = validateEmail(normalizedEmail);
+            if (emailError) userErrors.email = emailError;
+
+            const userCodeError = validateUserCode(normalizedUserCode);
+            if (userCodeError) userErrors.userCode = userCodeError;
+
+            const phoneError = validatePhone(normalizedPhone);
+            if (phoneError) userErrors.phone = phoneError;
 
             // Validate role
             if (!['STUDENT', 'TEACHER', 'LIBRARIAN', 'ADMIN'].includes(user.role)) {

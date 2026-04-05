@@ -25,6 +25,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useLibrarianNotification } from "../../context/LibrarianNotificationContext";
+import { handleLogout } from "../../utils/auth";
 
 import "../../styles/librarian/sidebar_default.css";
 import "../../styles/librarian/LibrarianNotification.css";
@@ -37,14 +38,8 @@ const Sidebar = () => {
   const { pendingCounts, unreadChatConversationCount } = useLibrarianNotification();
   const chatBadgeCount = (pendingCounts.chats || 0) + (unreadChatConversationCount || 0);
 
-  const handleLogout = () => {
-    localStorage.removeItem('librarian_token');
-    localStorage.removeItem('librarian_user');
-    localStorage.removeItem('refresh_token');
-    sessionStorage.removeItem('librarian_token');
-    sessionStorage.removeItem('librarian_user');
-    sessionStorage.removeItem('refresh_token');
-    window.location.href = '/login';
+  const onLogout = () => {
+    handleLogout();
   };
 
   const toggleGroup = (groupId) => {
@@ -291,7 +286,7 @@ const Sidebar = () => {
           <Settings size={20} strokeWidth={2} />
           <span className="sidebar__label">Cài đặt</span>
         </NavLink>
-        <button className="sidebar__helpItem sidebar__logoutBtn" onClick={handleLogout}>
+        <button className="sidebar__helpItem sidebar__logoutBtn" onClick={onLogout}>
           <LogOut size={20} strokeWidth={2} />
           <span className="sidebar__label">Đăng xuất</span>
         </button>

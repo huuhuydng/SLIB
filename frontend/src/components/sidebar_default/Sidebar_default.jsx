@@ -8,7 +8,6 @@ import {
   Settings,
   Activity,
   Sparkles,
-  HelpCircle,
   Shield,
   LogOut
 } from "lucide-react";
@@ -119,12 +118,17 @@ const SidebarAdmin = () => {
             </div>
           </div>
         )}
-        <div className="sidebar__helpItem" style={{ cursor: 'pointer' }}>
+        <NavLink
+          to="/admin/settings"
+          className={({ isActive }) =>
+            `sidebar__helpItem ${isActive ? "sidebar__helpItem--active" : ""}`
+          }
+        >
           <span className="sidebar__icon">
-            <HelpCircle size={22} strokeWidth={2} />
+            <Settings size={22} strokeWidth={2} />
           </span>
-          <span className="sidebar__label">Trợ giúp & Hỗ trợ</span>
-        </div>
+          <span className="sidebar__label">Cài đặt</span>
+        </NavLink>
         <div
           className="sidebar__helpItem sidebar__logoutItem"
           onClick={handleLogout}

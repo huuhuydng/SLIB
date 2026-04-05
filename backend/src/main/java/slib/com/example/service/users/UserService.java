@@ -36,6 +36,7 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import slib.com.example.service.notification.EmailService;
 import slib.com.example.service.auth.AuthService;
+import slib.com.example.util.UserValidationUtil;
 
 /**
  * UserService - handles user profile and management operations.
@@ -143,21 +144,22 @@ public class UserService {
             existingUser.setNotiDevice(req.getNotiDevice());
         }
         if (req.getPhone() != null) {
+            String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(req.getPhone());
             // Check duplicate phone
-            if (!req.getPhone().isEmpty() && !req.getPhone().equals(existingUser.getPhone())
-                    && userRepository.existsByPhone(req.getPhone())) {
+            if (normalizedPhone != null && !normalizedPhone.equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(normalizedPhone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
-            existingUser.setPhone(req.getPhone());
+            existingUser.setPhone(normalizedPhone);
         }
         if (req.getDob() != null) {
-            existingUser.setDob(req.getDob());
+            existingUser.setDob(UserValidationUtil.validateOptionalDob(req.getDob()));
         }
         if (req.getAvtUrl() != null) {
             existingUser.setAvtUrl(req.getAvtUrl());
         }
-        if (req.getFullName() != null && !req.getFullName().isEmpty()) {
-            existingUser.setFullName(req.getFullName());
+        if (req.getFullName() != null) {
+            existingUser.setFullName(UserValidationUtil.normalizeRequiredFullName(req.getFullName()));
         }
         return userRepository.save(existingUser);
     }
@@ -169,15 +171,17 @@ public class UserService {
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
 
-        if (fullName != null && !fullName.isEmpty()) {
-            existingUser.setFullName(fullName);
+        if (fullName != null) {
+            existingUser.setFullName(UserValidationUtil.normalizeRequiredFullName(fullName));
         }
-        if (phone != null && !phone.equals(existingUser.getPhone())) {
+        if (phone != null) {
+            String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(phone);
             // Kiểm tra phone đã tồn tại chưa
-            if (userRepository.existsByPhone(phone)) {
+            if (normalizedPhone != null && !normalizedPhone.equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(normalizedPhone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
-            existingUser.setPhone(phone);
+            existingUser.setPhone(normalizedPhone);
         }
         if (avtUrl != null) {
             existingUser.setAvtUrl(avtUrl);
@@ -211,10 +215,11 @@ public class UserService {
 
     @Transactional
     public AdminUserListItemResponse createUser(AdminCreateUserRequest request) {
-        String fullName = normalizeRequired(request.getFullName(), "Họ và tên");
-        String email = normalizeRequired(request.getEmail(), "Email").toLowerCase();
-        String userCode = normalizeRequired(request.getUserCode(), "Mã người dùng").toUpperCase();
-        String phone = normalizeOptional(request.getPhone());
+        String fullName = UserValidationUtil.normalizeRequiredFullName(request.getFullName());
+        String email = UserValidationUtil.normalizeRequiredEmail(request.getEmail());
+        String userCode = UserValidationUtil.normalizeRequiredUserCode(request.getUserCode());
+        String phone = UserValidationUtil.normalizeOptionalPhone(request.getPhone());
+        var dob = UserValidationUtil.validateOptionalDob(request.getDob());
         Role role = request.getRole() != null ? request.getRole() : Role.STUDENT;
 
         validateUniqueUserFields(email, userCode, phone, null);
@@ -225,7 +230,7 @@ public class UserService {
                 .email(email)
                 .fullName(fullName)
                 .phone(phone)
-                .dob(request.getDob())
+                .dob(dob)
                 .role(role)
                 .password(authService.encodeDefaultPassword())
                 .passwordChanged(false)
@@ -265,34 +270,33 @@ public class UserService {
 
         for (ImportUserRequest req : requests) {
             try {
-                // Validate required fields
-                if (req.getUserCode() == null || req.getUserCode().isEmpty()) {
-                    throw new RuntimeException("User code is required");
-                }
-                if (req.getEmail() == null || req.getEmail().isEmpty()) {
-                    throw new RuntimeException("Email is required");
-                }
-                if (req.getFullName() == null || req.getFullName().isEmpty()) {
-                    throw new RuntimeException("Full name is required");
-                }
+                String fullName = UserValidationUtil.normalizeRequiredFullName(req.getFullName());
+                String email = UserValidationUtil.normalizeRequiredEmail(req.getEmail());
+                String userCode = UserValidationUtil.normalizeRequiredUserCode(req.getUserCode());
+                String phone = UserValidationUtil.normalizeOptionalPhone(req.getPhone());
+                var dob = UserValidationUtil.validateOptionalDob(req.getDob());
+                Role role = req.getRole() != null ? req.getRole() : Role.STUDENT;
 
                 // Check for duplicates
-                if (userRepository.existsByEmail(req.getEmail())) {
-                    throw new RuntimeException("Email đã tồn tại: " + req.getEmail());
+                if (userRepository.existsByEmail(email)) {
+                    throw new RuntimeException("Email đã tồn tại: " + email);
                 }
-                if (userRepository.existsByUserCode(req.getUserCode())) {
-                    throw new RuntimeException("Mã số đã tồn tại: " + req.getUserCode());
+                if (userRepository.existsByUserCode(userCode)) {
+                    throw new RuntimeException("Mã số đã tồn tại: " + userCode);
+                }
+                if (phone != null && userRepository.existsByPhone(phone)) {
+                    throw new RuntimeException("Số điện thoại đã được sử dụng: " + phone);
                 }
 
                 // Create user
                 User user = User.builder()
-                        .userCode(req.getUserCode())
-                        .username(req.getUserCode()) // Default username = userCode
-                        .email(req.getEmail())
-                        .fullName(req.getFullName())
-                        .phone(req.getPhone())
-                        .dob(req.getDob())
-                        .role(req.getRole() != null ? req.getRole() : Role.STUDENT)
+                        .userCode(userCode)
+                        .username(userCode)
+                        .email(email)
+                        .fullName(fullName)
+                        .phone(phone)
+                        .dob(dob)
+                        .role(role)
                         .password(encodedPassword)
                         .passwordChanged(false) // New users need to change password
                         .isActive(true)
@@ -576,10 +580,11 @@ public class UserService {
     }
 
     private void validateManagedUser(User user, UUID currentUserId) {
-        String fullName = normalizeRequired(user.getFullName(), "Họ và tên");
-        String email = normalizeRequired(user.getEmail(), "Email").toLowerCase();
-        String userCode = normalizeRequired(user.getUserCode(), "Mã người dùng").toUpperCase();
-        String phone = normalizeOptional(user.getPhone());
+        String fullName = UserValidationUtil.normalizeRequiredFullName(user.getFullName());
+        String email = UserValidationUtil.normalizeRequiredEmail(user.getEmail());
+        String userCode = UserValidationUtil.normalizeRequiredUserCode(user.getUserCode());
+        String phone = UserValidationUtil.normalizeOptionalPhone(user.getPhone());
+        user.setDob(UserValidationUtil.validateOptionalDob(user.getDob()));
 
         user.setFullName(fullName);
         user.setEmail(email);
@@ -615,19 +620,4 @@ public class UserService {
         }
     }
 
-    private String normalizeRequired(String value, String fieldName) {
-        String normalized = normalizeOptional(value);
-        if (normalized == null) {
-            throw new RuntimeException(fieldName + " không được để trống");
-        }
-        return normalized;
-    }
-
-    private String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.trim();
-        return normalized.isEmpty() ? null : normalized;
-    }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import librarianService from "../../services/librarian/librarianService";
+import { consumeAuthNotice } from "../../utils/auth";
 import logo from "../../assets/logo.png";
 import "../../styles/Auth.css";
 
@@ -68,6 +69,30 @@ function Login({ onLogin, onForgotPassword }) {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  useEffect(() => {
+    const authNotice = consumeAuthNotice();
+    if (!authNotice) {
+      return;
+    }
+
+    if (authNotice.type === 'error' || authNotice.type === 'warning') {
+      setError(authNotice);
+      return;
+    }
+
+    setSuccess({
+      title: authNotice.title || 'Thao tác thành công',
+      message: authNotice.message || 'Thao tác đã được thực hiện thành công.'
+    });
+  }, []);
 
   // ============ XỬ LÝ ĐĂNG NHẬP THÀNH CÔNG ============
   const handleLoginSuccess = (role) => {

@@ -32,6 +32,7 @@ import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
 import LoadErrorState from '../../../components/common/LoadErrorState';
+import { getApiErrorMessage, normalizeText, validateKioskPayload } from '../../../utils/formValidation';
 
 import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
@@ -192,27 +193,34 @@ function KioskManagement() {
   };
 
   const handleCreate = async () => {
-    if (!formData.kioskCode.trim() || !formData.kioskName.trim() || !formData.kioskType) {
-      showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
+    const validationMessage = validateKioskPayload(formData);
+    if (validationMessage) {
+      showToast(validationMessage, 'error');
       return;
     }
     setFormLoading(true);
     try {
+      const payload = {
+        kioskCode: normalizeText(formData.kioskCode).toUpperCase(),
+        kioskName: normalizeText(formData.kioskName),
+        kioskType: normalizeText(formData.kioskType).toUpperCase(),
+        location: normalizeText(formData.location),
+      };
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/kiosks`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Lỗi tạo kiosk');
+        throw new Error(body.message || body.error || 'Lỗi tạo kiosk');
       }
       showToast('Tạo kiosk thành công!');
       setShowCreateModal(false);
       resetForm();
       fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi tạo kiosk', 'error');
+      showToast(getApiErrorMessage(err, err.message || 'Lỗi tạo kiosk'), 'error');
     } finally {
       setFormLoading(false);
     }
@@ -220,27 +228,32 @@ function KioskManagement() {
 
   const handleUpdate = async () => {
     if (!selectedKiosk) return;
+    const validationMessage = validateKioskPayload(formData, { isEdit: true });
+    if (validationMessage) {
+      showToast(validationMessage, 'error');
+      return;
+    }
     setFormLoading(true);
     try {
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/kiosks/${selectedKiosk.id}`, {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify({
-          kioskName: formData.kioskName,
-          kioskType: formData.kioskType,
-          location: formData.location,
+          kioskName: normalizeText(formData.kioskName),
+          kioskType: normalizeText(formData.kioskType).toUpperCase(),
+          location: normalizeText(formData.location),
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Lỗi cập nhật kiosk');
+        throw new Error(body.message || body.error || 'Lỗi cập nhật kiosk');
       }
       showToast('Cập nhật kiosk thành công!');
       setShowEditModal(false);
       resetForm();
       fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi cập nhật kiosk', 'error');
+      showToast(getApiErrorMessage(err, err.message || 'Lỗi cập nhật kiosk'), 'error');
     } finally {
       setFormLoading(false);
     }

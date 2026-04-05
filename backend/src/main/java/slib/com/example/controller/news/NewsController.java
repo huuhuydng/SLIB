@@ -1,8 +1,11 @@
 package slib.com.example.controller.news;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.common.LongBatchRequest;
+import slib.com.example.dto.news.NewsUpsertRequest;
 import slib.com.example.dto.news.NewsListDTO;
 import slib.com.example.entity.news.News;
 import slib.com.example.service.news.NewsService;
@@ -50,15 +53,13 @@ public class NewsController {
     }
 
     @PostMapping("/admin")
-    public ResponseEntity<NewsListDTO> createNews(@RequestBody News news) {
-        News createdNews = newsService.createNews(news);
-        return ResponseEntity.ok(newsService.toDTO(createdNews));
+    public ResponseEntity<NewsListDTO> createNews(@Valid @RequestBody NewsUpsertRequest news) {
+        return ResponseEntity.ok(newsService.createNews(news));
     }
 
     @PutMapping("/admin/{id}")
-    public ResponseEntity<NewsListDTO> updateNews(@PathVariable Long id, @RequestBody News newsDetails) {
-        News updatedNews = newsService.updateNews(id, newsDetails);
-        return ResponseEntity.ok(newsService.toDTO(updatedNews));
+    public ResponseEntity<NewsListDTO> updateNews(@PathVariable Long id, @Valid @RequestBody NewsUpsertRequest newsDetails) {
+        return ResponseEntity.ok(newsService.updateNews(id, newsDetails));
     }
 
     @DeleteMapping("/admin/{id}")
@@ -68,12 +69,9 @@ public class NewsController {
     }
 
     @DeleteMapping("/admin/batch")
-    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<Long>> body) {
+    public ResponseEntity<?> deleteBatch(@Valid @RequestBody LongBatchRequest body) {
         try {
-            List<Long> ids = body.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
-            }
+            List<Long> ids = body.getIds();
             newsService.deleteBatch(ids);
             return ResponseEntity.ok(Map.of("deleted", ids.size()));
         } catch (Exception e) {

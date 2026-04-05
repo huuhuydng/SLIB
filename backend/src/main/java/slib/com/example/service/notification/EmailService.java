@@ -124,7 +124,7 @@ public class EmailService {
             htmlContent = htmlContent.replace("{{role}}", roleLabel);
             htmlContent = htmlContent.replace("{{loginUrl}}", loginUrl);
 
-            sendHtmlEmail(toEmail, "🎉 Chào mừng bạn đến với SLib - Thông tin đăng nhập", htmlContent);
+            sendHtmlEmail(toEmail, "Tài khoản SLib của bạn đã được tạo", htmlContent);
             log.info("Đã gửi welcome email đến: {} (role: {})", toEmail, role);
         } catch (Exception e) {
             log.error("Lỗi gửi welcome email đến {}: {}", toEmail, e.getMessage());

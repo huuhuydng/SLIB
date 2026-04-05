@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { useLibrarianNotification } from '../../context/LibrarianNotificationContext';
+import { handleLogout as redirectLogout } from '../../utils/auth';
 import '../../styles/librarian/header.css';
 
 const Header = ({
@@ -64,11 +65,7 @@ const Header = ({
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem('librarian_token');
-      localStorage.removeItem('librarian_user');
-      sessionStorage.removeItem('librarian_token');
-      sessionStorage.removeItem('librarian_user');
-      window.location.href = '/';
+      redirectLogout();
     }
   };
 
