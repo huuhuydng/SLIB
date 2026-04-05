@@ -2,19 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
-  updateArea,
-  updateAreaLocked,
-  updateAreaIsActive,
-  updateZone,
-  updateAreaFactory,
-  deleteZone,
-  deleteSeat,
-  deleteAreaFactory,
   getAmenitiesByZone,
-  deleteAmenity,
-  createAmenity,
-  updateSeatNfcUid,
-  clearSeatNfcUid,
 } from "../../../services/admin/area_management/api";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
 import "../../../styles/admin/properties.css";
@@ -96,22 +84,34 @@ function PropertiesPanel() {
     } else if (selectedItem?.type === "zone" && selectedData) {
       setLocalZoneDes(selectedData.zoneDes || "");
       setLocalZoneName(selectedData.zoneName || "");
-      // Load amenities when zone is selected
-      (async () => {
-        try {
-          const res = await getAmenitiesByZone(selectedData.zoneId);
-          const raw = Array.isArray(res?.data) ? res.data : [];
-          const normalized = raw.map((a) => ({
-            amenityId: a.amenity_id ?? a.amenityId,
-            amenityName: a.amenity_name ?? a.amenityName,
-            zoneId: a.zone_id ?? a.zoneId ?? selectedData.zoneId,
-          }));
-          setAmenities(normalized);
-        } catch (e) {
-          console.error("Failed to load amenities:", e);
-          setAmenities([]);
-        }
-      })();
+      if (Array.isArray(selectedData.amenities)) {
+        setAmenities(selectedData.amenities);
+      } else if (selectedData.zoneId > 0) {
+        (async () => {
+          try {
+            const res = await getAmenitiesByZone(selectedData.zoneId);
+            const raw = Array.isArray(res?.data) ? res.data : [];
+            const normalized = raw.map((a) => ({
+              amenityId: a.amenity_id ?? a.amenityId,
+              amenityName: a.amenity_name ?? a.amenityName,
+              zoneId: a.zone_id ?? a.zoneId ?? selectedData.zoneId,
+            }));
+            setAmenities(normalized);
+            dispatch({
+              type: actions.UPDATE_ZONE,
+              payload: {
+                ...selectedData,
+                amenities: normalized,
+              },
+            });
+          } catch (e) {
+            console.error("Failed to load amenities:", e);
+            setAmenities([]);
+          }
+        })();
+      } else {
+        setAmenities([]);
+      }
     } else if (selectedItem?.type === "seat" && selectedData) {
       setLocalSeatCode(selectedData.seatCode || "");
       setLocalSeatIsActive(selectedData.isActive !== false);
@@ -121,7 +121,7 @@ function PropertiesPanel() {
       setLocalFactoryName(selectedData.factoryName || "");
       setLocalFactoryColor(selectedData.color || "#9CA3AF");
     }
-  }, [selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.factoryName, selectedData?.color]);
+  }, [actions, dispatch, selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.factoryName, selectedData?.color, selectedData?.amenities, selectedData?.nfcTagUid]);
 
   if (!selectedItem || !selectedData) {
     return (
@@ -194,23 +194,9 @@ function PropertiesPanel() {
 
   // OPTIMISTIC UPDATE: Update UI immediately, API in background
   const handleAreaChange = (field, value) => {
-    // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
-
-    // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
-    const apiPayload = {
-      ...updated,
-      positionX: Math.max(0, updated.positionX ?? 0),
-      positionY: Math.max(0, updated.positionY ?? 0),
-    };
-
-    // Area changes are persisted immediately, so they should not mark the editor dirty.
-    return updateArea(selectedData.areaId, apiPayload).catch(e => {
-      console.error("Failed to update area:", e);
-      dispatch({ type: actions.UPDATE_AREA, payload: selectedData });
-      toast.error("Cập nhật phòng thất bại");
-    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   // Update UI immediately, wait for Save button to persist
@@ -289,25 +275,23 @@ function PropertiesPanel() {
       return;
     }
 
-    try {
-      const res = await createAmenity({
-        amenityName: name,
-        zoneId: selectedData.zoneId
-      });
-
-      const normalizedAmenity = {
-        amenityId: res.data.amenity_id ?? res.data.amenityId,
-        amenityName: res.data.amenity_name ?? res.data.amenityName ?? name,
-        zoneId: res.data.zone_id ?? res.data.zoneId ?? selectedData.zoneId,
-      };
-
-      setAmenities((prev) => [...prev, normalizedAmenity]);
-      setShowAddModal(false);
-      setAddAmenityName("");
-    } catch (e) {
-      console.error("Failed to add amenity:", e);
-      toast.error("Thêm tiện ích thất bại");
-    }
+    const normalizedAmenity = {
+      amenityId: Date.now() * -1,
+      amenityName: name,
+      zoneId: selectedData.zoneId,
+    };
+    const nextAmenities = [...amenities, normalizedAmenity];
+    setAmenities(nextAmenities);
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...selectedData,
+        amenities: nextAmenities,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    setShowAddModal(false);
+    setAddAmenityName("");
   };
 
   const handleDeleteAmenity = async (amenityId) => {
@@ -317,15 +301,17 @@ function PropertiesPanel() {
 
   const confirmDeleteAmenity = async () => {
     if (!deleteAmenityId) return;
-    try {
-      await deleteAmenity(deleteAmenityId);
-      setAmenities((prev) => prev.filter((a) => a.amenityId !== deleteAmenityId));
-      setDeleteAmenityId(null);
-    } catch (e) {
-      console.error("Failed to delete amenity:", e);
-      toast.error("Xóa tiện ích thất bại");
-      setDeleteAmenityId(null);
-    }
+    const nextAmenities = amenities.filter((a) => a.amenityId !== deleteAmenityId);
+    setAmenities(nextAmenities);
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...selectedData,
+        amenities: nextAmenities,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    setDeleteAmenityId(null);
   };
 
   const handleDelete = async () => {
@@ -576,24 +562,12 @@ function PropertiesPanel() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   onClick={() => {
-                    // Optimistic update - UI first
                     const newLocked = !selectedData.locked;
                     dispatch({
                       type: actions.UPDATE_AREA,
                       payload: { ...selectedData, locked: newLocked }
                     });
-                    // API in background
-                    updateAreaLocked(selectedData.areaId, {
-                      areaId: selectedData.areaId,
-                      locked: newLocked
-                    }).catch(e => {
-                      console.error("Failed to update locked:", e);
-                      // Revert on failure
-                      dispatch({
-                        type: actions.UPDATE_AREA,
-                        payload: { ...selectedData, locked: !newLocked }
-                      });
-                    });
+                    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                   }}
                   style={{
                     flex: 1,
@@ -613,24 +587,12 @@ function PropertiesPanel() {
 
                 <button
                   onClick={() => {
-                    // Optimistic update - UI first
                     const newIsActive = !selectedData.isActive;
                     dispatch({
                       type: actions.UPDATE_AREA,
                       payload: { ...selectedData, isActive: newIsActive }
                     });
-                    // API in background
-                    updateAreaIsActive(selectedData.areaId, {
-                      areaId: selectedData.areaId,
-                      isActive: newIsActive
-                    }).catch(e => {
-                      console.error("Failed to update isActive:", e);
-                      // Revert on failure
-                      dispatch({
-                        type: actions.UPDATE_AREA,
-                        payload: { ...selectedData, isActive: !newIsActive }
-                      });
-                    });
+                    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                   }}
                   style={{
                     flex: 1,
@@ -1132,18 +1094,13 @@ function PropertiesPanel() {
 
                         if (data.success && data.uid) {
                           setNfcSaving(true);
-                          try {
-                            await updateSeatNfcUid(selectedData.seatId, data.uid);
-                            setLocalNfcTagUid(data.uid);
-                            dispatch({
-                              type: actions.UPDATE_SEAT,
-                              payload: { ...selectedData, nfcTagUid: data.uid }
-                            });
-                          } catch (saveErr) {
-                            setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
-                          } finally {
-                            setNfcSaving(false);
-                          }
+                          setLocalNfcTagUid(data.uid);
+                          dispatch({
+                            type: actions.UPDATE_SEAT,
+                            payload: { ...selectedData, nfcTagUid: data.uid }
+                          });
+                          dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                          setNfcSaving(false);
                         } else {
                           setNfcError(data.error || 'Không đọc được thẻ NFC');
                         }
@@ -1179,18 +1136,13 @@ function PropertiesPanel() {
                     onClick={async () => {
                       if (!confirm('Bạn có chắc muốn xóa NFC khỏi ghế này?')) return;
                       setNfcSaving(true);
-                      try {
-                        await clearSeatNfcUid(selectedData.seatId);
-                        setLocalNfcTagUid('');
-                        dispatch({
-                          type: actions.UPDATE_SEAT,
-                          payload: { ...selectedData, nfcTagUid: null }
-                        });
-                      } catch (err) {
-                        setNfcError(err.response?.data?.error || 'Lỗi khi xóa NFC');
-                      } finally {
-                        setNfcSaving(false);
-                      }
+                      setLocalNfcTagUid('');
+                      dispatch({
+                        type: actions.UPDATE_SEAT,
+                        payload: { ...selectedData, nfcTagUid: null }
+                      });
+                      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                      setNfcSaving(false);
                     }}
                     disabled={nfcSaving}
                     style={{
@@ -1218,18 +1170,13 @@ function PropertiesPanel() {
 
                       if (data.success && data.uid) {
                         setNfcSaving(true);
-                        try {
-                          await updateSeatNfcUid(selectedData.seatId, data.uid);
-                          setLocalNfcTagUid(data.uid);
-                          dispatch({
-                            type: actions.UPDATE_SEAT,
-                            payload: { ...selectedData, nfcTagUid: data.uid }
-                          });
-                        } catch (saveErr) {
-                          setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
-                        } finally {
-                          setNfcSaving(false);
-                        }
+                        setLocalNfcTagUid(data.uid);
+                        dispatch({
+                          type: actions.UPDATE_SEAT,
+                          payload: { ...selectedData, nfcTagUid: data.uid }
+                        });
+                        dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                        setNfcSaving(false);
                       } else {
                         setNfcError(data.error || 'Không đọc được thẻ NFC');
                       }

@@ -60,6 +60,8 @@ public class ZoneService {
 
         AreaEntity area = areaRepository.findById(req.getAreaId())
                 .orElseThrow(() -> new RuntimeException("Area not found"));
+        ensureAreaAllowsZoneMutation(area, "thêm khu vực ghế");
+        validateZoneCreateRequest(req);
 
         ZoneEntity zone = ZoneEntity.builder()
                 .zoneName(req.getZoneName())
@@ -81,6 +83,7 @@ public class ZoneService {
     public ZoneResponse updateZone(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneUpdateAllowed(zone, req);
 
         if (req.getZoneName() != null)
             zone.setZoneName(req.getZoneName());
@@ -96,6 +99,7 @@ public class ZoneService {
     public ZoneResponse updateZonePosition(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneAndAreaUnlocked(zone, "di chuyển khu vực ghế");
 
         zone.setPositionX(req.getPositionX());
         zone.setPositionY(req.getPositionY());
@@ -109,6 +113,7 @@ public class ZoneService {
     public ZoneResponse updateZoneDimensions(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneAndAreaUnlocked(zone, "thay đổi kích thước khu vực ghế");
 
         zone.setWidth(req.getWidth());
         zone.setHeight(req.getHeight());
@@ -122,6 +127,7 @@ public class ZoneService {
     public ZoneResponse updateZonePositionAndDimensions(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneAndAreaUnlocked(zone, "di chuyển hoặc thay đổi kích thước khu vực ghế");
 
         zone.setPositionX(req.getPositionX());
         zone.setPositionY(req.getPositionY());
@@ -135,6 +141,7 @@ public class ZoneService {
     public ZoneResponse updateZoneFull(Integer id, ZoneResponse req) {
         ZoneEntity zone = zoneRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneUpdateAllowed(zone, req);
 
         // info
         if (req.getZoneName() != null)
@@ -159,9 +166,9 @@ public class ZoneService {
 
     // DELETE - xóa reservations, seats, rồi zone
     public void deleteZone(Integer id) {
-        if (!zoneRepository.existsById(id)) {
-            throw new RuntimeException("Zone not found");
-        }
+        ZoneEntity zone = zoneRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureZoneAndAreaUnlocked(zone, "xóa khu vực ghế");
 
         // 1. Get all seats in this zone
         List<SeatEntity> seatsInZone = seatRepository.findByZone_ZoneId(id);
@@ -181,6 +188,62 @@ public class ZoneService {
 
         // 5. Now delete the zone
         zoneRepository.deleteById(id);
+    }
+
+    private void validateZoneCreateRequest(ZoneResponse req) {
+        if (req.getAreaId() == null) {
+            throw new RuntimeException("Khu vực ghế phải thuộc một phòng thư viện");
+        }
+        if (req.getZoneName() == null || req.getZoneName().isBlank()) {
+            throw new RuntimeException("Tên khu vực ghế không được để trống");
+        }
+        if (req.getWidth() == null || req.getWidth() <= 0 || req.getHeight() == null || req.getHeight() <= 0) {
+            throw new RuntimeException("Kích thước khu vực ghế phải lớn hơn 0");
+        }
+    }
+
+    private void ensureAreaAllowsZoneMutation(AreaEntity area, String action) {
+        if (Boolean.TRUE.equals(area.getLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi phòng thư viện đang bị khóa");
+        }
+    }
+
+    private void ensureZoneAndAreaUnlocked(ZoneEntity zone, String action) {
+        ensureAreaAllowsZoneMutation(zone.getArea(), action);
+        if (Boolean.TRUE.equals(zone.getIsLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi khu vực ghế đang bị khóa");
+        }
+    }
+
+    private void ensureZoneUpdateAllowed(ZoneEntity zone, ZoneResponse req) {
+        ensureAreaAllowsZoneMutation(zone.getArea(), "cập nhật khu vực ghế");
+
+        if (!Boolean.TRUE.equals(zone.getIsLocked())) {
+            return;
+        }
+
+        boolean unlockOnly = Boolean.FALSE.equals(req.getIsLocked())
+                && hasNoZoneFieldChange(zone, req);
+
+        boolean noEffectiveChange = hasNoZoneFieldChange(zone, req)
+                && (req.getIsLocked() == null || Boolean.TRUE.equals(req.getIsLocked()));
+
+        if (!unlockOnly && !noEffectiveChange) {
+            throw new RuntimeException("Không thể cập nhật khu vực ghế đang bị khóa");
+        }
+    }
+
+    private boolean hasNoZoneFieldChange(ZoneEntity zone, ZoneResponse req) {
+        return sameOrNull(req.getZoneName(), zone.getZoneName())
+                && sameOrNull(req.getZoneDes(), zone.getZoneDes())
+                && sameOrNull(req.getPositionX(), zone.getPositionX())
+                && sameOrNull(req.getPositionY(), zone.getPositionY())
+                && sameOrNull(req.getWidth(), zone.getWidth())
+                && sameOrNull(req.getHeight(), zone.getHeight());
+    }
+
+    private <T> boolean sameOrNull(T requestedValue, T currentValue) {
+        return requestedValue == null || requestedValue.equals(currentValue);
     }
 
     private ZoneResponse toResponse(ZoneEntity zone) {

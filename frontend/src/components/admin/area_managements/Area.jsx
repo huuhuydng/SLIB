@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import ZoneSimple from './ZoneSimple';
 import Shape from './Shape';
-import { getZonesByArea, getAreaFactoriesByArea, updateAreaPosition, updateAreaDimensions, updateAreaPositionAndDimensions } from '../../../services/admin/area_management/api';
+import { getZonesByArea, getAreaFactoriesByArea } from '../../../services/admin/area_management/api';
 import { Rnd } from 'react-rnd';
 function Area({ area }) {
   const { state, dispatch, actions } = useLayout();
@@ -13,7 +13,7 @@ function Area({ area }) {
 
   // Load zones for this area
   useEffect(() => {
-    if (!area?.areaId) return;
+    if (!area?.areaId || area.areaId < 0) return;
     if (isLayoutHydrated) {
       setLoadingZones(false);
       return;
@@ -53,7 +53,7 @@ function Area({ area }) {
 
   // Load factories for this area
   useEffect(() => {
-    if (!area?.areaId) return;
+    if (!area?.areaId || area.areaId < 0) return;
     if (isLayoutHydrated) {
       setLoadingFactories(false);
       return;
@@ -99,7 +99,6 @@ function Area({ area }) {
   const areaFactories = factories.filter((f) => f.areaId === area.areaId);
   const isSelected = selectedItem?.type === 'area' && selectedItem?.id === area.areaId;
 
-  const saveTimerRef = useRef(null);
   const [resizeError, setResizeError] = useState(null);
   const [collidingWith, setCollidingWith] = useState(null);
   const [resetKey, setResetKey] = useState(0);
@@ -204,17 +203,7 @@ function Area({ area }) {
       },
     });
 
-    // Debounce API call
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        await updateAreaPosition(area.areaId, d.x, d.y);
-      } catch (e) {
-        console.error('Failed to update area position', e);
-      }
-    }, 300);
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   const handleDragStop = async (e, d) => {
@@ -230,24 +219,15 @@ function Area({ area }) {
 
     setCollidingWith(null);
 
-    // Clear debounce timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    // Save immediately on stop
-    try {
-      await updateAreaPosition(area.areaId, d.x, d.y);
-      dispatch({
-        type: actions.UPDATE_AREA,
-        payload: {
-          ...area,
-          positionX: d.x,
-          positionY: d.y,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to update area position', e);
-    }
+    dispatch({
+      type: actions.UPDATE_AREA,
+      payload: {
+        ...area,
+        positionX: d.x,
+        positionY: d.y,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   const handleResizeStop = async (e, direction, ref, delta, position) => {
@@ -276,26 +256,7 @@ function Area({ area }) {
     setResizeError(null);
     setCollidingWith(null);
 
-    try {
-      // If both position and dimensions changed, update both
-      if (positionChanged && dimensionsChanged) {
-        await updateAreaPositionAndDimensions(area.areaId, {
-          positionX: position.x,
-          positionY: position.y,
-          width: newWidth,
-          height: newHeight,
-        });
-      }
-      // If only dimensions changed, update dimensions only
-      else if (dimensionsChanged) {
-        await updateAreaDimensions(area.areaId, newWidth, newHeight);
-      }
-      // If only position changed (shouldn't happen in resize, but handle it)
-      else if (positionChanged) {
-        await updateAreaPosition(area.areaId, position.x, position.y);
-      }
-
-      // Update local state
+    if (positionChanged || dimensionsChanged) {
       dispatch({
         type: actions.UPDATE_AREA,
         payload: {
@@ -306,8 +267,7 @@ function Area({ area }) {
           height: newHeight,
         },
       });
-    } catch (e) {
-      console.error('Failed to update area size/position', e);
+      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
     }
   };
 

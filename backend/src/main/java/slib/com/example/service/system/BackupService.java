@@ -40,6 +40,9 @@ public class BackupService {
     @Value("${spring.datasource.password}")
     private String datasourcePassword;
 
+    @Value("${backup.pg-dump-path:pg_dump}")
+    private String pgDumpPath;
+
     private static final String BACKUP_DIR = "/tmp/slib-backups";
 
     /**
@@ -51,9 +54,9 @@ public class BackupService {
         try {
             Files.createDirectories(backupPath);
         } catch (IOException e) {
-            log.error("[Backup] Cannot create backup directory: {}", e.getMessage());
-            systemLogService.logError("BackupService", "Cannot create backup directory", e.getMessage());
-            throw new RuntimeException("Cannot create backup directory: " + e.getMessage());
+            log.error("[Backup] Không thể tạo thư mục sao lưu: {}", e.getMessage());
+            systemLogService.logError("BackupService", "Không thể tạo thư mục sao lưu", e.getMessage());
+            throw new RuntimeException("Không thể tạo thư mục sao lưu: " + e.getMessage());
         }
 
         // Parse database connection info
@@ -70,7 +73,7 @@ public class BackupService {
             dbHost = hostPort[0];
             dbPort = hostPort.length > 1 ? hostPort[1] : "5432";
         } catch (Exception e) {
-            log.warn("[Backup] Could not parse datasource URL, using defaults: {}", e.getMessage());
+            log.warn("[Backup] Không thể phân tích datasource URL, dùng cấu hình mặc định: {}", e.getMessage());
         }
 
         // Build filename
@@ -86,9 +89,11 @@ public class BackupService {
                 .build();
 
         try {
+            ensurePgDumpAvailable();
+
             // Run pg_dump
             ProcessBuilder pb = new ProcessBuilder(
-                    "pg_dump",
+                    pgDumpPath,
                     "-h", dbHost,
                     "-p", dbPort,
                     "-U", datasourceUsername,
@@ -109,8 +114,8 @@ public class BackupService {
                 history.setCompletedAt(LocalDateTime.now());
                 backupHistoryRepository.save(history);
                 systemLogService.logJobEvent(LogLevel.ERROR, "BackupService",
-                        "Manual backup failed: exit code " + exitCode);
-                throw new RuntimeException("Backup failed: " + output);
+                        "Sao lưu thủ công thất bại: mã thoát " + exitCode);
+                throw new RuntimeException("Sao lưu thất bại: " + output);
             }
 
             // Success
@@ -121,17 +126,18 @@ public class BackupService {
             backupHistoryRepository.save(history);
 
             systemLogService.logJobEvent(LogLevel.INFO, "BackupService",
-                    "Manual backup completed: " + fileName + " (" + formatFileSize(backupFile.length()) + ")");
+                    "Sao lưu thủ công hoàn tất: " + fileName + " (" + formatFileSize(backupFile.length()) + ")");
 
             log.info("[Backup] Completed: {} ({})", fileName, formatFileSize(backupFile.length()));
             return history;
 
         } catch (IOException | InterruptedException e) {
+            String normalizedMessage = normalizeBackupErrorMessage(e);
             history.setErrorMessage(e.getMessage());
             history.setCompletedAt(LocalDateTime.now());
             backupHistoryRepository.save(history);
-            systemLogService.logError("BackupService", "Backup process error", e.getMessage());
-            throw new RuntimeException("Backup failed: " + e.getMessage());
+            systemLogService.logError("BackupService", "Tiến trình sao lưu gặp lỗi", normalizedMessage);
+            throw new RuntimeException(normalizedMessage);
         }
     }
 
@@ -172,13 +178,13 @@ public class BackupService {
                 }
                 backupHistoryRepository.delete(backup);
             } catch (Exception e) {
-                log.warn("[Backup] Failed to cleanup old backup {}: {}", backup.getId(), e.getMessage());
+                log.warn("[Backup] Không thể dọn bản sao lưu cũ {}: {}", backup.getId(), e.getMessage());
             }
         }
 
         if (!oldBackups.isEmpty()) {
             systemLogService.logJobEvent(LogLevel.INFO, "BackupService",
-                    "Cleaned up " + oldBackups.size() + " old backups (retain " + retainDays + " days)");
+                    "Đã dọn " + oldBackups.size() + " bản sao lưu cũ (giữ lại " + retainDays + " ngày)");
         }
     }
 
@@ -187,5 +193,27 @@ public class BackupService {
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
         if (bytes < 1024L * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+    }
+
+    private void ensurePgDumpAvailable() throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(pgDumpPath, "--version")
+                .redirectErrorStream(true)
+                .start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Không thể chạy công cụ pg_dump tại đường dẫn: " + pgDumpPath);
+        }
+    }
+
+    private String normalizeBackupErrorMessage(Exception e) {
+        String rawMessage = e.getMessage() != null ? e.getMessage() : "Lỗi không xác định";
+        if (rawMessage.contains("Cannot run program") || rawMessage.contains("No such file or directory")) {
+            return "Không tìm thấy công cụ sao lưu PostgreSQL (pg_dump). Vui lòng cài postgresql-client hoặc cấu hình backup.pg-dump-path đúng trên máy chủ.";
+        }
+        if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+            return "Tiến trình sao lưu bị gián đoạn ngoài ý muốn.";
+        }
+        return "Sao lưu thất bại: " + rawMessage;
     }
 }

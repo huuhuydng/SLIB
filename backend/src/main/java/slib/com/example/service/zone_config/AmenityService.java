@@ -46,6 +46,7 @@ public class AmenityService {
     public AmenityResponse createAmenity(AmenityResponse req) {
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureAmenityMutationAllowed(zone, "thêm tiện ích");
 
         AmenityEntity amenity = AmenityEntity.builder()
                 .zone(zone)
@@ -59,6 +60,7 @@ public class AmenityService {
     public AmenityResponse updateAmenity(Integer id, AmenityResponse req) {
         AmenityEntity amenity = amenityRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Amenity not found"));
+        ensureAmenityMutationAllowed(amenity.getZone(), "cập nhật tiện ích");
 
         amenity.setAmenityName(req.getAmenityName());
 
@@ -67,10 +69,19 @@ public class AmenityService {
 
     // DELETE
     public void deleteAmenity(Integer id) {
-        if (!amenityRepository.existsById(id)) {
-            throw new RuntimeException("Amenity not found");
-        }
+        AmenityEntity amenity = amenityRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Amenity not found"));
+        ensureAmenityMutationAllowed(amenity.getZone(), "xóa tiện ích");
         amenityRepository.deleteById(id);
+    }
+
+    private void ensureAmenityMutationAllowed(ZoneEntity zone, String action) {
+        if (zone.getArea() != null && Boolean.TRUE.equals(zone.getArea().getLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi phòng thư viện đang bị khóa");
+        }
+        if (Boolean.TRUE.equals(zone.getIsLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi khu vực ghế đang bị khóa");
+        }
     }
 
     // MAP ENTITY -> DTO

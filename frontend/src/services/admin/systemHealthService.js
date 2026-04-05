@@ -38,6 +38,40 @@ const systemHealthService = {
         return res.data;
     },
 
+    exportLogs: async ({ level, category, search, startDate, endDate } = {}) => {
+        const params = {};
+        if (level) params.level = level;
+        if (category) params.category = category;
+        if (search) params.search = search;
+        if (startDate) params.startDate = startDate;
+        if (endDate) params.endDate = endDate;
+
+        const res = await axios.get(`${API_BASE}/slib/system/logs/export`, {
+            params,
+            headers: getAuthHeaders(),
+            responseType: 'blob'
+        });
+
+        const blobUrl = window.URL.createObjectURL(new Blob([res.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }));
+        const anchor = document.createElement('a');
+        anchor.href = blobUrl;
+        anchor.download = `nhat-ky-he-thong-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(blobUrl);
+    },
+
+    cleanupLogs: async (beforeDate) => {
+        const res = await axios.delete(`${API_BASE}/slib/system/logs/cleanup`, {
+            headers: getAuthHeaders(),
+            data: { beforeDate }
+        });
+        return res.data;
+    },
+
     // =========================================
     // === BACKUP (FE-57) ===
     // =========================================

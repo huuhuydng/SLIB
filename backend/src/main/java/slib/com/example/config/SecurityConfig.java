@@ -115,6 +115,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/slib/zone_amenities/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers(HttpMethod.GET, "/slib/seats/nfc-mappings").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers(HttpMethod.GET, "/slib/seats/*/nfc-info").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/layout-admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers(HttpMethod.GET, "/slib/areas/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
                         .requestMatchers(HttpMethod.GET, "/slib/zones/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")
                         .requestMatchers(HttpMethod.GET, "/slib/seats/**").hasAnyRole("STUDENT", "LIBRARIAN", "ADMIN", "KIOSK")

@@ -4,21 +4,11 @@ import { useLayout } from "../../../context/admin/area_management/LayoutContext"
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
 import {
-  createAreaFactoryInArea,
-  createSeat,
-  createZone,
-  deleteArea,
-  deleteAreaFactory,
-  deleteSeat,
-  deleteZone,
-  getAreas,
-  getAreaFactories,
-  getSeats,
-  getZones,
-  updateAreaFactory,
-  updateSeat,
-  updateZone,
-  updateZonePositionAndDimensions,
+  getLayoutDraft,
+  getLayoutHistory,
+  publishLayoutSnapshot,
+  saveLayoutDraft,
+  validateLayoutSnapshot,
 } from "../../../services/admin/area_management/api";
 import { clearAllPositionCache } from "../../../utils/positionCache";
 import "../../../styles/admin/canvas.css";
@@ -40,6 +30,153 @@ function CanvasBoard() {
   const [panMode, setPanMode] = useState(false);
   const [didAutoFit, setDidAutoFit] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
+  const [draftMeta, setDraftMeta] = useState(null);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [validationConflicts, setValidationConflicts] = useState([]);
+  const [showConflictPanel, setShowConflictPanel] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const formatDraftMetaTime = (value) => {
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  };
+
+  const hydrateLayoutSnapshot = useCallback((snapshot) => {
+    const areasRaw = Array.isArray(snapshot?.areas) ? snapshot.areas : [];
+    const zonesRaw = Array.isArray(snapshot?.zones) ? snapshot.zones : [];
+    const seatsRaw = Array.isArray(snapshot?.seats) ? snapshot.seats : [];
+    const factoriesRaw = Array.isArray(snapshot?.factories) ? snapshot.factories : [];
+
+    const areasNormalized = areasRaw.map((a) => ({
+      areaId: a.area_id ?? a.areaId,
+      areaName: a.area_name ?? a.areaName,
+      positionX: a.position_x ?? a.positionX ?? 0,
+      positionY: a.position_y ?? a.positionY ?? 0,
+      width: a.width ?? 300,
+      height: a.height ?? 250,
+      locked: a.locked ?? a.is_locked ?? false,
+      isActive: a.is_active ?? a.isActive ?? true,
+    }));
+    const zonesNormalized = zonesRaw.map((z) => ({
+      zoneId: z.zone_id ?? z.zoneId,
+      zoneName: z.zone_name ?? z.zoneName,
+      zoneDes: z.zone_des ?? z.zoneDes ?? "",
+      areaId: z.area_id ?? z.areaId,
+      positionX: z.position_x ?? z.positionX ?? 0,
+      positionY: z.position_y ?? z.positionY ?? 0,
+      width: z.width ?? 120,
+      height: z.height ?? 100,
+      color: z.color ?? "#9CA3AF",
+      isLocked: z.is_locked ?? z.isLocked ?? false,
+      amenities: Array.isArray(z.amenities) ? z.amenities.map((a) => ({
+        amenityId: a.amenity_id ?? a.amenityId,
+        zoneId: a.zone_id ?? a.zoneId ?? (z.zone_id ?? z.zoneId),
+        amenityName: a.amenity_name ?? a.amenityName ?? "",
+      })) : [],
+    }));
+    const seatsNormalized = seatsRaw.map((s) => ({
+      seatId: s.seat_id ?? s.seatId,
+      zoneId: s.zone_id ?? s.zoneId,
+      seatCode: s.seat_code ?? s.seatCode,
+      width: s.width ?? 30,
+      height: s.height ?? 30,
+      rowNumber: s.row_number ?? s.rowNumber,
+      columnNumber: s.column_number ?? s.columnNumber,
+      positionX: s.position_x ?? s.positionX ?? 0,
+      positionY: s.position_y ?? s.positionY ?? 0,
+      isActive: (s.is_active ?? s.isActive) ?? true,
+      nfcTagUid: s.nfc_tag_uid ?? s.nfcTagUid ?? "",
+      seatStatus: s.seat_status ?? s.seatStatus ?? "AVAILABLE",
+    }));
+    const factoriesNormalized = factoriesRaw.map((f) => ({
+      factoryId: f.factory_id ?? f.factoryId,
+      factoryName: f.factory_name ?? f.factoryName,
+      positionX: f.position_x ?? f.positionX ?? 0,
+      positionY: f.position_y ?? f.positionY ?? 0,
+      width: f.width ?? 120,
+      height: f.height ?? 80,
+      color: f.color ?? "#9CA3AF",
+      areaId: f.area_id ?? f.areaId,
+      isLocked: f.is_locked ?? f.isLocked ?? false,
+    }));
+
+    dispatch({ type: actions.SET_ZONES, payload: zonesNormalized });
+    dispatch({ type: actions.SET_SEATS, payload: seatsNormalized });
+    dispatch({ type: actions.SET_FACTORIES, payload: factoriesNormalized });
+    dispatch({ type: actions.SET_LAYOUT_HYDRATED, payload: true });
+    dispatch({ type: actions.SET_AREAS, payload: areasNormalized });
+    dispatch({
+      type: actions.SELECT_AREA,
+      payload: areasNormalized[0]?.areaId ?? null,
+    });
+  }, [dispatch, actions]);
+
+  const buildLayoutSnapshot = useCallback(() => ({
+    areas: areas.map((area) => ({
+      areaId: area.areaId,
+      areaName: area.areaName,
+      width: Math.round(area.width ?? 300),
+      height: Math.round(area.height ?? 250),
+      positionX: Math.round(area.positionX ?? 0),
+      positionY: Math.round(area.positionY ?? 0),
+      isActive: area.isActive ?? true,
+      locked: area.locked ?? false,
+    })),
+    zones: zones.map((zone) => ({
+      zoneId: zone.zoneId,
+      zoneName: zone.zoneName,
+      zoneDes: zone.zoneDes ?? "",
+      areaId: zone.areaId,
+      positionX: Math.round(zone.positionX ?? 0),
+      positionY: Math.round(zone.positionY ?? 0),
+      width: Math.round(zone.width ?? 120),
+      height: Math.round(zone.height ?? 100),
+      isLocked: zone.isLocked ?? false,
+      amenities: Array.isArray(zone.amenities)
+        ? zone.amenities.map((amenity) => ({
+            amenityId: amenity.amenityId,
+            zoneId: zone.zoneId,
+            amenityName: amenity.amenityName,
+          }))
+        : [],
+    })),
+    seats: seats.map((seat) => ({
+      seatId: seat.seatId,
+      zoneId: seat.zoneId,
+      seatCode: seat.seatCode,
+      rowNumber: seat.rowNumber,
+      columnNumber: seat.columnNumber,
+      isActive: seat.isActive ?? true,
+      nfcTagUid: seat.nfcTagUid ?? null,
+    })),
+    factories: factories.map((factory) => ({
+      factoryId: factory.factoryId,
+      factoryName: factory.factoryName,
+      areaId: factory.areaId,
+      positionX: Math.round(factory.positionX ?? 0),
+      positionY: Math.round(factory.positionY ?? 0),
+      width: Math.round(factory.width ?? 120),
+      height: Math.round(factory.height ?? 80),
+      isLocked: factory.isLocked ?? false,
+    })),
+  }), [areas, zones, seats, factories]);
+
+  const loadHistoryFeed = useCallback(async () => {
+    try {
+      const res = await getLayoutHistory(20);
+      setHistoryItems(Array.isArray(res?.data) ? res.data : []);
+    } catch (error) {
+      console.error("Không thể tải lịch sử sơ đồ", error);
+    }
+  }, []);
 
   // ===== FIGMA-STYLE LOADING =====
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
@@ -54,96 +191,14 @@ function CanvasBoard() {
 
     (async () => {
       try {
-        const [areasResult, zonesResult, seatsResult, factoriesResult] = await Promise.allSettled([
-          getAreas(),
-          getZones(),
-          getSeats(),
-          getAreaFactories(),
+        const [draftRes] = await Promise.all([
+          getLayoutDraft(),
+          loadHistoryFeed(),
         ]);
 
-        const areasRaw = areasResult.status === "fulfilled" && Array.isArray(areasResult.value?.data)
-          ? areasResult.value.data
-          : [];
-        const zonesRaw = zonesResult.status === "fulfilled" && Array.isArray(zonesResult.value?.data)
-          ? zonesResult.value.data
-          : [];
-        const seatsRaw = seatsResult.status === "fulfilled" && Array.isArray(seatsResult.value?.data)
-          ? seatsResult.value.data
-          : [];
-        const factoriesRaw = factoriesResult.status === "fulfilled" && Array.isArray(factoriesResult.value?.data)
-          ? factoriesResult.value.data
-          : [];
-
-        const areasNormalized = areasRaw.map((a) => ({
-          areaId: a.area_id ?? a.areaId,
-          areaName: a.area_name ?? a.areaName,
-          positionX: a.position_x ?? a.positionX ?? 0,
-          positionY: a.position_y ?? a.positionY ?? 0,
-          width: a.width ?? 300,
-          height: a.height ?? 250,
-          locked: a.locked ?? a.is_locked ?? false,
-          isActive: a.is_active ?? a.isActive ?? true,
-        }));
-        const zonesNormalized = zonesRaw.map((z) => ({
-          zoneId: z.zone_id ?? z.zoneId,
-          zoneName: z.zone_name ?? z.zoneName,
-          zoneDes: z.zone_des ?? z.zoneDes ?? "",
-          areaId: z.area_id ?? z.areaId,
-          positionX: z.position_x ?? z.positionX ?? 0,
-          positionY: z.position_y ?? z.positionY ?? 0,
-          width: z.width ?? 120,
-          height: z.height ?? 100,
-          color: z.color ?? "#9CA3AF",
-          isLocked: z.is_locked ?? z.isLocked ?? false,
-        }));
-        const seatsNormalized = seatsRaw.map((s) => ({
-          seatId: s.seat_id ?? s.seatId,
-          zoneId: s.zone_id ?? s.zoneId,
-          seatCode: s.seat_code ?? s.seatCode,
-          width: s.width ?? 30,
-          height: s.height ?? 30,
-          rowNumber: s.row_number ?? s.rowNumber,
-          columnNumber: s.column_number ?? s.columnNumber,
-          positionX: s.position_x ?? s.positionX ?? 0,
-          positionY: s.position_y ?? s.positionY ?? 0,
-          isActive: (s.is_active ?? s.isActive) ?? true,
-          nfcTagUid: s.nfc_tag_uid ?? s.nfcTagUid ?? "",
-        }));
-        const factoriesNormalized = factoriesRaw.map((f) => ({
-          factoryId: f.factory_id ?? f.factoryId,
-          factoryName: f.factory_name ?? f.factoryName,
-          positionX: f.position_x ?? f.positionX ?? 0,
-          positionY: f.position_y ?? f.positionY ?? 0,
-          width: f.width ?? 120,
-          height: f.height ?? 80,
-          color: f.color ?? "#9CA3AF",
-          areaId: f.area_id ?? f.areaId,
-          isLocked: f.is_locked ?? f.isLocked ?? false,
-        }));
-
-        dispatch({ type: actions.SET_ZONES, payload: zonesNormalized });
-        dispatch({ type: actions.SET_SEATS, payload: seatsNormalized });
-        dispatch({ type: actions.SET_FACTORIES, payload: factoriesNormalized });
-        dispatch({
-          type: actions.SET_LAYOUT_HYDRATED,
-          payload:
-            zonesResult.status === "fulfilled" &&
-            seatsResult.status === "fulfilled" &&
-            factoriesResult.status === "fulfilled",
-        });
-
-        if (areasNormalized.length > 0) {
-          dispatch({
-            type: actions.SET_AREAS,
-            payload: areasNormalized,
-          });
-          dispatch({
-            type: actions.SELECT_AREA,
-            payload: areasNormalized[0].areaId,
-          });
-        } else {
-          dispatch({ type: actions.SET_AREAS, payload: [] });
-        }
+        setDraftMeta(draftRes?.data ?? null);
+        hydrateLayoutSnapshot(draftRes?.data?.snapshot ?? {});
+        dispatch({ type: actions.MARK_SAVED });
       } catch (err) {
         console.error("Load areas failed", err);
         dispatch({ type: actions.SET_AREAS, payload: [] });
@@ -155,7 +210,7 @@ function CanvasBoard() {
         setIsLoadingAreas(false);
       }
     })();
-  }, []);
+  }, [dispatch, actions, hydrateLayoutSnapshot, loadHistoryFeed]);
 
   /* =============================
      ZOOM
@@ -438,362 +493,96 @@ function CanvasBoard() {
   const totalSeats = seats.length;
   const activeSeats = seats.filter(s => s.isActive !== false).length;
   const totalZones = zones.length;
-  const createEmptyPendingChanges = () => ({
-    newZones: [],
-    newFactories: [],
-    newSeats: [],
-    deletedAreas: [],
-    deletedZones: [],
-    deletedFactories: [],
-    deletedSeats: [],
-    updatedSeats: [],
-  });
+  const extractValidationPayload = (error) =>
+    error?.response?.data?.validation || error?.response?.data;
 
-  const describeFailures = (items) => {
-    const labels = new Map([
-      ['zone', 'tạo khu vực'],
-      ['factory', 'tạo vật cản'],
-      ['seat', 'tạo ghế'],
-      ['zone-update', 'cập nhật khu vực'],
-      ['factory-update', 'cập nhật vật cản'],
-      ['seat-update', 'cập nhật ghế'],
-      ['area-delete', 'xóa phòng'],
-      ['zone-delete', 'xóa khu vực'],
-      ['factory-delete', 'xóa vật cản'],
-      ['seat-delete', 'xóa ghế'],
-    ]);
+  const runValidation = useCallback(async (snapshot) => {
+    try {
+      const res = await validateLayoutSnapshot(snapshot);
+      return res.data;
+    } catch (error) {
+      const validationPayload = extractValidationPayload(error);
+      if (validationPayload?.conflicts) {
+        return validationPayload;
+      }
+      throw error;
+    }
+  }, []);
 
-    const counts = items.reduce((acc, item) => {
-      const [type] = item.split(':');
-      acc.set(type, (acc.get(type) || 0) + 1);
-      return acc;
-    }, new Map());
-
-    return [...counts.entries()]
-      .map(([type, count]) => `${labels.get(type) || type} (${count})`)
-      .join(', ');
-  };
-
-  // Handle Save - batch save all changes to API
-  const handleSave = async () => {
+  const handleSaveDraft = useCallback(async () => {
     if (!hasUnsavedChanges || isSaving) return;
 
     dispatch({ type: actions.SET_SAVING, payload: true });
-
     try {
-      const { pendingChanges } = state;
-      const failures = [];
-      const remainingPendingChanges = createEmptyPendingChanges();
-
-      // 1. Create new zones FIRST (pending with negative IDs)
-      // Zones must be created before seats that belong to them
-      const zoneIdMapping = new Map(); // tempId -> realId
-      const newZonePromises = (pendingChanges?.newZones || []).map(async (zone) => {
-        try {
-          // Get current zone data from UI state (user may have changed name/position after creating)
-          const currentZone = zones.find(z => z.zoneId === zone.zoneId);
-          const finalZoneName = currentZone?.zoneName ?? zone.zoneName;
-          const finalColor = currentZone?.color ?? zone.color;
-
-          // Create zone with initial values
-          const res = await createZone({
-            zoneName: finalZoneName,
-            areaId: zone.areaId,
-            positionX: 0,  // Default, will update with actual position below
-            positionY: 0,
-            width: 120,
-            height: 100,
-            color: finalColor,
-          });
-          const realId = res.data?.zone_id ?? res.data?.zoneId;
-
-          // Store mapping for seats that reference this zone
-          zoneIdMapping.set(zone.zoneId, realId);
-
-          // Get current position/size from UI state
-          const finalPositionX = currentZone?.positionX ?? zone.positionX ?? 0;
-          const finalPositionY = currentZone?.positionY ?? zone.positionY ?? 0;
-          const finalWidth = currentZone?.width ?? zone.width ?? 120;
-          const finalHeight = currentZone?.height ?? zone.height ?? 100;
-
-          // Update position/size in BE with user's actual values
-          await updateZonePositionAndDimensions(realId, {
-            positionX: Math.round(finalPositionX),
-            positionY: Math.round(finalPositionY),
-            width: Math.round(finalWidth),
-            height: Math.round(finalHeight),
-          });
-
-          // Replace temp zone with real zone (using temp ID to find it)
-          dispatch({
-            type: actions.REPLACE_ZONE_BY_TEMP_ID,
-            payload: {
-              tempId: zone.zoneId,
-              realZone: {
-                ...zone,
-                zoneId: realId,
-                positionX: finalPositionX,
-                positionY: finalPositionY,
-                width: finalWidth,
-                height: finalHeight,
-                isPending: false,
-              },
-            },
-          });
-          return { tempId: zone.zoneId, realId };
-        } catch (e) {
-          console.error(`Failed to create zone ${zone.zoneName}:`, e);
-          failures.push(`zone:${zone.zoneId}`);
-          remainingPendingChanges.newZones.push(zone);
-          return { tempId: zone.zoneId, realId: null };
-        }
-      });
-
-      // 2. Create new factories (pending with negative IDs) - can run in parallel with zones
-      const newFactoryPromises = (pendingChanges?.newFactories || []).map(async (factory) => {
-        try {
-          // Get current factory data from UI state (user may have changed name/position after creating)
-          const currentFactory = factories.find(f => f.factoryId === factory.factoryId);
-          const finalFactoryName = currentFactory?.factoryName ?? factory.factoryName;
-          const finalColor = currentFactory?.color ?? factory.color;
-
-          // Create factory with initial values
-          const res = await createAreaFactoryInArea(factory.areaId, {
-            factoryName: finalFactoryName,
-            positionX: 0,  // Default, will update with actual position below
-            positionY: 0,
-            width: 120,
-            height: 80,
-            color: finalColor,
-          });
-          const realId = res.data?.factory_id ?? res.data?.factoryId;
-
-          // Get current position/size from UI state
-          const finalPositionX = currentFactory?.positionX ?? factory.positionX ?? 0;
-          const finalPositionY = currentFactory?.positionY ?? factory.positionY ?? 0;
-          const finalWidth = currentFactory?.width ?? factory.width ?? 120;
-          const finalHeight = currentFactory?.height ?? factory.height ?? 80;
-
-          // Update position/size in BE with user's actual values
-          await updateAreaFactory(realId, {
-            factoryId: realId,
-            factoryName: finalFactoryName,
-            positionX: Math.round(finalPositionX),
-            positionY: Math.round(finalPositionY),
-            width: Math.round(finalWidth),
-            height: Math.round(finalHeight),
-            color: finalColor,
-            areaId: factory.areaId,
-          });
-
-          // Replace temp factory with real factory (using temp ID to find it)
-          dispatch({
-            type: actions.REPLACE_FACTORY_BY_TEMP_ID,
-            payload: {
-              tempId: factory.factoryId,
-              realFactory: {
-                ...factory,
-                factoryId: realId,
-                positionX: finalPositionX,
-                positionY: finalPositionY,
-                width: finalWidth,
-                height: finalHeight,
-                isPending: false,
-              },
-            },
-          });
-          return { tempId: factory.factoryId, realId };
-        } catch (e) {
-          console.error(`Failed to create factory ${factory.factoryName}:`, e);
-          failures.push(`factory:${factory.factoryId}`);
-          remainingPendingChanges.newFactories.push(factory);
-          return { tempId: factory.factoryId, realId: null };
-        }
-      });
-
-      // Wait for zones and factories to be created first
-      await Promise.all([...newZonePromises, ...newFactoryPromises]);
-
-      // 3. Create new seats AFTER zones (so we can map pending zoneIds to real IDs)
-      const newSeatPromises = (pendingChanges?.newSeats || []).map(async (seat) => {
-        const currentSeat = seats.find((item) => item.seatId === seat.seatId) || seat;
-        try {
-          // Map zoneId: if seat belongs to a pending zone, use the real ID
-          const realZoneId = currentSeat.zoneId < 0 ? zoneIdMapping.get(currentSeat.zoneId) : currentSeat.zoneId;
-
-          if (!realZoneId) {
-            console.error(`Cannot create seat ${currentSeat.seatCode}: zoneId ${currentSeat.zoneId} not found in mapping`);
-            failures.push(`seat:${currentSeat.seatId}`);
-            remainingPendingChanges.newSeats.push(currentSeat);
-            return { tempId: currentSeat.seatId, realId: null };
-          }
-
-          const res = await createSeat({
-            seatCode: currentSeat.seatCode,
-            zoneId: realZoneId,  // Use mapped real zoneId
-            rowNumber: currentSeat.rowNumber,
-            columnNumber: currentSeat.columnNumber,
-            seatStatus: currentSeat.seatStatus || 'AVAILABLE',
-            isActive: currentSeat.isActive,
-          });
-          // Build real seat from API response
-          const realSeat = {
-            seatId: res.data?.seat_id ?? res.data?.seatId,
-            seatCode: res.data?.seat_code ?? res.data?.seatCode ?? currentSeat.seatCode,
-            zoneId: res.data?.zone_id ?? res.data?.zoneId ?? realZoneId,
-            rowNumber: res.data?.row_number ?? res.data?.rowNumber ?? currentSeat.rowNumber,
-            columnNumber: res.data?.column_number ?? res.data?.columnNumber ?? currentSeat.columnNumber,
-            seatStatus: res.data?.seat_status ?? res.data?.seatStatus ?? currentSeat.seatStatus ?? 'AVAILABLE',
-            isActive: (res.data?.is_active ?? res.data?.isActive) ?? currentSeat.isActive ?? true,
-            nfcTagUid: res.data?.nfc_tag_uid ?? res.data?.nfcTagUid ?? "",
-          };
-          // Replace temp seat with real seat
-          dispatch({
-            type: actions.REPLACE_SEAT_BY_TEMP_ID,
-            payload: { tempId: currentSeat.seatId, realSeat },
-          });
-          return { tempId: currentSeat.seatId, realId: realSeat.seatId };
-        } catch (e) {
-          console.error(`Failed to create seat ${currentSeat.seatCode}:`, e);
-          failures.push(`seat:${currentSeat.seatId}`);
-          remainingPendingChanges.newSeats.push(currentSeat);
-          return { tempId: currentSeat.seatId, realId: null };
-        }
-      });
-
-      // Wait for seats to be created
-      await Promise.all(newSeatPromises);
-
-      // 4. Update existing zones (those with positive IDs)
-      const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
-      const updateZonePromises = existingZones.map(async (zone) => {
-        try {
-          await updateZone(zone.zoneId, {
-            zoneName: zone.zoneName,
-            positionX: Math.round(zone.positionX || 0),
-            positionY: Math.round(zone.positionY || 0),
-            width: Math.round(zone.width || 250),
-            height: Math.round(zone.height || 200),
-            color: zone.color,
-          });
-        } catch (e) {
-          console.error(`Failed to update zone ${zone.zoneId}:`, e);
-          failures.push(`zone-update:${zone.zoneId}`);
-        }
-      });
-
-      // 5. Update existing factories (those with positive IDs)
-      const existingFactories = factories.filter(f => f.factoryId > 0 && !f.isPending);
-      const updateFactoryPromises = existingFactories.map(async (factory) => {
-        try {
-          await updateAreaFactory(factory.factoryId, {
-            factoryId: factory.factoryId,
-            factoryName: factory.factoryName,
-            positionX: factory.positionX,
-            positionY: factory.positionY,
-            width: factory.width,
-            height: factory.height,
-            color: factory.color,
-            areaId: factory.areaId,
-          });
-        } catch (e) {
-          console.error(`Failed to update factory ${factory.factoryId}:`, e);
-          failures.push(`factory-update:${factory.factoryId}`);
-        }
-      });
-
-      // 6. Delete areas marked for deletion
-      const deleteAreaPromises = (pendingChanges?.deletedAreas || []).map(async (areaId) => {
-        try {
-          await deleteArea(areaId);
-        } catch (e) {
-          console.error(`Failed to delete area ${areaId}:`, e);
-          failures.push(`area-delete:${areaId}`);
-          remainingPendingChanges.deletedAreas.push(areaId);
-        }
-      });
-
-      // 7. Delete pending deleted seats
-      const deletePromises = (pendingChanges?.deletedSeats || []).map(async (seatId) => {
-        try {
-          await deleteSeat(seatId);
-        } catch (e) {
-          console.error(`Failed to delete seat ${seatId}:`, e);
-          failures.push(`seat-delete:${seatId}`);
-          remainingPendingChanges.deletedSeats.push(seatId);
-        }
-      });
-
-      // 8. Delete zones marked for deletion
-      const deleteZonePromises = (pendingChanges?.deletedZones || []).map(async (zoneId) => {
-        try {
-          await deleteZone(zoneId);
-        } catch (e) {
-          console.error(`Failed to delete zone ${zoneId}:`, e);
-          failures.push(`zone-delete:${zoneId}`);
-          remainingPendingChanges.deletedZones.push(zoneId);
-        }
-      });
-
-      // 9. Delete factories marked for deletion
-      const deleteFactoryPromises = (pendingChanges?.deletedFactories || []).map(async (factoryId) => {
-        try {
-          await deleteAreaFactory(factoryId);
-        } catch (e) {
-          console.error(`Failed to delete factory ${factoryId}:`, e);
-          failures.push(`factory-delete:${factoryId}`);
-          remainingPendingChanges.deletedFactories.push(factoryId);
-        }
-      });
-
-      // 10. Update pending updated seats
-      const updateSeatPromises = (pendingChanges?.updatedSeats || []).map(async (seat) => {
-        try {
-          await updateSeat(seat.seatId, {
-            seatId: seat.seatId,
-            zoneId: seat.zoneId,
-            seatCode: seat.seatCode,
-            columnNumber: seat.columnNumber,
-            rowNumber: seat.rowNumber,
-            isActive: seat.isActive,
-          });
-        } catch (e) {
-          console.error(`Failed to update seat ${seat.seatId}:`, e);
-          failures.push(`seat-update:${seat.seatId}`);
-          remainingPendingChanges.updatedSeats.push(seat);
-        }
-      });
-
-      await Promise.all([
-        ...updateZonePromises,
-        ...updateFactoryPromises,
-        ...deleteAreaPromises,
-        ...deletePromises,
-        ...deleteZonePromises,
-        ...deleteFactoryPromises,
-        ...updateSeatPromises,
-      ]);
-
-      if (failures.length === 0) {
-        clearAllPositionCache();
-        dispatch({ type: actions.MARK_SAVED });
-        toast.success("Đã lưu sơ đồ thư viện");
+      const snapshot = buildLayoutSnapshot();
+      const validation = await runValidation(snapshot);
+      if (!validation?.valid) {
+        setValidationConflicts(validation?.conflicts || []);
+        setShowConflictPanel(true);
+        dispatch({ type: actions.SET_SAVING, payload: false });
+        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể lưu nháp`);
         return;
       }
 
-      dispatch({ type: actions.REPLACE_PENDING_CHANGES, payload: remainingPendingChanges });
-      dispatch({ type: actions.SET_SAVING, payload: false });
-      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-      toast.error(`Lưu chưa hoàn tất: ${describeFailures(failures)}.`);
+      const res = await saveLayoutDraft(snapshot);
+      setDraftMeta(res?.data ?? null);
+      await loadHistoryFeed();
+      dispatch({ type: actions.MARK_SAVED });
+      toast.success("Đã lưu nháp sơ đồ thư viện");
     } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));
+      console.error("Save draft failed:", error);
       dispatch({ type: actions.SET_SAVING, payload: false });
+      const validation = extractValidationPayload(error);
+      if (validation?.conflicts) {
+        setValidationConflicts(validation.conflicts);
+        setShowConflictPanel(true);
+      }
+      toast.error(error?.response?.data?.message || "Không thể kiểm tra và lưu nháp sơ đồ");
     }
-  };
+  }, [actions, buildLayoutSnapshot, dispatch, hasUnsavedChanges, isSaving, loadHistoryFeed, runValidation, toast]);
 
-  // Store handleSave in ref for keyboard shortcut access
-  handleSaveRef.current = handleSave;
+  const handlePublish = useCallback(async () => {
+    if (isPublishing || isSaving) return;
+
+    setIsPublishing(true);
+    try {
+      const snapshot = buildLayoutSnapshot();
+      const validation = await runValidation(snapshot);
+      if (!validation?.valid) {
+        setValidationConflicts(validation?.conflicts || []);
+        setShowConflictPanel(true);
+        setIsPublishing(false);
+        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể xuất bản`);
+        return;
+      }
+
+      const res = await publishLayoutSnapshot(snapshot);
+      hydrateLayoutSnapshot(res?.data?.snapshot ?? {});
+      clearAllPositionCache();
+      dispatch({ type: actions.MARK_SAVED });
+      setDraftMeta({
+        hasDraft: false,
+        basedOnPublishedVersion: res?.data?.publishedVersion,
+        updatedByName: res?.data?.publishedByName,
+        updatedAt: new Date().toISOString(),
+        snapshot: res?.data?.snapshot,
+      });
+      await loadHistoryFeed();
+      toast.success(`Đã xuất bản sơ đồ thư viện, phiên bản ${res?.data?.publishedVersion}`);
+    } catch (error) {
+      console.error("Publish layout failed:", error);
+      const validation = extractValidationPayload(error);
+      if (validation?.conflicts) {
+        setValidationConflicts(validation.conflicts);
+        setShowConflictPanel(true);
+      }
+      toast.error(error?.response?.data?.message || "Không thể kiểm tra và xuất bản sơ đồ");
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [actions, buildLayoutSnapshot, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadHistoryFeed, runValidation, toast]);
+
+  handleSaveRef.current = handleSaveDraft;
 
   return (
     <main className="canvas-container" ref={containerRef}>
@@ -878,6 +667,40 @@ function CanvasBoard() {
 
         {/* Right: Tools */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {draftMeta && (
+            <div style={{
+              padding: '8px 10px',
+              borderRadius: '12px',
+              background: draftMeta.hasDraft ? '#FFF7ED' : '#F8FAFC',
+              border: `1px solid ${draftMeta.hasDraft ? '#FDBA74' : '#E2E8F0'}`,
+              color: '#475569',
+              fontSize: '11px',
+              lineHeight: 1.25,
+              minWidth: '152px',
+              maxWidth: '200px',
+            }}>
+              <div style={{
+                fontWeight: 700,
+                color: '#1F2937',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                marginBottom: '2px',
+              }}>
+                {draftMeta.hasDraft ? 'Đang mở nháp' : 'Đang xem bản xuất bản'}
+              </div>
+              <div style={{
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {draftMeta.updatedByName
+                  ? `${draftMeta.updatedByName}${formatDraftMetaTime(draftMeta.updatedAt) ? ` · ${formatDraftMetaTime(draftMeta.updatedAt)}` : ''}`
+                  : 'Chưa có nháp'}
+              </div>
+            </div>
+          )}
+
           {/* Pan Mode - only show in edit mode */}
           {!isPreviewMode && (
             <button
@@ -1021,17 +844,89 @@ function CanvasBoard() {
             {state.isCanvasFullscreen ? '✕' : '⛶'}
           </button>
 
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowHistoryPanel((prev) => !prev)}
+              title="Xem lịch sử thay đổi sơ đồ"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: showHistoryPanel ? '2px solid #F97316' : '2px solid #E2E8F0',
+                background: showHistoryPanel ? '#FFF7ED' : 'white',
+                color: '#334155',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+              }}
+            >
+              Lịch sử
+            </button>
+
+            {showHistoryPanel && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 12px)',
+                right: 0,
+                width: '420px',
+                maxWidth: 'min(420px, calc(100vw - 180px))',
+                maxHeight: '60vh',
+                overflow: 'auto',
+                zIndex: 180,
+                background: 'white',
+                border: '1px solid #E2E8F0',
+                borderRadius: '18px',
+                boxShadow: '0 20px 60px rgba(15, 23, 42, 0.16)',
+                padding: '18px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>Lịch sử thay đổi sơ đồ</div>
+                    <div style={{ fontSize: '13px', color: '#64748B' }}>Theo dõi ai sửa gì và thời điểm xuất bản</div>
+                  </div>
+                  <button onClick={() => setShowHistoryPanel(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}>
+                    Đóng
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {historyItems.length === 0 && (
+                    <div style={{ padding: '14px', borderRadius: '12px', background: '#F8FAFC', color: '#475569' }}>
+                      Chưa có lịch sử thay đổi sơ đồ.
+                    </div>
+                  )}
+                  {historyItems.map((item) => (
+                    <div key={item.historyId} style={{ padding: '12px 14px', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                          {item.actionType === 'PUBLISH' ? 'Xuất bản sơ đồ' : 'Lưu nháp sơ đồ'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>
+                          {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '4px' }}>{item.summary}</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>
+                        {item.createdByName ? `Người thao tác: ${item.createdByName}` : 'Không rõ người thao tác'}
+                        {item.publishedVersion ? ` · Phiên bản ${item.publishedVersion}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Save Button */}
           <button
-            onClick={handleSave}
+            onClick={handleSaveDraft}
             disabled={!hasUnsavedChanges || isSaving}
-            title={hasUnsavedChanges ? "Lưu thay đổi" : "Không có thay đổi"}
+            title={hasUnsavedChanges ? "Lưu nháp thay đổi" : "Không có thay đổi cần lưu"}
             style={{
               padding: '8px 16px',
               borderRadius: '10px',
-              border: hasUnsavedChanges ? '2px solid #22C55E' : '2px solid #E2E8F0',
+              border: hasUnsavedChanges ? '2px solid #3B82F6' : '2px solid #E2E8F0',
               background: hasUnsavedChanges
-                ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
+                ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
                 : '#F1F5F9',
               color: hasUnsavedChanges ? 'white' : '#94A3B8',
               cursor: hasUnsavedChanges && !isSaving ? 'pointer' : 'not-allowed',
@@ -1044,10 +939,86 @@ function CanvasBoard() {
               opacity: isSaving ? 0.7 : 1,
             }}
           >
-            {isSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'Lưu' : 'Đã lưu'}
+            {isSaving ? 'Đang lưu nháp...' : hasUnsavedChanges ? 'Lưu nháp' : 'Nháp đã lưu'}
+          </button>
+
+          <button
+            onClick={handlePublish}
+            disabled={isPublishing || isSaving}
+            title="Xuất bản sơ đồ hiện tại ra môi trường live"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: '2px solid #22C55E',
+              background: isPublishing
+                ? '#DCFCE7'
+                : 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+              color: isPublishing ? '#166534' : 'white',
+              cursor: isPublishing || isSaving ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isPublishing ? 0.8 : 1,
+            }}
+          >
+            {isPublishing ? 'Đang xuất bản...' : 'Xuất bản'}
           </button>
         </div>
       </div>
+
+      {showConflictPanel && (
+        <div style={{
+          position: 'absolute',
+          top: '86px',
+          right: '24px',
+          width: '420px',
+          maxHeight: '60vh',
+          overflow: 'auto',
+          zIndex: 150,
+          background: 'white',
+          border: '1px solid #E2E8F0',
+          borderRadius: '18px',
+          boxShadow: '0 20px 60px rgba(15, 23, 42, 0.16)',
+          padding: '18px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>Kiểm tra xung đột sơ đồ</div>
+              <div style={{ fontSize: '13px', color: '#64748B' }}>
+                {validationConflicts.length === 0 ? 'Không phát hiện xung đột' : `Đang có ${validationConflicts.length} xung đột cần xử lý`}
+              </div>
+            </div>
+            <button onClick={() => setShowConflictPanel(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}>
+              Đóng
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {validationConflicts.length === 0 && (
+              <div style={{ padding: '14px', borderRadius: '12px', background: '#F0FDF4', color: '#166534', fontWeight: 600 }}>
+                Sơ đồ hiện tại không có xung đột. Anh có thể lưu nháp hoặc xuất bản.
+              </div>
+            )}
+            {validationConflicts.map((conflict, index) => (
+              <div
+                key={`${conflict.code}-${conflict.entityKey}-${index}`}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: conflict.severity === 'warning' ? '#FFFBEB' : '#FEF2F2',
+                  border: `1px solid ${conflict.severity === 'warning' ? '#FCD34D' : '#FCA5A5'}`,
+                }}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '4px' }}>{conflict.title}</div>
+                <div style={{ fontSize: '13px', color: '#475569' }}>{conflict.message}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Canvas Board */}
       <div

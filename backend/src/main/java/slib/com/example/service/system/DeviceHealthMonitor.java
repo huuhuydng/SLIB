@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import slib.com.example.service.notification.PushNotificationService;
 
 /**
- * Giam sat tinh trang thiet bi NFC (HCE Station).
- * Khi thiet bi mat ket noi (khong gui heartbeat trong 5 phut),
- * gui canh bao SYSTEM toi tat ca ADMIN.
+ * Giám sát tình trạng trạm quét NFC.
+ * Khi thiết bị mất kết nối quá ngưỡng cấu hình,
+ * gửi cảnh báo hệ thống tới quản trị viên.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,10 +39,10 @@ public class DeviceHealthMonitor {
     @Value("${slib.hce.offline-threshold-seconds:300}")
     private int offlineThresholdSeconds;
 
-    // Tap hop cac deviceId da gui canh bao, tranh gui trung lap
+    // Tập hợp các deviceId đã gửi cảnh báo, tránh gửi trùng lặp
     private final Set<String> alertedDevices = ConcurrentHashMap.newKeySet();
 
-    @Scheduled(fixedRate = 120000) // Moi 2 phut
+    @Scheduled(fixedRate = 120000) // Mỗi 2 phút
     public void checkDeviceHealth() {
         try {
             LibrarySetting settings = librarySettingService.getSettings();
@@ -61,12 +61,12 @@ public class DeviceHealthMonitor {
                         || device.getLastHeartbeat().isBefore(threshold);
 
                 if (isOffline && !alertedDevices.contains(device.getDeviceId())) {
-                    // Thiet bi vua mat ket noi - gui canh bao
+                    // Thiết bị vừa mất kết nối, gửi cảnh báo
                     alertedDevices.add(device.getDeviceId());
 
-                    String title = "Canh bao thiet bi NFC";
+                    String title = "Cảnh báo trạm quét NFC";
                     String body = String.format(
-                            "Tram quet %s (%s) da mat ket noi. Vui long kiem tra thiet bi.",
+                            "Trạm quét %s (%s) đã mất kết nối. Vui lòng kiểm tra thiết bị.",
                             device.getDeviceName(), device.getDeviceId());
 
                     pushNotificationService.sendToRole(
@@ -77,11 +77,11 @@ public class DeviceHealthMonitor {
 
                     systemLogService.logJobEvent(LogLevel.WARN,
                             "DeviceHealthMonitor",
-                            "Device offline: " + device.getDeviceName()
+                            "Thiết bị ngoại tuyến: " + device.getDeviceName()
                                     + " (" + device.getDeviceId() + ")");
 
                 } else if (!isOffline && alertedDevices.contains(device.getDeviceId())) {
-                    // Thiet bi hoat dong tro lai - xoa khoi danh sach da canh bao
+                    // Thiết bị hoạt động trở lại, xóa khỏi danh sách đã cảnh báo
                     alertedDevices.remove(device.getDeviceId());
 
                     log.info("Tram quet {} ({}) da hoat dong tro lai",
@@ -90,7 +90,7 @@ public class DeviceHealthMonitor {
             }
 
         } catch (Exception e) {
-            log.error("Loi kiem tra tinh trang thiet bi: {}", e.getMessage());
+            log.error("Lỗi kiểm tra tình trạng thiết bị: {}", e.getMessage());
         }
     }
 }

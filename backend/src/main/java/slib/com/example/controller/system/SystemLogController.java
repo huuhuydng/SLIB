@@ -1,15 +1,21 @@
 package slib.com.example.controller.system;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.system.SystemLogCleanupRequest;
 import slib.com.example.entity.system.SystemLogEntity;
 import slib.com.example.service.system.SystemLogService;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -61,5 +67,36 @@ public class SystemLogController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         return ResponseEntity.ok(systemLogService.getStats(startDate, endDate));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportLogs(
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+
+        String fileName = "nhat-ky-he-thong-"
+                + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + ".xlsx";
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(systemLogService.exportLogsToExcel(level, category, search, startDate, endDate));
+    }
+
+    @DeleteMapping("/cleanup")
+    public ResponseEntity<Map<String, Object>> cleanupLogs(@Valid @RequestBody SystemLogCleanupRequest request) {
+        int deleted = systemLogService.cleanupLogsBefore(request.getBeforeDate());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("deletedCount", deleted);
+        response.put("beforeDate", request.getBeforeDate());
+        response.put("message", "Đã dọn " + deleted + " nhật ký trước ngày " + request.getBeforeDate());
+
+        return ResponseEntity.ok(response);
     }
 }

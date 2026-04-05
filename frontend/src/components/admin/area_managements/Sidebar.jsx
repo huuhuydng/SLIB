@@ -2,12 +2,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
-  createArea,
-  createZone,
-  createSeat,
-  getZonesByArea,
   getSeats,
-  createAreaFactoryInArea,
 } from "../../../services/admin/area_management/api";
 import { generateNewSeatData } from "../../../utils/admin/seatLayout";
 import "../../../styles/admin/sidebar_area.css";
@@ -98,16 +93,23 @@ function Sidebar() {
     }
 
     const newAreaName = `Phòng thư viện ${areas.length + 1}`;
-    const res = await createArea({
+    const tempId = -Date.now();
+    const newArea = {
+      areaId: tempId,
       areaName: newAreaName,
       width: NEW_SIZE.width,
       height: NEW_SIZE.height,
       positionX,
       positionY,
-    });
+      isActive: true,
+      locked: false,
+      isPending: true,
+    };
 
-    dispatch({ type: actions.ADD_AREA, payload: res.data });
-    dispatch({ type: actions.SELECT_AREA, payload: res.data.areaId });
+    dispatch({ type: actions.PUSH_HISTORY });
+    dispatch({ type: actions.ADD_AREA, payload: newArea });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    dispatch({ type: actions.SELECT_AREA, payload: newArea.areaId });
   };
 
   const handleAddZone = () => {

@@ -55,6 +55,10 @@ const SystemHealth = () => {
   const [logTotalPages, setLogTotalPages] = useState(0);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [logsError, setLogsError] = useState('');
+  const [exportingLogs, setExportingLogs] = useState(false);
+  const [cleaningLogs, setCleaningLogs] = useState(false);
+  const [showCleanupPanel, setShowCleanupPanel] = useState(false);
+  const [cleanupBeforeDate, setCleanupBeforeDate] = useState('');
 
   // === BACKUP STATE (FE-57/58) ===
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -195,6 +199,54 @@ const SystemHealth = () => {
     } catch (e) {
       console.error('Failed to download backup:', e);
       setBackupError(parseApiError(e, 'Không thể tải file sao lưu'));
+    }
+  };
+
+  const buildLogQueryParams = () => {
+    const params = {};
+    if (logFilter !== 'all') params.level = logFilter.toUpperCase();
+    if (logCategory !== 'all') params.category = logCategory.toUpperCase();
+    if (debouncedSearchLog) params.search = debouncedSearchLog;
+    return params;
+  };
+
+  const handleExportLogs = async () => {
+    try {
+      setExportingLogs(true);
+      setLogsError('');
+      await systemHealthService.exportLogs(buildLogQueryParams());
+    } catch (e) {
+      console.error('Failed to export logs:', e);
+      setLogsError(parseApiError(e, 'Không thể xuất file nhật ký'));
+    } finally {
+      setExportingLogs(false);
+    }
+  };
+
+  const handleCleanupLogs = async () => {
+    if (!cleanupBeforeDate) {
+      setLogsError('Vui lòng chọn ngày mốc để dọn nhật ký');
+      return;
+    }
+
+    const confirmed = window.confirm(`Bạn có chắc muốn dọn toàn bộ nhật ký trước ngày ${cleanupBeforeDate}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCleaningLogs(true);
+      setLogsError('');
+      const result = await systemHealthService.cleanupLogs(cleanupBeforeDate);
+      await fetchLogs();
+      setShowCleanupPanel(false);
+      setCleanupBeforeDate('');
+      window.alert(result?.message || 'Đã dọn nhật ký cũ thành công');
+    } catch (e) {
+      console.error('Failed to cleanup logs:', e);
+      setLogsError(parseApiError(e, 'Không thể dọn nhật ký cũ'));
+    } finally {
+      setCleaningLogs(false);
     }
   };
 
@@ -599,6 +651,21 @@ const SystemHealth = () => {
                   <option value="INTEGRATION">Tích hợp</option>
                   <option value="AUDIT">Quản trị</option>
                 </select>
+                <button
+                  onClick={handleExportLogs}
+                  disabled={exportingLogs}
+                  className="sh-action-btn"
+                >
+                  <Download size={16} />
+                  {exportingLogs ? 'Đang xuất...' : 'Xuất Excel'}
+                </button>
+                <button
+                  onClick={() => setShowCleanupPanel((prev) => !prev)}
+                  className="sh-action-btn sh-action-btn--danger"
+                >
+                  <History size={16} />
+                  Dọn log cũ
+                </button>
               </div>
               {/* Stats badges */}
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -614,6 +681,34 @@ const SystemHealth = () => {
                 )}
               </div>
             </div>
+
+            {showCleanupPanel && (
+              <div className="sh-cleanup-panel">
+                <div className="sh-cleanup-panel__content">
+                  <div>
+                    <div className="sh-cleanup-panel__title">Dọn nhật ký cũ</div>
+                    <div className="sh-cleanup-panel__desc">
+                      Hệ thống sẽ xóa toàn bộ nhật ký được tạo trước ngày anh chọn. Nên xuất CSV trước khi dọn nếu cần lưu trữ đối soát.
+                    </div>
+                  </div>
+                  <div className="sh-cleanup-panel__controls">
+                    <input
+                      type="date"
+                      value={cleanupBeforeDate}
+                      onChange={(e) => setCleanupBeforeDate(e.target.value)}
+                      className="sh-cleanup-panel__date"
+                    />
+                    <button
+                      onClick={handleCleanupLogs}
+                      disabled={cleaningLogs}
+                      className="sh-action-btn sh-action-btn--danger"
+                    >
+                      {cleaningLogs ? 'Đang dọn...' : 'Xác nhận dọn'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Logs List */}
             <div style={{ padding: '16px 24px' }}>

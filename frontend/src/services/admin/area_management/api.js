@@ -218,6 +218,23 @@ export const deleteSeat = (seatId) =>
 export const updateSeatNfcUid = (seatId, nfcTagUid) =>
   api.put(`/seats/${seatId}/nfc-uid`, { nfcTagUid });
 
+/* ========================== LAYOUT ADMIN ========================= */
+
+export const getLayoutDraft = () =>
+  api.get("/layout-admin/draft");
+
+export const getLayoutHistory = (limit = 20) =>
+  api.get("/layout-admin/history", { params: { limit } });
+
+export const validateLayoutSnapshot = (payload) =>
+  api.post("/layout-admin/validate", payload);
+
+export const saveLayoutDraft = (payload) =>
+  api.post("/layout-admin/draft", payload);
+
+export const publishLayoutSnapshot = (payload) =>
+  api.post("/layout-admin/publish", payload);
+
 /**
  * CLEAR SEAT NFC UID
  * Backend: DELETE /slib/seats/{seatId}/nfc-uid

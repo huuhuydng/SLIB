@@ -2,8 +2,8 @@ package slib.com.example.controller.zone_config;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,7 +52,7 @@ public class ZoneController {
 
     // create mới
     @PostMapping
-    public ResponseEntity<ZoneResponse> createZone(@RequestBody ZoneResponse request) {
+    public ResponseEntity<ZoneResponse> createZone(@Valid @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.createZone(request));
     }
 
@@ -60,7 +60,7 @@ public class ZoneController {
     @PutMapping("/{id}")
     public ResponseEntity<ZoneResponse> updateZone(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request) {
+            @Valid @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZoneFull(id, request));
     }
 
@@ -68,7 +68,7 @@ public class ZoneController {
     @PutMapping("/{id}/position")
     public ResponseEntity<ZoneResponse> updateZonePosition(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request) {
+            @Valid @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZonePosition(id, request));
     }
 
@@ -82,7 +82,7 @@ public class ZoneController {
     @PutMapping("/{id}/dimensions")
     public ResponseEntity<ZoneResponse> updateZoneDimensions(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request) {
+            @Valid @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZoneDimensions(id, request));
     }
 
@@ -90,7 +90,7 @@ public class ZoneController {
     @PutMapping("/{id}/position-and-dimensions")
     public ResponseEntity<ZoneResponse> updateZonePositionAndDimensions(
             @PathVariable Integer id,
-            @RequestBody ZoneResponse request) {
+            @Valid @RequestBody ZoneResponse request) {
         return ResponseEntity.ok(zoneService.updateZonePositionAndDimensions(id, request));
     }
 

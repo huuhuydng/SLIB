@@ -3,6 +3,7 @@ package slib.com.example.repository.system;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,29 +17,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Repository
-public interface SystemLogRepository extends JpaRepository<SystemLogEntity, UUID> {
-
-    /**
-     * Combined filter query with pagination.
-     * All params are optional (null = skip filter).
-     * Default sort: createdAt DESC.
-     */
-    @Query("SELECT s FROM SystemLogEntity s WHERE " +
-            "(:level IS NULL OR s.level = :level) AND " +
-            "(:category IS NULL OR s.category = :category) AND " +
-            "(:search IS NULL OR LOWER(s.message) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "  OR LOWER(s.service) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "(:startDate IS NULL OR s.createdAt >= :startDate) AND " +
-            "(:endDate IS NULL OR s.createdAt <= :endDate) " +
-            "ORDER BY s.createdAt DESC")
-    Page<SystemLogEntity> findLogs(
-            @Param("level") LogLevel level,
-            @Param("category") LogCategory category,
-            @Param("search") String search,
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate,
-            Pageable pageable
-    );
+public interface SystemLogRepository extends JpaRepository<SystemLogEntity, UUID>, JpaSpecificationExecutor<SystemLogEntity> {
 
     long countByLevel(LogLevel level);
 

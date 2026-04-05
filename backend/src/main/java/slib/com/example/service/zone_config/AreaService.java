@@ -173,6 +173,10 @@ public class AreaService {
         AreaEntity area = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Area not found"));
 
+        if (Boolean.TRUE.equals(area.getLocked())) {
+            throw new RuntimeException("Không thể xóa phòng thư viện đang bị khóa");
+        }
+
         List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(id);
 
         for (ZoneEntity zone : zones) {

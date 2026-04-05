@@ -39,7 +39,7 @@ public class BackupSchedulerService {
                 try {
                     log.info("[BackupScheduler] Running scheduled backup: {}", schedule.getScheduleName());
                     systemLogService.logJobEvent(LogLevel.INFO, "BackupScheduler",
-                            "Starting scheduled backup: " + schedule.getScheduleName());
+                            "Bắt đầu sao lưu theo lịch: " + schedule.getScheduleName());
 
                     backupService.performBackup();
 
@@ -52,12 +52,12 @@ public class BackupSchedulerService {
                     backupService.cleanupOldBackups(schedule.getRetainDays());
 
                     systemLogService.logJobEvent(LogLevel.INFO, "BackupScheduler",
-                            "Scheduled backup completed: " + schedule.getScheduleName());
+                            "Sao lưu theo lịch hoàn tất: " + schedule.getScheduleName());
 
                 } catch (Exception e) {
                     log.error("[BackupScheduler] Scheduled backup failed: {}", e.getMessage());
                     systemLogService.logJobEvent(LogLevel.ERROR, "BackupScheduler",
-                            "Scheduled backup failed: " + e.getMessage());
+                            "Sao lưu theo lịch thất bại: " + e.getMessage());
 
                     // Still update nextBackupAt to avoid infinite retries
                     schedule.setNextBackupAt(calculateNextBackupTime(schedule));
