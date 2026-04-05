@@ -465,11 +465,19 @@ public class PushNotificationService {
     /**
      * Get notifications for a user
      */
+    @Transactional(readOnly = true)
     public List<NotificationEntity> getUserNotifications(UUID userId, int limit) {
         if (limit > 0) {
             return notificationRepository.findByUserIdWithLimit(userId, limit);
         }
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationDTO> getUserNotificationDTOs(UUID userId, int limit) {
+        return getUserNotifications(userId, limit).stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     /**

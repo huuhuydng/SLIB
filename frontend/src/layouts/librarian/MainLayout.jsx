@@ -454,11 +454,18 @@ const TOAST_DETAIL_MAP = {
 function ToastNotifications() {
   const { notifications, pendingCounts } = useLibrarianNotification();
   const prevCountRef = useRef(0);
+  const hasMountedRef = useRef(false);
   const toast = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (notifications.length > prevCountRef.current && prevCountRef.current > 0) {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      prevCountRef.current = notifications.length;
+      return;
+    }
+
+    if (notifications.length > prevCountRef.current) {
       const enabled = localStorage.getItem('slib_notifications_enabled');
       if (enabled === 'false') {
         prevCountRef.current = notifications.length;

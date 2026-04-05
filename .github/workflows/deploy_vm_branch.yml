@@ -153,6 +153,6 @@ jobs:
             fi
 
             echo "Deployed branch on VM:"
-            git branch --show-current
+            git rev-parse --abbrev-ref HEAD
             git rev-parse HEAD
           EOF

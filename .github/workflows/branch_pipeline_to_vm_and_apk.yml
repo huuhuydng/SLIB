@@ -1,0 +1,298 @@
+name: Branch Pipeline To VM And APK
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "bugfix/**"
+      - "hotfix/**"
+      - "release/**"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Tên branch cần chạy pipeline"
+        required: true
+        default: "feature/ver-05-04-2026"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: branch-pipeline-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-target:
+    name: Resolve target branch
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.meta.outputs.branch }}
+      sha: ${{ steps.meta.outputs.sha }}
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Capture target metadata
+        id: meta
+        run: |
+          echo "branch=$(git rev-parse --abbrev-ref HEAD)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "SHA: $(git rev-parse HEAD)"
+
+  preflight:
+    name: Verify backend and frontend
+    runs-on: ubuntu-latest
+    needs: resolve-target
+    timeout-minutes: 40
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Slib@123
+          POSTGRES_DB: slib
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-target.outputs.branch }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Compile backend
+        working-directory: backend
+        run: mvn -q -DskipTests package
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/slib
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: Slib@123
+        run: mvn test -Dtest="FE*Test"
+
+      - name: Upload backend test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-surefire-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: frontend
+        run: npm run lint --if-present
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test -- --run --passWithNoTests
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api.slibsystem.site
+        run: npm run build
+
+  deploy-vm:
+    name: Deploy branch to VM
+    runs-on: ubuntu-latest
+    needs: [resolve-target, preflight]
+    timeout-minutes: 50
+
+    steps:
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.VPS_SSH_KEY }}" | tr -d '\r' > ~/.ssh/slib_vm_deploy
+          chmod 600 ~/.ssh/slib_vm_deploy
+          ssh-keygen -y -f ~/.ssh/slib_vm_deploy > /dev/null
+
+      - name: Diagnose VM network reachability
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${VPS_HOST}" ]; then
+            echo "Secret VPS_TAILSCALE_HOST đang trống"
+            exit 1
+          fi
+
+          echo "Tailscale status:"
+          tailscale status || true
+          echo
+          echo "DNS lookup for ${VPS_HOST}:"
+          getent hosts "${VPS_HOST}" || true
+          echo
+          echo "Tailscale ping to ${VPS_HOST}:"
+          tailscale ping --timeout=10s "${VPS_HOST}" || true
+          echo
+          echo "TCP probe to ${VPS_HOST}:22"
+          nc -vz -w 5 "${VPS_HOST}" 22
+
+      - name: Deploy and verify target commit on VM
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          TARGET_BRANCH: ${{ needs.resolve-target.outputs.branch }}
+          TARGET_SHA: ${{ needs.resolve-target.outputs.sha }}
+        run: |
+          ssh -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" \
+            "TARGET_BRANCH='${TARGET_BRANCH}' TARGET_SHA='${TARGET_SHA}' bash -s" <<'EOF'
+            set -euo pipefail
+
+            cd /opt/SLIB
+
+            git fetch origin "${TARGET_BRANCH}"
+            git checkout -B vm-feature-deploy FETCH_HEAD
+
+            vm_head="$(git rev-parse HEAD)"
+            vm_branch="$(git rev-parse --abbrev-ref HEAD)"
+
+            echo "Target branch: ${TARGET_BRANCH}"
+            echo "Target SHA: ${TARGET_SHA}"
+            echo "VM branch: ${vm_branch}"
+            echo "VM head after checkout: ${vm_head}"
+
+            if [ "${vm_head}" != "${TARGET_SHA}" ]; then
+              echo "VM chưa checkout đúng commit cần deploy"
+              exit 1
+            fi
+
+            cd frontend
+            npm ci
+            npm run build
+            rsync -a --delete dist/ /var/www/slib/
+            cd ..
+
+            docker compose up -d --build slib-backend slib-ai-service
+
+            backend_health_file="$(mktemp)"
+            ai_health_file="$(mktemp)"
+
+            for _ in $(seq 1 36); do
+              if curl -fsS http://127.0.0.1:8080/actuator/health > "${backend_health_file}" && grep -q '"status":"UP"' "${backend_health_file}"; then
+                break
+              fi
+              sleep 10
+            done
+
+            for _ in $(seq 1 24); do
+              if curl -fsS http://127.0.0.1:8001/health > "${ai_health_file}" && grep -q '"status":"healthy"' "${ai_health_file}"; then
+                break
+              fi
+              sleep 10
+            done
+
+            echo "Backend health:"
+            cat "${backend_health_file}"
+            echo
+            echo "AI health:"
+            cat "${ai_health_file}"
+            echo
+
+            grep -q '"status":"UP"' "${backend_health_file}"
+            grep -q '"status":"healthy"' "${ai_health_file}"
+          EOF
+
+      - name: Confirm VM HEAD
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          TARGET_SHA: ${{ needs.resolve-target.outputs.sha }}
+        run: |
+          vm_head="$(
+            ssh -i ~/.ssh/slib_vm_deploy \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=15 \
+              "${VPS_USER}@${VPS_HOST}" \
+              "cd /opt/SLIB && git rev-parse HEAD"
+          )"
+
+          echo "VM HEAD: ${vm_head}"
+          echo "Target SHA: ${TARGET_SHA}"
+
+          test "${vm_head}" = "${TARGET_SHA}"
+
+  build-apk:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+    needs: [resolve-target, deploy-vm]
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-target.outputs.branch }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Fetch Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Run Flutter tests
+        working-directory: mobile
+        run: flutter test
+
+      - name: Build APK
+        working-directory: mobile
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slib-apk-${{ needs.resolve-target.outputs.sha }}
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 7

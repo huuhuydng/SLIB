@@ -367,6 +367,7 @@ public class ConversationService {
         /**
          * Lấy danh sách conversation đang chờ xử lý
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getWaitingConversations() {
                 return conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING)
@@ -378,6 +379,7 @@ public class ConversationService {
         /**
          * Lấy danh sách conversation đang được Librarian xử lý
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getActiveConversations(UUID librarianId) {
                 return conversationRepository
                                 .findByLibrarianIdAndStatusOrderByUpdatedAtDesc(librarianId,
@@ -390,6 +392,7 @@ public class ConversationService {
         /**
          * Lấy conversation active của student (HUMAN_CHATTING hoặc QUEUE_WAITING)
          */
+        @Transactional(readOnly = true)
         public ConversationDTO getActiveConversationForStudent(UUID studentId) {
                 // Check HUMAN_CHATTING trước
                 var humanChatting = conversationRepository
@@ -444,6 +447,7 @@ public class ConversationService {
         /**
          * Lấy tất cả conversations (waiting + active của librarian)
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getAllConversationsForLibrarian(UUID librarianId) {
                 List<Conversation> waiting = conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
@@ -461,13 +465,22 @@ public class ConversationService {
         /**
          * Lấy conversation theo ID
          */
+        @Transactional(readOnly = true)
         public Optional<Conversation> getConversationById(UUID conversationId) {
                 return conversationRepository.findById(conversationId);
+        }
+
+        @Transactional(readOnly = true)
+        public ConversationDTO getConversationStatusSnapshot(UUID conversationId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                return convertToDTO(conv);
         }
 
         /**
          * Kiểm tra user có quyền truy cập conversation không (student hoặc librarian của conversation)
          */
+        @Transactional(readOnly = true)
         public void verifyConversationAccess(UUID conversationId, UUID userId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                         .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
@@ -477,6 +490,7 @@ public class ConversationService {
                 }
         }
 
+        @Transactional(readOnly = true)
         public void verifyConversationParticipationAccess(UUID conversationId, UUID userId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                         .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
@@ -499,6 +513,7 @@ public class ConversationService {
          * @param conversationId ID của conversation
          * @return Vị trí trong queue (1-indexed), hoặc 0 nếu không trong queue
          */
+        @Transactional(readOnly = true)
         public int getQueuePosition(UUID conversationId) {
                 List<Conversation> waitingList = conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
@@ -695,6 +710,7 @@ public class ConversationService {
          * 2. Messages từ MongoDB qua AI service API (chat với AI)
          * Merge và sort theo thời gian
          */
+        @Transactional(readOnly = true)
         public List<ChatMessageDTO> getConversationMessages(UUID conversationId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
@@ -762,6 +778,7 @@ public class ConversationService {
                 return allMessages;
         }
 
+        @Transactional(readOnly = true)
         public List<ChatMessageDTO> getConversationMessagesForViewer(UUID conversationId, UUID viewerUserId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
@@ -782,12 +799,14 @@ public class ConversationService {
          * Lấy messages của conversation với phân trang (cho mobile lazy loading)
          * Trả về page mới nhất trước (DESC), client reverse lại để hiển thị ASC
          */
+        @Transactional(readOnly = true)
         public Page<ChatMessageDTO> getConversationMessagesPaginated(UUID conversationId, int page, int size) {
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
                 Page<Message> messagePage = messageRepository.findByConversationIdPaginated(conversationId, pageable);
                 return messagePage.map(this::convertMessageToDTO);
         }
 
+        @Transactional(readOnly = true)
         public Page<ChatMessageDTO> getConversationMessagesPaginatedForViewer(UUID conversationId, UUID viewerUserId,
                         int page, int size) {
                 Conversation conv = conversationRepository.findById(conversationId)
