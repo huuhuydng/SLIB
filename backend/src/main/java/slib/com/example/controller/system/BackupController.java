@@ -9,9 +9,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 import slib.com.example.entity.system.BackupHistoryEntity;
 import slib.com.example.entity.system.BackupScheduleEntity;
+import slib.com.example.dto.system.BackupScheduleUpdateRequest;
 import slib.com.example.repository.system.BackupScheduleRepository;
 import slib.com.example.service.system.BackupService;
 import slib.com.example.service.system.SystemLogService;
@@ -30,6 +33,7 @@ import java.util.*;
 @RequestMapping("/slib/system/backup")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Validated
 public class BackupController {
 
     private final BackupService backupService;
@@ -55,7 +59,6 @@ public class BackupController {
             Map<String, Object> response = new HashMap<>();
             response.put("id", result.getId());
             response.put("status", result.getStatus().name());
-            response.put("filePath", result.getFilePath());
             response.put("fileSize", result.getFileSizeBytes());
             response.put("startedAt", result.getStartedAt());
             response.put("completedAt", result.getCompletedAt());
@@ -84,7 +87,7 @@ public class BackupController {
             Map<String, Object> map = new HashMap<>();
             map.put("id", h.getId());
             map.put("status", h.getStatus().name());
-            map.put("filePath", h.getFilePath());
+            map.put("fileName", new File(h.getFilePath()).getName());
             map.put("fileSize", h.getFileSizeBytes());
             map.put("fileSizeFormatted", formatFileSize(h.getFileSizeBytes()));
             map.put("startedAt", h.getStartedAt());
@@ -154,7 +157,7 @@ public class BackupController {
      */
     @PutMapping("/schedule")
     public ResponseEntity<Map<String, Object>> updateSchedule(
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody BackupScheduleUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         BackupScheduleEntity schedule = backupScheduleRepository.findFirstByOrderByIdAsc()
                 .orElseGet(() -> BackupScheduleEntity.builder()
@@ -165,22 +168,16 @@ public class BackupController {
                         .isActive(false)
                         .build());
 
-        if (request.containsKey("time")) {
-            try {
-                LocalTime backupTime = parseBackupTime(request.get("time").toString());
-                schedule.setCronExpression(backupTime.toString());
-            } catch (DateTimeParseException e) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "error", "Thời gian backup không hợp lệ. Định dạng đúng là HH:mm"
-                ));
-            }
+        try {
+            LocalTime backupTime = parseBackupTime(request.getTime());
+            schedule.setCronExpression(backupTime.toString());
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Thời gian sao lưu không hợp lệ. Định dạng đúng là HH:mm"
+            ));
         }
-        if (request.containsKey("retainDays")) {
-            schedule.setRetainDays(Integer.parseInt(request.get("retainDays").toString()));
-        }
-        if (request.containsKey("isActive")) {
-            schedule.setIsActive(Boolean.parseBoolean(request.get("isActive").toString()));
-        }
+        schedule.setRetainDays(request.getRetainDays());
+        schedule.setIsActive(request.getIsActive());
 
         // Calculate next backup time
         try {

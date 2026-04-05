@@ -11,8 +11,6 @@ import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.hce.AccessLogRepository;
-import slib.com.example.repository.system.SystemLogRepository;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -42,29 +40,84 @@ public class StatisticService {
      * Tổng hợp tất cả thống kê theo range (week/month/year)
      */
     public StatisticDTO getStatistics(String range) {
-        LocalDateTime startDate = calculateStartDate(range);
+        PeriodWindow periodWindow = calculatePeriodWindow(range);
+        LocalDateTime startDate = periodWindow.currentStart();
+
+        StatisticDTO.OverviewDTO overview = buildOverview(startDate);
+        StatisticDTO.BookingAnalysisDTO bookingAnalysis = buildBookingAnalysis(startDate);
+        List<StatisticDTO.ViolationTypeStatDTO> violationsByType = buildViolationsByType(startDate);
+        StatisticDTO.FeedbackSummaryDTO feedbackSummary = buildFeedbackSummary(startDate);
+        List<StatisticDTO.ZoneUsageDTO> zoneUsage = buildZoneUsage(startDate);
+        List<StatisticDTO.PeakHourDTO> peakHours = buildPeakHours(startDate);
 
         return StatisticDTO.builder()
-                .overview(buildOverview(startDate))
-                .bookingAnalysis(buildBookingAnalysis(startDate))
-                .violationsByType(buildViolationsByType(startDate))
-                .feedbackSummary(buildFeedbackSummary(startDate))
-                .zoneUsage(buildZoneUsage(startDate))
-                .peakHours(buildPeakHours(startDate))
+                .overview(overview)
+                .comparison(buildOverviewComparison(periodWindow))
+                .bookingAnalysis(bookingAnalysis)
+                .violationsByType(violationsByType)
+                .feedbackSummary(feedbackSummary)
+                .zoneUsage(zoneUsage)
+                .peakHours(peakHours)
+                .insights(buildInsights(bookingAnalysis, violationsByType, zoneUsage, peakHours, feedbackSummary))
                 .build();
     }
 
-    private LocalDateTime calculateStartDate(String range) {
+    private PeriodWindow calculatePeriodWindow(String range) {
         LocalDateTime now = LocalDateTime.now();
         if ("year".equalsIgnoreCase(range)) {
-            return now.minusYears(1);
+            LocalDateTime currentStart = now.minusYears(1);
+            return new PeriodWindow(currentStart, now, currentStart.minusYears(1), currentStart);
         } else if ("month".equalsIgnoreCase(range)) {
-            return now.minusDays(30);
+            LocalDateTime currentStart = now.minusDays(30);
+            return new PeriodWindow(currentStart, now, currentStart.minusDays(30), currentStart);
         } else if ("day".equalsIgnoreCase(range)) {
-            return now.toLocalDate().atStartOfDay();
+            LocalDateTime currentStart = now.toLocalDate().atStartOfDay();
+            return new PeriodWindow(currentStart, now, currentStart.minusDays(1), currentStart);
         } else {
-            return now.minusDays(7);
+            LocalDateTime currentStart = now.minusDays(7);
+            return new PeriodWindow(currentStart, now, currentStart.minusDays(7), currentStart);
         }
+    }
+
+    private StatisticDTO.OverviewComparisonDTO buildOverviewComparison(PeriodWindow periodWindow) {
+        try {
+            return StatisticDTO.OverviewComparisonDTO.builder()
+                    .checkIns(buildMetricDelta(
+                            accessLogRepository.countByCheckInTimeBetween(periodWindow.currentStart(), periodWindow.currentEnd()),
+                            accessLogRepository.countByCheckInTimeBetween(periodWindow.previousStart(), periodWindow.previousEnd())))
+                    .bookings(buildMetricDelta(
+                            reservationRepository.countByCreatedAtBetween(periodWindow.currentStart(), periodWindow.currentEnd()),
+                            reservationRepository.countByCreatedAtBetween(periodWindow.previousStart(), periodWindow.previousEnd())))
+                    .violations(buildMetricDelta(
+                            violationReportRepository.countByCreatedAtBetween(periodWindow.currentStart(), periodWindow.currentEnd()),
+                            violationReportRepository.countByCreatedAtBetween(periodWindow.previousStart(), periodWindow.previousEnd())))
+                    .feedbacks(buildMetricDelta(
+                            feedbackRepository.countByCreatedAtBetween(periodWindow.currentStart(), periodWindow.currentEnd()),
+                            feedbackRepository.countByCreatedAtBetween(periodWindow.previousStart(), periodWindow.previousEnd())))
+                    .complaints(buildMetricDelta(
+                            complaintRepository.countByCreatedAtBetween(periodWindow.currentStart(), periodWindow.currentEnd()),
+                            complaintRepository.countByCreatedAtBetween(periodWindow.previousStart(), periodWindow.previousEnd())))
+                    .build();
+        } catch (Exception e) {
+            log.error("Error building overview comparison: {}", e.getMessage());
+            return StatisticDTO.OverviewComparisonDTO.builder().build();
+        }
+    }
+
+    private StatisticDTO.MetricDeltaDTO buildMetricDelta(long currentValue, long previousValue) {
+        long changeValue = currentValue - previousValue;
+        double changePercent;
+        if (previousValue == 0) {
+            changePercent = currentValue > 0 ? 100.0 : 0.0;
+        } else {
+            changePercent = Math.round((changeValue * 10000.0 / previousValue)) / 100.0;
+        }
+        return StatisticDTO.MetricDeltaDTO.builder()
+                .currentValue(currentValue)
+                .previousValue(previousValue)
+                .changeValue(changeValue)
+                .changePercent(changePercent)
+                .build();
     }
 
     // ========== Overview ==========
@@ -213,6 +266,9 @@ public class StatisticService {
     private List<StatisticDTO.ZoneUsageDTO> buildZoneUsage(LocalDateTime startDate) {
         try {
             List<Object[]> data = reservationRepository.countBookingsByZone(startDate);
+            long totalBookingsInRange = data.stream()
+                    .mapToLong(row -> ((Number) row[3]).longValue())
+                    .sum();
             return data.stream()
                     .map(row -> {
                         int zoneId = ((Number) row[0]).intValue();
@@ -220,8 +276,8 @@ public class StatisticService {
                         String areaName = (String) row[2];
                         long bookingCount = ((Number) row[3]).longValue();
                         long totalSeats = ((Number) row[4]).longValue();
-                        double usagePercent = totalSeats > 0
-                                ? Math.round(bookingCount * 10000.0 / totalSeats) / 100.0
+                        double usagePercent = totalBookingsInRange > 0
+                                ? Math.round(bookingCount * 10000.0 / totalBookingsInRange) / 100.0
                                 : 0;
                         return StatisticDTO.ZoneUsageDTO.builder()
                                 .zoneId(zoneId)
@@ -263,5 +319,70 @@ public class StatisticService {
             log.error("Error building peak hours: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    private List<StatisticDTO.InsightDTO> buildInsights(
+            StatisticDTO.BookingAnalysisDTO bookingAnalysis,
+            List<StatisticDTO.ViolationTypeStatDTO> violationsByType,
+            List<StatisticDTO.ZoneUsageDTO> zoneUsage,
+            List<StatisticDTO.PeakHourDTO> peakHours,
+            StatisticDTO.FeedbackSummaryDTO feedbackSummary) {
+        List<StatisticDTO.InsightDTO> insights = new ArrayList<>();
+
+        peakHours.stream()
+                .max(Comparator.comparingLong(StatisticDTO.PeakHourDTO::getCount))
+                .filter(item -> item.getCount() > 0)
+                .ifPresent(item -> insights.add(StatisticDTO.InsightDTO.builder()
+                        .type("peak")
+                        .title("Khung giờ cao điểm")
+                        .description("Khung " + item.getHour() + ":00 đang có lưu lượng check-in cao nhất trong giai đoạn này.")
+                        .tone("orange")
+                        .build()));
+
+        violationsByType.stream()
+                .max(Comparator.comparingLong(StatisticDTO.ViolationTypeStatDTO::getCount))
+                .filter(item -> item.getCount() > 0)
+                .ifPresent(item -> insights.add(StatisticDTO.InsightDTO.builder()
+                        .type("violation")
+                        .title("Vi phạm nổi bật")
+                        .description(item.getLabel() + " đang là nhóm vi phạm xuất hiện nhiều nhất.")
+                        .tone("red")
+                        .build()));
+
+        zoneUsage.stream()
+                .max(Comparator.comparingDouble(StatisticDTO.ZoneUsageDTO::getUsagePercent))
+                .filter(item -> item.getUsagePercent() > 0)
+                .ifPresent(item -> insights.add(StatisticDTO.InsightDTO.builder()
+                        .type("zone")
+                        .title("Khu vực bận rộn nhất")
+                        .description(item.getZoneName() + " đang có tỷ lệ sử dụng khoảng " + Math.round(item.getUsagePercent()) + "%.")
+                        .tone("blue")
+                        .build()));
+
+        if (bookingAnalysis != null && bookingAnalysis.getExpiredNoShow() > 0) {
+            insights.add(StatisticDTO.InsightDTO.builder()
+                    .type("booking")
+                    .title("Rủi ro không đến")
+                    .description("Có " + bookingAnalysis.getExpiredNoShow() + " lượt đặt chỗ không đến, chiếm "
+                            + Math.round(bookingAnalysis.getExpiredPercent()) + "% tổng lượt đặt.")
+                    .tone(bookingAnalysis.getExpiredPercent() >= 20 ? "red" : "amber")
+                    .build());
+        } else if (feedbackSummary != null && feedbackSummary.getAverageRating() >= 4.5) {
+            insights.add(StatisticDTO.InsightDTO.builder()
+                    .type("feedback")
+                    .title("Chất lượng phản hồi tích cực")
+                    .description("Điểm đánh giá trung bình đang giữ ở mức " + feedbackSummary.getAverageRating() + "/5.")
+                    .tone("green")
+                    .build());
+        }
+
+        return insights.stream().limit(4).collect(Collectors.toList());
+    }
+
+    private record PeriodWindow(
+            LocalDateTime currentStart,
+            LocalDateTime currentEnd,
+            LocalDateTime previousStart,
+            LocalDateTime previousEnd) {
     }
 }

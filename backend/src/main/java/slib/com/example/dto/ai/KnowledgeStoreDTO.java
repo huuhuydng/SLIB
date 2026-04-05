@@ -1,5 +1,7 @@
 package slib.com.example.dto.ai;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import slib.com.example.entity.ai.KnowledgeStoreEntity;
 
@@ -14,7 +16,11 @@ public class KnowledgeStoreDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CreateRequest {
+        @NotBlank(message = "Tên kho tri thức không được để trống")
+        @Size(max = 255, message = "Tên kho tri thức không được vượt quá 255 ký tự")
         private String name;
+
+        @Size(max = 5000, message = "Mô tả kho tri thức không được vượt quá 5000 ký tự")
         private String description;
         private Set<Long> itemIds; // MaterialItem IDs to include
     }
@@ -24,7 +30,10 @@ public class KnowledgeStoreDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UpdateRequest {
+        @Size(max = 255, message = "Tên kho tri thức không được vượt quá 255 ký tự")
         private String name;
+
+        @Size(max = 5000, message = "Mô tả kho tri thức không được vượt quá 5000 ký tự")
         private String description;
         private Set<Long> itemIds;
         private Boolean active;

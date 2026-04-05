@@ -1,5 +1,6 @@
 package slib.com.example.controller.complaint;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -7,7 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.common.UuidBatchRequest;
 import slib.com.example.dto.complaint.ComplaintDTO;
+import slib.com.example.dto.complaint.ComplaintResolutionRequest;
+import slib.com.example.dto.complaint.CreateComplaintRequest;
 import slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
@@ -71,23 +75,11 @@ public class ComplaintController {
      */
     @PostMapping
     public ResponseEntity<ComplaintDTO> create(
-            @RequestBody Map<String, String> body,
+            @Valid @RequestBody CreateComplaintRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID studentId = getCurrentUserId(userDetails);
-        String subject = body.get("subject");
-        String content = body.get("content");
-        String evidenceUrl = body.get("evidenceUrl");
-        String txnId = body.get("pointTransactionId");
-        String vrId = body.get("violationReportId");
-
-        if (subject == null || subject.isBlank() || content == null || content.isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        UUID pointTransactionId = txnId != null ? UUID.fromString(txnId) : null;
-        UUID violationReportId = vrId != null ? UUID.fromString(vrId) : null;
-        ComplaintDTO result = complaintService.create(studentId, subject, content, evidenceUrl,
-                pointTransactionId, violationReportId);
+        ComplaintDTO result = complaintService.create(studentId, body.getSubject(), body.getContent(), body.getEvidenceUrl(),
+                body.getPointTransactionId(), body.getViolationReportId());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
@@ -98,10 +90,10 @@ public class ComplaintController {
     @PutMapping("/{id}/accept")
     public ResponseEntity<ComplaintDTO> accept(
             @PathVariable UUID id,
-            @RequestBody(required = false) Map<String, String> body,
+            @RequestBody(required = false) @Valid ComplaintResolutionRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = getCurrentUserId(userDetails);
-        String note = body != null ? body.get("note") : null;
+        String note = body != null ? body.getNote() : null;
         return ResponseEntity.ok(complaintService.accept(id, librarianId, note));
     }
 
@@ -112,10 +104,10 @@ public class ComplaintController {
     @PutMapping("/{id}/deny")
     public ResponseEntity<ComplaintDTO> deny(
             @PathVariable UUID id,
-            @RequestBody(required = false) Map<String, String> body,
+            @RequestBody(required = false) @Valid ComplaintResolutionRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = getCurrentUserId(userDetails);
-        String note = body != null ? body.get("note") : null;
+        String note = body != null ? body.getNote() : null;
         return ResponseEntity.ok(complaintService.deny(id, librarianId, note));
     }
 
@@ -136,13 +128,9 @@ public class ComplaintController {
      * Thủ thư xoá nhiều khiếu nại cùng lúc
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+    public ResponseEntity<?> deleteBatch(@Valid @RequestBody UuidBatchRequest body) {
         try {
-            List<String> ids = body.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
-            }
-            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            List<UUID> uuids = body.getIds();
             complaintService.deleteBatch(uuids);
             return ResponseEntity.ok(Map.of("deleted", uuids.size()));
         } catch (Exception e) {

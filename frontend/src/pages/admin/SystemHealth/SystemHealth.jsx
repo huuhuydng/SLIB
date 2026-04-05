@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Activity,
   Database,
@@ -33,6 +33,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import systemHealthService from '../../../services/admin/systemHealthService';
+import LoadErrorState from '../../../components/common/LoadErrorState';
+import './SystemHealth.css';
 
 
 const SystemHealth = () => {
@@ -41,6 +43,7 @@ const SystemHealth = () => {
   // === SYSTEM INFO STATE (FE-55) ===
   const [systemInfo, setSystemInfo] = useState(null);
   const [loadingInfo, setLoadingInfo] = useState(true);
+  const [infoError, setInfoError] = useState('');
 
   // === SYSTEM LOGS STATE (FE-56) ===
   const [logs, setLogs] = useState([]);
@@ -48,9 +51,15 @@ const SystemHealth = () => {
   const [logFilter, setLogFilter] = useState('all');
   const [logCategory, setLogCategory] = useState('all');
   const [searchLog, setSearchLog] = useState('');
+  const [debouncedSearchLog, setDebouncedSearchLog] = useState('');
   const [logPage, setLogPage] = useState(0);
   const [logTotalPages, setLogTotalPages] = useState(0);
   const [loadingLogs, setLoadingLogs] = useState(false);
+  const [logsError, setLogsError] = useState('');
+  const [exportingLogs, setExportingLogs] = useState(false);
+  const [cleaningLogs, setCleaningLogs] = useState(false);
+  const [showCleanupPanel, setShowCleanupPanel] = useState(false);
+  const [cleanupBeforeDate, setCleanupBeforeDate] = useState('');
 
   // === BACKUP STATE (FE-57/58) ===
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -60,6 +69,15 @@ const SystemHealth = () => {
   const [scheduleRetainDays, setScheduleRetainDays] = useState(30);
   const [scheduleActive, setScheduleActive] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [backupError, setBackupError] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchLog(searchLog.trim());
+    }, 350);
+    return () => clearTimeout(timeout);
+  }, [searchLog]);
 
   // =========================================
   // === DATA FETCHING ===
@@ -68,10 +86,12 @@ const SystemHealth = () => {
   const fetchSystemInfo = useCallback(async () => {
     try {
       setLoadingInfo(true);
+      setInfoError('');
       const data = await systemHealthService.getSystemInfo();
       setSystemInfo(data);
     } catch (e) {
       console.error('Error fetching system info:', e);
+      setInfoError(parseApiError(e, 'Không thể tải tình trạng hệ thống'));
     } finally {
       setLoadingInfo(false);
     }
@@ -80,27 +100,31 @@ const SystemHealth = () => {
   const fetchLogs = useCallback(async () => {
     try {
       setLoadingLogs(true);
+      setLogsError('');
       const params = { page: logPage, size: 20 };
       if (logFilter !== 'all') params.level = logFilter.toUpperCase();
       if (logCategory !== 'all') params.category = logCategory.toUpperCase();
-      if (searchLog) params.search = searchLog;
+      if (debouncedSearchLog) params.search = debouncedSearchLog;
 
-      const data = await systemHealthService.getLogs(params);
+      const [data, stats] = await Promise.all([
+        systemHealthService.getLogs(params),
+        systemHealthService.getLogStats()
+      ]);
       setLogs(data.content || []);
       setLogTotalPages(data.totalPages || 0);
-
-      const stats = await systemHealthService.getLogStats();
       setLogStats(stats);
     } catch (e) {
       console.error('Error fetching logs:', e);
+      setLogsError(parseApiError(e, 'Không thể tải nhật ký hệ thống'));
     } finally {
       setLoadingLogs(false);
     }
-  }, [logFilter, logCategory, searchLog, logPage]);
+  }, [logFilter, logCategory, debouncedSearchLog, logPage]);
 
   const fetchBackupData = useCallback(async () => {
     try {
       setLoadingBackup(true);
+      setBackupError('');
       const [history, schedule] = await Promise.all([
         systemHealthService.getBackupHistory(),
         systemHealthService.getBackupSchedule()
@@ -114,6 +138,7 @@ const SystemHealth = () => {
       }
     } catch (e) {
       console.error('Error fetching backup data:', e);
+      setBackupError(parseApiError(e, 'Không thể tải dữ liệu sao lưu'));
     } finally {
       setLoadingBackup(false);
     }
@@ -140,11 +165,12 @@ const SystemHealth = () => {
   const handleManualBackup = async () => {
     setIsBackingUp(true);
     try {
+      setBackupError('');
       await systemHealthService.triggerBackup();
       await fetchBackupData();
     } catch (e) {
       console.error('Backup failed:', e);
-      alert('Sao lưu thất bại: ' + (e.response?.data?.message || e.message));
+      setBackupError(parseApiError(e, 'Sao lưu dữ liệu thất bại'));
     } finally {
       setIsBackingUp(false);
     }
@@ -152,6 +178,8 @@ const SystemHealth = () => {
 
   const handleSaveSchedule = async () => {
     try {
+      setSavingSchedule(true);
+      setBackupError('');
       await systemHealthService.updateBackupSchedule({
         time: scheduleTime,
         retainDays: scheduleRetainDays,
@@ -160,11 +188,67 @@ const SystemHealth = () => {
       await fetchBackupData();
     } catch (e) {
       console.error('Failed to save schedule:', e);
+      setBackupError(parseApiError(e, 'Không thể lưu lịch sao lưu'));
+    } finally {
+      setSavingSchedule(false);
     }
   };
 
-  const handleDownloadBackup = (backupId) => {
-    systemHealthService.downloadBackup(backupId);
+  const handleDownloadBackup = async (backupId, fileName) => {
+    try {
+      await systemHealthService.downloadBackup(backupId, fileName);
+    } catch (e) {
+      console.error('Failed to download backup:', e);
+      setBackupError(parseApiError(e, 'Không thể tải file sao lưu'));
+    }
+  };
+
+  const buildLogQueryParams = () => {
+    const params = {};
+    if (logFilter !== 'all') params.level = logFilter.toUpperCase();
+    if (logCategory !== 'all') params.category = logCategory.toUpperCase();
+    if (debouncedSearchLog) params.search = debouncedSearchLog;
+    return params;
+  };
+
+  const handleExportLogs = async () => {
+    try {
+      setExportingLogs(true);
+      setLogsError('');
+      await systemHealthService.exportLogs(buildLogQueryParams());
+    } catch (e) {
+      console.error('Failed to export logs:', e);
+      setLogsError(parseApiError(e, 'Không thể xuất file nhật ký'));
+    } finally {
+      setExportingLogs(false);
+    }
+  };
+
+  const handleCleanupLogs = async () => {
+    if (!cleanupBeforeDate) {
+      setLogsError('Vui lòng chọn ngày mốc để dọn nhật ký');
+      return;
+    }
+
+    const confirmed = window.confirm(`Bạn có chắc muốn dọn toàn bộ nhật ký trước ngày ${cleanupBeforeDate}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCleaningLogs(true);
+      setLogsError('');
+      const result = await systemHealthService.cleanupLogs(cleanupBeforeDate);
+      await fetchLogs();
+      setShowCleanupPanel(false);
+      setCleanupBeforeDate('');
+      window.alert(result?.message || 'Đã dọn nhật ký cũ thành công');
+    } catch (e) {
+      console.error('Failed to cleanup logs:', e);
+      setLogsError(parseApiError(e, 'Không thể dọn nhật ký cũ'));
+    } finally {
+      setCleaningLogs(false);
+    }
   };
 
   // =========================================
@@ -198,11 +282,72 @@ const SystemHealth = () => {
     return date.toLocaleString('vi-VN');
   };
 
+  const parseApiError = (error, fallback) => {
+    return error?.response?.data?.message
+      || error?.response?.data?.error
+      || error?.message
+      || fallback;
+  };
+
   const getMetricColor = (value, thresholds = { warn: 70, danger: 90 }) => {
     if (value >= thresholds.danger) return '#DC2626';
     if (value >= thresholds.warn) return '#F59E0B';
     return '#059669';
   };
+
+  const getServiceStatusMeta = (status) => {
+    switch (status) {
+      case 'UP':
+        return { bg: '#D1FAE5', color: '#059669', label: 'Ổn định', icon: CheckCircle };
+      case 'DEGRADED':
+        return { bg: '#FEF3C7', color: '#D97706', label: 'Cần theo dõi', icon: AlertTriangle };
+      case 'DOWN':
+        return { bg: '#FEE2E2', color: '#DC2626', label: 'Mất kết nối', icon: XCircle };
+      case 'CRITICAL':
+        return { bg: '#FEE2E2', color: '#DC2626', label: 'Sự cố nghiêm trọng', icon: AlertCircle };
+      default:
+        return { bg: '#E2E8F0', color: '#64748B', label: 'Chưa xác định', icon: Info };
+    }
+  };
+
+  const tabDefinitions = [
+    { id: 'overview', label: 'Giám sát', icon: Activity },
+    { id: 'logs', label: 'Nhật ký', icon: FileText },
+    { id: 'backup', label: 'Sao lưu', icon: HardDrive },
+  ];
+
+  const activeTabMeta = {
+    overview: {
+      title: 'Giám sát hệ thống',
+      description: 'Theo dõi trạng thái backend, cơ sở dữ liệu, dịch vụ AI và tài nguyên máy chủ để phát hiện sớm các dấu hiệu bất thường.',
+      chips: [
+        systemInfo?.overallStatus ? `Tổng thể: ${getServiceStatusMeta(systemInfo.overallStatus).label}` : 'Đang kiểm tra trạng thái',
+        'Làm mới tự động mỗi 30 giây',
+        'Số liệu ưu tiên cho vận hành thư viện',
+      ],
+      note: 'Tab này phản ánh tình trạng vận hành hiện tại của API, cơ sở dữ liệu, AI Service và tài nguyên máy chủ. Các chỉ số CPU/RAM/đĩa được dùng để phát hiện tải cao hoặc nguy cơ đầy bộ nhớ, đầy dung lượng.'
+    },
+    logs: {
+      title: 'Nhật ký vận hành',
+      description: 'Tra cứu lỗi, cảnh báo, tác vụ nền và hoạt động quản trị để xác định nguyên nhân sự cố và kiểm tra lịch sử thao tác.',
+      chips: [
+        `${logStats.errorsLast24h ?? 0} lỗi trong 24 giờ`,
+        `${logStats.warningsLast24h ?? 0} cảnh báo trong 24 giờ`,
+        'Tìm kiếm theo nội dung, mức độ và loại nhật ký',
+      ],
+      note: 'Nhật ký được lưu theo nhóm lỗi hệ thống, hiệu năng, tích hợp, tác vụ nền và thao tác quản trị. Dùng tab này để truy vết nguyên nhân khi có sự cố vận hành.'
+    },
+    backup: {
+      title: 'Sao lưu dữ liệu',
+      description: 'Quản lý sao lưu thủ công và lịch sao lưu tự động để đảm bảo dữ liệu thư viện có thể khôi phục khi xảy ra sự cố.',
+      chips: [
+        scheduleActive ? 'Lịch sao lưu đang bật' : 'Lịch sao lưu đang tắt',
+        `Giữ tối đa ${scheduleRetainDays} ngày`,
+        'Định dạng tệp PostgreSQL .dump',
+      ],
+      note: 'Bản sao lưu được tạo dưới định dạng PostgreSQL .dump để phục vụ khôi phục hệ thống. Nên kiểm tra định kỳ lịch sao lưu và tải thử một bản khi cần xác nhận quy trình phục hồi.'
+    }
+  }[activeTab];
 
   // =========================================
   // === RENDER ===
@@ -210,47 +355,26 @@ const SystemHealth = () => {
 
   return (
     <>
-      <div style={{
-        padding: '0 24px 32px',
-        maxWidth: '1440px',
-        margin: '0 auto',
-        minHeight: 'calc(100vh - 120px)'
-      }}>
+      <div className="sh-page">
         {/* Page Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
+        <div className="sh-hero">
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
-              Giám sát hệ thống
-            </h1>
-            <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
-              Theo dõi sức khỏe và hiệu suất của SLIB
-            </p>
+            <h1 className="sh-hero__title">{activeTabMeta.title}</h1>
+            <p className="sh-hero__desc">{activeTabMeta.description}</p>
+            <div className="sh-hero__chips">
+              {activeTabMeta.chips.map((chip) => (
+                <span key={chip} className="sh-chip">{chip}</span>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="sh-hero__actions">
             <button
               onClick={() => {
                 if (activeTab === 'overview') fetchSystemInfo();
                 if (activeTab === 'logs') fetchLogs();
                 if (activeTab === 'backup') fetchBackupData();
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: '#F7FAFC',
-                border: '2px solid #E2E8F0',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#4A5568',
-                cursor: 'pointer'
-              }}>
+              className="sh-refresh">
               <RefreshCw size={18} />
               Làm mới
             </button>
@@ -258,38 +382,12 @@ const SystemHealth = () => {
         </div>
 
         {/* Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '24px',
-          background: '#fff',
-          padding: '8px',
-          borderRadius: '14px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          width: 'fit-content'
-        }}>
-          {[
-            { id: 'overview', label: 'Tổng quan', icon: Activity },
-            { id: 'logs', label: 'Nhật ký hệ thống', icon: FileText },
-            { id: 'backup', label: 'Sao lưu dữ liệu', icon: HardDrive },
-          ].map((tab) => (
+        <div className="sh-tabbar">
+          {tabDefinitions.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 20px',
-                background: activeTab === tab.id ? '#e8600a' : 'transparent',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '14px',
-                fontWeight: '600',
-                color: activeTab === tab.id ? '#fff' : '#4A5568',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
+              className={`sh-tab${activeTab === tab.id ? ' sh-tab--active' : ''}`}
             >
               <tab.icon size={18} />
               {tab.label}
@@ -297,93 +395,192 @@ const SystemHealth = () => {
           ))}
         </div>
 
+        <div className="sh-section-note">
+          <strong>{activeTabMeta.title}:</strong> {activeTabMeta.note}
+        </div>
+
         {/* ========== OVERVIEW TAB (FE-55) ========== */}
         {activeTab === 'overview' && (
           <>
             {loadingInfo && !systemInfo ? (
               <div style={{ textAlign: 'center', padding: '60px', color: '#A0AEC0' }}>Đang tải...</div>
+            ) : infoError ? (
+              <div style={{
+                background: '#fff',
+                borderRadius: '12px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}>
+                <LoadErrorState
+                  title="Không thể tải tình trạng hệ thống"
+                  message={infoError}
+                  onRetry={fetchSystemInfo}
+                  compact
+                />
+              </div>
             ) : systemInfo ? (
               <>
-                {/* System Metrics */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '16px',
-                  marginBottom: '24px'
-                }}>
-                  {[
-                    { label: 'CPU Usage', value: systemInfo.cpu, unit: '%', icon: Cpu },
-                    { label: 'Memory Usage', value: systemInfo.memory, unit: '%', icon: MemoryStick, sub: `${systemInfo.memoryUsedMB} / ${systemInfo.memoryMaxMB} MB` },
-                    { label: 'Disk Usage', value: systemInfo.disk, unit: '%', icon: HardDrive, sub: `${systemInfo.diskUsedGB} / ${systemInfo.diskTotalGB} GB` },
-                    { label: 'Processors', value: systemInfo.availableProcessors, unit: ' cores', icon: Zap },
-                  ].map((metric, idx) => {
-                    const color = getMetricColor(typeof metric.value === 'number' && metric.unit === '%' ? metric.value : 0);
-                    return (
-                      <div key={idx} style={{
+                {(() => {
+                  const serviceMeta = getServiceStatusMeta(systemInfo.overallStatus);
+                  const ServiceIcon = serviceMeta.icon;
+                  const services = Object.values(systemInfo.services || {});
+                  const metrics = [
+                    { label: 'CPU máy chủ', value: systemInfo.cpu, unit: '%', icon: Cpu, sub: `${systemInfo.availableProcessors} lõi xử lý` },
+                    {
+                      label: 'RAM máy chủ',
+                      value: systemInfo.memory,
+                      unit: '%',
+                      icon: MemoryStick,
+                      sub: systemInfo.systemMemoryTotalMB > 0
+                        ? `${systemInfo.systemMemoryUsedMB} / ${systemInfo.systemMemoryTotalMB} MB`
+                        : 'Không lấy được RAM vật lý'
+                    },
+                    {
+                      label: 'Bộ nhớ JVM',
+                      value: systemInfo.jvmMemory,
+                      unit: '%',
+                      icon: Server,
+                      sub: `${systemInfo.memoryUsedMB} / ${systemInfo.memoryMaxMB} MB`
+                    },
+                    { label: 'Dung lượng đĩa', value: systemInfo.disk, unit: '%', icon: HardDrive, sub: `${systemInfo.diskUsedGB} / ${systemInfo.diskTotalGB} GB` }
+                  ];
+
+                  return (
+                    <>
+                      <div style={{
                         background: '#fff',
-                        borderRadius: '10px',
-                        padding: '24px',
+                        borderRadius: '14px',
+                        padding: '20px 24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '24px',
+                        border: `1px solid ${serviceMeta.bg}`,
                         boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                           <div style={{
-                            width: '48px', height: '48px', borderRadius: '12px',
-                            background: color === '#059669' ? '#D1FAE5' : color === '#F59E0B' ? '#FEF3C7' : '#FEE2E2',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '12px',
+                            background: serviceMeta.bg,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}>
-                            <metric.icon size={24} color={color} />
+                            <ServiceIcon size={22} color={serviceMeta.color} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A1A' }}>
+                              Tình trạng tổng thể: <span style={{ color: serviceMeta.color }}>{serviceMeta.label}</span>
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
+                              Cập nhật lúc {formatDate(systemInfo.checkedAt)}
+                            </div>
                           </div>
                         </div>
-                        <div style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>
-                          {typeof metric.value === 'number' ? metric.value.toFixed(1) : metric.value}{metric.unit}
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {services.map((service, idx) => {
+                            const meta = getServiceStatusMeta(service.status);
+                            return (
+                              <span key={idx} style={{
+                                padding: '8px 12px',
+                                borderRadius: '999px',
+                                background: meta.bg,
+                                color: meta.color,
+                                fontSize: '12px',
+                                fontWeight: '700'
+                              }}>
+                                {service.label}: {meta.label}
+                              </span>
+                            );
+                          })}
                         </div>
-                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>{metric.label}</div>
-                        {metric.sub && <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>{metric.sub}</div>}
-                        {metric.unit === '%' && (
-                          <div style={{ marginTop: '12px', height: '6px', background: '#E2E8F0', borderRadius: '100px', overflow: 'hidden' }}>
-                            <div style={{
-                              height: '100%', width: `${metric.value}%`,
-                              background: color, borderRadius: '100px', transition: 'width 0.5s ease'
-                            }} />
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* System Info Panel */}
-                <div style={{
-                  background: '#fff', borderRadius: '10px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
-                }}>
-                  <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Thông tin hệ thống</h3>
-                  </div>
-                  <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                    {[
-                      { label: 'Thời gian hoạt động', value: systemInfo.uptime, icon: Clock },
-                      { label: 'Hệ điều hành', value: `${systemInfo.osName} ${systemInfo.osVersion}`, icon: Server },
-                      { label: 'Kiến trúc', value: systemInfo.osArch, icon: Cpu },
-                      { label: 'Java Version', value: systemInfo.javaVersion, icon: Zap },
-                      { label: 'Java Vendor', value: systemInfo.javaVendor, icon: Shield },
-                      { label: 'Database', value: 'PostgreSQL', icon: Database },
-                    ].map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#F7FAFC', borderRadius: '10px' }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '10px', background: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          <item.icon size={18} color="#4A5568" />
+                      {/* System Metrics */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: '16px',
+                        marginBottom: '24px'
+                      }}>
+                        {metrics.map((metric, idx) => {
+                          const color = getMetricColor(typeof metric.value === 'number' && metric.value >= 0 ? metric.value : 0);
+                          return (
+                            <div key={idx} style={{
+                              background: '#fff',
+                              borderRadius: '10px',
+                              padding: '24px',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                                <div style={{
+                                  width: '48px', height: '48px', borderRadius: '12px',
+                                  background: color === '#059669' ? '#D1FAE5' : color === '#F59E0B' ? '#FEF3C7' : '#FEE2E2',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                }}>
+                                  <metric.icon size={24} color={color} />
+                                </div>
+                              </div>
+                              <div style={{ fontSize: '20px', fontWeight: '600', color: '#1A1A1A', marginBottom: '4px' }}>
+                                {typeof metric.value === 'number' && metric.value >= 0 ? metric.value.toFixed(1) : 'N/A'}{metric.unit}
+                              </div>
+                              <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>{metric.label}</div>
+                              {metric.sub && <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>{metric.sub}</div>}
+                              {typeof metric.value === 'number' && metric.value >= 0 && (
+                                <div style={{ marginTop: '12px', height: '6px', background: '#E2E8F0', borderRadius: '100px', overflow: 'hidden' }}>
+                                  <div style={{
+                                    height: '100%', width: `${metric.value}%`,
+                                    background: color, borderRadius: '100px', transition: 'width 0.5s ease'
+                                  }} />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* System Info Panel */}
+                      <div style={{
+                        background: '#fff', borderRadius: '10px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
+                      }}>
+                        <div style={{ padding: '20px 24px', borderBottom: '1px solid #E2E8F0' }}>
+                          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Dịch vụ và môi trường hệ thống</h3>
                         </div>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{item.label}</div>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.value}</div>
+                        <div style={{ padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                          {[
+                            { label: 'Thời gian hoạt động', value: systemInfo.uptime, icon: Clock },
+                            { label: 'Hệ điều hành', value: `${systemInfo.osName} ${systemInfo.osVersion}`, icon: Server },
+                            { label: 'Kiến trúc', value: systemInfo.osArch, icon: Cpu },
+                            { label: 'Phiên bản Java', value: systemInfo.javaVersion, icon: Zap },
+                            { label: 'Nhà cung cấp Java', value: systemInfo.javaVendor, icon: Shield },
+                            {
+                              label: 'CPU tiến trình backend',
+                              value: typeof systemInfo.cpuProcess === 'number' && systemInfo.cpuProcess >= 0
+                                ? `${systemInfo.cpuProcess.toFixed(1)}%`
+                                : 'Không khả dụng',
+                              icon: Activity
+                            },
+                          ].map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: '#F7FAFC', borderRadius: '10px' }}>
+                              <div style={{
+                                width: '36px', height: '36px', borderRadius: '10px', background: '#fff',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}>
+                                <item.icon size={18} color="#4A5568" />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{item.label}</div>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>{item.value}</div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: '60px', color: '#A0AEC0' }}>Không thể tải thông tin hệ thống</div>
@@ -415,7 +612,7 @@ const SystemHealth = () => {
                   }} />
                   <input
                     type="text"
-                    placeholder="Tìm kiếm log..."
+                    placeholder="Tìm kiếm nhật ký..."
                     value={searchLog}
                     onChange={(e) => { setSearchLog(e.target.value); setLogPage(0); }}
                     style={{
@@ -437,10 +634,10 @@ const SystemHealth = () => {
                   }}
                 >
                   <option value="all">Tất cả mức độ</option>
-                  <option value="ERROR">Error</option>
-                  <option value="WARN">Warning</option>
-                  <option value="INFO">Info</option>
-                  <option value="DEBUG">Debug</option>
+                  <option value="ERROR">Lỗi</option>
+                  <option value="WARN">Cảnh báo</option>
+                  <option value="INFO">Thông tin</option>
+                  <option value="DEBUG">Gỡ lỗi</option>
                 </select>
                 <select
                   value={logCategory}
@@ -457,6 +654,21 @@ const SystemHealth = () => {
                   <option value="INTEGRATION">Tích hợp</option>
                   <option value="AUDIT">Quản trị</option>
                 </select>
+                <button
+                  onClick={handleExportLogs}
+                  disabled={exportingLogs}
+                  className="sh-action-btn"
+                >
+                  <Download size={16} />
+                  {exportingLogs ? 'Đang xuất...' : 'Xuất Excel'}
+                </button>
+                <button
+                  onClick={() => setShowCleanupPanel((prev) => !prev)}
+                  className="sh-action-btn sh-action-btn--danger"
+                >
+                  <History size={16} />
+                  Dọn log cũ
+                </button>
               </div>
               {/* Stats badges */}
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -473,9 +685,44 @@ const SystemHealth = () => {
               </div>
             </div>
 
+            {showCleanupPanel && (
+              <div className="sh-cleanup-panel">
+                <div className="sh-cleanup-panel__content">
+                  <div>
+                    <div className="sh-cleanup-panel__title">Dọn nhật ký cũ</div>
+                    <div className="sh-cleanup-panel__desc">
+                      Hệ thống sẽ xóa toàn bộ nhật ký được tạo trước ngày anh chọn. Nên xuất CSV trước khi dọn nếu cần lưu trữ đối soát.
+                    </div>
+                  </div>
+                  <div className="sh-cleanup-panel__controls">
+                    <input
+                      type="date"
+                      value={cleanupBeforeDate}
+                      onChange={(e) => setCleanupBeforeDate(e.target.value)}
+                      className="sh-cleanup-panel__date"
+                    />
+                    <button
+                      onClick={handleCleanupLogs}
+                      disabled={cleaningLogs}
+                      className="sh-action-btn sh-action-btn--danger"
+                    >
+                      {cleaningLogs ? 'Đang dọn...' : 'Xác nhận dọn'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Logs List */}
             <div style={{ padding: '16px 24px' }}>
-              {loadingLogs ? (
+              {logsError ? (
+                <LoadErrorState
+                  title="Không thể tải nhật ký hệ thống"
+                  message={logsError}
+                  onRetry={fetchLogs}
+                  compact
+                />
+              ) : loadingLogs ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
               ) : logs.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Chưa có nhật ký nào</div>
@@ -605,6 +852,20 @@ const SystemHealth = () => {
                   </button>
                 </div>
 
+                {backupError && (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    background: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    color: '#B91C1C',
+                    fontSize: '13px'
+                  }}>
+                    {backupError}
+                  </div>
+                )}
+
                 <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A', marginBottom: '12px' }}>Lịch sao lưu tự động</h4>
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -647,7 +908,7 @@ const SystemHealth = () => {
 
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                    Giữ lại số bản sao lưu
+                    Số ngày lưu trữ bản sao lưu
                   </label>
                   <select
                     value={scheduleRetainDays}
@@ -666,13 +927,14 @@ const SystemHealth = () => {
 
                 <button
                   onClick={handleSaveSchedule}
+                  disabled={savingSchedule}
                   style={{
-                    width: '100%', padding: '12px', background: '#e8600a', border: 'none',
+                    width: '100%', padding: '12px', background: savingSchedule ? '#CBD5E1' : '#e8600a', border: 'none',
                     borderRadius: '12px', fontSize: '14px', fontWeight: '600', color: '#fff',
-                    cursor: 'pointer'
+                    cursor: savingSchedule ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  Lưu cấu hình
+                  {savingSchedule ? 'Đang lưu...' : 'Lưu cấu hình'}
                 </button>
               </div>
             </div>
@@ -686,7 +948,14 @@ const SystemHealth = () => {
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
               </div>
               <div style={{ padding: '16px 24px' }}>
-                {loadingBackup ? (
+                {backupError && !loadingBackup && backupHistory.length === 0 ? (
+                  <LoadErrorState
+                    title="Không thể tải dữ liệu sao lưu"
+                    message={backupError}
+                    onRetry={fetchBackupData}
+                    compact
+                  />
+                ) : loadingBackup ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Đang tải...</div>
                 ) : backupHistory.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#A0AEC0' }}>Chưa có lịch sử sao lưu</div>
@@ -727,7 +996,7 @@ const SystemHealth = () => {
                           <td style={{ padding: '16px', textAlign: 'center' }}>
                             {backup.status === 'SUCCESS' && (
                               <button
-                                onClick={() => handleDownloadBackup(backup.id)}
+                                onClick={() => handleDownloadBackup(backup.id, backup.fileName)}
                                 style={{
                                   padding: '8px 12px', background: '#F7FAFC', border: '1px solid #E2E8F0',
                                   borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: '#4A5568',

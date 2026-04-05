@@ -1,11 +1,13 @@
 package slib.com.example.controller.ai;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.ai.AIConfigRequest;
 import slib.com.example.entity.ai.AIConfigEntity;
 import slib.com.example.service.ai.AIConfigService;
 import slib.com.example.service.system.SystemLogService;
@@ -36,17 +38,7 @@ public class AIConfigController {
             return ResponseEntity.ok(Map.of(
                     "configured", false,
                     "message", "AI chưa được cấu hình",
-                    "defaults", Map.of(
-                            "provider", "ollama",
-                            "ollamaModel", "llama3.2",
-                            "ollamaUrl", "http://localhost:11434",
-                            "geminiModel", "gemini-2.0-flash",
-                            "temperature", 0.7,
-                            "maxTokens", 1024,
-                            "enableContext", true,
-                            "enableHistory", true,
-                            "autoSuggest", true,
-                            "responseLanguage", "vi")));
+                    "defaults", aiConfigService.getDefaultConfigForDisplay()));
         }
         return ResponseEntity.ok(Map.of(
                 "configured", true,
@@ -58,7 +50,7 @@ public class AIConfigController {
      */
     @PostMapping("/config")
     public ResponseEntity<?> saveConfig(
-            @RequestBody AIConfigEntity config,
+            @Valid @RequestBody AIConfigRequest config,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             log.info("[AIConfigController] Saving config for provider={}, ollamaModel={}, ollamaUrl={}",
@@ -75,11 +67,16 @@ public class AIConfigController {
                     "success", true,
                     "message", "Đã lưu cấu hình AI thành công",
                     "config", aiConfigService.getConfigForDisplay()));
-        } catch (Exception e) {
-            log.error("[AIConfigController] ERROR saving config", e);
+        } catch (IllegalArgumentException e) {
+            log.warn("[AIConfigController] Invalid config payload: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "Lỗi lưu cấu hình: " + e.getMessage()));
+                    "message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("[AIConfigController] ERROR saving config", e);
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "success", false,
+                    "message", "Không thể lưu cấu hình AI lúc này"));
         }
     }
 
@@ -102,11 +99,15 @@ public class AIConfigController {
                     "success", true,
                     "message", "Đã reset cấu hình AI về mặc định",
                     "config", aiConfigService.getConfigForDisplay()));
-        } catch (Exception e) {
-            log.error("[AIConfigController] ERROR resetting config", e);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "Lỗi reset cấu hình: " + e.getMessage()));
+                    "message", e.getMessage()));
+        } catch (Exception e) {
+            log.error("[AIConfigController] ERROR resetting config", e);
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "success", false,
+                    "message", "Không thể reset cấu hình AI lúc này"));
         }
     }
 }

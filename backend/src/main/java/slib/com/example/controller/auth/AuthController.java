@@ -1,14 +1,19 @@
 package slib.com.example.controller.auth;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.users.AdminResetPasswordRequest;
 import slib.com.example.dto.users.AuthResponse;
 import slib.com.example.dto.users.ChangePasswordRequest;
+import slib.com.example.dto.users.GoogleLoginRequest;
 import slib.com.example.dto.users.LoginRequest;
+import slib.com.example.dto.users.LogoutRequest;
+import slib.com.example.dto.users.RefreshTokenRequest;
 import slib.com.example.service.auth.AuthService;
 
 import java.util.Map;
@@ -32,17 +37,12 @@ public class AuthController {
      * }
      */
     @PostMapping("/google")
-    public ResponseEntity<AuthResponse> loginWithGoogle(@RequestBody Map<String, String> request) {
-        String idToken = request.get("idToken");
-        String fullName = request.get("fullName");
-        String fcmToken = request.get("fcmToken");
-        String deviceInfo = request.get("deviceInfo");
-
-        if (idToken == null || idToken.isEmpty()) {
-            throw new RuntimeException("ID token is required");
-        }
-
-        AuthResponse response = authService.loginWithGoogle(idToken, fullName, fcmToken, deviceInfo);
+    public ResponseEntity<AuthResponse> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request) {
+        AuthResponse response = authService.loginWithGoogle(
+                request.getIdToken(),
+                request.getFullName(),
+                request.getFcmToken(),
+                request.getDeviceInfo());
         return ResponseEntity.ok(response);
     }
 
@@ -63,7 +63,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> loginWithPassword(
-            @RequestBody LoginRequest request,
+            @Valid @RequestBody LoginRequest request,
             @RequestHeader(value = "X-Device-Info", required = false) String deviceInfo) {
 
         String identifier = request.getLoginIdentifier();
@@ -93,7 +93,7 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<Map<String, String>> changePassword(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request) {
 
         if (userDetails == null) {
             throw new RuntimeException("Không có quyền truy cập");
@@ -114,15 +114,9 @@ public class AuthController {
      */
     @PostMapping("/admin-reset-password")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> adminResetPassword(@RequestBody Map<String, String> request) {
-        String userEmail = request.get("email");
-
-        if (userEmail == null || userEmail.isEmpty()) {
-            throw new RuntimeException("Email là bắt buộc");
-        }
-
-        authService.adminResetPassword(userEmail);
-        return ResponseEntity.ok(Map.of("message", "Đã reset mật khẩu về mặc định cho user: " + userEmail));
+    public ResponseEntity<Map<String, String>> adminResetPassword(@Valid @RequestBody AdminResetPasswordRequest request) {
+        authService.adminResetPassword(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "Đã reset mật khẩu về mặc định cho user: " + request.getEmail()));
     }
 
     /**
@@ -134,14 +128,8 @@ public class AuthController {
      * }
      */
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refreshToken(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
-
-        if (refreshToken == null || refreshToken.isEmpty()) {
-            throw new RuntimeException("Refresh token is required");
-        }
-
-        AuthResponse response = authService.refreshAccessToken(refreshToken);
+    public ResponseEntity<AuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse response = authService.refreshAccessToken(request.getRefreshToken());
         return ResponseEntity.ok(response);
     }
 
@@ -154,8 +142,8 @@ public class AuthController {
      * }
      */
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(@RequestBody Map<String, String> request) {
-        String refreshToken = request.get("refreshToken");
+    public ResponseEntity<Map<String, String>> logout(@RequestBody(required = false) @Valid LogoutRequest request) {
+        String refreshToken = request != null ? request.getRefreshToken() : null;
 
         if (refreshToken != null && !refreshToken.isEmpty()) {
             authService.logout(refreshToken);

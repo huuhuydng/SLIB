@@ -2,21 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
-  updateArea,
-  updateAreaLocked,
-  updateAreaIsActive,
-  updateZone,
-  updateSeat,
-  updateAreaFactory,
-  deleteArea,
-  deleteZone,
-  deleteSeat,
-  deleteAreaFactory,
   getAmenitiesByZone,
-  deleteAmenity,
-  createAmenity,
-  updateSeatNfcUid,
-  clearSeatNfcUid,
 } from "../../../services/admin/area_management/api";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
 import "../../../styles/admin/properties.css";
@@ -98,22 +84,34 @@ function PropertiesPanel() {
     } else if (selectedItem?.type === "zone" && selectedData) {
       setLocalZoneDes(selectedData.zoneDes || "");
       setLocalZoneName(selectedData.zoneName || "");
-      // Load amenities when zone is selected
-      (async () => {
-        try {
-          const res = await getAmenitiesByZone(selectedData.zoneId);
-          const raw = Array.isArray(res?.data) ? res.data : [];
-          const normalized = raw.map((a) => ({
-            amenityId: a.amenity_id ?? a.amenityId,
-            amenityName: a.amenity_name ?? a.amenityName,
-            zoneId: a.zone_id ?? a.zoneId ?? selectedData.zoneId,
-          }));
-          setAmenities(normalized);
-        } catch (e) {
-          console.error("Failed to load amenities:", e);
-          setAmenities([]);
-        }
-      })();
+      if (Array.isArray(selectedData.amenities)) {
+        setAmenities(selectedData.amenities);
+      } else if (selectedData.zoneId > 0) {
+        (async () => {
+          try {
+            const res = await getAmenitiesByZone(selectedData.zoneId);
+            const raw = Array.isArray(res?.data) ? res.data : [];
+            const normalized = raw.map((a) => ({
+              amenityId: a.amenity_id ?? a.amenityId,
+              amenityName: a.amenity_name ?? a.amenityName,
+              zoneId: a.zone_id ?? a.zoneId ?? selectedData.zoneId,
+            }));
+            setAmenities(normalized);
+            dispatch({
+              type: actions.UPDATE_ZONE,
+              payload: {
+                ...selectedData,
+                amenities: normalized,
+              },
+            });
+          } catch (e) {
+            console.error("Failed to load amenities:", e);
+            setAmenities([]);
+          }
+        })();
+      } else {
+        setAmenities([]);
+      }
     } else if (selectedItem?.type === "seat" && selectedData) {
       setLocalSeatCode(selectedData.seatCode || "");
       setLocalSeatIsActive(selectedData.isActive !== false);
@@ -123,7 +121,7 @@ function PropertiesPanel() {
       setLocalFactoryName(selectedData.factoryName || "");
       setLocalFactoryColor(selectedData.color || "#9CA3AF");
     }
-  }, [selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.factoryName, selectedData?.color]);
+  }, [actions, dispatch, selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.factoryName, selectedData?.color, selectedData?.amenities, selectedData?.nfcTagUid]);
 
   if (!selectedItem || !selectedData) {
     return (
@@ -196,22 +194,9 @@ function PropertiesPanel() {
 
   // OPTIMISTIC UPDATE: Update UI immediately, API in background
   const handleAreaChange = (field, value) => {
-    // Update UI immediately
     const updated = { ...selectedData, [field]: value };
     dispatch({ type: actions.UPDATE_AREA, payload: updated });
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-
-    // Sanitize payload: clamp positions to >= 0 (backend rejects negative values)
-    const apiPayload = {
-      ...updated,
-      positionX: Math.max(0, updated.positionX ?? 0),
-      positionY: Math.max(0, updated.positionY ?? 0),
-    };
-
-    // API call in background (non-blocking)
-    updateArea(selectedData.areaId, apiPayload).catch(e => {
-      console.error("Failed to update area:", e);
-    });
   };
 
   // Update UI immediately, wait for Save button to persist
@@ -225,10 +210,19 @@ function PropertiesPanel() {
 
   // Update UI immediately, wait for Save button to persist
   const handleSeatChange = (field, value) => {
-    const payload = buildSeatPayload(selectedData, { [field]: value });
+    const updatedSeat = {
+      ...selectedData,
+      [field]: value,
+    };
 
     // Update UI immediately
-    dispatch({ type: actions.UPDATE_SEAT, payload: { ...selectedData, [field]: value } });
+    dispatch({ type: actions.UPDATE_SEAT, payload: updatedSeat });
+    if (updatedSeat.seatId > 0) {
+      dispatch({
+        type: actions.ADD_PENDING_SEAT_UPDATE,
+        payload: buildSeatPayload(updatedSeat),
+      });
+    }
     dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
     // API call will be made when user clicks Save button
   };
@@ -281,25 +275,23 @@ function PropertiesPanel() {
       return;
     }
 
-    try {
-      const res = await createAmenity({
-        amenityName: name,
-        zoneId: selectedData.zoneId
-      });
-
-      const normalizedAmenity = {
-        amenityId: res.data.amenity_id ?? res.data.amenityId,
-        amenityName: res.data.amenity_name ?? res.data.amenityName ?? name,
-        zoneId: res.data.zone_id ?? res.data.zoneId ?? selectedData.zoneId,
-      };
-
-      setAmenities((prev) => [...prev, normalizedAmenity]);
-      setShowAddModal(false);
-      setAddAmenityName("");
-    } catch (e) {
-      console.error("Failed to add amenity:", e);
-      toast.error("Thêm tiện ích thất bại");
-    }
+    const normalizedAmenity = {
+      amenityId: Date.now() * -1,
+      amenityName: name,
+      zoneId: selectedData.zoneId,
+    };
+    const nextAmenities = [...amenities, normalizedAmenity];
+    setAmenities(nextAmenities);
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...selectedData,
+        amenities: nextAmenities,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    setShowAddModal(false);
+    setAddAmenityName("");
   };
 
   const handleDeleteAmenity = async (amenityId) => {
@@ -309,15 +301,17 @@ function PropertiesPanel() {
 
   const confirmDeleteAmenity = async () => {
     if (!deleteAmenityId) return;
-    try {
-      await deleteAmenity(deleteAmenityId);
-      setAmenities((prev) => prev.filter((a) => a.amenityId !== deleteAmenityId));
-      setDeleteAmenityId(null);
-    } catch (e) {
-      console.error("Failed to delete amenity:", e);
-      toast.error("Xóa tiện ích thất bại");
-      setDeleteAmenityId(null);
-    }
+    const nextAmenities = amenities.filter((a) => a.amenityId !== deleteAmenityId);
+    setAmenities(nextAmenities);
+    dispatch({
+      type: actions.UPDATE_ZONE,
+      payload: {
+        ...selectedData,
+        amenities: nextAmenities,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    setDeleteAmenityId(null);
   };
 
   const handleDelete = async () => {
@@ -330,49 +324,20 @@ function PropertiesPanel() {
     try {
       switch (selectedItem.type) {
         case "area":
-          // Get all zones and factories in this area
-          const areaZones = zones.filter(z => z.areaId === selectedItem.id);
-          const areaFactories = factories.filter(f => f.areaId === selectedItem.id);
-
-          // Delete all seats and zones from UI and track for batch delete
-          for (const zone of areaZones) {
-            const zoneSeats = seats.filter(s => s.zoneId === zone.zoneId);
-            for (const seat of zoneSeats) {
-              dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-              if (seat.seatId > 0) {
-                dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
-              }
-            }
-            dispatch({ type: actions.DELETE_ZONE, payload: zone.zoneId });
-            if (zone.zoneId > 0) {
-              dispatch({ type: actions.ADD_PENDING_ZONE_DELETE, payload: zone.zoneId });
-            }
-          }
-
-          // Delete all factories from UI and track for batch delete
-          for (const factory of areaFactories) {
-            dispatch({ type: actions.DELETE_FACTORY, payload: factory.factoryId });
-            if (factory.factoryId > 0) {
-              dispatch({ type: actions.ADD_PENDING_FACTORY_DELETE, payload: factory.factoryId });
-            }
-          }
-
-          // Delete area from UI - Areas are deleted immediately (they're the container)
-          await deleteArea(selectedItem.id);
           dispatch({ type: actions.DELETE_AREA, payload: selectedItem.id });
+          if (selectedItem.id > 0) {
+            dispatch({ type: actions.ADD_PENDING_AREA_DELETE, payload: selectedItem.id });
+          }
           break;
 
         case "zone":
           // Get all seats in this zone
           const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);
 
-          // Delete seats from UI and track for batch delete
+          // Delete seats from UI. Backend deleteZone() already cascades reservations + seats,
+          // so we must not enqueue seat deletes here or the batch save will race/fail.
           for (const seat of zoneSeats) {
             dispatch({ type: actions.DELETE_SEAT, payload: seat.seatId });
-            // Only track real seats (positive IDs) for batch delete
-            if (seat.seatId > 0) {
-              dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: seat.seatId });
-            }
           }
 
           // Delete zone from UI
@@ -522,11 +487,13 @@ function PropertiesPanel() {
       {/* Content */}
       <div style={{
         flex: 1,
+        minHeight: 0,
         overflow: 'auto',
-        padding: '16px',
+        overscrollBehavior: 'contain',
+        padding: '12px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px'
+        gap: '12px'
       }}>
         {/* ============ AREA ============ */}
         {selectedItem.type === "area" && (
@@ -535,7 +502,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -563,7 +530,7 @@ function PropertiesPanel() {
                 onBlur={() => saveAreaName()}
                 style={{
                   width: '100%',
-                  padding: '12px 14px',
+                  padding: '10px 12px',
                   borderRadius: '10px',
                   border: '2px solid #E2E8F0',
                   fontSize: '14px',
@@ -578,7 +545,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -595,28 +562,16 @@ function PropertiesPanel() {
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   onClick={() => {
-                    // Optimistic update - UI first
                     const newLocked = !selectedData.locked;
                     dispatch({
                       type: actions.UPDATE_AREA,
                       payload: { ...selectedData, locked: newLocked }
                     });
-                    // API in background
-                    updateAreaLocked(selectedData.areaId, {
-                      areaId: selectedData.areaId,
-                      locked: newLocked
-                    }).catch(e => {
-                      console.error("Failed to update locked:", e);
-                      // Revert on failure
-                      dispatch({
-                        type: actions.UPDATE_AREA,
-                        payload: { ...selectedData, locked: !newLocked }
-                      });
-                    });
+                    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                   }}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     borderRadius: '10px',
                     border: selectedData.locked ? '2px solid #EF4444' : '2px solid #E2E8F0',
                     backgroundColor: selectedData.locked ? '#FEE2E2' : 'white',
@@ -632,28 +587,16 @@ function PropertiesPanel() {
 
                 <button
                   onClick={() => {
-                    // Optimistic update - UI first
                     const newIsActive = !selectedData.isActive;
                     dispatch({
                       type: actions.UPDATE_AREA,
                       payload: { ...selectedData, isActive: newIsActive }
                     });
-                    // API in background
-                    updateAreaIsActive(selectedData.areaId, {
-                      areaId: selectedData.areaId,
-                      isActive: newIsActive
-                    }).catch(e => {
-                      console.error("Failed to update isActive:", e);
-                      // Revert on failure
-                      dispatch({
-                        type: actions.UPDATE_AREA,
-                        payload: { ...selectedData, isActive: !newIsActive }
-                      });
-                    });
+                    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
                   }}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: '10px',
                     borderRadius: '10px',
                     border: selectedData.isActive ? '2px solid #22C55E' : '2px solid #EF4444',
                     backgroundColor: selectedData.isActive ? '#ECFDF5' : '#FEE2E2',
@@ -673,7 +616,7 @@ function PropertiesPanel() {
             <div style={{
               backgroundColor: 'white',
               borderRadius: '12px',
-              padding: '16px',
+              padding: '12px',
               border: '1px solid #E2E8F0'
             }}>
               <label style={{
@@ -687,25 +630,25 @@ function PropertiesPanel() {
               }}>
                 Thống kê
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{
-                  padding: '14px',
+                  padding: '10px',
                   background: '#ECFDF5',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#166534' }}>
+                  <div style={{ fontSize: '21px', fontWeight: '700', color: '#166534' }}>
                     {zones.filter(z => z.areaId === selectedItem.id).length}
                   </div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#22C55E' }}>Khu vực</div>
                 </div>
                 <div style={{
-                  padding: '14px',
+                  padding: '10px',
                   background: '#EFF6FF',
                   borderRadius: '10px',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '24px', fontWeight: '700', color: '#1E40AF' }}>
+                  <div style={{ fontSize: '21px', fontWeight: '700', color: '#1E40AF' }}>
                     {seats.filter(s => zones.find(z => z.areaId === selectedItem.id && z.zoneId === s.zoneId)).length}
                   </div>
                   <div style={{ fontSize: '11px', fontWeight: '600', color: '#3B82F6' }}>Tổng ghế</div>
@@ -1151,19 +1094,13 @@ function PropertiesPanel() {
 
                         if (data.success && data.uid) {
                           setNfcSaving(true);
-                          try {
-                            await updateSeatNfcUid(selectedData.seatId, data.uid);
-                            setLocalNfcTagUid(data.uid);
-                            dispatch({
-                              type: actions.UPDATE_SEAT,
-                              payload: { ...selectedData, nfcTagUid: data.uid }
-                            });
-                            dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-                          } catch (saveErr) {
-                            setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
-                          } finally {
-                            setNfcSaving(false);
-                          }
+                          setLocalNfcTagUid(data.uid);
+                          dispatch({
+                            type: actions.UPDATE_SEAT,
+                            payload: { ...selectedData, nfcTagUid: data.uid }
+                          });
+                          dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                          setNfcSaving(false);
                         } else {
                           setNfcError(data.error || 'Không đọc được thẻ NFC');
                         }
@@ -1199,19 +1136,13 @@ function PropertiesPanel() {
                     onClick={async () => {
                       if (!confirm('Bạn có chắc muốn xóa NFC khỏi ghế này?')) return;
                       setNfcSaving(true);
-                      try {
-                        await clearSeatNfcUid(selectedData.seatId);
-                        setLocalNfcTagUid('');
-                        dispatch({
-                          type: actions.UPDATE_SEAT,
-                          payload: { ...selectedData, nfcTagUid: null }
-                        });
-                        dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-                      } catch (err) {
-                        setNfcError(err.response?.data?.error || 'Lỗi khi xóa NFC');
-                      } finally {
-                        setNfcSaving(false);
-                      }
+                      setLocalNfcTagUid('');
+                      dispatch({
+                        type: actions.UPDATE_SEAT,
+                        payload: { ...selectedData, nfcTagUid: null }
+                      });
+                      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                      setNfcSaving(false);
                     }}
                     disabled={nfcSaving}
                     style={{
@@ -1239,19 +1170,13 @@ function PropertiesPanel() {
 
                       if (data.success && data.uid) {
                         setNfcSaving(true);
-                        try {
-                          await updateSeatNfcUid(selectedData.seatId, data.uid);
-                          setLocalNfcTagUid(data.uid);
-                          dispatch({
-                            type: actions.UPDATE_SEAT,
-                            payload: { ...selectedData, nfcTagUid: data.uid }
-                          });
-                          dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
-                        } catch (saveErr) {
-                          setNfcError(saveErr.response?.data?.error || 'Lỗi khi lưu NFC UID');
-                        } finally {
-                          setNfcSaving(false);
-                        }
+                        setLocalNfcTagUid(data.uid);
+                        dispatch({
+                          type: actions.UPDATE_SEAT,
+                          payload: { ...selectedData, nfcTagUid: data.uid }
+                        });
+                        dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+                        setNfcSaving(false);
                       } else {
                         setNfcError(data.error || 'Không đọc được thẻ NFC');
                       }
@@ -1395,35 +1320,37 @@ function PropertiesPanel() {
             </div>
           </>
         )}
-      </div>
 
-      {/* Footer - Delete Button */}
-      <div style={{
-        padding: '16px',
-        borderTop: '1px solid #E2E8F0',
-        background: '#F8FAFC'
-      }}>
-        <button
-          onClick={handleDelete}
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '12px',
-            border: '2px solid #FECACA',
-            background: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
-            color: '#DC2626',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
-        </button>
+        {/* Delete Button - inside scrollable content */}
+        <div style={{
+          marginTop: '12px',
+          padding: '12px',
+          borderTop: '1px solid #E2E8F0',
+          background: '#F8FAFC',
+          borderRadius: '12px',
+        }}>
+          <button
+            onClick={handleDelete}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '12px',
+              border: '2px solid #FECACA',
+              background: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+              color: '#DC2626',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            Xóa {selectedItem.type === 'area' ? 'phòng' : selectedItem.type === 'zone' ? 'khu vực' : selectedItem.type === 'seat' ? 'ghế' : 'vật cản'}
+          </button>
+        </div>
       </div>
 
       {/* Add Amenity Modal */}
@@ -1544,7 +1471,7 @@ function PropertiesPanel() {
                 {selectedItem.type === 'area' && (() => {
                   const areaZones = zones.filter(z => z.areaId === selectedItem.id);
                   const areaSeats = seats.filter(s => areaZones.some(z => z.zoneId === s.zoneId));
-                  return `Xóa phòng sẽ xóa ${areaZones.length} khu vực và ${areaSeats.length} ghế bên trong! Thay đổi chỉ được lưu khi bấm nút Lưu.`;
+                  return `Xóa phòng sẽ xóa ${areaZones.length} khu vực và ${areaSeats.length} ghế bên trong. Thay đổi chỉ được ghi khi bấm nút Lưu.`;
                 })()}
                 {selectedItem.type === 'zone' && (() => {
                   const zoneSeats = seats.filter(s => s.zoneId === selectedItem.id);

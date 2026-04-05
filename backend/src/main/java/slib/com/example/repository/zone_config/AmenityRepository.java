@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface AmenityRepository extends JpaRepository<AmenityEntity, Integer> {
     List<AmenityEntity> findByZone_ZoneId(Integer zoneId);
+
+    void deleteByZone_ZoneId(Integer zoneId);
 }

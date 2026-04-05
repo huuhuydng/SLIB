@@ -1,26 +1,23 @@
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
+import { useConfirm } from "../../common/ConfirmDialog";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
 import {
-  createAreaFactoryInArea,
-  createSeat,
-  createZone,
-  deleteAreaFactory,
-  deleteSeat,
-  deleteZone,
-  getAreas,
-  updateAreaFactory,
-  updateSeat,
-  updateZone,
-  updateZonePositionAndDimensions,
+  discardLayoutDraft,
+  getLayoutDraft,
+  getLayoutHistory,
+  publishLayoutSnapshot,
+  saveLayoutDraft,
+  validateLayoutSnapshot,
 } from "../../../services/admin/area_management/api";
 import { clearAllPositionCache } from "../../../utils/positionCache";
 import "../../../styles/admin/canvas.css";
 
 function CanvasBoard() {
   const toast = useToast();
+  const { confirm } = useConfirm();
   const { state, dispatch, actions } = useLayout();
   const { areas, zones, seats, factories, canvas, selectedAreaId, selectedItem, selectedItems, hasUnsavedChanges, isSaving, isPreviewMode } = state;
 
@@ -36,54 +33,197 @@ function CanvasBoard() {
   const [panMode, setPanMode] = useState(false);
   const [didAutoFit, setDidAutoFit] = useState(false);
   const [spacePressed, setSpacePressed] = useState(false);
+  const [draftMeta, setDraftMeta] = useState(null);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [validationConflicts, setValidationConflicts] = useState([]);
+  const [showConflictPanel, setShowConflictPanel] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+
+  const formatDraftMetaTime = (value) => {
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  };
+
+  const hydrateLayoutSnapshot = useCallback((snapshot) => {
+    const areasRaw = Array.isArray(snapshot?.areas) ? snapshot.areas : [];
+    const zonesRaw = Array.isArray(snapshot?.zones) ? snapshot.zones : [];
+    const seatsRaw = Array.isArray(snapshot?.seats) ? snapshot.seats : [];
+    const factoriesRaw = Array.isArray(snapshot?.factories) ? snapshot.factories : [];
+
+    const areasNormalized = areasRaw.map((a) => ({
+      areaId: a.area_id ?? a.areaId,
+      areaName: a.area_name ?? a.areaName,
+      positionX: a.position_x ?? a.positionX ?? 0,
+      positionY: a.position_y ?? a.positionY ?? 0,
+      width: a.width ?? 300,
+      height: a.height ?? 250,
+      locked: a.locked ?? a.is_locked ?? false,
+      isActive: a.is_active ?? a.isActive ?? true,
+    }));
+    const zonesNormalized = zonesRaw.map((z) => ({
+      zoneId: z.zone_id ?? z.zoneId,
+      zoneName: z.zone_name ?? z.zoneName,
+      zoneDes: z.zone_des ?? z.zoneDes ?? "",
+      areaId: z.area_id ?? z.areaId,
+      positionX: z.position_x ?? z.positionX ?? 0,
+      positionY: z.position_y ?? z.positionY ?? 0,
+      width: z.width ?? 120,
+      height: z.height ?? 100,
+      color: z.color ?? "#9CA3AF",
+      isLocked: z.is_locked ?? z.isLocked ?? false,
+      amenities: Array.isArray(z.amenities) ? z.amenities.map((a) => ({
+        amenityId: a.amenity_id ?? a.amenityId,
+        zoneId: a.zone_id ?? a.zoneId ?? (z.zone_id ?? z.zoneId),
+        amenityName: a.amenity_name ?? a.amenityName ?? "",
+      })) : [],
+    }));
+    const seatsNormalized = seatsRaw.map((s) => ({
+      seatId: s.seat_id ?? s.seatId,
+      zoneId: s.zone_id ?? s.zoneId,
+      seatCode: s.seat_code ?? s.seatCode,
+      width: s.width ?? 30,
+      height: s.height ?? 30,
+      rowNumber: s.row_number ?? s.rowNumber,
+      columnNumber: s.column_number ?? s.columnNumber,
+      positionX: s.position_x ?? s.positionX ?? 0,
+      positionY: s.position_y ?? s.positionY ?? 0,
+      isActive: (s.is_active ?? s.isActive) ?? true,
+      nfcTagUid: s.nfc_tag_uid ?? s.nfcTagUid ?? "",
+      seatStatus: s.seat_status ?? s.seatStatus ?? "AVAILABLE",
+    }));
+    const factoriesNormalized = factoriesRaw.map((f) => ({
+      factoryId: f.factory_id ?? f.factoryId,
+      factoryName: f.factory_name ?? f.factoryName,
+      positionX: f.position_x ?? f.positionX ?? 0,
+      positionY: f.position_y ?? f.positionY ?? 0,
+      width: f.width ?? 120,
+      height: f.height ?? 80,
+      color: f.color ?? "#9CA3AF",
+      areaId: f.area_id ?? f.areaId,
+      isLocked: f.is_locked ?? f.isLocked ?? false,
+    }));
+
+    dispatch({ type: actions.SET_ZONES, payload: zonesNormalized });
+    dispatch({ type: actions.SET_SEATS, payload: seatsNormalized });
+    dispatch({ type: actions.SET_FACTORIES, payload: factoriesNormalized });
+    dispatch({ type: actions.SET_LAYOUT_HYDRATED, payload: true });
+    dispatch({ type: actions.SET_AREAS, payload: areasNormalized });
+    dispatch({
+      type: actions.SELECT_AREA,
+      payload: areasNormalized[0]?.areaId ?? null,
+    });
+  }, [dispatch, actions]);
+
+  const buildLayoutSnapshot = useCallback(() => ({
+    basedOnPublishedVersion: draftMeta?.basedOnPublishedVersion ?? 0,
+    areas: areas.map((area) => ({
+      areaId: area.areaId,
+      areaName: area.areaName,
+      width: Math.round(area.width ?? 300),
+      height: Math.round(area.height ?? 250),
+      positionX: Math.round(area.positionX ?? 0),
+      positionY: Math.round(area.positionY ?? 0),
+      isActive: area.isActive ?? true,
+      locked: area.locked ?? false,
+    })),
+    zones: zones.map((zone) => ({
+      zoneId: zone.zoneId,
+      zoneName: zone.zoneName,
+      zoneDes: zone.zoneDes ?? "",
+      areaId: zone.areaId,
+      positionX: Math.round(zone.positionX ?? 0),
+      positionY: Math.round(zone.positionY ?? 0),
+      width: Math.round(zone.width ?? 120),
+      height: Math.round(zone.height ?? 100),
+      isLocked: zone.isLocked ?? false,
+      amenities: Array.isArray(zone.amenities)
+        ? zone.amenities.map((amenity) => ({
+            amenityId: amenity.amenityId,
+            zoneId: zone.zoneId,
+            amenityName: amenity.amenityName,
+          }))
+        : [],
+    })),
+    seats: seats.map((seat) => ({
+      seatId: seat.seatId,
+      zoneId: seat.zoneId,
+      seatCode: seat.seatCode,
+      rowNumber: seat.rowNumber,
+      columnNumber: seat.columnNumber,
+      isActive: seat.isActive ?? true,
+      nfcTagUid: seat.nfcTagUid ?? null,
+    })),
+    factories: factories.map((factory) => ({
+      factoryId: factory.factoryId,
+      factoryName: factory.factoryName,
+      areaId: factory.areaId,
+      positionX: Math.round(factory.positionX ?? 0),
+      positionY: Math.round(factory.positionY ?? 0),
+      width: Math.round(factory.width ?? 120),
+      height: Math.round(factory.height ?? 80),
+      isLocked: factory.isLocked ?? false,
+    })),
+  }), [areas, zones, seats, factories, draftMeta?.basedOnPublishedVersion]);
+
+  const loadHistoryFeed = useCallback(async () => {
+    try {
+      const res = await getLayoutHistory(20);
+      setHistoryItems(Array.isArray(res?.data) ? res.data : []);
+    } catch (error) {
+      console.error("Không thể tải lịch sử sơ đồ", error);
+    }
+  }, []);
+
+  const loadDraftSnapshot = useCallback(async () => {
+    const [draftRes] = await Promise.all([
+      getLayoutDraft(),
+      loadHistoryFeed(),
+    ]);
+
+    setDraftMeta(draftRes?.data ?? null);
+    hydrateLayoutSnapshot(draftRes?.data?.snapshot ?? {});
+    dispatch({ type: actions.MARK_SAVED });
+    setValidationConflicts([]);
+    setShowConflictPanel(false);
+    clearAllPositionCache();
+    return draftRes?.data ?? null;
+  }, [actions, dispatch, hydrateLayoutSnapshot, loadHistoryFeed]);
 
   // ===== FIGMA-STYLE LOADING =====
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
-  const [isCanvasReady, setIsCanvasReady] = useState(false);
-
   /* =============================
      LOAD AREA FROM BACKEND
   ============================== */
   useEffect(() => {
     setIsLoadingAreas(true);
-    setIsCanvasReady(false);
     setDidAutoFit(false);
+    dispatch({ type: actions.SET_ZOOM, payload: 1 });
+    dispatch({ type: actions.SET_PAN, payload: { x: 0, y: 0 } });
 
     (async () => {
       try {
-        const res = await getAreas();
-        const raw = Array.isArray(res?.data) ? res.data : [];
-        const areasNormalized = raw.map((a) => ({
-          areaId: a.area_id ?? a.areaId,
-          areaName: a.area_name ?? a.areaName,
-          positionX: a.position_x ?? a.positionX ?? 0,
-          positionY: a.position_y ?? a.positionY ?? 0,
-          width: a.width ?? 300,
-          height: a.height ?? 250,
-          locked: a.locked ?? a.is_locked ?? false,
-          isActive: a.is_active ?? a.isActive ?? true,
-        }));
-
-        if (areasNormalized.length > 0) {
-          dispatch({
-            type: actions.SET_AREAS,
-            payload: areasNormalized,
-          });
-          dispatch({
-            type: actions.SELECT_AREA,
-            payload: areasNormalized[0].areaId,
-          });
-        } else {
-          dispatch({ type: actions.SET_AREAS, payload: [] });
-        }
+        await loadDraftSnapshot();
       } catch (err) {
         console.error("Load areas failed", err);
         dispatch({ type: actions.SET_AREAS, payload: [] });
+        dispatch({ type: actions.SET_ZONES, payload: [] });
+        dispatch({ type: actions.SET_SEATS, payload: [] });
+        dispatch({ type: actions.SET_FACTORIES, payload: [] });
+        dispatch({ type: actions.SET_LAYOUT_HYDRATED, payload: false });
       } finally {
         setIsLoadingAreas(false);
       }
     })();
-  }, []);
+  }, [dispatch, actions, loadDraftSnapshot]);
 
   /* =============================
      ZOOM
@@ -295,6 +435,8 @@ function CanvasBoard() {
   /* =============================
      FIT TO VIEW
   ============================== */
+  const isCanvasReady = !isLoadingAreas;
+
   const handleFitToView = () => {
     if (!areas.length || !boardRef.current) return;
 
@@ -312,13 +454,13 @@ function CanvasBoard() {
       maxY = Math.max(maxY, (a.positionY || 0) + (a.height || 250));
     });
 
-    const contentW = maxX - minX + 100;
-    const contentH = maxY - minY + 100;
+    const contentW = maxX - minX + 160;
+    const contentH = maxY - minY + 160;
 
     const scale = Math.min(
       boardRect.width / contentW,
       boardRect.height / contentH,
-      1
+      0.9
     );
 
     const centerX = (minX + maxX) / 2;
@@ -334,282 +476,171 @@ function CanvasBoard() {
     });
   };
 
-  // Auto fit once when areas are loaded/changed, then mark canvas as ready
-  useEffect(() => {
-    if (!didAutoFit && !isLoadingAreas && areas && areas.length > 0 && boardRef.current) {
-      // Use requestAnimationFrame to ensure DOM is ready
+  // Auto fit once when areas are loaded/changed.
+  useLayoutEffect(() => {
+    if (!isLoadingAreas && areas && areas.length === 0) return;
+
+    if (didAutoFit || isLoadingAreas || !areas?.length || !boardRef.current) return;
+
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         handleFitToView();
         setDidAutoFit(true);
 
-        // Wait a bit more for all Area components to load their zones
-        // then mark canvas as ready
-        setTimeout(() => {
-          setIsCanvasReady(true);
-        }, 300);
+        // Fit once more after the first paint to avoid stale measurements.
+        requestAnimationFrame(() => {
+          handleFitToView();
+        });
       });
-    } else if (!isLoadingAreas && areas && areas.length === 0) {
-      // No areas - still mark as ready
-      setIsCanvasReady(true);
-    }
+    });
   }, [areas, didAutoFit, isLoadingAreas]);
+
+  useEffect(() => {
+    if (!didAutoFit) return;
+    const onResize = () => handleFitToView();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [didAutoFit, areas]);
 
   // Calculate statistics
   const totalSeats = seats.length;
   const activeSeats = seats.filter(s => s.isActive !== false).length;
   const totalZones = zones.length;
+  const extractValidationPayload = (error) =>
+    error?.response?.data?.validation || error?.response?.data;
 
-  // Handle Save - batch save all changes to API
-  const handleSave = async () => {
+  const runValidation = useCallback(async (snapshot) => {
+    try {
+      const res = await validateLayoutSnapshot(snapshot);
+      return res.data;
+    } catch (error) {
+      const validationPayload = extractValidationPayload(error);
+      if (validationPayload?.conflicts) {
+        return validationPayload;
+      }
+      throw error;
+    }
+  }, []);
+
+  const handleSaveDraft = useCallback(async () => {
     if (!hasUnsavedChanges || isSaving) return;
 
     dispatch({ type: actions.SET_SAVING, payload: true });
-
     try {
-      const { pendingChanges } = state;
+      const snapshot = buildLayoutSnapshot();
+      const validation = await runValidation(snapshot);
+      if (!validation?.valid) {
+        setValidationConflicts(validation?.conflicts || []);
+        setShowConflictPanel(true);
+        dispatch({ type: actions.SET_SAVING, payload: false });
+        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể lưu nháp`);
+        return;
+      }
 
-      // 1. Create new zones FIRST (pending with negative IDs)
-      // Zones must be created before seats that belong to them
-      const zoneIdMapping = new Map(); // tempId -> realId
-      const newZonePromises = (pendingChanges?.newZones || []).map(async (zone) => {
-        try {
-          // Get current zone data from UI state (user may have changed name/position after creating)
-          const currentZone = zones.find(z => z.zoneId === zone.zoneId);
-          const finalZoneName = currentZone?.zoneName ?? zone.zoneName;
-          const finalColor = currentZone?.color ?? zone.color;
+      const res = await saveLayoutDraft(snapshot);
+      setDraftMeta(res?.data ?? null);
+      await loadHistoryFeed();
+      dispatch({ type: actions.MARK_SAVED });
+      toast.success("Đã lưu nháp sơ đồ thư viện");
+    } catch (error) {
+      console.error("Save draft failed:", error);
+      dispatch({ type: actions.SET_SAVING, payload: false });
+      const validation = extractValidationPayload(error);
+      if (validation?.conflicts) {
+        setValidationConflicts(validation.conflicts);
+        setShowConflictPanel(true);
+      }
+      toast.error(error?.response?.data?.message || "Không thể kiểm tra và lưu nháp sơ đồ");
+    }
+  }, [actions, buildLayoutSnapshot, dispatch, hasUnsavedChanges, isSaving, loadHistoryFeed, runValidation, toast]);
 
-          // Create zone with initial values
-          const res = await createZone({
-            zoneName: finalZoneName,
-            areaId: zone.areaId,
-            positionX: 0,  // Default, will update with actual position below
-            positionY: 0,
-            width: 120,
-            height: 100,
-            color: finalColor,
-          });
-          const realId = res.data?.zone_id ?? res.data?.zoneId;
+  const handlePublish = useCallback(async () => {
+    if (isPublishing || isSaving) return;
 
-          // Store mapping for seats that reference this zone
-          zoneIdMapping.set(zone.zoneId, realId);
+    setIsPublishing(true);
+    try {
+      const snapshot = buildLayoutSnapshot();
+      const validation = await runValidation(snapshot);
+      if (!validation?.valid) {
+        setValidationConflicts(validation?.conflicts || []);
+        setShowConflictPanel(true);
+        setIsPublishing(false);
+        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể xuất bản`);
+        return;
+      }
 
-          // Get current position/size from UI state
-          const finalPositionX = currentZone?.positionX ?? zone.positionX ?? 0;
-          const finalPositionY = currentZone?.positionY ?? zone.positionY ?? 0;
-          const finalWidth = currentZone?.width ?? zone.width ?? 120;
-          const finalHeight = currentZone?.height ?? zone.height ?? 100;
-
-          // Update position/size in BE with user's actual values
-          await updateZonePositionAndDimensions(realId, {
-            positionX: Math.round(finalPositionX),
-            positionY: Math.round(finalPositionY),
-            width: Math.round(finalWidth),
-            height: Math.round(finalHeight),
-          });
-
-          // Replace temp zone with real zone (using temp ID to find it)
-          dispatch({
-            type: actions.REPLACE_ZONE_BY_TEMP_ID,
-            payload: {
-              tempId: zone.zoneId,
-              realZone: {
-                ...zone,
-                zoneId: realId,
-                positionX: finalPositionX,
-                positionY: finalPositionY,
-                width: finalWidth,
-                height: finalHeight,
-                isPending: false,
-              },
-            },
-          });
-          return { tempId: zone.zoneId, realId };
-        } catch (e) {
-          console.error(`Failed to create zone ${zone.zoneName}:`, e);
-          return null;
-        }
-      });
-
-      // 2. Create new factories (pending with negative IDs) - can run in parallel with zones
-      const newFactoryPromises = (pendingChanges?.newFactories || []).map(async (factory) => {
-        try {
-          // Get current factory data from UI state (user may have changed name/position after creating)
-          const currentFactory = factories.find(f => f.factoryId === factory.factoryId);
-          const finalFactoryName = currentFactory?.factoryName ?? factory.factoryName;
-          const finalColor = currentFactory?.color ?? factory.color;
-
-          // Create factory with initial values
-          const res = await createAreaFactoryInArea(factory.areaId, {
-            factoryName: finalFactoryName,
-            positionX: 0,  // Default, will update with actual position below
-            positionY: 0,
-            width: 120,
-            height: 80,
-            color: finalColor,
-          });
-          const realId = res.data?.factory_id ?? res.data?.factoryId;
-
-          // Get current position/size from UI state
-          const finalPositionX = currentFactory?.positionX ?? factory.positionX ?? 0;
-          const finalPositionY = currentFactory?.positionY ?? factory.positionY ?? 0;
-          const finalWidth = currentFactory?.width ?? factory.width ?? 120;
-          const finalHeight = currentFactory?.height ?? factory.height ?? 80;
-
-          // Update position/size in BE with user's actual values
-          await updateAreaFactory(realId, {
-            factoryId: realId,
-            factoryName: finalFactoryName,
-            positionX: Math.round(finalPositionX),
-            positionY: Math.round(finalPositionY),
-            width: Math.round(finalWidth),
-            height: Math.round(finalHeight),
-            color: finalColor,
-            areaId: factory.areaId,
-          });
-
-          // Replace temp factory with real factory (using temp ID to find it)
-          dispatch({
-            type: actions.REPLACE_FACTORY_BY_TEMP_ID,
-            payload: {
-              tempId: factory.factoryId,
-              realFactory: {
-                ...factory,
-                factoryId: realId,
-                positionX: finalPositionX,
-                positionY: finalPositionY,
-                width: finalWidth,
-                height: finalHeight,
-                isPending: false,
-              },
-            },
-          });
-          return { tempId: factory.factoryId, realId };
-        } catch (e) {
-          console.error(`Failed to create factory ${factory.factoryName}:`, e);
-          return null;
-        }
-      });
-
-      // Wait for zones and factories to be created first
-      await Promise.all([...newZonePromises, ...newFactoryPromises]);
-
-      // 3. Create new seats AFTER zones (so we can map pending zoneIds to real IDs)
-      const newSeatPromises = (pendingChanges?.newSeats || []).map(async (seat) => {
-        try {
-          // Map zoneId: if seat belongs to a pending zone, use the real ID
-          const realZoneId = seat.zoneId < 0 ? zoneIdMapping.get(seat.zoneId) : seat.zoneId;
-
-          if (!realZoneId) {
-            console.error(`Cannot create seat ${seat.seatCode}: zoneId ${seat.zoneId} not found in mapping`);
-            return null;
-          }
-
-          const res = await createSeat({
-            seatCode: seat.seatCode,
-            zoneId: realZoneId,  // Use mapped real zoneId
-            rowNumber: seat.rowNumber,
-            columnNumber: seat.columnNumber,
-            seatStatus: seat.seatStatus || 'AVAILABLE',
-          });
-          // Build real seat from API response
-          const realSeat = {
-            seatId: res.data?.seat_id ?? res.data?.seatId,
-            seatCode: res.data?.seat_code ?? res.data?.seatCode ?? seat.seatCode,
-            zoneId: res.data?.zone_id ?? res.data?.zoneId ?? realZoneId,
-            rowNumber: res.data?.row_number ?? res.data?.rowNumber ?? seat.rowNumber,
-            columnNumber: res.data?.column_number ?? res.data?.columnNumber ?? seat.columnNumber,
-            seatStatus: res.data?.seat_status ?? res.data?.seatStatus ?? seat.seatStatus ?? 'AVAILABLE',
-          };
-          // Replace temp seat with real seat
-          dispatch({
-            type: actions.REPLACE_SEAT_BY_TEMP_ID,
-            payload: { tempId: seat.seatId, realSeat },
-          });
-          return { tempId: seat.seatId, realId: realSeat.seatId };
-        } catch (e) {
-          console.error(`Failed to create seat ${seat.seatCode}:`, e);
-          return null;
-        }
-      });
-
-      // Wait for seats to be created
-      await Promise.all(newSeatPromises);
-
-      // 3. Update existing zones (those with positive IDs)
-      const existingZones = zones.filter(z => z.zoneId > 0 && !z.isPending);
-      const updateZonePromises = existingZones.map(zone =>
-        updateZone(zone.zoneId, {
-          zoneName: zone.zoneName,
-          positionX: Math.round(zone.positionX || 0),
-          positionY: Math.round(zone.positionY || 0),
-          width: Math.round(zone.width || 250),
-          height: Math.round(zone.height || 200),
-          color: zone.color,
-        }).catch(e => console.error(`Failed to update zone ${zone.zoneId}:`, e))
-      );
-
-      // 4. Update existing factories (those with positive IDs)
-      const existingFactories = factories.filter(f => f.factoryId > 0 && !f.isPending);
-      const updateFactoryPromises = existingFactories.map(factory =>
-        updateAreaFactory(factory.factoryId, {
-          factoryId: factory.factoryId,
-          factoryName: factory.factoryName,
-          positionX: factory.positionX,
-          positionY: factory.positionY,
-          width: factory.width,
-          height: factory.height,
-          color: factory.color,
-          areaId: factory.areaId,
-        }).catch(e => console.error(`Failed to update factory ${factory.factoryId}:`, e))
-      );
-
-      // 5. Delete pending deleted seats
-      const deletePromises = (pendingChanges?.deletedSeats || []).map(seatId =>
-        deleteSeat(seatId).catch(e => console.error(`Failed to delete seat ${seatId}:`, e))
-      );
-
-      // 6. Delete zones marked for deletion
-      const deleteZonePromises = (pendingChanges?.deletedZones || []).map(zoneId =>
-        deleteZone(zoneId).catch(e => console.error(`Failed to delete zone ${zoneId}:`, e))
-      );
-
-      // 7. Delete factories marked for deletion
-      const deleteFactoryPromises = (pendingChanges?.deletedFactories || []).map(factoryId =>
-        deleteAreaFactory(factoryId).catch(e => console.error(`Failed to delete factory ${factoryId}:`, e))
-      );
-
-      // 6. Update pending updated seats
-      const updateSeatPromises = (pendingChanges?.updatedSeats || []).map(seat =>
-        updateSeat(seat.seatId, {
-          seatId: seat.seatId,
-          seatCode: seat.seatCode,
-          columnNumber: seat.columnNumber,
-          positionX: seat.positionX,
-          rowNumber: seat.rowNumber,
-        }).catch(e => console.error(`Failed to update seat ${seat.seatId}:`, e))
-      );
-
-      await Promise.all([
-        ...updateZonePromises,
-        ...updateFactoryPromises,
-        ...deletePromises,
-        ...deleteZonePromises,
-        ...deleteFactoryPromises,
-        ...updateSeatPromises,
-      ]);
-
-      // Clear position cache after successful save
+      const res = await publishLayoutSnapshot(snapshot);
+      hydrateLayoutSnapshot(res?.data?.snapshot ?? {});
       clearAllPositionCache();
       dispatch({ type: actions.MARK_SAVED });
+      setDraftMeta({
+        hasDraft: false,
+        basedOnPublishedVersion: res?.data?.publishedVersion,
+        updatedByName: res?.data?.publishedByName,
+        updatedAt: new Date().toISOString(),
+        snapshot: res?.data?.snapshot,
+      });
+      await loadHistoryFeed();
+      toast.success(`Đã xuất bản sơ đồ thư viện, phiên bản ${res?.data?.publishedVersion}`);
     } catch (error) {
-      console.error('Failed to save:', error);
-      toast.error('Lưu thất bại: ' + (error.response?.data?.message || error.message));
-      dispatch({ type: actions.SET_SAVING, payload: false });
+      console.error("Publish layout failed:", error);
+      if (error?.response?.data?.error === 'LAYOUT_VERSION_CONFLICT') {
+        const shouldReload = await confirm({
+          title: "Sơ đồ đã có phiên bản mới",
+          message: "Một người khác đã xuất bản sơ đồ mới trong lúc anh đang chỉnh sửa. Tải lại để lấy phiên bản mới nhất ngay bây giờ?",
+          confirmText: "Tải lại",
+          variant: "warning",
+        });
+        if (shouldReload) {
+          await loadDraftSnapshot();
+          toast.info("Đã tải lại sơ đồ mới nhất từ hệ thống");
+        }
+        return;
+      }
+      const validation = extractValidationPayload(error);
+      if (validation?.conflicts) {
+        setValidationConflicts(validation.conflicts);
+        setShowConflictPanel(true);
+      }
+      toast.error(error?.response?.data?.message || "Không thể kiểm tra và xuất bản sơ đồ");
+    } finally {
+      setIsPublishing(false);
     }
-  };
+  }, [actions, buildLayoutSnapshot, confirm, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadDraftSnapshot, loadHistoryFeed, runValidation, toast]);
 
-  // Store handleSave in ref for keyboard shortcut access
-  handleSaveRef.current = handleSave;
+  const handleDiscardDraft = useCallback(async () => {
+    if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing) return;
+
+    const confirmed = await confirm({
+      title: "Bỏ nháp sơ đồ",
+      message: hasUnsavedChanges
+        ? "Nháp hiện tại và cả thay đổi chưa lưu sẽ bị hủy. Bạn có chắc muốn quay về bản xuất bản không?"
+        : "Bạn có chắc muốn bỏ nháp hiện tại và quay về bản xuất bản không?",
+      confirmText: "Bỏ nháp",
+      variant: "danger",
+    });
+    if (!confirmed) return;
+
+    setIsDiscarding(true);
+    try {
+      const res = await discardLayoutDraft();
+      hydrateLayoutSnapshot(res?.data?.snapshot ?? {});
+      clearAllPositionCache();
+      dispatch({ type: actions.MARK_SAVED });
+      setValidationConflicts([]);
+      setShowConflictPanel(false);
+      setDraftMeta(res?.data ?? null);
+      await loadHistoryFeed();
+      toast.success("Đã bỏ nháp và quay về bản xuất bản");
+    } catch (error) {
+      console.error("Discard draft failed:", error);
+      toast.error(error?.response?.data?.message || "Không thể bỏ nháp sơ đồ");
+    } finally {
+      setIsDiscarding(false);
+    }
+  }, [actions, confirm, dispatch, draftMeta?.hasDraft, hasUnsavedChanges, hydrateLayoutSnapshot, isDiscarding, isPublishing, isSaving, loadHistoryFeed, toast]);
+
+  handleSaveRef.current = handleSaveDraft;
 
   return (
     <main className="canvas-container" ref={containerRef}>
@@ -689,162 +720,159 @@ function CanvasBoard() {
           <span style={{ color: '#CBD5E1' }}>|</span>
           <span><strong>{totalZones}</strong> Khu vực</span>
           <span style={{ color: '#CBD5E1' }}>|</span>
-          <span><strong>{activeSeats}/{totalSeats}</strong> Ghế</span>
+          <span><strong>{activeSeats}/{totalSeats}</strong> ghế hoạt động</span>
         </div>
 
         {/* Right: Tools */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Pan Mode - only show in edit mode */}
-          {!isPreviewMode && (
+          {draftMeta && (
+            <div style={{
+              padding: '8px 10px',
+              borderRadius: '12px',
+              background: draftMeta.hasDraft ? '#FFF7ED' : '#F8FAFC',
+              border: `1px solid ${draftMeta.hasDraft ? '#FDBA74' : '#E2E8F0'}`,
+              color: '#475569',
+              fontSize: '11px',
+              lineHeight: 1.25,
+              minWidth: '152px',
+              maxWidth: '200px',
+            }}>
+              <div style={{
+                fontWeight: 700,
+                color: '#1F2937',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                marginBottom: '2px',
+              }}>
+                {draftMeta.hasDraft ? 'Nháp cá nhân' : 'Đang xem bản xuất bản'}
+              </div>
+              <div style={{
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {draftMeta.hasDraft
+                  ? `Nháp của bạn${formatDraftMetaTime(draftMeta.updatedAt) ? ` · ${formatDraftMetaTime(draftMeta.updatedAt)}` : ''}`
+                  : `Phiên bản ${draftMeta.basedOnPublishedVersion ?? 0}`}
+              </div>
+            </div>
+          )}
+
+          <div style={{ position: 'relative' }}>
             <button
-              onClick={() => setPanMode(!panMode)}
-              title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
+              onClick={() => setShowHistoryPanel((prev) => !prev)}
+              title="Xem lịch sử thay đổi sơ đồ"
               style={{
-                width: '40px',
-                height: '40px',
+                padding: '8px 14px',
                 borderRadius: '10px',
-                border: panMode ? '2px solid #3B82F6' : '2px solid #E2E8F0',
-                background: panMode
-                  ? 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)'
-                  : 'white',
+                border: showHistoryPanel ? '2px solid #F97316' : '2px solid #E2E8F0',
+                background: showHistoryPanel ? '#FFF7ED' : 'white',
+                color: '#334155',
                 cursor: 'pointer',
-                fontSize: '16px',
+                fontSize: '13px',
+                fontWeight: '600',
+              }}
+            >
+              Lịch sử
+            </button>
+
+            {showHistoryPanel && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 12px)',
+                right: 0,
+                width: '420px',
+                maxWidth: 'min(420px, calc(100vw - 180px))',
+                maxHeight: '60vh',
+                overflow: 'auto',
+                zIndex: 180,
+                background: 'white',
+                border: '1px solid #E2E8F0',
+                borderRadius: '18px',
+                boxShadow: '0 20px 60px rgba(15, 23, 42, 0.16)',
+                padding: '18px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>Lịch sử thay đổi sơ đồ</div>
+                    <div style={{ fontSize: '13px', color: '#64748B' }}>Theo dõi ai sửa gì và thời điểm xuất bản</div>
+                  </div>
+                  <button onClick={() => setShowHistoryPanel(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}>
+                    Đóng
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {historyItems.length === 0 && (
+                    <div style={{ padding: '14px', borderRadius: '12px', background: '#F8FAFC', color: '#475569' }}>
+                      Chưa có lịch sử thay đổi sơ đồ.
+                    </div>
+                  )}
+                  {historyItems.map((item) => (
+                    <div key={item.historyId} style={{ padding: '12px 14px', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+                          {item.actionType === 'PUBLISH'
+                            ? 'Xuất bản sơ đồ'
+                            : item.actionType === 'DISCARD_DRAFT'
+                              ? 'Bỏ nháp sơ đồ'
+                              : 'Lưu nháp sơ đồ'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748B' }}>
+                          {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '4px' }}>{item.summary}</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>
+                        {item.createdByName ? `Người thao tác: ${item.createdByName}` : 'Không rõ người thao tác'}
+                        {item.publishedVersion ? ` · Phiên bản ${item.publishedVersion}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Save Button */}
+          {draftMeta?.hasDraft && (
+            <button
+              onClick={handleDiscardDraft}
+              disabled={isDiscarding || isSaving || isPublishing}
+              title="Bỏ nháp hiện tại và quay về bản xuất bản"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #FECACA',
+                background: isDiscarding ? '#FEF2F2' : '#FFF7F7',
+                color: '#B91C1C',
+                cursor: isDiscarding || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
                 transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: panMode ? '#1E40AF' : '#64748B'
+                gap: '6px',
+                opacity: isDiscarding ? 0.8 : 1,
               }}
             >
-              ☰
+              {isDiscarding ? 'Đang bỏ nháp...' : 'Bỏ nháp'}
             </button>
           )}
 
-          {/* Zoom Controls */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            backgroundColor: '#F1F5F9',
-            borderRadius: '10px',
-            padding: '4px'
-          }}>
-            <button
-              onClick={handleZoomOut}
-              title="Thu nhỏ"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#64748B',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-              }}
-            >
-              −
-            </button>
-
-            <span style={{
-              minWidth: '60px',
-              textAlign: 'center',
-              fontSize: '13px',
-              fontWeight: '700',
-              color: '#1F2937'
-            }}>
-              {Math.round(canvas.zoom * 100)}%
-            </span>
-
-            <button
-              onClick={handleZoomIn}
-              title="Phóng to"
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'white',
-                cursor: 'pointer',
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#64748B',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-              }}
-            >
-              +
-            </button>
-          </div>
-
-          {/* Fit to View */}
           <button
-            onClick={handleFitToView}
-            title="Vừa với màn hình"
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: '2px solid #E2E8F0',
-              background: 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#64748B'
-            }}
-          >
-            ⬜
-          </button>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
-            title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: state.isCanvasFullscreen ? '2px solid #EF4444' : '2px solid #E2E8F0',
-              background: state.isCanvasFullscreen
-                ? 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)'
-                : 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: state.isCanvasFullscreen ? '#DC2626' : '#64748B'
-            }}
-          >
-            {state.isCanvasFullscreen ? '✕' : '⛶'}
-          </button>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
+            onClick={handleSaveDraft}
             disabled={!hasUnsavedChanges || isSaving}
-            title={hasUnsavedChanges ? "Lưu thay đổi" : "Không có thay đổi"}
+            title={hasUnsavedChanges ? "Lưu nháp thay đổi" : "Nháp hiện tại đã được lưu"}
             style={{
               padding: '8px 16px',
               borderRadius: '10px',
-              border: hasUnsavedChanges ? '2px solid #22C55E' : '2px solid #E2E8F0',
+              border: hasUnsavedChanges ? '2px solid #3B82F6' : '2px solid #BFDBFE',
               background: hasUnsavedChanges
-                ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
-                : '#F1F5F9',
-              color: hasUnsavedChanges ? 'white' : '#94A3B8',
+                ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
+                : '#EFF6FF',
+              color: hasUnsavedChanges ? 'white' : '#64748B',
               cursor: hasUnsavedChanges && !isSaving ? 'pointer' : 'not-allowed',
               fontSize: '13px',
               fontWeight: '600',
@@ -855,10 +883,86 @@ function CanvasBoard() {
               opacity: isSaving ? 0.7 : 1,
             }}
           >
-            {isSaving ? 'Đang lưu...' : hasUnsavedChanges ? 'Lưu' : 'Đã lưu'}
+            {isSaving ? 'Đang lưu nháp...' : 'Lưu nháp'}
+          </button>
+
+          <button
+            onClick={handlePublish}
+            disabled={isPublishing || isSaving}
+            title="Xuất bản sơ đồ hiện tại ra môi trường live"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: '2px solid #22C55E',
+              background: isPublishing
+                ? '#DCFCE7'
+                : 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+              color: isPublishing ? '#166534' : 'white',
+              cursor: isPublishing || isSaving ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isPublishing ? 0.8 : 1,
+            }}
+          >
+            {isPublishing ? 'Đang xuất bản...' : 'Xuất bản'}
           </button>
         </div>
       </div>
+
+      {showConflictPanel && (
+        <div style={{
+          position: 'absolute',
+          top: '86px',
+          right: '24px',
+          width: '420px',
+          maxHeight: '60vh',
+          overflow: 'auto',
+          zIndex: 150,
+          background: 'white',
+          border: '1px solid #E2E8F0',
+          borderRadius: '18px',
+          boxShadow: '0 20px 60px rgba(15, 23, 42, 0.16)',
+          padding: '18px',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A' }}>Kiểm tra xung đột sơ đồ</div>
+              <div style={{ fontSize: '13px', color: '#64748B' }}>
+                {validationConflicts.length === 0 ? 'Không phát hiện xung đột' : `Đang có ${validationConflicts.length} xung đột cần xử lý`}
+              </div>
+            </div>
+            <button onClick={() => setShowConflictPanel(false)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}>
+              Đóng
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {validationConflicts.length === 0 && (
+              <div style={{ padding: '14px', borderRadius: '12px', background: '#F0FDF4', color: '#166534', fontWeight: 600 }}>
+                Sơ đồ hiện tại không có xung đột. Anh có thể lưu nháp hoặc xuất bản.
+              </div>
+            )}
+            {validationConflicts.map((conflict, index) => (
+              <div
+                key={`${conflict.code}-${conflict.entityKey}-${index}`}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: conflict.severity === 'warning' ? '#FFFBEB' : '#FEF2F2',
+                  border: `1px solid ${conflict.severity === 'warning' ? '#FCD34D' : '#FCA5A5'}`,
+                }}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '4px' }}>{conflict.title}</div>
+                <div style={{ fontSize: '13px', color: '#475569' }}>{conflict.message}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Canvas Board */}
       <div
@@ -916,6 +1020,160 @@ function CanvasBoard() {
           width: '100%',
           height: '100%',
         }}>
+          <div style={{
+            position: 'absolute',
+            top: '18px',
+            right: '18px',
+            zIndex: 120,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            gap: '10px',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px',
+              borderRadius: '16px',
+              background: 'rgba(255, 255, 255, 0.92)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
+            }}>
+              {!isPreviewMode && (
+                <button
+                  onClick={() => setPanMode(!panMode)}
+                  aria-label={panMode ? "Tắt chế độ kéo canvas" : "Bật chế độ kéo canvas"}
+                  title={panMode ? "Tắt chế độ kéo" : "Bật chế độ kéo (Space)"}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    border: panMode ? '1px solid #93C5FD' : '1px solid #E2E8F0',
+                    background: panMode ? '#DBEAFE' : 'white',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: panMode ? '#1D4ED8' : '#64748B'
+                  }}
+                >
+                  ☰
+                </button>
+              )}
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: '#F8FAFC',
+                borderRadius: '12px',
+                padding: '4px'
+              }}>
+                <button
+                  onClick={handleZoomOut}
+                  aria-label="Thu nhỏ sơ đồ"
+                  title="Thu nhỏ"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)'
+                  }}
+                >
+                  −
+                </button>
+
+                <span style={{
+                  minWidth: '56px',
+                  textAlign: 'center',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#1F2937'
+                }}>
+                  {Math.round(canvas.zoom * 100)}%
+                </span>
+
+                <button
+                  onClick={handleZoomIn}
+                  aria-label="Phóng to sơ đồ"
+                  title="Phóng to"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#64748B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                onClick={handleFitToView}
+                aria-label="Căn sơ đồ vừa màn hình"
+                title="Vừa với màn hình"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748B'
+                }}
+              >
+                ⬜
+              </button>
+
+              <button
+                onClick={() => dispatch({ type: actions.TOGGLE_CANVAS_FULLSCREEN })}
+                aria-label={state.isCanvasFullscreen ? "Thoát toàn màn hình canvas" : "Mở toàn màn hình canvas"}
+                title={state.isCanvasFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình"}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  border: state.isCanvasFullscreen ? '1px solid #FCA5A5' : '1px solid #E2E8F0',
+                  background: state.isCanvasFullscreen ? '#FEF2F2' : 'white',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: state.isCanvasFullscreen ? '#DC2626' : '#64748B'
+                }}
+              >
+                {state.isCanvasFullscreen ? '✕' : '⛶'}
+              </button>
+            </div>
+          </div>
+
           {/* Preview Mode Banner */}
           {isPreviewMode && (
             <div style={{

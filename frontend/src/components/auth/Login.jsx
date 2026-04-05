@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import librarianService from "../../services/librarian/librarianService";
+import { consumeAuthNotice } from "../../utils/auth";
 import logo from "../../assets/logo.png";
 import "../../styles/Auth.css";
 
@@ -69,13 +70,37 @@ function Login({ onLogin, onForgotPassword }) {
     }
   }, [error]);
 
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
+  useEffect(() => {
+    const authNotice = consumeAuthNotice();
+    if (!authNotice) {
+      return;
+    }
+
+    if (authNotice.type === 'error' || authNotice.type === 'warning') {
+      setError(authNotice);
+      return;
+    }
+
+    setSuccess({
+      title: authNotice.title || 'Thao tác thành công',
+      message: authNotice.message || 'Thao tác đã được thực hiện thành công.'
+    });
+  }, []);
+
   // ============ XỬ LÝ ĐĂNG NHẬP THÀNH CÔNG ============
   const handleLoginSuccess = (role) => {
-    if (role === 'STUDENT') {
+    if (role === 'STUDENT' || role === 'TEACHER') {
       setError({
         type: 'warning',
         title: 'Không có quyền truy cập',
-        message: 'Sinh viên không được phép truy cập hệ thống quản trị. Vui lòng sử dụng ứng dụng mobile SLIB.'
+        message: 'Tài khoản người dùng thư viện không được phép truy cập hệ thống quản trị. Vui lòng sử dụng ứng dụng mobile SLIB.'
       });
       return false;
     }

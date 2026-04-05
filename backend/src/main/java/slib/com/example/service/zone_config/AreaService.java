@@ -2,19 +2,35 @@ package slib.com.example.service.zone_config;
 
 import slib.com.example.dto.zone_config.AreaResponse;
 import slib.com.example.entity.zone_config.AreaEntity;
+import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.zone_config.AreaRepository;
+import slib.com.example.repository.zone_config.AreaFactoryRepository;
+import slib.com.example.repository.zone_config.ZoneRepository;
+import slib.com.example.repository.zone_config.SeatRepository;
+import slib.com.example.repository.zone_config.AmenityRepository;
+import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.feedback.SeatStatusReportRepository;
+import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class AreaService {
 
     private final AreaRepository areaRepository;
-
+    private final ZoneRepository zoneRepository;
+    private final SeatRepository seatRepository;
+    private final AreaFactoryRepository areaFactoryRepository;
+    private final AmenityRepository amenityRepository;
+    private final ReservationRepository reservationRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
+    private final SeatViolationReportRepository seatViolationReportRepository;
     // =========================
     // GET ALL
     // =========================
@@ -154,6 +170,29 @@ public class AreaService {
     // DELETE
     // =========================
     public void deleteArea(Long id) {
+        AreaEntity area = areaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Area not found"));
+
+        if (Boolean.TRUE.equals(area.getLocked())) {
+            throw new RuntimeException("Không thể xóa phòng thư viện đang bị khóa");
+        }
+
+        List<ZoneEntity> zones = zoneRepository.findByArea_AreaId(id);
+
+        for (ZoneEntity zone : zones) {
+            var seatsInZone = seatRepository.findByZone_ZoneId(zone.getZoneId());
+            for (var seat : seatsInZone) {
+                reservationRepository.deleteBySeat_SeatId(seat.getSeatId());
+                seatStatusReportRepository.deleteBySeat_SeatId(seat.getSeatId());
+                seatViolationReportRepository.deleteBySeat_SeatId(seat.getSeatId());
+            }
+
+            amenityRepository.deleteByZone_ZoneId(zone.getZoneId());
+            seatRepository.deleteByZone_ZoneId(zone.getZoneId());
+        }
+
+        areaFactoryRepository.deleteByArea_AreaId(id);
+        zoneRepository.deleteAll(zones);
         areaRepository.deleteById(id);
     }
 

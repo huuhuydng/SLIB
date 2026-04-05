@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLIB NFC Bridge</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #faf5f0;
+      --card: #ffffff;
+      --text: #1a1a2e;
+      --muted: #7c8493;
+      --brand: #ea580c;
+      --brand-dark: #c2410c;
+      --ok: #16a34a;
+      --ok-bg: rgba(22, 163, 74, 0.08);
+      --warn: #e97a0a;
+      --warn-bg: rgba(233, 122, 10, 0.08);
+      --off: #dc2626;
+      --off-bg: rgba(220, 38, 38, 0.06);
+      --line: #f0ebe5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(ellipse at 0% 0%, rgba(234, 88, 12, 0.10), transparent 50%),
+        radial-gradient(ellipse at 100% 100%, rgba(251, 146, 60, 0.08), transparent 50%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 8px 32px rgba(0, 0, 0, 0.06);
+      border-radius: 24px;
+      padding: 28px 24px 24px;
+      -webkit-app-region: no-drag;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header__icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+    }
+
+    .header__icon svg {
+      width: 24px;
+      height: 24px;
+      color: #fff;
+    }
+
+    .header__title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+
+    .header__subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ===== STATUS SECTION ===== */
+    .status-section {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .status-indicator--ready { background: var(--ok-bg); }
+    .status-indicator--bridge-only { background: var(--warn-bg); }
+    .status-indicator--offline { background: var(--off-bg); }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .status-dot--ready {
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.15);
+    }
+
+    .status-dot--bridge-only {
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(233, 122, 10, 0.15);
+    }
+
+    .status-dot--offline {
+      background: var(--off);
+      box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+    }
+
+    .status-dot--ready::after {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 2px solid var(--ok);
+      opacity: 0;
+      animation: pulse-ring 2s ease-out infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { opacity: 0.6; transform: scale(0.8); }
+      100% { opacity: 0; transform: scale(1.6); }
+    }
+
+    .status-text {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .status-text--ready { color: var(--ok); }
+    .status-text--bridge-only { color: var(--warn); }
+    .status-text--offline { color: var(--off); }
+
+    /* ===== INFO ROWS ===== */
+    .info-rows {
+      padding: 4px 0;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 16px;
+    }
+
+    .info-row + .info-row {
+      border-top: 1px solid #f8f5f1;
+    }
+
+    .info-row__label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .info-row__value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: right;
+      word-break: break-word;
+      max-width: 60%;
+    }
+
+    /* ===== ACTIONS ===== */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      height: 44px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.6;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(234, 88, 12, 0.2);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 4px 16px rgba(234, 88, 12, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f8f5f1;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: #f0ebe5;
+      border-color: #e0dbd5;
+    }
+
+    /* ===== VERSION ===== */
+    .version {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 11px;
+      color: #b8b8c0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- Header -->
+    <div class="header">
+      <div class="header__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 8.32a7.43 7.43 0 0 1 0 7.36"/>
+          <path d="M9.46 6.21a11.76 11.76 0 0 1 0 11.58"/>
+          <path d="M12.91 4.1a15.91 15.91 0 0 1 .01 15.8"/>
+          <path d="M16.37 2a20.16 20.16 0 0 1 0 20"/>
+        </svg>
+      </div>
+      <div class="header__title">SLIB NFC Bridge</div>
+      <div class="header__subtitle">Công cụ kết nối đầu đọc NFC</div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-section">
+      <div id="statusIndicator" class="status-indicator status-indicator--offline">
+        <span id="statusDot" class="status-dot status-dot--offline"></span>
+        <span id="statusText" class="status-text status-text--offline">Đang kiểm tra...</span>
+      </div>
+      <div class="info-rows">
+        <div class="info-row">
+          <span class="info-row__label">Đầu đọc</span>
+          <span id="readerName" class="info-row__value">Chưa phát hiện</span>
+        </div>
+        <div class="info-row">
+          <span class="info-row__label">Cập nhật</span>
+          <span id="updatedAt" class="info-row__value">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button id="restartButton" class="btn-primary">Khởi động lại</button>
+      <button id="openAdminButton" class="btn-secondary">Mở trang quản lý NFC</button>
+    </div>
+
+    <div class="version">SLIB NFC Bridge v1.0</div>
+  </div>
+
+  <script>
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const readerName = document.getElementById('readerName');
+    const updatedAt = document.getElementById('updatedAt');
+    const restartButton = document.getElementById('restartButton');
+    const openAdminButton = document.getElementById('openAdminButton');
+
+    function renderStatus(status) {
+      const ready = Boolean(status?.readerConnected);
+      const online = Boolean(status?.online);
+
+      let mode = 'offline';
+      let label = 'Chưa khởi động';
+
+      if (ready) {
+        mode = 'ready';
+        label = 'Sẵn sàng quét NFC';
+      } else if (online) {
+        mode = 'bridge-only';
+        label = 'Đang chạy — chưa thấy đầu đọc';
+      }
+
+      statusIndicator.className = `status-indicator status-indicator--${mode}`;
+      statusDot.className = `status-dot status-dot--${mode}`;
+      statusText.className = `status-text status-text--${mode}`;
+      statusText.textContent = label;
+
+      readerName.textContent = status?.readerName || 'Chưa phát hiện';
+      updatedAt.textContent = status?.timestamp
+        ? new Date(status.timestamp).toLocaleString('vi-VN')
+        : '—';
+    }
+
+    async function loadStatus() {
+      const status = await window.slibNfcBridge.getStatus();
+      renderStatus(status);
+    }
+
+    restartButton.addEventListener('click', async () => {
+      restartButton.disabled = true;
+      restartButton.textContent = 'Đang khởi động lại...';
+      try {
+        const status = await window.slibNfcBridge.restart();
+        renderStatus(status);
+      } finally {
+        restartButton.disabled = false;
+        restartButton.textContent = 'Khởi động lại';
+      }
+    });
+
+    openAdminButton.addEventListener('click', async () => {
+      await window.slibNfcBridge.openAdmin();
+    });
+
+    window.slibNfcBridge.onStatusUpdated(renderStatus);
+    loadStatus();
+  </script>
+</body>
+</html>

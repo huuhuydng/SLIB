@@ -27,10 +27,12 @@ import {
   Trash2
 } from 'lucide-react';
 import hceStationService from '../../../services/admin/hceStationService';
+import { getAreas } from '../../../services/admin/area_management/api';
 import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 
 const DEVICE_TYPE_MAP = {
   ENTRY_GATE: { label: 'Cổng vào', color: '#2563EB', bg: '#DBEAFE' },
@@ -61,7 +63,11 @@ const TYPE_OPTIONS = [
 const DeviceManagement = () => {
   const [stations, setStations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [searchText, setSearchText] = useState('');
+  const [areas, setAreas] = useState([]);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -114,21 +120,46 @@ const DeviceManagement = () => {
   }, []);
 
   // Fetch stations
-  const fetchStations = useCallback(async () => {
-    setLoading(true);
+  const fetchStations = useCallback(async ({ silent = false } = {}) => {
+    if (silent) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+      setLoadError(null);
+    }
     try {
-      const data = await hceStationService.getAllStations();
-      setStations(Array.isArray(data) ? data : []);
+      const [stationData, areasRes] = await Promise.all([
+        hceStationService.getAllStations(),
+        getAreas()
+      ]);
+      setStations(Array.isArray(stationData) ? stationData : []);
+      setAreas(Array.isArray(areasRes?.data) ? areasRes.data : []);
+      setLastUpdatedAt(new Date());
     } catch (err) {
-      showToast(err.message || 'Lỗi tải danh sách trạm quét', 'error');
-      setStations([]);
+      if (!silent) {
+        const message = err.message || 'Lỗi tải danh sách trạm quét';
+        showToast(message, 'error');
+        setLoadError(message);
+        setStations([]);
+      }
     } finally {
-      setLoading(false);
+      if (silent) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, [showToast]);
 
   useEffect(() => {
     fetchStations();
+  }, [fetchStations]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      fetchStations({ silent: true });
+    }, 30000);
+    return () => window.clearInterval(intervalId);
   }, [fetchStations]);
 
   // Close filter dropdown on outside click
@@ -374,8 +405,7 @@ const DeviceManagement = () => {
     setFormLoading(true);
     try {
       const payload = { ...formData };
-      if (!payload.areaId) delete payload.areaId;
-      else payload.areaId = Number(payload.areaId);
+      payload.areaId = payload.areaId ? Number(payload.areaId) : 0;
       await hceStationService.createStation(payload);
       showToast('Tạo trạm quét thành công!');
       setShowCreateModal(false);
@@ -394,8 +424,7 @@ const DeviceManagement = () => {
     setFormLoading(true);
     try {
       const payload = { ...formData };
-      if (!payload.areaId) delete payload.areaId;
-      else payload.areaId = Number(payload.areaId);
+      payload.areaId = payload.areaId ? Number(payload.areaId) : 0;
       await hceStationService.updateStation(selectedStation.id, payload);
       showToast('Cập nhật trạm quét thành công!');
       setShowEditModal(false);
@@ -502,7 +531,7 @@ const DeviceManagement = () => {
   const renderForm = (isEdit = false) => (
     <>
       <div className="hce-form-group">
-        <label className="hce-form-label">Mã trạm (Device ID) *</label>
+        <label className="hce-form-label">Mã trạm quét *</label>
         <input
           type="text"
           className="hce-form-input"
@@ -513,7 +542,7 @@ const DeviceManagement = () => {
         />
         <div className="hce-form-helper hce-form-helper--info">
           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-          <span>Mã trạm phải trùng với <code>SLIB_GATE_ID</code> cấu hình trên Raspberry Pi</span>
+          <span>Mã trạm phải trùng với <code>SLIB_GATE_ID</code> đã cấu hình trên thiết bị Raspberry Pi</span>
         </div>
       </div>
       <div className="hce-form-group">
@@ -533,7 +562,7 @@ const DeviceManagement = () => {
           value={formData.deviceType}
           onChange={e => handleFormChange('deviceType', e.target.value)}
         >
-          <option value="">Chọn loại trạm</option>
+          <option value="">Chọn loại trạm quét</option>
           <option value="ENTRY_GATE">Cổng vào</option>
           <option value="EXIT_GATE">Cổng ra</option>
           <option value="SEAT_READER">Đầu đọc ghế</option>
@@ -548,6 +577,21 @@ const DeviceManagement = () => {
           value={formData.location}
           onChange={e => handleFormChange('location', e.target.value)}
         />
+      </div>
+      <div className="hce-form-group">
+        <label className="hce-form-label">Khu vực</label>
+        <select
+          className="hce-form-input"
+          value={formData.areaId}
+          onChange={e => handleFormChange('areaId', e.target.value)}
+        >
+          <option value="">Chưa gán khu vực</option>
+          {areas.map(area => (
+            <option key={area.areaId} value={area.areaId}>
+              {area.areaName}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="hce-form-group">
         <label className="hce-form-label">Trạng thái</label>
@@ -576,7 +620,7 @@ const DeviceManagement = () => {
 
       <div className="lib-container">
         <div className="lib-page-title" style={{ marginBottom: '20px' }}>
-          <h1>QUẢN LÝ TRẠM QUÉT HCE</h1>
+          <h1>QUẢN LÝ TRẠM QUÉT NFC</h1>
         </div>
 
         <div className="lib-panel">
@@ -652,8 +696,11 @@ const DeviceManagement = () => {
             </span>
 
             <div className="cio-toolbar-right">
-              <button className="um-toolbar-btn" onClick={fetchStations} disabled={loading}>
-                <RefreshCw size={14} className={loading ? 'sm-spinner' : ''} />
+              <span className="cio-result-count" style={{ marginRight: 4, color: '#64748b' }}>
+                {lastUpdatedAt ? `Cập nhật ${lastUpdatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Chưa cập nhật'}
+              </span>
+              <button className="um-toolbar-btn" onClick={() => fetchStations()} disabled={loading}>
+                <RefreshCw size={14} className={loading || isRefreshing ? 'sm-spinner' : ''} />
                 Làm mới
               </button>
               <button className="um-toolbar-btn primary" onClick={() => { resetForm(); setShowCreateModal(true); }}>
@@ -669,6 +716,13 @@ const DeviceManagement = () => {
               <Loader2 size={28} className="sm-spinner" />
               <span style={{ display: 'block', marginTop: '12px', color: '#64748b' }}>Đang tải danh sách trạm quét...</span>
             </div>
+          ) : loadError ? (
+            <LoadErrorState
+              title="Không thể tải danh sách trạm quét"
+              message={loadError}
+              onRetry={() => fetchStations()}
+              compact
+            />
           ) : viewMode === 'table' ? (
             /* ========== TABLE VIEW ========== */
             <div className="sr-table-wrapper">
@@ -790,7 +844,7 @@ const DeviceManagement = () => {
                   <Router size={48} className="hce-station-empty__icon" />
                   <div className="hce-station-empty__title">Chưa có trạm quét nào</div>
                   <div className="hce-station-empty__text">
-                    Nhấn "Thêm trạm quét" để đăng ký một trạm quét HCE mới
+                    Nhấn "Thêm trạm quét" để đăng ký một trạm quét mới
                   </div>
                 </div>
               ) : (
@@ -831,7 +885,7 @@ const DeviceManagement = () => {
                         <div className="hce-station-card__meta-row">
                           <Activity size={14} className="hce-station-card__meta-icon" />
                           <span className="hce-station-card__meta-text hce-station-card__meta-text--muted">
-                            Heartbeat: {formatTime(station.lastHeartbeat)}
+                            Nhịp kết nối cuối: {formatTime(station.lastHeartbeat)}
                           </span>
                         </div>
                         <div className="hce-station-card__meta-row">
@@ -1009,7 +1063,7 @@ const DeviceManagement = () => {
                   <span className="hce-detail-row__value">{selectedStation.areaName || '—'}</span>
                 </div>
                 <div className="hce-detail-row">
-                  <span className="hce-detail-row__label">Heartbeat cuối</span>
+                  <span className="hce-detail-row__label">Nhịp kết nối cuối</span>
                   <span className="hce-detail-row__value">
                     {formatTime(selectedStation.lastHeartbeat)}
                   </span>

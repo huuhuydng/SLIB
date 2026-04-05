@@ -47,6 +47,7 @@ public class AreaFactoryService {
     public AreaFactoryResponse createAreaFactory(Long areaId, AreaFactoryEntity entity) {
         AreaEntity area = areaRepository.findById(areaId)
                 .orElseThrow(() -> new RuntimeException("Area không tồn tại với ID: " + areaId));
+        ensureAreaAllowsFactoryMutation(area, "thêm vật cản");
 
         entity.setArea(area);
 
@@ -58,6 +59,7 @@ public class AreaFactoryService {
     public AreaFactoryResponse updateAreaFactory(Long factoryId, AreaFactoryEntity req) {
         AreaFactoryEntity factory = areaFactoryRepository.findById(factoryId)
                 .orElseThrow(() -> new RuntimeException("Area Factory không tồn tại với ID: " + factoryId));
+        ensureFactoryUpdateAllowed(factory, req);
 
         if (req.getFactoryName() != null)
             factory.setFactoryName(req.getFactoryName());
@@ -80,6 +82,7 @@ public class AreaFactoryService {
     public AreaFactoryResponse dragAreaFactory(Long factoryId, Integer x, Integer y) {
         AreaFactoryEntity factory = areaFactoryRepository.findById(factoryId)
                 .orElseThrow(() -> new RuntimeException("Area Factory không tồn tại với ID: " + factoryId));
+        ensureFactoryAndAreaUnlocked(factory, "di chuyển vật cản");
 
         factory.setPositionX(x);
         factory.setPositionY(y);
@@ -92,6 +95,7 @@ public class AreaFactoryService {
     public AreaFactoryResponse resizeAreaFactory(Long factoryId, Integer width, Integer height) {
         AreaFactoryEntity factory = areaFactoryRepository.findById(factoryId)
                 .orElseThrow(() -> new RuntimeException("Area Factory không tồn tại với ID: " + factoryId));
+        ensureFactoryAndAreaUnlocked(factory, "thay đổi kích thước vật cản");
 
         if (width != null && width > 0)
             factory.setWidth(width);
@@ -104,9 +108,9 @@ public class AreaFactoryService {
     /* ================= DELETE ================= */
 
     public void deleteAreaFactory(Long factoryId) {
-        if (!areaFactoryRepository.existsById(factoryId)) {
-            throw new RuntimeException("Area Factory không tồn tại với ID: " + factoryId);
-        }
+        AreaFactoryEntity factory = areaFactoryRepository.findById(factoryId)
+                .orElseThrow(() -> new RuntimeException("Area Factory không tồn tại với ID: " + factoryId));
+        ensureFactoryAndAreaUnlocked(factory, "xóa vật cản");
         areaFactoryRepository.deleteById(factoryId);
     }
 
@@ -122,6 +126,49 @@ public class AreaFactoryService {
         res.setHeight(entity.getHeight());
         res.setIsLocked(entity.getIsLocked());
         return res;
+    }
+
+    private void ensureAreaAllowsFactoryMutation(AreaEntity area, String action) {
+        if (Boolean.TRUE.equals(area.getLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi phòng thư viện đang bị khóa");
+        }
+    }
+
+    private void ensureFactoryAndAreaUnlocked(AreaFactoryEntity factory, String action) {
+        ensureAreaAllowsFactoryMutation(factory.getArea(), action);
+        if (Boolean.TRUE.equals(factory.getIsLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi vật cản đang bị khóa");
+        }
+    }
+
+    private void ensureFactoryUpdateAllowed(AreaFactoryEntity factory, AreaFactoryEntity req) {
+        ensureAreaAllowsFactoryMutation(factory.getArea(), "cập nhật vật cản");
+
+        if (!Boolean.TRUE.equals(factory.getIsLocked())) {
+            return;
+        }
+
+        boolean unlockOnly = Boolean.FALSE.equals(req.getIsLocked())
+                && sameOrNull(req.getFactoryName(), factory.getFactoryName())
+                && sameOrNull(req.getPositionX(), factory.getPositionX())
+                && sameOrNull(req.getPositionY(), factory.getPositionY())
+                && sameOrNull(req.getWidth(), factory.getWidth())
+                && sameOrNull(req.getHeight(), factory.getHeight());
+
+        boolean noEffectiveChange = (req.getIsLocked() == null || Boolean.TRUE.equals(req.getIsLocked()))
+                && sameOrNull(req.getFactoryName(), factory.getFactoryName())
+                && sameOrNull(req.getPositionX(), factory.getPositionX())
+                && sameOrNull(req.getPositionY(), factory.getPositionY())
+                && sameOrNull(req.getWidth(), factory.getWidth())
+                && sameOrNull(req.getHeight(), factory.getHeight());
+
+        if (!unlockOnly && !noEffectiveChange) {
+            throw new RuntimeException("Không thể cập nhật vật cản đang bị khóa");
+        }
+    }
+
+    private <T> boolean sameOrNull(T requestedValue, T currentValue) {
+        return requestedValue == null || requestedValue.equals(currentValue);
     }
 
 }

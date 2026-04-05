@@ -23,6 +23,8 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     // Find only active seats in a zone
     List<SeatEntity> findByZone_ZoneIdAndIsActiveTrue(Integer zoneId);
 
+    long countByIsActiveTrue();
+
     Optional<SeatEntity> findBySeatCode(String seatCode);
 
     Optional<SeatEntity> findBySeatCodeAndZone_ZoneId(String seatCode, Integer zoneId);

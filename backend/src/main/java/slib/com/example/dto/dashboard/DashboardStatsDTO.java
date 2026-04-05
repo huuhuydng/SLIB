@@ -36,6 +36,13 @@ public class DashboardStatsDTO {
     // Support request stats
     private long pendingSupportRequests;
     private long inProgressSupportRequests;
+    private long overdueSupportRequests;
+
+    // Seat status report stats
+    private long pendingSeatStatusReports;
+
+    // Complaint stats
+    private long pendingComplaints;
 
     // User stats
     private long totalUsers;
@@ -64,8 +71,20 @@ public class DashboardStatsDTO {
     // Recent feedbacks
     private List<FeedbackItemDTO> recentFeedbacks;
 
+    // Recent seat status reports
+    private List<SeatStatusReportItemDTO> recentSeatStatusReports;
+
     // Zone occupancy
     private List<ZoneOccupancyDTO> zoneOccupancies;
+
+    // Today vs yesterday trends
+    private TrendSummaryDTO trendSummary;
+
+    // Admin operation panels
+    private List<PriorityTaskDTO> priorityTasks;
+    private ChatAttentionDTO chatAttention;
+    private List<AttentionZoneDTO> attentionZones;
+    private List<ActivityFeedItemDTO> recentActivities;
 
     // Server time for frontend display
     private LocalDateTime serverTime;
@@ -121,6 +140,7 @@ public class DashboardStatsDTO {
         private UUID id;
         private String violatorName;
         private String violatorCode;
+        private String avatarUrl;
         private String violationType;
         private String status;
         private LocalDateTime createdAt;
@@ -188,6 +208,24 @@ public class DashboardStatsDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class SeatStatusReportItemDTO {
+        private UUID id;
+        private String userName;
+        private String userCode;
+        private String seatCode;
+        private String zoneName;
+        private String areaName;
+        private String issueType;
+        private String status;
+        private String description;
+        private LocalDateTime createdAt;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class ZoneOccupancyDTO {
         private Integer zoneId;
         private String zoneName;
@@ -195,5 +233,85 @@ public class DashboardStatsDTO {
         private long totalSeats;
         private long occupiedSeats;
         private double occupancyPercentage;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TrendSummaryDTO {
+        private long checkInsToday;
+        private long checkInsYesterday;
+        private long bookingsToday;
+        private long bookingsYesterday;
+        private long violationsToday;
+        private long violationsYesterday;
+        private long supportToday;
+        private long supportYesterday;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class PriorityTaskDTO {
+        private String key;
+        private String title;
+        private String description;
+        private long count;
+        private String severity;
+        private String targetPath;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ChatAttentionDTO {
+        private long waitingCount;
+        private long activeCount;
+        private String latestStudentName;
+        private String latestStudentCode;
+        private String latestMessagePreview;
+        private LocalDateTime latestMessageAt;
+        private long oldestWaitingMinutes;
+        private String targetPath;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class AttentionZoneDTO {
+        private Integer zoneId;
+        private String zoneName;
+        private String areaName;
+        private long occupiedSeats;
+        private long totalSeats;
+        private double occupancyPercentage;
+        private long pendingSeatReports;
+        private long pendingViolations;
+        private String severity;
+        private String reason;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ActivityFeedItemDTO {
+        private String type;
+        private String title;
+        private String description;
+        private String actorName;
+        private String actorCode;
+        private String severity;
+        private String targetPath;
+        private LocalDateTime createdAt;
     }
 }

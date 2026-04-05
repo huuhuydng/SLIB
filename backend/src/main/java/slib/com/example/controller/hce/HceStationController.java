@@ -138,7 +138,7 @@ public class HceStationController {
     }
 
     /**
-     * Heartbeat từ Raspberry Pi
+     * Nhịp kết nối từ Raspberry Pi
      * POST /slib/hce/stations/{deviceId}/heartbeat
      * Dùng X-API-KEY giống flow check-in
      */
@@ -158,7 +158,7 @@ public class HceStationController {
             hceStationService.processHeartbeat(deviceId);
             return ResponseEntity.ok(Map.of(
                     "status", "OK",
-                    "message", "Heartbeat received",
+                    "message", "Đã ghi nhận nhịp kết nối của trạm quét",
                     "deviceId", deviceId));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of(

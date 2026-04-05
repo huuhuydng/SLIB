@@ -15,12 +15,21 @@ export function useLibrarianNotification() {
 
 // API endpoints map cho từng category
 const PENDING_API_MAP = {
-    SUPPORT_REQUEST: `${API_BASE_URL}/slib/support-requests?status=PENDING`,
+    SUPPORT_REQUEST: `${API_BASE_URL}/slib/support-requests`,
     COMPLAINT: `${API_BASE_URL}/slib/complaints?status=PENDING`,
     FEEDBACK: `${API_BASE_URL}/slib/feedbacks?status=NEW`,
-    SEAT_STATUS_REPORT: `${API_BASE_URL}/slib/seat-status-reports?status=PENDING`,
+    SEAT_STATUS_REPORT: `${API_BASE_URL}/slib/seat-status-reports`,
     CHAT: `${API_BASE_URL}/slib/chat/conversations/waiting`,
     VIOLATION: `${API_BASE_URL}/slib/violation-reports?status=PENDING`,
+};
+
+const ACTIVE_ITEM_FILTERS = {
+    SUPPORT_REQUEST: (item) => ['PENDING', 'IN_PROGRESS'].includes(item?.status),
+    COMPLAINT: (item) => item?.status === 'PENDING',
+    FEEDBACK: (item) => item?.status === 'NEW',
+    SEAT_STATUS_REPORT: (item) => ['PENDING', 'VERIFIED'].includes(item?.status),
+    CHAT: () => true,
+    VIOLATION: (item) => item?.status === 'PENDING',
 };
 
 const NOTIF_ICON_MAP = {
@@ -61,7 +70,7 @@ export function LibrarianNotificationProvider({ children }) {
     const [unreadChatConversationCount, setUnreadChatConversationCount] = useState(0);
 
     const getToken = useCallback(() => {
-        return localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+        return sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
     }, []);
 
     // Fetch pending counts from REST API
@@ -121,8 +130,10 @@ export function LibrarianNotificationProvider({ children }) {
             });
             if (res.ok && mountedRef.current) {
                 const data = await res.json();
-                setPendingItems(prev => ({ ...prev, [category]: data }));
-                return data;
+                const filterFn = ACTIVE_ITEM_FILTERS[category];
+                const normalized = Array.isArray(data) && filterFn ? data.filter(filterFn) : data;
+                setPendingItems(prev => ({ ...prev, [category]: normalized }));
+                return normalized;
             }
         } catch (err) {
             console.warn(`[LibrarianNotification] Fetch ${category} items error:`, err);
@@ -154,7 +165,32 @@ export function LibrarianNotificationProvider({ children }) {
         mountedRef.current = true;
         fetchPendingCounts();
         fetchUnreadChatCount();
-        return () => { mountedRef.current = false; };
+        const intervalId = window.setInterval(() => {
+            fetchPendingCounts();
+            fetchUnreadChatCount();
+        }, 30000);
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchPendingCounts();
+                fetchUnreadChatCount();
+            }
+        };
+
+        const handleWindowFocus = () => {
+            fetchPendingCounts();
+            fetchUnreadChatCount();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleWindowFocus);
+
+        return () => {
+            mountedRef.current = false;
+            window.clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleWindowFocus);
+        };
     }, [fetchPendingCounts, fetchUnreadChatCount]);
 
     // Subscribe to WebSocket - separate effect

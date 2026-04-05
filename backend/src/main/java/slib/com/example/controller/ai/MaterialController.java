@@ -1,5 +1,6 @@
 package slib.com.example.controller.ai;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +35,7 @@ public class MaterialController {
 
     @PostMapping
     public ResponseEntity<MaterialDTO.MaterialResponse> createMaterial(
-            @RequestBody MaterialDTO.MaterialRequest request,
+            @Valid @RequestBody MaterialDTO.MaterialRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         String createdBy = userDetails != null ? userDetails.getUsername() : "system";
         MaterialDTO.MaterialResponse response = materialService.createMaterial(request, createdBy);
@@ -47,7 +48,7 @@ public class MaterialController {
     @PutMapping("/{id}")
     public ResponseEntity<MaterialDTO.MaterialResponse> updateMaterial(
             @PathVariable Long id,
-            @RequestBody MaterialDTO.MaterialRequest request,
+            @Valid @RequestBody MaterialDTO.MaterialRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         MaterialDTO.MaterialResponse response = materialService.updateMaterial(id, request);
         systemLogService.logAudit("MaterialController",
@@ -89,7 +90,7 @@ public class MaterialController {
     @PostMapping("/{id}/items/text")
     public ResponseEntity<MaterialDTO.ItemResponse> addTextItem(
             @PathVariable Long id,
-            @RequestBody MaterialDTO.ItemRequest request,
+            @Valid @RequestBody MaterialDTO.ItemRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         MaterialDTO.ItemResponse response = materialService.addTextItem(id, request);
         systemLogService.logAudit("MaterialController",
@@ -115,7 +116,7 @@ public class MaterialController {
     public ResponseEntity<MaterialDTO.ItemResponse> updateItem(
             @PathVariable Long materialId,
             @PathVariable Long itemId,
-            @RequestBody MaterialDTO.ItemRequest request,
+            @Valid @RequestBody MaterialDTO.ItemRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         MaterialDTO.ItemResponse response = materialService.updateItem(materialId, itemId, request);
         systemLogService.logAudit("MaterialController",

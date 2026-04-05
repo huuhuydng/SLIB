@@ -21,8 +21,19 @@ import {
 } from 'lucide-react';
 import '../../styles/AccountSettings.css';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
+import { handleLogout as performLogout } from '../../utils/auth';
+import {
+    getFirstValidationMessage,
+    normalizeFullName,
+    normalizePhone,
+    validateDob,
+    validateFullName,
+    validatePhone,
+} from '../../utils/userValidation';
 
 const API_BASE_URL = `${BASE}/slib`;
+const getStoredToken = () => localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+const getStoredUser = () => localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
 
 const AccountSettings = () => {
     const navigate = useNavigate();
@@ -69,10 +80,10 @@ const AccountSettings = () => {
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
-                const token = localStorage.getItem('librarian_token');
+                const token = getStoredToken();
 
                 // First load from localStorage for quick display
-                const userStr = localStorage.getItem('librarian_user');
+                const userStr = getStoredUser();
                 if (userStr) {
                     const user = JSON.parse(userStr);
                     setUserData({
@@ -109,7 +120,7 @@ const AccountSettings = () => {
                     }));
 
                     // Save full profile to localStorage for session persistence
-                    const currentUser = JSON.parse(localStorage.getItem('librarian_user') || '{}');
+                    const currentUser = JSON.parse(getStoredUser() || '{}');
                     const updatedUser = {
                         ...currentUser,
                         fullName: profileData.fullName || currentUser.fullName,
@@ -177,15 +188,30 @@ const AccountSettings = () => {
         setSaving(true);
         setError(null);
 
+        const validationErrors = {
+            fullName: validateFullName(userData.name),
+            phone: validatePhone(userData.phone),
+            dob: validateDob(userData.dob),
+        };
+        const firstError = getFirstValidationMessage(validationErrors);
+        if (firstError) {
+            setSaving(false);
+            setError(firstError);
+            return;
+        }
+
+        const normalizedFullName = normalizeFullName(userData.name);
+        const normalizedPhone = normalizePhone(userData.phone);
+
         try {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStoredToken();
 
             // Call API to update profile
             const response = await axios.put(
                 `${API_BASE_URL}/student-profile/me`,
                 {
-                    fullName: userData.name,
-                    phone: userData.phone,
+                    fullName: normalizedFullName,
+                    phone: normalizedPhone || null,
                     dob: userData.dob
                 },
                 {
@@ -197,16 +223,21 @@ const AccountSettings = () => {
             );
 
             // Update localStorage with new data
-            const currentUser = JSON.parse(localStorage.getItem('librarian_user') || '{}');
+            const currentUser = JSON.parse(getStoredUser() || '{}');
             const updatedUser = {
                 ...currentUser,
-                fullName: userData.name,
-                phone: userData.phone,
+                fullName: normalizedFullName,
+                phone: normalizedPhone || null,
                 dob: userData.dob,
                 avtUrl: previewAvatar || userData.avatar
             };
             localStorage.setItem('librarian_user', JSON.stringify(updatedUser));
 
+            setUserData(prev => ({
+                ...prev,
+                name: normalizedFullName,
+                phone: normalizedPhone || '',
+            }));
             setSuccess('Cập nhật thông tin thành công!');
             setIsEditing(false);
 
@@ -229,7 +260,7 @@ const AccountSettings = () => {
     const handleCancel = () => {
         setIsEditing(false);
         setPreviewAvatar(null);
-        const userStr = localStorage.getItem('librarian_user');
+        const userStr = getStoredUser();
         if (userStr) {
             const user = JSON.parse(userStr);
             setUserData({
@@ -267,7 +298,7 @@ const AccountSettings = () => {
         setPasswordLoading(true);
 
         try {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStoredToken();
 
             // Call API to change password
             await axios.post(
@@ -303,6 +334,7 @@ const AccountSettings = () => {
         switch (role?.toUpperCase()) {
             case 'ADMIN': return 'Quản trị viên';
             case 'LIBRARIAN': return 'Thủ thư';
+            case 'TEACHER': return 'Giáo viên';
             case 'STUDENT': return 'Sinh viên';
             default: return role;
         }
@@ -325,14 +357,10 @@ const AccountSettings = () => {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('librarian_token');
-        localStorage.removeItem('librarian_user');
-        localStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('librarian_token');
-        sessionStorage.removeItem('librarian_user');
-        sessionStorage.removeItem('refresh_token');
-        navigate('/login');
+        performLogout();
     };
+
+    const isAdmin = userData.role?.toUpperCase() === 'ADMIN';
 
     return (
         <div className="account-settings-container">
@@ -554,39 +582,40 @@ const AccountSettings = () => {
                         </div>
                     </div>
 
-                    {/* Notification Settings Card */}
-                    <div className="settings-card">
-                        <div className="card-header">
-                            <div className="card-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-                                <Bell size={20} />
+                    {!isAdmin && (
+                        <div className="settings-card">
+                            <div className="card-header">
+                                <div className="card-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                                    <Bell size={20} />
+                                </div>
+                                <div>
+                                    <h3>Thông báo</h3>
+                                    <p>Quản lý cài đặt thông báo</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3>Thông báo</h3>
-                                <p>Quản lý cài đặt thông báo</p>
-                            </div>
-                        </div>
 
-                        <div className="card-content">
-                            <div className="info-item" style={{ cursor: 'pointer' }} onClick={handleToggleNotifications}>
-                                <div className="info-label">
-                                    <Bell size={16} />
-                                    <span>Hiển thị thông báo popup</span>
+                            <div className="card-content">
+                                <div className="info-item" style={{ cursor: 'pointer' }} onClick={handleToggleNotifications}>
+                                    <div className="info-label">
+                                        <Bell size={16} />
+                                        <span>Hiển thị thông báo popup</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <button
+                                            className={`notif-toggle ${notificationsEnabled ? 'notif-toggle--on' : ''}`}
+                                            onClick={(e) => { e.stopPropagation(); handleToggleNotifications(); }}
+                                            aria-label="Toggle notifications"
+                                        >
+                                            <span className="notif-toggle__thumb" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <button
-                                        className={`notif-toggle ${notificationsEnabled ? 'notif-toggle--on' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); handleToggleNotifications(); }}
-                                        aria-label="Toggle notifications"
-                                    >
-                                        <span className="notif-toggle__thumb" />
-                                    </button>
-                                </div>
+                                <p style={{ fontSize: 12, color: '#94a3b8', margin: '8px 0 0 36px' }}>
+                                    Khi bật, thông báo sẽ hiện ở góc phải trên màn hình trong 5 giây mỗi khi có hoạt động mới.
+                                </p>
                             </div>
-                            <p style={{ fontSize: 12, color: '#94a3b8', margin: '8px 0 0 36px' }}>
-                                Khi bật, thông báo sẽ hiện ở góc phải trên màn hình trong 5 giây mỗi khi có hoạt động mới.
-                            </p>
                         </div>
-                    </div>
+                    )}
 
                     {/* Logout Card */}
                     <div className="settings-card">

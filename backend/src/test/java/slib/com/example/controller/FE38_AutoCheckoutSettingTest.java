@@ -115,16 +115,15 @@ class FE38_AutoCheckoutSettingTest {
                                 .autoCancelMinutes(-5)
                                 .build();
 
-                when(librarySettingService.updateSettings(any(LibrarySettingDTO.class)))
-                                .thenThrow(new slib.com.example.exception.BadRequestException(
-                                                "Cau hinh tu dong checkout khong hop le"));
-
                 mockMvc.perform(put("/slib/settings/library")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(dto)))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value("Bad Request"))
+                                .andExpect(jsonPath("$.errors.autoCancelMinutes")
+                                                .value("Thời gian tự hủy nếu không check-in phải lớn hơn 0"));
 
-                verify(librarySettingService, times(1)).updateSettings(any(LibrarySettingDTO.class));
+                verifyNoInteractions(librarySettingService);
         }
 
         // =========================================

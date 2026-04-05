@@ -5,7 +5,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import slib.com.example.dto.notification.NotificationDTO;
 import slib.com.example.entity.library.LibrarySetting;
@@ -41,6 +46,7 @@ public class PushNotificationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final SystemLogService systemLogService;
     private final LibrarySettingService librarySettingService;
+    private final PlatformTransactionManager transactionManager;
 
     /**
      * Send push notification to a specific device
@@ -156,104 +162,159 @@ public class PushNotificationService {
      * Send push notification to a user by userId
      * Also saves notification to database
      */
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId) {
         sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, null);
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
             String deliveryKey) {
         sendToUser(userId, title, body, type, referenceId, type != null ? type.name() : null, null, deliveryKey);
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
             String referenceType, String category) {
         sendToUser(userId, title, body, type, referenceId, referenceType, category, null);
     }
 
-    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void sendToUser(UUID userId, String title, String body, NotificationType type, UUID referenceId,
             String referenceType, String category, String deliveryKey) {
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            log.warn("User not found: {}", userId);
+        NotificationRequest request = new NotificationRequest(userId, title, body, type, referenceId, referenceType,
+                category, deliveryKey);
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    dispatchNotification(request);
+                }
+            });
             return;
         }
 
-        // Check global notification settings (admin config)
-        if (!isNotificationEnabledGlobally(type, deliveryKey)) {
-            log.info("Loai thong bao {} da bi tat boi admin trong cau hinh he thong", type);
+        dispatchNotification(request);
+    }
+
+    private void dispatchNotification(NotificationRequest request) {
+        NotificationDispatchResult result = persistNotification(request);
+        if (result == null) {
             return;
         }
 
-        // Check user notification settings
-        if (!shouldSendNotification(user, type)) {
-            log.info("User {} has disabled notifications for type {}", userId, type);
-            return;
-        }
-
-        // Save notification to database
-        NotificationEntity notification = NotificationEntity.builder()
-                .user(user)
-                .title(title)
-                .content(body)
-                .notificationType(type)
-                .referenceType(referenceType)
-                .referenceId(referenceId)
-                .isRead(false)
-                .build();
-        notificationRepository.save(notification);
-
-        // Get unread count for badge (after saving new notification)
-        int badgeCount = (int) notificationRepository.countUnreadByUserId(userId);
-        String resolvedCategory = category != null && !category.isBlank()
-                ? category
-                : resolveCategory(type, title, body);
-        String categoryLabel = resolveCategoryLabel(resolvedCategory);
-
-        // Send push notification to device
         Map<String, String> data = new HashMap<>();
-        data.put("type", type.name());
-        data.put("category", resolvedCategory);
-        data.put("categoryLabel", categoryLabel);
-        data.put("notificationId", notification.getId().toString());
-        data.put("badgeCount", String.valueOf(badgeCount));
-        if (notification.getReferenceType() != null) {
-            data.put("referenceType", notification.getReferenceType());
+        data.put("type", result.type().name());
+        data.put("category", result.category());
+        data.put("categoryLabel", result.categoryLabel());
+        data.put("notificationId", result.notificationId().toString());
+        data.put("badgeCount", String.valueOf(result.badgeCount()));
+        if (result.referenceType() != null) {
+            data.put("referenceType", result.referenceType());
         }
-        if (referenceId != null) {
-            data.put("referenceId", referenceId.toString());
+        if (result.referenceId() != null) {
+            data.put("referenceId", result.referenceId().toString());
         }
 
-        // CHAT_MESSAGE: gửi data-only để tránh Android tự hiện notification (duplicate)
-        // Các loại khác: gửi có notification payload để Android hiện tự động
-        if (type == NotificationType.CHAT_MESSAGE) {
-            sendDataOnly(user.getNotiDevice(), title, body, data, badgeCount);
+        if (result.type() == NotificationType.CHAT_MESSAGE) {
+            sendDataOnly(result.fcmToken(), result.title(), result.body(), data, result.badgeCount());
         } else {
-            sendToDeviceWithBadge(user.getNotiDevice(), title, body, data, badgeCount);
+            sendToDeviceWithBadge(result.fcmToken(), result.title(), result.body(), data, result.badgeCount());
         }
 
-        // Broadcast qua WebSocket → mobile nhận real-time (0ms delay)
         Map<String, Object> wsPayload = new HashMap<>();
-        wsPayload.put("id", notification.getId().toString());
-        wsPayload.put("title", title);
-        wsPayload.put("content", body);
-        wsPayload.put("notificationType", type.name());
-        wsPayload.put("category", resolvedCategory);
-        wsPayload.put("categoryLabel", categoryLabel);
-        wsPayload.put("referenceType", notification.getReferenceType());
-        wsPayload.put("referenceId", referenceId != null ? referenceId.toString() : null);
+        wsPayload.put("id", result.notificationId().toString());
+        wsPayload.put("title", result.title());
+        wsPayload.put("content", result.body());
+        wsPayload.put("notificationType", result.type().name());
+        wsPayload.put("category", result.category());
+        wsPayload.put("categoryLabel", result.categoryLabel());
+        wsPayload.put("referenceType", result.referenceType());
+        wsPayload.put("referenceId", result.referenceId() != null ? result.referenceId().toString() : null);
         wsPayload.put("isRead", false);
-        wsPayload.put("unreadCount", badgeCount);
-        messagingTemplate.convertAndSend("/topic/notifications/" + userId, wsPayload);
+        wsPayload.put("unreadCount", result.badgeCount());
+        messagingTemplate.convertAndSend("/topic/notifications/" + result.userId(), wsPayload);
+    }
+
+    private NotificationDispatchResult persistNotification(NotificationRequest request) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+        return template.execute(status -> {
+            User user = userRepository.findById(request.userId()).orElse(null);
+            if (user == null) {
+                log.warn("User not found: {}", request.userId());
+                return null;
+            }
+
+            if (!isNotificationEnabledGlobally(request.type(), request.deliveryKey())) {
+                log.info("Loai thong bao {} da bi tat boi admin trong cau hinh he thong", request.type());
+                return null;
+            }
+
+            if (!shouldSendNotification(user, request.type())) {
+                log.info("User {} has disabled notifications for type {}", request.userId(), request.type());
+                return null;
+            }
+
+            NotificationEntity notification = NotificationEntity.builder()
+                    .user(user)
+                    .title(request.title())
+                    .content(request.body())
+                    .notificationType(request.type())
+                    .referenceType(request.referenceType())
+                    .referenceId(request.referenceId())
+                    .isRead(false)
+                    .build();
+            notificationRepository.save(notification);
+
+            int badgeCount = (int) notificationRepository.countUnreadByUserId(request.userId());
+            String resolvedCategory = request.category() != null && !request.category().isBlank()
+                    ? request.category()
+                    : resolveCategory(request.type(), request.title(), request.body());
+            String categoryLabel = resolveCategoryLabel(resolvedCategory);
+
+            return new NotificationDispatchResult(
+                    notification.getId(),
+                    request.userId(),
+                    request.title(),
+                    request.body(),
+                    request.type(),
+                    request.referenceId(),
+                    request.referenceType(),
+                    resolvedCategory,
+                    categoryLabel,
+                    badgeCount,
+                    user.getNotiDevice());
+        });
+    }
+
+    private record NotificationRequest(
+            UUID userId,
+            String title,
+            String body,
+            NotificationType type,
+            UUID referenceId,
+            String referenceType,
+            String category,
+            String deliveryKey) {
+    }
+
+    private record NotificationDispatchResult(
+            UUID notificationId,
+            UUID userId,
+            String title,
+            String body,
+            NotificationType type,
+            UUID referenceId,
+            String referenceType,
+            String category,
+            String categoryLabel,
+            int badgeCount,
+            String fcmToken) {
     }
 
     /**
      * Send push notification to all users (for news, announcements)
      */
-    @Transactional
     public void sendToAll(String title, String body, NotificationType type, UUID referenceId) {
         List<User> users = userRepository.findAll();
 
@@ -267,7 +328,6 @@ public class PushNotificationService {
     /**
      * Send notification only to users with specific role
      */
-    @Transactional
     public void sendToRole(String role, String title, String body, NotificationType type, UUID referenceId) {
         // Find users with specific role
         List<User> users = userRepository.findAll().stream()
@@ -439,6 +499,31 @@ public class PushNotificationService {
     @Transactional
     public void markAllAsRead(UUID userId) {
         notificationRepository.markAllAsReadByUserId(userId);
+    }
+
+    @Transactional
+    public int markAllAsReadByCategory(UUID userId, String category) {
+        String normalizedCategory = category == null ? "" : category.trim().toUpperCase();
+        if (normalizedCategory.isEmpty()) {
+            return 0;
+        }
+
+        List<NotificationEntity> unreadNotifications = notificationRepository.findUnreadByUserId(userId);
+        List<NotificationEntity> matchingNotifications = unreadNotifications.stream()
+                .filter(notification -> normalizedCategory.equals(
+                        resolveCategory(
+                                notification.getNotificationType(),
+                                notification.getTitle(),
+                                notification.getContent())))
+                .peek(notification -> notification.setIsRead(true))
+                .toList();
+
+        if (matchingNotifications.isEmpty()) {
+            return 0;
+        }
+
+        notificationRepository.saveAll(matchingNotifications);
+        return matchingNotifications.size();
     }
 
     /**

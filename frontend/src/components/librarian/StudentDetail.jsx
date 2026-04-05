@@ -22,7 +22,7 @@ const StudentDetail = ({ student: studentProp, onBack }) => {
                 <h2 className="page-title">Thông tin sinh viên</h2>
                 <div className="table-card history-card">
                     <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-                        Không có dữ liệu sinh viên để hiển thị.
+                        Chưa có thông tin sinh viên để hiển thị.
                     </div>
                 </div>
             </div>
@@ -30,8 +30,8 @@ const StudentDetail = ({ student: studentProp, onBack }) => {
     }
 
     const getRankInfo = (score) => {
-        if (score >= 80) return { label: 'Gương mẫu', color: '#2ecc71', icon: true, desc: 'Tuyệt vời! Bạn đang giữ kỷ luật check-in rất tốt.' };
-        if (score >= 65) return { label: 'Khá', color: '#f1c40f', icon: false, desc: 'Tốt! Hãy cố gắng duy trì.' };
+        if (score >= 80) return { label: 'Gương mẫu', color: '#2ecc71', icon: true, desc: 'Mức tuân thủ tốt, ít phát sinh vấn đề khi sử dụng thư viện.' };
+        if (score >= 65) return { label: 'Khá', color: '#f1c40f', icon: false, desc: 'Mức tuân thủ tương đối tốt, nên tiếp tục duy trì.' };
         return { label: 'Trung bình', color: '#e74c3c', icon: false, desc: 'Cần chú ý kỷ luật hơn.' };
     }
 
@@ -78,7 +78,7 @@ const StudentDetail = ({ student: studentProp, onBack }) => {
                         </div>
                         <div className="rank-details">
                             <h3 className="rank-title">
-                                Hạng: {rankInfo.label}
+                                Xếp loại: {rankInfo.label}
                                 {rankInfo.icon && <CheckCircle2 size={18} color={rankInfo.color} fill={rankInfo.color} className="icon-check-filled" />}
                             </h3>
                             <p className="rank-desc">{rankInfo.desc}</p>

@@ -10,4 +10,6 @@ public interface AreaFactoryRepository
         extends JpaRepository<AreaFactoryEntity, Long> {
 
     List<AreaFactoryEntity> findByArea_AreaId(Long areaId);
+
+    void deleteByArea_AreaId(Long areaId);
 }

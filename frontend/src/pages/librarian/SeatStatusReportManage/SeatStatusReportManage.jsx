@@ -86,6 +86,7 @@ function SeatStatusReportManage() {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const filterRef = useRef(null);
   const columnMenuRef = useRef(null);
+  const syncingStatusRef = useRef(false);
 
   // Selection for batch delete
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -177,12 +178,36 @@ function SeatStatusReportManage() {
     fetchReports();
   }, [fetchReports]);
 
+  // Auto-open detail modal from URL param (e.g. ?detail=<id>)
+  useEffect(() => {
+    if (loading || reports.length === 0) return;
+    const detailId = searchParams.get("detail");
+    if (detailId) {
+      const target = reports.find((r) => r.id === detailId);
+      if (target) {
+        setSelectedReport(target);
+      }
+      // Remove detail param after opening
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("detail");
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [loading, reports, searchParams, setSearchParams]);
+
   useEffect(() => {
     const nextStatus = normalizeStatus(searchParams.get("status"));
-    if (nextStatus !== statusFilter) {
-      setStatusFilter(nextStatus);
+
+    setStatusFilter((previous) => {
+      if (previous === nextStatus) {
+        return previous;
+      }
+      return nextStatus;
+    });
+
+    if (syncingStatusRef.current) {
+      syncingStatusRef.current = false;
     }
-  }, [searchParams, statusFilter]);
+  }, [searchParams]);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(searchParams);
@@ -193,6 +218,7 @@ function SeatStatusReportManage() {
     }
 
     if (nextParams.toString() !== searchParams.toString()) {
+      syncingStatusRef.current = true;
       setSearchParams(nextParams, { replace: true });
     }
   }, [searchParams, setSearchParams, statusFilter]);
@@ -654,7 +680,7 @@ function SeatStatusReportManage() {
         {loading ? (
           <div className="ssr-loading-state">
             <Loader2 size={26} className="ssr-spin" />
-            <span>Đang tải dữ liệu báo cáo...</span>
+            <span>Đang tải báo cáo tình trạng ghế...</span>
           </div>
         ) : viewMode === "table" ? (
           <div className="sr-table-wrapper">

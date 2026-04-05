@@ -1,6 +1,5 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
-import { Bell } from "lucide-react";
 import Sidebar from "../../components/sidebar_admin/Sidebar_admin";
 import "../../styles/admin/MainLayout.css";
 
@@ -20,12 +19,12 @@ function AdminHeader() {
       <div className="top-header__left">
       </div>
       <div className="top-header__right">
-        <button className="top-header__bell" title="Thông báo">
-          <Bell size={18} />
-        </button>
+        <div className="top-header__welcome">
+          <span className="top-header__welcomeLabel">Chào mừng bạn,</span>
+          <span className="top-header__welcomeName">{userData.name}</span>
+        </div>
         <div className="top-header__user" style={{ cursor: 'default' }}>
           <div className="top-header__avatar">{getInitials(userData.name)}</div>
-          <span className="top-header__name">{userData.name}</span>
         </div>
       </div>
     </header>

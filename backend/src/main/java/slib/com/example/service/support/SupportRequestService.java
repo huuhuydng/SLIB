@@ -21,6 +21,7 @@ import slib.com.example.service.notification.LibrarianNotificationService;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.chat.ConversationService;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,6 +56,11 @@ public class SupportRequestService {
     public SupportRequestDTO create(UUID studentId, String description, List<MultipartFile> images) {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentId));
+        String normalizedDescription = ContentValidationUtil.normalizeRequiredText(
+                description,
+                "Nội dung hỗ trợ",
+                2000);
+        ContentValidationUtil.validateImageFiles(images, 5);
 
         // Upload ảnh lên Cloudinary
         List<String> imageUrls = new ArrayList<>();
@@ -74,7 +80,7 @@ public class SupportRequestService {
 
         SupportRequest request = SupportRequest.builder()
                 .student(student)
-                .description(description)
+                .description(normalizedDescription)
                 .imageUrls(imageUrls.isEmpty() ? null : imageUrls.toArray(new String[0]))
                 .status(SupportRequestStatus.PENDING)
                 .build();
@@ -156,6 +162,7 @@ public class SupportRequestService {
     public SupportRequestDTO respond(UUID requestId, String response, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+        String normalizedResponse = ContentValidationUtil.normalizeRequiredText(response, "Phản hồi", 2000);
         if (request.getStatus() == SupportRequestStatus.REJECTED) {
             throw new RuntimeException("Không thể phản hồi yêu cầu đã bị từ chối");
         }
@@ -163,7 +170,7 @@ public class SupportRequestService {
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
 
-        request.setAdminResponse(response);
+        request.setAdminResponse(normalizedResponse);
         request.setStatus(SupportRequestStatus.RESOLVED);
         request.setResolvedBy(librarian);
         request.setResolvedAt(LocalDateTime.now());

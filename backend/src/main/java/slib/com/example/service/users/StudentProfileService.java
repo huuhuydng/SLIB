@@ -10,6 +10,7 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.util.UserValidationUtil;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -100,18 +101,19 @@ public class StudentProfileService {
             slib.com.example.dto.users.UpdateProfileRequest request) {
         return userRepository.findById(userId)
                 .map(user -> {
-                    if (request.getFullName() != null && !request.getFullName().isBlank()) {
-                        user.setFullName(request.getFullName());
+                    if (request.getFullName() != null) {
+                        user.setFullName(UserValidationUtil.normalizeRequiredFullName(request.getFullName()));
                     }
                     if (request.getPhone() != null) {
-                        user.setPhone(request.getPhone());
+                        String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(request.getPhone());
+                        if (normalizedPhone != null && !normalizedPhone.equals(user.getPhone())
+                                && userRepository.existsByPhone(normalizedPhone)) {
+                            throw new RuntimeException("Số điện thoại đã được sử dụng");
+                        }
+                        user.setPhone(normalizedPhone);
                     }
                     if (request.getDob() != null) {
-                        try {
-                            user.setDob(java.time.LocalDate.parse(request.getDob()));
-                        } catch (Exception e) {
-                            // Ignore invalid date format
-                        }
+                        user.setDob(UserValidationUtil.parseOptionalDob(request.getDob()));
                     }
                     userRepository.save(user);
                     return getOrCreateProfile(user);

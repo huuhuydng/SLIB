@@ -24,6 +24,7 @@ import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -95,14 +96,19 @@ public class ComplaintService {
                         UUID pointTransactionId, UUID violationReportId) {
                 User student = userRepository.findById(studentId)
                                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
+                String normalizedSubject = ContentValidationUtil.normalizeRequiredText(subject, "Tiêu đề khiếu nại", 255);
+                String normalizedContent = ContentValidationUtil.normalizeRequiredText(content, "Nội dung khiếu nại",
+                                4000);
+                String normalizedEvidenceUrl = ContentValidationUtil.normalizeOptionalUrl(evidenceUrl,
+                                "Đường dẫn minh chứng", 1000);
 
                 validateComplaintTarget(studentId, pointTransactionId, violationReportId);
 
                 ComplaintEntity complaint = ComplaintEntity.builder()
                                 .user(student)
-                                .subject(subject)
-                                .content(content)
-                                .evidenceUrl(evidenceUrl)
+                                .subject(normalizedSubject)
+                                .content(normalizedContent)
+                                .evidenceUrl(normalizedEvidenceUrl)
                                 .pointTransactionId(pointTransactionId)
                                 .violationReportId(violationReportId)
                                 .status(ComplaintStatus.PENDING)
@@ -142,7 +148,7 @@ public class ComplaintService {
                 complaint.setStatus(ComplaintStatus.ACCEPTED);
                 complaint.setResolvedBy(librarian);
                 complaint.setResolvedAt(LocalDateTime.now());
-                complaint.setResolutionNote(note);
+                complaint.setResolutionNote(ContentValidationUtil.normalizeOptionalText(note, "Ghi chú xử lý", 1000));
 
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Khiếu nại {} được CHẤP NHẬN bởi {}", complaintId, librarian.getFullName());
@@ -168,7 +174,7 @@ public class ComplaintService {
                 complaint.setStatus(ComplaintStatus.DENIED);
                 complaint.setResolvedBy(librarian);
                 complaint.setResolvedAt(LocalDateTime.now());
-                complaint.setResolutionNote(note);
+                complaint.setResolutionNote(ContentValidationUtil.normalizeOptionalText(note, "Ghi chú xử lý", 1000));
 
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Khiếu nại {} bị TỪ CHỐI bởi {}", complaintId, librarian.getFullName());

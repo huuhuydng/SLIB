@@ -1,0 +1,55 @@
+{
+  "name": "slib-nfc-bridge-app",
+  "version": "1.0.0",
+  "description": "Ứng dụng desktop NFC Bridge cho SLIB",
+  "main": "src/main.js",
+  "author": "SLIB Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "slib-nfc-bridge": "file:../nfc-bridge"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "site.slib.nfcbridge",
+    "productName": "SLIB NFC Bridge",
+    "icon": "build/icon.png",
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "protocols": [
+      {
+        "name": "SLIB NFC Bridge",
+        "schemes": [
+          "slib-nfc-bridge"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "build/icon.png",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}

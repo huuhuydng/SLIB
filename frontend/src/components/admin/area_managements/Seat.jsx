@@ -1,5 +1,4 @@
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
-import { updateSeat } from "../../../services/admin/area_management/api";
 
 function Seat({ seat }) {
   const { state, dispatch, actions } = useLayout();
@@ -57,23 +56,19 @@ function Seat({ seat }) {
       return payload;
     };
 
-    // update backend
-    try {
-      const payload = buildSeatPayload(seat, { isActive: newIsActive });
-      await updateSeat(seat.seatId, payload);
-
-      // sync context
-      dispatch({
-        type: actions.UPDATE_SEAT,
-        payload: {
-          ...seat,
-          seatId: seat.seatId,
-          isActive: newIsActive,
-        },
-      });
-    } catch (e) {
-      console.error("[Seat] Failed to update seat status", e);
+    const payload = buildSeatPayload(seat, { isActive: newIsActive });
+    dispatch({
+      type: actions.UPDATE_SEAT,
+      payload: {
+        ...seat,
+        seatId: seat.seatId,
+        isActive: newIsActive,
+      },
+    });
+    if (seat.seatId > 0) {
+      dispatch({ type: actions.ADD_PENDING_SEAT_UPDATE, payload });
     }
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   /* ================= RENDER ================= */

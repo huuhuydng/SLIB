@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,6 +21,17 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         // LẤY DỮ LIỆU TRONG NGÀY:
         @Query("SELECT a FROM AccessLog a WHERE a.checkInTime >= :startOfDay")
         List<AccessLog> findLogsFromStartOfDay(@Param("startOfDay") LocalDateTime startOfDay);
+
+        @Query(value = "SELECT device_id, COUNT(*) " +
+                        "FROM access_logs " +
+                        "WHERE check_in_time >= :startOfDay " +
+                        "GROUP BY device_id", nativeQuery = true)
+        List<Object[]> countTodayScansByDevice(@Param("startOfDay") LocalDateTime startOfDay);
+
+        @Query(value = "SELECT device_id, MAX(COALESCE(check_out_time, check_in_time)) " +
+                        "FROM access_logs " +
+                        "GROUP BY device_id", nativeQuery = true)
+        List<Object[]> findLastAccessTimeByDevice();
 
         // Tìm phiên đang hoạt động (chưa quẹt thẻ ra)
         @Query("SELECT a FROM AccessLog a WHERE a.user.id = :userId AND a.checkOutTime IS NULL ORDER BY a.checkInTime DESC")
@@ -76,8 +88,17 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         // Statistic: tổng check-in trong range
         long countByCheckInTimeAfter(LocalDateTime startDate);
 
+        long countByCheckInTimeBetween(LocalDateTime start, LocalDateTime end);
+
+        long countByCheckOutTimeAfter(LocalDateTime startDate);
+
+        long countByCheckInTimeAfterAndCheckOutTimeIsNull(LocalDateTime startDate);
+
         // Performance: query trực tiếp thay cho findAll + stream filter
         List<AccessLog> findByCheckOutTimeIsNullAndCheckInTimeBefore(LocalDateTime threshold);
 
         List<AccessLog> findByCheckOutTimeIsNull();
+
+        @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user ORDER BY COALESCE(a.checkOutTime, a.checkInTime) DESC")
+        List<AccessLog> findRecentLogs(Pageable pageable);
 }

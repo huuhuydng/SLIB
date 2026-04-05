@@ -16,7 +16,7 @@ const statisticService = {
             return res.data;
         } catch (e) {
             console.error('Error fetching statistics:', e);
-            return null;
+            throw e;
         }
     }
 };

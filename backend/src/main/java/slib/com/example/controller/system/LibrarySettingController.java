@@ -1,14 +1,15 @@
 package slib.com.example.controller.system;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.dto.system.LibrarySettingDTO;
 import slib.com.example.dto.booking.TimeSlotDTO;
+import slib.com.example.dto.system.LibraryLockToggleRequest;
 import slib.com.example.service.system.LibrarySettingService;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/slib/settings")
@@ -31,7 +32,7 @@ public class LibrarySettingController {
      * PUT /slib/settings/library
      */
     @PutMapping("/library")
-    public ResponseEntity<LibrarySettingDTO> updateSettings(@RequestBody LibrarySettingDTO dto) {
+    public ResponseEntity<LibrarySettingDTO> updateSettings(@Valid @RequestBody LibrarySettingDTO dto) {
         return ResponseEntity.ok(librarySettingService.updateSettings(dto));
     }
 
@@ -41,10 +42,17 @@ public class LibrarySettingController {
      * Body: { "closed": true/false, "reason": "Lý do đóng" }
      */
     @PostMapping("/library/toggle-lock")
-    public ResponseEntity<LibrarySettingDTO> toggleLock(@RequestBody Map<String, Object> body) {
-        Boolean closed = (Boolean) body.get("closed");
-        String reason = (String) body.get("reason");
-        return ResponseEntity.ok(librarySettingService.toggleLibraryClosed(closed, reason));
+    public ResponseEntity<LibrarySettingDTO> toggleLock(@Valid @RequestBody LibraryLockToggleRequest body) {
+        return ResponseEntity.ok(librarySettingService.toggleLibraryClosed(body.getClosed(), body.getReason()));
+    }
+
+    /**
+     * Khôi phục cấu hình mặc định của thư viện (Admin only)
+     * POST /slib/settings/library/reset
+     */
+    @PostMapping("/library/reset")
+    public ResponseEntity<LibrarySettingDTO> resetSettings() {
+        return ResponseEntity.ok(librarySettingService.resetSettings());
     }
 
     /**

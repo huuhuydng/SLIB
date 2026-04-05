@@ -1,22 +1,100 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ModalProvider } from "./components/shared/ModalContext";
 import { ToastProvider } from "./components/common/ToastProvider";
 import { ConfirmProvider } from "./components/common/ConfirmDialog";
 import { isTokenExpired } from "./utils/auth";
-const AuthPage = lazy(() => import("./components/auth/AuthPage"));
-const AdminRoutes = lazy(() => import("./routes/AdminRoutes"));
-const LibrarianRoutes = lazy(() => import("./routes/LibrarianRoutes"));
-const KioskRoutes = lazy(() => import("./routes/KioskRoutes"));
-const ChatWidget = lazy(() => import("./components/chat/ChatWidget"));
-const SessionExpired = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.SessionExpired })));
-const TokenExpired = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.TokenExpired })));
-const NotFound = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.NotFound })));
-const ServerError = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.ServerError })));
-const Forbidden = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.Forbidden })));
-const SessionTimeout = lazy(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.SessionTimeout })));
+import { clearLazyReloadFlag, lazyWithReload } from "./utils/lazyWithReload";
+
+const AuthPage = lazyWithReload(() => import("./components/auth/AuthPage"));
+const AdminRoutes = lazyWithReload(() => import("./routes/AdminRoutes"));
+const LibrarianRoutes = lazyWithReload(() => import("./routes/LibrarianRoutes"));
+const KioskRoutes = lazyWithReload(() => import("./routes/KioskRoutes"));
+const ChatWidget = lazyWithReload(() => import("./components/chat/ChatWidget"));
+const SessionExpired = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.SessionExpired })));
+const TokenExpired = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.TokenExpired })));
+const NotFound = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.NotFound })));
+const ServerError = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.ServerError })));
+const Forbidden = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.Forbidden })));
+const SessionTimeout = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.SessionTimeout })));
 
 const LoadingScreen = () => <div>Đang tải...</div>;
+
+class LazyChunkErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { error: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { error };
+    }
+
+    componentDidCatch(error) {
+        console.error("Lỗi tải bundle động:", error);
+    }
+
+    handleReload = () => {
+        clearLazyReloadFlag();
+        window.location.reload();
+    };
+
+    render() {
+        if (!this.state.error) {
+            return this.props.children;
+        }
+
+        return (
+            <div
+                style={{
+                    minHeight: "100vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "24px",
+                    background: "#fff7f2",
+                    fontFamily: "'Be Vietnam Pro', 'Segoe UI', sans-serif",
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: "520px",
+                        width: "100%",
+                        padding: "32px",
+                        borderRadius: "20px",
+                        background: "#ffffff",
+                        boxShadow: "0 18px 48px rgba(232, 96, 10, 0.12)",
+                        border: "1px solid rgba(232, 96, 10, 0.12)",
+                        textAlign: "center",
+                    }}
+                >
+                    <div style={{ fontSize: "18px", fontWeight: 700, color: "#1f2937", marginBottom: "12px" }}>
+                        Ứng dụng đang cập nhật
+                    </div>
+                    <div style={{ fontSize: "15px", lineHeight: 1.7, color: "#6b7280", marginBottom: "24px" }}>
+                        Trình duyệt vừa giữ lại một phần JavaScript cũ sau lần deploy mới. Hãy tải lại trang để dùng bản mới nhất.
+                    </div>
+                    <button
+                        type="button"
+                        onClick={this.handleReload}
+                        style={{
+                            border: "none",
+                            borderRadius: "12px",
+                            background: "#e8600a",
+                            color: "#ffffff",
+                            padding: "12px 24px",
+                            fontSize: "15px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        Tải lại trang
+                    </button>
+                </div>
+            </div>
+        );
+    }
+}
 
 
 const ConditionalChatWidget = () => {
@@ -188,8 +266,9 @@ function App() {
             <ConfirmProvider>
             <ModalProvider>
                 <BrowserRouter>
-                    <Suspense fallback={<LoadingScreen />}>
-                        <Routes>
+                    <LazyChunkErrorBoundary>
+                        <Suspense fallback={<LoadingScreen />}>
+                            <Routes>
                             {/* Unified Login Route */}
                             <Route path="/login" element={
                                 isLoggedIn
@@ -253,8 +332,9 @@ function App() {
 
                             {/* Fallback - 404 */}
                             <Route path="*" element={<NotFound />} />
-                        </Routes>
-                    </Suspense>
+                            </Routes>
+                        </Suspense>
+                    </LazyChunkErrorBoundary>
                 </BrowserRouter>
             </ModalProvider>
             </ConfirmProvider>

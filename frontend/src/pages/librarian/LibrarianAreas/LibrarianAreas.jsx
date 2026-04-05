@@ -481,7 +481,7 @@ function LibrarianAreasContent() {
       )}
 
       {/* Loading indicator */}
-      {loading && <div className="librarian-loading">Đang tải dữ liệu...</div>}
+      {loading && <div className="librarian-loading">Đang tải dữ liệu khu vực...</div>}
 
       {/* Floor plan + Sidebar */}
       <div className="librarian-content">

@@ -83,8 +83,15 @@ body {
 
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: var(--color-bg);
+  overflow: hidden;
+}
+
+.app-layout.library-map-page {
+  height: 100%;
+  min-height: 0;
 }
 
 /* Keyboard hint */
@@ -230,3 +237,28 @@ button:disabled {
   color: var(--color-primary-dark);
 }
 
+@media (max-width: 1400px) {
+  :root {
+    --sidebar-width: 220px;
+    --properties-width: 280px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .app-layout.library-map-page {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .app-layout.library-map-page .sidebar_area,
+  .app-layout.library-map-page .properties-panel {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    max-height: none;
+  }
+
+  .app-layout.library-map-page .canvas-container {
+    min-height: 60vh;
+  }
+}

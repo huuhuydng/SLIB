@@ -1,3 +1,5 @@
+const AUTH_NOTICE_KEY = 'slib_auth_notice';
+
 /**
  * Check if a JWT token is expired
  * Decodes the payload (base64) and compares the exp claim with current time
@@ -32,18 +34,59 @@ export const isTokenExpired = (token) => {
 };
 
 /**
- * Logout user and clear all authentication data
+ * Clear all authentication data for staff web flows.
  */
-export const handleLogout = () => {
-  // Clear ALL possible localStorage keys
+export const clearAuthStorage = () => {
   localStorage.removeItem('librarian_token');
   localStorage.removeItem('librarian_user');
   localStorage.removeItem('temp_reset_token');
+  localStorage.removeItem('refresh_token');
 
-  // Clear ALL possible sessionStorage keys
   sessionStorage.removeItem('librarian_token');
   sessionStorage.removeItem('librarian_user');
+  sessionStorage.removeItem('refresh_token');
+};
 
-  // Redirect to login page
-  window.location.href = '/';
+export const setAuthNotice = (notice) => {
+  try {
+    sessionStorage.setItem(AUTH_NOTICE_KEY, JSON.stringify(notice));
+  } catch (error) {
+    console.warn('[Auth] Không thể lưu thông báo xác thực:', error);
+  }
+};
+
+export const consumeAuthNotice = () => {
+  try {
+    const raw = sessionStorage.getItem(AUTH_NOTICE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    sessionStorage.removeItem(AUTH_NOTICE_KEY);
+    return JSON.parse(raw);
+  } catch (error) {
+    sessionStorage.removeItem(AUTH_NOTICE_KEY);
+    console.warn('[Auth] Không thể đọc thông báo xác thực:', error);
+    return null;
+  }
+};
+
+/**
+ * Logout user and redirect to login page with a one-time notice.
+ */
+export const handleLogout = ({
+  redirectTo = '/login',
+  notice = {
+    type: 'success',
+    title: 'Đăng xuất thành công',
+    message: 'Bạn đã đăng xuất khỏi hệ thống.'
+  }
+} = {}) => {
+  clearAuthStorage();
+
+  if (notice) {
+    setAuthNotice(notice);
+  }
+
+  window.location.href = redirectTo;
 };

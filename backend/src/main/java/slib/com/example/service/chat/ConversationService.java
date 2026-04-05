@@ -371,7 +371,7 @@ public class ConversationService {
                 return conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING)
                                 .stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
@@ -383,7 +383,7 @@ public class ConversationService {
                                 .findByLibrarianIdAndStatusOrderByUpdatedAtDesc(librarianId,
                                                 ConversationStatus.HUMAN_CHATTING)
                                 .stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
@@ -454,7 +454,7 @@ public class ConversationService {
                 // Combine and convert
                 waiting.addAll(active);
                 return waiting.stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
@@ -656,19 +656,17 @@ public class ConversationService {
          * Convert entity to DTO
          */
         public ConversationDTO convertToDTO(Conversation conv) {
-                // Lấy tin nhắn cuối cùng
-                ChatMessageDTO lastMessage = null;
-                if (conv.getMessages() != null && !conv.getMessages().isEmpty()) {
-                        Message lastMsg = conv.getMessages().get(conv.getMessages().size() - 1);
-                        lastMessage = ChatMessageDTO.builder()
-                                        .id(lastMsg.getId())
-                                        .senderId(lastMsg.getSender().getId())
-                                        .receiverId(lastMsg.getReceiver().getId())
-                                        .content(lastMsg.getContent())
-                                        .attachmentUrl(lastMsg.getAttachmentUrl())
-                                        .type(lastMsg.getType())
-                                        .createdAt(lastMsg.getCreatedAt())
-                                        .build();
+                return convertToDTO(conv, false);
+        }
+
+        public ConversationDTO convertToDTO(Conversation conv, boolean includeUnreadCount) {
+                ChatMessageDTO lastMessage = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conv.getId())
+                                .map(this::convertMessageToDTO)
+                                .orElse(null);
+
+                long unreadCount = 0;
+                if (includeUnreadCount) {
+                        unreadCount = messageRepository.countUnreadStudentMessagesInConversation(conv.getId());
                 }
 
                 return ConversationDTO.builder()
@@ -686,6 +684,7 @@ public class ConversationService {
                                 .updatedAt(conv.getUpdatedAt())
                                 .escalatedAt(conv.getEscalatedAt())
                                 .lastMessage(lastMessage)
+                                .unreadCount(unreadCount)
                                 .currentHumanSession(conv.getCurrentHumanSession())
                                 .build();
         }
@@ -933,6 +932,8 @@ public class ConversationService {
                                 .build();
 
                 Message savedMessage = messageRepository.save(message);
+                conv.setUpdatedAt(LocalDateTime.now());
+                conversationRepository.save(conv);
                 log.info("[Conversation] Added message to conversation {}: {} - type: {}", conversationId, content,
                                 resolvedSenderType);
 

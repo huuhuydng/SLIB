@@ -88,6 +88,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   late final Map<String, GlobalKey> _categoryChipKeys;
   String _selectedCategory = _allCategory.key;
 
+  int _unreadCountForCategory(
+    List<NotificationItem> notifications,
+    String categoryKey,
+  ) {
+    return notifications
+        .where((item) => item.category == categoryKey && !item.isRead)
+        .length;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -292,7 +301,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
       if (items.isEmpty) continue;
 
       widgets.add(
-        _CategoryHeader(categoryKey: option.key, label: option.label),
+        _CategoryHeader(
+          categoryKey: option.key,
+          label: option.label,
+          unreadCount: _unreadCountForCategory(items, option.key),
+          onMarkAllRead: () => _markCategoryAsRead(service, option.key),
+        ),
       );
 
       if (option.key == 'BOOKING') {
@@ -348,9 +362,29 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _CategoryHeader(
         categoryKey: selectedOption.key,
         label: selectedOption.label,
+        unreadCount: _unreadCountForCategory(
+          notifications,
+          selectedOption.key,
+        ),
+        onMarkAllRead: () => _markCategoryAsRead(service, selectedOption.key),
       ),
       ..._buildFlatNotificationWidgets(notifications, service),
     ];
+  }
+
+  Future<void> _markCategoryAsRead(
+    NotificationService service,
+    String categoryKey,
+  ) async {
+    final updated = await service.markCategoryAsRead(categoryKey);
+    if (!mounted || updated <= 0) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã đánh dấu $updated thông báo là đã đọc'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   List<Widget> _buildFlatNotificationWidgets(
@@ -520,8 +554,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
 class _CategoryHeader extends StatelessWidget {
   final String categoryKey;
   final String label;
+  final int unreadCount;
+  final VoidCallback? onMarkAllRead;
 
-  const _CategoryHeader({required this.categoryKey, required this.label});
+  const _CategoryHeader({
+    required this.categoryKey,
+    required this.label,
+    this.unreadCount = 0,
+    this.onMarkAllRead,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -530,20 +571,40 @@ class _CategoryHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
       child: Row(
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ],
             ),
           ),
+          if (unreadCount > 0 && onMarkAllRead != null)
+            TextButton(
+              onPressed: onMarkAllRead,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandColor,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Đọc tất cả',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
         ],
       ),
     );

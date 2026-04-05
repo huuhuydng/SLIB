@@ -846,6 +846,50 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  Future<int> markCategoryAsRead(String category) async {
+    if (_userId == null) return 0;
+
+    try {
+      final token = await _token;
+      if (token == null) return 0;
+
+      final normalizedCategory = category.trim().toUpperCase();
+      final unreadInCategory = _notifications
+          .where((n) => n.category == normalizedCategory && !n.isRead)
+          .length;
+
+      if (unreadInCategory == 0) {
+        return 0;
+      }
+
+      final response = await http.put(
+        Uri.parse(
+          '$_baseUrl/notifications/mark-all-read/$_userId/category/$normalizedCategory',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _notifications = _notifications.map((notification) {
+          if (notification.category == normalizedCategory && !notification.isRead) {
+            return notification.copyWith(isRead: true);
+          }
+          return notification;
+        }).toList();
+        _unreadCount = (_unreadCount - unreadInCategory).clamp(0, _unreadCount);
+        notifyListeners();
+        return unreadInCategory;
+      }
+    } catch (e) {
+      debugPrint('Error marking category notifications as read: $e');
+    }
+
+    return 0;
+  }
+
   /// Delete a notification
   Future<bool> deleteNotification(String notificationId) async {
     try {

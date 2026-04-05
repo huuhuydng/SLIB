@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/apiConfig';
+import kioskService from '../services/kiosk/kioskService';
 
 const KioskContext = createContext(null);
 
@@ -49,6 +50,24 @@ export const KioskProvider = ({ children }) => {
       })
       .finally(() => setIsLoading(false));
   }, [kioskToken]);
+
+  useEffect(() => {
+    if (!kioskToken || !isActivated) {
+      return undefined;
+    }
+
+    const heartbeat = async () => {
+      try {
+        await kioskService.heartbeat();
+      } catch {
+        // Để interceptor hiện tại xử lý 401/403 và đưa kiosk về màn hình khóa nếu cần.
+      }
+    };
+
+    heartbeat();
+    const timer = setInterval(heartbeat, 60000);
+    return () => clearInterval(timer);
+  }, [kioskToken, isActivated]);
 
   const activate = (token, config) => {
     localStorage.setItem('kiosk_device_token', token);

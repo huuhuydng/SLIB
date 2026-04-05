@@ -82,15 +82,15 @@ function AppRoutes() {
           || user.roles?.[0]?.name;
         const role = rawRole ? rawRole.toString().toUpperCase() : null;
 
-        // Chỉ cho phép LIBRARIAN và ADMIN đăng nhập
+        // Chỉ cho phép staff đăng nhập web quản trị
         if (role === 'LIBRARIAN' || role === 'ADMIN') {
           setIsLoggedIn(true);
           setUserRole(role);
-        } else if (role === 'STUDENT') {
-          // Không cho phép STUDENT đăng nhập vào web
-          console.warn('[Auth] STUDENT không được phép đăng nhập vào hệ thống web');
+        } else if (role === 'STUDENT' || role === 'TEACHER') {
+          // Không cho phép patron đăng nhập vào web
+          console.warn(`[Auth] ${role} không được phép đăng nhập vào hệ thống web`);
           performLogout();
-          alert('Sinh viên không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
+          alert('Tài khoản người dùng thư viện không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
         }
       } catch (error) {
         console.error('[Auth] Error parsing user data:', error);

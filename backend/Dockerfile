@@ -23,8 +23,8 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
 FROM amazoncorretto:21-alpine-jdk
 WORKDIR /app
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install curl for healthcheck and PostgreSQL client for backup
+RUN apk add --no-cache curl postgresql-client
 
 # Copy file jar đã build sang
 COPY --from=build /app/target/*.jar app.jar

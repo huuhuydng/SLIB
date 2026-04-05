@@ -189,12 +189,11 @@ class FE02_LoginWithSLIBAccountTest {
 
         /**
          * UTCD06: Login with empty credentials
-         * Note: Controller throws RuntimeException -> GlobalExceptionHandler -> 500
-         * Expected: 500 Internal Server Error
+         * Expected: 400 Bad Request vì request rỗng bị validate chặn lại
          */
         @Test
-        @DisplayName("UTCD06: Login with empty credentials returns 500 Internal Server Error")
-        void loginWithPassword_emptyCredentials_returns500InternalServerError() throws Exception {
+        @DisplayName("UTCD06: Login with empty credentials returns 400 Bad Request")
+        void loginWithPassword_emptyCredentials_returns400BadRequest() throws Exception {
                 LoginRequest request = new LoginRequest();
                 request.setIdentifier("");
                 request.setPassword("");
@@ -202,7 +201,7 @@ class FE02_LoginWithSLIBAccountTest {
                 mockMvc.perform(post("/slib/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isInternalServerError());
+                                .andExpect(status().isBadRequest());
 
                 verify(authService, never()).loginWithPassword(anyString(), anyString(), any());
         }

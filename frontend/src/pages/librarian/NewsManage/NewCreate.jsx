@@ -26,10 +26,10 @@ import {
   getNewsImage,
   getAllCategories,
   createCategory,
-  deleteCategory,
   uploadImage
 } from '../../../services/librarian/newsService';
 import { sanitizeHtml } from '../../../utils/sanitizeHtml';
+import { getApiErrorMessage, normalizeText, validateNewsPayload } from '../../../utils/formValidation';
 
 const NewCreate = () => {
   const toast = useToast();
@@ -272,39 +272,6 @@ const NewCreate = () => {
     }
   };
 
-  // Handle category add
-  const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
-    try {
-      await createCategory(newCategoryName.trim());
-      await loadCategories();
-      setNewCategoryName('');
-      setShowAddCategory(false);
-    } catch (err) {
-      toast.error('Không thể thêm danh mục: ' + (err.response?.data?.error || err.message));
-    }
-  };
-
-  // Handle category delete
-  const handleDeleteCategory = async (categoryId) => {
-    const ok = await confirm({
-      title: 'Xoá danh mục',
-      message: 'Bạn có chắc muốn xoá danh mục này? Hành động này không thể hoàn tác.',
-      variant: 'danger',
-      confirmText: 'Xoá',
-    });
-    if (!ok) return;
-    try {
-      await deleteCategory(categoryId);
-      await loadCategories();
-      if (formData.categoryId === categoryId.toString()) {
-        setFormData(prev => ({ ...prev, categoryId: '' }));
-      }
-    } catch (err) {
-      toast.error('Không thể xoá danh mục: ' + (err.response?.data?.error || err.message));
-    }
-  };
-
   // Handle image upload via Backend API
   const handleImageUpload = async (file) => {
     try {
@@ -314,7 +281,7 @@ const NewCreate = () => {
       setImagePreview(url);
       return url;
     } catch (err) {
-      toast.error('Lỗi upload ảnh: ' + err.message);
+      toast.error(getApiErrorMessage(err, 'Lỗi upload ảnh'));
       return null;
     } finally {
       setUploading(false);
@@ -349,9 +316,17 @@ const NewCreate = () => {
     try {
       setLoading(true);
       setError(null);
-
-      if (!formData.title.trim()) {
-        setError('Vui lòng nhập tiêu đề');
+      const validationMessage = validateNewsPayload({
+        title: formData.title,
+        summary: formData.summary,
+        imageUrl: formData.imageUrl,
+        publishStatus,
+        scheduleDate,
+        scheduleTime,
+        customCategory: formData.customCategory,
+      });
+      if (validationMessage) {
+        setError(validationMessage);
         setLoading(false);
         return;
       }
@@ -377,13 +352,14 @@ const NewCreate = () => {
       let categoryId = null;
       if (formData.categoryId === 'other' && formData.customCategory?.trim()) {
         try {
-          const newCat = await createCategory(formData.customCategory.trim(), generateRandomColor());
+          const newCat = await createCategory(normalizeText(formData.customCategory), generateRandomColor());
           categoryId = newCat.id;
           await loadCategories(); // Refresh categories list
         } catch (err) {
           console.error('Error creating category:', err);
           // If category already exists, try to find it
-          const existingCat = categories.find(c => c.name.toLowerCase() === formData.customCategory.trim().toLowerCase());
+          const normalizedCustomCategory = normalizeText(formData.customCategory).toLowerCase();
+          const existingCat = categories.find(c => c.name.toLowerCase() === normalizedCustomCategory);
           if (existingCat) {
             categoryId = existingCat.id;
           }
@@ -393,14 +369,13 @@ const NewCreate = () => {
       }
 
       const newsData = {
-        title: formData.title,
-        summary: formData.summary || null,
+        title: normalizeText(formData.title),
+        summary: normalizeText(formData.summary) || null,
         content: formData.content || null,
-        imageUrl: formData.imageUrl || null,
-        category: categoryId ? { id: categoryId } : null,
+        imageUrl: normalizeText(formData.imageUrl) || null,
+        categoryId,
         isPublished,
         isPinned: isEditMode ? formData.isPinned : false, // Preserve pin status when editing
-        viewCount: 0,
         publishedAt
       };
 
@@ -415,7 +390,7 @@ const NewCreate = () => {
       setHasUnsavedChanges(false);
       navigate(basePath);
     } catch (err) {
-      setError(isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới');
+      setError(getApiErrorMessage(err, isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -549,7 +524,7 @@ const NewCreate = () => {
           <div className="news-form-right">
             {/* Thumbnail Upload */}
             <div className="news-form-group">
-              <label className="news-form-label">Ảnh bìa (Thumbnail)</label>
+              <label className="news-form-label">Ảnh bìa</label>
               {imagePreview ? (
                 <div className="news-image-preview">
                   <img src={imagePreview} alt="Thumbnail" />

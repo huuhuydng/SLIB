@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.common.IntegerBatchRequest;
 import slib.com.example.dto.news.NewBookImportRequest;
 import slib.com.example.dto.news.NewBookRequest;
 import slib.com.example.dto.news.NewBookResponse;
@@ -76,12 +77,9 @@ public class NewBookController {
     }
 
     @DeleteMapping("/admin/batch")
-    public ResponseEntity<?> deleteBatch(@RequestBody java.util.Map<String, java.util.List<Integer>> body) {
+    public ResponseEntity<?> deleteBatch(@Valid @RequestBody IntegerBatchRequest body) {
         try {
-            java.util.List<Integer> ids = body.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("error", "Danh sách ID không được trống"));
-            }
+            java.util.List<Integer> ids = body.getIds();
             newBookService.deleteBatch(ids);
             return ResponseEntity.ok(java.util.Map.of("deleted", ids.size()));
         } catch (Exception e) {

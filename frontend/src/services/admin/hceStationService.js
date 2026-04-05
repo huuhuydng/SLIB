@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { API_BASE_URL as API_BASE } from '../../config/apiConfig';
+import { getStaffAuthHeaders } from '../shared/staffAuth';
 
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const getAuthHeaders = () => getStaffAuthHeaders();
 
 const hceStationService = {
     /**

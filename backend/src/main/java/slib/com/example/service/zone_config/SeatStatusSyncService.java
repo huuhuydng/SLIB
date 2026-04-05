@@ -39,10 +39,21 @@ public class SeatStatusSyncService {
      */
     public void broadcastSeatUpdateWithTimeSlot(SeatEntity seat, String status,
             LocalDateTime startTime, LocalDateTime endTime) {
+        broadcastSeatUpdateWithTimeSlot(
+                seat.getSeatId(),
+                seat.getZone().getZoneId(),
+                seat.getSeatCode(),
+                status,
+                startTime,
+                endTime);
+    }
+
+    public void broadcastSeatUpdateWithTimeSlot(Integer seatId, Integer zoneId, String seatCode, String status,
+            LocalDateTime startTime, LocalDateTime endTime) {
         Map<String, Object> message = new HashMap<>();
-        message.put("seatId", seat.getSeatId());
-        message.put("zoneId", seat.getZone().getZoneId());
-        message.put("seatCode", seat.getSeatCode());
+        message.put("seatId", seatId);
+        message.put("zoneId", zoneId);
+        message.put("seatCode", seatCode);
         message.put("status", status);
         message.put("action", "STATUS_CHANGED");
 

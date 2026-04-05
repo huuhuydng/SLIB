@@ -17,6 +17,7 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -86,8 +87,10 @@ public class FeedbackService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
         validateFeedbackContext(studentId, conversationId, reservationId);
+        String normalizedContent = ContentValidationUtil.normalizeOptionalText(content, "Nội dung phản hồi", 2000);
+        String normalizedCategory = ContentValidationUtil.normalizeOptionalFeedbackCategory(category);
 
-        String resolvedCategory = category;
+        String resolvedCategory = normalizedCategory;
         if (resolvedCategory == null || resolvedCategory.isBlank()) {
             if (conversationId != null && !conversationId.isBlank()) {
                 resolvedCategory = "MESSAGE";
@@ -99,7 +102,7 @@ public class FeedbackService {
         FeedbackEntity feedback = FeedbackEntity.builder()
                 .user(student)
                 .rating(rating)
-                .content(content)
+                .content(normalizedContent)
                 .category(resolvedCategory)
                 .conversationId(conversationId)
                 .reservationId(reservationId)

@@ -233,7 +233,7 @@
 
 .cm-conv-name-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
@@ -255,6 +255,33 @@
   flex-shrink: 0;
 }
 
+.cm-conv-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.cm-conv-time.unread {
+  color: var(--lib-primary, #FF751F);
+  font-weight: 700;
+}
+
+.cm-conv-unread-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lib-primary, #FF751F);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(255, 117, 31, 0.22);
+}
+
 .cm-conv-code {
   font-size: 11px;
   color: var(--lib-muted, #64748b);
@@ -269,6 +296,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.3;
+}
+
+.cm-conv-reason.unread {
+  color: var(--lib-text, #0f172a);
+  font-weight: 600;
 }
 
 .cm-conv-bottom {

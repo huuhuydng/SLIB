@@ -3,6 +3,7 @@ package slib.com.example.service.kiosk;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.hce.AccessLog;
 import slib.com.example.repository.hce.AccessLogRepository;
@@ -31,20 +32,9 @@ public class KioskMonitorService {
      */
     public Map<String, Object> getTodayStats() {
         LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
-
-        List<AccessLog> todayLogs = accessLogRepository.findLogsFromStartOfDay(startOfDay);
-
-        long checkInCount = todayLogs.stream()
-                .filter(log -> log.getCheckInTime() != null)
-                .count();
-
-        long checkOutCount = todayLogs.stream()
-                .filter(log -> log.getCheckOutTime() != null)
-                .count();
-
-        long currentlyInside = todayLogs.stream()
-                .filter(log -> log.getCheckInTime() != null && log.getCheckOutTime() == null)
-                .count();
+        long checkInCount = accessLogRepository.countByCheckInTimeAfter(startOfDay);
+        long checkOutCount = accessLogRepository.countByCheckOutTimeAfter(startOfDay);
+        long currentlyInside = accessLogRepository.countByCheckInTimeAfterAndCheckOutTimeIsNull(startOfDay);
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalEntries", checkInCount);
@@ -80,10 +70,10 @@ public class KioskMonitorService {
      * Get recent entry logs (last N records)
      */
     public List<Map<String, Object>> getRecentLogs(int limit) {
-        List<AccessLog> logs = accessLogRepository.findTop10ByOrderByCheckInTimeDesc();
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        List<AccessLog> logs = accessLogRepository.findRecentLogs(PageRequest.of(0, safeLimit));
 
         return logs.stream()
-                .limit(limit)
                 .map(log -> {
                     Map<String, Object> item = new HashMap<>();
                     item.put("id", log.getLogId().toString());

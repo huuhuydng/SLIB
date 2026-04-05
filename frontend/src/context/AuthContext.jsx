@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import librarianService from '../services/librarian/librarianService';
+import { handleLogout as redirectLogout } from '../utils/auth';
 
 const AuthContext = createContext(null);
 
@@ -54,8 +55,7 @@ export const AuthProvider = ({ children }) => {
         librarianService.logout();
         setUser(null);
         setToken(null);
-        // Redirect to login
-        window.location.href = '/login';
+        redirectLogout();
     };
 
     const isAuthenticated = !!token && !!user;
