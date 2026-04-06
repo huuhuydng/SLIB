@@ -6,7 +6,6 @@ import '../../services/auth/auth_service.dart';
 import '../../services/booking/booking_service.dart';
 import '../../services/report/seat_status_report_service.dart';
 import '../../views/widgets/error_display_widget.dart';
-import 'seat_status_report_history_screen.dart';
 
 class SeatStatusReportScreen extends StatefulWidget {
   const SeatStatusReportScreen({super.key});
@@ -130,22 +129,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Báo cáo tình trạng ghế'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SeatStatusReportHistoryScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Báo cáo tình trạng ghế')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null

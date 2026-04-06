@@ -6,7 +6,7 @@ import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/news/news_screen.dart';
 import 'package:slib/views/profile/activity_history_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
-import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/profile/complaint_history_screen.dart';
 import 'package:slib/views/seat_status_report/seat_status_report_history_screen.dart';
 import 'package:slib/views/support/support_request_history_screen.dart';
 import 'package:slib/views/violation_report/violation_report_history_screen.dart';
@@ -362,10 +362,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _CategoryHeader(
         categoryKey: selectedOption.key,
         label: selectedOption.label,
-        unreadCount: _unreadCountForCategory(
-          notifications,
-          selectedOption.key,
-        ),
+        unreadCount: _unreadCountForCategory(notifications, selectedOption.key),
         onMarkAllRead: () => _markCategoryAsRead(service, selectedOption.key),
       ),
       ..._buildFlatNotificationWidgets(notifications, service),
@@ -511,8 +508,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   void _openProcessingScreen(NotificationItem notification) {
-    final referenceType =
-        (notification.referenceType ?? notification.type).toUpperCase();
+    final referenceType = (notification.referenceType ?? notification.type)
+        .toUpperCase();
     final combined = '${notification.title} ${notification.content}'
         .toLowerCase();
 
@@ -528,7 +525,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     if (referenceType == 'COMPLAINT' || combined.contains('khiếu nại')) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
+        MaterialPageRoute(builder: (_) => const ComplaintHistoryScreen()),
       );
       return;
     }
@@ -537,7 +534,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
         combined.contains('tình trạng ghế')) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const SeatStatusReportHistoryScreen()),
+        MaterialPageRoute(
+          builder: (_) => const SeatStatusReportHistoryScreen(),
+        ),
       );
       return;
     }
@@ -577,7 +576,10 @@ class _CategoryHeader extends StatelessWidget {
                 Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -596,7 +598,10 @@ class _CategoryHeader extends StatelessWidget {
               onPressed: onMarkAllRead,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.brandColor,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),

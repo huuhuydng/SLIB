@@ -52,6 +52,9 @@ class ApiConstants {
   // Violation Reports
   static const String violationReportUrl = "$domain/slib/violation-reports";
 
+  // Complaints
+  static const String complaintUrl = "$domain/slib/complaints";
+
   // Kiosk
   static const String kioskUrl = "$domain/slib/kiosk";
 

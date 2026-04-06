@@ -9,10 +9,11 @@ import 'package:slib/services/library/library_status_service.dart';
 import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
+import 'package:slib/views/profile/complaint_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
+import 'package:slib/views/profile/report_history_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:slib/views/support/support_request_screen.dart';
-import 'package:slib/views/violation_report/violation_report_screen.dart';
 
 class SettingScreen extends StatefulWidget {
   final UserProfile? user;
@@ -217,12 +218,26 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildNavTile(
                 icon: Icons.report_outlined,
                 iconColor: Colors.orange,
-                title: "Báo cáo",
+                title: "Lịch sử báo cáo",
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ViolationReportScreen(),
+                      builder: (context) => const ReportHistoryScreen(),
+                    ),
+                  );
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.gavel_rounded,
+                iconColor: Colors.deepOrange,
+                title: "Lịch sử khiếu nại",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ComplaintHistoryScreen(),
                     ),
                   );
                 },
