@@ -46,11 +46,67 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
               AND n.notificationType = :type
               AND n.title = :title
               AND n.content = :content
-              AND ((:referenceType IS NULL AND n.referenceType IS NULL) OR n.referenceType = :referenceType)
-              AND ((:referenceId IS NULL AND n.referenceId IS NULL) OR n.referenceId = :referenceId)
+              AND n.referenceType IS NULL
+              AND n.referenceId IS NULL
               AND n.createdAt >= :since
             """)
-    boolean existsRecentDuplicate(
+    boolean existsRecentDuplicateWithoutReference(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType = :referenceType
+              AND n.referenceId IS NULL
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReferenceType(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceType") String referenceType,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType IS NULL
+              AND n.referenceId = :referenceId
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReferenceId(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceId") UUID referenceId,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType = :referenceType
+              AND n.referenceId = :referenceId
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReference(
             @Param("userId") UUID userId,
             @Param("type") NotificationType type,
             @Param("title") String title,

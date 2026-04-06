@@ -305,14 +305,47 @@ public class PushNotificationService {
             return false;
         }
 
-        return notificationRepository.existsRecentDuplicate(
+        LocalDateTime since = LocalDateTime.now().minus(cooldown);
+        String referenceType = request.referenceType();
+        UUID referenceId = request.referenceId();
+
+        if (referenceType == null && referenceId == null) {
+            return notificationRepository.existsRecentDuplicateWithoutReference(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    since);
+        }
+
+        if (referenceType != null && referenceId == null) {
+            return notificationRepository.existsRecentDuplicateWithReferenceType(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    referenceType,
+                    since);
+        }
+
+        if (referenceType == null) {
+            return notificationRepository.existsRecentDuplicateWithReferenceId(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    referenceId,
+                    since);
+        }
+
+        return notificationRepository.existsRecentDuplicateWithReference(
                 request.userId(),
                 request.type(),
                 request.title(),
                 request.body(),
-                request.referenceType(),
-                request.referenceId(),
-                LocalDateTime.now().minus(cooldown));
+                referenceType,
+                referenceId,
+                since);
     }
 
     private Duration resolveDuplicateCooldown(NotificationRequest request) {
