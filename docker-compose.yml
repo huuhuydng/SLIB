@@ -123,6 +123,8 @@ services:
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - APP_FRONTEND_URL=${APP_FRONTEND_URL:-https://slibsystem.site}
     volumes:
       - maven-repo:/root/.m2
     networks:

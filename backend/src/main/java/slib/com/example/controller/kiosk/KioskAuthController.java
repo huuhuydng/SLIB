@@ -1,5 +1,6 @@
 package slib.com.example.controller.kiosk;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.kiosk.ActivateCodeRequest;
+import slib.com.example.dto.kiosk.ActivateDeviceRequest;
+import slib.com.example.dto.kiosk.CompleteKioskSessionRequest;
+import slib.com.example.dto.kiosk.SessionTokenRequest;
+import slib.com.example.dto.kiosk.UserIdRequest;
+import slib.com.example.dto.kiosk.ValidateQrRequest;
 import slib.com.example.entity.kiosk.KioskActivationCodeEntity;
 import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.entity.users.User;
@@ -39,25 +46,21 @@ public class KioskAuthController {
     private final UserService userService;
 
     /**
-     * Kich hoat kiosk bang device token.
+     * Kích hoạt kiosk bằng token thiết bị.
      * POST /slib/kiosk/session/activate
      * Body: { "token": "eyJ..." }
      *
-     * Endpoint nay la permitAll - kiosk goi khi khoi dong de xac thuc.
+     * Endpoint này là permitAll - kiosk gọi khi khởi động để xác thực.
      */
     @PostMapping("/session/activate")
-    public ResponseEntity<?> activateDevice(@RequestBody Map<String, String> request) {
-        String token = request.get("token");
-        if (token == null || token.isBlank()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Token khong duoc de trong"));
-        }
-
+    public ResponseEntity<?> activateDevice(@Valid @RequestBody ActivateDeviceRequest request) {
+        String token = request.getToken();
         KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(token);
         if (kiosk == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Token khong hop le, da het han hoac da bi thu hoi"));
+            return ResponseEntity.status(401).body(Map.of("error", "Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi"));
         }
 
-        // Cap nhat thoi gian hoat dong cuoi
+        // Cập nhật thời gian hoạt động cuối
         kioskTokenService.updateLastActive(kiosk.getId());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -67,52 +70,70 @@ public class KioskAuthController {
         response.put("kioskType", kiosk.getKioskType());
         response.put("location", kiosk.getLocation());
         response.put("isActive", kiosk.getIsActive());
-        response.put("message", "Kich hoat kiosk thanh cong");
+        response.put("message", "Kích hoạt kiosk thành công");
 
-        log.info("Kiosk {} da kich hoat thanh cong", kiosk.getKioskCode());
+        log.info("Kiosk {} đã kích hoạt thành công", kiosk.getKioskCode());
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Kich hoat kiosk bang ma kich hoat ngan (6 ky tu).
+     * Heartbeat định kỳ từ kiosk đã kích hoạt để cập nhật trạng thái online.
+     * POST /slib/kiosk/session/heartbeat
+     */
+    @PostMapping("/session/heartbeat")
+    @PreAuthorize("hasRole('KIOSK')")
+    public ResponseEntity<Map<String, Object>> heartbeat(Authentication authentication) {
+        if (!(authentication instanceof KioskDevicePrincipal kioskPrincipal)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Không có quyền truy cập kiosk"));
+        }
+
+        kioskTokenService.updateLastActive(kioskPrincipal.getKioskId());
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "kioskId", kioskPrincipal.getKioskId(),
+                "kioskCode", kioskPrincipal.getKioskCode(),
+                "timestamp", LocalDateTime.now(),
+                "message", "Heartbeat thành công"));
+    }
+
+    /**
+     * Kích hoạt kiosk bằng mã kích hoạt ngắn (6 ký tự).
      * POST /slib/kiosk/session/activate-code
      * Body: { "code": "A3F9K2" }
      *
-     * Endpoint nay la permitAll - kiosk goi khi nhap ma kich hoat tren man hinh khoa.
+     * Endpoint này là permitAll - kiosk gọi khi nhập mã kích hoạt trên màn hình khóa.
      */
     @PostMapping("/session/activate-code")
     @Transactional
-    public ResponseEntity<?> activateByCode(@RequestBody Map<String, String> request) {
-        String code = request.get("code");
-        if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Ma kich hoat khong duoc de trong"));
-        }
+    public ResponseEntity<?> activateByCode(@Valid @RequestBody ActivateCodeRequest request) {
+        String code = request.getCode();
 
-        // Tim ma kich hoat chua su dung
+        // Tìm mã kích hoạt chưa sử dụng
         KioskActivationCodeEntity activationCode = kioskActivationCodeRepository
                 .findByCodeAndUsedFalse(code.toUpperCase().trim())
                 .orElse(null);
 
         if (activationCode == null || activationCode.getExpiresAt().isBefore(LocalDateTime.now())) {
             return ResponseEntity.badRequest().body(Map.of(
-                    "error", "Ma kich hoat khong hop le hoac da het han"
+                    "error", "Mã kích hoạt không hợp lệ hoặc đã hết hạn"
             ));
         }
 
-        // Danh dau da su dung
+        // Đánh dấu đã sử dụng
         activationCode.setUsed(true);
         kioskActivationCodeRepository.save(activationCode);
 
-        // Xac thuc bang device token (cung logic nhu /session/activate)
+        // Xác thực bằng token thiết bị (cùng logic như /session/activate)
         String deviceToken = activationCode.getDeviceToken();
         KioskConfigEntity kiosk = kioskTokenService.validateDeviceToken(deviceToken);
         if (kiosk == null) {
             return ResponseEntity.status(401).body(Map.of(
-                    "error", "Token khong hop le, da het han hoac da bi thu hoi"
+                    "error", "Token không hợp lệ, đã hết hạn hoặc đã bị thu hồi"
             ));
         }
 
-        // Cap nhat thoi gian hoat dong cuoi
+        // Cập nhật thời gian hoạt động cuối
         kioskTokenService.updateLastActive(kiosk.getId());
 
         Map<String, Object> response = new LinkedHashMap<>();
@@ -123,9 +144,9 @@ public class KioskAuthController {
         response.put("kioskType", kiosk.getKioskType());
         response.put("location", kiosk.getLocation());
         response.put("isActive", kiosk.getIsActive());
-        response.put("message", "Kich hoat kiosk thanh cong");
+        response.put("message", "Kích hoạt kiosk thành công");
 
-        log.info("Kiosk {} da kich hoat thanh cong bang ma kich hoat {}", kiosk.getKioskCode(), code);
+        log.info("Kiosk {} đã kích hoạt thành công bằng mã kích hoạt {}", kiosk.getKioskCode(), code);
         return ResponseEntity.ok(response);
     }
 
@@ -147,9 +168,9 @@ public class KioskAuthController {
      * Body: { "qrPayload": "...", "kioskCode": "..." }
      */
     @PostMapping("/qr/validate")
-    public ResponseEntity<KioskQrDTO.QrValidateResponse> validateQr(@RequestBody Map<String, String> request) {
-        String qrPayload = request.get("qrPayload");
-        String kioskCode = request.get("kioskCode");
+    public ResponseEntity<KioskQrDTO.QrValidateResponse> validateQr(@Valid @RequestBody ValidateQrRequest request) {
+        String qrPayload = request.getQrPayload();
+        String kioskCode = request.getKioskCode();
 
         log.info("Validating QR for kiosk: {}", kioskCode);
         KioskQrDTO.QrValidateResponse response = kioskQrAuthService.validateQr(qrPayload, kioskCode);
@@ -163,13 +184,12 @@ public class KioskAuthController {
      * Body: { "sessionToken": "...", "userId": "..." }
      */
     @PostMapping("/session/complete")
-    public ResponseEntity<?> completeSession(@RequestBody Map<String, String> request) {
-        String sessionToken = request.get("sessionToken");
-        String userIdStr = request.get("userId");
+    public ResponseEntity<?> completeSession(@Valid @RequestBody CompleteKioskSessionRequest request) {
+        String sessionToken = request.getSessionToken();
 
         log.info("Completing session with token: {}", sessionToken);
 
-        java.util.UUID userId = java.util.UUID.fromString(userIdStr);
+        java.util.UUID userId = request.getUserId();
         ResponseEntity<Map<String, Object>> authError = validateUserOrKioskAccessGeneric(userId);
         if (authError != null) {
             return ResponseEntity.status(authError.getStatusCode()).body(authError.getBody());
@@ -213,8 +233,8 @@ public class KioskAuthController {
      * Body: { "sessionToken": "..." }
      */
     @PostMapping("/session/checkout")
-    public ResponseEntity<Map<String, String>> checkOut(@RequestBody Map<String, String> request) {
-        String sessionToken = request.get("sessionToken");
+    public ResponseEntity<Map<String, String>> checkOut(@Valid @RequestBody SessionTokenRequest request) {
+        String sessionToken = request.getSessionToken();
 
         log.info("Checking out session: {}", sessionToken);
         kioskQrAuthService.checkOut(sessionToken);
@@ -229,8 +249,8 @@ public class KioskAuthController {
      * Body: { "sessionToken": "..." }
      */
     @PostMapping("/session/checkin")
-    public ResponseEntity<Map<String, String>> checkIn(@RequestBody Map<String, String> request) {
-        String sessionToken = request.get("sessionToken");
+    public ResponseEntity<Map<String, String>> checkIn(@Valid @RequestBody SessionTokenRequest request) {
+        String sessionToken = request.getSessionToken();
 
         log.info("Check-in session: {}", sessionToken);
         kioskQrAuthService.checkIn(sessionToken);
@@ -245,9 +265,8 @@ public class KioskAuthController {
      * Body: { "userId": "..." }
      */
     @PostMapping("/session/checkout-mobile")
-    public ResponseEntity<Map<String, String>> checkOutMobile(@RequestBody Map<String, String> request) {
-        String userIdStr = request.get("userId");
-        UUID requestedUserId = UUID.fromString(userIdStr);
+    public ResponseEntity<Map<String, String>> checkOutMobile(@Valid @RequestBody UserIdRequest request) {
+        UUID requestedUserId = request.getUserId();
 
         // Kiem tra xac thuc: user JWT phai khop userId, hoac la kiosk device token
         ResponseEntity<Map<String, String>> authError = validateUserOrKioskAccess(requestedUserId);
@@ -255,7 +274,7 @@ public class KioskAuthController {
             return authError;
         }
 
-        log.info("Mobile check-out for user: {}", userIdStr);
+        log.info("Mobile check-out for user: {}", requestedUserId);
         kioskQrAuthService.checkOutByUserId(requestedUserId);
 
         return ResponseEntity.ok(Map.of("success", "true", "message", "Check-out từ mobile thành công"));
@@ -302,7 +321,7 @@ public class KioskAuthController {
         // User JWT -> userId phai khop
         if (auth.getPrincipal() instanceof User user) {
             if (!user.getId().equals(requestedUserId)) {
-                return ResponseEntity.status(403).body(Map.of("error", "Khong co quyen truy cap tai nguyen cua nguoi dung khac"));
+                return ResponseEntity.status(403).body(Map.of("error", "Không có quyền truy cập tài nguyên của người dùng khác"));
             }
             return null;
         }
@@ -328,7 +347,7 @@ public class KioskAuthController {
         if (auth.getPrincipal() instanceof User user) {
             if (!user.getId().equals(requestedUserId)) {
                 @SuppressWarnings("unchecked")
-                Map<String, T> error = (Map<String, T>) Map.of("error", "Khong co quyen truy cap tai nguyen cua nguoi dung khac");
+                Map<String, T> error = (Map<String, T>) Map.of("error", "Không có quyền truy cập tài nguyên của người dùng khác");
                 return ResponseEntity.status(403).body(error);
             }
             return null;
@@ -344,8 +363,8 @@ public class KioskAuthController {
      * Dùng khi kiosk timeout hoặc user bấm back
      */
     @PostMapping("/session/expire")
-    public ResponseEntity<Map<String, String>> expireSession(@RequestBody Map<String, String> request) {
-        String sessionToken = request.get("sessionToken");
+    public ResponseEntity<Map<String, String>> expireSession(@Valid @RequestBody SessionTokenRequest request) {
+        String sessionToken = request.getSessionToken();
         log.info("Expiring kiosk session: {}", sessionToken);
         kioskQrAuthService.expireSession(sessionToken);
         return ResponseEntity.ok(Map.of("success", "true", "message", "Session expired"));

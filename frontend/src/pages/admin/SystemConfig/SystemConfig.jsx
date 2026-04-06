@@ -24,16 +24,50 @@ import {
   Unlock,
   Power
 } from 'lucide-react';
+import LoadErrorState from '../../../components/common/LoadErrorState';
 
 
 import { API_BASE_URL as BASE } from '../../../config/apiConfig';
 
 const API_BASE_URL = `${BASE}/slib/settings`;
 const REPUTATION_API_URL = `${BASE}/slib/admin/reputation-rules`;
+const DEFAULT_LIBRARY_CONFIG = {
+  openTime: '07:00',
+  closeTime: '21:00',
+  slotDuration: 60,
+  maxBookingsPerDay: 3,
+  maxHoursPerDay: 4,
+  maxBookingDays: 14,
+  workingDays: '2,3,4,5,6',
+  autoCancelMinutes: 15,
+  autoCancelOnLeaveMinutes: 30,
+  minReputation: 0,
+  notifyBookingSuccess: true,
+  notifyCheckinReminder: true,
+  notifyTimeExpiry: true,
+  notifyViolation: true,
+  notifyWeeklyReport: false,
+  notifyDeviceAlert: true,
+};
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const parseApiError = async (response, fallbackMessage) => {
+  try {
+    const data = await response.json();
+    if (data?.errors && typeof data.errors === 'object') {
+      return Object.values(data.errors).join('\n');
+    }
+    if (data?.message) {
+      return data.message;
+    }
+  } catch {
+    // Ignore JSON parse failures and return fallback.
+  }
+  return fallbackMessage;
 };
 
 const SystemConfig = () => {
@@ -44,8 +78,10 @@ const SystemConfig = () => {
   const [editingRule, setEditingRule] = useState(null);
   const [ruleType, setRuleType] = useState('violation');
   const [loading, setLoading] = useState(true);
+  const [settingsError, setSettingsError] = useState('');
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Reputation Rules State
   const [reputationRules, setReputationRules] = useState([]);
@@ -57,53 +93,57 @@ const SystemConfig = () => {
   const [closedReason, setClosedReason] = useState('');
 
   // Library Config State
-  const [libraryConfig, setLibraryConfig] = useState({
-    openTime: '07:00',
-    closeTime: '22:00',
-    slotDuration: 60,
-    maxBookingsPerDay: 3,
-    maxHoursPerDay: 4,
-    maxBookingDays: 14,
-    workingDays: '2,3,4,5,6',
-    autoCancelMinutes: 15,
-    autoCancelOnLeaveMinutes: 30,
-    minReputation: 0,
-  });
+  const [libraryConfig, setLibraryConfig] = useState(DEFAULT_LIBRARY_CONFIG);
+
+  const applyLibrarySettings = (data) => {
+    setLibraryClosed(data.libraryClosed || false);
+    setClosedReason(data.closedReason || '');
+    setLibraryConfig({
+      openTime: data.openTime || DEFAULT_LIBRARY_CONFIG.openTime,
+      closeTime: data.closeTime || DEFAULT_LIBRARY_CONFIG.closeTime,
+      slotDuration: data.slotDuration ?? DEFAULT_LIBRARY_CONFIG.slotDuration,
+      maxBookingsPerDay: data.maxBookingsPerDay ?? DEFAULT_LIBRARY_CONFIG.maxBookingsPerDay,
+      maxHoursPerDay: data.maxHoursPerDay ?? DEFAULT_LIBRARY_CONFIG.maxHoursPerDay,
+      maxBookingDays: data.maxBookingDays ?? DEFAULT_LIBRARY_CONFIG.maxBookingDays,
+      workingDays: data.workingDays || DEFAULT_LIBRARY_CONFIG.workingDays,
+      autoCancelMinutes: data.autoCancelMinutes ?? DEFAULT_LIBRARY_CONFIG.autoCancelMinutes,
+      autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? DEFAULT_LIBRARY_CONFIG.autoCancelOnLeaveMinutes,
+      minReputation: data.minReputation ?? DEFAULT_LIBRARY_CONFIG.minReputation,
+      notifyBookingSuccess: data.notifyBookingSuccess ?? DEFAULT_LIBRARY_CONFIG.notifyBookingSuccess,
+      notifyCheckinReminder: data.notifyCheckinReminder ?? DEFAULT_LIBRARY_CONFIG.notifyCheckinReminder,
+      notifyTimeExpiry: data.notifyTimeExpiry ?? DEFAULT_LIBRARY_CONFIG.notifyTimeExpiry,
+      notifyViolation: data.notifyViolation ?? DEFAULT_LIBRARY_CONFIG.notifyViolation,
+      notifyWeeklyReport: data.notifyWeeklyReport ?? DEFAULT_LIBRARY_CONFIG.notifyWeeklyReport,
+      notifyDeviceAlert: data.notifyDeviceAlert ?? DEFAULT_LIBRARY_CONFIG.notifyDeviceAlert,
+    });
+  };
+
+  const fetchSettings = async ({ showErrorToast = false } = {}) => {
+    setLoading(true);
+    setSettingsError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/library`, { headers: getAuthHeaders() });
+      if (!response.ok) {
+        const message = await parseApiError(response, 'Không thể tải cấu hình thư viện');
+        throw new Error(message);
+      }
+
+      const data = await response.json();
+      applyLibrarySettings(data);
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      const message = error?.message || 'Không thể tải cấu hình thư viện';
+      setSettingsError(message);
+      if (showErrorToast) {
+        toast.error(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load settings from API on mount
   useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/library`, { headers: getAuthHeaders() });
-        if (response.ok) {
-          const data = await response.json();
-          setLibraryClosed(data.libraryClosed || false);
-          setClosedReason(data.closedReason || '');
-          setLibraryConfig({
-            openTime: data.openTime || '07:00',
-            closeTime: data.closeTime || '22:00',
-            slotDuration: data.slotDuration || 60,
-            maxBookingsPerDay: data.maxBookingsPerDay || 3,
-            maxHoursPerDay: data.maxHoursPerDay || 4,
-            maxBookingDays: data.maxBookingDays || 14,
-            workingDays: data.workingDays || '2,3,4,5,6',
-            autoCancelMinutes: data.autoCancelMinutes ?? 15,
-            autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? 30,
-            minReputation: data.minReputation ?? 0,
-            notifyBookingSuccess: data.notifyBookingSuccess ?? true,
-            notifyCheckinReminder: data.notifyCheckinReminder ?? true,
-            notifyTimeExpiry: data.notifyTimeExpiry ?? true,
-            notifyViolation: data.notifyViolation ?? true,
-            notifyWeeklyReport: data.notifyWeeklyReport ?? false,
-            notifyDeviceAlert: data.notifyDeviceAlert ?? true,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchSettings();
   }, []);
 
@@ -210,13 +250,15 @@ const SystemConfig = () => {
         body: JSON.stringify(libraryConfig),
       });
       if (response.ok) {
+        const data = await response.json();
+        applyLibrarySettings(data);
         toast.success('Lưu cài đặt thành công!');
       } else {
-        toast.error('Lỗi khi lưu cài đặt');
+        toast.error(await parseApiError(response, 'Lỗi khi lưu cài đặt'));
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Lỗi kết nối server');
+      toast.error(error?.message || 'Lỗi kết nối server');
     } finally {
       setSaving(false);
     }
@@ -248,17 +290,49 @@ const SystemConfig = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setLibraryClosed(data.libraryClosed || false);
-        setClosedReason(data.closedReason || '');
-        toast.success(newClosed ? 'Đã khoá thư viện!' : 'Đã mở khoá thư viện!');
+        applyLibrarySettings(data);
+        toast.success(newClosed ? 'Đã tạm đóng thư viện' : 'Đã mở lại thư viện');
       } else {
-        toast.error('Lỗi khi thay đổi trạng thái thư viện');
+        toast.error(await parseApiError(response, 'Lỗi khi thay đổi trạng thái thư viện'));
       }
     } catch (error) {
       console.error('Error toggling lock:', error);
-      toast.error('Lỗi kết nối server');
+      toast.error(error?.message || 'Lỗi kết nối server');
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handleResetDefaults = async () => {
+    const confirmed = await confirm({
+      title: 'Khôi phục mặc định',
+      message: 'Thao tác này sẽ đưa toàn bộ cấu hình thư viện và thông báo về mặc định. Bạn có muốn tiếp tục không?',
+      confirmText: 'Khôi phục',
+      variant: 'warning',
+    });
+
+    if (!confirmed) return;
+
+    setResetting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library/reset`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        toast.error(await parseApiError(response, 'Không thể khôi phục cấu hình mặc định'));
+        return;
+      }
+
+      const data = await response.json();
+      applyLibrarySettings(data);
+      toast.success('Đã khôi phục cấu hình mặc định');
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      toast.error(error?.message || 'Lỗi kết nối server');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -286,8 +360,9 @@ const SystemConfig = () => {
               Thiết lập các tham số vận hành của SLIB
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button style={{
+          {activeTab !== 'reputation' && (
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -298,15 +373,19 @@ const SystemConfig = () => {
               fontSize: '14px',
               fontWeight: '600',
               color: '#4A5568',
-              cursor: 'pointer'
-            }}>
-              <RotateCcw size={18} />
-              Khôi phục mặc định
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
+              cursor: resetting ? 'not-allowed' : 'pointer',
+              opacity: resetting ? 0.7 : 1
+            }}
+              onClick={handleResetDefaults}
+              disabled={resetting || loading}
+              >
+                {resetting ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                {resetting ? 'Đang khôi phục...' : 'Khôi phục mặc định'}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
@@ -317,13 +396,14 @@ const SystemConfig = () => {
                 fontSize: '14px',
                 fontWeight: '600',
                 color: '#fff',
-                cursor: saving ? 'not-allowed' : 'pointer',
+                cursor: saving || loading ? 'not-allowed' : 'pointer',
                 boxShadow: '0 4px 14px rgba(255, 117, 31, 0.25)'
-              }}>
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </button>
-          </div>
+                }}>
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Main Content */}
@@ -369,8 +449,38 @@ const SystemConfig = () => {
 
           {/* Content Area */}
           <div style={{ flex: 1 }}>
+            {loading && (
+              <div style={{
+                background: '#fff',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                padding: '48px 24px',
+                textAlign: 'center',
+                color: '#718096'
+              }}>
+                <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 12px' }} />
+                Đang tải cấu hình thư viện...
+              </div>
+            )}
+
+            {!loading && settingsError && activeTab !== 'reputation' && (
+              <div style={{
+                background: '#fff',
+                borderRadius: '10px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}>
+                <LoadErrorState
+                  title="Không thể tải cấu hình hệ thống"
+                  message={settingsError}
+                  onRetry={() => fetchSettings({ showErrorToast: true })}
+                  retryLabel="Tải lại"
+                  compact
+                />
+              </div>
+            )}
+
             {/* Library Parameters Tab */}
-            {activeTab === 'library' && (
+            {!loading && !settingsError && activeTab === 'library' && (
               <div style={{
                 background: '#fff',
                 borderRadius: '10px',
@@ -438,14 +548,14 @@ const SystemConfig = () => {
                         }}
                       >
                         {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Power size={16} />}
-                        {libraryClosed ? 'Mở khoá thư viện' : 'Khoá thư viện'}
+                        {libraryClosed ? 'Mở lại thư viện' : 'Tạm đóng thư viện'}
                       </button>
                     </div>
                     {/* Reason input - show when open and about to close */}
                     {!libraryClosed && (
                       <div style={{ marginTop: '12px' }}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
-                          Lý do khoá (bắt buộc khi khoá)
+                          Lý do tạm đóng (bắt buộc)
                         </label>
                         <input
                           type="text"
@@ -539,7 +649,7 @@ const SystemConfig = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Thời lượng mỗi slot (phút)
+                          Thời lượng mỗi ca đặt chỗ (phút)
                         </label>
                         <input
                           type="number"
@@ -611,7 +721,7 @@ const SystemConfig = () => {
                       </div>
                       <div style={{ gridColumn: 'span 2' }}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Ngày làm việc (1=CN, 2=T2, ..., 7=T7)
+                          Các ngày phục vụ (1=CN, 2=T2, ..., 7=T7)
                         </label>
                         <input
                           type="text"
@@ -704,79 +814,6 @@ const SystemConfig = () => {
                     </div>
                   </div>
 
-                  {/* Auto Checkout */}
-                  <div>
-                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Timer size={18} color="#e8600a" />
-                      Tự động check-out
-                    </h3>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px',
-                      background: '#F7FAFC',
-                      borderRadius: '12px',
-                      marginBottom: '16px'
-                    }}>
-                      <div>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A1A' }}>Bật tự động check-out</div>
-                        <div style={{ fontSize: '13px', color: '#A0AEC0' }}>Tự động check-out khi quá thời gian</div>
-                      </div>
-                      <label style={{ position: 'relative', display: 'inline-block', width: '50px', height: '28px' }}>
-                        <input
-                          type="checkbox"
-                          checked={libraryConfig.autoCheckoutEnabled}
-                          onChange={(e) => handleConfigChange('autoCheckoutEnabled', e.target.checked)}
-                          style={{ opacity: 0, width: 0, height: 0 }}
-                        />
-                        <span style={{
-                          position: 'absolute',
-                          cursor: 'pointer',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          background: libraryConfig.autoCheckoutEnabled ? '#e8600a' : '#E2E8F0',
-                          borderRadius: '14px',
-                          transition: 'all 0.3s'
-                        }}>
-                          <span style={{
-                            position: 'absolute',
-                            content: '',
-                            height: '22px',
-                            width: '22px',
-                            left: libraryConfig.autoCheckoutEnabled ? '25px' : '3px',
-                            bottom: '3px',
-                            background: '#fff',
-                            borderRadius: '50%',
-                            transition: 'all 0.3s',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                          }} />
-                        </span>
-                      </label>
-                    </div>
-                    {libraryConfig.autoCheckoutEnabled && (
-                      <div>
-                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Tự động check-out sau (phút)
-                        </label>
-                        <input
-                          type="number"
-                          value={libraryConfig.autoCheckoutAfter}
-                          onChange={(e) => handleConfigChange('autoCheckoutAfter', parseInt(e.target.value))}
-                          style={{
-                            width: '200px',
-                            padding: '12px 16px',
-                            border: '2px solid #E2E8F0',
-                            borderRadius: '12px',
-                            fontSize: '14px',
-                            outline: 'none'
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             )}
@@ -975,7 +1012,7 @@ const SystemConfig = () => {
             )}
 
             {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
+            {!loading && !settingsError && activeTab === 'notifications' && (
               <div style={{
                 background: '#fff',
                 borderRadius: '10px',

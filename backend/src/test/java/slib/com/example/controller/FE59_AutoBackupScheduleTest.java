@@ -143,27 +143,17 @@ class FE59_AutoBackupScheduleTest {
         @WithMockUser(roles = "ADMIN")
         @DisplayName("UTCID03: Save invalid time format returns 400 Bad Request")
         void updateSchedule_invalidTimeFormat_returns400BadRequest() throws Exception {
-                BackupScheduleEntity existing = BackupScheduleEntity.builder()
-                                .id(1)
-                                .scheduleName("Daily Backup")
-                                .cronExpression("03:00")
-                                .backupType(BackupScheduleEntity.BackupType.FULL)
-                                .retainDays(30)
-                                .isActive(true)
-                                .build();
-
-                when(backupScheduleRepository.findFirstByOrderByIdAsc()).thenReturn(Optional.of(existing));
-                when(backupScheduleRepository.save(any(BackupScheduleEntity.class))).thenReturn(existing);
-
                 Map<String, Object> request = new HashMap<>();
                 request.put("time", "invalid-time-format");
                 request.put("retainDays", 7);
+                request.put("isActive", true);
 
                 mockMvc.perform(put("/slib/system/backup/schedule")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request)))
                                 .andExpect(status().isBadRequest())
-                                .andExpect(jsonPath("$.error").value("Thời gian backup không hợp lệ. Định dạng đúng là HH:mm"));
+                                .andExpect(jsonPath("$.error").value("Bad Request"))
+                                .andExpect(jsonPath("$.errors.time").value("Thời gian sao lưu phải theo định dạng HH:mm"));
 
                 verify(backupScheduleRepository, never()).save(any(BackupScheduleEntity.class));
         }
@@ -197,6 +187,8 @@ class FE59_AutoBackupScheduleTest {
                 });
 
                 Map<String, Object> request = new HashMap<>();
+                request.put("time", "03:00");
+                request.put("retainDays", 30);
                 request.put("isActive", false);
 
                 mockMvc.perform(put("/slib/system/backup/schedule")
@@ -226,6 +218,8 @@ class FE59_AutoBackupScheduleTest {
 
                 Map<String, Object> request = new HashMap<>();
                 request.put("time", "03:00");
+                request.put("retainDays", 7);
+                request.put("isActive", true);
 
                 mockMvc.perform(put("/slib/system/backup/schedule")
                                 .contentType(MediaType.APPLICATION_JSON)

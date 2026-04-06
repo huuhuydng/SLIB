@@ -3,7 +3,9 @@ package slib.com.example.service.news;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.news.Category;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.news.CategoryRepository;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.util.List;
 
@@ -18,13 +20,16 @@ public class CategoryService {
     }
 
     public Category createCategory(String name, String colorCode) {
-        if (categoryRepository.existsByName(name)) {
-            throw new RuntimeException("Category already exists: " + name);
+        String normalizedName = ContentValidationUtil.normalizeRequiredText(name, "Tên danh mục", 50);
+        String normalizedColorCode = ContentValidationUtil.normalizeOptionalColorCode(colorCode);
+
+        if (categoryRepository.findByNameIgnoreCase(normalizedName).isPresent()) {
+            throw new BadRequestException("Danh mục đã tồn tại: " + normalizedName);
         }
 
         Category category = Category.builder()
-                .name(name)
-                .colorCode(colorCode != null ? colorCode : "#6366F1")
+                .name(normalizedName)
+                .colorCode(normalizedColorCode)
                 .build();
 
         return categoryRepository.save(category);

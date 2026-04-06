@@ -13,7 +13,6 @@ import '../../services/booking/booking_service.dart';
 import '../../services/report/seat_status_report_service.dart';
 import '../../services/report/violation_report_service.dart';
 import '../../views/widgets/error_display_widget.dart';
-import 'violation_report_history_screen.dart';
 
 class ViolationReportScreen extends StatefulWidget {
   const ViolationReportScreen({super.key});
@@ -1178,22 +1177,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
                   ),
                 ),
               ),
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ViolationReportHistoryScreen(),
-                  ),
-                ),
-                child: const Text(
-                  'Lịch sử',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              const SizedBox(width: 48),
             ],
           ),
         ),

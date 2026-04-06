@@ -1,12 +1,16 @@
 package slib.com.example.controller.kiosk;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.dto.kiosk.CreateKioskRequest;
+import slib.com.example.dto.kiosk.UpdateKioskRequest;
 import slib.com.example.entity.kiosk.KioskActivationCodeEntity;
 import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.entity.users.User;
@@ -35,6 +39,9 @@ public class KioskAdminController {
     private final KioskConfigRepository kioskConfigRepository;
     private final KioskActivationCodeRepository kioskActivationCodeRepository;
 
+    @Value("${app.frontend-url:https://slibsystem.site}")
+    private String frontendUrl;
+
     /**
      * Tao device token cho kiosk.
      * POST /slib/kiosk/admin/token/{kioskId}
@@ -42,15 +49,22 @@ public class KioskAdminController {
     @PostMapping("/token/{kioskId}")
     public ResponseEntity<Map<String, Object>> generateToken(
             @PathVariable Integer kioskId,
+            @RequestParam(defaultValue = "false") boolean force,
             Authentication authentication) {
+
+        KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy kiosk"));
+
+        if (kioskTokenService.hasValidToken(kiosk) && !force) {
+            throw new BadRequestException("Kiosk đang có mã kích hoạt còn hiệu lực. Chỉ cấp lại khi thực sự cần thiết.");
+        }
 
         UUID issuedByUserId = extractUserId(authentication);
         String token = kioskTokenService.generateDeviceToken(kioskId, issuedByUserId);
+        kioskActivationCodeRepository.deleteByExpiresAtBefore(LocalDateTime.now());
+        kioskActivationCodeRepository.deleteByKioskIdAndUsedFalse(kioskId);
 
-        KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new BadRequestException("Khong tim thay kiosk"));
-
-        // Tao ma kich hoat ngan 6 ky tu
+        // Tạo mã kích hoạt ngắn 6 ký tự
         String activationCode = generateActivationCode();
         KioskActivationCodeEntity codeEntity = KioskActivationCodeEntity.builder()
                 .kioskId(kioskId)
@@ -65,10 +79,10 @@ public class KioskAdminController {
         response.put("kioskCode", kiosk.getKioskCode());
         response.put("token", token);
         response.put("expiresAt", kiosk.getDeviceTokenExpiresAt());
-        response.put("activationUrl", "/kiosk/?token=" + token);
+        response.put("activationUrl", frontendUrl + "/kiosk/?token=" + token);
         response.put("activationCode", activationCode);
 
-        log.info("Da tao device token va ma kich hoat {} cho kiosk {} boi {}", activationCode, kiosk.getKioskCode(), issuedByUserId);
+        log.info("Đã tạo token thiết bị và mã kích hoạt {} cho kiosk {} bởi {}", activationCode, kiosk.getKioskCode(), issuedByUserId);
         return ResponseEntity.ok(response);
     }
 
@@ -79,7 +93,7 @@ public class KioskAdminController {
     @DeleteMapping("/token/{kioskId}")
     public ResponseEntity<Map<String, String>> revokeToken(@PathVariable Integer kioskId) {
         kioskTokenService.revokeDeviceToken(kioskId);
-        return ResponseEntity.ok(Map.of("message", "Da thu hoi device token thanh cong"));
+        return ResponseEntity.ok(Map.of("message", "Đã thu hồi mã kích hoạt của kiosk thành công"));
     }
 
     /**
@@ -102,12 +116,10 @@ public class KioskAdminController {
             item.put("deviceTokenIssuedAt", kiosk.getDeviceTokenIssuedAt());
             item.put("deviceTokenExpiresAt", kiosk.getDeviceTokenExpiresAt());
             item.put("lastActiveAt", kiosk.getLastActiveAt());
-
-            // Kiem tra token con hieu luc khong
-            boolean tokenValid = kiosk.getDeviceToken() != null
-                    && kiosk.getDeviceTokenExpiresAt() != null
-                    && kiosk.getDeviceTokenExpiresAt().isAfter(LocalDateTime.now());
+            boolean tokenValid = kioskTokenService.hasValidToken(kiosk);
             item.put("tokenValid", tokenValid);
+            item.put("online", kioskTokenService.isOnline(kiosk));
+            item.put("runtimeStatus", kioskTokenService.getRuntimeStatus(kiosk));
 
             return item;
         }).collect(Collectors.toList());
@@ -123,29 +135,15 @@ public class KioskAdminController {
      */
     @PostMapping("/kiosks")
     @Transactional
-    public ResponseEntity<Map<String, Object>> createKiosk(@RequestBody Map<String, String> request) {
-        String kioskCode = request.get("kioskCode");
-        String kioskName = request.get("kioskName");
-        String kioskType = request.get("kioskType");
-        String location = request.get("location");
+    public ResponseEntity<Map<String, Object>> createKiosk(@Valid @RequestBody CreateKioskRequest request) {
+        String kioskCode = request.getKioskCode().trim().toUpperCase(Locale.ROOT);
+        String kioskName = request.getKioskName().trim();
+        String kioskType = request.getKioskType().trim().toUpperCase(Locale.ROOT);
+        String location = request.getLocation() != null ? request.getLocation().trim() : null;
 
-        // Validate truong bat buoc
-        if (kioskCode == null || kioskCode.isBlank()) {
-            throw new BadRequestException("Ma kiosk khong duoc de trong");
-        }
-        if (kioskName == null || kioskName.isBlank()) {
-            throw new BadRequestException("Ten kiosk khong duoc de trong");
-        }
-        if (kioskType == null || kioskType.isBlank()) {
-            throw new BadRequestException("Loai kiosk khong duoc de trong");
-        }
-        if (!kioskType.equals("INTERACTIVE") && !kioskType.equals("MONITORING")) {
-            throw new BadRequestException("Loai kiosk phai la INTERACTIVE hoac MONITORING");
-        }
-
-        // Kiem tra ma kiosk trung
+        // Kiểm tra mã kiosk trùng
         if (kioskConfigRepository.existsByKioskCode(kioskCode)) {
-            throw new BadRequestException("Ma kiosk da ton tai: " + kioskCode);
+            throw new BadRequestException("Mã kiosk đã tồn tại: " + kioskCode);
         }
 
         KioskConfigEntity kiosk = KioskConfigEntity.builder()
@@ -158,7 +156,7 @@ public class KioskAdminController {
                 .build();
 
         kiosk = kioskConfigRepository.save(kiosk);
-        log.info("Da tao kiosk moi: {} ({})", kiosk.getKioskCode(), kiosk.getId());
+        log.info("Đã tạo kiosk mới: {} ({})", kiosk.getKioskCode(), kiosk.getId());
 
         return ResponseEntity.ok(buildKioskDetailMap(kiosk));
     }
@@ -171,41 +169,38 @@ public class KioskAdminController {
     @Transactional
     public ResponseEntity<Map<String, Object>> updateKiosk(
             @PathVariable Integer kioskId,
-            @RequestBody Map<String, Object> request) {
+            @Valid @RequestBody UpdateKioskRequest request) {
 
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi id: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với id: " + kioskId));
 
-        // Cap nhat cac truong duoc phep (kioskCode khong duoc sua)
-        if (request.containsKey("kioskName")) {
-            String kioskName = (String) request.get("kioskName");
-            if (kioskName == null || kioskName.isBlank()) {
-                throw new BadRequestException("Ten kiosk khong duoc de trong");
+        // Cập nhật các trường được phép (kioskCode không được sửa)
+        if (request.getKioskName() != null) {
+            String kioskName = request.getKioskName().trim();
+            if (kioskName.isBlank()) {
+                throw new BadRequestException("Tên kiosk không được để trống");
             }
             kiosk.setKioskName(kioskName);
         }
 
-        if (request.containsKey("kioskType")) {
-            String kioskType = (String) request.get("kioskType");
-            if (kioskType == null || kioskType.isBlank()) {
-                throw new BadRequestException("Loai kiosk khong duoc de trong");
-            }
-            if (!kioskType.equals("INTERACTIVE") && !kioskType.equals("MONITORING")) {
-                throw new BadRequestException("Loai kiosk phai la INTERACTIVE hoac MONITORING");
+        if (request.getKioskType() != null) {
+            String kioskType = request.getKioskType().trim().toUpperCase(Locale.ROOT);
+            if (kioskType.isBlank()) {
+                throw new BadRequestException("Loại kiosk không được để trống");
             }
             kiosk.setKioskType(kioskType);
         }
 
-        if (request.containsKey("location")) {
-            kiosk.setLocation((String) request.get("location"));
+        if (request.getLocation() != null) {
+            kiosk.setLocation(request.getLocation().trim());
         }
 
-        if (request.containsKey("isActive")) {
-            kiosk.setIsActive((Boolean) request.get("isActive"));
+        if (request.getIsActive() != null) {
+            kiosk.setIsActive(request.getIsActive());
         }
 
         kiosk = kioskConfigRepository.save(kiosk);
-        log.info("Da cap nhat kiosk: {} ({})", kiosk.getKioskCode(), kiosk.getId());
+        log.info("Đã cập nhật kiosk: {} ({})", kiosk.getKioskCode(), kiosk.getId());
 
         return ResponseEntity.ok(buildKioskDetailMap(kiosk));
     }
@@ -218,18 +213,18 @@ public class KioskAdminController {
     @Transactional
     public ResponseEntity<Map<String, String>> deleteKiosk(@PathVariable Integer kioskId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi id: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với id: " + kioskId));
 
-        // Thu hoi token truoc khi xoa
+        // Thu hồi token trước khi xóa
         if (kiosk.getDeviceToken() != null) {
             kioskTokenService.revokeDeviceToken(kioskId);
         }
 
         String kioskCode = kiosk.getKioskCode();
         kioskConfigRepository.delete(kiosk);
-        log.info("Da xoa kiosk: {} ({})", kioskCode, kioskId);
+        log.info("Đã xóa kiosk: {} ({})", kioskCode, kioskId);
 
-        return ResponseEntity.ok(Map.of("message", "Da xoa kiosk " + kioskCode + " thanh cong"));
+        return ResponseEntity.ok(Map.of("message", "Đã xóa kiosk " + kioskCode + " thành công"));
     }
 
     /**
@@ -239,7 +234,7 @@ public class KioskAdminController {
     @GetMapping("/kiosks/{kioskId}")
     public ResponseEntity<Map<String, Object>> getKioskDetail(@PathVariable Integer kioskId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi id: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với id: " + kioskId));
 
         return ResponseEntity.ok(buildKioskDetailMap(kiosk));
     }
@@ -260,11 +255,10 @@ public class KioskAdminController {
         item.put("deviceTokenIssuedAt", kiosk.getDeviceTokenIssuedAt());
         item.put("deviceTokenExpiresAt", kiosk.getDeviceTokenExpiresAt());
         item.put("lastActiveAt", kiosk.getLastActiveAt());
-
-        boolean tokenValid = kiosk.getDeviceToken() != null
-                && kiosk.getDeviceTokenExpiresAt() != null
-                && kiosk.getDeviceTokenExpiresAt().isAfter(LocalDateTime.now());
+        boolean tokenValid = kioskTokenService.hasValidToken(kiosk);
         item.put("tokenValid", tokenValid);
+        item.put("online", kioskTokenService.isOnline(kiosk));
+        item.put("runtimeStatus", kioskTokenService.getRuntimeStatus(kiosk));
 
         item.put("createdAt", kiosk.getCreatedAt());
         item.put("updatedAt", kiosk.getUpdatedAt());
@@ -294,7 +288,7 @@ public class KioskAdminController {
      */
     private UUID extractUserId(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
-            throw new BadRequestException("Khong the xac dinh nguoi dung hien tai");
+            throw new BadRequestException("Không thể xác định người dùng hiện tại");
         }
 
         Object principal = authentication.getPrincipal();
@@ -303,10 +297,10 @@ public class KioskAdminController {
         }
         if (principal instanceof UserDetails) {
             // Fallback: khong lay duoc UUID, dung UUID ngau nhien (truong hop hiem)
-            log.warn("Khong the lay UUID tu UserDetails, su dung UUID mac dinh");
+            log.warn("Không thể lấy UUID từ UserDetails, sử dụng UUID mặc định");
             return UUID.fromString("00000000-0000-0000-0000-000000000000");
         }
 
-        throw new BadRequestException("Khong the xac dinh nguoi dung hien tai");
+        throw new BadRequestException("Không thể xác định người dùng hiện tại");
     }
 }

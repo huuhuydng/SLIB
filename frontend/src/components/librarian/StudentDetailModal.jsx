@@ -41,6 +41,7 @@ const StudentDetailModal = ({ userId, isOpen, onClose }) => {
     const getRoleLabel = (role) => {
         switch (role) {
             case 'STUDENT': return 'Sinh viên';
+            case 'TEACHER': return 'Giáo viên';
             case 'LIBRARIAN': return 'Thủ thư';
             case 'ADMIN': return 'Admin';
             default: return role || 'N/A';
@@ -179,7 +180,7 @@ const StudentDetailModal = ({ userId, isOpen, onClose }) => {
                                         <div className="sd-info-list">
                                             <InfoRow icon={User} label="Họ tên" value={data.fullName || 'N/A'} />
                                             <InfoRow icon={Mail} label="Email" value={data.email || 'N/A'} />
-                                            <InfoRow icon={Building} label="Mã sinh viên" value={data.userCode || 'N/A'} />
+                                            <InfoRow icon={Building} label="Mã người dùng" value={data.userCode || 'N/A'} />
                                             <InfoRow icon={Phone} label="Số điện thoại" value={data.phone || 'Chưa cập nhật'} />
                                             <InfoRow icon={Calendar} label="Ngày sinh" value={data.dob ? formatDate(data.dob) : 'Chưa cập nhật'} />
                                         </div>

@@ -15,4 +15,6 @@ public interface KioskActivationCodeRepository extends JpaRepository<KioskActiva
     boolean existsByCode(String code);
 
     void deleteByExpiresAtBefore(LocalDateTime time);
+
+    void deleteByKioskIdAndUsedFalse(Integer kioskId);
 }

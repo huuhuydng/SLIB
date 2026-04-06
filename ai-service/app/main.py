@@ -165,16 +165,18 @@ async def get_config(_: dict = Depends(require_admin_access)):
     
     try:
         config = java_client.get_ai_config(force_refresh=True)
+        provider = config.get("provider", settings.ai_provider)
+        active_model = config.get("ollamaModel") if provider == "ollama" else config.get("geminiModel")
         return {
             "configured": True,
-            "provider": "ollama",
-            "model": settings.ollama_model,
+            "provider": provider,
+            "model": active_model or settings.ollama_model,
             "embedding_model": settings.ollama_embedding_model,
             "temperature": config.get("temperature", 0.7),
             "max_tokens": config.get("maxTokens", 1024),
-            "enable_context": True,
-            "enable_history": True,
-            "system_prompt": settings.default_system_prompt,
+            "enable_context": config.get("enableContext", True),
+            "enable_history": config.get("enableHistory", True),
+            "system_prompt": config.get("systemPrompt") or settings.default_system_prompt,
             "similarity_threshold": settings.similarity_threshold,
             "rag_enabled": True
         }

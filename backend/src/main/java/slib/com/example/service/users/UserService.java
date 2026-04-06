@@ -3,10 +3,14 @@ package slib.com.example.service.users;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.ImportUserRequest;
+import slib.com.example.dto.users.AdminCreateUserRequest;
+import slib.com.example.dto.users.AdminUserListItemResponse;
 import slib.com.example.dto.users.UserProfileResponse;
+import slib.com.example.dto.users.UserListItemResponse;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserSetting;
@@ -28,8 +32,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.Locale;
 import slib.com.example.service.notification.EmailService;
 import slib.com.example.service.auth.AuthService;
+import slib.com.example.util.UserValidationUtil;
 
 /**
  * UserService - handles user profile and management operations.
@@ -80,8 +87,47 @@ public class UserService {
     /**
      * Get all users (admin only)
      */
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserListItemResponse> getAllUsers(Role role, Boolean isActive, String search) {
+        return findFilteredUsers(role, isActive, search).stream()
+                .map(this::toUserListItemResponse)
+                .toList();
+    }
+
+    public List<AdminUserListItemResponse> getAdminUsers(Role role, Boolean isActive, String search) {
+        return findFilteredUsers(role, isActive, search).stream()
+                .map(this::toAdminUserListItemResponse)
+                .toList();
+    }
+
+    private List<User> findFilteredUsers(Role role, Boolean isActive, String search) {
+        String normalizedSearch = normalizeSearch(search);
+
+        return userRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
+                .filter(user -> role == null || user.getRole() == role)
+                .filter(user -> isActive == null || user.getIsActive().equals(isActive))
+                .filter(user -> matchesSearch(user, normalizedSearch))
+                .toList();
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) {
+            return null;
+        }
+        String normalized = search.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean matchesSearch(User user, String normalizedSearch) {
+        if (normalizedSearch == null) {
+            return true;
+        }
+        return containsIgnoreCase(user.getFullName(), normalizedSearch)
+                || containsIgnoreCase(user.getEmail(), normalizedSearch)
+                || containsIgnoreCase(user.getUserCode(), normalizedSearch);
+    }
+
+    private boolean containsIgnoreCase(String source, String normalizedSearch) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(normalizedSearch);
     }
 
     /**
@@ -98,21 +144,22 @@ public class UserService {
             existingUser.setNotiDevice(req.getNotiDevice());
         }
         if (req.getPhone() != null) {
+            String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(req.getPhone());
             // Check duplicate phone
-            if (!req.getPhone().isEmpty() && !req.getPhone().equals(existingUser.getPhone())
-                    && userRepository.existsByPhone(req.getPhone())) {
+            if (normalizedPhone != null && !normalizedPhone.equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(normalizedPhone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
-            existingUser.setPhone(req.getPhone());
+            existingUser.setPhone(normalizedPhone);
         }
         if (req.getDob() != null) {
-            existingUser.setDob(req.getDob());
+            existingUser.setDob(UserValidationUtil.validateOptionalDob(req.getDob()));
         }
         if (req.getAvtUrl() != null) {
             existingUser.setAvtUrl(req.getAvtUrl());
         }
-        if (req.getFullName() != null && !req.getFullName().isEmpty()) {
-            existingUser.setFullName(req.getFullName());
+        if (req.getFullName() != null) {
+            existingUser.setFullName(UserValidationUtil.normalizeRequiredFullName(req.getFullName()));
         }
         return userRepository.save(existingUser);
     }
@@ -124,15 +171,17 @@ public class UserService {
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
 
-        if (fullName != null && !fullName.isEmpty()) {
-            existingUser.setFullName(fullName);
+        if (fullName != null) {
+            existingUser.setFullName(UserValidationUtil.normalizeRequiredFullName(fullName));
         }
-        if (phone != null && !phone.equals(existingUser.getPhone())) {
+        if (phone != null) {
+            String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(phone);
             // Kiểm tra phone đã tồn tại chưa
-            if (userRepository.existsByPhone(phone)) {
+            if (normalizedPhone != null && !normalizedPhone.equals(existingUser.getPhone())
+                    && userRepository.existsByPhone(normalizedPhone)) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng");
             }
-            existingUser.setPhone(phone);
+            existingUser.setPhone(normalizedPhone);
         }
         if (avtUrl != null) {
             existingUser.setAvtUrl(avtUrl);
@@ -164,6 +213,48 @@ public class UserService {
         return userRepository.findByEmail(email).isPresent();
     }
 
+    @Transactional
+    public AdminUserListItemResponse createUser(AdminCreateUserRequest request) {
+        String fullName = UserValidationUtil.normalizeRequiredFullName(request.getFullName());
+        String email = UserValidationUtil.normalizeRequiredEmail(request.getEmail());
+        String userCode = UserValidationUtil.normalizeRequiredUserCode(request.getUserCode());
+        String phone = UserValidationUtil.normalizeOptionalPhone(request.getPhone());
+        var dob = UserValidationUtil.validateOptionalDob(request.getDob());
+        Role role = request.getRole() != null ? request.getRole() : Role.STUDENT;
+
+        validateUniqueUserFields(email, userCode, phone, null);
+
+        User user = User.builder()
+                .userCode(userCode)
+                .username(userCode)
+                .email(email)
+                .fullName(fullName)
+                .phone(phone)
+                .dob(dob)
+                .role(role)
+                .password(authService.encodeDefaultPassword())
+                .passwordChanged(false)
+                .isActive(true)
+                .build();
+
+        UserSetting setting = UserSetting.builder()
+                .user(user)
+                .isHceEnabled(true)
+                .isAiRecommendEnabled(true)
+                .isBookingRemindEnabled(true)
+                .themeMode("light")
+                .languageCode("vi")
+                .build();
+        user.setSettings(setting);
+
+        User saved = userRepository.save(user);
+        sendWelcomeEmails(List.of(Map.of(
+                "email", saved.getEmail(),
+                "fullName", saved.getFullName(),
+                "role", saved.getRole().name())));
+        return toAdminUserListItemResponse(saved);
+    }
+
     /**
      * Import users in bulk (Admin only)
      * Returns a map with:
@@ -179,34 +270,33 @@ public class UserService {
 
         for (ImportUserRequest req : requests) {
             try {
-                // Validate required fields
-                if (req.getUserCode() == null || req.getUserCode().isEmpty()) {
-                    throw new RuntimeException("User code is required");
-                }
-                if (req.getEmail() == null || req.getEmail().isEmpty()) {
-                    throw new RuntimeException("Email is required");
-                }
-                if (req.getFullName() == null || req.getFullName().isEmpty()) {
-                    throw new RuntimeException("Full name is required");
-                }
+                String fullName = UserValidationUtil.normalizeRequiredFullName(req.getFullName());
+                String email = UserValidationUtil.normalizeRequiredEmail(req.getEmail());
+                String userCode = UserValidationUtil.normalizeRequiredUserCode(req.getUserCode());
+                String phone = UserValidationUtil.normalizeOptionalPhone(req.getPhone());
+                var dob = UserValidationUtil.validateOptionalDob(req.getDob());
+                Role role = req.getRole() != null ? req.getRole() : Role.STUDENT;
 
                 // Check for duplicates
-                if (userRepository.existsByEmail(req.getEmail())) {
-                    throw new RuntimeException("Email đã tồn tại: " + req.getEmail());
+                if (userRepository.existsByEmail(email)) {
+                    throw new RuntimeException("Email đã tồn tại: " + email);
                 }
-                if (userRepository.existsByUserCode(req.getUserCode())) {
-                    throw new RuntimeException("Mã số đã tồn tại: " + req.getUserCode());
+                if (userRepository.existsByUserCode(userCode)) {
+                    throw new RuntimeException("Mã số đã tồn tại: " + userCode);
+                }
+                if (phone != null && userRepository.existsByPhone(phone)) {
+                    throw new RuntimeException("Số điện thoại đã được sử dụng: " + phone);
                 }
 
                 // Create user
                 User user = User.builder()
-                        .userCode(req.getUserCode())
-                        .username(req.getUserCode()) // Default username = userCode
-                        .email(req.getEmail())
-                        .fullName(req.getFullName())
-                        .phone(req.getPhone())
-                        .dob(req.getDob())
-                        .role(req.getRole() != null ? req.getRole() : Role.STUDENT)
+                        .userCode(userCode)
+                        .username(userCode)
+                        .email(email)
+                        .fullName(fullName)
+                        .phone(phone)
+                        .dob(dob)
+                        .role(role)
                         .password(encodedPassword)
                         .passwordChanged(false) // New users need to change password
                         .isActive(true)
@@ -399,22 +489,36 @@ public class UserService {
         User existingUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + user.getId()));
 
+        validateManagedUser(user, existingUser.getId());
         ensureAdminWillRemain(existingUser, user.getIsActive(), user.getRole());
         return userRepository.save(user);
     }
 
-    public User getActiveStudentByUserCode(String userCode) {
-        User user = userRepository.findByUserCode(userCode.toUpperCase().trim())
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên với mã: " + userCode));
+    public long countActiveOrUpcomingBookings(UUID userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
+        return reservationRepository.countByUser_IdAndStatusInAndEndTimeAfter(
+                userId,
+                List.of("PROCESSING", "BOOKED", "CONFIRMED"),
+                LocalDateTime.now());
+    }
 
-        if (user.getRole() != Role.STUDENT) {
-            throw new RuntimeException("Mã này không thuộc tài khoản sinh viên");
+    public User getActivePatronByUserCode(String userCode) {
+        User user = userRepository.findByUserCode(userCode.toUpperCase().trim())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng thư viện với mã: " + userCode));
+
+        if (user.getRole() == null || !user.getRole().isPatron()) {
+            throw new RuntimeException("Mã này không thuộc tài khoản người dùng thư viện");
         }
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("Tài khoản sinh viên hiện đang bị khóa");
+            throw new RuntimeException("Tài khoản người dùng hiện đang bị khóa");
         }
 
         return user;
+    }
+
+    public User getActiveStudentByUserCode(String userCode) {
+        return getActivePatronByUserCode(userCode);
     }
 
     private void ensureAdminRemovalAllowed(User user) {
@@ -444,4 +548,76 @@ public class UserService {
             throw new RuntimeException("Phải luôn còn ít nhất một quản trị viên đang hoạt động");
         }
     }
+
+    private AdminUserListItemResponse toAdminUserListItemResponse(User user) {
+        return AdminUserListItemResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .userCode(user.getUserCode())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .isActive(user.getIsActive())
+                .avtUrl(user.getAvtUrl())
+                .passwordChanged(user.getPasswordChanged())
+                .phone(user.getPhone())
+                .dob(user.getDob())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+
+    private UserListItemResponse toUserListItemResponse(User user) {
+        return UserListItemResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .userCode(user.getUserCode())
+                .role(user.getRole() != null ? user.getRole().name() : null)
+                .isActive(user.getIsActive())
+                .avtUrl(user.getAvtUrl())
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    private void validateManagedUser(User user, UUID currentUserId) {
+        String fullName = UserValidationUtil.normalizeRequiredFullName(user.getFullName());
+        String email = UserValidationUtil.normalizeRequiredEmail(user.getEmail());
+        String userCode = UserValidationUtil.normalizeRequiredUserCode(user.getUserCode());
+        String phone = UserValidationUtil.normalizeOptionalPhone(user.getPhone());
+        user.setDob(UserValidationUtil.validateOptionalDob(user.getDob()));
+
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setUserCode(userCode);
+        user.setUsername(userCode);
+        user.setPhone(phone);
+
+        validateUniqueUserFields(email, userCode, phone, currentUserId);
+    }
+
+    private void validateUniqueUserFields(String email, String userCode, String phone, UUID currentUserId) {
+        boolean duplicateEmail = currentUserId == null
+                ? userRepository.existsByEmail(email)
+                : userRepository.existsByEmailAndIdNot(email, currentUserId);
+        if (duplicateEmail) {
+            throw new RuntimeException("Email đã được sử dụng");
+        }
+
+        boolean duplicateUserCode = currentUserId == null
+                ? userRepository.existsByUserCode(userCode)
+                : userRepository.existsByUserCodeAndIdNot(userCode, currentUserId);
+        if (duplicateUserCode) {
+            throw new RuntimeException("Mã người dùng đã tồn tại");
+        }
+
+        if (phone != null && !phone.isBlank()) {
+            boolean duplicatePhone = currentUserId == null
+                    ? userRepository.existsByPhone(phone)
+                    : userRepository.existsByPhoneAndIdNot(phone, currentUserId);
+            if (duplicatePhone) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng");
+            }
+        }
+    }
+
 }

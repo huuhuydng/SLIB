@@ -6,9 +6,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.dto.notification.NotificationDTO;
-import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
-import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
@@ -16,7 +14,6 @@ import slib.com.example.service.notification.PushNotificationService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Controller for managing user notifications
@@ -37,7 +34,7 @@ public class NotificationController {
 
         User currentUser = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.LIBRARIAN) {
+        if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
             return requestedUserId;
         }
         if (!currentUser.getId().equals(requestedUserId)) {
@@ -56,11 +53,7 @@ public class NotificationController {
             @RequestParam(defaultValue = "50") int limit,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
-        List<NotificationEntity> notifications = pushNotificationService.getUserNotifications(resolvedUserId, limit);
-        List<NotificationDTO> dtos = notifications.stream()
-                .map(pushNotificationService::toDTO)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(pushNotificationService.getUserNotificationDTOs(resolvedUserId, limit));
     }
 
     /**
@@ -95,6 +88,23 @@ public class NotificationController {
         UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
         pushNotificationService.markAllAsRead(resolvedUserId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Mark all notifications as read for a user by category
+     */
+    @PutMapping("/mark-all-read/{userId}/category/{category}")
+    public ResponseEntity<Map<String, Object>> markAllAsReadByCategory(@PathVariable UUID userId,
+            @PathVariable String category,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID resolvedUserId = resolveAuthorizedUserId(userId, userDetails);
+        int updated = pushNotificationService.markAllAsReadByCategory(resolvedUserId, category);
+        long remainingUnread = pushNotificationService.getUnreadCount(resolvedUserId);
+
+        return ResponseEntity.ok(Map.of(
+                "updated", updated,
+                "category", category.toUpperCase(),
+                "remainingUnread", remainingUnread));
     }
 
     /**

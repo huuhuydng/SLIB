@@ -31,23 +31,31 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
+import LoadErrorState from '../../../components/common/LoadErrorState';
+import { getApiErrorMessage, normalizeText, validateKioskPayload } from '../../../utils/formValidation';
 
 import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
 const getAdminToken = () =>
   localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
 
-const TOKEN_STATUS = {
-  ACTIVE: { label: 'Đang hoạt động', css: 'online' },
-  EXPIRED: { label: 'Hết hạn', css: 'offline' },
+const RUNTIME_STATUS = {
+  READY: { label: 'Sẵn sàng', css: 'online' },
+  STALE: { label: 'Mất kết nối', css: 'offline' },
+  PENDING: { label: 'Chưa kết nối', css: 'inactive' },
+  TOKEN_EXPIRED: { label: 'Kích hoạt hết hạn', css: 'offline' },
   INACTIVE: { label: 'Chưa kích hoạt', css: 'inactive' },
+  DISABLED: { label: 'Đã vô hiệu hóa', css: 'inactive' },
 };
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
-  { value: 'ACTIVE', label: 'Đang hoạt động' },
-  { value: 'EXPIRED', label: 'Hết hạn' },
+  { value: 'READY', label: 'Sẵn sàng' },
+  { value: 'STALE', label: 'Mất kết nối' },
+  { value: 'PENDING', label: 'Chưa kết nối' },
+  { value: 'TOKEN_EXPIRED', label: 'Kích hoạt hết hạn' },
   { value: 'INACTIVE', label: 'Chưa kích hoạt' },
+  { value: 'DISABLED', label: 'Đã vô hiệu hóa' },
 ];
 
 const KIOSK_TYPE_MAP = {
@@ -73,6 +81,7 @@ function KioskManagement() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [toast, setToast] = useState(null);
   const [activatingId, setActivatingId] = useState(null);
@@ -129,8 +138,10 @@ function KioskManagement() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
+  const fetchSessions = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/sessions`, {
@@ -142,15 +153,26 @@ function KioskManagement() {
       }
       const data = await res.json();
       setSessions(Array.isArray(data) ? data : (data.content || data.data || []));
+      setLastUpdatedAt(new Date());
     } catch (err) {
       setError(err.message || 'Lỗi kết nối đến máy chủ');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchSessions();
+  }, [fetchSessions]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      fetchSessions({ silent: true });
+    }, 30000);
+
+    return () => clearInterval(timer);
   }, [fetchSessions]);
 
   // Close filter dropdown on outside click
@@ -171,27 +193,34 @@ function KioskManagement() {
   };
 
   const handleCreate = async () => {
-    if (!formData.kioskCode.trim() || !formData.kioskName.trim() || !formData.kioskType) {
-      showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
+    const validationMessage = validateKioskPayload(formData);
+    if (validationMessage) {
+      showToast(validationMessage, 'error');
       return;
     }
     setFormLoading(true);
     try {
+      const payload = {
+        kioskCode: normalizeText(formData.kioskCode).toUpperCase(),
+        kioskName: normalizeText(formData.kioskName),
+        kioskType: normalizeText(formData.kioskType).toUpperCase(),
+        location: normalizeText(formData.location),
+      };
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/kiosks`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Lỗi tạo kiosk');
+        throw new Error(body.message || body.error || 'Lỗi tạo kiosk');
       }
       showToast('Tạo kiosk thành công!');
       setShowCreateModal(false);
       resetForm();
       fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi tạo kiosk', 'error');
+      showToast(getApiErrorMessage(err, err.message || 'Lỗi tạo kiosk'), 'error');
     } finally {
       setFormLoading(false);
     }
@@ -199,27 +228,32 @@ function KioskManagement() {
 
   const handleUpdate = async () => {
     if (!selectedKiosk) return;
+    const validationMessage = validateKioskPayload(formData, { isEdit: true });
+    if (validationMessage) {
+      showToast(validationMessage, 'error');
+      return;
+    }
     setFormLoading(true);
     try {
       const res = await fetch(`${API_BASE}/slib/kiosk/admin/kiosks/${selectedKiosk.id}`, {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify({
-          kioskName: formData.kioskName,
-          kioskType: formData.kioskType,
-          location: formData.location,
+          kioskName: normalizeText(formData.kioskName),
+          kioskType: normalizeText(formData.kioskType).toUpperCase(),
+          location: normalizeText(formData.location),
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Lỗi cập nhật kiosk');
+        throw new Error(body.message || body.error || 'Lỗi cập nhật kiosk');
       }
       showToast('Cập nhật kiosk thành công!');
       setShowEditModal(false);
       resetForm();
       fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi cập nhật kiosk', 'error');
+      showToast(getApiErrorMessage(err, err.message || 'Lỗi cập nhật kiosk'), 'error');
     } finally {
       setFormLoading(false);
     }
@@ -272,29 +306,36 @@ function KioskManagement() {
 
   // ========== TOKEN HANDLERS ==========
 
-  const handleActivate = async (kioskId) => {
+  const handleActivate = async (session) => {
+    const kioskId = session.id;
+    const forceReissue = session?.tokenValid && window.confirm(
+      `Kiosk ${session.kioskCode} đang có mã kích hoạt còn hiệu lực. Nếu cấp lại, kiosk đang chạy sẽ phải kích hoạt lại.\n\nBạn có chắc muốn tiếp tục không?`
+    );
+
+    if (session?.tokenValid && !forceReissue) {
+      return;
+    }
+
     setActivatingId(kioskId);
     try {
-      const res = await fetch(`${API_BASE}/slib/kiosk/admin/token/${encodeURIComponent(kioskId)}`, {
+      const res = await fetch(`${API_BASE}/slib/kiosk/admin/token/${encodeURIComponent(kioskId)}?force=${forceReissue ? 'true' : 'false'}`, {
         method: 'POST',
         headers: authHeaders(),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Không thể tạo token kiosk');
+        throw new Error(body.message || 'Không thể cấp mã kích hoạt cho kiosk');
       }
       const data = await res.json();
-      const baseUrl = window.location.origin;
-      const activationUrl = `${baseUrl}/kiosk/?token=${data.token}`;
       setActivationResult({
         activationCode: data.activationCode,
-        activationUrl,
+        activationUrl: data.activationUrl,
         kioskCode: data.kioskCode,
       });
       setCopied(null);
       await fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi kích hoạt kiosk', 'error');
+      showToast(err.message || 'Lỗi cấp mã kích hoạt cho kiosk', 'error');
     } finally {
       setActivatingId(null);
     }
@@ -320,13 +361,13 @@ function KioskManagement() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Không thể thu hồi token kiosk');
+        throw new Error(body.message || 'Không thể thu hồi mã kích hoạt của kiosk');
       }
-      showToast(`Đã thu hồi token kiosk ${revokeTarget.kioskCode || revokeTarget.id}`);
+      showToast(`Đã thu hồi mã kích hoạt của kiosk ${revokeTarget.kioskCode || revokeTarget.id}`);
       setRevokeTarget(null);
       await fetchSessions();
     } catch (err) {
-      showToast(err.message || 'Lỗi thu hồi token', 'error');
+      showToast(err.message || 'Lỗi thu hồi mã kích hoạt', 'error');
     } finally {
       setRevoking(false);
     }
@@ -334,11 +375,8 @@ function KioskManagement() {
 
   // ========== HELPERS ==========
 
-  const getTokenStatus = (session) => {
-    if (!session.tokenValid && !session.hasDeviceToken) return 'INACTIVE';
-    if (session.tokenValid) return 'ACTIVE';
-    if (session.hasDeviceToken && !session.tokenValid) return 'EXPIRED';
-    return 'INACTIVE';
+  const getRuntimeStatus = (session) => {
+    return session.runtimeStatus || 'INACTIVE';
   };
 
   const formatDate = (dateStr) => {
@@ -362,8 +400,8 @@ function KioskManagement() {
   };
 
   const statusConfig = (session) => {
-    const key = getTokenStatus(session);
-    return TOKEN_STATUS[key] || TOKEN_STATUS.INACTIVE;
+    const key = getRuntimeStatus(session);
+    return RUNTIME_STATUS[key] || RUNTIME_STATUS.INACTIVE;
   };
 
   // ========== SORT / FILTER / PAGINATION ==========
@@ -373,7 +411,7 @@ function KioskManagement() {
       case 'kioskCode': return session.kioskCode || session.id || '';
       case 'kioskType': return KIOSK_TYPE_MAP[session.kioskType]?.label || session.kioskType || '';
       case 'location': return session.location || '';
-      case 'status': return getTokenStatus(session);
+      case 'status': return getRuntimeStatus(session);
       case 'expiresAt': return session.deviceTokenExpiresAt || '';
       case 'lastActive': return session.lastActiveAt || '';
       default: return '';
@@ -398,7 +436,7 @@ function KioskManagement() {
       const fq = filterVal.toLowerCase();
 
       if (col === 'status') {
-        list = list.filter(s => getTokenStatus(s) === filterVal);
+        list = list.filter(s => getRuntimeStatus(s) === filterVal);
       } else if (col === 'kioskType') {
         list = list.filter(s => s.kioskType === filterVal);
       } else if (col === 'kioskCode') {
@@ -682,10 +720,10 @@ function KioskManagement() {
                 {showColumnMenu && (
                   <div className="cio-column-menu">
                     {[
-                      { key: 'kioskCode', label: 'Thiết bị' },
+                      { key: 'kioskCode', label: 'Kiosk' },
                       { key: 'kioskType', label: 'Loại' },
                       { key: 'location', label: 'Vị trí' },
-                      { key: 'status', label: 'Trạng thái token' },
+                      { key: 'status', label: 'Trạng thái vận hành' },
                       { key: 'expiresAt', label: 'Hết hạn' },
                       { key: 'lastActive', label: 'Hoạt động cuối' },
                     ].map(col => (
@@ -712,6 +750,11 @@ function KioskManagement() {
             </span>
 
             <div className="cio-toolbar-right">
+              {lastUpdatedAt && (
+                <span className="cio-result-count" style={{ marginRight: 4 }}>
+                  Cập nhật: <strong>{lastUpdatedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong>
+                </span>
+              )}
               <button className="um-toolbar-btn" onClick={fetchSessions} disabled={loading}>
                 <RefreshCw size={14} className={loading ? 'sm-spinner' : ''} />
                 Làm mới
@@ -732,24 +775,22 @@ function KioskManagement() {
               </span>
             </div>
           ) : error ? (
-            <div className="hce-station-empty">
-              <AlertTriangle size={48} color="#DC2626" className="hce-station-empty__icon" />
-              <div className="hce-station-empty__title">{error}</div>
-              <button className="um-toolbar-btn" onClick={fetchSessions}>
-                <RefreshCw size={14} />
-                Thử lại
-              </button>
-            </div>
+            <LoadErrorState
+              title="Không thể tải danh sách kiosk"
+              message={error}
+              onRetry={fetchSessions}
+              compact
+            />
           ) : viewMode === 'table' ? (
             /* ========== TABLE VIEW ========== */
             <div className="sr-table-wrapper">
               <table className="sr-table">
                 <thead>
                   <tr>
-                    {visibleColumns.kioskCode && renderColumnHeader('kioskCode', 'Thiết bị')}
+                    {visibleColumns.kioskCode && renderColumnHeader('kioskCode', 'Kiosk')}
                     {visibleColumns.kioskType && renderColumnHeader('kioskType', 'Loại')}
                     {visibleColumns.location && renderColumnHeader('location', 'Vị trí')}
-                    {visibleColumns.status && renderColumnHeader('status', 'Trạng thái token')}
+                    {visibleColumns.status && renderColumnHeader('status', 'Trạng thái vận hành')}
                     {visibleColumns.expiresAt && renderColumnHeader('expiresAt', 'Hết hạn lúc')}
                     {visibleColumns.lastActive && renderColumnHeader('lastActive', 'Hoạt động cuối')}
                     <th style={{ textAlign: 'center' }}>
@@ -773,7 +814,7 @@ function KioskManagement() {
                       const status = statusConfig(session);
                       const kioskId = session.id;
                       const isActivating = activatingId === kioskId;
-                      const tokenStatusKey = getTokenStatus(session);
+                      const runtimeStatusKey = getRuntimeStatus(session);
                       const typeInfo = KIOSK_TYPE_MAP[session.kioskType] || { label: session.kioskType, color: '#6B7280', bg: '#F3F4F6' };
 
                       return (
@@ -832,21 +873,21 @@ function KioskManagement() {
                               <button
                                 className="um-toolbar-btn primary"
                                 style={{ fontSize: 12, padding: '6px 12px' }}
-                                onClick={() => handleActivate(kioskId)}
+                                onClick={() => handleActivate(session)}
                                 disabled={isActivating}
-                                title="Kích hoạt token"
+                                title="Cấp mã kích hoạt"
                               >
                                 {isActivating
                                   ? <><Loader2 size={13} className="sm-spinner" /> Đang xử lý...</>
-                                  : <><Power size={13} /> Kích hoạt</>
+                                  : <><Power size={13} /> Cấp mã</>
                                 }
                               </button>
-                              {tokenStatusKey === 'ACTIVE' && (
+                              {session.hasDeviceToken && (
                                 <button
                                   className="um-toolbar-btn"
                                   style={{ fontSize: 12, padding: '6px 12px', color: '#DC2626', borderColor: '#FCA5A5' }}
                                   onClick={() => setRevokeTarget(session)}
-                                  title="Thu hồi token"
+                                  title="Thu hồi mã kích hoạt"
                                 >
                                   <ShieldOff size={13} />
                                   Thu hồi
@@ -887,7 +928,6 @@ function KioskManagement() {
                   const status = statusConfig(session);
                   const kioskId = session.id;
                   const isActivating = activatingId === kioskId;
-                  const tokenStatusKey = getTokenStatus(session);
                   const typeInfo = KIOSK_TYPE_MAP[session.kioskType] || { label: session.kioskType, color: '#6B7280', bg: '#F3F4F6' };
 
                   return (
@@ -924,7 +964,7 @@ function KioskManagement() {
                         <div className="hce-station-card__meta-row">
                           <Clock size={14} className="hce-station-card__meta-icon" />
                           <span className="hce-station-card__meta-text hce-station-card__meta-text--muted">
-                            Hết hạn token: {formatDate(session.deviceTokenExpiresAt)}
+                            Hết hạn kích hoạt: {formatDate(session.deviceTokenExpiresAt)}
                           </span>
                         </div>
                         <div className="hce-station-card__meta-row">
@@ -938,13 +978,13 @@ function KioskManagement() {
                       <div className="hce-station-card__actions">
                         <button
                           className="hce-station-card__action-btn"
-                          onClick={e => { e.stopPropagation(); handleActivate(kioskId); }}
+                          onClick={e => { e.stopPropagation(); handleActivate(session); }}
                           disabled={isActivating}
                           style={isActivating ? { opacity: 0.6 } : { color: '#e8600a', borderColor: '#fed7aa' }}
                         >
                           {isActivating
                             ? <><Loader2 size={14} className="sm-spinner" /> Đang xử lý...</>
-                            : <><Power size={14} /> Kích hoạt</>
+                            : <><Power size={14} /> Cấp mã</>
                           }
                         </button>
                         <button
@@ -1091,13 +1131,13 @@ function KioskManagement() {
                   <span className="hce-detail-row__value">{selectedKiosk.location || '—'}</span>
                 </div>
                 <div className="hce-detail-row">
-                  <span className="hce-detail-row__label">Token hết hạn</span>
+                  <span className="hce-detail-row__label">Hết hạn kích hoạt</span>
                   <span className="hce-detail-row__value">
                     {formatDate(selectedKiosk.deviceTokenExpiresAt)}
                   </span>
                 </div>
                 <div className="hce-detail-row">
-                  <span className="hce-detail-row__label">Token cấp lúc</span>
+                  <span className="hce-detail-row__label">Cấp mã lúc</span>
                   <span className="hce-detail-row__value">
                     {formatDate(selectedKiosk.deviceTokenIssuedAt)}
                   </span>
@@ -1222,8 +1262,8 @@ function KioskManagement() {
                 background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12,
                 padding: 16, marginBottom: 20, fontSize: 13, color: '#166534', lineHeight: 1.55
               }}>
-                Đã tạo token cho kiosk <strong>{activationResult.kioskCode}</strong>.
-                Sử dụng một trong hai cách bên dưới để kích hoạt thiết bị kiosk.
+                Đã tạo mã kích hoạt cho kiosk <strong>{activationResult.kioskCode}</strong>.
+                Sử dụng một trong hai cách bên dưới để kích hoạt kiosk.
               </div>
 
               {/* Activation Code */}
@@ -1260,7 +1300,7 @@ function KioskManagement() {
               {/* Activation URL */}
               <div>
                 <label className="hce-form-label" style={{ marginBottom: 8 }}>
-                  URL kích hoạt trực tiếp
+                  Liên kết kích hoạt trực tiếp
                 </label>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
@@ -1313,7 +1353,7 @@ function KioskManagement() {
           <div className="hce-modal" onClick={e => e.stopPropagation()} style={{ width: 440 }}>
             <div className="hce-modal__header">
               <h2 className="hce-modal__title" style={{ color: '#dc2626' }}>
-                Xác nhận thu hồi token
+                Xác nhận thu hồi mã kích hoạt
               </h2>
               <button className="hce-modal__close" onClick={() => !revoking && setRevokeTarget(null)}>
                 <X size={20} color="#4A5568" />
@@ -1330,7 +1370,7 @@ function KioskManagement() {
                     Thiết bị sẽ bị ngắt kết nối ngay lập tức
                   </div>
                   <div style={{ fontSize: 13, color: '#b91c1c' }}>
-                    Bạn có chắc chắn muốn thu hồi token của kiosk{' '}
+                    Bạn có chắc chắn muốn thu hồi mã kích hoạt của kiosk{' '}
                     <strong>{revokeTarget.kioskCode || revokeTarget.id}</strong>?
                   </div>
                 </div>
@@ -1354,7 +1394,7 @@ function KioskManagement() {
                 {revoking ? (
                   <><Loader2 size={16} className="sm-spinner" /> Đang thu hồi...</>
                 ) : (
-                  <><ShieldOff size={16} /> Thu hồi token</>
+                  <><ShieldOff size={16} /> Thu hồi mã</>
                 )}
               </button>
             </div>

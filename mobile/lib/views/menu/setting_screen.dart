@@ -9,10 +9,11 @@ import 'package:slib/services/library/library_status_service.dart';
 import 'package:slib/services/notification/notification_service.dart';
 import 'package:slib/views/authentication/on_boarding_screen.dart';
 import 'package:slib/views/profile/booking_history_screen.dart';
+import 'package:slib/views/profile/complaint_history_screen.dart';
 import 'package:slib/views/profile/profile_info_screen.dart';
+import 'package:slib/views/profile/report_history_screen.dart';
 import 'package:slib/views/profile/violation_history_screen.dart';
 import 'package:slib/views/support/support_request_screen.dart';
-import 'package:slib/views/violation_report/violation_report_screen.dart';
 
 class SettingScreen extends StatefulWidget {
   final UserProfile? user;
@@ -24,6 +25,20 @@ class SettingScreen extends StatefulWidget {
 
 class _SettingScreenState extends State<SettingScreen> {
   int _violationCount = 0;
+
+  Future<void> _pushScreen(
+    Widget screen, {
+    bool refreshViolationCount = false,
+  }) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+
+    if (refreshViolationCount && mounted) {
+      await _loadViolationCount();
+    }
+  }
 
   @override
   void initState() {
@@ -171,16 +186,10 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildNavTile(
                 icon: Icons.person_outline_rounded,
                 iconColor: Colors.blue,
-                title: "Thông tin sinh viên",
-                onTap: () {
+                title: "Thông tin cá nhân",
+                onTap: () async {
                   if (currentUser != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ProfileInfoScreen(user: currentUser),
-                      ),
-                    );
+                    await _pushScreen(ProfileInfoScreen(user: currentUser));
                   }
                 },
               ),
@@ -189,13 +198,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.history_edu_rounded,
                 iconColor: Colors.teal,
                 title: "Lịch sử đặt chỗ",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BookingHistoryScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const BookingHistoryScreen());
                 },
               ),
               _buildDivider(),
@@ -204,12 +208,10 @@ class _SettingScreenState extends State<SettingScreen> {
                 iconColor: Colors.redAccent,
                 title: "Lịch sử vi phạm",
                 trailingText: "$_violationCount vi phạm",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ViolationHistoryScreen(),
-                    ),
+                onTap: () async {
+                  await _pushScreen(
+                    const ViolationHistoryScreen(),
+                    refreshViolationCount: true,
                   );
                 },
               ),
@@ -217,14 +219,18 @@ class _SettingScreenState extends State<SettingScreen> {
               _buildNavTile(
                 icon: Icons.report_outlined,
                 iconColor: Colors.orange,
-                title: "Báo cáo",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ViolationReportScreen(),
-                    ),
-                  );
+                title: "Lịch sử báo cáo",
+                onTap: () async {
+                  await _pushScreen(const ReportHistoryScreen());
+                },
+              ),
+              _buildDivider(),
+              _buildNavTile(
+                icon: Icons.gavel_rounded,
+                iconColor: Colors.deepOrange,
+                title: "Lịch sử khiếu nại",
+                onTap: () async {
+                  await _pushScreen(const ComplaintHistoryScreen());
                 },
               ),
               _buildDivider(),
@@ -232,13 +238,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.support_agent_rounded,
                 iconColor: AppColors.brandColor,
                 title: "Yêu cầu hỗ trợ",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SupportRequestScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const SupportRequestScreen());
                 },
               ),
             ]),
@@ -345,7 +346,7 @@ class _SettingScreenState extends State<SettingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  fullName.isNotEmpty ? fullName : "Sinh viên FPT",
+                  fullName.isNotEmpty ? fullName : "Người dùng SLIB",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

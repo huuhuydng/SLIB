@@ -1,16 +1,16 @@
 class UserProfile {
-  final String id;                
-  final String userCode;  // Renamed from studentCode
+  final String id;
+  final String userCode; // Renamed from studentCode
   final String? username;
-  final String fullName;         
+  final String fullName;
   final String? email;
-  final String role;          
-  final int reputationScore;      
-  final bool isActive;          
+  final String role;
+  final int reputationScore;
+  final bool isActive;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? notiDevice;
-  final String? dob;  // Date of birth as string (yyyy-MM-dd)
+  final String? dob; // Date of birth as string (yyyy-MM-dd)
   final String? phone;
   final String? avtUrl;
   final bool passwordChanged;
@@ -22,15 +22,15 @@ class UserProfile {
     required this.fullName,
     this.email,
     required this.role,
-    this.reputationScore = 100, 
-    this.isActive = true,      
+    this.reputationScore = 100,
+    this.isActive = true,
     this.createdAt,
     this.updatedAt,
     this.notiDevice,
     this.dob,
     this.phone,
     this.avtUrl,
-    this.passwordChanged = true,  // Default true for existing users
+    this.passwordChanged = true, // Default true for existing users
   });
 
   // Backward compatibility getter
@@ -39,30 +39,40 @@ class UserProfile {
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] ?? '',
-      userCode: json['userCode'] ?? json['user_code'] ?? json['studentCode'] ?? json['student_code'] ?? '',
+      userCode:
+          json['userCode'] ??
+          json['user_code'] ??
+          json['studentCode'] ??
+          json['student_code'] ??
+          '',
       username: json['username'],
       fullName: json['fullName'] ?? json['full_name'] ?? '',
       email: json['email'],
       role: json['role'] ?? 'STUDENT',
-      reputationScore: json['reputationScore'] is int 
-          ? json['reputationScore'] 
-          : (json['reputation_score'] is int 
-              ? json['reputation_score'] 
-              : int.tryParse(json['reputation_score']?.toString() ?? '100') ?? 100),
+      reputationScore: json['reputationScore'] is int
+          ? json['reputationScore']
+          : (json['reputation_score'] is int
+                ? json['reputation_score']
+                : int.tryParse(json['reputation_score']?.toString() ?? '100') ??
+                      100),
       isActive: json['isActive'] ?? json['is_active'] ?? true,
       notiDevice: json['notiDevice'] ?? json['noti_device'],
       dob: json['dob'],
       phone: json['phone'],
       avtUrl: json['avtUrl'] ?? json['avt_url'],
-      passwordChanged: json['passwordChanged'] ?? json['password_changed'] ?? true,
+      passwordChanged:
+          json['passwordChanged'] ?? json['password_changed'] ?? true,
     );
   }
 
-  bool get isStudent => role.toUpperCase() == 'STUDENT';
-  bool get isAdmin => role.toUpperCase() == 'ADMIN';
-  bool get isLibrarian => role.toUpperCase() == 'LIBRARIAN';
+  String get normalizedRole => role.toUpperCase();
+  bool get isStudent => normalizedRole == 'STUDENT';
+  bool get isTeacher => normalizedRole == 'TEACHER';
+  bool get isAdmin => normalizedRole == 'ADMIN';
+  bool get isLibrarian => normalizedRole == 'LIBRARIAN';
+  bool get isPatron => isStudent || isTeacher;
   bool get needsPasswordChange => !passwordChanged;
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

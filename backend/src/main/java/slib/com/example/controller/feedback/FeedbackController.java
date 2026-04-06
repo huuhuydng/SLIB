@@ -1,5 +1,6 @@
 package slib.com.example.controller.feedback;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -7,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.common.UuidBatchRequest;
+import slib.com.example.dto.feedback.CreateFeedbackRequest;
 import slib.com.example.dto.feedback.FeedbackDTO;
 import slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus;
 import slib.com.example.entity.users.User;
@@ -71,21 +74,16 @@ public class FeedbackController {
      */
     @PostMapping
     public ResponseEntity<FeedbackDTO> create(
-            @RequestBody Map<String, Object> body,
+            @Valid @RequestBody CreateFeedbackRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID studentId = getCurrentUserId(userDetails);
-        Integer rating = (Integer) body.get("rating");
-        String content = (String) body.get("content");
-        String category = (String) body.get("category");
-        String conversationId = (String) body.get("conversationId");
-        String reservationIdStr = (String) body.get("reservationId");
-        UUID reservationId = reservationIdStr != null ? UUID.fromString(reservationIdStr) : null;
-
-        if (rating == null || rating < 1 || rating > 5) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        FeedbackDTO result = feedbackService.create(studentId, rating, content, category, conversationId, reservationId);
+        FeedbackDTO result = feedbackService.create(
+                studentId,
+                body.getRating(),
+                body.getContent(),
+                body.getCategory(),
+                body.getConversationId() != null ? body.getConversationId().toString() : null,
+                body.getReservationId());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
@@ -113,6 +111,19 @@ public class FeedbackController {
     }
 
     /**
+     * PUT /slib/feedbacks/batch/review
+     * Thủ thư đánh dấu nhiều phản hồi là đã xem
+     */
+    @PutMapping("/batch/review")
+    public ResponseEntity<Map<String, Integer>> markReviewedBatch(
+            @Valid @RequestBody UuidBatchRequest body,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UUID librarianId = getCurrentUserId(userDetails);
+        int reviewed = feedbackService.markReviewedBatch(body.getIds(), librarianId);
+        return ResponseEntity.ok(Map.of("reviewed", reviewed));
+    }
+
+    /**
      * GET /slib/feedbacks/count
      * Đếm phản hồi
      */
@@ -130,13 +141,9 @@ public class FeedbackController {
      * Thủ thư xoá nhiều phản hồi cùng lúc
      */
     @DeleteMapping("/batch")
-    public ResponseEntity<?> deleteBatch(@RequestBody Map<String, List<String>> body) {
+    public ResponseEntity<?> deleteBatch(@Valid @RequestBody UuidBatchRequest body) {
         try {
-            List<String> ids = body.get("ids");
-            if (ids == null || ids.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
-            }
-            List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
+            List<UUID> uuids = body.getIds();
             feedbackService.deleteBatch(uuids);
             return ResponseEntity.ok(Map.of("deleted", uuids.size()));
         } catch (Exception e) {

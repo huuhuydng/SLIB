@@ -6,6 +6,7 @@ import '../../../styles/librarian/StudentsManage.css';
 import userService from '../../../services/auth/userService';
 import librarianService from '../../../services/librarian/librarianService';
 import StudentDetailModal from '../../../components/librarian/StudentDetailModal';
+import { isPatronRole } from '../../../utils/roles';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -20,7 +21,7 @@ const StudentsManage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // Sinh viên đang có mặt
+  // Người dùng thư viện đang có mặt
   const [inLibrary, setInLibrary] = useState([]);
   const [stats, setStats] = useState({ totalCheckInsToday: 0, totalCheckOutsToday: 0, currentlyInLibrary: 0 });
 
@@ -86,11 +87,11 @@ const StudentsManage = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const allUsers = await userService.getAllUsers({ role: 'STUDENT' });
-      const studentList = (allUsers || []).filter(u => u.role === 'STUDENT');
+      const allUsers = await userService.getAllUsers();
+      const studentList = (allUsers || []).filter((u) => isPatronRole(u.role));
       setStudents(studentList);
     } catch (error) {
-      console.error('Lỗi tải danh sách sinh viên:', error);
+      console.error('Lỗi tải danh sách người dùng thư viện:', error);
     } finally {
       setLoading(false);
     }
@@ -402,13 +403,13 @@ const StudentsManage = () => {
 
   const columnDefs = activeView === 'inLibrary'
     ? [
-      { key: 'student', label: 'Sinh viên' },
+      { key: 'student', label: 'Người dùng' },
       { key: 'userCode', label: 'Mã số' },
       { key: 'checkInTime', label: 'Giờ vào' },
       { key: 'duration', label: 'Thời gian có mặt' },
     ]
     : [
-      { key: 'student', label: 'Sinh viên' },
+      { key: 'student', label: 'Người dùng' },
       { key: 'userCode', label: 'Mã số' },
       { key: 'email', label: 'Email' },
       { key: 'status', label: 'Trạng thái' },
@@ -449,7 +450,7 @@ const StudentsManage = () => {
               className={`sm-view-tab${activeView === 'all' ? ' active' : ''}`}
               onClick={() => setActiveView('all')}
             >
-              Tất cả SV ({students.length})
+              Tất cả người dùng ({students.length})
             </button>
           </div>
 
@@ -500,7 +501,7 @@ const StudentsManage = () => {
             <table className="sm-table">
               <thead>
                 <tr>
-                  {visibleColumns.student && renderColumnHeader('student', 'Sinh viên')}
+                  {visibleColumns.student && renderColumnHeader('student', 'Người dùng')}
                   {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã số')}
                   {visibleColumns.checkInTime && renderColumnHeader('checkInTime', 'Giờ vào', true)}
                   {visibleColumns.duration && renderColumnHeader('duration', 'Thời gian có mặt', true)}
@@ -560,7 +561,7 @@ const StudentsManage = () => {
             <table className="sm-table">
               <thead>
                 <tr>
-                  {visibleColumns.student && renderColumnHeader('student', 'Sinh viên')}
+                  {visibleColumns.student && renderColumnHeader('student', 'Người dùng')}
                   {visibleColumns.userCode && renderColumnHeader('userCode', 'Mã số')}
                   {visibleColumns.email && renderColumnHeader('email', 'Email')}
                   {visibleColumns.status && renderColumnHeader('status', 'Trạng thái', true, 'radio', STATUS_OPTIONS)}

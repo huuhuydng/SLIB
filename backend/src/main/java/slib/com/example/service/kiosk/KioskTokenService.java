@@ -33,11 +33,20 @@ public class KioskTokenService {
 
     private static final long DEVICE_TOKEN_EXPIRATION_DAYS = 30;
     private static final String TOKEN_TYPE_KIOSK_DEVICE = "kiosk_device";
+    public static final String STATUS_READY = "READY";
+    public static final String STATUS_STALE = "STALE";
+    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_TOKEN_EXPIRED = "TOKEN_EXPIRED";
+    public static final String STATUS_INACTIVE = "INACTIVE";
+    public static final String STATUS_DISABLED = "DISABLED";
 
     private final KioskConfigRepository kioskConfigRepository;
 
     @Value("${jwt.secret}")
     private String secretKey;
+
+    @Value("${kiosk.online-threshold-seconds:120}")
+    private long onlineThresholdSeconds;
 
     /**
      * Tao device token cho kiosk.
@@ -49,7 +58,7 @@ public class KioskTokenService {
     @Transactional
     public String generateDeviceToken(Integer kioskId, UUID issuedByUserId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi ID: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với ID: " + kioskId));
 
         if (!Boolean.TRUE.equals(kiosk.getIsActive())) {
             throw new BadRequestException("Kiosk hien dang bi vo hieu hoa, khong the tao token");
@@ -108,7 +117,7 @@ public class KioskTokenService {
             String kioskCode = claims.getSubject();
             KioskConfigEntity kiosk = kioskConfigRepository.findByKioskCode(kioskCode).orElse(null);
             if (kiosk == null) {
-                log.warn("Khong tim thay kiosk voi code: {}", kioskCode);
+                log.warn("Không tìm thấy kiosk với code: {}", kioskCode);
                 return null;
             }
 
@@ -164,7 +173,7 @@ public class KioskTokenService {
     @Transactional
     public void revokeDeviceToken(Integer kioskId) {
         KioskConfigEntity kiosk = kioskConfigRepository.findById(kioskId)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay kiosk voi ID: " + kioskId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy kiosk với ID: " + kioskId));
 
         kiosk.setDeviceToken(null);
         kiosk.setDeviceTokenIssuedAt(null);
@@ -184,6 +193,35 @@ public class KioskTokenService {
             kiosk.setLastActiveAt(LocalDateTime.now());
             kioskConfigRepository.save(kiosk);
         });
+    }
+
+    public boolean hasValidToken(KioskConfigEntity kiosk) {
+        return kiosk.getDeviceToken() != null
+                && kiosk.getDeviceTokenExpiresAt() != null
+                && kiosk.getDeviceTokenExpiresAt().isAfter(LocalDateTime.now());
+    }
+
+    public boolean isOnline(KioskConfigEntity kiosk) {
+        if (!hasValidToken(kiosk) || kiosk.getLastActiveAt() == null) {
+            return false;
+        }
+        return kiosk.getLastActiveAt().isAfter(LocalDateTime.now().minusSeconds(onlineThresholdSeconds));
+    }
+
+    public String getRuntimeStatus(KioskConfigEntity kiosk) {
+        if (!Boolean.TRUE.equals(kiosk.getIsActive())) {
+            return STATUS_DISABLED;
+        }
+        if (hasValidToken(kiosk)) {
+            if (isOnline(kiosk)) {
+                return STATUS_READY;
+            }
+            return kiosk.getLastActiveAt() == null ? STATUS_PENDING : STATUS_STALE;
+        }
+        if (kiosk.getDeviceToken() != null) {
+            return STATUS_TOKEN_EXPIRED;
+        }
+        return STATUS_INACTIVE;
     }
 
     private Claims extractAllClaims(String token) {

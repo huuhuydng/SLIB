@@ -117,16 +117,17 @@ class FE37_ConfigureBookingRulesTest {
                                 .maxBookingsPerDay(0)
                                 .build();
 
-                when(librarySettingService.updateSettings(any(LibrarySettingDTO.class)))
-                                .thenThrow(new slib.com.example.exception.BadRequestException(
-                                                "Cau hinh dat cho khong hop le"));
-
                 mockMvc.perform(put("/slib/settings/library")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(dto)))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value("Bad Request"))
+                                .andExpect(jsonPath("$.errors.maxBookingDays")
+                                                .value("Số ngày đặt trước tối đa phải lớn hơn 0"))
+                                .andExpect(jsonPath("$.errors.maxBookingsPerDay")
+                                                .value("Số lượt đặt tối đa mỗi ngày phải lớn hơn 0"));
 
-                verify(librarySettingService, times(1)).updateSettings(any(LibrarySettingDTO.class));
+                verifyNoInteractions(librarySettingService);
         }
 
         // =========================================

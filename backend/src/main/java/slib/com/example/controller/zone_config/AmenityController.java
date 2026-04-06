@@ -1,5 +1,6 @@
 package slib.com.example.controller.zone_config;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +34,7 @@ public class AmenityController {
 
     // create mới
     @PostMapping
-    public ResponseEntity<AmenityResponse> createAmenity(@RequestBody AmenityResponse request) {
+    public ResponseEntity<AmenityResponse> createAmenity(@Valid @RequestBody AmenityResponse request) {
         return ResponseEntity.ok(amenityService.createAmenity(request));
     }
 
@@ -41,7 +42,7 @@ public class AmenityController {
     @PutMapping("/{id}")
     public ResponseEntity<AmenityResponse> updateAmenity(
             @PathVariable Integer id,
-            @RequestBody AmenityResponse request
+            @Valid @RequestBody AmenityResponse request
     ) {
         return ResponseEntity.ok(amenityService.updateAmenity(id, request));
     }

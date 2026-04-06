@@ -2,18 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import ZoneSimple from './ZoneSimple';
 import Shape from './Shape';
-import { getZonesByArea, getAreaFactoriesByArea, updateAreaPosition, updateAreaDimensions, updateAreaPositionAndDimensions } from '../../../services/admin/area_management/api';
+import { getZonesByArea, getAreaFactoriesByArea } from '../../../services/admin/area_management/api';
 import { Rnd } from 'react-rnd';
 function Area({ area }) {
   const { state, dispatch, actions } = useLayout();
-  const { zones, factories, selectedItem, canvas, isPreviewMode } = state;
+  const { zones, factories, selectedItem, canvas, isPreviewMode, isLayoutHydrated } = state;
   // Start with loading=true to prevent rendering before API data arrives
   const [loadingZones, setLoadingZones] = useState(true);
   const [loadingFactories, setLoadingFactories] = useState(true);
 
   // Load zones for this area
   useEffect(() => {
-    if (!area?.areaId) return;
+    if (!area?.areaId || area.areaId < 0) return;
+    if (isLayoutHydrated) {
+      setLoadingZones(false);
+      return;
+    }
     setLoadingZones(true);
     (async () => {
       try {
@@ -45,11 +49,15 @@ function Area({ area }) {
         setLoadingZones(false);
       }
     })();
-  }, [area?.areaId]);
+  }, [area?.areaId, isLayoutHydrated]);
 
   // Load factories for this area
   useEffect(() => {
-    if (!area?.areaId) return;
+    if (!area?.areaId || area.areaId < 0) return;
+    if (isLayoutHydrated) {
+      setLoadingFactories(false);
+      return;
+    }
     setLoadingFactories(true);
     (async () => {
       try {
@@ -82,7 +90,7 @@ function Area({ area }) {
         setLoadingFactories(false);
       }
     })();
-  }, [area?.areaId]);
+  }, [area?.areaId, isLayoutHydrated]);
 
   // Filter zones for this area
   const areaZones = zones.filter((z) => z.areaId === area.areaId);
@@ -91,7 +99,6 @@ function Area({ area }) {
   const areaFactories = factories.filter((f) => f.areaId === area.areaId);
   const isSelected = selectedItem?.type === 'area' && selectedItem?.id === area.areaId;
 
-  const saveTimerRef = useRef(null);
   const [resizeError, setResizeError] = useState(null);
   const [collidingWith, setCollidingWith] = useState(null);
   const [resetKey, setResetKey] = useState(0);
@@ -196,17 +203,7 @@ function Area({ area }) {
       },
     });
 
-    // Debounce API call
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        await updateAreaPosition(area.areaId, d.x, d.y);
-      } catch (e) {
-        console.error('Failed to update area position', e);
-      }
-    }, 300);
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   const handleDragStop = async (e, d) => {
@@ -222,24 +219,15 @@ function Area({ area }) {
 
     setCollidingWith(null);
 
-    // Clear debounce timer
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    // Save immediately on stop
-    try {
-      await updateAreaPosition(area.areaId, d.x, d.y);
-      dispatch({
-        type: actions.UPDATE_AREA,
-        payload: {
-          ...area,
-          positionX: d.x,
-          positionY: d.y,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to update area position', e);
-    }
+    dispatch({
+      type: actions.UPDATE_AREA,
+      payload: {
+        ...area,
+        positionX: d.x,
+        positionY: d.y,
+      },
+    });
+    dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
   };
 
   const handleResizeStop = async (e, direction, ref, delta, position) => {
@@ -268,26 +256,7 @@ function Area({ area }) {
     setResizeError(null);
     setCollidingWith(null);
 
-    try {
-      // If both position and dimensions changed, update both
-      if (positionChanged && dimensionsChanged) {
-        await updateAreaPositionAndDimensions(area.areaId, {
-          positionX: position.x,
-          positionY: position.y,
-          width: newWidth,
-          height: newHeight,
-        });
-      }
-      // If only dimensions changed, update dimensions only
-      else if (dimensionsChanged) {
-        await updateAreaDimensions(area.areaId, newWidth, newHeight);
-      }
-      // If only position changed (shouldn't happen in resize, but handle it)
-      else if (positionChanged) {
-        await updateAreaPosition(area.areaId, position.x, position.y);
-      }
-
-      // Update local state
+    if (positionChanged || dimensionsChanged) {
       dispatch({
         type: actions.UPDATE_AREA,
         payload: {
@@ -298,8 +267,7 @@ function Area({ area }) {
           height: newHeight,
         },
       });
-    } catch (e) {
-      console.error('Failed to update area size/position', e);
+      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
     }
   };
 
@@ -409,7 +377,10 @@ function Area({ area }) {
           </div>
         )}
 
-        <div className="room" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div
+          className={`room ${isSelected ? 'selected' : ''}`}
+          style={{ width: '100%', height: '100%', position: 'relative' }}
+        >
           <div className="room-header" ref={headerRef}>
             <div className="room-title">
               {area.areaName || 'Unnamed Area'}

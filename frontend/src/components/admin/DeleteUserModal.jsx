@@ -24,6 +24,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
     const [loading, setLoading] = useState(false);
     const [checking, setChecking] = useState(true);
     const [activeBookings, setActiveBookings] = useState(0);
+    const [checkFailed, setCheckFailed] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
@@ -34,6 +35,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
             setError('');
             setSuccess(false);
             setChecking(true);
+            setCheckFailed(false);
 
             // Check for active bookings
             userService.checkUserActiveBookings(user.id)
@@ -42,6 +44,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
                 })
                 .catch(() => {
                     setActiveBookings(0);
+                    setCheckFailed(true);
                 })
                 .finally(() => {
                     setChecking(false);
@@ -64,7 +67,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
             setLoading(true);
             setError('');
 
-            await userService.deleteUser(user.id, false); // soft delete
+            await userService.deleteUser(user.id);
 
             setSuccess(true);
             setTimeout(() => {
@@ -157,7 +160,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
                             Xóa thành công!
                         </h3>
                         <p style={{ margin: '8px 0 0', fontSize: '14px', color: '#6B7280' }}>
-                            Tài khoản <strong>{user.fullName}</strong> đã được xóa
+                            Tài khoản <strong>{user.fullName}</strong> đã được xóa vĩnh viễn
                         </p>
                         <style>{`
                             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -180,10 +183,10 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
                     </div>
                     <div style={{ flex: 1 }}>
                         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700' }}>
-                            Xóa tài khoản
+                            Xóa vĩnh viễn tài khoản
                         </h2>
                         <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.9 }}>
-                            Hành động này không thể hoàn tác
+                            Hành động này sẽ xóa tài khoản và dữ liệu liên quan, không thể hoàn tác
                         </p>
                     </div>
                     <button
@@ -293,10 +296,33 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
                             <Calendar size={20} color="#EA580C" style={{ marginTop: '2px' }} />
                             <div>
                                 <div style={{ fontSize: '14px', fontWeight: '600', color: '#EA580C' }}>
-                                    Người dùng có {activeBookings} lượt đặt chỗ đang hoạt động
+                                    Người dùng có {activeBookings} lượt đặt chỗ đang còn hiệu lực
                                 </div>
                                 <div style={{ fontSize: '13px', color: '#9A3412', marginTop: '4px' }}>
                                     Các lượt đặt chỗ sẽ bị hủy khi xóa tài khoản
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!isSelf && !checking && checkFailed && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '12px',
+                            padding: '16px',
+                            background: '#FEE2E2',
+                            borderRadius: '12px',
+                            marginBottom: '16px',
+                            border: '1px solid #FCA5A5'
+                        }}>
+                            <AlertTriangle size={20} color="#DC2626" style={{ marginTop: '2px' }} />
+                            <div>
+                                <div style={{ fontSize: '14px', fontWeight: '600', color: '#B91C1C' }}>
+                                    Không kiểm tra được lượt đặt chỗ hiện tại
+                                </div>
+                                <div style={{ fontSize: '13px', color: '#991B1B', marginTop: '4px' }}>
+                                    Bạn vẫn có thể xóa tài khoản, nhưng nên kiểm tra lại nếu muốn chắc chắn không còn đặt chỗ đang diễn ra.
                                 </div>
                             </div>
                         </div>
@@ -420,7 +446,7 @@ const DeleteUserModal = ({ user, isOpen, onClose, onDeleted, currentUserId }) =>
                         ) : (
                             <>
                                 <Trash2 size={16} />
-                                Xóa tài khoản
+                                Xóa vĩnh viễn
                             </>
                         )}
                     </button>

@@ -4,12 +4,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.StudentProfileResponse;
+import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.booking.BookingPolicyService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.LibrarySettingService;
+import slib.com.example.util.UserValidationUtil;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -22,10 +26,13 @@ public class StudentProfileService {
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
     private final ReservationRepository reservationRepository;
+    private final LibrarySettingService librarySettingService;
+    private final BookingPolicyService bookingPolicyService;
 
     /**
      * Get student profile by user ID
      */
+    @Transactional(readOnly = true)
     public Optional<StudentProfileResponse> getProfileByUserId(UUID userId) {
         return studentProfileRepository.findByUserId(userId)
                 .map(this::buildProfileResponse);
@@ -100,18 +107,19 @@ public class StudentProfileService {
             slib.com.example.dto.users.UpdateProfileRequest request) {
         return userRepository.findById(userId)
                 .map(user -> {
-                    if (request.getFullName() != null && !request.getFullName().isBlank()) {
-                        user.setFullName(request.getFullName());
+                    if (request.getFullName() != null) {
+                        user.setFullName(UserValidationUtil.normalizeRequiredFullName(request.getFullName()));
                     }
                     if (request.getPhone() != null) {
-                        user.setPhone(request.getPhone());
+                        String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(request.getPhone());
+                        if (normalizedPhone != null && !normalizedPhone.equals(user.getPhone())
+                                && userRepository.existsByPhone(normalizedPhone)) {
+                            throw new RuntimeException("Số điện thoại đã được sử dụng");
+                        }
+                        user.setPhone(normalizedPhone);
                     }
                     if (request.getDob() != null) {
-                        try {
-                            user.setDob(java.time.LocalDate.parse(request.getDob()));
-                        } catch (Exception e) {
-                            // Ignore invalid date format
-                        }
+                        user.setDob(UserValidationUtil.parseOptionalDob(request.getDob()));
                     }
                     userRepository.save(user);
                     return getOrCreateProfile(user);
@@ -147,6 +155,11 @@ public class StudentProfileService {
     private StudentProfileResponse buildProfileResponse(StudentProfile profile) {
         long bookingCount = reservationRepository.countByUserId(profile.getUserId());
         double studyHours = reservationRepository.getTotalStudyMinutesByUser(profile.getUserId()) / 60.0;
-        return StudentProfileResponse.fromEntity(profile, bookingCount, studyHours);
+        LibrarySetting settings = librarySettingService.getSettings();
+        StudentProfileResponse response = StudentProfileResponse.fromEntity(profile, bookingCount, studyHours);
+        int currentReputation = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
+        response.setBookingRestriction(
+                bookingPolicyService.getCurrentRestrictionStatus(profile.getUserId(), currentReputation, settings));
+        return response;
     }
 }

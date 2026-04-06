@@ -14,6 +14,7 @@ import slib.com.example.entity.users.User;
 import slib.com.example.repository.news.NewBookRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -172,9 +173,9 @@ public class NewBookService {
         String title = request.getTitle().trim();
         String author = trimToNull(request.getAuthor());
         String isbn = trimToNull(request.getIsbn());
-        String description = trimToNull(request.getDescription());
+        String description = ContentValidationUtil.normalizeOptionalText(request.getDescription(), "Mô tả sách", 5000);
         String category = trimToNull(request.getCategory());
-        String sourceUrl = trimToNull(request.getSourceUrl());
+        String sourceUrl = ContentValidationUtil.normalizeOptionalUrl(request.getSourceUrl(), "Link nguồn OPAC", 1000);
         String publisher = trimToNull(request.getPublisher());
 
         validateMaxLength("Tiêu đề sách", title, 300);
@@ -197,7 +198,7 @@ public class NewBookService {
     }
 
     private CoverResolution resolveCoverUrl(String requestedCoverUrl, String currentCoverUrl) {
-        String normalizedUrl = trimToNull(requestedCoverUrl);
+        String normalizedUrl = ContentValidationUtil.normalizeOptionalUrl(requestedCoverUrl, "Đường dẫn ảnh bìa", 1000);
         if (normalizedUrl == null) {
             return new CoverResolution(null, null);
         }

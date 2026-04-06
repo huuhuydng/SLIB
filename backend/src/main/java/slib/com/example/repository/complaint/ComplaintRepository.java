@@ -33,4 +33,6 @@ public interface ComplaintRepository extends JpaRepository<ComplaintEntity, UUID
 
     // Statistic: tổng complaints trong range
     long countByCreatedAtAfter(LocalDateTime startDate);
+
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 }

@@ -609,7 +609,7 @@ const CheckInOut = () => {
               {paginatedLogs.length === 0 ? (
                 <tr>
                   <td colSpan={visibleColumnCount + 1} className="cio-table-empty">
-                    Không có dữ liệu
+                    Chưa có bản ghi ra vào phù hợp
                   </td>
                 </tr>
               ) : (

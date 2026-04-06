@@ -136,12 +136,12 @@ class JavaBackendClient:
         """Return default configuration"""
         return {
             "provider": "ollama",
-            "ollamaModel": "llama3.2",
-            "ollamaUrl": "http://localhost:11434",
-            "geminiModel": "gemini-2.0-flash",
-            "temperature": 0.7,
-            "maxTokens": 1024,
-            "systemPrompt": "Bạn là SLIB AI Assistant - trợ lý thông minh của hệ thống Thư viện thông minh SLIB. Hãy trả lời ngắn gọn, thân thiện và chính xác bằng tiếng Việt.",
+            "ollamaModel": get_settings().ollama_model,
+            "ollamaUrl": get_settings().ollama_url,
+            "geminiModel": get_settings().gemini_model,
+            "temperature": get_settings().default_temperature,
+            "maxTokens": get_settings().default_max_tokens,
+            "systemPrompt": get_settings().default_system_prompt,
             "enableContext": True,
             "enableHistory": True,
             "autoSuggest": True,

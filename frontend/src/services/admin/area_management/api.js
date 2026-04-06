@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "../../../config/apiConfig";
+import { getStaffAuthToken } from "../../shared/staffAuth";
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/slib`,
@@ -10,10 +11,7 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-  const token =
-    sessionStorage.getItem('librarian_token') ||
-    localStorage.getItem('librarian_token') ||
-    localStorage.getItem('kiosk_device_token');
+  const token = getStaffAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -107,6 +105,9 @@ export const deleteArea = (areaId) =>
  */
 export const getZonesByArea = (areaId) =>
   api.get(`/zones`, { params: { areaId } });
+
+export const getZones = () =>
+  api.get(`/zones`);
 
 /**
  * CREATE ZONE
@@ -217,6 +218,26 @@ export const deleteSeat = (seatId) =>
 export const updateSeatNfcUid = (seatId, nfcTagUid) =>
   api.put(`/seats/${seatId}/nfc-uid`, { nfcTagUid });
 
+/* ========================== LAYOUT ADMIN ========================= */
+
+export const getLayoutDraft = () =>
+  api.get("/layout-admin/draft");
+
+export const getLayoutHistory = (limit = 20) =>
+  api.get("/layout-admin/history", { params: { limit } });
+
+export const validateLayoutSnapshot = (payload) =>
+  api.post("/layout-admin/validate", payload);
+
+export const saveLayoutDraft = (payload) =>
+  api.post("/layout-admin/draft", payload);
+
+export const discardLayoutDraft = () =>
+  api.delete("/layout-admin/draft");
+
+export const publishLayoutSnapshot = (payload) =>
+  api.post("/layout-admin/publish", payload);
+
 /**
  * CLEAR SEAT NFC UID
  * Backend: DELETE /slib/seats/{seatId}/nfc-uid
@@ -240,6 +261,9 @@ export const getSeatByNfcUid = (nfcTagUid) =>
  */
 export const getAreaFactoriesByArea = (areaId) =>
   api.get(`/area_factories/area/${areaId}`);
+
+export const getAreaFactories = () =>
+  api.get(`/area_factories`);
 
 /**
  * CREATE FACTORY IN AREA

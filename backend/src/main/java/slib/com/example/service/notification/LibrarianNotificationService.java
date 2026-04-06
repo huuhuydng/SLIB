@@ -18,6 +18,7 @@ import slib.com.example.repository.support.SupportRequestRepository;
 import slib.com.example.entity.chat.ConversationStatus;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -43,10 +44,14 @@ public class LibrarianNotificationService {
      * Lấy tổng hợp pending counts
      */
     public Map<String, Object> getPendingCounts() {
-        long supportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.PENDING);
+        long supportRequests = supportRequestRepository.countByStatusIn(List.of(
+                SupportRequestStatus.PENDING,
+                SupportRequestStatus.IN_PROGRESS));
         long complaints = complaintRepository.countByStatus(ComplaintStatus.PENDING);
         long feedbacks = feedbackRepository.countByStatus(FeedbackStatus.NEW);
-        long seatStatusReports = seatStatusReportRepository.findByStatusOrderByCreatedAtDesc(SeatStatusReportEntity.ReportStatus.PENDING).size();
+        long seatStatusReports = seatStatusReportRepository.countByStatusIn(List.of(
+                SeatStatusReportEntity.ReportStatus.PENDING,
+                SeatStatusReportEntity.ReportStatus.VERIFIED));
         long chats = conversationRepository.countByStatus(ConversationStatus.QUEUE_WAITING);
         long violations = violationReportRepository.countByStatus(ReportStatus.PENDING);
 

@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.news.NewsController;
 import slib.com.example.dto.news.NewsListDTO;
+import slib.com.example.dto.news.NewsUpsertRequest;
 import slib.com.example.entity.news.News;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.news.NewsService;
@@ -54,17 +55,10 @@ class FE112_SaveDraftTest {
                 draft.setContent("Noi dung nhap");
                 draft.setIsPublished(false);
 
-                News savedDraft = new News();
-                savedDraft.setId(1L);
-                savedDraft.setTitle("Tin nhap");
-                savedDraft.setContent("Noi dung nhap");
-                savedDraft.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin nhap").isPublished(false).build();
 
-                when(newsService.createNews(any(News.class))).thenReturn(savedDraft);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.createNews(any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 mockMvc.perform(post("/slib/news/admin")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -73,7 +67,7 @@ class FE112_SaveDraftTest {
                                 .andExpect(jsonPath("$.isPublished").value(false))
                                 .andExpect(jsonPath("$.title").value("Tin nhap"));
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -82,16 +76,10 @@ class FE112_SaveDraftTest {
         @Test
         @DisplayName("UTCID02: Update existing draft returns 200 OK")
         void saveDraft_updateExisting_returns200() throws Exception {
-                News updatedDraft = new News();
-                updatedDraft.setId(1L);
-                updatedDraft.setTitle("Tin nhap da cap nhat");
-                updatedDraft.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(1L).title("Tin nhap da cap nhat").isPublished(false).build();
 
-                when(newsService.updateNews(eq(1L), any(News.class))).thenReturn(updatedDraft);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.updateNews(eq(1L), any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 News draftDetails = new News();
                 draftDetails.setTitle("Tin nhap da cap nhat");
@@ -103,7 +91,7 @@ class FE112_SaveDraftTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.isPublished").value(false));
 
-                verify(newsService, times(1)).updateNews(eq(1L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(1L), any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -116,16 +104,10 @@ class FE112_SaveDraftTest {
                 draft.setTitle("Chi co tieu de");
                 draft.setIsPublished(false);
 
-                News savedDraft = new News();
-                savedDraft.setId(2L);
-                savedDraft.setTitle("Chi co tieu de");
-                savedDraft.setIsPublished(false);
-
                 NewsListDTO dto = NewsListDTO.builder()
                         .id(2L).title("Chi co tieu de").isPublished(false).build();
 
-                when(newsService.createNews(any(News.class))).thenReturn(savedDraft);
-                when(newsService.toDTO(any(News.class))).thenReturn(dto);
+                when(newsService.createNews(any(NewsUpsertRequest.class))).thenReturn(dto);
 
                 mockMvc.perform(post("/slib/news/admin")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -133,7 +115,7 @@ class FE112_SaveDraftTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.title").value("Chi co tieu de"));
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -142,7 +124,7 @@ class FE112_SaveDraftTest {
         @Test
         @DisplayName("UTCID04: Save draft when service fails returns error")
         void saveDraft_serviceFails_returnsError() throws Exception {
-                when(newsService.createNews(any(News.class)))
+                when(newsService.createNews(any(NewsUpsertRequest.class)))
                                 .thenThrow(new RuntimeException("Loi luu ban nhap"));
 
                 News draft = new News();
@@ -154,7 +136,7 @@ class FE112_SaveDraftTest {
                                 .content(objectMapper.writeValueAsString(draft)))
                                 .andExpect(status().isInternalServerError());
 
-                verify(newsService, times(1)).createNews(any(News.class));
+                verify(newsService, times(1)).createNews(any(NewsUpsertRequest.class));
         }
 
         // =========================================
@@ -163,7 +145,7 @@ class FE112_SaveDraftTest {
         @Test
         @DisplayName("UTCID05: Update non-existent draft returns error")
         void saveDraft_updateNotFound_returnsError() throws Exception {
-                when(newsService.updateNews(eq(999L), any(News.class)))
+                when(newsService.updateNews(eq(999L), any(NewsUpsertRequest.class)))
                                 .thenThrow(new RuntimeException("Khong tim thay ban nhap"));
 
                 News draftDetails = new News();
@@ -175,6 +157,6 @@ class FE112_SaveDraftTest {
                                 .content(objectMapper.writeValueAsString(draftDetails)))
                                 .andExpect(status().isInternalServerError());
 
-                verify(newsService, times(1)).updateNews(eq(999L), any(News.class));
+                verify(newsService, times(1)).updateNews(eq(999L), any(NewsUpsertRequest.class));
         }
 }

@@ -423,9 +423,7 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
         conversationService.verifyConversationAccess(conversationId, userId);
-        ConversationDTO conv = conversationService.getConversationById(conversationId)
-                .map(c -> conversationService.convertToDTO(c))
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        ConversationDTO conv = conversationService.getConversationStatusSnapshot(conversationId);
 
         int queuePosition = conversationService.getQueuePosition(conversationId);
 
@@ -498,7 +496,7 @@ public class UserChatController {
         }
         String email = userDetails.getUsername();
         var user = userService.getUserByEmail(email);
-        if (user.getRole() != Role.LIBRARIAN && user.getRole() != Role.ADMIN) {
+        if (user.getRole() == null || !user.getRole().isStaff()) {
             throw new BadRequestException("Chỉ thủ thư mới có quyền thực hiện thao tác này");
         }
         return user.getId();

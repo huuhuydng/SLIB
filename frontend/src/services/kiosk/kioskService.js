@@ -149,6 +149,14 @@ const kioskService = {
   },
 
   /**
+   * Heartbeat định kỳ để kiosk cập nhật trạng thái online
+   */
+  heartbeat: async () => {
+    const response = await kioskApi.post('/session/heartbeat');
+    return response.data;
+  },
+
+  /**
    * Lấy thống kê trong ngày
    */
   getTodayStats: async () => {

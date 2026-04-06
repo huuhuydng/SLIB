@@ -12,7 +12,6 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingService;
 import slib.com.example.entity.users.User;
-import slib.com.example.entity.users.Role;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,7 +47,7 @@ public class BookingController {
         UUID currentUserId = getCurrentUserId(userDetails);
         User currentUser = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.LIBRARIAN) {
+        if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
             return requestedUserId;
         }
         if (!currentUser.getId().equals(requestedUserId)) {

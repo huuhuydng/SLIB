@@ -1,8 +1,10 @@
 package slib.com.example.controller.news;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.news.CategoryCreateRequest;
 import slib.com.example.entity.news.Category;
 import slib.com.example.service.news.CategoryService;
 
@@ -28,17 +30,9 @@ public class CategoryController {
      * Tạo category mới
      */
     @PostMapping
-    public ResponseEntity<?> createCategory(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> createCategory(@Valid @RequestBody CategoryCreateRequest request) {
         try {
-            String name = request.get("name");
-            String colorCode = request.get("colorCode");
-
-            if (name == null || name.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Tên danh mục không được để trống"));
-            }
-
-            Category category = categoryService.createCategory(name.trim(), colorCode);
+            Category category = categoryService.createCategory(request.getName(), request.getColorCode());
             return ResponseEntity.ok(category);
         } catch (Exception e) {
             return ResponseEntity.badRequest()

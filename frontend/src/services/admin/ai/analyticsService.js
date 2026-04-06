@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../../../config/apiConfig';
+import { getStaffAuthToken } from '../../shared/staffAuth';
 
 const aiAnalyticsService = axios.create({
   baseURL: `${API_BASE_URL}/slib/ai/analytics`,
@@ -9,9 +10,7 @@ const aiAnalyticsService = axios.create({
 });
 
 aiAnalyticsService.interceptors.request.use((config) => {
-  const token =
-    sessionStorage.getItem('librarian_token') ||
-    localStorage.getItem('librarian_token');
+  const token = getStaffAuthToken();
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

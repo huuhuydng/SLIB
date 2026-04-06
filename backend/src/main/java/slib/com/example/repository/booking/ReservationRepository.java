@@ -64,6 +64,8 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findTop9ByOrderByCreatedAtDesc();
 
+        List<ReservationEntity> findByStartTimeBetweenOrderByCreatedAtDesc(LocalDateTime start, LocalDateTime end);
+
         List<ReservationEntity> findTop7ByStatusOrderByCreatedAtDesc(String status);
 
         // Đếm tổng đặt chỗ trong ngày (tất cả trừ CANCELLED - không giảm khi đổi
@@ -94,11 +96,17 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         // Dashboard: đếm đặt chỗ đã xác nhận theo từng ngày (BOOKED + CONFIRMED +
         // COMPLETED)
-        @Query(value = "SELECT CAST(created_at AS date) as booking_date, COUNT(*) as cnt " +
-                        "FROM reservations WHERE created_at >= :startDate AND status IN ('BOOKED', 'CONFIRMED', 'COMPLETED') "
+        @Query(value = "SELECT CAST(start_time AS date) as booking_date, COUNT(*) as cnt " +
+                        "FROM reservations WHERE start_time >= :startDate AND status IN ('PROCESSING', 'BOOKED', 'CONFIRMED', 'COMPLETED', 'EXPIRED') "
                         +
-                        "GROUP BY CAST(created_at AS date) ORDER BY booking_date", nativeQuery = true)
+                        "GROUP BY CAST(start_time AS date) ORDER BY booking_date", nativeQuery = true)
         List<Object[]> countBookingsByDay(@Param("startDate") LocalDateTime startDate);
+
+        @Query(value = "SELECT EXTRACT(HOUR FROM start_time) as hour_of_day, COUNT(*) as cnt " +
+                        "FROM reservations WHERE start_time >= :startDate " +
+                        "AND status IN ('PROCESSING', 'BOOKED', 'CONFIRMED', 'COMPLETED', 'EXPIRED') " +
+                        "GROUP BY EXTRACT(HOUR FROM start_time) ORDER BY hour_of_day", nativeQuery = true)
+        List<Object[]> countBookingsByHour(@Param("startDate") LocalDateTime startDate);
 
         // Tính tổng số phút học từ reservation COMPLETED (endTime - startTime)
         @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0) " +
@@ -130,9 +138,53 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         long countByStartTimeBetweenAndStatusIn(LocalDateTime start, LocalDateTime end, List<String> statuses);
 
+        @Query("SELECT COUNT(r) FROM ReservationEntity r " +
+                        "WHERE r.status IN :statuses " +
+                        "AND r.startTime <= :now " +
+                        "AND r.endTime >= :now")
+        long countActiveReservationsAtTime(
+                        @Param("now") LocalDateTime now,
+                        @Param("statuses") List<String> statuses);
+
+        @Query("SELECT COUNT(r) FROM ReservationEntity r " +
+                        "WHERE r.status IN :statuses " +
+                        "AND r.startTime > :now " +
+                        "AND r.startTime <= :endTime")
+        long countUpcomingReservationsBetween(
+                        @Param("now") LocalDateTime now,
+                        @Param("endTime") LocalDateTime endTime,
+                        @Param("statuses") List<String> statuses);
+
+        @Query(value = """
+                        SELECT
+                            z.zone_id,
+                            z.zone_name,
+                            a.area_name,
+                            COUNT(s.seat_id) AS total_seats,
+                            COUNT(DISTINCT CASE WHEN r.reservation_id IS NOT NULL THEN s.seat_id END) AS occupied_seats
+                        FROM zones z
+                        JOIN areas a ON a.area_id = z.area_id
+                        LEFT JOIN seats s
+                            ON s.zone_id = z.zone_id
+                           AND s.is_active = true
+                        LEFT JOIN reservations r
+                            ON r.seat_id = s.seat_id
+                           AND r.status IN ('BOOKED', 'CONFIRMED')
+                           AND r.start_time <= :now
+                           AND r.end_time >= :now
+                        GROUP BY z.zone_id, z.zone_name, a.area_name
+                        ORDER BY z.zone_id
+                        """, nativeQuery = true)
+        List<Object[]> getZoneOccupancySnapshot(@Param("now") LocalDateTime now);
+
         long countByConfirmedAtBetween(LocalDateTime start, LocalDateTime end);
 
         long countByUserIdAndStartTimeBetweenAndStatusIn(UUID userId, LocalDateTime start, LocalDateTime end, List<String> statuses);
+
+        long countByUser_IdAndStatusInAndEndTimeAfter(
+                        UUID userId,
+                        List<String> statuses,
+                        LocalDateTime now);
 
         List<ReservationEntity> findTop1ByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
 

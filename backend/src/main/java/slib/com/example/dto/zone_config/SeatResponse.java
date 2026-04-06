@@ -1,5 +1,6 @@
 package slib.com.example.dto.zone_config;
 
+import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,9 @@ public class SeatResponse {
     private Integer zoneId;
     private String seatCode;
     private SeatStatus seatStatus; // Computed dynamically from reservations
+    @Min(value = 1, message = "Hàng ghế phải lớn hơn 0")
     private Integer rowNumber;
+    @Min(value = 1, message = "Cột ghế phải lớn hơn 0")
     private Integer columnNumber;
     private Boolean isActive; // Admin restriction flag
     private String nfcTagUid; // NFC tag UID for seat verification

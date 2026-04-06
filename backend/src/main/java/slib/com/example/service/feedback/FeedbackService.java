@@ -17,6 +17,7 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -86,8 +87,10 @@ public class FeedbackService {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sinh viên"));
         validateFeedbackContext(studentId, conversationId, reservationId);
+        String normalizedContent = ContentValidationUtil.normalizeOptionalText(content, "Nội dung phản hồi", 2000);
+        String normalizedCategory = ContentValidationUtil.normalizeOptionalFeedbackCategory(category);
 
-        String resolvedCategory = category;
+        String resolvedCategory = normalizedCategory;
         if (resolvedCategory == null || resolvedCategory.isBlank()) {
             if (conversationId != null && !conversationId.isBlank()) {
                 resolvedCategory = "MESSAGE";
@@ -99,7 +102,7 @@ public class FeedbackService {
         FeedbackEntity feedback = FeedbackEntity.builder()
                 .user(student)
                 .rating(rating)
-                .content(content)
+                .content(normalizedContent)
                 .category(resolvedCategory)
                 .conversationId(conversationId)
                 .reservationId(reservationId)
@@ -124,6 +127,10 @@ public class FeedbackService {
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thủ thư"));
 
+        if (feedback.getStatus() != FeedbackStatus.NEW) {
+            return FeedbackDTO.fromEntity(feedback);
+        }
+
         feedback.setStatus(FeedbackStatus.REVIEWED);
         feedback.setReviewedBy(librarian);
         feedback.setReviewedAt(LocalDateTime.now());
@@ -133,6 +140,37 @@ public class FeedbackService {
         broadcastDashboardUpdate("FEEDBACK_UPDATE", "REVIEWED");
         librarianNotificationService.broadcastPendingCounts("FEEDBACK", "REVIEWED");
         return FeedbackDTO.fromEntity(saved);
+    }
+
+    /**
+     * Thủ thư đánh dấu nhiều phản hồi là đã xem
+     */
+    @Transactional
+    public int markReviewedBatch(List<UUID> feedbackIds, UUID librarianId) {
+        User librarian = userRepository.findById(librarianId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy thủ thư"));
+
+        List<FeedbackEntity> feedbacks = feedbackRepository.findAllById(feedbackIds);
+        LocalDateTime reviewedAt = LocalDateTime.now();
+
+        List<FeedbackEntity> reviewableFeedbacks = feedbacks.stream()
+                .filter(feedback -> feedback.getStatus() == FeedbackStatus.NEW)
+                .peek(feedback -> {
+                    feedback.setStatus(FeedbackStatus.REVIEWED);
+                    feedback.setReviewedBy(librarian);
+                    feedback.setReviewedAt(reviewedAt);
+                })
+                .collect(Collectors.toList());
+
+        if (reviewableFeedbacks.isEmpty()) {
+            return 0;
+        }
+
+        feedbackRepository.saveAll(reviewableFeedbacks);
+        log.info("[Feedback] {} phản hồi đã được xem bởi {}", reviewableFeedbacks.size(), librarian.getFullName());
+        broadcastDashboardUpdate("FEEDBACK_UPDATE", "REVIEWED");
+        librarianNotificationService.broadcastPendingCounts("FEEDBACK", "REVIEWED");
+        return reviewableFeedbacks.size();
     }
 
     /**

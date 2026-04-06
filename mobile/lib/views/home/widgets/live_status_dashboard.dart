@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -23,6 +24,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   bool _isLoading = true;
   StompClient? _stompClient;
   bool _wsConnected = false;
+  bool _isWsConnecting = false;
 
   @override
   void initState() {
@@ -46,10 +48,14 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   /// Khi reservation COMPLETED/EXPIRED → ReservationScheduler gửi event AUTO_STATUS_CHANGE
   /// → reload giờ học realtime
   Future<void> _connectWebSocket() async {
-    if (_wsConnected) return;
+    if (_wsConnected || _isWsConnecting) return;
     try {
+      _isWsConnecting = true;
       final token = await _authService.getToken();
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        _isWsConnecting = false;
+        return;
+      }
 
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
@@ -67,6 +73,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           onConnect: (StompFrame frame) {
             debugPrint('[LiveStatus] WebSocket connected');
             _wsConnected = true;
+            _isWsConnecting = false;
             _stompClient?.subscribe(
               destination: '/topic/dashboard',
               callback: (StompFrame frame) {
@@ -90,13 +97,11 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           onWebSocketError: (error) {
             debugPrint('[LiveStatus] WebSocket error: $error');
             _wsConnected = false;
+            _isWsConnecting = false;
           },
           onDisconnect: (_) {
             _wsConnected = false;
-            // Auto-reconnect sau 5s
-            Future.delayed(const Duration(seconds: 5), () {
-              if (mounted) _connectWebSocket();
-            });
+            _isWsConnecting = false;
           },
           reconnectDelay: const Duration(seconds: 5),
         ),
@@ -104,6 +109,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
       _stompClient!.activate();
     } catch (e) {
       debugPrint('[LiveStatus] WebSocket connection error: $e');
+      _isWsConnecting = false;
     }
   }
 
@@ -314,6 +320,12 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                     ),
                   ],
                 ),
+          if ((_studentProfile?.bookingRestriction?.hasNotice ?? false)) ...[
+            const SizedBox(height: 16),
+            _buildBookingRestrictionBanner(
+              _studentProfile!.bookingRestriction!,
+            ),
+          ],
         ],
       ),
     );
@@ -359,6 +371,78 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBookingRestrictionBanner(BookingRestrictionStatus restriction) {
+    final bool isBlocked = restriction.isTemporarilyBlocked;
+    final bool isDeniedNow = !restriction.allowedNow;
+    final Color accentColor = isBlocked
+        ? Colors.red
+        : (isDeniedNow ? Colors.orange : Colors.blue);
+
+    String message = restriction.summaryMessage ?? '';
+    final remainingText = restriction.remainingText;
+    if (isBlocked && remainingText != null) {
+      message = '$message Còn khoảng $remainingText.';
+    } else if (restriction.blockedUntil != null) {
+      final blockedUntilText = DateFormat(
+        'HH:mm dd/MM',
+      ).format(restriction.blockedUntil!);
+      message = '$message Mở lại sau $blockedUntilText.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isBlocked
+                ? Icons.lock_clock_rounded
+                : (isDeniedNow
+                      ? Icons.warning_amber_rounded
+                      : Icons.info_outline_rounded),
+            color: accentColor,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isBlocked
+                      ? 'Đặt chỗ đang bị tạm khóa'
+                      : (isDeniedNow
+                            ? 'Đặt chỗ đang bị hạn chế'
+                            : 'Lưu ý về quyền đặt chỗ'),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: accentColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black87,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

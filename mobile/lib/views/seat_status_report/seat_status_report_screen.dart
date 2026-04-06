@@ -2,11 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:slib/core/utils/snackbar_guard.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/booking/booking_service.dart';
 import '../../services/report/seat_status_report_service.dart';
 import '../../views/widgets/error_display_widget.dart';
-import 'seat_status_report_history_screen.dart';
 
 class SeatStatusReportScreen extends StatefulWidget {
   const SeatStatusReportScreen({super.key});
@@ -89,9 +89,11 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
   Future<void> _submit() async {
     if (_seatId == null) return;
     if (_selectedIssueType == null) {
-      ScaffoldMessenger.of(
+      SnackbarGuard.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Vui lòng chọn loại sự cố')));
+        key: 'seat_status_missing_issue_type',
+        message: 'Vui lòng chọn loại sự cố',
+      );
       return;
     }
 
@@ -108,10 +110,10 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
         image: _selectedImage,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã gửi báo cáo tình trạng ghế thành công'),
-        ),
+      SnackbarGuard.show(
+        context,
+        key: 'seat_status_report_success',
+        message: 'Đã gửi báo cáo tình trạng ghế thành công',
       );
       _descriptionController.clear();
       setState(() {
@@ -119,9 +121,11 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
         _selectedImage = null;
       });
     } catch (e) {
-      ScaffoldMessenger.of(
+      SnackbarGuard.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Không thể gửi báo cáo: $e')));
+        key: 'seat_status_report_error',
+        message: 'Không thể gửi báo cáo: $e',
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -130,22 +134,7 @@ class _SeatStatusReportScreenState extends State<SeatStatusReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Báo cáo tình trạng ghế'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SeatStatusReportHistoryScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Báo cáo tình trạng ghế')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null

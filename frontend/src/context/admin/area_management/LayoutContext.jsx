@@ -42,12 +42,14 @@ const initialState = {
   isPreviewMode: false, // Preview mode: view-only, no editing
   hasUnsavedChanges: false,
   isSaving: false,
+  isLayoutHydrated: false,
 
   // ===== PENDING CHANGES (for batch save) =====
   pendingChanges: {
     newZones: [],        // Zones created locally (not yet in DB)
     newFactories: [],    // Factories created locally (not yet in DB)
     newSeats: [],        // Seats created locally (not yet in DB)
+    deletedAreas: [],    // Area IDs to delete
     deletedZones: [],    // Zone IDs to delete
     deletedFactories: [], // Factory IDs to delete
     deletedSeats: [],    // Seat IDs to delete
@@ -123,15 +125,18 @@ export const ACTIONS = {
   SET_UNSAVED_CHANGES: "SET_UNSAVED_CHANGES",
   SET_SAVING: "SET_SAVING",
   MARK_SAVED: "MARK_SAVED",
+  SET_LAYOUT_HYDRATED: "SET_LAYOUT_HYDRATED",
 
   // ===== PENDING CHANGES =====
   ADD_PENDING_SEAT_DELETE: "ADD_PENDING_SEAT_DELETE",
   ADD_PENDING_SEAT_UPDATE: "ADD_PENDING_SEAT_UPDATE",
+  ADD_PENDING_AREA_DELETE: "ADD_PENDING_AREA_DELETE",
   ADD_PENDING_ZONE: "ADD_PENDING_ZONE",
   ADD_PENDING_ZONE_DELETE: "ADD_PENDING_ZONE_DELETE",
   ADD_PENDING_FACTORY: "ADD_PENDING_FACTORY",
   ADD_PENDING_FACTORY_DELETE: "ADD_PENDING_FACTORY_DELETE",
   CLEAR_PENDING_CHANGES: "CLEAR_PENDING_CHANGES",
+  REPLACE_PENDING_CHANGES: "REPLACE_PENDING_CHANGES",
 
   // ===== UNDO/REDO =====
   UNDO: "UNDO",
@@ -188,16 +193,36 @@ function layoutReducer(state, action) {
       };
 
     case ACTIONS.DELETE_AREA:
+      const zoneIdsInDeletedArea = state.zones
+        .filter((z) => z.areaId === action.payload)
+        .map((z) => z.zoneId);
+      const seatIdsInDeletedArea = state.seats
+        .filter((s) => zoneIdsInDeletedArea.includes(s.zoneId))
+        .map((s) => s.seatId);
       return {
         ...state,
         areas: state.areas.filter((a) => a.areaId !== action.payload),
         zones: state.zones.filter((z) => z.areaId !== action.payload),
+        factories: state.factories.filter((f) => f.areaId !== action.payload),
         seats: state.seats.filter((s) =>
           state.zones.find((z) => z.zoneId === s.zoneId)?.areaId !== action.payload
         ),
         selectedAreaId:
           state.selectedAreaId === action.payload ? null : state.selectedAreaId,
         selectedItem: null,
+        pendingChanges: {
+          ...state.pendingChanges,
+          newZones: state.pendingChanges.newZones.filter((z) => z.areaId !== action.payload),
+          newFactories: state.pendingChanges.newFactories.filter((f) => f.areaId !== action.payload),
+          newSeats: state.pendingChanges.newSeats.filter((s) => !seatIdsInDeletedArea.includes(s.seatId)),
+          deletedAreas: state.pendingChanges.deletedAreas.filter((areaId) => areaId !== action.payload),
+          deletedZones: state.pendingChanges.deletedZones.filter((zoneId) => !zoneIdsInDeletedArea.includes(zoneId)),
+          deletedFactories: state.pendingChanges.deletedFactories.filter((factoryId) =>
+            !state.factories.some((f) => f.factoryId === factoryId && f.areaId === action.payload)
+          ),
+          deletedSeats: state.pendingChanges.deletedSeats.filter((seatId) => !seatIdsInDeletedArea.includes(seatId)),
+          updatedSeats: state.pendingChanges.updatedSeats.filter((seat) => !seatIdsInDeletedArea.includes(seat.seatId)),
+        },
       };
 
     case ACTIONS.SELECT_AREA:
@@ -245,6 +270,9 @@ function layoutReducer(state, action) {
       };
 
     case ACTIONS.DELETE_ZONE:
+      const removedSeatIdsForZone = state.seats
+        .filter((s) => s.zoneId === action.payload)
+        .map((s) => s.seatId);
       return {
         ...state,
         zones: state.zones.filter((z) => z.zoneId !== action.payload),
@@ -256,6 +284,13 @@ function layoutReducer(state, action) {
           newZones: state.pendingChanges.newZones.filter(z => z.zoneId !== action.payload),
           // Remove any pending seats that belong to this zone
           newSeats: state.pendingChanges.newSeats.filter(s => s.zoneId !== action.payload),
+          // If the zone is being deleted, any seat updates/deletes inside it are no longer relevant.
+          updatedSeats: state.pendingChanges.updatedSeats.filter(
+            (s) => !removedSeatIdsForZone.includes(s.seatId)
+          ),
+          deletedSeats: state.pendingChanges.deletedSeats.filter(
+            (seatId) => !removedSeatIdsForZone.includes(seatId)
+          ),
         },
       };
 
@@ -313,6 +348,10 @@ function layoutReducer(state, action) {
         seats: state.seats.map((s) =>
           s.seatId === seatTempId ? { ...realSeat, isPending: false } : s
         ),
+        selectedItem:
+          state.selectedItem?.type === "seat" && state.selectedItem.id === seatTempId
+            ? { type: "seat", id: realSeat.seatId }
+            : state.selectedItem,
       };
 
     case ACTIONS.DELETE_SEAT:
@@ -392,6 +431,24 @@ function layoutReducer(state, action) {
         zones: state.zones.map((z) =>
           z.zoneId === zoneTempId ? { ...realZone, isPending: false } : z
         ),
+        seats: state.seats.map((s) =>
+          s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+        ),
+        selectedItem:
+          state.selectedItem?.type === "zone" && state.selectedItem.id === zoneTempId
+            ? { type: "zone", id: realZone.zoneId }
+            : state.selectedItem,
+        selectedZoneId:
+          state.selectedZoneId === zoneTempId ? realZone.zoneId : state.selectedZoneId,
+        pendingChanges: {
+          ...state.pendingChanges,
+          newSeats: state.pendingChanges.newSeats.map((s) =>
+            s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+          ),
+          updatedSeats: state.pendingChanges.updatedSeats.map((s) =>
+            s.zoneId === zoneTempId ? { ...s, zoneId: realZone.zoneId } : s
+          ),
+        },
       };
 
     // Replace temp factory with real factory after API creation (matches by tempId)
@@ -402,6 +459,10 @@ function layoutReducer(state, action) {
         factories: state.factories.map((f) =>
           f.factoryId === factoryTempId ? { ...realFactory, isPending: false } : f
         ),
+        selectedItem:
+          state.selectedItem?.type === "factory" && state.selectedItem.id === factoryTempId
+            ? { type: "factory", id: realFactory.factoryId }
+            : state.selectedItem,
       };
 
     // ===== SELECTION =====
@@ -471,12 +532,19 @@ function layoutReducer(state, action) {
         isSaving: action.payload,
       };
 
+    case ACTIONS.SET_LAYOUT_HYDRATED:
+      return {
+        ...state,
+        isLayoutHydrated: action.payload,
+      };
+
     case ACTIONS.MARK_SAVED:
       return {
         ...state,
         hasUnsavedChanges: false,
         isSaving: false,
         pendingChanges: {
+          deletedAreas: [],
           newZones: [],
           newFactories: [],
           newSeats: [],        // FIX: Was missing - must reset newSeats too!
@@ -515,6 +583,16 @@ function layoutReducer(state, action) {
         pendingChanges: {
           ...state.pendingChanges,
           updatedSeats: newUpdatedSeats,
+        },
+      };
+
+    case ACTIONS.ADD_PENDING_AREA_DELETE:
+      return {
+        ...state,
+        hasUnsavedChanges: true,
+        pendingChanges: {
+          ...state.pendingChanges,
+          deletedAreas: [...state.pendingChanges.deletedAreas, action.payload],
         },
       };
 
@@ -565,6 +643,7 @@ function layoutReducer(state, action) {
       return {
         ...state,
         pendingChanges: {
+          deletedAreas: [],
           newZones: [],
           newFactories: [],
           newSeats: [],
@@ -573,6 +652,12 @@ function layoutReducer(state, action) {
           deletedSeats: [],
           updatedSeats: [],
         },
+      };
+
+    case ACTIONS.REPLACE_PENDING_CHANGES:
+      return {
+        ...state,
+        pendingChanges: action.payload,
       };
 
     // ===== UNDO/REDO =====
@@ -781,6 +866,9 @@ function layoutReducer(state, action) {
 
       const zoneIdsToDelete = itemsToDelete.filter(i => i.type === 'zone').map(i => i.id);
       const factoryIdsToDelete = itemsToDelete.filter(i => i.type === 'factory').map(i => i.id);
+      const seatIdsInDeletedZones = state.seats
+        .filter((s) => zoneIdsToDelete.includes(s.zoneId))
+        .map((s) => s.seatId);
 
       // Separate pending (not yet saved) vs existing (already in DB)
       // Pending items have negative IDs (tempId = -Date.now())
@@ -793,6 +881,7 @@ function layoutReducer(state, action) {
         ...state,
         zones: state.zones.filter(z => !zoneIdsToDelete.includes(z.zoneId)),
         factories: state.factories.filter(f => !factoryIdsToDelete.includes(f.factoryId)),
+        seats: state.seats.filter(s => !seatIdsInDeletedZones.includes(s.seatId)),
         pendingChanges: {
           ...state.pendingChanges,
           // Add existing IDs to delete list for API call
@@ -801,6 +890,9 @@ function layoutReducer(state, action) {
           // Remove pending items from newZones/newFactories (they were never saved)
           newZones: state.pendingChanges.newZones.filter(z => !pendingZoneIdsToDelete.includes(z.zoneId)),
           newFactories: state.pendingChanges.newFactories.filter(f => !pendingFactoryIdsToDelete.includes(f.factoryId)),
+          newSeats: state.pendingChanges.newSeats.filter(s => !seatIdsInDeletedZones.includes(s.seatId)),
+          deletedSeats: state.pendingChanges.deletedSeats.filter(seatId => !seatIdsInDeletedZones.includes(seatId)),
+          updatedSeats: state.pendingChanges.updatedSeats.filter(seat => !seatIdsInDeletedZones.includes(seat.seatId)),
         },
         selectedItems: [],
         selectedItem: null,

@@ -7,7 +7,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.activity.PointTransactionEntity;
-import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.activity.ActivityService;
@@ -34,7 +33,7 @@ public class ActivityController {
         User currentUser = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (currentUser.getRole() == Role.ADMIN || currentUser.getRole() == Role.LIBRARIAN) {
+        if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
             return requestedUserId;
         }
         if (!currentUser.getId().equals(requestedUserId)) {

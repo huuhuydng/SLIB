@@ -7,8 +7,7 @@ class ApiConstants {
   // --- CHỌN 1 TRONG 2 CẤU HÌNH BÊN DƯỚI ---
 
   // [CẤU HÌNH 1 - PRODUCTION]: Dành cho máy thật, build APK, demo.
-  // static const String domain = "https://api.slibsystem.site";
-  static const String domain = "https://hyperscrupulous-ropeable-alverta.ngrok-free.dev";
+  static const String domain = "https://api.slibsystem.site";
 
   // [CẤU HÌNH 2 - DEVELOPMENT]: Dành cho máy ảo (Emulator Android) chạy chung với Backend trên cùng máy tính.
   // static const String domain = "http://10.0.2.2:8080";
@@ -52,6 +51,9 @@ class ApiConstants {
 
   // Violation Reports
   static const String violationReportUrl = "$domain/slib/violation-reports";
+
+  // Complaints
+  static const String complaintUrl = "$domain/slib/complaints";
 
   // Kiosk
   static const String kioskUrl = "$domain/slib/kiosk";

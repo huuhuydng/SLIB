@@ -2,6 +2,18 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
+import { getStaffAuthToken } from '../shared/staffAuth';
+import {
+    normalizeEmail,
+    normalizeFullName,
+    normalizePhone,
+    normalizeUserCode,
+    validateEmail,
+    validateFullName,
+    validatePhone,
+    validateUserCode,
+} from '../../utils/userValidation';
+import { VALID_USER_ROLES, normalizeRole } from '../../utils/roles';
 
 const API_BASE_URL = `${BASE}/slib`;
 
@@ -16,7 +28,7 @@ const axiosInstance = axios.create({
 // Request interceptor - add auth token
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('librarian_token');
+        const token = getStaffAuthToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -36,7 +48,7 @@ axiosInstance.interceptors.response.use(
 
         // Check for token expiry (401 Unauthorized or 403 Forbidden)
         if (error.response?.status === 401 || error.response?.status === 403) {
-            const token = localStorage.getItem('librarian_token');
+            const token = getStaffAuthToken();
             if (token) {
                 // Try to decode and check expiry
                 try {
@@ -45,11 +57,6 @@ axiosInstance.interceptors.response.use(
 
                     if (payload.exp && payload.exp < now) {
                         console.warn('[UserService] Token hết hạn! Đăng xuất...');
-                        // Clear storage
-                        localStorage.removeItem('librarian_token');
-                        localStorage.removeItem('librarian_user');
-                        localStorage.removeItem('refresh_token');
-
                         // Redirect tới trang token-expired
                         window.location.href = '/token-expired';
                         return Promise.reject(new Error('Token expired'));
@@ -82,6 +89,24 @@ class UserService {
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] getAllUsers error:', error);
+            throw error;
+        }
+    }
+
+    async getAdminUsers(filters = {}) {
+        try {
+            const params = new URLSearchParams();
+            if (filters.role) params.append('role', filters.role);
+            if (filters.status) params.append('status', filters.status);
+            if (filters.search) params.append('search', filters.search);
+
+            const queryString = params.toString();
+            const url = queryString ? `/users/admin/list?${queryString}` : '/users/admin/list';
+
+            const response = await axiosInstance.get(url);
+            return response.data;
+        } catch (error) {
+            console.error('❌ [UserService] getAdminUsers error:', error);
             throw error;
         }
     }
@@ -307,22 +332,12 @@ class UserService {
     /**
      * Create a new librarian account
      */
-    async createLibrarian(data) {
+    async createUser(data) {
         try {
-            const userData = [{
-                userCode: data.email.split('@')[0].toUpperCase(),
-                email: data.email,
-                fullName: data.fullName,
-                role: data.role || 'LIBRARIAN',
-                phone: data.phone || null
-            }];
-            const response = await axiosInstance.post('/users/import', userData);
-            if (response.data.successCount > 0) {
-                return response.data.success[0];
-            }
-            throw new Error(response.data.failed[0]?.reason || 'Không thể tạo tài khoản');
+            const response = await axiosInstance.post('/users', data);
+            return response.data.user;
         } catch (error) {
-            console.error('❌ [UserService] createLibrarian error:', error);
+            console.error('❌ [UserService] createUser error:', error);
             throw error;
         }
     }
@@ -333,11 +348,9 @@ class UserService {
      * @param {boolean} hardDelete - If true, permanently delete (default: false)
      * @returns {Promise<{success: boolean, message: string}>}
      */
-    async deleteUser(userId, hardDelete = false) {
+    async deleteUser(userId) {
         try {
-            const response = await axiosInstance.delete(`/users/${userId}`, {
-                params: { hard: hardDelete }
-            });
+            const response = await axiosInstance.delete(`/users/${userId}`);
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] deleteUser error:', error);
@@ -520,6 +533,9 @@ class UserService {
             'sinh viên': 'STUDENT',
             'sinh vien': 'STUDENT',
             'student': 'STUDENT',
+            'giáo viên': 'TEACHER',
+            'giao vien': 'TEACHER',
+            'teacher': 'TEACHER',
             'thủ thư': 'LIBRARIAN',
             'thu thu': 'LIBRARIAN',
             'librarian': 'LIBRARIAN',
@@ -558,11 +574,11 @@ class UserService {
             const role = roleMapping[rawRole] || 'STUDENT';
 
             const user = {
-                fullName: getValue('fullName'),
-                userCode: getValue('userCode'),
-                email: getValue('email'),
+                fullName: normalizeFullName(getValue('fullName')),
+                userCode: normalizeUserCode(getValue('userCode')),
+                email: normalizeEmail(getValue('email')),
                 role: role,
-                phone: getValue('phone') || null,
+                phone: normalizePhone(getValue('phone')) || null,
                 dob: this.parseDate(getValue('dob')),
                 _rowIndex: rowIndex + 2 // For error reporting (1-indexed + header row)
             };
@@ -586,29 +602,43 @@ class UserService {
 
         users.forEach((user, index) => {
             const userErrors = {};
+            const normalizedUserCode = normalizeUserCode(user.userCode);
+            const normalizedEmail = normalizeEmail(user.email);
+            const normalizedFullName = normalizeFullName(user.fullName);
+            const normalizedPhone = normalizePhone(user.phone);
 
             // Check duplicate userCode within file
-            if (seenUserCodes.has(user.userCode)) {
-                userErrors.userCode = `Mã số bị trùng với dòng ${seenUserCodes.get(user.userCode)}`;
+            if (seenUserCodes.has(normalizedUserCode)) {
+                userErrors.userCode = `Mã số bị trùng với dòng ${seenUserCodes.get(normalizedUserCode)}`;
             } else {
-                seenUserCodes.set(user.userCode, index + 2); // +2 because row 1 is header
+                seenUserCodes.set(normalizedUserCode, index + 2); // +2 because row 1 is header
             }
 
             // Check duplicate email within file
-            if (seenEmails.has(user.email)) {
-                userErrors.email = `Email bị trùng với dòng ${seenEmails.get(user.email)}`;
+            if (seenEmails.has(normalizedEmail)) {
+                userErrors.email = `Email bị trùng với dòng ${seenEmails.get(normalizedEmail)}`;
             } else {
-                seenEmails.set(user.email, index + 2); // +2 because row 1 is header
+                seenEmails.set(normalizedEmail, index + 2); // +2 because row 1 is header
             }
 
-            // Validate email format
-            if (user.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) {
-                userErrors.email = 'Email không hợp lệ';
-            }
+            const fullNameError = validateFullName(normalizedFullName);
+            if (fullNameError) userErrors.fullName = fullNameError;
+
+            const emailError = validateEmail(normalizedEmail);
+            if (emailError) userErrors.email = emailError;
+
+            const userCodeError = validateUserCode(normalizedUserCode);
+            if (userCodeError) userErrors.userCode = userCodeError;
+
+            const phoneError = validatePhone(normalizedPhone);
+            if (phoneError) userErrors.phone = phoneError;
 
             // Validate role
-            if (!['STUDENT', 'LIBRARIAN', 'ADMIN'].includes(user.role)) {
+            const normalizedRole = normalizeRole(user.role);
+            if (!VALID_USER_ROLES.includes(normalizedRole)) {
                 userErrors.role = 'Vai trò không hợp lệ';
+            } else {
+                user.role = normalizedRole;
             }
 
             if (Object.keys(userErrors).length > 0) {

@@ -1,5 +1,6 @@
 package slib.com.example.controller.users;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -12,8 +13,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletResponse;
 import slib.com.example.dto.users.AuthResponse;
+import slib.com.example.dto.users.AdminCreateUserRequest;
+import slib.com.example.dto.users.AdminUpdateUserRequest;
+import slib.com.example.dto.users.AdminUserListItemResponse;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.UserProfileResponse;
+import slib.com.example.dto.users.UserListItemResponse;
 import slib.com.example.entity.users.ImportJob;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
@@ -105,8 +110,40 @@ public class UserController {
 
     @GetMapping("/getall")
     @PreAuthorize("hasAnyRole('ADMIN', 'LIBRARIAN')")
-    public List<User> getAllUsers() {
-        return userService.getAllUsers();
+    public List<UserListItemResponse> getAllUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+        return userService.getAllUsers(role, parseStatus(status), search);
+    }
+
+    @GetMapping("/admin/list")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<AdminUserListItemResponse> getAdminUsers(
+            @RequestParam(required = false) Role role,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+        return userService.getAdminUsers(role, parseStatus(status), search);
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createUser(
+            @Valid @RequestBody AdminCreateUserRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            AdminUserListItemResponse created = userService.createUser(request);
+            systemLogService.logAudit(
+                    "UserController",
+                    "Tạo người dùng mới: " + created.email(),
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Đã tạo người dùng mới",
+                    "user", created));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     /**
@@ -117,7 +154,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @SuppressWarnings("unchecked")
     public ResponseEntity<?> importUsers(
-            @RequestBody List<ImportUserRequest> requests,
+            @RequestBody List<@Valid ImportUserRequest> requests,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             if (requests == null || requests.isEmpty()) {
@@ -155,7 +192,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> adminUpdateUser(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Object> request,
+            @Valid @RequestBody AdminUpdateUserRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             User existingUser = userService.getUserById(userId);
@@ -163,35 +200,29 @@ public class UserController {
                 return ResponseEntity.notFound().build();
             }
 
-            if (request.containsKey("fullName")) {
-                String fullName = (String) request.get("fullName");
+            if (request.getFullName() != null) {
+                String fullName = request.getFullName();
                 if (fullName != null && !fullName.trim().isEmpty()) {
                     existingUser.setFullName(fullName.trim());
                 }
             }
-            if (request.containsKey("phone")) {
-                String phone = (String) request.get("phone");
-                existingUser.setPhone(phone);
+            if (request.getPhone() != null) {
+                existingUser.setPhone(request.getPhone());
             }
-            if (request.containsKey("email")) {
-                String email = (String) request.get("email");
-                if (email != null && !email.trim().isEmpty()) {
-                    existingUser.setEmail(email.trim());
-                }
+            if (request.getEmail() != null) {
+                String email = request.getEmail();
+                existingUser.setEmail(email != null ? email.trim() : null);
             }
-            if (request.containsKey("dob")) {
-                String dobStr = (String) request.get("dob");
+            if (request.getDob() != null) {
+                String dobStr = request.getDob();
                 if (dobStr != null && !dobStr.isEmpty()) {
                     existingUser.setDob(java.time.LocalDate.parse(dobStr));
                 } else {
                     existingUser.setDob(null);
                 }
             }
-            if (request.containsKey("role")) {
-                String role = (String) request.get("role");
-                if (role != null && !role.isEmpty()) {
-                    existingUser.setRole(Role.valueOf(role));
-                }
+            if (request.getRole() != null) {
+                existingUser.setRole(request.getRole());
             }
 
             User saved = userService.saveUser(existingUser);
@@ -263,10 +294,23 @@ public class UserController {
                     null,
                     userDetails.getUsername());
             return ResponseEntity.ok(Map.of(
-                    "message", "Đã xoá user và tất cả dữ liệu liên quan thành công",
+                    "message", "Đã xóa vĩnh viễn người dùng và dữ liệu liên quan",
                     "userId", userId));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body("Lỗi xoá user: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{userId}/active-bookings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUserActiveBookings(@PathVariable UUID userId) {
+        try {
+            long count = userService.countActiveOrUpcomingBookings(userId);
+            return ResponseEntity.ok(Map.of(
+                    "count", count,
+                    "hasActiveBookings", count > 0));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -562,7 +606,7 @@ public class UserController {
 
             // ===== Column definitions matching AsyncImportService parser =====
             String[] headers = {
-                    "Mã sinh viên (userCode)", // A
+                    "Mã người dùng (userCode)", // A
                     "Họ và tên (fullName)", // B
                     "Email", // C
                     "Số điện thoại (phone)", // D
@@ -620,22 +664,22 @@ public class UserController {
             int r = 0;
             Row nr = notesSheet.createRow(r++);
             Cell nc = nr.createCell(0);
-            nc.setCellValue("HƯỚNG DẪN IMPORT SINH VIÊN - SLIB");
+            nc.setCellValue("HƯỚNG DẪN IMPORT NGƯỜI DÙNG - SLIB");
             nc.setCellStyle(noteHeaderStyle);
 
             r++;
             String[] notes = {
-                    "1. Điền thông tin sinh viên vào sheet \"Import Users\"",
+                    "1. Điền thông tin người dùng vào sheet \"Import Users\"",
                     "2. Xóa 2 dòng dữ liệu mẫu trước khi import",
-                    "3. Cột A - Mã sinh viên: Bắt buộc, duy nhất (VD: SE123456)",
+                    "3. Cột A - Mã người dùng: Bắt buộc, duy nhất (VD: SE123456)",
                     "4. Cột B - Họ và tên: Bắt buộc",
                     "5. Cột C - Email: Bắt buộc, phải là email hợp lệ, duy nhất",
                     "6. Cột D - Số điện thoại: Không bắt buộc, 10 chữ số",
                     "7. Cột E - Ngày sinh: Không bắt buộc, định dạng dd/MM/yyyy",
-                    "8. Cột F - Vai trò: STUDENT hoặc LIBRARIAN (mặc định: STUDENT)",
+                    "8. Cột F - Vai trò: STUDENT, TEACHER, LIBRARIAN hoặc ADMIN (mặc định: STUDENT)",
                     "",
                     "NHẬP KÈM AVATAR:",
-                    "- Đặt tên file ảnh trùng với mã sinh viên (VD: SE123456.jpg)",
+                    "- Đặt tên file ảnh trùng với mã người dùng (VD: SE123456.jpg)",
                     "- Nén file template + tất cả ảnh vào 1 file .zip rồi upload"
             };
 
@@ -651,5 +695,16 @@ public class UserController {
 
             workbook.write(response.getOutputStream());
         }
+    }
+
+    private Boolean parseStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return switch (status.trim().toLowerCase()) {
+            case "active", "hoạt động", "hoat dong" -> true;
+            case "locked", "inactive", "đã khóa", "da khoa" -> false;
+            default -> null;
+        };
     }
 }

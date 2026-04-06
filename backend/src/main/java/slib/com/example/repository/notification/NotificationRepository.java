@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import slib.com.example.entity.notification.NotificationEntity;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +24,9 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
     @Query("SELECT n FROM NotificationEntity n WHERE n.user.id = :userId ORDER BY n.createdAt DESC")
     List<NotificationEntity> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);
 
+    @Query("SELECT n FROM NotificationEntity n WHERE n.user.id = :userId AND n.isRead = false ORDER BY n.createdAt DESC")
+    List<NotificationEntity> findUnreadByUserId(@Param("userId") UUID userId);
+
     /**
      * Find notifications by userId with limit
      */
@@ -33,6 +38,82 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
      */
     @Query("SELECT COUNT(n) FROM NotificationEntity n WHERE n.user.id = :userId AND n.isRead = false")
     long countUnreadByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType IS NULL
+              AND n.referenceId IS NULL
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithoutReference(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType = :referenceType
+              AND n.referenceId IS NULL
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReferenceType(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceType") String referenceType,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType IS NULL
+              AND n.referenceId = :referenceId
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReferenceId(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceId") UUID referenceId,
+            @Param("since") LocalDateTime since);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND n.referenceType = :referenceType
+              AND n.referenceId = :referenceId
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicateWithReference(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceType") String referenceType,
+            @Param("referenceId") UUID referenceId,
+            @Param("since") LocalDateTime since);
 
     /**
      * Mark all notifications as read for a user

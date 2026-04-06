@@ -1,5 +1,6 @@
 package slib.com.example.controller.ai;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -32,7 +33,7 @@ public class KnowledgeStoreController {
 
     @PostMapping
     public ResponseEntity<KnowledgeStoreDTO.Response> createKnowledgeStore(
-            @RequestBody KnowledgeStoreDTO.CreateRequest request,
+            @Valid @RequestBody KnowledgeStoreDTO.CreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         String createdBy = userDetails != null ? userDetails.getUsername() : "system";
         KnowledgeStoreDTO.Response response = knowledgeStoreService.createKnowledgeStore(request, createdBy);
@@ -45,7 +46,7 @@ public class KnowledgeStoreController {
     @PutMapping("/{id}")
     public ResponseEntity<KnowledgeStoreDTO.Response> updateKnowledgeStore(
             @PathVariable Long id,
-            @RequestBody KnowledgeStoreDTO.UpdateRequest request,
+            @Valid @RequestBody KnowledgeStoreDTO.UpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         KnowledgeStoreDTO.Response response = knowledgeStoreService.updateKnowledgeStore(id, request);
         systemLogService.logAudit("KnowledgeStoreController",

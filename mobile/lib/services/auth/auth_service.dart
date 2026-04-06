@@ -102,7 +102,7 @@ class AuthService extends ChangeNotifier {
 
       if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
         await _googleSignIn.signOut();
-        throw Exception('Vui lòng sử dụng email sinh viên FPT (@fpt.edu.vn)!');
+        throw Exception('Vui lòng sử dụng email FPT (@fpt.edu.vn)!');
       }
 
       final GoogleSignInAuthentication googleAuth =

@@ -27,22 +27,30 @@
 .top-header__right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
-.top-header__bell {
-  width: 36px; height: 36px;
-  border-radius: 8px;
-  border: none; background: transparent;
-  display: flex; align-items: center; justify-content: center;
-  color: #6b7280; cursor: pointer;
-  transition: background 0.12s ease;
+.top-header__welcome {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #6b7280;
 }
-.top-header__bell:hover { background: #f3f4f6; color: #1f2937; }
+
+.top-header__welcomeLabel {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.top-header__welcomeName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+}
 
 .top-header__user {
   display: flex; align-items: center; gap: 8px;
-  padding: 4px 10px 4px 4px;
+  padding: 4px;
   border: 1px solid #ebedf0; border-radius: 25px;
   background: #fff; cursor: pointer;
   transition: border-color 0.12s ease;
@@ -55,10 +63,6 @@
   background: #e8600a; color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 600; flex-shrink: 0;
-}
-
-.top-header__name {
-  font-size: 13px; font-weight: 500; color: #1f2937;
 }
 
 /* Dropdown */
@@ -88,9 +92,11 @@
 /* ── Layout ── */
 .appLayout {
   display: flex;
-  min-height: 100vh;
-  padding-top: 52px;
+  height: calc(100vh - 52px);
+  margin-top: 52px;
+  box-sizing: border-box;
   background-color: #f4f5f7;
+  overflow: hidden;
 }
 
 .main {
@@ -100,15 +106,18 @@
   overflow-y: auto;
   overflow-x: hidden;
   height: calc(100vh - 52px);
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
   .main { margin-left: 0; }
 }
 
-.main:has(.library-map-page) { padding: 0; overflow: hidden; }
-.library-map-page { height: calc(100vh - 52px); width: 100%; }
+.main:has(.library-map-page) { padding: 0; overflow: hidden; min-height: 0; }
+.library-map-page { height: 100%; min-height: 0; width: 100%; }
 
 @media (max-width: 768px) {
   .top-header { padding-left: 24px; }
+  .top-header__welcome { display: none; }
 }

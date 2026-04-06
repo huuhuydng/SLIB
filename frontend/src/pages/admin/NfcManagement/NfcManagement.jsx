@@ -8,6 +8,7 @@ import { getAreas, getZonesByArea, getSeats, getAreaFactoriesByArea, getSeatByNf
 import { calculateDynamicSeatLayout } from "../../../utils/admin/seatLayout";
 import nfcManagementService from "../../../services/admin/nfcManagementService";
 import { NFC_BRIDGE_URL } from "../../../config/apiConfig";
+import LoadErrorState from "../../../components/common/LoadErrorState";
 import "./NfcManagement.css";
 
 const NfcManagement = () => {
@@ -20,6 +21,7 @@ const NfcManagement = () => {
   const [factories, setFactories] = useState([]);
   const [nfcMap, setNfcMap] = useState({}); // seatId -> nfc mapping data
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
 
   // ===== UI STATE =====
   const [selectedAreaId, setSelectedAreaId] = useState(null);
@@ -38,6 +40,7 @@ const NfcManagement = () => {
     message: "Đang kiểm tra NFC Bridge..."
   });
   const [bridgeChecking, setBridgeChecking] = useState(false);
+  const [bridgeLaunching, setBridgeLaunching] = useState(false);
   const [showBridgeGuide, setShowBridgeGuide] = useState(false);
   const [showBridgeDropdown, setShowBridgeDropdown] = useState(false);
   const bridgeDropdownRef = useRef(null);
@@ -78,9 +81,21 @@ const NfcManagement = () => {
     }
   }, []);
 
+  const handleOpenBridgeApp = useCallback(() => {
+    nfcManagementService.openBridgeApp();
+    setBridgeLaunching(true);
+    showToast("Đã gửi yêu cầu mở công cụ NFC trên máy này.");
+    setShowBridgeDropdown(false);
+
+    window.setTimeout(() => checkBridgeConnection(false), 1500);
+    window.setTimeout(() => checkBridgeConnection(false), 4000);
+    window.setTimeout(() => setBridgeLaunching(false), 4500);
+  }, [checkBridgeConnection]);
+
   // ===== LOAD ALL DATA =====
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       // 1. Load areas
       const areasRes = await getAreas();
@@ -163,7 +178,9 @@ const NfcManagement = () => {
       } catch (e) { console.error("Load NFC mappings failed", e); }
 
     } catch (e) {
-      showToast("Lỗi tải dữ liệu", "error");
+      const message = e?.message || "Lỗi tải dữ liệu";
+      setLoadError(message);
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -380,8 +397,16 @@ const NfcManagement = () => {
                 )}
                 <div className="nfc-bridge-dropdown__divider"></div>
                 <div className="nfc-bridge-dropdown__actions">
-                  <a
+                  <button
                     className="nfc-bridge-btn nfc-bridge-btn--primary"
+                    onClick={handleOpenBridgeApp}
+                    disabled={bridgeLaunching}
+                  >
+                    <Wifi size={14} />
+                    {bridgeLaunching ? "Đang mở công cụ..." : "Mở công cụ NFC"}
+                  </button>
+                  <a
+                    className="nfc-bridge-btn"
                     href={bridgeDownloadUrl}
                     download
                   >
@@ -477,6 +502,13 @@ const NfcManagement = () => {
               <RefreshCw size={24} className="spin" />
               <span>Đang tải sơ đồ...</span>
             </div>
+          ) : loadError ? (
+            <LoadErrorState
+              title="Không thể tải dữ liệu NFC"
+              message={loadError}
+              onRetry={loadData}
+              compact
+            />
           ) : (
             <div
               className="nfc-map-transform"
@@ -801,6 +833,7 @@ const NfcManagement = () => {
                 <li>Cài <strong>Node.js 18+</strong> nếu máy chưa có.</li>
                 <li>Cắm đầu đọc <strong>ACR122U</strong> vào máy.</li>
                 <li>Chạy file <strong>start-nfc-bridge.bat</strong> trên Windows hoặc <strong>start-nfc-bridge.command</strong> trên macOS/Linux.</li>
+                <li>Sau khi cài app desktop phiên bản mới, anh/chị có thể bấm trực tiếp <strong>Mở công cụ NFC</strong> trên web.</li>
                 <li>Quay lại trang này và bấm <strong>Kiểm tra kết nối</strong>.</li>
               </ol>
 
@@ -813,9 +846,20 @@ const NfcManagement = () => {
                 </ul>
               </div>
 
-              <div className="nfc-bridge-guide__actions">
+            </div>
+
+            <div className="nfc-bridge-guide__footer">
+              <div className="nfc-bridge-guide__footer-links">
+                <button
+                  className="nfc-bridge-guide__footer-btn nfc-bridge-guide__footer-btn--primary"
+                  onClick={handleOpenBridgeApp}
+                  disabled={bridgeLaunching}
+                >
+                  <Wifi size={14} />
+                  {bridgeLaunching ? "Đang mở..." : "Mở công cụ NFC"}
+                </button>
                 <a
-                  className="nfc-bridge-btn nfc-bridge-btn--primary"
+                  className="nfc-bridge-guide__footer-btn"
                   href={bridgeDownloadUrl}
                   download
                 >
@@ -823,7 +867,7 @@ const NfcManagement = () => {
                   Tải công cụ NFC
                 </a>
                 <a
-                  className="nfc-bridge-btn"
+                  className="nfc-bridge-guide__footer-btn"
                   href="https://nodejs.org/en/download"
                   target="_blank"
                   rel="noreferrer"
@@ -832,11 +876,8 @@ const NfcManagement = () => {
                   Tải Node.js
                 </a>
               </div>
-            </div>
-
-            <div className="nfc-check-modal__actions">
               <button
-                className="nfc-check-modal__close-btn"
+                className="nfc-bridge-guide__close-btn"
                 onClick={() => setShowBridgeGuide(false)}
               >
                 Đóng

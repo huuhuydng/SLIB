@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { isTokenExpired } from "../utils/auth";
+import { isPatronRole, isStaffRole, normalizeRole } from "../utils/roles";
 
 const AuthPage = lazy(() => import("../components/auth/AuthPage"));
 const AdminRoutes = lazy(() => import("./AdminRoutes"));
@@ -80,17 +81,17 @@ function AppRoutes() {
           || user.user_role_name
           || user.roles?.[0]?.role
           || user.roles?.[0]?.name;
-        const role = rawRole ? rawRole.toString().toUpperCase() : null;
+        const role = normalizeRole(rawRole);
 
-        // Chỉ cho phép LIBRARIAN và ADMIN đăng nhập
-        if (role === 'LIBRARIAN' || role === 'ADMIN') {
+        // Chỉ cho phép staff đăng nhập web quản trị
+        if (isStaffRole(role)) {
           setIsLoggedIn(true);
           setUserRole(role);
-        } else if (role === 'STUDENT') {
-          // Không cho phép STUDENT đăng nhập vào web
-          console.warn('[Auth] STUDENT không được phép đăng nhập vào hệ thống web');
+        } else if (isPatronRole(role)) {
+          // Không cho phép patron đăng nhập vào web
+          console.warn(`[Auth] ${role} không được phép đăng nhập vào hệ thống web`);
           performLogout();
-          alert('Sinh viên không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
+          alert('Tài khoản người dùng thư viện không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
         }
       } catch (error) {
         console.error('[Auth] Error parsing user data:', error);
@@ -116,7 +117,7 @@ function AppRoutes() {
   }, [isLoggedIn, performLogout]);
 
   const handleLogin = (role) => {
-    const normalizedRole = role ? role.toString().toUpperCase() : null;
+    const normalizedRole = normalizeRole(role);
     setIsLoggedIn(true);
     setUserRole(normalizedRole);
   };

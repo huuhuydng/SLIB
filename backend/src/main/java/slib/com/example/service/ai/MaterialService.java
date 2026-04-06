@@ -12,12 +12,13 @@ import slib.com.example.entity.ai.MaterialItemEntity;
 import slib.com.example.repository.ai.MaterialItemRepository;
 import slib.com.example.repository.ai.MaterialRepository;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,13 +27,16 @@ import java.util.stream.Collectors;
 @Slf4j
 public class MaterialService {
 
+    private static final Set<String> ALLOWED_FILE_EXTENSIONS = Set.of("pdf", "doc", "docx", "txt", "md");
+
     private final MaterialRepository materialRepository;
     private final MaterialItemRepository materialItemRepository;
 
     @Value("${app.upload.dir:uploads/materials}")
     private String uploadDir;
 
-    // ==================== MATERIAL CRUD ====================
+    @Value("${slib.ai.material.max-file-size-bytes:15728640}")
+    private long maxFileSizeBytes;
 
     public List<MaterialDTO.MaterialResponse> getAllMaterials() {
         return materialRepository.findAllByOrderByCreatedAtDesc()
@@ -49,9 +53,11 @@ public class MaterialService {
 
     @Transactional
     public MaterialDTO.MaterialResponse createMaterial(MaterialDTO.MaterialRequest request, String createdBy) {
+        validateMaterialRequest(request);
+
         MaterialEntity material = MaterialEntity.builder()
-                .name(request.getName())
-                .description(request.getDescription())
+                .name(normalizeRequiredText(request.getName(), "Tên nhóm tài liệu"))
+                .description(normalizeOptionalText(request.getDescription()))
                 .createdBy(createdBy)
                 .active(true)
                 .build();
@@ -62,16 +68,22 @@ public class MaterialService {
 
     @Transactional
     public MaterialDTO.MaterialResponse updateMaterial(Long id, MaterialDTO.MaterialRequest request) {
+        validateMaterialRequest(request);
+
         MaterialEntity material = materialRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Material not found: " + id));
-        material.setName(request.getName());
-        material.setDescription(request.getDescription());
+        material.setName(normalizeRequiredText(request.getName(), "Tên nhóm tài liệu"));
+        material.setDescription(normalizeOptionalText(request.getDescription()));
         material = materialRepository.save(material);
         return toResponse(material);
     }
 
     @Transactional
     public void deleteMaterial(Long id) {
+        materialRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Material not found: " + id));
+
+        materialItemRepository.findByMaterialId(id).forEach(this::deleteFileIfPresent);
         materialRepository.deleteById(id);
         log.info("Deleted material: {}", id);
     }
@@ -84,8 +96,6 @@ public class MaterialService {
         materialRepository.save(material);
     }
 
-    // ==================== ITEM CRUD ====================
-
     @Transactional
     public MaterialDTO.ItemResponse addTextItem(Long materialId, MaterialDTO.ItemRequest request) {
         MaterialEntity material = materialRepository.findById(materialId)
@@ -93,9 +103,9 @@ public class MaterialService {
 
         MaterialItemEntity item = MaterialItemEntity.builder()
                 .material(material)
-                .name(request.getName())
+                .name(normalizeRequiredText(request.getName(), "Tên mục tài liệu"))
                 .type(MaterialItemEntity.ItemType.TEXT)
-                .content(request.getContent())
+                .content(normalizeRequiredText(request.getContent(), "Nội dung mục văn bản"))
                 .build();
         item = materialItemRepository.save(item);
         log.info("Added text item {} to material {}", item.getName(), materialId);
@@ -106,25 +116,22 @@ public class MaterialService {
     public MaterialDTO.ItemResponse addFileItem(Long materialId, String name, MultipartFile file) throws IOException {
         MaterialEntity material = materialRepository.findById(materialId)
                 .orElseThrow(() -> new RuntimeException("Material not found: " + materialId));
+        validateFileUpload(file);
 
-        // Ensure upload directory exists
         Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        // Generate unique filename
-        String originalFilename = file.getOriginalFilename();
+        String originalFilename = normalizeRequiredText(file.getOriginalFilename(), "Tên tệp");
         String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        String storedFilename = UUID.randomUUID().toString() + extension;
+        String storedFilename = UUID.randomUUID() + extension;
         Path filePath = uploadPath.resolve(storedFilename);
-
-        // Save file
         file.transferTo(filePath.toFile());
 
         MaterialItemEntity item = MaterialItemEntity.builder()
                 .material(material)
-                .name(name != null ? name : originalFilename)
+                .name(name != null && !name.isBlank() ? normalizeRequiredText(name, "Tên mục tài liệu") : originalFilename)
                 .type(MaterialItemEntity.ItemType.FILE)
                 .fileName(originalFilename)
                 .filePath(filePath.toString())
@@ -140,15 +147,7 @@ public class MaterialService {
         MaterialItemEntity item = materialItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
-        // Delete file if exists
-        if (item.getType() == MaterialItemEntity.ItemType.FILE && item.getFilePath() != null) {
-            try {
-                Files.deleteIfExists(Paths.get(item.getFilePath()));
-            } catch (IOException e) {
-                log.warn("Could not delete file: {}", item.getFilePath());
-            }
-        }
-
+        deleteFileIfPresent(item);
         materialItemRepository.delete(item);
         log.info("Deleted item {} from material {}", itemId, materialId);
     }
@@ -158,12 +157,11 @@ public class MaterialService {
         MaterialItemEntity item = materialItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
-        // Only allow updating TEXT items' content
         if (request.getName() != null) {
-            item.setName(request.getName());
+            item.setName(normalizeRequiredText(request.getName(), "Tên mục tài liệu"));
         }
         if (item.getType() == MaterialItemEntity.ItemType.TEXT && request.getContent() != null) {
-            item.setContent(request.getContent());
+            item.setContent(normalizeRequiredText(request.getContent(), "Nội dung mục văn bản"));
         }
 
         item = materialItemRepository.save(item);
@@ -177,8 +175,6 @@ public class MaterialService {
                 .map(this::toItemResponse)
                 .collect(Collectors.toList());
     }
-
-    // ==================== MAPPERS ====================
 
     private MaterialDTO.MaterialResponse toResponse(MaterialEntity entity) {
         List<MaterialDTO.ItemResponse> items = entity.getItems() != null
@@ -208,5 +204,53 @@ public class MaterialService {
                 .fileSize(entity.getFileSize())
                 .createdAt(entity.getCreatedAt())
                 .build();
+    }
+
+    private void validateMaterialRequest(MaterialDTO.MaterialRequest request) {
+        normalizeRequiredText(request.getName(), "Tên nhóm tài liệu");
+    }
+
+    private void validateFileUpload(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn tệp tài liệu để tải lên");
+        }
+        String originalFilename = normalizeRequiredText(file.getOriginalFilename(), "Tên tệp");
+        if (!originalFilename.contains(".")) {
+            throw new IllegalArgumentException("Tệp tải lên phải có phần mở rộng hợp lệ");
+        }
+        String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase(Locale.ROOT);
+        if (!ALLOWED_FILE_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("Chỉ hỗ trợ các tệp PDF, DOC, DOCX, TXT hoặc MD");
+        }
+        if (file.getSize() > maxFileSizeBytes) {
+            throw new IllegalArgumentException("Tệp tải lên vượt quá dung lượng cho phép");
+        }
+    }
+
+    private void deleteFileIfPresent(MaterialItemEntity item) {
+        if (item.getType() != MaterialItemEntity.ItemType.FILE || item.getFilePath() == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Paths.get(item.getFilePath()));
+        } catch (IOException e) {
+            log.warn("Could not delete file: {}", item.getFilePath());
+        }
+    }
+
+    private String normalizeRequiredText(String value, String fieldName) {
+        String normalized = normalizeOptionalText(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException(fieldName + " không được để trống");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

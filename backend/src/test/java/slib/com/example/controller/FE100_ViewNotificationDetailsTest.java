@@ -11,7 +11,6 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.users.Role;
 import slib.com.example.entity.users.User;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -66,9 +65,6 @@ class FE100_ViewNotificationDetailsTest {
         @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID01: View notification details for existing notification returns 200 OK")
         void viewNotificationDetails_existingNotification_returns200() throws Exception {
-                NotificationEntity notification = new NotificationEntity();
-                notification.setTitle("Thong bao lich hen");
-                notification.setContent("Ban co lich hen luc 10:00");
                 slib.com.example.dto.notification.NotificationDTO dto = slib.com.example.dto.notification.NotificationDTO.builder()
                                 .title("Thong bao lich hen")
                                 .content("Ban co lich hen luc 10:00")
@@ -76,15 +72,14 @@ class FE100_ViewNotificationDetailsTest {
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
-                                .thenReturn(List.of(notification));
-                when(pushNotificationService.toDTO(notification)).thenReturn(dto);
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
+                                .thenReturn(List.of(dto));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].title").value("Thong bao lich hen"));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 
         // =========================================
@@ -94,10 +89,6 @@ class FE100_ViewNotificationDetailsTest {
         @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID02: View notification details with multiple notifications returns 200 OK")
         void viewNotificationDetails_multipleNotifications_returns200() throws Exception {
-                NotificationEntity n1 = new NotificationEntity();
-                n1.setTitle("Thong bao 1");
-                NotificationEntity n2 = new NotificationEntity();
-                n2.setTitle("Thong bao 2");
                 slib.com.example.dto.notification.NotificationDTO dto1 = slib.com.example.dto.notification.NotificationDTO.builder()
                                 .title("Thong bao 1")
                                 .build();
@@ -107,16 +98,14 @@ class FE100_ViewNotificationDetailsTest {
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
-                                .thenReturn(List.of(n1, n2));
-                when(pushNotificationService.toDTO(n1)).thenReturn(dto1);
-                when(pushNotificationService.toDTO(n2)).thenReturn(dto2);
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
+                                .thenReturn(List.of(dto1, dto2));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.length()").value(2));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 
         // =========================================
@@ -126,24 +115,21 @@ class FE100_ViewNotificationDetailsTest {
         @WithMockUser(username = TEST_EMAIL, roles = "STUDENT")
         @DisplayName("UTCID03: View notification details with custom limit returns 200 OK")
         void viewNotificationDetails_withCustomLimit_returns200() throws Exception {
-                NotificationEntity notification = new NotificationEntity();
-                notification.setTitle("Thong bao gioi han");
                 slib.com.example.dto.notification.NotificationDTO dto = slib.com.example.dto.notification.NotificationDTO.builder()
                                 .title("Thong bao gioi han")
                                 .build();
 
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), eq(10)))
-                                .thenReturn(List.of(notification));
-                when(pushNotificationService.toDTO(notification)).thenReturn(dto);
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), eq(10)))
+                                .thenReturn(List.of(dto));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID)
                                 .param("limit", "10"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$[0].title").value("Thong bao gioi han"));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), eq(10));
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), eq(10));
         }
 
         // =========================================
@@ -155,14 +141,14 @@ class FE100_ViewNotificationDetailsTest {
         void viewNotificationDetails_emptyList_returns200() throws Exception {
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
                                 .thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.length()").value(0));
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 
         // =========================================
@@ -174,12 +160,12 @@ class FE100_ViewNotificationDetailsTest {
         void viewNotificationDetails_serviceFails_returnsError() throws Exception {
                 when(userRepository.findByEmail(TEST_EMAIL))
                                 .thenReturn(java.util.Optional.of(buildCurrentUser(TEST_USER_ID, TEST_EMAIL)));
-                when(pushNotificationService.getUserNotifications(eq(TEST_USER_ID), anyInt()))
+                when(pushNotificationService.getUserNotificationDTOs(eq(TEST_USER_ID), anyInt()))
                                 .thenThrow(new RuntimeException("Loi truy van co so du lieu"));
 
                 mockMvc.perform(get("/slib/notifications/user/{userId}", TEST_USER_ID))
                                 .andExpect(status().isInternalServerError());
 
-                verify(pushNotificationService, times(1)).getUserNotifications(eq(TEST_USER_ID), anyInt());
+                verify(pushNotificationService, times(1)).getUserNotificationDTOs(eq(TEST_USER_ID), anyInt());
         }
 }

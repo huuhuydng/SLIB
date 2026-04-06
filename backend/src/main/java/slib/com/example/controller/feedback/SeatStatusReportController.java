@@ -64,7 +64,9 @@ public class SeatStatusReportController {
             @AuthenticationPrincipal UserDetails userDetails) {
         User currentUser = getCurrentUser(userDetails);
         SeatStatusReportResponse response = seatStatusReportService.getById(id);
-        if (currentUser.getRole() == Role.STUDENT && !currentUser.getId().equals(response.getReporterId())) {
+        if (currentUser.getRole() != null
+                && currentUser.getRole().isPatron()
+                && !currentUser.getId().equals(response.getReporterId())) {
             throw new AccessDeniedException("You do not have permission to access this seat status report");
         }
         return ResponseEntity.ok(response);
@@ -123,7 +125,7 @@ public class SeatStatusReportController {
 
     private User requireStaff(UserDetails userDetails) {
         User user = getCurrentUser(userDetails);
-        if (user.getRole() != Role.ADMIN && user.getRole() != Role.LIBRARIAN) {
+        if (user.getRole() == null || !user.getRole().isStaff()) {
             throw new AccessDeniedException("Only librarian/admin can access this resource");
         }
         return user;

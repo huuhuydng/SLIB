@@ -3,13 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/services/notification/notification_service.dart';
-import 'package:slib/views/news/news_screen.dart';
-import 'package:slib/views/profile/activity_history_screen.dart';
-import 'package:slib/views/profile/booking_history_screen.dart';
-import 'package:slib/views/profile/violation_history_screen.dart';
-import 'package:slib/views/seat_status_report/seat_status_report_history_screen.dart';
-import 'package:slib/views/support/support_request_history_screen.dart';
-import 'package:slib/views/violation_report/violation_report_history_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class _NotificationCategoryOption {
@@ -87,6 +80,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   final GlobalKey _categoryScrollViewKey = GlobalKey();
   late final Map<String, GlobalKey> _categoryChipKeys;
   String _selectedCategory = _allCategory.key;
+
+  int _unreadCountForCategory(
+    List<NotificationItem> notifications,
+    String categoryKey,
+  ) {
+    return notifications
+        .where((item) => item.category == categoryKey && !item.isRead)
+        .length;
+  }
 
   @override
   void initState() {
@@ -292,7 +294,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
       if (items.isEmpty) continue;
 
       widgets.add(
-        _CategoryHeader(categoryKey: option.key, label: option.label),
+        _CategoryHeader(
+          categoryKey: option.key,
+          label: option.label,
+          unreadCount: _unreadCountForCategory(items, option.key),
+          onMarkAllRead: () => _markCategoryAsRead(service, option.key),
+        ),
       );
 
       if (option.key == 'BOOKING') {
@@ -348,9 +355,26 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _CategoryHeader(
         categoryKey: selectedOption.key,
         label: selectedOption.label,
+        unreadCount: _unreadCountForCategory(notifications, selectedOption.key),
+        onMarkAllRead: () => _markCategoryAsRead(service, selectedOption.key),
       ),
       ..._buildFlatNotificationWidgets(notifications, service),
     ];
+  }
+
+  Future<void> _markCategoryAsRead(
+    NotificationService service,
+    String categoryKey,
+  ) async {
+    final updated = await service.markCategoryAsRead(categoryKey);
+    if (!mounted || updated <= 0) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Đã đánh dấu $updated thông báo là đã đọc'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
   }
 
   List<Widget> _buildFlatNotificationWidgets(
@@ -423,105 +447,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _handleNotificationTap(NotificationItem notification) async {
-    if (!notification.isRead) {
-      await context.read<NotificationService>().markAsRead(notification.id);
-      if (!mounted) return;
-    }
-
-    switch (notification.category) {
-      case 'BOOKING':
-        _openBookingHistory(notification);
-        break;
-      case 'REPUTATION':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ActivityHistoryScreen()),
-        );
-        break;
-      case 'PROCESSING':
-        _openProcessingScreen(notification);
-        break;
-      case 'NEWS':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const NewsScreen()),
-        );
-        break;
-      case 'MESSAGE':
-      case 'SYSTEM':
-        break;
-    }
-  }
-
-  void _openBookingHistory(NotificationItem notification) {
-    final combined = '${notification.title} ${notification.content}'
-        .toLowerCase();
-    var tab = 0;
-
-    if (combined.contains('huỷ') ||
-        combined.contains('hủy') ||
-        combined.contains('hết hạn') ||
-        combined.contains('expired') ||
-        combined.contains('không đến')) {
-      tab = 2;
-    } else if (combined.contains('hoàn thành') ||
-        combined.contains('kết thúc') ||
-        combined.contains('completed')) {
-      tab = 1;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => BookingHistoryScreen(initialTab: tab)),
+    await context.read<NotificationService>().openNotificationTarget(
+      notification,
     );
-  }
-
-  void _openProcessingScreen(NotificationItem notification) {
-    final referenceType =
-        (notification.referenceType ?? notification.type).toUpperCase();
-    final combined = '${notification.title} ${notification.content}'
-        .toLowerCase();
-
-    if (referenceType == 'SUPPORT_REQUEST' ||
-        combined.contains('yêu cầu hỗ trợ')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'COMPLAINT' || combined.contains('khiếu nại')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'SEAT_STATUS_REPORT' ||
-        combined.contains('tình trạng ghế')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SeatStatusReportHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'VIOLATION_REPORT' || combined.contains('vi phạm')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ViolationReportHistoryScreen()),
-      );
-    }
   }
 }
 
 class _CategoryHeader extends StatelessWidget {
   final String categoryKey;
   final String label;
+  final int unreadCount;
+  final VoidCallback? onMarkAllRead;
 
-  const _CategoryHeader({required this.categoryKey, required this.label});
+  const _CategoryHeader({
+    required this.categoryKey,
+    required this.label,
+    this.unreadCount = 0,
+    this.onMarkAllRead,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -530,20 +473,46 @@ class _CategoryHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
       child: Row(
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ],
             ),
           ),
+          if (unreadCount > 0 && onMarkAllRead != null)
+            TextButton(
+              onPressed: onMarkAllRead,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandColor,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Đọc tất cả',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
         ],
       ),
     );

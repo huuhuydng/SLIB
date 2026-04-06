@@ -10,6 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
@@ -24,6 +25,12 @@ public class EmailService {
 
     @Value("${spring.mail.username:noreply@slib.edu.vn}")
     private String fromEmail;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
+
+    @Value("${app.frontend-url:https://slibsystem.site}")
+    private String frontendUrl;
 
     /**
      * Gửi email OTP đặt lại mật khẩu
@@ -46,6 +53,8 @@ public class EmailService {
      * Gửi email HTML
      */
     public void sendHtmlEmail(String to, String subject, String htmlContent) throws MessagingException {
+        ensureMailConfigured();
+
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
@@ -95,10 +104,19 @@ public class EmailService {
         try {
             String htmlContent = loadEmailTemplate("templates/welcome-email.html");
 
-            String roleLabel = "LIBRARIAN".equalsIgnoreCase(role) ? "Thủ thư" : "Sinh viên";
-            String loginUrl = "LIBRARIAN".equalsIgnoreCase(role)
-                    ? "http://localhost:5173/login"
-                    : "https://slib.edu.vn";
+            String normalizedRole = role != null ? role.toUpperCase() : "STUDENT";
+            String roleLabel = switch (normalizedRole) {
+                case "ADMIN" -> "Quản trị viên";
+                case "LIBRARIAN" -> "Thủ thư";
+                case "TEACHER" -> "Giáo viên";
+                default -> "Sinh viên";
+            };
+            String baseFrontendUrl = StringUtils.hasText(frontendUrl)
+                    ? frontendUrl.trim().replaceAll("/+$", "")
+                    : "https://slibsystem.site";
+            String loginUrl = ("LIBRARIAN".equals(normalizedRole) || "ADMIN".equals(normalizedRole))
+                    ? baseFrontendUrl + "/login"
+                    : baseFrontendUrl;
 
             htmlContent = htmlContent.replace("{{fullName}}", fullName != null ? fullName : toEmail);
             htmlContent = htmlContent.replace("{{email}}", toEmail);
@@ -106,10 +124,16 @@ public class EmailService {
             htmlContent = htmlContent.replace("{{role}}", roleLabel);
             htmlContent = htmlContent.replace("{{loginUrl}}", loginUrl);
 
-            sendHtmlEmail(toEmail, "🎉 Chào mừng bạn đến với SLib - Thông tin đăng nhập", htmlContent);
+            sendHtmlEmail(toEmail, "Tài khoản SLib của bạn đã được tạo", htmlContent);
             log.info("Đã gửi welcome email đến: {} (role: {})", toEmail, role);
         } catch (Exception e) {
             log.error("Lỗi gửi welcome email đến {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private void ensureMailConfigured() {
+        if (!StringUtils.hasText(fromEmail) || !StringUtils.hasText(mailPassword)) {
+            throw new IllegalStateException("Cấu hình email chưa đầy đủ. Thiếu spring.mail.username hoặc MAIL_PASSWORD.");
         }
     }
 }

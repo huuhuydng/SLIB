@@ -1,12 +1,12 @@
 import React from "react";
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const StatCard = ({ icon, value, label, bg, color, trend, trendValue }) => {
   const getTrendIcon = () => {
     if (!trend) return null;
     if (trend === 'up') return <TrendingUp size={12} />;
     if (trend === 'down') return <TrendingDown size={12} />;
-    return <Minus size={12} />;
+    return null;
   };
 
   const trendClass = trend === 'up'

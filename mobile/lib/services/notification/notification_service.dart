@@ -7,6 +7,38 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/deep_link/deep_link_service.dart';
+import 'package:slib/main_screen.dart';
+import 'package:slib/views/news/news_screen.dart';
+import 'package:slib/views/profile/activity_history_screen.dart';
+import 'package:slib/views/profile/booking_history_screen.dart';
+import 'package:slib/views/profile/complaint_history_screen.dart';
+import 'package:slib/views/profile/report_history_screen.dart';
+import 'package:slib/views/profile/violation_history_screen.dart';
+import 'package:slib/views/support/support_request_history_screen.dart';
+
+String _encodeNotificationPayload(Map<String, dynamic> data) {
+  return jsonEncode({
+    'notificationId': data['notificationId'] ?? data['id'],
+    'title': data['title'],
+    'content': data['content'] ?? data['body'],
+    'type': data['type'] ?? data['notificationType'],
+    'category': data['category'],
+    'referenceType': data['referenceType'],
+    'referenceId': data['referenceId'],
+  });
+}
+
+Map<String, dynamic>? _decodeNotificationPayload(String? payload) {
+  if (payload == null || payload.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(payload);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+  } catch (_) {}
+  return null;
+}
 
 /// Model for notification
 class NotificationItem {
@@ -162,7 +194,7 @@ Future<void> showBackgroundNotification(RemoteMessage message) async {
     title,
     body,
     details,
-    payload: message.data['notificationId'],
+    payload: _encodeNotificationPayload(message.data),
   );
 }
 
@@ -216,6 +248,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   // WebSocket (STOMP) cho real-time notifications
   StompClient? _stompClient;
   bool _wsConnected = false;
+  bool _isWsConnecting = false;
 
   // Fallback polling 30s — safety net khi WebSocket mất kết nối
   Timer? _refreshTimer;
@@ -299,20 +332,40 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       await refreshData();
     }
 
-    // Connect WebSocket (cơ chế chính) + fallback polling
+    // Connect WebSocket (cơ chế chính) + fallback polling khi cần
     _connectWebSocket();
-    _startFallbackPolling();
+    _syncFallbackPolling();
 
     _isInitialized = true;
   }
 
+  Future<void> openNotificationTarget(NotificationItem notification) async {
+    if (!notification.isRead) {
+      await markAsRead(notification.id);
+    }
+
+    await _navigateFromPayload({
+      'notificationId': notification.id,
+      'title': notification.title,
+      'content': notification.content,
+      'type': notification.type,
+      'category': notification.category,
+      'referenceType': notification.referenceType,
+      'referenceId': notification.referenceId,
+    });
+  }
+
   /// Connect STOMP WebSocket cho real-time notifications
   Future<void> _connectWebSocket() async {
-    if (_wsConnected || _userId == null) return;
+    if (_wsConnected || _isWsConnecting || _userId == null) return;
 
     try {
+      _isWsConnecting = true;
       final token = await _authService.getToken();
-      if (token == null) return;
+      if (token == null) {
+        _isWsConnecting = false;
+        return;
+      }
 
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
@@ -333,14 +386,14 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
           onWebSocketError: (error) {
             debugPrint('[NotificationWS] WebSocket error: $error');
             _wsConnected = false;
+            _isWsConnecting = false;
+            _syncFallbackPolling();
           },
           onDisconnect: (_) {
             debugPrint('[NotificationWS] Disconnected');
             _wsConnected = false;
-            // Auto-reconnect sau 3s
-            Future.delayed(const Duration(seconds: 3), () {
-              if (_userId != null) _connectWebSocket();
-            });
+            _isWsConnecting = false;
+            _syncFallbackPolling();
           },
           onStompError: (frame) {
             debugPrint('[NotificationWS] STOMP error: ${frame.body}');
@@ -351,6 +404,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       _stompClient!.activate();
     } catch (e) {
       debugPrint('[NotificationWS] Connection error: $e');
+      _isWsConnecting = false;
+      _syncFallbackPolling();
     }
   }
 
@@ -358,6 +413,8 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void _onStompConnected(StompFrame frame) {
     debugPrint('[NotificationWS] Connected, subscribing...');
     _wsConnected = true;
+    _isWsConnecting = false;
+    _syncFallbackPolling();
 
     _stompClient?.subscribe(
       destination: '/topic/notifications/$_userId',
@@ -455,12 +512,13 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       data['title'] ?? 'Thông báo',
       data['content'] ?? '',
       details,
-      payload: data['id'],
+      payload: _encodeNotificationPayload(data),
     );
   }
 
   /// Fallback polling 30s — safety net
   void _startFallbackPolling() {
+    if (_refreshTimer != null || _userId == null) return;
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(_fallbackInterval, (_) {
       if (_userId != null) {
@@ -481,6 +539,16 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     _stompClient?.deactivate();
     _stompClient = null;
     _wsConnected = false;
+    _isWsConnecting = false;
+  }
+
+  void _syncFallbackPolling() {
+    if (_wsConnected) {
+      _stopFallbackPolling();
+      return;
+    }
+
+    _startFallbackPolling();
   }
 
   /// Handle app lifecycle changes
@@ -494,7 +562,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
           fetchNotifications();
           if (!_wsConnected) _connectWebSocket();
         }
-        _startFallbackPolling();
+        _syncFallbackPolling();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
@@ -534,9 +602,12 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
     await _localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
+      onDidReceiveNotificationResponse: (response) {
         debugPrint('Local notification tapped: ${response.payload}');
-        // Handle notification tap
+        final payload = _decodeNotificationPayload(response.payload);
+        if (payload != null) {
+          _handleNotificationPayloadTap(payload);
+        }
       },
     );
 
@@ -580,8 +651,10 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
 
       if (notificationType == 'CHAT_MESSAGE') {
         // CHAT_MESSAGE: backend gửi data-only FCM (không có notification payload)
-        _unreadChatCount++;
-        notifyListeners();
+        if (!isChatScreenActive) {
+          _unreadChatCount++;
+          notifyListeners();
+        }
 
         // Cập nhật badge chuông từ server (fallback khi WebSocket không kết nối)
         refreshUnreadCount();
@@ -660,7 +733,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       notification.title ?? 'Thông báo',
       notification.body ?? '',
       details,
-      payload: message.data['notificationId'],
+      payload: _encodeNotificationPayload(message.data),
     );
   }
 
@@ -670,8 +743,13 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       id:
           message.data['notificationId'] ??
           DateTime.now().millisecondsSinceEpoch.toString(),
-      title: message.notification?.title ?? 'Thông báo',
-      content: message.notification?.body ?? '',
+      title:
+          message.notification?.title ?? message.data['title'] ?? 'Thông báo',
+      content:
+          message.notification?.body ??
+          message.data['body'] ??
+          message.data['content'] ??
+          '',
       type: message.data['type'] ?? 'SYSTEM',
       category:
           message.data['category'] ??
@@ -700,15 +778,151 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    // Refresh data when notification is tapped
-    refreshData();
+    _handleNotificationPayloadTap({
+      'notificationId': message.data['notificationId'],
+      'title': message.notification?.title ?? message.data['title'],
+      'content':
+          message.notification?.body ??
+          message.data['body'] ??
+          message.data['content'],
+      'type': message.data['type'],
+      'category': message.data['category'],
+      'referenceType': message.data['referenceType'],
+      'referenceId': message.data['referenceId'],
+    });
+  }
 
-    // Navigate based on notification type
-    final type = message.data['type'];
-    final referenceId = message.data['referenceId'];
+  Future<void> _handleNotificationPayloadTap(
+    Map<String, dynamic> payload,
+  ) async {
+    final notificationId = payload['notificationId']?.toString();
+    if (notificationId != null && notificationId.isNotEmpty) {
+      await markAsRead(notificationId);
+    }
 
-    debugPrint('Notification tapped - type: $type, referenceId: $referenceId');
-    // Navigation logic can be added here based on type
+    await refreshData();
+    await _navigateFromPayload(payload);
+  }
+
+  Future<void> _navigateFromPayload(
+    Map<String, dynamic> payload, {
+    int attempt = 0,
+  }) async {
+    final navigator = DeepLinkService.navigatorKey.currentState;
+    final context =
+        navigator?.context ?? DeepLinkService.navigatorKey.currentContext;
+
+    if (navigator == null || context == null) {
+      if (attempt < 3) {
+        await Future.delayed(const Duration(milliseconds: 600));
+        return _navigateFromPayload(payload, attempt: attempt + 1);
+      }
+      return;
+    }
+
+    final type = (payload['type'] ?? '').toString().toUpperCase();
+    final referenceType = (payload['referenceType'] ?? payload['type'] ?? '')
+        .toString()
+        .toUpperCase();
+    final category =
+        (payload['category'] ?? NotificationItem._deriveCategoryFromType(type))
+            .toString()
+            .toUpperCase();
+    final combined = '${payload['title'] ?? ''} ${payload['content'] ?? ''}'
+        .toLowerCase();
+
+    if (type == 'CHAT_MESSAGE' || category == 'MESSAGE') {
+      navigator.popUntil((route) => route.isFirst);
+      MainScreen.globalKey.currentState?.switchToTab(3);
+      return;
+    }
+
+    if (category == 'BOOKING') {
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => BookingHistoryScreen(
+            initialTab: _bookingHistoryTabFromText(combined),
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (category == 'PROCESSING') {
+      if (referenceType == 'SUPPORT_REQUEST' ||
+          combined.contains('yêu cầu hỗ trợ')) {
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => const SupportRequestHistoryScreen(),
+          ),
+        );
+        return;
+      }
+
+      if (referenceType == 'COMPLAINT' || combined.contains('khiếu nại')) {
+        navigator.push(
+          MaterialPageRoute(builder: (_) => const ComplaintHistoryScreen()),
+        );
+        return;
+      }
+
+      if (referenceType == 'SEAT_STATUS_REPORT' ||
+          combined.contains('tình trạng ghế')) {
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => const ReportHistoryScreen(initialTab: 1),
+          ),
+        );
+        return;
+      }
+
+      if (referenceType == 'VIOLATION_REPORT' || combined.contains('vi phạm')) {
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => const ReportHistoryScreen(initialTab: 0),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (category == 'REPUTATION') {
+      if (type == 'VIOLATION' ||
+          combined.contains('vi phạm') ||
+          combined.contains('trừ điểm uy tín')) {
+        navigator.push(
+          MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
+        );
+        return;
+      }
+
+      navigator.push(
+        MaterialPageRoute(builder: (_) => const ActivityHistoryScreen()),
+      );
+      return;
+    }
+
+    if (category == 'NEWS') {
+      navigator.push(MaterialPageRoute(builder: (_) => const NewsScreen()));
+    }
+  }
+
+  int _bookingHistoryTabFromText(String combined) {
+    if (combined.contains('huỷ') ||
+        combined.contains('hủy') ||
+        combined.contains('hết hạn') ||
+        combined.contains('expired') ||
+        combined.contains('không đến')) {
+      return 2;
+    }
+
+    if (combined.contains('hoàn thành') ||
+        combined.contains('kết thúc') ||
+        combined.contains('completed')) {
+      return 1;
+    }
+
+    return 0;
   }
 
   /// Refresh all notification data
@@ -846,6 +1060,51 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  Future<int> markCategoryAsRead(String category) async {
+    if (_userId == null) return 0;
+
+    try {
+      final token = await _token;
+      if (token == null) return 0;
+
+      final normalizedCategory = category.trim().toUpperCase();
+      final unreadInCategory = _notifications
+          .where((n) => n.category == normalizedCategory && !n.isRead)
+          .length;
+
+      if (unreadInCategory == 0) {
+        return 0;
+      }
+
+      final response = await http.put(
+        Uri.parse(
+          '$_baseUrl/notifications/mark-all-read/$_userId/category/$normalizedCategory',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        _notifications = _notifications.map((notification) {
+          if (notification.category == normalizedCategory &&
+              !notification.isRead) {
+            return notification.copyWith(isRead: true);
+          }
+          return notification;
+        }).toList();
+        _unreadCount = (_unreadCount - unreadInCategory).clamp(0, _unreadCount);
+        notifyListeners();
+        return unreadInCategory;
+      }
+    } catch (e) {
+      debugPrint('Error marking category notifications as read: $e');
+    }
+
+    return 0;
+  }
+
   /// Delete a notification
   Future<bool> deleteNotification(String notificationId) async {
     try {
@@ -936,6 +1195,22 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
   void clearChatBadge() {
     if (_unreadChatCount > 0) {
       _unreadChatCount = 0;
+      notifyListeners();
+    }
+  }
+
+  /// Đồng bộ trạng thái màn chat để suppress badge/push hợp lý
+  void setChatScreenActive(bool isActive) {
+    final didChange = isChatScreenActive != isActive;
+    isChatScreenActive = isActive;
+
+    if (isActive && _unreadChatCount > 0) {
+      _unreadChatCount = 0;
+      notifyListeners();
+      return;
+    }
+
+    if (didChange) {
       notifyListeners();
     }
   }

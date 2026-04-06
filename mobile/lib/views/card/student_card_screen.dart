@@ -11,6 +11,9 @@ class StudentCardScreen extends StatelessWidget {
     // Lấy thông tin user từ Provider (Real-time)
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
+    final cardTitle = user?.isTeacher == true
+        ? 'TEACHER LIBRARY CARD'
+        : 'LIBRARY CARD';
 
     // Dữ liệu hiển thị (Nếu chưa login thì dùng data mẫu)
     final String studentName = user?.fullName.toUpperCase() ?? "";
@@ -36,7 +39,7 @@ class StudentCardScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           child: Column(
             children: [
-              // 1. THẺ SINH VIÊN (CARD CHÍNH)
+              // 1. THẺ THƯ VIỆN (CARD CHÍNH)
               Container(
                 width: double.infinity,
                 height: 540, // Tăng nhẹ chiều cao để chứa barcode
@@ -89,8 +92,8 @@ class StudentCardScreen extends StatelessWidget {
 
                           const SizedBox(height: 10),
 
-                          const Text(
-                            "STUDENT ID CARD",
+                          Text(
+                            cardTitle,
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 12,
@@ -137,7 +140,7 @@ class StudentCardScreen extends StatelessWidget {
 
                           const SizedBox(height: 20),
 
-                          // C. TÊN SINH VIÊN
+                          // C. TÊN NGƯỜI DÙNG
                           Text(
                             studentName,
                             textAlign: TextAlign.center,

@@ -69,16 +69,21 @@ class QuickActionGrid extends StatelessWidget {
           },
         ),
         _buildActionButton(
-          Icons.warning_amber_rounded,
+          Icons.report_problem_outlined,
           "Báo cáo",
           Colors.amber,
           () {
             _onReportPressed(context);
           },
         ),
-        _buildActionButton(Icons.history, "Lịch sử", Colors.purple, () {
-          _onHistoryPressed(context);
-        }),
+        _buildActionButton(
+          Icons.event_note_outlined,
+          "Lịch đặt",
+          Colors.purple,
+          () {
+            _onHistoryPressed(context);
+          },
+        ),
       ],
     );
   }

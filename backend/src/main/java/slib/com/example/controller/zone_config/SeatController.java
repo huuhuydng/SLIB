@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +30,7 @@ public class SeatController {
 
     // Create new seat
     @PostMapping
-    public ResponseEntity<SeatResponse> createSeat(@RequestBody SeatResponse request) {
+    public ResponseEntity<SeatResponse> createSeat(@Valid @RequestBody SeatResponse request) {
         return ResponseEntity.ok(seatService.createSeat(request));
     }
 
@@ -66,7 +67,7 @@ public class SeatController {
     @PutMapping("/{id}")
     public ResponseEntity<SeatResponse> updateSeat(
             @PathVariable Integer id,
-            @RequestBody SeatResponse request) {
+            @Valid @RequestBody SeatResponse request) {
         return ResponseEntity.ok(seatService.updateSeat(id, request));
     }
 

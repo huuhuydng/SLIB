@@ -118,16 +118,15 @@ class FE36_SetLibraryOperatingHoursTest {
                                 .closeTime("30:00")
                                 .build();
 
-                when(librarySettingService.updateSettings(any(LibrarySettingDTO.class)))
-                                .thenThrow(new slib.com.example.exception.BadRequestException(
-                                                "Gio mo cua khong hop le"));
-
                 mockMvc.perform(put("/slib/settings/library")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(dto)))
-                                .andExpect(status().isBadRequest());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.error").value("Bad Request"))
+                                .andExpect(jsonPath("$.errors.openTime").value("Giờ mở cửa phải đúng định dạng HH:mm"))
+                                .andExpect(jsonPath("$.errors.closeTime").value("Giờ đóng cửa phải đúng định dạng HH:mm"));
 
-                verify(librarySettingService, times(1)).updateSettings(any(LibrarySettingDTO.class));
+                verifyNoInteractions(librarySettingService);
         }
 
         // =========================================

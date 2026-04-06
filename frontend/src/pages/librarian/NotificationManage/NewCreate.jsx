@@ -30,6 +30,7 @@ import { handleLogout } from "../../../utils/auth";
 import { createNews, updateNews, getNewsDetailForAdmin, getNewsImage } from '../../../services/newsService';
 import { createNewsTemplate } from '../../../utils/newsTemplate';
 import { API_BASE_URL } from '../../../config/apiConfig';
+import { getApiErrorMessage, normalizeText, validateNewsPayload } from '../../../utils/formValidation';
 
 const NewCreate = () => {
   const LRM = '\u200E'; // Anchor to force LTR context inside contentEditable
@@ -346,12 +347,19 @@ const NewCreate = () => {
       setLoading(true);
       setError(null);
 
-      // Validate required fields
-      if (!formData.title.trim()) {
-        setError('Vui lòng nhập tiêu đề');
+      const validationMessage = validateNewsPayload({
+        title: formData.title,
+        summary: formData.summary,
+        imageUrl: formData.imageUrl,
+        publishStatus: statusMode === 'scheduled' ? 'schedule' : statusMode,
+        scheduleDate: formData.scheduledPublishTime?.split('T')[0],
+        scheduleTime: formData.scheduledPublishTime?.split('T')[1]?.slice(0, 5),
+      });
+      if (validationMessage) {
+        setError(validationMessage);
         return;
       }
-      if (!formData.content.trim()) {
+      if (!normalizeText(formData.content)) {
         setError('Vui lòng nhập nội dung');
         return;
       }
@@ -378,7 +386,7 @@ const NewCreate = () => {
           finalImageUrl = await uploadResponse.text();
           console.log('✅ Uploaded image URL:', finalImageUrl);
         } catch (uploadErr) {
-          setError('Không thể upload ảnh lên Cloudinary');
+          setError(getApiErrorMessage(uploadErr, 'Không thể tải ảnh bìa lên hệ thống'));
           console.error(uploadErr);
           return;
         }
@@ -398,14 +406,13 @@ const NewCreate = () => {
       const hasSchedule = statusMode === 'scheduled' && !!formData.scheduledPublishTime;
 
       const newsData = {
-        title: formData.title,
-        summary: formData.summary || null,
+        title: normalizeText(formData.title),
+        summary: normalizeText(formData.summary) || null,
         content: htmlContent,
         imageUrl: finalImageUrl || null,
-        category: formData.categoryId ? { id: parseInt(formData.categoryId) } : null,
+        categoryId: formData.categoryId ? parseInt(formData.categoryId, 10) : null,
         isPublished: statusMode === 'public' && !hasSchedule,
         isPinned: formData.isPinned || false,
-        viewCount: 0,
         publishedAt: (statusMode === 'scheduled' && hasSchedule)
           ? `${formData.scheduledPublishTime}${formData.scheduledPublishTime.length === 16 ? ':00' : ''}`
           : null
@@ -421,7 +428,7 @@ const NewCreate = () => {
 
       navigate('/notification');
     } catch (err) {
-      setError(isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới');
+      setError(getApiErrorMessage(err, isEditMode ? 'Không thể cập nhật tin tức' : 'Không thể tạo tin tức mới'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -591,7 +598,7 @@ const NewCreate = () => {
               {/* RIGHT COLUMN */}
               <div className="col-right">
                 <div className="news-form-group">
-                  <label className="news-form-label">Ảnh bìa (Thumbnail)</label>
+                  <label className="news-form-label">Ảnh bìa</label>
                   
                   {imagePreview ? (
                     <div className="news-image-preview">

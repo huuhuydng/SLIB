@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/services/deep_link/deep_link_service.dart';
 import 'package:slib/services/library/library_status_service.dart';
 import 'package:slib/services/notification/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -84,6 +85,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SLIB App',
+      navigatorKey: DeepLinkService.navigatorKey,
       // Add localization delegates for DatePicker, TimePicker, etc.
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -123,12 +125,7 @@ class _MyHomePageState extends State<MyHomePage> {
       final LibraryStatusService libraryStatusService = context
           .read<LibraryStatusService>();
 
-      final results = await Future.wait([
-        Future.delayed(const Duration(seconds: 2)),
-        authService.checkLoginStatus(),
-      ]);
-
-      final bool isLoggedIn = results[1] as bool;
+      final bool isLoggedIn = await authService.checkLoginStatus();
 
       // Initialize services if logged in (song song, không block navigation)
       if (isLoggedIn) {

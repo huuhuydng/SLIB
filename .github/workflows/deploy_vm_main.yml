@@ -31,6 +31,29 @@ jobs:
           chmod 600 ~/.ssh/slib_vm_deploy
           ssh-keygen -y -f ~/.ssh/slib_vm_deploy > /dev/null
 
+      - name: Diagnose VM network reachability
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${VPS_HOST}" ]; then
+            echo "Secret VPS_TAILSCALE_HOST đang trống"
+            exit 1
+          fi
+
+          echo "Tailscale status:"
+          tailscale status || true
+          echo
+          echo "DNS lookup for ${VPS_HOST}:"
+          getent hosts "${VPS_HOST}" || true
+          echo
+          echo "Tailscale ping to ${VPS_HOST}:"
+          tailscale ping --timeout=10s "${VPS_HOST}" || true
+          echo
+          echo "TCP probe to ${VPS_HOST}:22"
+          nc -vz -w 5 "${VPS_HOST}" 22
+
       - name: Deploy latest main on VM
         env:
           VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}

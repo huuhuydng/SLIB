@@ -147,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  "Xin chào ${result.fullName ?? 'Sinh viên'}!",
+                  "Xin chào ${result.fullName ?? 'bạn'}!",
                   style: const TextStyle(fontSize: 14),
                 ),
               ),

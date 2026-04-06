@@ -3,9 +3,16 @@ package slib.com.example.service.ai;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.RequestEntity;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 import slib.com.example.dto.ai.KnowledgeStoreDTO;
 import slib.com.example.dto.ai.MaterialDTO;
@@ -17,7 +24,10 @@ import slib.com.example.repository.ai.MaterialItemRepository;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,7 +42,8 @@ public class KnowledgeStoreService {
     @Value("${app.ai-service.url:http://localhost:8001}")
     private String aiServiceUrl;
 
-    // ==================== KNOWLEDGE STORE CRUD ====================
+    @Value("${slib.internal.api-key:}")
+    private String internalApiKey;
 
     public List<KnowledgeStoreDTO.Response> getAllKnowledgeStores() {
         return knowledgeStoreRepository.findAllByOrderByCreatedAtDesc()
@@ -50,14 +61,13 @@ public class KnowledgeStoreService {
     @Transactional
     public KnowledgeStoreDTO.Response createKnowledgeStore(KnowledgeStoreDTO.CreateRequest request, String createdBy) {
         KnowledgeStoreEntity ks = KnowledgeStoreEntity.builder()
-                .name(request.getName())
-                .description(request.getDescription())
+                .name(validateKnowledgeStoreName(request.getName()))
+                .description(normalizeOptionalText(request.getDescription()))
                 .createdBy(createdBy)
                 .status(KnowledgeStoreEntity.SyncStatus.CHANGED)
                 .active(true)
                 .build();
 
-        // Add items if provided
         if (request.getItemIds() != null && !request.getItemIds().isEmpty()) {
             Set<MaterialItemEntity> items = new HashSet<>(materialItemRepository.findAllById(request.getItemIds()));
             ks.setItems(items);
@@ -73,20 +83,21 @@ public class KnowledgeStoreService {
         KnowledgeStoreEntity ks = knowledgeStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("KnowledgeStore not found: " + id));
 
-        if (request.getName() != null)
-            ks.setName(request.getName());
-        if (request.getDescription() != null)
-            ks.setDescription(request.getDescription());
-        if (request.getActive() != null)
+        if (request.getName() != null) {
+            ks.setName(validateKnowledgeStoreName(request.getName()));
+        }
+        if (request.getDescription() != null) {
+            ks.setDescription(normalizeOptionalText(request.getDescription()));
+        }
+        if (request.getActive() != null) {
             ks.setActive(request.getActive());
+        }
 
-        // Update items if provided
         if (request.getItemIds() != null) {
             Set<MaterialItemEntity> items = new HashSet<>(materialItemRepository.findAllById(request.getItemIds()));
             ks.setItems(items);
         }
 
-        // Mark as changed (needs re-sync)
         ks.setStatus(KnowledgeStoreEntity.SyncStatus.CHANGED);
         ks = knowledgeStoreRepository.save(ks);
         return toResponse(ks);
@@ -94,35 +105,27 @@ public class KnowledgeStoreService {
 
     @Transactional
     public void deleteKnowledgeStore(Long id) {
-        // Get KS name first to delete vectors
         KnowledgeStoreEntity ks = knowledgeStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("KnowledgeStore not found: " + id));
 
-        // Delete vectors from Qdrant FIRST
         deleteVectorsFromQdrant(ks.getName());
-
-        // Then delete from DB
         knowledgeStoreRepository.deleteById(id);
         log.info("Deleted knowledge store and vectors: {} ({})", ks.getName(), id);
     }
 
-    /**
-     * Delete all vectors for a Knowledge Store from Qdrant
-     */
     private void deleteVectorsFromQdrant(String ksName) {
         try {
             String url = aiServiceUrl + "/api/v1/ingest/knowledge-store/" + ksName;
-            log.info("Deleting vectors from Qdrant for: {}", ksName);
-
-            restTemplate.delete(url);
+            RequestEntity<Void> request = RequestEntity
+                    .delete(url)
+                    .headers(buildAiServiceHeaders(null))
+                    .build();
+            restTemplate.exchange(request, Void.class);
             log.info("Successfully deleted vectors for: {}", ksName);
         } catch (Exception e) {
             log.warn("Failed to delete vectors from Qdrant for {}: {}", ksName, e.getMessage());
-            // Don't throw - allow DB delete to proceed even if vector delete fails
         }
     }
-
-    // ==================== SYNC TO VECTOR DB ====================
 
     @Transactional
     public KnowledgeStoreDTO.SyncResult syncKnowledgeStore(Long id) {
@@ -133,32 +136,28 @@ public class KnowledgeStoreService {
         ks.setStatus(KnowledgeStoreEntity.SyncStatus.SYNCING);
         knowledgeStoreRepository.save(ks);
 
-        // DELETE OLD VECTORS FIRST before syncing new ones
         deleteVectorsFromQdrant(ks.getName());
 
         int totalChunks = 0;
         try {
-            // Sync each item
             for (MaterialItemEntity item : ks.getItems()) {
-                int chunks = syncItem(item, ks.getName());
-                totalChunks += chunks;
+                totalChunks += syncItem(item, ks.getName());
             }
 
             ks.setStatus(KnowledgeStoreEntity.SyncStatus.SYNCED);
             ks.setLastSyncedAt(LocalDateTime.now());
             knowledgeStoreRepository.save(ks);
 
-            log.info("Sync completed for {}: {} chunks created", ks.getName(), totalChunks);
             return KnowledgeStoreDTO.SyncResult.builder()
                     .knowledgeStoreId(id)
                     .knowledgeStoreName(ks.getName())
                     .chunksCreated(totalChunks)
                     .newStatus(KnowledgeStoreEntity.SyncStatus.SYNCED)
-                    .message("Sync completed successfully")
+                    .message("Đồng bộ kho tri thức thành công")
                     .build();
 
         } catch (Exception e) {
-            log.error("Sync failed for {}: {}", ks.getName(), e.getMessage());
+            log.error("Sync failed for {}: {}", ks.getName(), e.getMessage(), e);
             ks.setStatus(KnowledgeStoreEntity.SyncStatus.ERROR);
             knowledgeStoreRepository.save(ks);
 
@@ -167,42 +166,69 @@ public class KnowledgeStoreService {
                     .knowledgeStoreName(ks.getName())
                     .chunksCreated(0)
                     .newStatus(KnowledgeStoreEntity.SyncStatus.ERROR)
-                    .message("Sync failed: " + e.getMessage())
+                    .message("Đồng bộ thất bại: " + e.getMessage())
                     .build();
         }
     }
 
-    private int syncItem(MaterialItemEntity item, String storeName) throws Exception {
-        String content;
+    private int syncItem(MaterialItemEntity item, String storeName) {
         String source = storeName + "_" + item.getName();
-
         if (item.getType() == MaterialItemEntity.ItemType.TEXT) {
-            content = item.getContent();
-        } else {
-            // Read file content
-            content = Files.readString(Paths.get(item.getFilePath()));
+            return syncTextItem(item.getContent(), source, storeName);
+        }
+        return syncFileItem(item, source, storeName);
+    }
+
+    private int syncTextItem(String content, String source, String storeName) {
+        String url = aiServiceUrl + "/api/v1/ingest/text";
+        Map<String, Object> body = Map.of(
+                "content", content,
+                "source", source,
+                "category", storeName);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, buildAiServiceHeaders(MediaType.APPLICATION_JSON));
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+        return extractChunksCreated(response);
+    }
+
+    private int syncFileItem(MaterialItemEntity item, String source, String storeName) {
+        if (item.getFilePath() == null || !Files.exists(Paths.get(item.getFilePath()))) {
+            throw new IllegalArgumentException("Không tìm thấy tệp nguồn để đồng bộ: " + item.getName());
         }
 
-        // Call Python AI Service to ingest
-        String url = aiServiceUrl + "/api/v1/ingest/text";
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        String url = aiServiceUrl + "/api/v1/ingest/upload";
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(item.getFilePath()));
+        body.add("category", storeName);
+        body.add("source", source);
 
-        Map<String, Object> body = new HashMap<>();
-        body.put("content", content);
-        body.put("source", source);
-        body.put("category", storeName);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(
+                body,
+                buildAiServiceHeaders(MediaType.MULTIPART_FORM_DATA));
         ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+        return extractChunksCreated(response);
+    }
 
+    private int extractChunksCreated(ResponseEntity<Map> response) {
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            return (Integer) response.getBody().getOrDefault("chunks_created", 0);
+            Object chunksCreated = response.getBody().getOrDefault("chunks_created", 0);
+            if (chunksCreated instanceof Number number) {
+                return number.intValue();
+            }
         }
         return 0;
     }
 
-    // ==================== MAPPERS ====================
+    private HttpHeaders buildAiServiceHeaders(MediaType contentType) {
+        HttpHeaders headers = new HttpHeaders();
+        if (contentType != null) {
+            headers.setContentType(contentType);
+        }
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            headers.set("X-Internal-Api-Key", internalApiKey);
+        }
+        return headers;
+    }
 
     private KnowledgeStoreDTO.Response toResponse(KnowledgeStoreEntity entity) {
         List<MaterialDTO.ItemResponse> items = entity.getItems() != null
@@ -234,5 +260,21 @@ public class KnowledgeStoreService {
                 .fileSize(entity.getFileSize())
                 .createdAt(entity.getCreatedAt())
                 .build();
+    }
+
+    private String validateKnowledgeStoreName(String name) {
+        String normalized = normalizeOptionalText(name);
+        if (normalized == null) {
+            throw new IllegalArgumentException("Tên kho tri thức không được để trống");
+        }
+        return normalized;
+    }
+
+    private String normalizeOptionalText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

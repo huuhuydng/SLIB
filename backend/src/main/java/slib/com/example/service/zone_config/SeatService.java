@@ -8,10 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.zone_config.SeatResponse;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.zone_config.AreaEntity;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.feedback.SeatStatusReportRepository;
+import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
 
@@ -28,6 +31,8 @@ public class SeatService {
     private final SeatRepository seatRepository;
     private final ZoneRepository zoneRepository;
     private final ReservationRepository reservationRepository;
+    private final SeatStatusReportRepository seatStatusReportRepository;
+    private final SeatViolationReportRepository seatViolationReportRepository;
     private final SeatAvailabilityService seatAvailabilityService;
     private final PushNotificationService pushNotificationService;
     private final SeatStatusSyncService seatStatusSyncService;
@@ -35,6 +40,7 @@ public class SeatService {
 
     // ================= GET =================
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getSeatsByZoneId(Integer zoneId) {
         return seatRepository.findByZone_ZoneId(zoneId)
                 .stream()
@@ -42,6 +48,7 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getAllSeats() {
         return seatRepository.findAll()
                 .stream()
@@ -49,6 +56,7 @@ public class SeatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SeatResponse getSeatById(Integer id) {
         SeatEntity seat = seatRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
@@ -58,8 +66,10 @@ public class SeatService {
     // ================= CREATE =================
     // FE gui: zoneId, rowNumber, columnNumber, seatCode, seatStatus
     public SeatResponse createSeat(SeatResponse req) {
+        validateSeatRequest(req);
         ZoneEntity zone = zoneRepository.findById(req.getZoneId())
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
+        ensureSeatMutationAllowed(zone, "thêm ghế");
 
         int rowNumber = req.getRowNumber();
         int columnNumber = req.getColumnNumber() != null ? req.getColumnNumber() : 1;
@@ -75,6 +85,7 @@ public class SeatService {
                 .rowNumber(rowNumber)
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
+                .isActive(req.getIsActive() != null ? req.getIsActive() : true)
                 .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
                 .build();
 
@@ -85,6 +96,7 @@ public class SeatService {
     public SeatResponse updateSeat(Integer id, SeatResponse req) {
         SeatEntity seat = seatRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Seat not found"));
+        ensureSeatMutationAllowed(seat.getZone(), "cập nhật ghế");
 
         if (req.getSeatCode() != null) {
             seat.setSeatCode(req.getSeatCode());
@@ -98,15 +110,21 @@ public class SeatService {
         if (req.getRowNumber() != null) {
             seat.setRowNumber(req.getRowNumber());
         }
+        if (req.getIsActive() != null) {
+            seat.setIsActive(req.getIsActive());
+        }
 
         return toResponse(seatRepository.save(seat));
     }
 
     // ================= DELETE =================
     public void deleteSeat(Integer id) {
-        if (!seatRepository.existsById(id)) {
-            throw new RuntimeException("Seat not found");
-        }
+        SeatEntity seat = seatRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Seat not found"));
+        ensureSeatMutationAllowed(seat.getZone(), "xóa ghế");
+        reservationRepository.deleteBySeat_SeatId(id);
+        seatStatusReportRepository.deleteBySeat_SeatId(id);
+        seatViolationReportRepository.deleteBySeat_SeatId(id);
         seatRepository.deleteById(id);
     }
 
@@ -114,6 +132,26 @@ public class SeatService {
     private String generateSeatCode(int row, int column) {
         char rowChar = (char) ('A' + row - 1);
         return rowChar + String.valueOf(column);
+    }
+
+    private void validateSeatRequest(SeatResponse req) {
+        if (req.getZoneId() == null) {
+            throw new RuntimeException("Ghế phải thuộc một khu vực ghế");
+        }
+        if (req.getRowNumber() == null || req.getRowNumber() <= 0
+                || req.getColumnNumber() == null || req.getColumnNumber() <= 0) {
+            throw new RuntimeException("Hàng và cột ghế phải lớn hơn 0");
+        }
+    }
+
+    private void ensureSeatMutationAllowed(ZoneEntity zone, String action) {
+        AreaEntity area = zone.getArea();
+        if (area != null && Boolean.TRUE.equals(area.getLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi phòng thư viện đang bị khóa");
+        }
+        if (Boolean.TRUE.equals(zone.getIsLocked())) {
+            throw new RuntimeException("Không thể " + action + " khi khu vực ghế đang bị khóa");
+        }
     }
 
     // ================= MAP ENTITY -> DTO =================
@@ -134,6 +172,7 @@ public class SeatService {
         return res;
     }
 
+    @Transactional(readOnly = true)
     public List<SeatResponse> getSeatsByTimeRange(String startTimeStr, String endTimeStr, Integer zoneId) {
         // Parse ISO 8601 time strings (e.g., "2026-01-20T13:00:00")
         LocalDateTime startTime = LocalDateTime.parse(startTimeStr);

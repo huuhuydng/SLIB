@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.support.SupportRequestDTO;
 import slib.com.example.entity.chat.Conversation;
@@ -21,6 +19,7 @@ import slib.com.example.service.notification.LibrarianNotificationService;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.chat.ConversationService;
+import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,6 +54,11 @@ public class SupportRequestService {
     public SupportRequestDTO create(UUID studentId, String description, List<MultipartFile> images) {
         User student = userRepository.findById(studentId)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentId));
+        String normalizedDescription = ContentValidationUtil.normalizeRequiredText(
+                description,
+                "Nội dung hỗ trợ",
+                2000);
+        ContentValidationUtil.validateImageFiles(images, 5);
 
         // Upload ảnh lên Cloudinary
         List<String> imageUrls = new ArrayList<>();
@@ -74,7 +78,7 @@ public class SupportRequestService {
 
         SupportRequest request = SupportRequest.builder()
                 .student(student)
-                .description(description)
+                .description(normalizedDescription)
                 .imageUrls(imageUrls.isEmpty() ? null : imageUrls.toArray(new String[0]))
                 .status(SupportRequestStatus.PENDING)
                 .build();
@@ -156,6 +160,7 @@ public class SupportRequestService {
     public SupportRequestDTO respond(UUID requestId, String response, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+        String normalizedResponse = ContentValidationUtil.normalizeRequiredText(response, "Phản hồi", 2000);
         if (request.getStatus() == SupportRequestStatus.REJECTED) {
             throw new RuntimeException("Không thể phản hồi yêu cầu đã bị từ chối");
         }
@@ -163,7 +168,7 @@ public class SupportRequestService {
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
 
-        request.setAdminResponse(response);
+        request.setAdminResponse(normalizedResponse);
         request.setStatus(SupportRequestStatus.RESOLVED);
         request.setResolvedBy(librarian);
         request.setResolvedAt(LocalDateTime.now());
@@ -289,28 +294,13 @@ public class SupportRequestService {
                     return;
             }
 
-            // Capture các biến final để dùng trong callback
-            final String notiTitle = title;
-            final String notiBody = body;
-
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        studentId, notiTitle, notiBody,
-                                        NotificationType.SUPPORT_REQUEST,
-                                        requestId,
-                                        "SUPPORT_REQUEST",
-                                        "PROCESSING");
-                                log.info("[SupportRequest] Sent notification to student {} for status {}", studentId,
-                                        status);
-                            } catch (Exception e) {
-                                log.error("[SupportRequest] Failed to send notification: {}", e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    studentId, title, body,
+                    NotificationType.SUPPORT_REQUEST,
+                    requestId,
+                    "SUPPORT_REQUEST",
+                    "PROCESSING");
+            log.info("[SupportRequest] Queued notification to student {} for status {}", studentId, status);
         } catch (Exception e) {
             log.error("[SupportRequest] Failed to prepare notification: {}", e.getMessage());
         }

@@ -103,6 +103,8 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                 return { label: 'Admin', color: '#DC2626', bg: '#FEE2E2', icon: Shield };
             case 'LIBRARIAN':
                 return { label: 'Thủ thư', color: '#2563EB', bg: '#DBEAFE', icon: BookOpen };
+            case 'TEACHER':
+                return { label: 'Giáo viên', color: '#D97706', bg: '#FEF3C7', icon: GraduationCap };
             case 'STUDENT':
                 return { label: 'Sinh viên', color: '#059669', bg: '#D1FAE5', icon: GraduationCap };
             default:

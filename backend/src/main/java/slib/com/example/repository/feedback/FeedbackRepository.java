@@ -38,6 +38,8 @@ public interface FeedbackRepository extends JpaRepository<FeedbackEntity, UUID> 
     // Statistic: tổng feedback trong range
     long countByCreatedAtAfter(LocalDateTime startDate);
 
+    long countByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
+
     // Statistic: feedback gần đây trong range (top 10)
     List<FeedbackEntity> findTop10ByCreatedAtAfterOrderByCreatedAtDesc(LocalDateTime startDate);
 

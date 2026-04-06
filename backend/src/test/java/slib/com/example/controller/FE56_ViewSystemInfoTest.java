@@ -5,12 +5,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.controller.system.SystemInfoController;
 import slib.com.example.exception.GlobalExceptionHandler;
+
+import javax.sql.DataSource;
+import org.springframework.web.client.RestTemplate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -28,6 +32,12 @@ class FE56_ViewSystemInfoTest {
 
         @Autowired
         private MockMvc mockMvc;
+
+        @MockBean
+        private DataSource dataSource;
+
+        @MockBean
+        private RestTemplate restTemplate;
 
         // =========================================
         // === UTCID01: Load overview metrics ===

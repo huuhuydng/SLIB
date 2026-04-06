@@ -367,29 +367,32 @@ public class ConversationService {
         /**
          * Lấy danh sách conversation đang chờ xử lý
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getWaitingConversations() {
                 return conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING)
                                 .stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
         /**
          * Lấy danh sách conversation đang được Librarian xử lý
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getActiveConversations(UUID librarianId) {
                 return conversationRepository
                                 .findByLibrarianIdAndStatusOrderByUpdatedAtDesc(librarianId,
                                                 ConversationStatus.HUMAN_CHATTING)
                                 .stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
         /**
          * Lấy conversation active của student (HUMAN_CHATTING hoặc QUEUE_WAITING)
          */
+        @Transactional(readOnly = true)
         public ConversationDTO getActiveConversationForStudent(UUID studentId) {
                 // Check HUMAN_CHATTING trước
                 var humanChatting = conversationRepository
@@ -444,6 +447,7 @@ public class ConversationService {
         /**
          * Lấy tất cả conversations (waiting + active của librarian)
          */
+        @Transactional(readOnly = true)
         public List<ConversationDTO> getAllConversationsForLibrarian(UUID librarianId) {
                 List<Conversation> waiting = conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
@@ -454,20 +458,29 @@ public class ConversationService {
                 // Combine and convert
                 waiting.addAll(active);
                 return waiting.stream()
-                                .map(this::convertToDTO)
+                                .map(conv -> convertToDTO(conv, true))
                                 .collect(Collectors.toList());
         }
 
         /**
          * Lấy conversation theo ID
          */
+        @Transactional(readOnly = true)
         public Optional<Conversation> getConversationById(UUID conversationId) {
                 return conversationRepository.findById(conversationId);
+        }
+
+        @Transactional(readOnly = true)
+        public ConversationDTO getConversationStatusSnapshot(UUID conversationId) {
+                Conversation conv = conversationRepository.findById(conversationId)
+                                .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
+                return convertToDTO(conv);
         }
 
         /**
          * Kiểm tra user có quyền truy cập conversation không (student hoặc librarian của conversation)
          */
+        @Transactional(readOnly = true)
         public void verifyConversationAccess(UUID conversationId, UUID userId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                         .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
@@ -477,6 +490,7 @@ public class ConversationService {
                 }
         }
 
+        @Transactional(readOnly = true)
         public void verifyConversationParticipationAccess(UUID conversationId, UUID userId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                         .orElseThrow(() -> new slib.com.example.exception.ResourceNotFoundException("Conversation not found"));
@@ -499,6 +513,7 @@ public class ConversationService {
          * @param conversationId ID của conversation
          * @return Vị trí trong queue (1-indexed), hoặc 0 nếu không trong queue
          */
+        @Transactional(readOnly = true)
         public int getQueuePosition(UUID conversationId) {
                 List<Conversation> waitingList = conversationRepository
                                 .findByStatusOrderByEscalatedAtAsc(ConversationStatus.QUEUE_WAITING);
@@ -656,19 +671,17 @@ public class ConversationService {
          * Convert entity to DTO
          */
         public ConversationDTO convertToDTO(Conversation conv) {
-                // Lấy tin nhắn cuối cùng
-                ChatMessageDTO lastMessage = null;
-                if (conv.getMessages() != null && !conv.getMessages().isEmpty()) {
-                        Message lastMsg = conv.getMessages().get(conv.getMessages().size() - 1);
-                        lastMessage = ChatMessageDTO.builder()
-                                        .id(lastMsg.getId())
-                                        .senderId(lastMsg.getSender().getId())
-                                        .receiverId(lastMsg.getReceiver().getId())
-                                        .content(lastMsg.getContent())
-                                        .attachmentUrl(lastMsg.getAttachmentUrl())
-                                        .type(lastMsg.getType())
-                                        .createdAt(lastMsg.getCreatedAt())
-                                        .build();
+                return convertToDTO(conv, false);
+        }
+
+        public ConversationDTO convertToDTO(Conversation conv, boolean includeUnreadCount) {
+                ChatMessageDTO lastMessage = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conv.getId())
+                                .map(this::convertMessageToDTO)
+                                .orElse(null);
+
+                long unreadCount = 0;
+                if (includeUnreadCount) {
+                        unreadCount = messageRepository.countUnreadStudentMessagesInConversation(conv.getId());
                 }
 
                 return ConversationDTO.builder()
@@ -686,6 +699,7 @@ public class ConversationService {
                                 .updatedAt(conv.getUpdatedAt())
                                 .escalatedAt(conv.getEscalatedAt())
                                 .lastMessage(lastMessage)
+                                .unreadCount(unreadCount)
                                 .currentHumanSession(conv.getCurrentHumanSession())
                                 .build();
         }
@@ -696,6 +710,7 @@ public class ConversationService {
          * 2. Messages từ MongoDB qua AI service API (chat với AI)
          * Merge và sort theo thời gian
          */
+        @Transactional(readOnly = true)
         public List<ChatMessageDTO> getConversationMessages(UUID conversationId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
@@ -763,6 +778,7 @@ public class ConversationService {
                 return allMessages;
         }
 
+        @Transactional(readOnly = true)
         public List<ChatMessageDTO> getConversationMessagesForViewer(UUID conversationId, UUID viewerUserId) {
                 Conversation conv = conversationRepository.findById(conversationId)
                                 .orElseThrow(() -> new RuntimeException("Conversation not found: " + conversationId));
@@ -783,12 +799,14 @@ public class ConversationService {
          * Lấy messages của conversation với phân trang (cho mobile lazy loading)
          * Trả về page mới nhất trước (DESC), client reverse lại để hiển thị ASC
          */
+        @Transactional(readOnly = true)
         public Page<ChatMessageDTO> getConversationMessagesPaginated(UUID conversationId, int page, int size) {
                 Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
                 Page<Message> messagePage = messageRepository.findByConversationIdPaginated(conversationId, pageable);
                 return messagePage.map(this::convertMessageToDTO);
         }
 
+        @Transactional(readOnly = true)
         public Page<ChatMessageDTO> getConversationMessagesPaginatedForViewer(UUID conversationId, UUID viewerUserId,
                         int page, int size) {
                 Conversation conv = conversationRepository.findById(conversationId)
@@ -933,6 +951,8 @@ public class ConversationService {
                                 .build();
 
                 Message savedMessage = messageRepository.save(message);
+                conv.setUpdatedAt(LocalDateTime.now());
+                conversationRepository.save(conv);
                 log.info("[Conversation] Added message to conversation {}: {} - type: {}", conversationId, content,
                                 resolvedSenderType);
 
@@ -952,16 +972,25 @@ public class ConversationService {
                                         conversationId);
 
                         if ("STUDENT".equals(resolvedSenderType)) {
-                                // Student gửi → thông báo cho tất cả thủ thư qua WebSocket
-                                Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
-                                chatNotify.put("type", "CHAT_NEW_MESSAGE");
-                                chatNotify.put("conversationId", conversationId.toString());
-                                chatNotify.put("senderName", sender.getFullName());
-                                chatNotify.put("content", notifyContent);
-                                chatNotify.put("timestamp", java.time.Instant.now().toString());
-                                messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
-                                log.info("[Chat] Sent librarian notification for new student message in conv {}",
-                                                conversationId);
+                                boolean shouldNotifyLibrarians = conv.getStatus() == ConversationStatus.QUEUE_WAITING
+                                                || conv.getStatus() == ConversationStatus.HUMAN_CHATTING;
+
+                                if (shouldNotifyLibrarians) {
+                                        // Student gửi khi đang chờ hoặc đang chat với thủ thư
+                                        Map<String, Object> chatNotify = new java.util.LinkedHashMap<>();
+                                        chatNotify.put("type", "CHAT_NEW_MESSAGE");
+                                        chatNotify.put("conversationId", conversationId.toString());
+                                        chatNotify.put("senderName", sender.getFullName());
+                                        chatNotify.put("content", notifyContent);
+                                        chatNotify.put("timestamp", java.time.Instant.now().toString());
+                                        messagingTemplate.convertAndSend("/topic/librarian-notifications", chatNotify);
+                                        log.info("[Chat] Sent librarian notification for new student message in conv {}",
+                                                        conversationId);
+                                } else {
+                                        log.debug(
+                                                        "[Chat] Skip librarian notification for student message in conv {} because status is {}",
+                                                        conversationId, conv.getStatus());
+                                }
                         } else if ("LIBRARIAN".equals(resolvedSenderType)) {
                                 // Librarian gửi → push notification cho student qua FCM
                                 UUID studentId = conv.getStudent().getId();

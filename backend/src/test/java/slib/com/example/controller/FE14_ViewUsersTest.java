@@ -66,13 +66,13 @@ class FE14_ViewUsersTest {
         @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD01: View users with admin token returns 200 OK")
         void viewUsers_adminToken_returns200OK() throws Exception {
-                when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+                when(userService.getAllUsers(null, null, null)).thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/users/getall"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$").isArray());
 
-                verify(userService, times(1)).getAllUsers();
+                verify(userService, times(1)).getAllUsers(null, null, null);
         }
 
         // UTCD02: Empty list - 200 OK
@@ -80,7 +80,7 @@ class FE14_ViewUsersTest {
         @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD02: View users returns empty list with 200 OK")
         void viewUsers_emptyList_returns200OK() throws Exception {
-                when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+                when(userService.getAllUsers(null, null, null)).thenReturn(Collections.emptyList());
 
                 mockMvc.perform(get("/slib/users/getall"))
                         .andExpect(status().isOk())
@@ -92,7 +92,7 @@ class FE14_ViewUsersTest {
         @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
         @DisplayName("UTCD03: Service error returns 500 Internal Server Error")
         void viewUsers_serviceError_returns500() throws Exception {
-                when(userService.getAllUsers()).thenThrow(new RuntimeException("Database error"));
+                when(userService.getAllUsers(null, null, null)).thenThrow(new RuntimeException("Database error"));
 
                 mockMvc.perform(get("/slib/users/getall"))
                         .andExpect(status().isInternalServerError());
