@@ -1145,154 +1145,202 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   Future<bool?> _showSeatConfirmPopup(Seat seat, Zone zone) {
     return showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      builder: (context) {
+        final mediaQuery = MediaQuery.of(context);
 
-            // Seat icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.brandColor.withAlpha(30),
-                borderRadius: BorderRadius.circular(16),
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: mediaQuery.size.height * 0.85,
               ),
-              child: Icon(
-                Icons.event_seat,
-                size: 48,
-                color: AppColors.brandColor,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + mediaQuery.padding.bottom,
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Seat code
-            Text(
-              'Ghế ${seat.seatCode}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            // Zone name
-            Text(
-              'Khu vực: ${zone.zoneName}',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 16),
-
-            // Date and time info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      Icon(Icons.calendar_today, color: AppColors.brandColor),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat('dd/MM').format(_selectedDate),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      Text(
-                        DateFormat('EEE', 'vi').format(_selectedDate),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey[300]),
-                  Column(
-                    children: [
-                      Icon(Icons.access_time, color: AppColors.brandColor),
-                      const SizedBox(height: 4),
-                      Text(
-                        _selectedTimeSlot ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Khung giờ',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                    ),
 
-            // Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.grey[400]!),
-                      shape: RoundedRectangleBorder(
+                    // Seat icon
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.brandColor.withAlpha(30),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.event_seat,
+                        size: 48,
+                        color: AppColors.brandColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Seat code
+                    Text(
+                      'Ghế ${seat.seatCode}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Zone name
+                    Text(
+                      'Khu vực: ${zone.zoneName}',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Date and time info
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    child: const Text(
-                      'Hủy',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brandColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                color: AppColors.brandColor,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                DateFormat('dd/MM').format(_selectedDate),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                DateFormat('EEE', 'vi').format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.grey[300],
+                          ),
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                color: AppColors.brandColor,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _selectedTimeSlot ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Khung giờ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
                       children: [
-                        Text(
-                          'Tiếp theo',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: Colors.grey[400]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Hủy',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 18,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brandColor,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Tiếp theo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
