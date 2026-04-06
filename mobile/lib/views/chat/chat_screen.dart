@@ -68,6 +68,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   static const String _keyIsWaitingInQueue = 'chat_is_waiting';
   static const String _keyMessages = 'chat_messages';
   static const String _keyUserId = 'chat_user_id';
+  static const String _chatEndedMessageText =
+      'Cuộc trò chuyện với thủ thư đã kết thúc. Bạn có thể:';
 
   Future<String?> _readChatState(String key) =>
       _chatStateStorage.read(key: key);
@@ -430,6 +432,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     String token,
   ) async {
     try {
+      final persistedChatEndedMessage =
+          await _loadLatestPersistedChatEndedMessage();
       _currentPage = 0;
       _hasMorePages = true;
 
@@ -462,6 +466,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             if (parsedMessage == null) continue;
 
             _messages.add(parsedMessage);
+          }
+
+          final shouldRestoreEndedMessage =
+              persistedChatEndedMessage != null &&
+              !_messages.any(
+                (m) =>
+                    _isPersistedChatEndedMessage(m) &&
+                    m.time.isAtSameMomentAs(persistedChatEndedMessage.time),
+              );
+          if (shouldRestoreEndedMessage) {
+            _messages.add(persistedChatEndedMessage);
+            _messages.sort((a, b) => a.time.compareTo(b.time));
           }
         });
         _scrollToBottom();
@@ -629,10 +645,38 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Save messages vào SharedPreferences (cho AI chat)
   Future<void> _saveMessages() async {
     try {
-      final messagesJson = _messages.map((m) => m.toJson()).toList();
+      final messagesJson = _messages
+          .where((m) => m.type != ChatMessageType.feedbackPrompt)
+          .map((m) => m.toJson())
+          .toList();
       await _writeChatState(_keyMessages, jsonEncode(messagesJson));
     } catch (e) {
       debugPrint('[PERSIST] Error saving messages: $e');
+    }
+  }
+
+  bool _isPersistedChatEndedMessage(ChatMessage message) =>
+      message.type == ChatMessageType.withActions &&
+      message.text == _chatEndedMessageText;
+
+  Future<ChatMessage?> _loadLatestPersistedChatEndedMessage() async {
+    try {
+      final savedMessages = await _readChatState(_keyMessages);
+      if (savedMessages == null || savedMessages.isEmpty) return null;
+
+      final List<dynamic> decoded = jsonDecode(savedMessages);
+      final persistedMessages = decoded
+          .map((m) => ChatMessage.fromJson(m))
+          .where(_isPersistedChatEndedMessage)
+          .toList();
+
+      if (persistedMessages.isEmpty) return null;
+
+      persistedMessages.sort((a, b) => a.time.compareTo(b.time));
+      return persistedMessages.last;
+    } catch (e) {
+      debugPrint('[PERSIST] Error loading persisted ended message: $e');
+      return null;
     }
   }
 
@@ -642,12 +686,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final savedMessages = await _readChatState(_keyMessages);
       if (savedMessages != null && savedMessages.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(savedMessages);
-        if (mounted && decoded.isNotEmpty) {
+        final localMessages = decoded
+            .map((m) => ChatMessage.fromJson(m))
+            .where((m) => m.type != ChatMessageType.feedbackPrompt)
+            .toList();
+        if (mounted && localMessages.isNotEmpty) {
           setState(() {
             _messages.clear();
-            _messages.addAll(
-              decoded.map((m) => ChatMessage.fromJson(m)).toList(),
-            );
+            _messages.addAll(localMessages);
           });
           _scrollToBottom();
           debugPrint('[PERSIST] Loaded ${_messages.length} local messages');
@@ -3144,7 +3190,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       _messages.add(
         ChatMessage(
-          text: "Cuộc trò chuyện với thủ thư đã kết thúc. Bạn có thể:",
+          text: _chatEndedMessageText,
           isUser: false,
           time: DateTime.now(),
           type: ChatMessageType.withActions,
@@ -3179,6 +3225,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       '[CHAT] Librarian ended conversation (human session ended), back to AI mode. Session ID kept: $_conversationId',
     );
     _scrollToBottom();
+    _saveMessages();
 
     _isHandlingChatEnd = false;
 

@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -70,6 +71,11 @@ public class SecurityConfig {
                         // Settings read endpoints
                         .requestMatchers(HttpMethod.GET, "/slib/settings/library").permitAll()
                         .requestMatchers(HttpMethod.GET, "/slib/settings/time-slots").permitAll()
+                        // User settings endpoints (authorization is enforced again in controller)
+                        .requestMatchers(new RegexRequestMatcher("^/slib/settings/[0-9a-fA-F-]{36}$", "GET"))
+                        .authenticated()
+                        .requestMatchers(new RegexRequestMatcher("^/slib/settings/[0-9a-fA-F-]{36}$", "PUT"))
+                        .authenticated()
                         // Settings write endpoints
                         .requestMatchers("/slib/settings/**").hasRole("ADMIN")
                         // Slideshow public endpoints (cho kiosk)

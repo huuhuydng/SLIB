@@ -37,6 +37,7 @@ const ChatManage = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFullImage, setSelectedFullImage] = useState(null);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -882,9 +883,14 @@ const ChatManage = () => {
                                   {imageUrls.length > 0 && (
                                     <div className="cm-support-card-images">
                                       {imageUrls.map((url, i) => (
-                                        <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                        <button
+                                          key={i}
+                                          type="button"
+                                          className="cm-image-button"
+                                          onClick={() => setSelectedFullImage(url)}
+                                        >
                                           <img src={url} alt={`Ảnh ${i + 1}`} className="cm-support-card-img" />
-                                        </a>
+                                        </button>
                                       ))}
                                     </div>
                                   )}
@@ -921,9 +927,14 @@ const ChatManage = () => {
                             {parsed.imageUrls.length > 0 && (
                               <div className="cm-msg-images">
                                 {parsed.imageUrls.map((url, i) => (
-                                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    className="cm-image-button"
+                                    onClick={() => setSelectedFullImage(url)}
+                                  >
                                     <img src={url} alt={`Ảnh ${i + 1}`} className="cm-msg-img" />
-                                  </a>
+                                  </button>
                                 ))}
                               </div>
                             )}
@@ -1010,6 +1021,21 @@ const ChatManage = () => {
                 Kết thúc
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {selectedFullImage && (
+        <div className="cm-lightbox-overlay" onClick={() => setSelectedFullImage(null)}>
+          <div className="cm-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="cm-lightbox-close"
+              onClick={() => setSelectedFullImage(null)}
+              aria-label="Đóng xem ảnh"
+            >
+              ×
+            </button>
+            <img src={selectedFullImage} alt="Xem ảnh phóng to" className="cm-lightbox-image" />
           </div>
         </div>
       )}
