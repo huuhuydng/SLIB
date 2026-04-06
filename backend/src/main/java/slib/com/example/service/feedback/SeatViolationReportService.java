@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.feedback.CreateViolationReportRequest;
 import slib.com.example.dto.feedback.ViolationReportResponse;
@@ -469,21 +467,10 @@ public class SeatViolationReportService {
                     + " tại " + getSeatDisplay(report)
                     + ". Điểm uy tín của bạn đã bị trừ " + points + " điểm.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        violatorId, title, body,
-                                        NotificationType.VIOLATION,
-                                        report.getId());
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send violation notification: {}",
-                                        e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    violatorId, title, body,
+                    NotificationType.VIOLATION,
+                    report.getId());
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare violation notification: {}", e.getMessage());
         }
@@ -520,22 +507,12 @@ public class SeatViolationReportService {
                             + seatDisplay
                             + " đã bị thủ thư từ chối sau khi kiểm tra.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        reporterId, title, body,
-                                        NotificationType.VIOLATION_REPORT,
-                                        report.getId(),
-                                        "VIOLATION_REPORT",
-                                        "PROCESSING");
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send reporter notification: {}", e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    reporterId, title, body,
+                    NotificationType.VIOLATION_REPORT,
+                    report.getId(),
+                    "VIOLATION_REPORT",
+                    "PROCESSING");
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare reporter notification: {}", e.getMessage());
         }
@@ -552,23 +529,12 @@ public class SeatViolationReportService {
                     + " tại ghế " + report.getSeat().getSeatCode()
                     + ". Thủ thư sẽ xem xét và xử lý.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        violatorId, title, body,
-                                        NotificationType.VIOLATION_REPORT,
-                                        report.getId(),
-                                        "VIOLATION_REPORT",
-                                        "PROCESSING");
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send new report notification: {}",
-                                        e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    violatorId, title, body,
+                    NotificationType.VIOLATION_REPORT,
+                    report.getId(),
+                    "VIOLATION_REPORT",
+                    "PROCESSING");
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare new report notification: {}", e.getMessage());
         }
