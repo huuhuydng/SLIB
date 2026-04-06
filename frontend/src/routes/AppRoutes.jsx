@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { isTokenExpired } from "../utils/auth";
+import { isPatronRole, isStaffRole, normalizeRole } from "../utils/roles";
 
 const AuthPage = lazy(() => import("../components/auth/AuthPage"));
 const AdminRoutes = lazy(() => import("./AdminRoutes"));
@@ -80,13 +81,13 @@ function AppRoutes() {
           || user.user_role_name
           || user.roles?.[0]?.role
           || user.roles?.[0]?.name;
-        const role = rawRole ? rawRole.toString().toUpperCase() : null;
+        const role = normalizeRole(rawRole);
 
         // Chỉ cho phép staff đăng nhập web quản trị
-        if (role === 'LIBRARIAN' || role === 'ADMIN') {
+        if (isStaffRole(role)) {
           setIsLoggedIn(true);
           setUserRole(role);
-        } else if (role === 'STUDENT' || role === 'TEACHER') {
+        } else if (isPatronRole(role)) {
           // Không cho phép patron đăng nhập vào web
           console.warn(`[Auth] ${role} không được phép đăng nhập vào hệ thống web`);
           performLogout();
@@ -116,7 +117,7 @@ function AppRoutes() {
   }, [isLoggedIn, performLogout]);
 
   const handleLogin = (role) => {
-    const normalizedRole = role ? role.toString().toUpperCase() : null;
+    const normalizedRole = normalizeRole(role);
     setIsLoggedIn(true);
     setUserRole(normalizedRole);
   };

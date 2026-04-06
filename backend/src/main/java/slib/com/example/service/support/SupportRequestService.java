@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.support.SupportRequestDTO;
 import slib.com.example.entity.chat.Conversation;
@@ -296,28 +294,13 @@ public class SupportRequestService {
                     return;
             }
 
-            // Capture các biến final để dùng trong callback
-            final String notiTitle = title;
-            final String notiBody = body;
-
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        studentId, notiTitle, notiBody,
-                                        NotificationType.SUPPORT_REQUEST,
-                                        requestId,
-                                        "SUPPORT_REQUEST",
-                                        "PROCESSING");
-                                log.info("[SupportRequest] Sent notification to student {} for status {}", studentId,
-                                        status);
-                            } catch (Exception e) {
-                                log.error("[SupportRequest] Failed to send notification: {}", e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    studentId, title, body,
+                    NotificationType.SUPPORT_REQUEST,
+                    requestId,
+                    "SUPPORT_REQUEST",
+                    "PROCESSING");
+            log.info("[SupportRequest] Queued notification to student {} for status {}", studentId, status);
         } catch (Exception e) {
             log.error("[SupportRequest] Failed to prepare notification: {}", e.getMessage());
         }

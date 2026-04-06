@@ -78,7 +78,6 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 500));
     try {
       final freshNews = await _newsService.fetchPublicNews();
       if (mounted) {

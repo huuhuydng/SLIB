@@ -131,11 +131,22 @@ function ViolationManage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleVerify = async (id) => {
+    const handleVerify = async (report) => {
+        if (!report) return;
+
+        const confirmed = await confirm({
+            title: 'Xác minh báo cáo vi phạm',
+            message: `Bạn có chắc muốn xác minh báo cáo vi phạm tại ${getLocation(report)} không? Hệ thống sẽ gửi thông báo cho người báo cáo và sinh viên vi phạm, đồng thời trừ điểm uy tín nếu có áp dụng hình phạt.`,
+            variant: 'warning',
+            confirmText: 'Xác minh',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
+
         setSubmitting(true);
         try {
             const token = getToken();
-            const res = await fetch(`${API_BASE}/${id}/verify`, {
+            const res = await fetch(`${API_BASE}/${report.id}/verify`, {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -154,11 +165,22 @@ function ViolationManage() {
         }
     };
 
-    const handleReject = async (id) => {
+    const handleReject = async (report) => {
+        if (!report) return;
+
+        const confirmed = await confirm({
+            title: 'Từ chối báo cáo vi phạm',
+            message: `Bạn có chắc muốn từ chối báo cáo vi phạm tại ${getLocation(report)} không? Hệ thống sẽ chỉ gửi thông báo từ chối đến người đã gửi báo cáo.`,
+            variant: 'danger',
+            confirmText: 'Từ chối',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
+
         setSubmitting(true);
         try {
             const token = getToken();
-            const res = await fetch(`${API_BASE}/${id}/reject`, {
+            const res = await fetch(`${API_BASE}/${report.id}/reject`, {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -846,14 +868,14 @@ function ViolationManage() {
                                 <>
                                     <button
                                         className="sr-modal-btn primary"
-                                        onClick={() => handleVerify(selectedReport.id)}
+                                        onClick={() => handleVerify(selectedReport)}
                                         disabled={submitting}
                                     >
                                         {submitting ? "Đang xử lý..." : "Xác minh"}
                                     </button>
                                     <button
                                         className="sr-modal-btn ghost"
-                                        onClick={() => handleReject(selectedReport.id)}
+                                        onClick={() => handleReject(selectedReport)}
                                         disabled={submitting}
                                         style={{ borderColor: '#ef4444', color: '#ef4444' }}
                                     >

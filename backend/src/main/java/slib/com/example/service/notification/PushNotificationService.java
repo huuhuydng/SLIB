@@ -24,6 +24,8 @@ import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +257,16 @@ public class PushNotificationService {
                 return null;
             }
 
+            if (shouldSuppressDuplicate(request)) {
+                log.info(
+                        "Skip duplicate notification for user={} type={} referenceType={} referenceId={}",
+                        request.userId(),
+                        request.type(),
+                        request.referenceType(),
+                        request.referenceId());
+                return null;
+            }
+
             NotificationEntity notification = NotificationEntity.builder()
                     .user(user)
                     .title(request.title())
@@ -285,6 +297,69 @@ public class PushNotificationService {
                     badgeCount,
                     user.getNotiDevice());
         });
+    }
+
+    private boolean shouldSuppressDuplicate(NotificationRequest request) {
+        Duration cooldown = resolveDuplicateCooldown(request);
+        if (cooldown == null || cooldown.isZero() || cooldown.isNegative()) {
+            return false;
+        }
+
+        LocalDateTime since = LocalDateTime.now().minus(cooldown);
+        String referenceType = request.referenceType();
+        UUID referenceId = request.referenceId();
+
+        if (referenceType == null && referenceId == null) {
+            return notificationRepository.existsRecentDuplicateWithoutReference(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    since);
+        }
+
+        if (referenceType != null && referenceId == null) {
+            return notificationRepository.existsRecentDuplicateWithReferenceType(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    referenceType,
+                    since);
+        }
+
+        if (referenceType == null) {
+            return notificationRepository.existsRecentDuplicateWithReferenceId(
+                    request.userId(),
+                    request.type(),
+                    request.title(),
+                    request.body(),
+                    referenceId,
+                    since);
+        }
+
+        return notificationRepository.existsRecentDuplicateWithReference(
+                request.userId(),
+                request.type(),
+                request.title(),
+                request.body(),
+                referenceType,
+                referenceId,
+                since);
+    }
+
+    private Duration resolveDuplicateCooldown(NotificationRequest request) {
+        if (request.type() == null || request.type() == NotificationType.CHAT_MESSAGE) {
+            return null;
+        }
+
+        return switch (request.type()) {
+            case SYSTEM -> Duration.ofMinutes(2);
+            case NEWS -> Duration.ofMinutes(5);
+            case BOOKING, REMINDER, VIOLATION, VIOLATION_REPORT, REPUTATION, SUPPORT_REQUEST, COMPLAINT,
+                    SEAT_STATUS_REPORT -> Duration.ofMinutes(1);
+            case CHAT_MESSAGE -> null;
+        };
     }
 
     private record NotificationRequest(
@@ -339,6 +414,21 @@ public class PushNotificationService {
         }
 
         log.info("Sent notification to {} users with role {}", users.size(), role);
+    }
+
+    /**
+     * Send notification to all patron users (STUDENT + TEACHER).
+     */
+    public void sendToPatrons(String title, String body, NotificationType type, UUID referenceId) {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && u.getRole().isPatron())
+                .toList();
+
+        for (User user : users) {
+            sendToUser(user.getId(), title, body, type, referenceId);
+        }
+
+        log.info("Sent notification to {} patron users", users.size());
     }
 
     /**
@@ -465,11 +555,19 @@ public class PushNotificationService {
     /**
      * Get notifications for a user
      */
+    @Transactional(readOnly = true)
     public List<NotificationEntity> getUserNotifications(UUID userId, int limit) {
         if (limit > 0) {
             return notificationRepository.findByUserIdWithLimit(userId, limit);
         }
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationDTO> getUserNotificationDTOs(UUID userId, int limit) {
+        return getUserNotifications(userId, limit).stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     /**

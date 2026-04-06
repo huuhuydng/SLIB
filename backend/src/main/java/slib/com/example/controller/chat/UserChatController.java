@@ -423,9 +423,7 @@ public class UserChatController {
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID userId = getCurrentUserId(userDetails);
         conversationService.verifyConversationAccess(conversationId, userId);
-        ConversationDTO conv = conversationService.getConversationById(conversationId)
-                .map(c -> conversationService.convertToDTO(c))
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+        ConversationDTO conv = conversationService.getConversationStatusSnapshot(conversationId);
 
         int queuePosition = conversationService.getQueuePosition(conversationId);
 

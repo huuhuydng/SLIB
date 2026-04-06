@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.feedback.CreateViolationReportRequest;
 import slib.com.example.dto.feedback.ViolationReportResponse;
@@ -257,7 +255,7 @@ public class SeatViolationReportService {
         }
 
         // Gui thong bao cho reporter
-        sendReporterNotification(report.getReporter().getId(), report, true);
+        sendReporterNotification(report, true);
 
         log.info("[ViolationReport] Verified report {} by librarian {}, deducted {} points",
                 reportId, librarianId, pointsToDeduct);
@@ -289,7 +287,7 @@ public class SeatViolationReportService {
         SeatViolationReportEntity saved = violationReportRepository.save(report);
 
         // Gui thong bao cho reporter
-        sendReporterNotification(report.getReporter().getId(), report, false);
+        sendReporterNotification(report, false);
 
         log.info("[ViolationReport] Rejected report {} by librarian {}", reportId, librarianId);
 
@@ -441,31 +439,38 @@ public class SeatViolationReportService {
         };
     }
 
+    private String getSeatDisplay(SeatViolationReportEntity report) {
+        if (report.getSeat() == null) {
+            return "ghế không xác định";
+        }
+
+        String seatCode = report.getSeat().getSeatCode();
+        String zoneName = report.getSeat().getZone() != null
+                ? report.getSeat().getZone().getZoneName()
+                : null;
+
+        if (zoneName != null && !zoneName.isBlank()) {
+            return "ghế " + seatCode + " - " + zoneName;
+        }
+
+        return "ghế " + seatCode;
+    }
+
     /**
      * Gui thong bao cho violator khi bi tru diem (xac minh)
      */
     private void sendViolationNotification(UUID violatorId, SeatViolationReportEntity report, int points) {
         try {
-            final String title = "Bạn bị trừ điểm vi phạm";
-            final String body = "Bạn bị trừ " + points + " điểm do vi phạm: "
+            final String title = "Thủ thư đã xác nhận vi phạm";
+            final String body = "Thủ thư vừa xác nhận bạn vi phạm lỗi "
                     + getViolationLabel(report.getViolationType())
-                    + " tại ghế " + report.getSeat().getSeatCode() + ".";
+                    + " tại " + getSeatDisplay(report)
+                    + ". Điểm uy tín của bạn đã bị trừ " + points + " điểm.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        violatorId, title, body,
-                                        NotificationType.VIOLATION,
-                                        report.getId());
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send violation notification: {}",
-                                        e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    violatorId, title, body,
+                    NotificationType.VIOLATION,
+                    report.getId());
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare violation notification: {}", e.getMessage());
         }
@@ -474,32 +479,40 @@ public class SeatViolationReportService {
     /**
      * Gui thong bao cho reporter khi bao cao duoc xu ly
      */
-    private void sendReporterNotification(UUID reporterId, SeatViolationReportEntity report, boolean accepted) {
+    private void sendReporterNotification(SeatViolationReportEntity report, boolean accepted) {
         try {
+            UUID reporterId = report.getReporter().getId();
+            String seatDisplay = getSeatDisplay(report);
+            String violationLabel = getViolationLabel(report.getViolationType());
+            String violatorLabel = report.getViolator() != null
+                    ? "sinh viên " + report.getViolator().getFullName()
+                    : "sinh viên vi phạm";
             final String title = accepted
                     ? "Báo cáo vi phạm đã được xác minh"
                     : "Báo cáo vi phạm bị từ chối";
             final String body = accepted
-                    ? "Báo cáo vi phạm tại ghế " + report.getSeat().getSeatCode()
-                            + " đã được thủ thư xác minh. Cảm ơn bạn đã báo cáo!"
-                    : "Báo cáo vi phạm tại ghế " + report.getSeat().getSeatCode() + " đã bị từ chối bởi thủ thư.";
+                    ? "Đơn tố cáo vi phạm của bạn về lỗi "
+                            + violationLabel
+                            + " tại "
+                            + seatDisplay
+                            + " đã được thủ thư xác minh. "
+                            + violatorLabel
+                            + " đã bị xử phạt"
+                            + (report.getPointDeducted() != null && report.getPointDeducted() > 0
+                                    ? " và trừ " + report.getPointDeducted() + " điểm uy tín."
+                                    : ".")
+                    : "Đơn tố cáo vi phạm của bạn về lỗi "
+                            + violationLabel
+                            + " tại "
+                            + seatDisplay
+                            + " đã bị thủ thư từ chối sau khi kiểm tra.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        reporterId, title, body,
-                                        NotificationType.VIOLATION_REPORT,
-                                        report.getId(),
-                                        "VIOLATION_REPORT",
-                                        "PROCESSING");
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send reporter notification: {}", e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    reporterId, title, body,
+                    NotificationType.VIOLATION_REPORT,
+                    report.getId(),
+                    "VIOLATION_REPORT",
+                    "PROCESSING");
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare reporter notification: {}", e.getMessage());
         }
@@ -516,23 +529,12 @@ public class SeatViolationReportService {
                     + " tại ghế " + report.getSeat().getSeatCode()
                     + ". Thủ thư sẽ xem xét và xử lý.";
 
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            try {
-                                pushNotificationService.sendToUser(
-                                        violatorId, title, body,
-                                        NotificationType.VIOLATION_REPORT,
-                                        report.getId(),
-                                        "VIOLATION_REPORT",
-                                        "PROCESSING");
-                            } catch (Exception e) {
-                                log.error("[ViolationReport] Failed to send new report notification: {}",
-                                        e.getMessage());
-                            }
-                        }
-                    });
+            pushNotificationService.sendToUser(
+                    violatorId, title, body,
+                    NotificationType.VIOLATION_REPORT,
+                    report.getId(),
+                    "VIOLATION_REPORT",
+                    "PROCESSING");
         } catch (Exception e) {
             log.error("[ViolationReport] Failed to prepare new report notification: {}", e.getMessage());
         }

@@ -27,6 +27,7 @@ public class StudentProfileService {
     /**
      * Get student profile by user ID
      */
+    @Transactional(readOnly = true)
     public Optional<StudentProfileResponse> getProfileByUserId(UUID userId) {
         return studentProfileRepository.findByUserId(userId)
                 .map(this::buildProfileResponse);

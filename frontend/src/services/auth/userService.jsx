@@ -13,6 +13,7 @@ import {
     validatePhone,
     validateUserCode,
 } from '../../utils/userValidation';
+import { VALID_USER_ROLES, normalizeRole } from '../../utils/roles';
 
 const API_BASE_URL = `${BASE}/slib`;
 
@@ -633,8 +634,11 @@ class UserService {
             if (phoneError) userErrors.phone = phoneError;
 
             // Validate role
-            if (!['STUDENT', 'TEACHER', 'LIBRARIAN', 'ADMIN'].includes(user.role)) {
+            const normalizedRole = normalizeRole(user.role);
+            if (!VALID_USER_ROLES.includes(normalizedRole)) {
                 userErrors.role = 'Vai trò không hợp lệ';
+            } else {
+                user.role = normalizedRole;
             }
 
             if (Object.keys(userErrors).length > 0) {

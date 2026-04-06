@@ -311,11 +311,13 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     _refreshTimer?.cancel();
     // Smart timer cho expiration chính xác
     _scheduleExpirationRefresh();
-    // Fallback polling 10s — safety net khi WebSocket mất kết nối hoặc DB thay đổi trực tiếp
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted) {
-        _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
+    // Fallback polling 30s — chỉ dùng khi WebSocket mất kết nối
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted || seatWebSocketService.isConnected) {
+        return;
       }
+
+      _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
     });
   }
 
@@ -656,6 +658,85 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     }
   }
 
+  DateTime? _buildSlotDateTime(DateTime date, String timeValue) {
+    final parts = timeValue.split(':');
+    if (parts.length < 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  int? _getRemainingMinutesForOngoingSlot(DateTime date, String? timeSlot) {
+    if (timeSlot == null) return null;
+
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (!isToday) return null;
+
+    final parts = timeSlot.split(' - ');
+    if (parts.length != 2) return null;
+
+    final slotStart = _buildSlotDateTime(date, parts[0]);
+    final slotEnd = _buildSlotDateTime(date, parts[1]);
+    if (slotStart == null || slotEnd == null) return null;
+
+    if (now.isBefore(slotStart) || !now.isBefore(slotEnd)) return null;
+
+    final remaining = slotEnd.difference(now);
+    if (remaining.inSeconds <= 0) return null;
+
+    return (remaining.inSeconds / 60).ceil();
+  }
+
+  Future<bool> _confirmOngoingTimeSlotIfNeeded() async {
+    final remainingMinutes = _getRemainingMinutesForOngoingSlot(
+      _selectedDate,
+      _selectedTimeSlot,
+    );
+
+    if (remainingMinutes == null) return true;
+    if (!mounted) return false;
+
+    final remainingLabel = remainingMinutes <= 1
+        ? 'chưa đến 1 phút'
+        : '$remainingMinutes phút';
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Khung giờ này đã bắt đầu',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Suất ngồi bạn chọn đang diễn ra. Nếu tiếp tục đặt chỗ, bạn chỉ còn khoảng $remainingLabel sử dụng trong khung giờ ${_selectedTimeSlot!}. Bạn vẫn muốn tiếp tục chứ?',
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Chọn khung giờ khác'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brandColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Tiếp tục đặt'),
+          ),
+        ],
+      ),
+    );
+
+    return accepted == true;
+  }
+
   void _showLegendDialog() {
     showDialog(
       context: context,
@@ -984,6 +1065,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     if (confirmed != true) return;
     if (!mounted) return;
 
+    final acceptedOngoingSlot = await _confirmOngoingTimeSlotIfNeeded();
+    if (!acceptedOngoingSlot || !mounted) return;
+
     // Kiểm tra user đã đăng nhập
     final user = authService.currentUser;
 
@@ -1063,154 +1147,202 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   Future<bool?> _showSeatConfirmPopup(Seat seat, Zone zone) {
     return showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle bar
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+      builder: (context) {
+        final mediaQuery = MediaQuery.of(context);
 
-            // Seat icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.brandColor.withAlpha(30),
-                borderRadius: BorderRadius.circular(16),
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: mediaQuery.viewInsets.bottom),
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: mediaQuery.size.height * 0.85,
               ),
-              child: Icon(
-                Icons.event_seat,
-                size: 48,
-                color: AppColors.brandColor,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + mediaQuery.padding.bottom,
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Seat code
-            Text(
-              'Ghế ${seat.seatCode}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-
-            // Zone name
-            Text(
-              'Khu vực: ${zone.zoneName}',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 16),
-
-            // Date and time info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      Icon(Icons.calendar_today, color: AppColors.brandColor),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat('dd/MM').format(_selectedDate),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Handle bar
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      Text(
-                        DateFormat('EEE', 'vi').format(_selectedDate),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey[300]),
-                  Column(
-                    children: [
-                      Icon(Icons.access_time, color: AppColors.brandColor),
-                      const SizedBox(height: 4),
-                      Text(
-                        _selectedTimeSlot ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Khung giờ',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                    ),
 
-            // Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: BorderSide(color: Colors.grey[400]!),
-                      shape: RoundedRectangleBorder(
+                    // Seat icon
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.brandColor.withAlpha(30),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.event_seat,
+                        size: 48,
+                        color: AppColors.brandColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Seat code
+                    Text(
+                      'Ghế ${seat.seatCode}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Zone name
+                    Text(
+                      'Khu vực: ${zone.zoneName}',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Date and time info
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    child: const Text(
-                      'Hủy',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brandColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                color: AppColors.brandColor,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                DateFormat('dd/MM').format(_selectedDate),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                DateFormat('EEE', 'vi').format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.grey[300],
+                          ),
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                color: AppColors.brandColor,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _selectedTimeSlot ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Khung giờ',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    const SizedBox(height: 24),
+
+                    // Buttons
+                    Row(
                       children: [
-                        Text(
-                          'Tiếp theo',
-                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: Colors.grey[400]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Hủy',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 18,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.brandColor,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Tiếp theo',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(
+                                  Icons.arrow_forward,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -2154,6 +2286,40 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
     }
   }
 
+  DateTime? _buildSlotDateTime(DateTime date, String timeValue) {
+    final parts = timeValue.split(':');
+    if (parts.length < 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return null;
+
+    return DateTime(date.year, date.month, date.day, hour, minute);
+  }
+
+  int? _getRemainingMinutesForOngoingSlot(DateTime date, String? timeSlot) {
+    if (timeSlot == null) return null;
+
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    if (!isToday) return null;
+
+    final parts = timeSlot.split(' - ');
+    if (parts.length != 2) return null;
+
+    final slotStart = _buildSlotDateTime(date, parts[0]);
+    final slotEnd = _buildSlotDateTime(date, parts[1]);
+    if (slotStart == null || slotEnd == null) return null;
+
+    if (now.isBefore(slotStart) || !now.isBefore(slotEnd)) return null;
+
+    final remaining = slotEnd.difference(now);
+    if (remaining.inSeconds <= 0) return null;
+
+    return (remaining.inSeconds / 60).ceil();
+  }
+
   Future<void> _confirmBooking() async {
     if (_selectedIndex == null ||
         _selectedTime == null ||
@@ -2174,6 +2340,48 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
     }
 
     final parts = _selectedTime!.split(' - ');
+
+    final remainingMinutes = _getRemainingMinutesForOngoingSlot(
+      _selectedDate!,
+      _selectedTime,
+    );
+    if (remainingMinutes != null) {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: const Text(
+            'Khung giờ này đã bắt đầu',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Suất ngồi bạn chọn đang diễn ra. Nếu tiếp tục đặt chỗ, bạn chỉ còn khoảng ${remainingMinutes <= 1 ? 'chưa đến 1 phút' : '$remainingMinutes phút'} sử dụng trong khung giờ $_selectedTime. Bạn vẫn muốn tiếp tục chứ?',
+            style: const TextStyle(height: 1.45),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Chọn khung giờ khác'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Tiếp tục đặt'),
+            ),
+          ],
+        ),
+      );
+
+      if (accepted != true) {
+        return;
+      }
+    }
+
     try {
       await _bookingService.createBooking(
         userId: userId,

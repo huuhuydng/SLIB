@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -23,6 +24,8 @@ import java.util.List;
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private static final String[] LIBRARY_LAYOUT_READ_ROLES = {"STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK"};
+    private static final String[] PATRON_BOOKING_ROLES = {"STUDENT", "TEACHER", "KIOSK"};
 
     private final JwtAuthenticationFilter jwtAuthFilter;
 
@@ -70,6 +73,11 @@ public class SecurityConfig {
                         // Settings read endpoints
                         .requestMatchers(HttpMethod.GET, "/slib/settings/library").permitAll()
                         .requestMatchers(HttpMethod.GET, "/slib/settings/time-slots").permitAll()
+                        // User settings endpoints (authorization is enforced again in controller)
+                        .requestMatchers(new RegexRequestMatcher("^/slib/settings/[0-9a-fA-F-]{36}$", "GET"))
+                        .authenticated()
+                        .requestMatchers(new RegexRequestMatcher("^/slib/settings/[0-9a-fA-F-]{36}$", "PUT"))
+                        .authenticated()
                         // Settings write endpoints
                         .requestMatchers("/slib/settings/**").hasRole("ADMIN")
                         // Slideshow public endpoints (cho kiosk)
@@ -116,16 +124,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/seats/nfc-mappings").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers(HttpMethod.GET, "/slib/seats/*/nfc-info").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/layout-admin/**").hasAnyRole("ADMIN", "LIBRARIAN")
-                        .requestMatchers(HttpMethod.GET, "/slib/areas/**").hasAnyRole("STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK")
-                        .requestMatchers(HttpMethod.GET, "/slib/zones/**").hasAnyRole("STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK")
-                        .requestMatchers(HttpMethod.GET, "/slib/seats/**").hasAnyRole("STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK")
-                        .requestMatchers(HttpMethod.GET, "/slib/area_factories/**").hasAnyRole("STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK")
-                        .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole("STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK")
-                        .requestMatchers("/slib/bookings/create").hasAnyRole("STUDENT", "TEACHER", "KIOSK")
-                        .requestMatchers("/slib/bookings/cancel/**").hasAnyRole("STUDENT", "TEACHER", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/areas/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/slib/zones/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/slib/seats/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/slib/area_factories/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
+                        .requestMatchers("/slib/bookings/create").hasAnyRole(PATRON_BOOKING_ROLES)
+                        .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
-                        .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole("STUDENT", "TEACHER", "KIOSK")
-                        .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole("STUDENT", "TEACHER", "KIOSK")
+                        .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)
+                        .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         // Cac endpoint khac
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

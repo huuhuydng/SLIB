@@ -189,7 +189,7 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isTeacher = _user.role.toUpperCase() == 'TEACHER';
+    final bool isTeacher = _user.isTeacher;
     final String profileTitle = isTeacher ? 'Hồ sơ giáo viên' : 'Hồ sơ cá nhân';
     final String userCodeLabel = isTeacher ? 'Mã giáo viên' : 'Mã người dùng';
 

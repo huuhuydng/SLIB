@@ -503,6 +503,9 @@ public class BookingService {
 
                 String currentStatus = normalizeStatus(reserv.getStatus());
                 String newStatus = normalizeStatus(status);
+                if (currentStatus.equals(newStatus)) {
+                        return reserv;
+                }
                 if ("CONFIRMED".equals(newStatus)) {
                         throw new BadRequestException(
                                         "Trạng thái CONFIRMED chỉ được tạo qua check-in NFC hoặc xác nhận thủ thư.");

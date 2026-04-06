@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -26,23 +25,16 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen>
   bool _isLoading = true;
   String? _errorMessage;
 
-  Timer? _refreshTimer;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadData();
-    // Auto-refresh mỗi 10 giây
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _loadData(silent: true);
-    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _refreshTimer?.cancel();
     super.dispose();
   }
 

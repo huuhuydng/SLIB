@@ -3,13 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/services/notification/notification_service.dart';
-import 'package:slib/views/news/news_screen.dart';
-import 'package:slib/views/profile/activity_history_screen.dart';
-import 'package:slib/views/profile/booking_history_screen.dart';
-import 'package:slib/views/profile/violation_history_screen.dart';
-import 'package:slib/views/seat_status_report/seat_status_report_history_screen.dart';
-import 'package:slib/views/support/support_request_history_screen.dart';
-import 'package:slib/views/violation_report/violation_report_history_screen.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class _NotificationCategoryOption {
@@ -362,10 +355,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       _CategoryHeader(
         categoryKey: selectedOption.key,
         label: selectedOption.label,
-        unreadCount: _unreadCountForCategory(
-          notifications,
-          selectedOption.key,
-        ),
+        unreadCount: _unreadCountForCategory(notifications, selectedOption.key),
         onMarkAllRead: () => _markCategoryAsRead(service, selectedOption.key),
       ),
       ..._buildFlatNotificationWidgets(notifications, service),
@@ -457,97 +447,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _handleNotificationTap(NotificationItem notification) async {
-    if (!notification.isRead) {
-      await context.read<NotificationService>().markAsRead(notification.id);
-      if (!mounted) return;
-    }
-
-    switch (notification.category) {
-      case 'BOOKING':
-        _openBookingHistory(notification);
-        break;
-      case 'REPUTATION':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const ActivityHistoryScreen()),
-        );
-        break;
-      case 'PROCESSING':
-        _openProcessingScreen(notification);
-        break;
-      case 'NEWS':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const NewsScreen()),
-        );
-        break;
-      case 'MESSAGE':
-      case 'SYSTEM':
-        break;
-    }
-  }
-
-  void _openBookingHistory(NotificationItem notification) {
-    final combined = '${notification.title} ${notification.content}'
-        .toLowerCase();
-    var tab = 0;
-
-    if (combined.contains('huỷ') ||
-        combined.contains('hủy') ||
-        combined.contains('hết hạn') ||
-        combined.contains('expired') ||
-        combined.contains('không đến')) {
-      tab = 2;
-    } else if (combined.contains('hoàn thành') ||
-        combined.contains('kết thúc') ||
-        combined.contains('completed')) {
-      tab = 1;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => BookingHistoryScreen(initialTab: tab)),
+    await context.read<NotificationService>().openNotificationTarget(
+      notification,
     );
-  }
-
-  void _openProcessingScreen(NotificationItem notification) {
-    final referenceType =
-        (notification.referenceType ?? notification.type).toUpperCase();
-    final combined = '${notification.title} ${notification.content}'
-        .toLowerCase();
-
-    if (referenceType == 'SUPPORT_REQUEST' ||
-        combined.contains('yêu cầu hỗ trợ')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SupportRequestHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'COMPLAINT' || combined.contains('khiếu nại')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ViolationHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'SEAT_STATUS_REPORT' ||
-        combined.contains('tình trạng ghế')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SeatStatusReportHistoryScreen()),
-      );
-      return;
-    }
-
-    if (referenceType == 'VIOLATION_REPORT' || combined.contains('vi phạm')) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ViolationReportHistoryScreen()),
-      );
-    }
   }
 }
 
@@ -577,7 +479,10 @@ class _CategoryHeader extends StatelessWidget {
                 Container(
                   width: 10,
                   height: 10,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -596,7 +501,10 @@ class _CategoryHeader extends StatelessWidget {
               onPressed: onMarkAllRead,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.brandColor,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),

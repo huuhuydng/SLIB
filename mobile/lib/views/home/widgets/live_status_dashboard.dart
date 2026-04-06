@@ -23,6 +23,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   bool _isLoading = true;
   StompClient? _stompClient;
   bool _wsConnected = false;
+  bool _isWsConnecting = false;
 
   @override
   void initState() {
@@ -46,10 +47,14 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   /// Khi reservation COMPLETED/EXPIRED → ReservationScheduler gửi event AUTO_STATUS_CHANGE
   /// → reload giờ học realtime
   Future<void> _connectWebSocket() async {
-    if (_wsConnected) return;
+    if (_wsConnected || _isWsConnecting) return;
     try {
+      _isWsConnecting = true;
       final token = await _authService.getToken();
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        _isWsConnecting = false;
+        return;
+      }
 
       String wsUrl = ApiConstants.domain;
       if (wsUrl.startsWith('https://')) {
@@ -67,6 +72,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           onConnect: (StompFrame frame) {
             debugPrint('[LiveStatus] WebSocket connected');
             _wsConnected = true;
+            _isWsConnecting = false;
             _stompClient?.subscribe(
               destination: '/topic/dashboard',
               callback: (StompFrame frame) {
@@ -90,13 +96,11 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
           onWebSocketError: (error) {
             debugPrint('[LiveStatus] WebSocket error: $error');
             _wsConnected = false;
+            _isWsConnecting = false;
           },
           onDisconnect: (_) {
             _wsConnected = false;
-            // Auto-reconnect sau 5s
-            Future.delayed(const Duration(seconds: 5), () {
-              if (mounted) _connectWebSocket();
-            });
+            _isWsConnecting = false;
           },
           reconnectDelay: const Duration(seconds: 5),
         ),
@@ -104,6 +108,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
       _stompClient!.activate();
     } catch (e) {
       debugPrint('[LiveStatus] WebSocket connection error: $e');
+      _isWsConnecting = false;
     }
   }
 
