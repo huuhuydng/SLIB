@@ -17,6 +17,7 @@ import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.service.notification.PushNotificationService;
+import slib.com.example.service.reputation.ReputationService;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -70,6 +71,9 @@ public class CheckInService {
 
     @Autowired
     private PushNotificationService pushNotificationService;
+
+    @Autowired
+    private ReputationService reputationService;
 
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
@@ -353,6 +357,12 @@ public class CheckInService {
                         .description("Hệ thống tự động check-out lúc 21:00 sau " + formatDuration(durationMinutes))
                         .durationMinutes(durationMinutes)
                         .build());
+
+                try {
+                    reputationService.applyLateCheckoutPenalty(log.getUserId(), null, null, log.getReservationId());
+                } catch (Exception penaltyErr) {
+                    // Không để lỗi phạt ảnh hưởng auto check-out
+                }
             }
         }
     }

@@ -6,7 +6,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import slib.com.example.entity.activity.PointTransactionEntity;
 
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -24,6 +26,22 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
     int getTotalLostPoints(@Param("userId") UUID userId);
 
     List<PointTransactionEntity> findByUserIdAndPointsLessThanOrderByCreatedAtDesc(UUID userId, int threshold);
+
+    Optional<PointTransactionEntity> findTopByUserIdAndPointsLessThanOrderByCreatedAtDesc(UUID userId, int threshold);
+
+    @Query("""
+            SELECT COUNT(p)
+            FROM PointTransactionEntity p
+            WHERE p.userId = :userId
+              AND p.points < 0
+              AND p.rule IS NOT NULL
+              AND p.rule.ruleCode = :ruleCode
+              AND p.createdAt >= :since
+            """)
+    long countPenaltyByUserAndRuleCodeSince(
+            @Param("userId") UUID userId,
+            @Param("ruleCode") String ruleCode,
+            @Param("since") ZonedDateTime since);
 
     // Delete all point transactions by user ID (for cascade delete when user is
     // deleted)
