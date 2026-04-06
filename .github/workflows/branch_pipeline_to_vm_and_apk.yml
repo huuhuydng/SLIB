@@ -288,6 +288,15 @@ jobs:
         working-directory: mobile
         run: flutter pub get
 
+      - name: Restore Android Firebase config
+        run: |
+          if [ -z "${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}" ]; then
+            echo "Missing GitHub secret: ANDROID_GOOGLE_SERVICES_JSON" >&2
+            exit 1
+          fi
+
+          printf '%s' '${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}' > mobile/android/app/google-services.json
+
       - name: Run Flutter tests
         working-directory: mobile
         run: flutter test
