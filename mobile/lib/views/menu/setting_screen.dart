@@ -26,6 +26,20 @@ class SettingScreen extends StatefulWidget {
 class _SettingScreenState extends State<SettingScreen> {
   int _violationCount = 0;
 
+  Future<void> _pushScreen(
+    Widget screen, {
+    bool refreshViolationCount = false,
+  }) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+
+    if (refreshViolationCount && mounted) {
+      await _loadViolationCount();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -173,15 +187,9 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.person_outline_rounded,
                 iconColor: Colors.blue,
                 title: "Thông tin cá nhân",
-                onTap: () {
+                onTap: () async {
                   if (currentUser != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            ProfileInfoScreen(user: currentUser),
-                      ),
-                    );
+                    await _pushScreen(ProfileInfoScreen(user: currentUser));
                   }
                 },
               ),
@@ -190,13 +198,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.history_edu_rounded,
                 iconColor: Colors.teal,
                 title: "Lịch sử đặt chỗ",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BookingHistoryScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const BookingHistoryScreen());
                 },
               ),
               _buildDivider(),
@@ -205,12 +208,10 @@ class _SettingScreenState extends State<SettingScreen> {
                 iconColor: Colors.redAccent,
                 title: "Lịch sử vi phạm",
                 trailingText: "$_violationCount vi phạm",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ViolationHistoryScreen(),
-                    ),
+                onTap: () async {
+                  await _pushScreen(
+                    const ViolationHistoryScreen(),
+                    refreshViolationCount: true,
                   );
                 },
               ),
@@ -219,13 +220,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.report_outlined,
                 iconColor: Colors.orange,
                 title: "Lịch sử báo cáo",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ReportHistoryScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const ReportHistoryScreen());
                 },
               ),
               _buildDivider(),
@@ -233,13 +229,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.gavel_rounded,
                 iconColor: Colors.deepOrange,
                 title: "Lịch sử khiếu nại",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ComplaintHistoryScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const ComplaintHistoryScreen());
                 },
               ),
               _buildDivider(),
@@ -247,13 +238,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.support_agent_rounded,
                 iconColor: AppColors.brandColor,
                 title: "Yêu cầu hỗ trợ",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SupportRequestScreen(),
-                    ),
-                  );
+                onTap: () async {
+                  await _pushScreen(const SupportRequestScreen());
                 },
               ),
             ]),

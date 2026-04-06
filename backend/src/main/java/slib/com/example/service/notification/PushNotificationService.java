@@ -24,6 +24,8 @@ import slib.com.example.repository.users.UserSettingRepository;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.system.SystemLogService;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +257,16 @@ public class PushNotificationService {
                 return null;
             }
 
+            if (shouldSuppressDuplicate(request)) {
+                log.info(
+                        "Skip duplicate notification for user={} type={} referenceType={} referenceId={}",
+                        request.userId(),
+                        request.type(),
+                        request.referenceType(),
+                        request.referenceId());
+                return null;
+            }
+
             NotificationEntity notification = NotificationEntity.builder()
                     .user(user)
                     .title(request.title())
@@ -285,6 +297,36 @@ public class PushNotificationService {
                     badgeCount,
                     user.getNotiDevice());
         });
+    }
+
+    private boolean shouldSuppressDuplicate(NotificationRequest request) {
+        Duration cooldown = resolveDuplicateCooldown(request);
+        if (cooldown == null || cooldown.isZero() || cooldown.isNegative()) {
+            return false;
+        }
+
+        return notificationRepository.existsRecentDuplicate(
+                request.userId(),
+                request.type(),
+                request.title(),
+                request.body(),
+                request.referenceType(),
+                request.referenceId(),
+                LocalDateTime.now().minus(cooldown));
+    }
+
+    private Duration resolveDuplicateCooldown(NotificationRequest request) {
+        if (request.type() == null || request.type() == NotificationType.CHAT_MESSAGE) {
+            return null;
+        }
+
+        return switch (request.type()) {
+            case SYSTEM -> Duration.ofMinutes(2);
+            case NEWS -> Duration.ofMinutes(5);
+            case BOOKING, REMINDER, VIOLATION, VIOLATION_REPORT, REPUTATION, SUPPORT_REQUEST, COMPLAINT,
+                    SEAT_STATUS_REPORT -> Duration.ofMinutes(1);
+            case CHAT_MESSAGE -> null;
+        };
     }
 
     private record NotificationRequest(

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/core/utils/snackbar_guard.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/chat/chat_service.dart';
 import 'package:slib/services/chat/chat_websocket_service.dart';
@@ -738,13 +739,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     try {
       await _loadSavedState();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã làm mới trạng thái trò chuyện')),
+      SnackbarGuard.show(
+        context,
+        key: 'chat_reload_success',
+        cooldown: const Duration(seconds: 4),
+        message: 'Đã làm mới trạng thái trò chuyện',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể làm mới hội thoại: $e')),
+      SnackbarGuard.show(
+        context,
+        key: 'chat_reload_error',
+        cooldown: const Duration(seconds: 4),
+        message: 'Không thể làm mới hội thoại: $e',
       );
       setState(() {
         _isLoadingState = false;

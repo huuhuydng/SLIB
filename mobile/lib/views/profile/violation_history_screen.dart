@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/core/utils/snackbar_guard.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
@@ -93,7 +94,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     try {
       final url = Uri.parse("${ApiConstants.violationReportUrl}/against-me");
       final response = await authService.authenticatedRequest(
-        'GET', url,
+        'GET',
+        url,
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -111,7 +113,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         if (mounted) {
           setState(() {
             _violations = violations;
-            _totalViolations = violations.where((v) => v['status'] == 'VERIFIED').length;
+            _totalViolations = violations
+                .where((v) => v['status'] == 'VERIFIED')
+                .length;
             _totalViolationPoints = totalPoints;
             _errorMessage = null;
           });
@@ -146,8 +150,14 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
           unselectedLabelColor: Colors.grey,
           indicatorColor: AppColors.brandColor,
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
           tabs: [
             Tab(
               child: Row(
@@ -159,14 +169,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   if (_penalties.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withAlpha(30),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '${_penalties.length}',
-                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -183,14 +200,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   if (_violations.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withAlpha(30),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '${_violations.length}',
-                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -201,18 +225,17 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.brandColor))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.brandColor),
+            )
           : _errorMessage != null
-              ? _errorMessage == 'auth'
-                  ? ErrorDisplayWidget.auth(onRetry: _loadAll)
-                  : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadAll)
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildPenaltiesTab(),
-                    _buildViolationsTab(),
-                  ],
-                ),
+          ? _errorMessage == 'auth'
+                ? ErrorDisplayWidget.auth(onRetry: _loadAll)
+                : ErrorDisplayWidget(message: _errorMessage!, onRetry: _loadAll)
+          : TabBarView(
+              controller: _tabController,
+              children: [_buildPenaltiesTab(), _buildViolationsTab()],
+            ),
     );
   }
 
@@ -226,11 +249,14 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         slivers: [
           SliverToBoxAdapter(child: _buildPenaltyStatsHeader()),
           if (_penalties.isEmpty)
-            const SliverFillRemaining(child: _EmptyState(
-              icon: Icons.verified_user_outlined,
-              title: 'Tuyệt vời!',
-              subtitle: 'Bạn chưa có vi phạm tự động nào.\nHãy tiếp tục giữ gìn nề nếp nhé!',
-            ))
+            const SliverFillRemaining(
+              child: _EmptyState(
+                icon: Icons.verified_user_outlined,
+                title: 'Tuyệt vời!',
+                subtitle:
+                    'Bạn chưa có vi phạm tự động nào.\nHãy tiếp tục giữ gìn nề nếp nhé!',
+              ),
+            )
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -266,11 +292,19 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
           ? const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.verified_user_outlined, color: Colors.white, size: 28),
+                Icon(
+                  Icons.verified_user_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
                 SizedBox(width: 12),
                 Text(
                   'Chưa có vi phạm tự động!',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             )
@@ -283,7 +317,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                     'Lần vi phạm',
                   ),
                 ),
-                Container(width: 1, height: 50, color: Colors.white.withAlpha(100)),
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: Colors.white.withAlpha(100),
+                ),
                 Expanded(
                   child: _buildStatItem(
                     Icons.remove_circle_outline,
@@ -341,12 +379,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       if (description.isNotEmpty)
                         Text(
                           description,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -354,14 +401,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.withAlpha(25),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     '$points',
-                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -425,7 +479,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
@@ -449,14 +504,23 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             _buildBadge(typeInfo.label, typeInfo.color),
                             if (appealStatus != null) ...[
                               const SizedBox(width: 6),
-                              _buildBadge(_getAppealLabel(appealStatus), _getAppealColor(appealStatus)),
+                              _buildBadge(
+                                _getAppealLabel(appealStatus),
+                                _getAppealColor(appealStatus),
+                              ),
                             ],
                           ],
                         ),
@@ -464,16 +528,28 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.red.withAlpha(25),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
                       children: [
-                        Text('$points',
-                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20)),
-                        const Text('điểm', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        Text(
+                          '$points',
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                        const Text(
+                          'điểm',
+                          style: TextStyle(color: Colors.red, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -483,13 +559,25 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               const SizedBox(height: 24),
 
               if (description.isNotEmpty) ...[
-                _buildDetailRow(Icons.description_outlined, 'Mô tả', description),
+                _buildDetailRow(
+                  Icons.description_outlined,
+                  'Mô tả',
+                  description,
+                ),
                 const SizedBox(height: 16),
               ],
-              _buildDetailRow(Icons.calendar_today, 'Thời gian', _formatDateTimeFull(createdAtStr)),
+              _buildDetailRow(
+                Icons.calendar_today,
+                'Thời gian',
+                _formatDateTimeFull(createdAtStr),
+              ),
               if (balanceAfter != null) ...[
                 const SizedBox(height: 16),
-                _buildDetailRow(Icons.account_balance_wallet_outlined, 'Điểm còn lại', '$balanceAfter điểm'),
+                _buildDetailRow(
+                  Icons.account_balance_wallet_outlined,
+                  'Điểm còn lại',
+                  '$balanceAfter điểm',
+                ),
               ],
 
               // Appeal result note
@@ -501,7 +589,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   decoration: BoxDecoration(
                     color: _getAppealColor(appealStatus ?? '').withAlpha(15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _getAppealColor(appealStatus ?? '').withAlpha(50)),
+                    border: Border.all(
+                      color: _getAppealColor(appealStatus ?? '').withAlpha(50),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,7 +607,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                       const SizedBox(height: 6),
                       Text(
                         appealNote.toString(),
-                        style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -537,11 +631,16 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                       _showPenaltyAppealDialog(penalty);
                     },
                     icon: const Icon(Icons.gavel_rounded, size: 20),
-                    label: const Text('Kháng cáo vi phạm', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Kháng cáo vi phạm',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandColor,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       elevation: 0,
                     ),
                   ),
@@ -558,11 +657,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.hourglass_top_rounded, size: 18, color: Colors.orange),
+                      Icon(
+                        Icons.hourglass_top_rounded,
+                        size: 18,
+                        color: Colors.orange,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Kháng cáo đang chờ xử lý',
-                        style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -580,12 +686,20 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Colors.blue,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Nếu bạn cho rằng vi phạm này không chính xác, bạn có thể kháng cáo để thủ thư xem xét lại.',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -618,11 +732,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 color: AppColors.brandColor.withAlpha(30),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.gavel_rounded, color: AppColors.brandColor, size: 20),
+              child: const Icon(
+                Icons.gavel_rounded,
+                color: AppColors.brandColor,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text('Kháng cáo vi phạm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              child: Text(
+                'Kháng cáo vi phạm',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -641,10 +762,15 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               decoration: InputDecoration(
                 hintText: 'Nhập lý do kháng cáo...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.brandColor,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -659,11 +785,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             onPressed: () async {
               final reason = appealController.text.trim();
               if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Vui lòng nhập lý do kháng cáo'),
-                    backgroundColor: Colors.red,
-                  ),
+                SnackbarGuard.show(
+                  context,
+                  key: 'violation_appeal_empty_reason',
+                  message: 'Vui lòng nhập lý do kháng cáo',
+                  backgroundColor: Colors.red,
                 );
                 return;
               }
@@ -673,7 +799,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandColor,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Gửi kháng cáo'),
           ),
@@ -682,7 +810,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     );
   }
 
-  Future<void> _submitPenaltyAppeal(String? penaltyId, String title, String reason) async {
+  Future<void> _submitPenaltyAppeal(
+    String? penaltyId,
+    String title,
+    String reason,
+  ) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
@@ -694,7 +826,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
       final url = Uri.parse('${ApiConstants.domain}/slib/complaints');
       final response = await authService.authenticatedRequest(
-        'POST', url,
+        'POST',
+        url,
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
@@ -702,11 +835,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
       if (!mounted) return;
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã gửi kháng cáo thành công. Thủ thư sẽ xem xét.'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarGuard.show(
+          context,
+          key: 'violation_appeal_success',
+          message: 'Đã gửi kháng cáo thành công. Thủ thư sẽ xem xét.',
+          backgroundColor: Colors.green,
         );
         _loadAll();
       } else {
@@ -717,14 +850,20 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         } catch (_) {
           msg = errorBody;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $msg'), backgroundColor: Colors.red),
+        SnackbarGuard.show(
+          context,
+          key: 'violation_appeal_error',
+          message: 'Lỗi: $msg',
+          backgroundColor: Colors.red,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        SnackbarGuard.show(
+          context,
+          key: 'violation_appeal_exception',
+          message: 'Lỗi: $e',
+          backgroundColor: Colors.red,
         );
       }
     }
@@ -740,11 +879,14 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         slivers: [
           SliverToBoxAdapter(child: _buildViolationStatsHeader()),
           if (_violations.isEmpty)
-            const SliverFillRemaining(child: _EmptyState(
-              icon: Icons.shield_outlined,
-              title: 'Không có báo cáo!',
-              subtitle: 'Bạn chưa bị báo cáo vi phạm nào.\nHãy tiếp tục giữ gìn nề nếp nhé!',
-            ))
+            const SliverFillRemaining(
+              child: _EmptyState(
+                icon: Icons.shield_outlined,
+                title: 'Không có báo cáo!',
+                subtitle:
+                    'Bạn chưa bị báo cáo vi phạm nào.\nHãy tiếp tục giữ gìn nề nếp nhé!',
+              ),
+            )
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -784,7 +926,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 SizedBox(width: 12),
                 Text(
                   'Chưa bị báo cáo vi phạm!',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             )
@@ -797,7 +943,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                     'Vi phạm xác nhận',
                   ),
                 ),
-                Container(width: 1, height: 50, color: Colors.white.withAlpha(100)),
+                Container(
+                  width: 1,
+                  height: 50,
+                  color: Colors.white.withAlpha(100),
+                ),
                 Expanded(
                   child: _buildStatItem(
                     Icons.remove_circle_outline,
@@ -859,12 +1009,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(typeLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        typeLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       if (description.isNotEmpty)
                         Text(
                           description,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -873,14 +1032,21 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 ),
                 if (status == 'VERIFIED' && pointDeducted > 0)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.red.withAlpha(25),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '-$pointDeducted',
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
               ],
@@ -960,7 +1126,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             children: [
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2),
@@ -984,14 +1151,23 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(typeLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          typeLabel,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             _buildBadge(statusInfo.label, statusInfo.color),
                             if (appealStatus != null) ...[
                               const SizedBox(width: 6),
-                              _buildBadge(_getAppealLabel(appealStatus), _getAppealColor(appealStatus)),
+                              _buildBadge(
+                                _getAppealLabel(appealStatus),
+                                _getAppealColor(appealStatus),
+                              ),
                             ],
                           ],
                         ),
@@ -1000,16 +1176,28 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   ),
                   if (status == 'VERIFIED' && pointDeducted > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red.withAlpha(25),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
-                          Text('-$pointDeducted',
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 20)),
-                          const Text('điểm', style: TextStyle(color: Colors.red, fontSize: 12)),
+                          Text(
+                            '-$pointDeducted',
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                          ),
+                          const Text(
+                            'điểm',
+                            style: TextStyle(color: Colors.red, fontSize: 12),
+                          ),
                         ],
                       ),
                     ),
@@ -1019,18 +1207,33 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               const SizedBox(height: 24),
 
               if (description.isNotEmpty) ...[
-                _buildDetailRow(Icons.description_outlined, 'Mô tả', description),
+                _buildDetailRow(
+                  Icons.description_outlined,
+                  'Mô tả',
+                  description,
+                ),
                 const SizedBox(height: 16),
               ],
               if (seatCode.isNotEmpty) ...[
-                _buildDetailRow(Icons.event_seat, 'Vị trí', '$areaName - $zoneName - Ghế $seatCode'),
+                _buildDetailRow(
+                  Icons.event_seat,
+                  'Vị trí',
+                  '$areaName - $zoneName - Ghế $seatCode',
+                ),
                 const SizedBox(height: 16),
               ],
-              _buildDetailRow(Icons.calendar_today, 'Thời gian', _formatDateTimeFull(createdAtStr)),
+              _buildDetailRow(
+                Icons.calendar_today,
+                'Thời gian',
+                _formatDateTimeFull(createdAtStr),
+              ),
 
               if (evidenceUrl != null && evidenceUrl.toString().isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text('Bằng chứng:', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text(
+                  'Bằng chứng:',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
@@ -1045,7 +1248,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                      child: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
@@ -1059,7 +1264,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   decoration: BoxDecoration(
                     color: _getAppealColor(appealStatus ?? '').withAlpha(15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _getAppealColor(appealStatus ?? '').withAlpha(50)),
+                    border: Border.all(
+                      color: _getAppealColor(appealStatus ?? '').withAlpha(50),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,7 +1282,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                       const SizedBox(height: 6),
                       Text(
                         appealNote.toString(),
-                        style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[800],
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -1094,11 +1305,16 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                       _showAppealDialog(violation);
                     },
                     icon: const Icon(Icons.gavel_rounded, size: 20),
-                    label: const Text('Kháng cáo vi phạm', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: const Text(
+                      'Kháng cáo vi phạm',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brandColor,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       elevation: 0,
                     ),
                   ),
@@ -1115,11 +1331,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.hourglass_top_rounded, size: 18, color: Colors.orange),
+                      Icon(
+                        Icons.hourglass_top_rounded,
+                        size: 18,
+                        color: Colors.orange,
+                      ),
                       SizedBox(width: 8),
                       Text(
                         'Kháng cáo đang chờ xử lý',
-                        style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -1138,7 +1361,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   void _showAppealDialog(Map<String, dynamic> violation) {
     final appealController = TextEditingController();
     final violationId = violation['id'];
-    final typeLabel = violation['violationTypeLabel'] ?? violation['violationType'] ?? '';
+    final typeLabel =
+        violation['violationTypeLabel'] ?? violation['violationType'] ?? '';
 
     showDialog(
       context: context,
@@ -1152,11 +1376,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 color: AppColors.brandColor.withAlpha(30),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.gavel_rounded, color: AppColors.brandColor, size: 20),
+              child: const Icon(
+                Icons.gavel_rounded,
+                color: AppColors.brandColor,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(
-              child: Text('Kháng cáo vi phạm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              child: Text(
+                'Kháng cáo vi phạm',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
             ),
           ],
         ),
@@ -1175,10 +1406,15 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               decoration: InputDecoration(
                 hintText: 'Nhập lý do kháng cáo...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.brandColor, width: 2),
+                  borderSide: const BorderSide(
+                    color: AppColors.brandColor,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
@@ -1193,11 +1429,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             onPressed: () async {
               final reason = appealController.text.trim();
               if (reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Vui lòng nhập lý do kháng cáo'),
-                    backgroundColor: Colors.red,
-                  ),
+                SnackbarGuard.show(
+                  context,
+                  key: 'reported_violation_appeal_empty_reason',
+                  message: 'Vui lòng nhập lý do kháng cáo',
+                  backgroundColor: Colors.red,
                 );
                 return;
               }
@@ -1207,7 +1443,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brandColor,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Gửi kháng cáo'),
           ),
@@ -1216,7 +1454,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     );
   }
 
-  Future<void> _submitAppeal(String? violationId, String typeLabel, String reason) async {
+  Future<void> _submitAppeal(
+    String? violationId,
+    String typeLabel,
+    String reason,
+  ) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
@@ -1228,7 +1470,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
       final url = Uri.parse('${ApiConstants.domain}/slib/complaints');
       final response = await authService.authenticatedRequest(
-        'POST', url,
+        'POST',
+        url,
         headers: {'Content-Type': 'application/json'},
         body: body,
       );
@@ -1236,11 +1479,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
       if (!mounted) return;
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã gửi kháng cáo thành công. Thủ thư sẽ xem xét.'),
-            backgroundColor: Colors.green,
-          ),
+        SnackbarGuard.show(
+          context,
+          key: 'reported_violation_appeal_success',
+          message: 'Đã gửi kháng cáo thành công. Thủ thư sẽ xem xét.',
+          backgroundColor: Colors.green,
         );
         _loadAll();
       } else {
@@ -1251,14 +1494,20 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         } catch (_) {
           msg = errorBody;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $msg'), backgroundColor: Colors.red),
+        SnackbarGuard.show(
+          context,
+          key: 'reported_violation_appeal_error',
+          message: 'Lỗi: $msg',
+          backgroundColor: Colors.red,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        SnackbarGuard.show(
+          context,
+          key: 'reported_violation_appeal_exception',
+          message: 'Lỗi: $e',
+          backgroundColor: Colors.red,
         );
       }
     }
@@ -1273,9 +1522,16 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        Text(label, style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
+        ),
       ],
     );
   }
@@ -1289,7 +1545,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1304,9 +1564,19 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
               const SizedBox(height: 4),
-              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
             ],
           ),
         ),
@@ -1318,10 +1588,26 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
   _PenaltyTypeInfo _getPenaltyTypeInfo(String type) {
     return switch (type) {
-      'NO_SHOW_PENALTY' => _PenaltyTypeInfo(Icons.event_busy, Colors.red, 'Không đến'),
-      'LATE_CHECKIN_PENALTY' => _PenaltyTypeInfo(Icons.schedule, Colors.orange, 'Check-in trễ'),
-      'CHECK_OUT_LATE_PENALTY' => _PenaltyTypeInfo(Icons.timer_off, Colors.deepOrange, 'Check-out trễ'),
-      'PENALTY' => _PenaltyTypeInfo(Icons.gpp_bad, Colors.red.shade700, 'Vi phạm'),
+      'NO_SHOW_PENALTY' => _PenaltyTypeInfo(
+        Icons.event_busy,
+        Colors.red,
+        'Không đến',
+      ),
+      'LATE_CHECKIN_PENALTY' => _PenaltyTypeInfo(
+        Icons.schedule,
+        Colors.orange,
+        'Check-in trễ',
+      ),
+      'CHECK_OUT_LATE_PENALTY' => _PenaltyTypeInfo(
+        Icons.timer_off,
+        Colors.deepOrange,
+        'Check-out trễ',
+      ),
+      'PENALTY' => _PenaltyTypeInfo(
+        Icons.gpp_bad,
+        Colors.red.shade700,
+        'Vi phạm',
+      ),
       _ => _PenaltyTypeInfo(Icons.warning_amber, Colors.grey, 'Khác'),
     };
   }
@@ -1331,7 +1617,10 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
       'UNAUTHORIZED_USE' => _ViolationTypeInfo(Icons.block, Colors.red),
       'LEFT_BELONGINGS' => _ViolationTypeInfo(Icons.inventory_2, Colors.orange),
       'NOISE' => _ViolationTypeInfo(Icons.volume_up, Colors.purple),
-      'FEET_ON_SEAT' => _ViolationTypeInfo(Icons.airline_seat_recline_normal, Colors.brown),
+      'FEET_ON_SEAT' => _ViolationTypeInfo(
+        Icons.airline_seat_recline_normal,
+        Colors.brown,
+      ),
       'FOOD_DRINK' => _ViolationTypeInfo(Icons.fastfood, Colors.deepOrange),
       'SLEEPING' => _ViolationTypeInfo(Icons.hotel, Colors.indigo),
       _ => _ViolationTypeInfo(Icons.warning_amber, Colors.grey),
@@ -1418,7 +1707,11 @@ class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  const _EmptyState({required this.icon, required this.title, required this.subtitle});
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1437,13 +1730,21 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             title,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.5),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
           ),
         ],
       ),

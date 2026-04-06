@@ -9,12 +9,15 @@ import 'package:slib/services/report/violation_report_service.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ReportHistoryScreen extends StatelessWidget {
-  const ReportHistoryScreen({super.key});
+  final int initialTab;
+
+  const ReportHistoryScreen({super.key, this.initialTab = 0});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: initialTab.clamp(0, 1),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(

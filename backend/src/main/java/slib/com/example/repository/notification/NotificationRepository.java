@@ -6,7 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import slib.com.example.entity.notification.NotificationEntity;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,6 +38,26 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
      */
     @Query("SELECT COUNT(n) FROM NotificationEntity n WHERE n.user.id = :userId AND n.isRead = false")
     long countUnreadByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(n) > 0
+            FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.title = :title
+              AND n.content = :content
+              AND ((:referenceType IS NULL AND n.referenceType IS NULL) OR n.referenceType = :referenceType)
+              AND ((:referenceId IS NULL AND n.referenceId IS NULL) OR n.referenceId = :referenceId)
+              AND n.createdAt >= :since
+            """)
+    boolean existsRecentDuplicate(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("title") String title,
+            @Param("content") String content,
+            @Param("referenceType") String referenceType,
+            @Param("referenceId") UUID referenceId,
+            @Param("since") LocalDateTime since);
 
     /**
      * Mark all notifications as read for a user

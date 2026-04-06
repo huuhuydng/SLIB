@@ -311,11 +311,13 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     _refreshTimer?.cancel();
     // Smart timer cho expiration chính xác
     _scheduleExpirationRefresh();
-    // Fallback polling 10s — safety net khi WebSocket mất kết nối hoặc DB thay đổi trực tiếp
-    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (mounted) {
-        _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
+    // Fallback polling 30s — chỉ dùng khi WebSocket mất kết nối
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted || seatWebSocketService.isConnected) {
+        return;
       }
+
+      _forceRefreshSeats().then((_) => _scheduleExpirationRefresh());
     });
   }
 

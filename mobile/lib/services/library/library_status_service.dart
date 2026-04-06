@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
@@ -11,6 +10,7 @@ class LibraryStatusService extends ChangeNotifier {
 
   StompClient? _stompClient;
   bool _wsConnected = false;
+  bool _isWsConnecting = false;
   bool _isInitialized = false;
   bool _isInitializing = false;
 
@@ -125,12 +125,14 @@ class LibraryStatusService extends ChangeNotifier {
 
   /// Connect WebSocket STOMP → subscribe /topic/dashboard
   Future<void> _connectWebSocket() async {
-    if (_wsConnected) return;
+    if (_wsConnected || _isWsConnecting) return;
 
     try {
+      _isWsConnecting = true;
       final token = await _token;
       if (token == null || token.isEmpty) {
         debugPrint('[LibraryStatus] Bỏ qua kết nối WebSocket vì chưa có token');
+        _isWsConnecting = false;
         return;
       }
 
@@ -153,14 +155,12 @@ class LibraryStatusService extends ChangeNotifier {
           onWebSocketError: (error) {
             debugPrint('[LibraryStatus] WebSocket error: $error');
             _wsConnected = false;
+            _isWsConnecting = false;
           },
           onDisconnect: (_) {
             debugPrint('[LibraryStatus] Disconnected');
             _wsConnected = false;
-            // Auto-reconnect sau 5s
-            Future.delayed(const Duration(seconds: 5), () {
-              if (_isInitialized) _connectWebSocket();
-            });
+            _isWsConnecting = false;
           },
           reconnectDelay: const Duration(seconds: 5),
         ),
@@ -168,12 +168,14 @@ class LibraryStatusService extends ChangeNotifier {
       _stompClient!.activate();
     } catch (e) {
       debugPrint('[LibraryStatus] Connection error: $e');
+      _isWsConnecting = false;
     }
   }
 
   void _onStompConnected(StompFrame frame) {
     debugPrint('[LibraryStatus] Connected, subscribing to /topic/dashboard');
     _wsConnected = true;
+    _isWsConnecting = false;
 
     _stompClient?.subscribe(
       destination: '/topic/dashboard',
@@ -199,6 +201,7 @@ class LibraryStatusService extends ChangeNotifier {
     _stompClient?.deactivate();
     _stompClient = null;
     _wsConnected = false;
+    _isWsConnecting = false;
     _isInitialized = false;
     _totalSeats = 0;
     _occupiedSeats = 0;
@@ -212,6 +215,7 @@ class LibraryStatusService extends ChangeNotifier {
   void dispose() {
     _stompClient?.deactivate();
     _stompClient = null;
+    _isWsConnecting = false;
     super.dispose();
   }
 }
