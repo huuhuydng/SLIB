@@ -384,6 +384,21 @@ public class PushNotificationService {
     }
 
     /**
+     * Send notification to all patron users (STUDENT + TEACHER).
+     */
+    public void sendToPatrons(String title, String body, NotificationType type, UUID referenceId) {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && u.getRole().isPatron())
+                .toList();
+
+        for (User user : users) {
+            sendToUser(user.getId(), title, body, type, referenceId);
+        }
+
+        log.info("Sent notification to {} patron users", users.size());
+    }
+
+    /**
      * Check if notification should be sent based on user settings.
      * Kiểm tra cấu hình "Thông báo đẩy" trong UserSetting.
      * Khi user tắt toggle này, chặn TẤT CẢ notification.

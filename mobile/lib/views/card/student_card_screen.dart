@@ -11,8 +11,9 @@ class StudentCardScreen extends StatelessWidget {
     // Lấy thông tin user từ Provider (Real-time)
     final authService = context.watch<AuthService>();
     final user = authService.currentUser;
-    final role = user?.role.toUpperCase() ?? 'STUDENT';
-    final cardTitle = role == 'TEACHER' ? 'TEACHER LIBRARY CARD' : 'LIBRARY CARD';
+    final cardTitle = user?.isTeacher == true
+        ? 'TEACHER LIBRARY CARD'
+        : 'LIBRARY CARD';
 
     // Dữ liệu hiển thị (Nếu chưa login thì dùng data mẫu)
     final String studentName = user?.fullName.toUpperCase() ?? "";

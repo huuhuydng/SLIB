@@ -6,6 +6,7 @@ import '../../../styles/librarian/StudentsManage.css';
 import userService from '../../../services/auth/userService';
 import librarianService from '../../../services/librarian/librarianService';
 import StudentDetailModal from '../../../components/librarian/StudentDetailModal';
+import { isPatronRole } from '../../../utils/roles';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -87,9 +88,7 @@ const StudentsManage = () => {
     try {
       setLoading(true);
       const allUsers = await userService.getAllUsers();
-      const studentList = (allUsers || []).filter(
-        u => u.role === 'STUDENT' || u.role === 'TEACHER'
-      );
+      const studentList = (allUsers || []).filter((u) => isPatronRole(u.role));
       setStudents(studentList);
     } catch (error) {
       console.error('Lỗi tải danh sách người dùng thư viện:', error);

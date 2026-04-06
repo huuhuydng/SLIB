@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import librarianService from "../../services/librarian/librarianService";
 import { consumeAuthNotice } from "../../utils/auth";
+import { isPatronRole, isStaffRole, normalizeRole } from "../../utils/roles";
 import logo from "../../assets/logo.png";
 import "../../styles/Auth.css";
 
@@ -96,7 +97,9 @@ function Login({ onLogin, onForgotPassword }) {
 
   // ============ XỬ LÝ ĐĂNG NHẬP THÀNH CÔNG ============
   const handleLoginSuccess = (role) => {
-    if (role === 'STUDENT' || role === 'TEACHER') {
+    const normalizedRole = normalizeRole(role);
+
+    if (isPatronRole(normalizedRole)) {
       setError({
         type: 'warning',
         title: 'Không có quyền truy cập',
@@ -105,17 +108,17 @@ function Login({ onLogin, onForgotPassword }) {
       return false;
     }
 
-    if (role !== 'LIBRARIAN' && role !== 'ADMIN') {
+    if (!isStaffRole(normalizedRole)) {
       setError({
         type: 'error',
         title: 'Tài khoản không hợp lệ',
-        message: `Tài khoản của bạn có vai trò "${role}" và không được phép truy cập hệ thống này.`
+        message: `Tài khoản của bạn có vai trò "${normalizedRole}" và không được phép truy cập hệ thống này.`
       });
       return false;
     }
 
     // Hiển thị thông báo thành công
-    const roleName = role === 'ADMIN' ? 'Quản trị viên' : 'Thủ thư';
+    const roleName = normalizedRole === 'ADMIN' ? 'Quản trị viên' : 'Thủ thư';
     setSuccess({
       title: 'Đăng nhập thành công!',
       message: `Chào mừng ${roleName}. Đang chuyển hướng...`
@@ -124,7 +127,7 @@ function Login({ onLogin, onForgotPassword }) {
     // Delay 1.5s trước khi chuyển trang
     setTimeout(() => {
       if (onLogin) {
-        onLogin(role);
+        onLogin(normalizedRole);
       }
     }, 1500);
 

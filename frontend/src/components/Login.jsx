@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import librarianService from "../services/librarianService";
+import { isStaffRole, normalizeRole } from "../utils/roles";
 import "../styles/Auth.css";
 
 const GOOGLE_CLIENT_ID = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
@@ -79,7 +80,7 @@ function Login({ onLogin }) {
         || backendResponse.user_role_name
         || backendResponse.roles?.[0]?.role
         || backendResponse.roles?.[0]?.name;
-      const derivedRole = derivedRoleRaw ? derivedRoleRaw.toString().toUpperCase() : null;
+      const derivedRole = normalizeRole(derivedRoleRaw);
 
       // Build user object from flat response
       const user = {
@@ -104,7 +105,7 @@ function Login({ onLogin }) {
         setTimeout(() => {
           if (user.role === 'ADMIN') {
             window.location.href = '/admin/dashboard';
-          } else if (user.role === 'LIBRARIAN') {
+          } else if (isStaffRole(user.role)) {
             window.location.href = '/librarian/dashboard';
           } else {
             window.location.href = '/';
