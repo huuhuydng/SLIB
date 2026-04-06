@@ -95,8 +95,15 @@ jobs:
 
             cd /opt/SLIB
 
+            echo "VM working tree before cleanup:"
+            git status --short || true
+
+            git reset --hard
+            git clean -fd
             git fetch origin "${TARGET_BRANCH}"
             git checkout -B vm-feature-deploy FETCH_HEAD
+            git reset --hard FETCH_HEAD
+            git clean -fd
 
             echo "Deploying branch: ${TARGET_BRANCH}"
             echo "HEAD: $(git rev-parse HEAD)"
