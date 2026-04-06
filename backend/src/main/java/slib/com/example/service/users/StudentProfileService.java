@@ -4,12 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.users.StudentProfileResponse;
+import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.booking.BookingPolicyService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.util.UserValidationUtil;
 
 import java.util.Optional;
@@ -23,6 +26,8 @@ public class StudentProfileService {
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
     private final ReservationRepository reservationRepository;
+    private final LibrarySettingService librarySettingService;
+    private final BookingPolicyService bookingPolicyService;
 
     /**
      * Get student profile by user ID
@@ -150,6 +155,11 @@ public class StudentProfileService {
     private StudentProfileResponse buildProfileResponse(StudentProfile profile) {
         long bookingCount = reservationRepository.countByUserId(profile.getUserId());
         double studyHours = reservationRepository.getTotalStudyMinutesByUser(profile.getUserId()) / 60.0;
-        return StudentProfileResponse.fromEntity(profile, bookingCount, studyHours);
+        LibrarySetting settings = librarySettingService.getSettings();
+        StudentProfileResponse response = StudentProfileResponse.fromEntity(profile, bookingCount, studyHours);
+        int currentReputation = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
+        response.setBookingRestriction(
+                bookingPolicyService.getCurrentRestrictionStatus(profile.getUserId(), currentReputation, settings));
+        return response;
     }
 }

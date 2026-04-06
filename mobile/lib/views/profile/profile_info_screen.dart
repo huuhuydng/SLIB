@@ -342,6 +342,12 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
                 ),
               ],
             ),
+            if ((_studentProfile?.bookingRestriction?.hasNotice ?? false)) ...[
+              const SizedBox(height: 16),
+              _buildBookingRestrictionCard(
+                _studentProfile!.bookingRestriction!,
+              ),
+            ],
 
             // Nút lưu khi đang edit
             if (_isEditing) ...[
@@ -636,6 +642,96 @@ class _ProfileInfoScreenState extends State<ProfileInfoScreen> {
             : 'Chưa cập nhật',
       ),
     ]);
+  }
+
+  Widget _buildBookingRestrictionCard(BookingRestrictionStatus restriction) {
+    final bool isBlocked = restriction.isTemporarilyBlocked;
+    final bool isDeniedNow = !restriction.allowedNow;
+    final Color accentColor = isBlocked
+        ? Colors.red
+        : (isDeniedNow ? Colors.orange : Colors.blue);
+
+    String message = restriction.summaryMessage ?? '';
+    final remainingText = restriction.remainingText;
+    if (isBlocked && remainingText != null) {
+      message = '$message Còn khoảng $remainingText.';
+    } else if (restriction.blockedUntil != null) {
+      message =
+          '$message Mở lại sau ${DateFormat('HH:mm dd/MM/yyyy').format(restriction.blockedUntil!)}.';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accentColor.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isBlocked
+                  ? Icons.lock_clock_rounded
+                  : (isDeniedNow
+                        ? Icons.warning_amber_rounded
+                        : Icons.info_outline_rounded),
+              color: accentColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isBlocked
+                      ? 'Đặt chỗ đang bị tạm khóa'
+                      : (isDeniedNow
+                            ? 'Đặt chỗ đang bị hạn chế'
+                            : 'Giới hạn đặt chỗ hiện tại'),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: accentColor,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black87,
+                    height: 1.45,
+                  ),
+                ),
+                if ((restriction.policyHint?.isNotEmpty ?? false) &&
+                    restriction.policyHint !=
+                        restriction.restrictionReason) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    restriction.policyHint!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[700],
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String title) {

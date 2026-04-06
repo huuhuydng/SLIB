@@ -40,6 +40,7 @@ import slib.com.example.entity.complaint.ComplaintEntity;
 import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.notification.LibrarianNotificationService;
+import slib.com.example.service.reputation.ReputationService;
 
 @Slf4j
 @Service
@@ -60,6 +61,7 @@ public class SeatViolationReportService {
     private final PushNotificationService pushNotificationService;
     private final LibrarianNotificationService librarianNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ReputationService reputationService;
 
     /**
      * Sinh vien tao bao cao vi pham
@@ -197,13 +199,6 @@ public class SeatViolationReportService {
         User librarian = userRepository.findById(librarianId)
                 .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
 
-        // Tim reputation rule de lay diem phat
-        String ruleCode = mapViolationTypeToRuleCode(report.getViolationType());
-        ReputationRuleEntity rule = reputationRuleRepository.findByRuleCode(ruleCode)
-                .orElse(null);
-
-        int pointsToDeduct = rule != null ? Math.abs(rule.getPoints()) : 10;
-
         // Neu violator null, thu tim lai tu reservationId hoac reservation active
         User violator = report.getViolator();
         if (violator == null) {
@@ -236,6 +231,15 @@ public class SeatViolationReportService {
                 report.setViolator(violator);
             }
         }
+
+        // Tim reputation rule de lay diem phat
+        String ruleCode = mapViolationTypeToRuleCode(report.getViolationType());
+        ReputationRuleEntity rule = reputationRuleRepository.findByRuleCode(ruleCode)
+                .orElse(null);
+
+        int pointsToDeduct = rule != null
+                ? Math.abs(violator != null ? reputationService.resolveAppliedPoints(violator.getId(), rule) : rule.getPoints())
+                : 10;
 
         report.setStatus(ReportStatus.VERIFIED);
         report.setVerifiedBy(librarian);

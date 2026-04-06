@@ -23,6 +23,7 @@ import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.service.reputation.ReputationService;
+import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.service.zone_config.SeatStatusSyncService;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.notification.PushNotificationService;
@@ -182,10 +183,11 @@ public class ReservationScheduler {
                 // Kiểm tra user có penalty nào trong tuần không
                 boolean hasPenalty = activityLogRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                         .filter(log -> log.getCreatedAt() != null
-                                && log.getCreatedAt().toLocalDateTime().isAfter(weekStart))
-                        .anyMatch(log -> "LATE_CHECKIN_PENALTY".equals(log.getActivityType())
-                                || "NO_SHOW".equals(log.getActivityType())
-                                || "VIOLATION".equals(log.getActivityType()));
+                                && !log.getCreatedAt().toLocalDateTime().isBefore(weekStart))
+                        .anyMatch(log -> ActivityLogEntity.TYPE_LATE_CHECKIN_PENALTY.equals(log.getActivityType())
+                                || ActivityLogEntity.TYPE_LATE_CHECKOUT_PENALTY.equals(log.getActivityType())
+                                || ActivityLogEntity.TYPE_NO_SHOW.equals(log.getActivityType())
+                                || ActivityLogEntity.TYPE_VIOLATION.equals(log.getActivityType()));
 
                 if (!hasPenalty) {
                     try {

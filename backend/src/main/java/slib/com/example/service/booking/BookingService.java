@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.exception.BadRequestException;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
-import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
@@ -29,7 +28,6 @@ import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
-import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
 import slib.com.example.service.activity.ActivityService;
@@ -57,7 +55,7 @@ public class BookingService {
         private final PushNotificationService pushNotificationService;
         private final ActivityService activityService;
         private final SimpMessagingTemplate messagingTemplate;
-        private final StudentProfileRepository studentProfileRepository;
+        private final BookingPolicyService bookingPolicyService;
         private final ReputationService reputationService;
         private final SeatService seatService;
 
@@ -68,7 +66,7 @@ public class BookingService {
                         PushNotificationService pushNotificationService,
                         ActivityService activityService,
                         SimpMessagingTemplate messagingTemplate,
-                        StudentProfileRepository studentProfileRepository,
+                        BookingPolicyService bookingPolicyService,
                         ReputationService reputationService,
                         SeatService seatService) {
                 this.reservationRepository = reservationRepository;
@@ -81,7 +79,7 @@ public class BookingService {
                 this.pushNotificationService = pushNotificationService;
                 this.activityService = activityService;
                 this.messagingTemplate = messagingTemplate;
-                this.studentProfileRepository = studentProfileRepository;
+                this.bookingPolicyService = bookingPolicyService;
                 this.reputationService = reputationService;
                 this.seatService = seatService;
         }
@@ -105,20 +103,8 @@ public class BookingService {
                         throw new RuntimeException("Thư viện hiện đang tạm đóng. Lý do: " + reason);
                 }
 
-                // Kiểm tra điểm uy tín tối thiểu
-                int minReputation = settings.getMinReputation() != null ? settings.getMinReputation() : 0;
-                if (minReputation > 0) {
-                        StudentProfile profile = studentProfileRepository.findByUserId(userId).orElse(null);
-                        int currentReputation = (profile != null && profile.getReputationScore() != null)
-                                        ? profile.getReputationScore()
-                                        : 100;
-                        if (currentReputation < minReputation) {
-                                throw new RuntimeException(
-                                                "Điểm uy tín của bạn (" + currentReputation
-                                                                + ") thấp hơn mức tối thiểu ("
-                                                                + minReputation + ") để đặt chỗ.");
-                        }
-                }
+                int currentReputation = bookingPolicyService.resolveCurrentReputation(userId);
+                bookingPolicyService.enforceBookingPolicies(userId, startTime, settings, currentReputation);
 
                 LocalDate bookingDate = startTime.toLocalDate();
 

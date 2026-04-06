@@ -1601,7 +1601,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
       'CHECK_OUT_LATE_PENALTY' => _PenaltyTypeInfo(
         Icons.timer_off,
         Colors.deepOrange,
-        'Check-out trễ',
+        'Quên check-out',
       ),
       'PENALTY' => _PenaltyTypeInfo(
         Icons.gpp_bad,

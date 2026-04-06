@@ -17,6 +17,7 @@ import slib.com.example.service.notification.PushNotificationService;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.time.ZonedDateTime;
 
 /**
  * Service for managing user reputation system.
@@ -27,6 +28,8 @@ import java.util.UUID;
 @Service
 @Slf4j
 public class ReputationService {
+    private static final int NO_SHOW_SECOND_OFFENSE_POINTS = 15;
+    private static final int NO_SHOW_REPEAT_POINTS = 20;
 
     private final StudentProfileRepository studentProfileRepository;
     private final ReputationRuleRepository reputationRuleRepository;
@@ -84,6 +87,8 @@ public class ReputationService {
         }
 
         ReputationRuleEntity rule = ruleOpt.get();
+        int appliedPoints = resolveAppliedPoints(userId, rule);
+        String effectiveDescription = appendEscalationNote(activityDescription, rule.getPoints(), appliedPoints);
 
         // Get student profile (reputation score lives here)
         Optional<StudentProfile> profileOpt = studentProfileRepository.findByUserId(userId);
@@ -96,19 +101,19 @@ public class ReputationService {
 
         // Update reputation score
         int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-        int newScore = Math.min(200, Math.max(0, currentScore + rule.getPoints())); // Points: negative = penalty, positive = reward
+        int newScore = Math.min(200, Math.max(0, currentScore + appliedPoints));
         profile.setReputationScore(newScore);
         studentProfileRepository.save(profile);
 
         log.info("Applied rule '{}' to user {}: {} -> {} (change: {})",
-                ruleCode, userId, currentScore, newScore, rule.getPoints());
+                ruleCode, userId, currentScore, newScore, appliedPoints);
 
         // Log activity
         ActivityLogEntity activityLog = ActivityLogEntity.builder()
                 .userId(userId)
                 .activityType(activityType)
                 .title(activityTitle)
-                .description(activityDescription)
+                .description(effectiveDescription)
                 .seatCode(seatCode)
                 .zoneName(zoneName)
                 .reservationId(reservationId)
@@ -119,19 +124,78 @@ public class ReputationService {
         // Create point transaction
         PointTransactionEntity transaction = PointTransactionEntity.builder()
                 .userId(userId)
-                .points(rule.getPoints())
+                .points(appliedPoints)
                 .transactionType(transactionType)
                 .title(activityTitle)
-                .description(activityDescription)
+                .description(effectiveDescription)
                 .balanceAfter(newScore)
                 .activityLogId(savedActivity.getId())
                 .rule(rule)
                 .build();
 
         PointTransactionEntity savedTransaction = pointTransactionRepository.save(transaction);
-        sendReputationNotification(userId, rule.getPoints(), newScore, activityDescription, savedTransaction.getId());
+        sendReputationNotification(userId, appliedPoints, newScore, effectiveDescription, savedTransaction.getId());
 
         return true;
+    }
+
+    public int resolveAppliedPoints(UUID userId, ReputationRuleEntity rule) {
+        if (rule == null || rule.getPoints() == null || rule.getPoints() >= 0) {
+            return rule != null && rule.getPoints() != null ? rule.getPoints() : 0;
+        }
+
+        int basePenalty = Math.abs(rule.getPoints());
+        String ruleCode = rule.getRuleCode();
+        ZonedDateTime now = ZonedDateTime.now();
+        long sameRuleCount30Days = pointTransactionRepository.countPenaltyByUserAndRuleCodeSince(
+                userId,
+                ruleCode,
+                now.minusDays(30));
+
+        return switch (ruleCode) {
+            case "NO_SHOW" -> {
+                long sameRuleCount7Days = pointTransactionRepository.countPenaltyByUserAndRuleCodeSince(
+                        userId,
+                        ruleCode,
+                        now.minusDays(7));
+                if (sameRuleCount30Days >= 2) {
+                    yield -NO_SHOW_REPEAT_POINTS;
+                }
+                if (sameRuleCount7Days >= 1) {
+                    yield -NO_SHOW_SECOND_OFFENSE_POINTS;
+                }
+                yield -basePenalty;
+            }
+            case "NOISE_VIOLATION", "UNAUTHORIZED_SEAT", "LEFT_BELONGINGS" -> {
+                if (sameRuleCount30Days >= 2) {
+                    yield -(basePenalty * 2);
+                }
+                if (sameRuleCount30Days >= 1) {
+                    yield -increaseByHalf(basePenalty);
+                }
+                yield -basePenalty;
+            }
+            case "FOOD_DRINK", "FEET_ON_SEAT", "SLEEPING", "OTHER_VIOLATION", "LATE_CHECKOUT" -> {
+                if (sameRuleCount30Days >= 2) {
+                    yield -increaseByHalf(basePenalty);
+                }
+                yield -basePenalty;
+            }
+            default -> -basePenalty;
+        };
+    }
+
+    private String appendEscalationNote(String activityDescription, int basePoints, int appliedPoints) {
+        if (basePoints >= 0 || appliedPoints >= 0 || Math.abs(appliedPoints) <= Math.abs(basePoints)) {
+            return activityDescription;
+        }
+
+        return activityDescription + " Áp dụng mức phạt tăng dần do tái phạm: trừ "
+                + Math.abs(appliedPoints) + " điểm uy tín.";
+    }
+
+    private int increaseByHalf(int basePenalty) {
+        return (int) Math.ceil(basePenalty * 1.5);
     }
 
     private void sendReputationNotification(UUID userId, int pointsChanged, int currentScore, String reason,
@@ -180,14 +244,19 @@ public class ReputationService {
      */
     @Transactional
     public boolean applyLateCheckoutPenalty(UUID userId, String seatCode, String zoneName, UUID reservationId) {
-        String description = String.format(
-                "Bạn đã trả ghế %s tại %s muộn hơn thời gian quy định.",
-                seatCode, zoneName);
+        String description = (seatCode != null && !seatCode.isBlank())
+                ? String.format("Bạn đã không check-out đúng giờ tại ghế %s%s.",
+                        seatCode,
+                        zoneName != null && !zoneName.isBlank() ? " ở " + zoneName : "")
+                : "Bạn chưa check-out khỏi thư viện trước khi hệ thống tự động check-out cuối ngày.";
+        String title = (seatCode != null && !seatCode.isBlank())
+                ? "Phạt: Không check-out đúng giờ"
+                : "Phạt: Chưa check-out trong ngày";
 
         return applyReputationRule(
                 userId,
                 "LATE_CHECKOUT",
-                "Phạt: Trả chỗ muộn",
+                title,
                 description,
                 ActivityLogEntity.TYPE_LATE_CHECKOUT_PENALTY,
                 PointTransactionEntity.TYPE_CHECK_OUT_LATE_PENALTY,

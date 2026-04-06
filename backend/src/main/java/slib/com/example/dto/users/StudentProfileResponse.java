@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import slib.com.example.dto.booking.BookingRestrictionStatus;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 
@@ -31,6 +32,7 @@ public class StudentProfileResponse {
     private String dob;
     private String role;
     private String avtUrl;
+    private BookingRestrictionStatus bookingRestriction;
 
     public static StudentProfileResponse fromEntity(StudentProfile profile) {
         StudentProfileResponseBuilder builder = StudentProfileResponse.builder()
