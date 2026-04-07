@@ -324,7 +324,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             onItemTap: _handleNotificationTap,
             onItemDelete: (notification) =>
                 _deleteNotification(service, notification),
-            onItemDetail: _handleNotificationTap,
+            onItemDetail: _showNotificationDetail,
           ),
         );
         continue;
@@ -387,7 +387,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             notification: notification,
             onTap: () => _handleNotificationTap(notification),
             onDelete: () => _deleteNotification(service, notification),
-            onDetail: () => _handleNotificationTap(notification),
+            onDetail: () => _showNotificationDetail(notification),
           ),
         )
         .toList();
@@ -407,7 +407,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
           notification: group.latest,
           onTap: () => _handleNotificationTap(group.latest),
           onDelete: () => _deleteNotification(service, group.latest),
-          onDetail: () => _handleNotificationTap(group.latest),
+          onDetail: () => _showNotificationDetail(group.latest),
         );
       }
 
@@ -426,7 +426,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         onItemTap: _handleNotificationTap,
         onItemDelete: (notification) =>
             _deleteNotification(service, notification),
-        onItemDetail: _handleNotificationTap,
+        onItemDetail: _showNotificationDetail,
       );
     });
   }
@@ -449,6 +449,195 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> _handleNotificationTap(NotificationItem notification) async {
     await context.read<NotificationService>().openNotificationTarget(
       notification,
+    );
+  }
+
+  Future<void> _showNotificationDetail(NotificationItem notification) async {
+    final service = context.read<NotificationService>();
+    if (!notification.isRead) {
+      await service.markAsRead(notification.id);
+    }
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final canOpenTarget = _canOpenTarget(notification);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _NotificationLeadingIcon(notification: notification),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                notification.title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF111827),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _CategoryPill(notification: notification),
+                                  _InfoPill(
+                                    icon: Icons.schedule_rounded,
+                                    label: _formatDetailTime(
+                                      notification.createdAt,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Nội dung',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          notification.content,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            height: 1.5,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF4B5563),
+                              side: const BorderSide(color: Color(0xFFD1D5DB)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text('Đóng'),
+                          ),
+                        ),
+                        if (canOpenTarget) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                Navigator.of(context).pop();
+                                await _handleNotificationTap(notification);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.brandColor,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                              ),
+                              child: const Text('Mở mục liên quan'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF6B7280)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4B5563),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -909,20 +1098,18 @@ Widget _buildPopupMenu(
     },
     itemBuilder: (context) {
       final items = <PopupMenuEntry<String>>[];
-      if (_canOpenDetail(notification)) {
-        items.add(
-          const PopupMenuItem<String>(
-            value: 'detail',
-            child: Row(
-              children: [
-                Icon(Icons.open_in_new, size: 18),
-                SizedBox(width: 8),
-                Text('Chi tiết'),
-              ],
-            ),
+      items.add(
+        const PopupMenuItem<String>(
+          value: 'detail',
+          child: Row(
+            children: [
+              Icon(Icons.open_in_new, size: 18),
+              SizedBox(width: 8),
+              Text('Chi tiết'),
+            ],
           ),
-        );
-      }
+        ),
+      );
 
       items.add(
         const PopupMenuItem<String>(
@@ -942,13 +1129,17 @@ Widget _buildPopupMenu(
   );
 }
 
-bool _canOpenDetail(NotificationItem notification) {
+bool _canOpenTarget(NotificationItem notification) {
   return const {
     'BOOKING',
     'REPUTATION',
     'PROCESSING',
     'NEWS',
   }.contains(notification.category);
+}
+
+String _formatDetailTime(DateTime dateTime) {
+  return DateFormat('HH:mm dd/MM/yyyy').format(dateTime);
 }
 
 IconData _iconForNotification(NotificationItem notification) {

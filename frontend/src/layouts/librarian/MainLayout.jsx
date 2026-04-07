@@ -79,11 +79,15 @@ function HeaderBar() {
     unreadChatCount,
   } = useLibrarianNotification();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState("ALL");
   const bellRef = useRef(null);
   const navigate = useNavigate();
 
   const unreadMessageCount = unreadChatCount || 0;
   const bellTotal = (unreadNotificationCount || 0) + unreadMessageCount;
+  const filteredNotifications = selectedFilter === "UNREAD"
+    ? userNotifications.filter((notification) => !notification.isRead)
+    : userNotifications;
 
   // Dong dropdown khi click ra ngoai
   useEffect(() => {
@@ -134,6 +138,15 @@ function HeaderBar() {
     await deleteNotification(notificationId);
   };
 
+  const handleDeleteReadNotifications = async () => {
+    const readNotifications = userNotifications.filter((notification) => notification.isRead);
+    if (readNotifications.length === 0) return;
+
+    await Promise.all(
+      readNotifications.map((notification) => deleteNotification(notification.id))
+    );
+  };
+
   const [userData] = useState(() => {
     try {
       const s = localStorage.getItem('librarian_user') || sessionStorage.getItem('librarian_user');
@@ -170,14 +183,42 @@ function HeaderBar() {
           {showDropdown && (
             <div className="notif-dropdown">
               <div className="notif-dropdown__header">
-                <h3 className="notif-dropdown__title">Thông báo</h3>
-                <span className="notif-dropdown__count">
-                  {bellTotal} chưa đọc
-                </span>
+                <div>
+                  <h3 className="notif-dropdown__title">Thông báo</h3>
+                  <span className="notif-dropdown__count">
+                    {bellTotal} chưa đọc
+                  </span>
+                </div>
+                <div className="notif-dropdown__actions">
+                  <div className="notif-dropdown__filters">
+                    <button
+                      type="button"
+                      className={`notif-dropdown__filter ${selectedFilter === "ALL" ? "is-active" : ""}`}
+                      onClick={() => setSelectedFilter("ALL")}
+                    >
+                      Tất cả
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-dropdown__filter ${selectedFilter === "UNREAD" ? "is-active" : ""}`}
+                      onClick={() => setSelectedFilter("UNREAD")}
+                    >
+                      Chưa đọc
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="notif-dropdown__clear"
+                    onClick={handleDeleteReadNotifications}
+                    disabled={!userNotifications.some((notification) => notification.isRead)}
+                  >
+                    Xoá đã đọc
+                  </button>
+                </div>
               </div>
 
               <div className="notif-dropdown__list">
-                {userNotifications.map((notification) => {
+                {filteredNotifications.map((notification) => {
                   const config = STORED_NOTIF_ICON_MAP[notification.notificationType]
                     || STORED_NOTIF_ICON_MAP[notification.referenceType]
                     || STORED_NOTIF_ICON_MAP.SYSTEM;
@@ -225,10 +266,14 @@ function HeaderBar() {
                   );
                 })}
 
-                {userNotifications.length === 0 && (
+                {filteredNotifications.length === 0 && (
                   <div className="notif-dropdown__empty">
                     <CheckCircle2 size={40} />
-                    <p>Chưa có thông báo nào</p>
+                    <p>
+                      {selectedFilter === "UNREAD"
+                        ? "Không còn thông báo chưa đọc"
+                        : "Chưa có thông báo nào"}
+                    </p>
                   </div>
                 )}
               </div>
