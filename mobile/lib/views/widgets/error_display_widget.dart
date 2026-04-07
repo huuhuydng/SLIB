@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:slib/assets/colors.dart';
 
 /// Widget hiển thị lỗi thống nhất trong toàn app.
@@ -68,6 +69,17 @@ class ErrorDisplayWidget extends StatelessWidget {
     if (raw.startsWith('Exception: ')) {
       raw = raw.substring(11).trim();
     }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final extracted = decoded['message'] ?? decoded['error'];
+        if (extracted is String && extracted.trim().isNotEmpty) {
+          raw = extracted.trim();
+        }
+      }
+    } catch (_) {}
+
     final msg = raw.toLowerCase();
 
     if (msg.contains('chỉ chấp nhận tài khoản google')) {

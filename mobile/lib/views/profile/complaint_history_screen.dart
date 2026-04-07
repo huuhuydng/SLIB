@@ -60,6 +60,18 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
     }
   }
 
+  Future<void> _pickFilter() async {
+    final selected = await showHistoryFilterDialog(
+      context,
+      initialFilter: _selectedFilter,
+    );
+    if (selected == null || selected == _selectedFilter || !mounted) return;
+    setState(() {
+      _selectedFilter = selected;
+      _expanded = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleComplaints = _filteredComplaints;
@@ -77,6 +89,16 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
         scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.filter_list_rounded,
+              color: _selectedFilter == HistoryTimeFilter.all
+                  ? Colors.black87
+                  : AppColors.brandColor,
+            ),
+            tooltip: 'Lọc theo thời gian',
+            onPressed: _pickFilter,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadComplaints,
@@ -100,12 +122,6 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
                     return Column(
                       children: [
                         HistoryListControls(
-                          selectedFilter: _selectedFilter,
-                          onFilterChanged: (filter) {
-                            setState(() {
-                              _selectedFilter = filter;
-                            });
-                          },
                           isExpanded: _expanded,
                           onExpandedChanged: (expanded) {
                             setState(() {

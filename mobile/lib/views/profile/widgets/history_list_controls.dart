@@ -16,9 +16,98 @@ extension HistoryTimeFilterLabel on HistoryTimeFilter {
   }
 }
 
+Future<HistoryTimeFilter?> showHistoryFilterDialog(
+  BuildContext context, {
+  required HistoryTimeFilter initialFilter,
+}) async {
+  HistoryTimeFilter draftFilter = initialFilter;
+
+  return showDialog<HistoryTimeFilter>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Lọc theo thời gian'),
+        contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: HistoryTimeFilter.values.map((filter) {
+            final isSelected = draftFilter == filter;
+            return InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                setState(() {
+                  draftFilter = filter;
+                });
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFFFFF2E9) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.brandColor
+                        : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        filter.label,
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.brandColor
+                              : const Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: isSelected
+                          ? AppColors.brandColor
+                          : const Color(0xFF9CA3AF),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF8B5E3C),
+            ),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(draftFilter),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandColor,
+            ),
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class HistoryListControls extends StatelessWidget {
-  final HistoryTimeFilter selectedFilter;
-  final ValueChanged<HistoryTimeFilter> onFilterChanged;
   final bool isExpanded;
   final ValueChanged<bool> onExpandedChanged;
   final int totalCount;
@@ -28,8 +117,6 @@ class HistoryListControls extends StatelessWidget {
 
   const HistoryListControls({
     super.key,
-    required this.selectedFilter,
-    required this.onFilterChanged,
     required this.isExpanded,
     required this.onExpandedChanged,
     required this.totalCount,
@@ -60,38 +147,6 @@ class HistoryListControls extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: HistoryTimeFilter.values.map((filter) {
-                final selected = filter == selectedFilter;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: filter == HistoryTimeFilter.values.last ? 0 : 8,
-                  ),
-                  child: ChoiceChip(
-                    label: Text(filter.label),
-                    selected: selected,
-                    onSelected: (_) => onFilterChanged(filter),
-                    selectedColor: AppColors.brandColor.withValues(alpha: 0.12),
-                    labelStyle: TextStyle(
-                      color: selected
-                          ? AppColors.brandColor
-                          : const Color(0xFF6B7280),
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
-                    side: BorderSide(
-                      color: selected
-                          ? AppColors.brandColor.withValues(alpha: 0.18)
-                          : const Color(0xFFE5E7EB),
-                    ),
-                    backgroundColor: const Color(0xFFF9FAFB),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
           Wrap(
             spacing: 12,
             runSpacing: 8,

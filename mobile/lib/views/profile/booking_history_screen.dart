@@ -263,6 +263,18 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     return 'Không có dữ liệu phù hợp trong khoảng thời gian đã chọn';
   }
 
+  Future<void> _pickFilter() async {
+    final selected = await showHistoryFilterDialog(
+      context,
+      initialFilter: _selectedFilter,
+    );
+    if (selected == null || selected == _selectedFilter || !mounted) return;
+    setState(() {
+      _selectedFilter = selected;
+      _expandedTabs.updateAll((_, __) => false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -283,6 +295,16 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black87),
           actions: [
+            IconButton(
+              onPressed: _pickFilter,
+              icon: Icon(
+                Icons.filter_list_rounded,
+                color: _selectedFilter == HistoryTimeFilter.all
+                    ? Colors.black87
+                    : AppColors.brandColor,
+              ),
+              tooltip: 'Lọc theo thời gian',
+            ),
             if (_hiddenBookingIds.isNotEmpty)
               IconButton(
                 onPressed: _restoreHiddenBookings,
@@ -351,12 +373,6 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             return Column(
               children: [
                 HistoryListControls(
-                  selectedFilter: _selectedFilter,
-                  onFilterChanged: (filter) {
-                    setState(() {
-                      _selectedFilter = filter;
-                    });
-                  },
                   isExpanded: _expandedTabs[tabIndex] == true,
                   onExpandedChanged: (expanded) {
                     setState(() {
@@ -560,14 +576,15 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
+                IconButton(
                   onPressed: () => _hideBooking(booking),
-                  icon: const Icon(Icons.visibility_off_outlined, size: 18),
-                  label: const Text('Ẩn khỏi danh sách'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[700],
-                    visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    Icons.visibility_off_outlined,
+                    size: 20,
+                    color: Colors.grey[700],
                   ),
+                  tooltip: 'Ẩn khỏi danh sách',
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),

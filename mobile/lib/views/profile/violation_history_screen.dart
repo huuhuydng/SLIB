@@ -189,6 +189,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     });
   }
 
+  Future<void> _pickFilter() async {
+    final selected = await showHistoryFilterDialog(
+      context,
+      initialFilter: _selectedFilter,
+    );
+    if (selected == null || selected == _selectedFilter || !mounted) return;
+    setState(() {
+      _selectedFilter = selected;
+      _expandedTabs.updateAll((_, __) => false);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -203,6 +215,18 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         elevation: 0,
         scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          IconButton(
+            onPressed: _pickFilter,
+            icon: Icon(
+              Icons.filter_list_rounded,
+              color: _selectedFilter == HistoryTimeFilter.all
+                  ? Colors.black87
+                  : AppColors.brandColor,
+            ),
+            tooltip: 'Lọc theo thời gian',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.brandColor,
@@ -310,12 +334,6 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         slivers: [
           SliverToBoxAdapter(
             child: HistoryListControls(
-              selectedFilter: _selectedFilter,
-              onFilterChanged: (filter) {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-              },
               isExpanded: _expandedTabs[0] == true,
               onExpandedChanged: (expanded) {
                 setState(() {
@@ -961,12 +979,6 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         slivers: [
           SliverToBoxAdapter(
             child: HistoryListControls(
-              selectedFilter: _selectedFilter,
-              onFilterChanged: (filter) {
-                setState(() {
-                  _selectedFilter = filter;
-                });
-              },
               isExpanded: _expandedTabs[1] == true,
               onExpandedChanged: (expanded) {
                 setState(() {

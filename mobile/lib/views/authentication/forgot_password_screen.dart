@@ -401,7 +401,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            hintText: 'Email đã đăng ký (vd: user@gmail.com)',
+            hintText: 'Hãy nhập email của bạn',
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

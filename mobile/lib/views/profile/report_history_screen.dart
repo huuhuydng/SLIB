@@ -10,16 +10,34 @@ import 'package:slib/services/report/violation_report_service.dart';
 import 'package:slib/views/profile/widgets/history_list_controls.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
-class ReportHistoryScreen extends StatelessWidget {
+class ReportHistoryScreen extends StatefulWidget {
   final int initialTab;
 
   const ReportHistoryScreen({super.key, this.initialTab = 0});
 
   @override
+  State<ReportHistoryScreen> createState() => _ReportHistoryScreenState();
+}
+
+class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
+  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
+
+  Future<void> _pickFilter() async {
+    final selected = await showHistoryFilterDialog(
+      context,
+      initialFilter: _selectedFilter,
+    );
+    if (selected == null || selected == _selectedFilter || !mounted) return;
+    setState(() {
+      _selectedFilter = selected;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      initialIndex: initialTab.clamp(0, 1),
+      initialIndex: widget.initialTab.clamp(0, 1),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
@@ -35,6 +53,18 @@ class ReportHistoryScreen extends StatelessWidget {
           elevation: 0,
           scrolledUnderElevation: 0,
           iconTheme: const IconThemeData(color: Colors.black87),
+          actions: [
+            IconButton(
+              onPressed: _pickFilter,
+              icon: Icon(
+                Icons.filter_list_rounded,
+                color: _selectedFilter == HistoryTimeFilter.all
+                    ? Colors.black87
+                    : AppColors.brandColor,
+              ),
+              tooltip: 'Lọc theo thời gian',
+            ),
+          ],
           bottom: TabBar(
             labelColor: AppColors.brandColor,
             unselectedLabelColor: Colors.grey,
@@ -47,10 +77,10 @@ class ReportHistoryScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
-            _ViolationReportHistoryTab(),
-            _SeatStatusReportHistoryTab(),
+            _ViolationReportHistoryTab(selectedFilter: _selectedFilter),
+            _SeatStatusReportHistoryTab(selectedFilter: _selectedFilter),
           ],
         ),
       ),
@@ -59,7 +89,9 @@ class ReportHistoryScreen extends StatelessWidget {
 }
 
 class _ViolationReportHistoryTab extends StatefulWidget {
-  const _ViolationReportHistoryTab();
+  final HistoryTimeFilter selectedFilter;
+
+  const _ViolationReportHistoryTab({required this.selectedFilter});
 
   @override
   State<_ViolationReportHistoryTab> createState() =>
@@ -79,7 +111,6 @@ class _ViolationReportHistoryTabState
   bool _isLoading = true;
   String? _error;
   String? _currentUserId;
-  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
   bool _expanded = false;
 
   @override
@@ -201,6 +232,18 @@ class _ViolationReportHistoryTabState
     return items.take(_collapsedLimit).toList();
   }
 
+  HistoryTimeFilter get _selectedFilter => widget.selectedFilter;
+
+  @override
+  void didUpdateWidget(covariant _ViolationReportHistoryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedFilter != widget.selectedFilter && _expanded) {
+      setState(() {
+        _expanded = false;
+      });
+    }
+  }
+
   int get _totalAfterFilter {
     final now = DateTime.now();
     return _reports.where((report) {
@@ -248,12 +291,6 @@ class _ViolationReportHistoryTabState
             return Column(
               children: [
                 HistoryListControls(
-                  selectedFilter: _selectedFilter,
-                  onFilterChanged: (filter) {
-                    setState(() {
-                      _selectedFilter = filter;
-                    });
-                  },
                   isExpanded: _expanded,
                   onExpandedChanged: (expanded) {
                     setState(() {
@@ -438,14 +475,15 @@ class _ViolationReportHistoryTabState
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton.icon(
+              IconButton(
                 onPressed: () => _hideReport(report),
-                icon: const Icon(Icons.visibility_off_outlined, size: 18),
-                label: const Text('Ẩn khỏi danh sách'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[700],
-                  visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.visibility_off_outlined,
+                  size: 20,
+                  color: Colors.grey[700],
                 ),
+                tooltip: 'Ẩn khỏi danh sách',
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
@@ -475,7 +513,9 @@ class _ViolationReportHistoryTabState
 }
 
 class _SeatStatusReportHistoryTab extends StatefulWidget {
-  const _SeatStatusReportHistoryTab();
+  final HistoryTimeFilter selectedFilter;
+
+  const _SeatStatusReportHistoryTab({required this.selectedFilter});
 
   @override
   State<_SeatStatusReportHistoryTab> createState() =>
@@ -495,7 +535,6 @@ class _SeatStatusReportHistoryTabState
   bool _isLoading = true;
   String? _error;
   String? _currentUserId;
-  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
   bool _expanded = false;
 
   @override
@@ -617,6 +656,18 @@ class _SeatStatusReportHistoryTabState
     return items.take(_collapsedLimit).toList();
   }
 
+  HistoryTimeFilter get _selectedFilter => widget.selectedFilter;
+
+  @override
+  void didUpdateWidget(covariant _SeatStatusReportHistoryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedFilter != widget.selectedFilter && _expanded) {
+      setState(() {
+        _expanded = false;
+      });
+    }
+  }
+
   int get _totalAfterFilter {
     final now = DateTime.now();
     return _reports.where((report) {
@@ -664,12 +715,6 @@ class _SeatStatusReportHistoryTabState
             return Column(
               children: [
                 HistoryListControls(
-                  selectedFilter: _selectedFilter,
-                  onFilterChanged: (filter) {
-                    setState(() {
-                      _selectedFilter = filter;
-                    });
-                  },
                   isExpanded: _expanded,
                   onExpandedChanged: (expanded) {
                     setState(() {
@@ -825,14 +870,15 @@ class _SeatStatusReportHistoryTabState
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton.icon(
+              IconButton(
                 onPressed: () => _hideReport(report),
-                icon: const Icon(Icons.visibility_off_outlined, size: 18),
-                label: const Text('Ẩn khỏi danh sách'),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[700],
-                  visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.visibility_off_outlined,
+                  size: 20,
+                  color: Colors.grey[700],
                 ),
+                tooltip: 'Ẩn khỏi danh sách',
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),

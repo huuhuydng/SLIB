@@ -200,7 +200,7 @@ function ForgotPassword({ onSwitch }) {
                 <input
                   className="input-field"
                   type="email"
-                  placeholder="Email đã đăng ký (vd: user@gmail.com)"
+                  placeholder="Hãy nhập email của bạn"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}

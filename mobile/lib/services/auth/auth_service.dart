@@ -40,6 +40,29 @@ class AuthService extends ChangeNotifier {
   UserProfile? get currentUser => _currentUser;
   UserSetting? get currentSetting => _currentSetting;
 
+  static String _extractReadableErrorMessage(dynamic error) {
+    String raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      raw = raw.substring(11).trim();
+    }
+
+    if (raw.isEmpty) {
+      return 'Đã xảy ra lỗi, vui lòng thử lại.';
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['error'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+    } catch (_) {}
+
+    return raw;
+  }
+
   Future<bool> checkLoginStatus() async {
     _currentSetting = await _localService.loadSettings();
     notifyListeners();
@@ -169,19 +192,18 @@ class AuthService extends ChangeNotifier {
                 'Đăng nhập thất bại: ${response.statusCode}',
           );
         } catch (_) {
-          throw Exception(decodedBody.isNotEmpty
-              ? decodedBody
-              : 'Đăng nhập thất bại: ${response.statusCode}');
+          throw Exception(
+            decodedBody.isNotEmpty
+                ? decodedBody
+                : 'Đăng nhập thất bại: ${response.statusCode}',
+          );
         }
       }
     } catch (e) {
       debugPrint('Google Sign-In Error: $e');
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
+      final message = _extractReadableErrorMessage(e);
       if (message.isEmpty) {
-        message = 'Đăng nhập thất bại. Vui lòng thử lại.';
+        throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
       }
       throw Exception(message);
     }
@@ -261,11 +283,7 @@ class AuthService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Password Sign-In Error: $e');
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -311,11 +329,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(errorMessage);
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -567,11 +581,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể gửi OTP');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -602,11 +612,7 @@ class AuthService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -628,11 +634,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể gửi lại OTP');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -654,11 +656,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể đặt lại mật khẩu');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 }
