@@ -128,6 +128,11 @@ public class SeatViolationReportService {
             sendNewReportNotification(violator.getId(), saved);
         }
 
+        pushNotificationService.sendToStaff(
+                "Báo cáo vi phạm mới",
+                reporter.getFullName() + " vừa gửi một báo cáo vi phạm mới.",
+                NotificationType.VIOLATION_REPORT,
+                saved.getId());
         broadcastDashboardUpdate("VIOLATION_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("VIOLATION", "CREATED");
         return ViolationReportResponse.fromEntity(saved);

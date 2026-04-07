@@ -86,6 +86,11 @@ public class SupportRequestService {
         SupportRequest saved = supportRequestRepository.save(request);
         log.info("[SupportRequest] Created support request {} by student {}", saved.getId(), studentId);
 
+        pushNotificationService.sendToStaff(
+                "Yêu cầu hỗ trợ mới",
+                student.getFullName() + " vừa gửi yêu cầu hỗ trợ mới.",
+                NotificationType.SUPPORT_REQUEST,
+                saved.getId());
         broadcastDashboardUpdate("SUPPORT_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "CREATED");
         return SupportRequestDTO.fromEntity(saved);

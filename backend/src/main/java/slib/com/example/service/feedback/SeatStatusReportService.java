@@ -75,6 +75,11 @@ public class SeatStatusReportService {
 
         SeatStatusReportEntity saved = seatStatusReportRepository.save(report);
         log.info("[SeatStatusReport] Created report {} for seat {}", saved.getId(), seat.getSeatId());
+        pushNotificationService.sendToStaff(
+                "Báo cáo tình trạng ghế mới",
+                reporter.getFullName() + " vừa báo cáo ghế " + seat.getSeatId() + ".",
+                NotificationType.SEAT_STATUS_REPORT,
+                saved.getId());
         librarianNotificationService.broadcastPendingCounts("SEAT_STATUS_REPORT", "CREATED");
         return SeatStatusReportResponse.fromEntity(saved);
     }

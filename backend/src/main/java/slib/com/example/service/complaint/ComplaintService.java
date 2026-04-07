@@ -116,6 +116,11 @@ public class ComplaintService {
 
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Sinh viên {} đã gửi khiếu nại: {}", student.getFullName(), subject);
+                pushNotificationService.sendToStaff(
+                                "Khiếu nại mới cần xử lý",
+                                student.getFullName() + " vừa gửi khiếu nại: " + normalizedSubject,
+                                NotificationType.COMPLAINT,
+                                saved.getId());
                 broadcastDashboardUpdate("COMPLAINT_UPDATE", "CREATED");
                 librarianNotificationService.broadcastPendingCounts("COMPLAINT", "CREATED");
                 return ComplaintDTO.fromEntity(saved);

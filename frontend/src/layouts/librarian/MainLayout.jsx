@@ -32,6 +32,7 @@ const PENDING_ICON_MAP = {
 const STORED_NOTIF_ICON_MAP = {
   SUPPORT_REQUEST: { icon: LifeBuoy, cls: "support", label: "Yêu cầu hỗ trợ" },
   COMPLAINT: { icon: MessageCircle, cls: "complaint", label: "Khiếu nại" },
+  FEEDBACK: { icon: Star, cls: "feedback", label: "Phản hồi" },
   SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: "seat-status", label: "Tình trạng ghế" },
   VIOLATION_REPORT: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
   VIOLATION: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
@@ -111,6 +112,8 @@ function HeaderBar() {
         return "/librarian/support-requests";
       case "COMPLAINT":
         return "/librarian/complaints";
+      case "FEEDBACK":
+        return "/librarian/feedback";
       case "SEAT_STATUS_REPORT":
         return "/librarian/seat-status-reports";
       case "VIOLATION_REPORT":
