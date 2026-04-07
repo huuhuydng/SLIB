@@ -41,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // --- GLOBAL KEYS FOR REFRESH ---
   final GlobalKey<UpcomingBookingCardState> _bookingCardKey = GlobalKey();
   final GlobalKey<LiveStatusDashboardState> _liveStatusKey = GlobalKey();
+  int _aiCardRefreshVersion = 0;
 
   // --- STATE QUẢN LÝ TIN TỨC ---
   List<News> _newsList = [];
@@ -199,6 +200,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     await Future.wait([
       _refreshBookingCard(),
       _refreshLiveStatus(),
+      _refreshAICard(),
       _refreshNews(),
       _refreshNewBooks(),
     ]);
@@ -210,6 +212,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _refreshLiveStatus() async {
     await _liveStatusKey.currentState?.refresh();
+  }
+
+  Future<void> _refreshAICard() async {
+    if (!mounted) return;
+    setState(() {
+      _aiCardRefreshVersion++;
+    });
   }
 
   Future<void> _refreshNews() async {
@@ -353,11 +362,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             if (!aiEnabled) return const SizedBox.shrink();
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                SizedBox(height: 25),
-                                SectionTitle("Gợi ý từ AI"),
-                                SizedBox(height: 12),
-                                AICard(),
+                              children: [
+                                const SizedBox(height: 25),
+                                const SectionTitle("Gợi ý từ AI"),
+                                const SizedBox(height: 12),
+                                AICard(
+                                  key: ValueKey(
+                                    'ai-card-$_aiCardRefreshVersion',
+                                  ),
+                                ),
                               ],
                             );
                           },

@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
                         .requestMatchers("/slib/files/**").authenticated()
                         .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/slib/dashboard/library-status")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
                         .requestMatchers("/slib/dashboard/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/statistics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/hce/access-logs/**").hasAnyRole("ADMIN", "LIBRARIAN")

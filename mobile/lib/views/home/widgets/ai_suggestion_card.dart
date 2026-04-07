@@ -24,6 +24,15 @@ class _AICardState extends State<AICard> {
     _loadAIData();
   }
 
+  Future<void> refresh() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    await _loadAIData();
+  }
+
   Future<void> _loadAIData() async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
