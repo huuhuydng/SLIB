@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.entity.users.OtpToken;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.OtpTokenRepository;
@@ -35,14 +36,14 @@ public class OtpService {
         Optional<User> userOpt = userRepository.findByEmail(email.toLowerCase().trim());
         if (userOpt.isEmpty()) {
             log.warn("Yêu cầu OTP cho email không tồn tại: {}", email);
-            throw new RuntimeException("Tài khoản của bạn không nằm trong hệ thống");
+            throw new BadRequestException("Tài khoản của bạn không nằm trong hệ thống");
         }
 
         User user = userOpt.get();
         // Kiểm tra user có email không (trường hợp import bằng MSSV không có email)
         if (user.getEmail() == null || user.getEmail().isEmpty()) {
             log.warn("User không có email: {}", email);
-            throw new RuntimeException("Tài khoản của bạn chưa có email. Vui lòng liên hệ nhà trường để được hỗ trợ.");
+            throw new BadRequestException("Tài khoản của bạn chưa có email. Vui lòng liên hệ nhà trường để được hỗ trợ.");
         }
 
         // Vô hiệu hóa các OTP cũ

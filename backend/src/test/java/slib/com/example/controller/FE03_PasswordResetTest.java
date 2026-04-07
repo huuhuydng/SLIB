@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import slib.com.example.entity.users.User;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.security.JwtService;
@@ -115,7 +116,7 @@ class FE03_PasswordResetTest {
                 Map<String, String> request = new HashMap<>();
                 request.put("email", "unknown@fpt.edu.vn");
 
-                doThrow(new RuntimeException("Khong tim thay nguoi dung"))
+                doThrow(new BadRequestException("Khong tim thay nguoi dung"))
                         .when(otpService).sendPasswordResetOtp(anyString());
 
                 mockMvc.perform(post("/slib/auth/forgot-password")
