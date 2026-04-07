@@ -220,6 +220,14 @@
   min-width: 0;
 }
 
+.notif-item__meta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
 .notif-item__title {
   font-size: 13px;
   font-weight: 500;
@@ -332,6 +340,25 @@
   flex-shrink: 0;
   font-size: 10px;
   color: #9ca3af;
+}
+
+.notif-item__delete {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.notif-item__delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
 }
 
 .notif-detail-loading {
