@@ -205,7 +205,7 @@ public class ConversationService {
                 // Broadcast queue position updates to all waiting students
                 broadcastQueuePositionUpdates();
 
-                String studentName = conv.getUser() != null ? conv.getUser().getFullName() : "Sinh viên";
+                String studentName = conv.getStudent() != null ? conv.getStudent().getFullName() : "Sinh viên";
                 pushNotificationService.sendToStaff(
                                 "Sinh viên cần hỗ trợ trực tiếp",
                                 studentName + " vừa yêu cầu thủ thư hỗ trợ qua trò chuyện.",
