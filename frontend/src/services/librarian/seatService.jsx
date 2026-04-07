@@ -166,5 +166,44 @@ export const seatService = {
     }
 
     return response.json().catch(() => ({}));
+  },
+
+  /**
+   * Thủ thư xác nhận sinh viên đã rời chỗ ngồi.
+   * Ưu tiên endpoint leave-seat mới; nếu backend cũ chưa có route này thì
+   * fallback sang luồng cũ updateStatusReserv=COMPLETED để tránh gãy thao tác.
+   */
+  async leaveSeatReservation(reservationId) {
+    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const tryReadError = async (response) => {
+      try {
+        return await response.text();
+      } catch {
+        return '';
+      }
+    };
+
+    const leaveSeatUrl = `${BASE}/slib/bookings/leave-seat/${reservationId}`;
+    let response = await fetch(leaveSeatUrl, {
+      method: 'POST',
+      headers,
+    });
+
+    if (response.status === 404) {
+      const legacyUrl = `${BASE}/slib/bookings/updateStatusReserv/${reservationId}?status=COMPLETED`;
+      response = await fetch(legacyUrl, {
+        method: 'PUT',
+        headers,
+      });
+    }
+
+    if (!response.ok) {
+      const errorText = await tryReadError(response);
+      throw new Error(errorText || 'Lỗi trả chỗ ngồi');
+    }
+
+    return response.json().catch(() => ({}));
   }
 };

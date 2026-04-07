@@ -132,6 +132,8 @@ public class SecurityConfig {
                         .requestMatchers("/slib/bookings/create").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/bookings/leave-seat/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/bookings/leave-seat-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         // Cac endpoint khac

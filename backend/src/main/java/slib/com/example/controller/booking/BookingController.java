@@ -101,6 +101,48 @@ public class BookingController {
         return ResponseEntity.ok(toDTO(reserv));
     }
 
+    @PostMapping("/leave-seat/{reservationId}")
+    public ResponseEntity<?> leaveSeat(
+            @PathVariable UUID reservationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            getCurrentUserId(userDetails);
+            ReservationEntity reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+            String seatCode = reservation.getSeat() != null ? reservation.getSeat().getSeatCode() : "";
+            String zoneName = reservation.getSeat() != null && reservation.getSeat().getZone() != null
+                    ? reservation.getSeat().getZone().getZoneName()
+                    : "";
+
+            ReservationEntity reserv = bookingService.leaveSeat(reservationId, seatCode, zoneName);
+            return ResponseEntity.ok(toDTO(reserv));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/leave-seat-nfc/{reservationId}")
+    public ResponseEntity<?> leaveSeatWithNfcUid(
+            @PathVariable UUID reservationId,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            ReservationEntity reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+            UUID userId = resolveAuthorizedUserId(reservation.getUser().getId(), userDetails);
+
+            String nfcUid = request.get("nfc_uid");
+            if (nfcUid == null || nfcUid.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Thiếu NFC UID");
+            }
+
+            ReservationEntity reserv = bookingService.leaveSeatWithNfcUid(reservationId, userId, nfcUid);
+            return ResponseEntity.ok(toDTO(reserv));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     // --- GET BOOKINGS BY USER (with zone/area info) ---
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getBookingsByUser(@PathVariable UUID userId,
@@ -209,6 +251,7 @@ public class BookingController {
         dto.setStartTime(entity.getStartTime());
         dto.setEndTime(entity.getEndTime());
         dto.setConfirmedAt(entity.getConfirmedAt());
+        dto.setActualEndTime(entity.getActualEndTime());
         return dto;
     }
 }

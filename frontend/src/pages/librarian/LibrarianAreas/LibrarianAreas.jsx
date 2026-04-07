@@ -362,6 +362,31 @@ function LibrarianAreasContent() {
     }
   };
 
+  const leaveSeatReservation = async (seat) => {
+    if (!seat?.reservationId) return;
+
+    const confirmed = await confirm({
+      title: 'Xác nhận trả chỗ ngồi',
+      message: `Xác nhận sinh viên ${seat.bookedByUserName || ''} đã rời ghế ${seat.seatCode}? Ghế sẽ được giải phóng ngay cho lượt đặt khác.`,
+      variant: 'warning',
+      confirmText: 'Trả chỗ',
+      cancelText: 'Huỷ',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await seatService.leaveSeatReservation(seat.reservationId);
+      toast.success('Đã trả chỗ ngồi thành công');
+      setSelectedSeat(null);
+      await loadSeatsForTimeSlot(slotValue);
+    } catch (error) {
+      console.error('Error leaving seat reservation:', error);
+      const errorMessage = error.message?.replace(/^Error:\s*/i, '') || 'Lỗi trả chỗ ngồi';
+      toast.error('Lỗi trả chỗ ngồi: ' + errorMessage);
+    }
+  };
+
   // Toggle seat restriction
   const toggleRestriction = async (seat) => {
     if (!seat) return;
@@ -582,6 +607,15 @@ function LibrarianAreasContent() {
                     style={{ backgroundColor: '#22c55e', cursor: 'pointer', marginBottom: 8 }}
                   >
                     Xác nhận chỗ ngồi
+                  </button>
+                )}
+                {selectedSeat.seatStatus === 'CONFIRMED' && selectedSeat.reservationId && (
+                  <button
+                    className="librarian-btn"
+                    onClick={() => leaveSeatReservation(selectedSeat)}
+                    style={{ backgroundColor: '#f97316', cursor: 'pointer', marginBottom: 8 }}
+                  >
+                    Trả chỗ ngồi
                   </button>
                 )}
                 <button

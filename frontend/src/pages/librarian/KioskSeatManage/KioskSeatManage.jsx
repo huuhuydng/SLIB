@@ -15,6 +15,7 @@ import {
   X,
   Users,
 } from "lucide-react";
+import { useConfirm } from "../../../components/common/ConfirmDialog";
 import { seatService } from '../../../services/librarian/seatService';
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
@@ -65,6 +66,7 @@ const FILTER_OPTIONS = [
 ];
 
 const KioskSeatManage = () => {
+  const { confirm } = useConfirm();
   const [currentSlotIndex, setCurrentSlotIndex] = useState(0);
   const [seatStatusMap, setSeatStatusMap] = useState({});
 
@@ -254,6 +256,33 @@ const KioskSeatManage = () => {
       setSelectedSeatId(null);
     } catch (error) {
       showToast('Lỗi xác nhận chỗ ngồi. Vui lòng thử lại.');
+    }
+  };
+
+  const leaveSeatReservation = async (seatCode) => {
+    const seatData = seatStatusMap[seatCode];
+    if (!seatData?.reservationId) {
+      showToast('Không tìm thấy mã đặt chỗ');
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Xác nhận trả chỗ ngồi',
+      message: `Xác nhận sinh viên ${seatData.bookedByUserName || ''} đã rời ghế ${seatCode}? Ghế sẽ được giải phóng ngay cho lượt đặt khác.`,
+      variant: 'warning',
+      confirmText: 'Trả chỗ',
+      cancelText: 'Huỷ',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await seatService.leaveSeatReservation(seatData.reservationId);
+      showToast(`Đã trả chỗ ngồi ${seatCode}`);
+      await loadSeatDataForTimeSlot(currentSlotIndex);
+      setSelectedSeatId(null);
+    } catch (error) {
+      showToast('Lỗi trả chỗ ngồi. Vui lòng thử lại.');
     }
   };
 
@@ -506,6 +535,16 @@ const KioskSeatManage = () => {
                     >
                       <Check size={14} />
                       Xác nhận chỗ ngồi
+                    </button>
+                  )}
+                  {status === 'CONFIRMED' && seatData?.reservationId && (
+                    <button
+                      className="lib-btn primary"
+                      onClick={() => leaveSeatReservation(selectedSeatId)}
+                      style={{ backgroundColor: '#f97316', borderColor: '#f97316' }}
+                    >
+                      <ExternalLink size={14} />
+                      Trả chỗ ngồi
                     </button>
                   )}
                   <button

@@ -91,6 +91,9 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             'areaName': booking['areaName'] ?? 'N/A',
             'startTime': startTime,
             'endTime': endTime,
+            'actualEndTime': booking['actualEndTime'] != null
+                ? DateTime.tryParse(booking['actualEndTime'])
+                : null,
             'status': status,
             'date': DateFormat('dd/MM/yyyy').format(startTime),
             'time':
@@ -414,6 +417,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     final status = booking['status'] as String;
     final startTime = booking['startTime'] as DateTime;
     final endTime = booking['endTime'] as DateTime;
+    final actualEndTime = booking['actualEndTime'] as DateTime?;
     final now = DateTime.now();
 
     Color statusColor;
@@ -572,6 +576,50 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   Icon(Icons.chevron_right, color: Colors.grey[400]),
               ],
             ),
+            if (status == 'COMPLETED') ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: actualEndTime != null
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      actualEndTime != null
+                          ? Icons.logout_rounded
+                          : Icons.schedule_rounded,
+                      size: 16,
+                      color: actualEndTime != null
+                          ? Colors.green
+                          : Colors.grey[700],
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        actualEndTime != null
+                            ? 'Đã rời ghế lúc ${DateFormat('HH:mm').format(actualEndTime)}'
+                            : 'Phiên học kết thúc tự động khi hết giờ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: actualEndTime != null
+                              ? Colors.green[800]
+                              : Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

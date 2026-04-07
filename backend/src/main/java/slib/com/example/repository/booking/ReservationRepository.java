@@ -86,7 +86,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
         // Top 5 sinh viên có thời gian học nhiều nhất (tính từ reservation
         // CONFIRMED/COMPLETED)
         @Query(value = "SELECT r.user_id, u.full_name, u.user_code, COUNT(*) as visit_count, " +
-                        "COALESCE(SUM(EXTRACT(EPOCH FROM (r.end_time - r.start_time)) / 60), 0) as total_minutes, " +
+                        "COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(r.actual_end_time, r.end_time) - COALESCE(r.confirmed_at, r.start_time))) / 60), 0) as total_minutes, " +
                         "u.avt_url " +
                         "FROM reservations r JOIN users u ON r.user_id = u.id " +
                         "WHERE r.created_at >= :startDate AND r.status IN ('CONFIRMED', 'COMPLETED') " +
@@ -109,7 +109,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
         List<Object[]> countBookingsByHour(@Param("startDate") LocalDateTime startDate);
 
         // Tính tổng số phút học từ reservation COMPLETED (endTime - startTime)
-        @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 60), 0) " +
+        @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(actual_end_time, end_time) - COALESCE(confirmed_at, start_time))) / 60), 0) " +
                         "FROM reservations WHERE user_id = :userId AND status = 'COMPLETED'", nativeQuery = true)
         long getTotalStudyMinutesByUser(@Param("userId") UUID userId);
 
