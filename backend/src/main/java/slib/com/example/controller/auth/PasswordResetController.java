@@ -116,6 +116,10 @@ public class PasswordResetController {
         try {
             otpService.resendOtp(email.trim().toLowerCase());
             return ResponseEntity.ok(Map.of("message", "Mã OTP mới đã được gửi đến email của bạn"));
+        } catch (RuntimeException e) {
+            log.warn("Resend OTP business error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", e.getMessage()));
         } catch (Exception e) {
             log.error("Lỗi gửi lại OTP: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of(

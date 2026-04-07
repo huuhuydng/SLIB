@@ -95,7 +95,7 @@ Thư viện cập nhật tin tức, sự kiện, và thông báo quan trọng tr
 
 Để sử dụng SLIB, sinh viên cần:
 
-- Tài khoản email FPT (đuôi @fpt.edu.vn)
+- Tài khoản Google hợp lệ (đuôi @gmail.com, @googlemail.com hoặc @fpt.edu.vn)
 - Điện thoại thông minh có cài ứng dụng SLIB
 - Kết nối internet
 - (Tuỳ chọn) Điện thoại hỗ trợ NFC để sử dụng tính năng check-in NFC

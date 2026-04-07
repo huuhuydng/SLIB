@@ -26,7 +26,7 @@ Hệ thống đặt chỗ SLIB cho phép sinh viên đặt trước chỗ ngồi
 
 ### Bước 1: Mở ứng dụng và chọn đặt chỗ
 
-Mở ứng dụng SLIB trên điện thoại, đăng nhập bằng tài khoản Google FPT (@fpt.edu.vn), sau đó chọn mục "Đặt chỗ" trên màn hình chính.
+Mở ứng dụng SLIB trên điện thoại, đăng nhập bằng tài khoản Google hợp lệ (@gmail.com, @googlemail.com hoặc @fpt.edu.vn), sau đó chọn mục "Đặt chỗ" trên màn hình chính.
 
 ### Bước 2: Chọn ngày và khung giờ
 

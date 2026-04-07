@@ -100,7 +100,7 @@ function ForgotPassword({ onSwitch }) {
     try {
       setLoading(true);
 
-      const response = await librarianService.verifyOtp(
+      await librarianService.verifyOtp(
         email.trim().toLowerCase(),
         otpCode,
         'recovery'
@@ -165,7 +165,7 @@ function ForgotPassword({ onSwitch }) {
     try {
       setLoading(true);
 
-      const response = await librarianService.updatePassword(newPassword);
+      await librarianService.updatePassword(newPassword);
       toast.success("Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.");
       onSwitch();
 
@@ -200,7 +200,7 @@ function ForgotPassword({ onSwitch }) {
                 <input
                   className="input-field"
                   type="email"
-                  placeholder="Email (username@fpt.edu.vn)"
+                  placeholder="Email đã đăng ký (vd: user@gmail.com)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}

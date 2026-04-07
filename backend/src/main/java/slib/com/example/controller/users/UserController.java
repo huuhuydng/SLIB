@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -69,8 +70,10 @@ public class UserController {
         try {
             AuthResponse response = authService.loginWithGoogle(idToken, fullName, fcmToken, deviceInfo);
             return ResponseEntity.ok(response);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(401).body("Lỗi: " + e.getMessage());
+            return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
         }
     }
 

@@ -118,11 +118,11 @@ function Login({ onLogin }) {
 
     } catch (err) {
       console.error("❌ Google login error:", err);
-      alert(
+      const errorMessage =
         err.response?.data?.message ||
         err.message ||
-        "Đăng nhập Google thất bại. Vui lòng thử lại."
-      );
+        "Đăng nhập Google thất bại. Vui lòng thử lại.";
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

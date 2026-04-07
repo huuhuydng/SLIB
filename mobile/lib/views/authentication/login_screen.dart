@@ -74,13 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      String errorMessage = e.toString().replaceAll("Exception: ", "");
-
-      if (errorMessage.contains("fpt.edu.vn")) {
-        errorMessage = "Truy cập bị từ chối: Vui lòng dùng mail @fpt.edu.vn";
-      } else {
-        errorMessage = ErrorDisplayWidget.toVietnamese(e);
-      }
+      final errorMessage = ErrorDisplayWidget.toVietnamese(e);
 
       _showErrorSnackBar(errorMessage);
     }
@@ -292,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _emailController,
             keyboardType: TextInputType.text,
             decoration: InputDecoration(
-              hintText: "Email FPT hoặc MSSV",
+              hintText: "Email hoặc MSSV",
               hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

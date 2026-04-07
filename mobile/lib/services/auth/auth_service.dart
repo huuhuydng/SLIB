@@ -100,11 +100,6 @@ class AuthService extends ChangeNotifier {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
-      if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
-        await _googleSignIn.signOut();
-        throw Exception('Vui lòng sử dụng email FPT (@fpt.edu.vn)!');
-      }
-
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
@@ -165,12 +160,30 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return _currentUser;
       } else {
-        throw Exception('Đăng nhập thất bại: ${response.statusCode}');
+        final decodedBody = utf8.decode(response.bodyBytes);
+        try {
+          final jsonMap = jsonDecode(decodedBody);
+          throw Exception(
+            jsonMap['message'] ??
+                jsonMap['error'] ??
+                'Đăng nhập thất bại: ${response.statusCode}',
+          );
+        } catch (_) {
+          throw Exception(decodedBody.isNotEmpty
+              ? decodedBody
+              : 'Đăng nhập thất bại: ${response.statusCode}');
+        }
       }
     } catch (e) {
-      if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
       debugPrint('Google Sign-In Error: $e');
-      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      if (message.isEmpty) {
+        message = 'Đăng nhập thất bại. Vui lòng thử lại.';
+      }
+      throw Exception(message);
     }
   }
 

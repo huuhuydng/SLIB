@@ -64,7 +64,24 @@ class ErrorDisplayWidget extends StatelessWidget {
 
   /// Chuyển đổi Exception/error message thành thông báo tiếng Việt
   static String toVietnamese(dynamic error) {
-    final msg = error.toString().toLowerCase();
+    String raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      raw = raw.substring(11).trim();
+    }
+    final msg = raw.toLowerCase();
+
+    if (msg.contains('chỉ chấp nhận tài khoản google')) {
+      return raw;
+    }
+    if (msg.contains('chưa tồn tại trong hệ thống') ||
+        msg.contains('không nằm trong hệ thống') ||
+        msg.contains('không tìm thấy người dùng') ||
+        msg.contains('chưa có email')) {
+      return raw;
+    }
+    if (msg.contains('tài khoản đã bị khóa')) {
+      return raw;
+    }
 
     if (msg.contains('tài khoản hoặc mật khẩu không đúng')) {
       return 'Tài khoản hoặc mật khẩu không đúng';
