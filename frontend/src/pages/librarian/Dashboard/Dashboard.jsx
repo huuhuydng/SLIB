@@ -411,6 +411,11 @@ const Dashboard = () => {
     );
   }, [searchText, accessLogs, accessFilter]);
 
+  const displayedAccessLogs = useMemo(
+    () => filteredStudents.slice(0, 10),
+    [filteredStudents]
+  );
+
   const stats = {
     currentlyInLibrary: dashStats?.currentlyInLibrary || 0,
     totalCheckInsToday: dashStats?.totalCheckInsToday || 0,
@@ -439,6 +444,16 @@ const Dashboard = () => {
     zoneOccupancies: dashStats?.zoneOccupancies || [],
     trendSummary: dashStats?.trendSummary || {}
   };
+
+  const displayedRecentBookings = useMemo(
+    () => stats.recentBookings.slice(0, 8),
+    [stats.recentBookings]
+  );
+
+  const pendingRecentViolations = useMemo(
+    () => (stats.recentViolations || []).filter((item) => item?.status === 'PENDING'),
+    [stats.recentViolations]
+  );
 
   // Greeting based on time of day
   const getGreeting = () => {
@@ -482,7 +497,7 @@ const Dashboard = () => {
   const getActiveRequestData = () => {
     switch (activeRequestTab) {
       case 'support': return stats.recentSupportRequests;
-      case 'violation': return stats.recentViolations;
+      case 'violation': return pendingRecentViolations;
       case 'complaint': return stats.recentComplaints;
       case 'feedback': return stats.recentFeedbacks;
       default: return [];
@@ -1355,7 +1370,7 @@ const Dashboard = () => {
               </div>
               <a href="/librarian/students" className="view-all-link">Xem tất cả</a>
             </div>
-            {filteredStudents.length === 0 ? (
+            {displayedAccessLogs.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
                 Hiện chưa có sinh viên nào ra vào thư viện
               </div>
@@ -1372,7 +1387,7 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map((log) => (
+                    {displayedAccessLogs.map((log) => (
                       <tr key={`${log.logId}-${log.action}`}>
                         <td className="cell-name">{log.userName}</td>
                         <td className="cell-code">{log.userCode}</td>
@@ -1405,13 +1420,13 @@ const Dashboard = () => {
               <a href="/librarian/bookings" className="view-all-link">Xem tất cả</a>
             </div>
 
-            {stats.recentBookings.length === 0 ? (
+            {displayedRecentBookings.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
                 Chưa có lượt đặt chỗ nào hôm nay
               </div>
             ) : (
               <div className="booking-list">
-                {stats.recentBookings.map((booking, idx) => {
+                {displayedRecentBookings.map((booking, idx) => {
                   const statusCfg = getStatusConfig(booking.status);
                   return (
                     <div key={idx} className="booking-row" onClick={() => setDetailModal({ type: 'booking', data: booking })}>
@@ -1512,11 +1527,11 @@ const Dashboard = () => {
             </div>
 
             {
-              stats.recentViolations.length === 0 ? (
-                <div className="empty-section">Chưa có vi phạm cần xử lý</div>
+              pendingRecentViolations.length === 0 ? (
+                <div className="empty-section">Hiện không có vi phạm nào cần được xử lý</div>
               ) : (
                 <div className="violations-list dashboard-entity-list">
-                  {stats.recentViolations.map((v, idx) => {
+                  {pendingRecentViolations.map((v, idx) => {
                     const statusCfg = getStatusConfig(v.status);
                     return (
                         <div key={idx} className="violation-item violation-item-clickable dashboard-entity-item" onClick={() => setDetailModal({ type: 'violation', data: v })}>
@@ -1591,7 +1606,7 @@ const Dashboard = () => {
                 onClick={() => setActiveRequestTab('violation')}
               >
                 <ShieldAlert size={14} />
-                Vi phạm ({stats.recentViolations.length})
+                Vi phạm ({pendingRecentViolations.length})
               </button>
               <button
                 className={`request-tab ${activeRequestTab === 'complaint' ? 'active' : ''}`}
