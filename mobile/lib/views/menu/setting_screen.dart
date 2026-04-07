@@ -25,33 +25,41 @@ class SettingScreen extends StatefulWidget {
 
 class _SettingScreenState extends State<SettingScreen> {
   int _violationCount = 0;
+  int _bookingHistoryCount = 0;
+  int _reportHistoryCount = 0;
+  int _complaintHistoryCount = 0;
 
   Future<void> _pushScreen(
     Widget screen, {
     bool refreshViolationCount = false,
+    bool refreshHistoryCounts = false,
   }) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
 
-    if (refreshViolationCount && mounted) {
-      await _loadViolationCount();
+    if ((refreshViolationCount || refreshHistoryCounts) && mounted) {
+      await _loadHistoryCounts();
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _loadViolationCount();
+    _loadHistoryCounts();
   }
 
-  Future<void> _loadViolationCount() async {
+  Future<void> _loadHistoryCounts() async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
     if (user == null) return;
 
-    int count = 0;
+    int violationCount = 0;
+    int bookingHistoryCount = 0;
+    int reportHistoryCount = 0;
+    int complaintHistoryCount = 0;
+
     try {
       final penaltyUrl = Uri.parse(
         "${ApiConstants.activityUrl}/penalties/${user.id}",
@@ -64,7 +72,7 @@ class _SettingScreenState extends State<SettingScreen> {
         final List<dynamic> data = jsonDecode(
           utf8.decode(penaltyRes.bodyBytes),
         );
-        count += data.length;
+        violationCount += data.length;
       }
     } catch (_) {}
 
@@ -80,11 +88,80 @@ class _SettingScreenState extends State<SettingScreen> {
         final List<dynamic> data = jsonDecode(
           utf8.decode(violationRes.bodyBytes),
         );
-        count += data.where((v) => v['status'] == 'VERIFIED').length;
+        violationCount += data.where((v) => v['status'] == 'VERIFIED').length;
       }
     } catch (_) {}
 
-    if (mounted) setState(() => _violationCount = count);
+    try {
+      final bookingUrl = Uri.parse(
+        "${ApiConstants.bookingUrl}/user/${user.id}",
+      );
+      final bookingRes = await authService.authenticatedRequest(
+        'GET',
+        bookingUrl,
+      );
+      if (bookingRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(bookingRes.bodyBytes),
+        );
+        bookingHistoryCount = data.length;
+      }
+    } catch (_) {}
+
+    try {
+      final myViolationReportUrl = Uri.parse(
+        "${ApiConstants.violationReportUrl}/my",
+      );
+      final violationReportRes = await authService.authenticatedRequest(
+        'GET',
+        myViolationReportUrl,
+      );
+      if (violationReportRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(violationReportRes.bodyBytes),
+        );
+        reportHistoryCount += data.length;
+      }
+    } catch (_) {}
+
+    try {
+      final seatStatusReportUrl = Uri.parse(
+        "${ApiConstants.domain}/slib/seat-status-reports/my",
+      );
+      final seatStatusReportRes = await authService.authenticatedRequest(
+        'GET',
+        seatStatusReportUrl,
+      );
+      if (seatStatusReportRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(seatStatusReportRes.bodyBytes),
+        );
+        reportHistoryCount += data.length;
+      }
+    } catch (_) {}
+
+    try {
+      final complaintUrl = Uri.parse("${ApiConstants.complaintUrl}/my");
+      final complaintRes = await authService.authenticatedRequest(
+        'GET',
+        complaintUrl,
+      );
+      if (complaintRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(
+          utf8.decode(complaintRes.bodyBytes),
+        );
+        complaintHistoryCount = data.length;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _violationCount = violationCount;
+        _bookingHistoryCount = bookingHistoryCount;
+        _reportHistoryCount = reportHistoryCount;
+        _complaintHistoryCount = complaintHistoryCount;
+      });
+    }
   }
 
   @override
@@ -198,8 +275,12 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.history_edu_rounded,
                 iconColor: Colors.teal,
                 title: "Lịch sử đặt chỗ",
+                trailingText: "$_bookingHistoryCount lượt",
                 onTap: () async {
-                  await _pushScreen(const BookingHistoryScreen());
+                  await _pushScreen(
+                    const BookingHistoryScreen(),
+                    refreshHistoryCounts: true,
+                  );
                 },
               ),
               _buildDivider(),
@@ -212,6 +293,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   await _pushScreen(
                     const ViolationHistoryScreen(),
                     refreshViolationCount: true,
+                    refreshHistoryCounts: true,
                   );
                 },
               ),
@@ -220,8 +302,12 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.report_outlined,
                 iconColor: Colors.orange,
                 title: "Lịch sử báo cáo",
+                trailingText: "$_reportHistoryCount báo cáo",
                 onTap: () async {
-                  await _pushScreen(const ReportHistoryScreen());
+                  await _pushScreen(
+                    const ReportHistoryScreen(),
+                    refreshHistoryCounts: true,
+                  );
                 },
               ),
               _buildDivider(),
@@ -229,8 +315,12 @@ class _SettingScreenState extends State<SettingScreen> {
                 icon: Icons.gavel_rounded,
                 iconColor: Colors.deepOrange,
                 title: "Lịch sử khiếu nại",
+                trailingText: "$_complaintHistoryCount khiếu nại",
                 onTap: () async {
-                  await _pushScreen(const ComplaintHistoryScreen());
+                  await _pushScreen(
+                    const ComplaintHistoryScreen(),
+                    refreshHistoryCounts: true,
+                  );
                 },
               ),
               _buildDivider(),

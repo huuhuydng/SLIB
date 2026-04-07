@@ -6,18 +6,67 @@ import 'package:slib/models/violation_report.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/report/seat_status_report_service.dart';
 import 'package:slib/services/report/violation_report_service.dart';
+import 'package:slib/views/profile/widgets/history_summary_card.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
-class ReportHistoryScreen extends StatelessWidget {
+class ReportHistoryScreen extends StatefulWidget {
   final int initialTab;
 
   const ReportHistoryScreen({super.key, this.initialTab = 0});
 
   @override
+  State<ReportHistoryScreen> createState() => _ReportHistoryScreenState();
+}
+
+class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
+  final _violationService = ViolationReportService();
+  final _seatStatusService = SeatStatusReportService();
+  int _violationCount = 0;
+  int _seatStatusCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTabCounts();
+  }
+
+  Future<void> _loadTabCounts() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final token = await authService.getToken();
+      if (token == null) {
+        if (!mounted) return;
+        setState(() {
+          _violationCount = 0;
+          _seatStatusCount = 0;
+        });
+        return;
+      }
+
+      final results = await Future.wait([
+        _violationService.getMyReports(token),
+        _seatStatusService.getMyReports(token),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _violationCount = results[0].length;
+        _seatStatusCount = results[1].length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _violationCount = 0;
+        _seatStatusCount = 0;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      initialIndex: initialTab.clamp(0, 1),
+      initialIndex: widget.initialTab.clamp(0, 1),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
@@ -39,25 +88,66 @@ class ReportHistoryScreen extends StatelessWidget {
             indicatorColor: AppColors.brandColor,
             indicatorWeight: 3,
             labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            tabs: const [
-              Tab(text: 'Vi phạm'),
-              Tab(text: 'Ghế ngồi'),
+            tabs: [
+              _buildTabLabel('Vi phạm', _violationCount),
+              _buildTabLabel('Ghế ngồi', _seatStatusCount),
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
-            _ViolationReportHistoryTab(),
-            _SeatStatusReportHistoryTab(),
+            _ViolationReportHistoryTab(
+              onCountChanged: (count) {
+                if (mounted && _violationCount != count) {
+                  setState(() => _violationCount = count);
+                }
+              },
+            ),
+            _SeatStatusReportHistoryTab(
+              onCountChanged: (count) {
+                if (mounted && _seatStatusCount != count) {
+                  setState(() => _seatStatusCount = count);
+                }
+              },
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Tab _buildTabLabel(String title, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.brandColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.brandColor,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _ViolationReportHistoryTab extends StatefulWidget {
-  const _ViolationReportHistoryTab();
+  final ValueChanged<int> onCountChanged;
+
+  const _ViolationReportHistoryTab({required this.onCountChanged});
 
   @override
   State<_ViolationReportHistoryTab> createState() =>
@@ -95,10 +185,14 @@ class _ViolationReportHistoryTabState
       }
 
       final data = await _service.getMyReports(token);
+      final reports = data
+          .map((json) => ViolationReport.fromJson(json))
+          .toList();
       setState(() {
-        _reports = data.map((json) => ViolationReport.fromJson(json)).toList();
+        _reports = reports;
         _isLoading = false;
       });
+      widget.onCountChanged(reports.length);
     } catch (e) {
       setState(() {
         _error = ErrorDisplayWidget.toVietnamese(e);
@@ -122,18 +216,67 @@ class _ViolationReportHistoryTabState
       return ErrorDisplayWidget(message: _error!, onRetry: _loadReports);
     }
 
-    if (_reports.isEmpty) {
-      return ErrorDisplayWidget.empty(message: 'Chưa có báo cáo vi phạm nào');
-    }
-
     return RefreshIndicator(
       onRefresh: _loadReports,
       color: AppColors.brandColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _reports.length,
-        itemBuilder: (context, index) => _buildReportCard(_reports[index]),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _buildSummaryHeader(),
+          if (_reports.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: ErrorDisplayWidget.empty(
+                message: 'Chưa có báo cáo vi phạm nào',
+              ),
+            )
+          else
+            ..._reports.map(
+              (report) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildReportCard(report),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildSummaryHeader() {
+    final pendingCount = _reports.where((r) => r.status == 'PENDING').length;
+    final verifiedCount = _reports.where((r) => r.status == 'VERIFIED').length;
+    final rejectedCount = _reports.where((r) => r.status == 'REJECTED').length;
+
+    return HistorySummaryCard(
+      title: 'Tổng quan báo cáo vi phạm',
+      subtitle: _reports.isEmpty
+          ? 'Bạn chưa gửi báo cáo vi phạm nào.'
+          : 'Theo dõi nhanh kết quả xử lý các báo cáo vi phạm đã gửi.',
+      icon: Icons.report_outlined,
+      gradientColors: const [Color(0xFFD84315), Color(0xFFFF8A65)],
+      metrics: [
+        HistorySummaryMetric(
+          icon: Icons.list_alt_rounded,
+          value: '${_reports.length}',
+          label: 'Tổng lịch sử',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.hourglass_top_rounded,
+          value: '$pendingCount',
+          label: 'Chờ xử lý',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.verified_rounded,
+          value: '$verifiedCount',
+          label: 'Đã xác minh',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.cancel_outlined,
+          value: '$rejectedCount',
+          label: 'Từ chối',
+        ),
+      ],
     );
   }
 
@@ -308,7 +451,9 @@ class _ViolationReportHistoryTabState
 }
 
 class _SeatStatusReportHistoryTab extends StatefulWidget {
-  const _SeatStatusReportHistoryTab();
+  final ValueChanged<int> onCountChanged;
+
+  const _SeatStatusReportHistoryTab({required this.onCountChanged});
 
   @override
   State<_SeatStatusReportHistoryTab> createState() =>
@@ -346,10 +491,14 @@ class _SeatStatusReportHistoryTabState
       }
 
       final data = await _service.getMyReports(token);
+      final reports = data
+          .map((json) => SeatStatusReport.fromJson(json))
+          .toList();
       setState(() {
-        _reports = data.map((json) => SeatStatusReport.fromJson(json)).toList();
+        _reports = reports;
         _isLoading = false;
       });
+      widget.onCountChanged(reports.length);
     } catch (e) {
       setState(() {
         _error = ErrorDisplayWidget.toVietnamese(e);
@@ -373,20 +522,67 @@ class _SeatStatusReportHistoryTabState
       return ErrorDisplayWidget(message: _error!, onRetry: _loadReports);
     }
 
-    if (_reports.isEmpty) {
-      return ErrorDisplayWidget.empty(
-        message: 'Chưa có báo cáo tình trạng ghế nào',
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: _loadReports,
       color: AppColors.brandColor,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _reports.length,
-        itemBuilder: (context, index) => _buildReportCard(_reports[index]),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _buildSummaryHeader(),
+          if (_reports.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: ErrorDisplayWidget.empty(
+                message: 'Chưa có báo cáo tình trạng ghế nào',
+              ),
+            )
+          else
+            ..._reports.map(
+              (report) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildReportCard(report),
+              ),
+            ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildSummaryHeader() {
+    final pendingCount = _reports.where((r) => r.status == 'PENDING').length;
+    final resolvedCount = _reports.where((r) => r.status == 'RESOLVED').length;
+    final rejectedCount = _reports.where((r) => r.status == 'REJECTED').length;
+
+    return HistorySummaryCard(
+      title: 'Tổng quan báo cáo ghế ngồi',
+      subtitle: _reports.isEmpty
+          ? 'Bạn chưa gửi báo cáo tình trạng ghế nào.'
+          : 'Theo dõi nhanh kết quả xử lý các báo cáo ghế ngồi đã gửi.',
+      icon: Icons.chair_alt_outlined,
+      gradientColors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)],
+      metrics: [
+        HistorySummaryMetric(
+          icon: Icons.list_alt_rounded,
+          value: '${_reports.length}',
+          label: 'Tổng lịch sử',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.hourglass_top_rounded,
+          value: '$pendingCount',
+          label: 'Chờ xử lý',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.task_alt_rounded,
+          value: '$resolvedCount',
+          label: 'Đã xử lý',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.cancel_outlined,
+          value: '$rejectedCount',
+          label: 'Từ chối',
+        ),
+      ],
     );
   }
 

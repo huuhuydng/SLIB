@@ -149,7 +149,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting',
       );
 
-      final token = await authService.getToken();
+      final token = await _resolveRestoreToken(authService);
 
       if (token == null) {
         debugPrint('[PERSIST] No auth token, loading local messages only');
@@ -364,6 +364,34 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         });
       }
     }
+  }
+
+  Future<String?> _resolveRestoreToken(AuthService authService) async {
+    String? token = await authService.getToken();
+    if (token != null && token.isNotEmpty) {
+      return token;
+    }
+
+    try {
+      await authService.checkLoginStatus();
+    } catch (e) {
+      debugPrint('[PERSIST] checkLoginStatus failed during restore: $e');
+    }
+
+    token = await authService.getToken();
+    if (token != null && token.isNotEmpty) {
+      return token;
+    }
+
+    for (int attempt = 0; attempt < 2; attempt++) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      token = await authService.getToken();
+      if (token != null && token.isNotEmpty) {
+        return token;
+      }
+    }
+
+    return null;
   }
 
   /// Load messages từ backend và thêm vào list
@@ -1408,6 +1436,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
     return ChatMessage(
       text: parsedContent.text,
+      senderType: senderType,
       isUser: senderType == 'STUDENT',
       isFromLibrarian: senderType == 'LIBRARIAN',
       time: msgTime,
@@ -3321,6 +3350,7 @@ class ChatAction {
 
 class ChatMessage {
   final String text;
+  final String senderType;
   final bool isUser;
   final DateTime time;
   final bool isEscalation;
@@ -3333,6 +3363,7 @@ class ChatMessage {
 
   ChatMessage({
     required this.text,
+    String? senderType,
     required this.isUser,
     required this.time,
     this.isEscalation = false,
@@ -3342,10 +3373,14 @@ class ChatMessage {
     this.queuePosition,
     this.imageUrls,
     this.localImagePath,
-  });
+  }) : senderType = _normalizeSenderType(
+         senderType ??
+             (isFromLibrarian ? 'LIBRARIAN' : (isUser ? 'STUDENT' : 'AI')),
+       );
 
   Map<String, dynamic> toJson() => {
     'text': text,
+    'senderType': senderType,
     'isUser': isUser,
     'time': time.toIso8601String(),
     'isEscalation': isEscalation,
@@ -3356,17 +3391,80 @@ class ChatMessage {
     'localImagePath': localImagePath,
   };
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-    text: json['text'] ?? '',
-    isUser: json['isUser'] ?? false,
-    time: DateTime.tryParse(json['time'] ?? '') ?? DateTime.now(),
-    isEscalation: json['isEscalation'] ?? false,
-    isFromLibrarian: json['isFromLibrarian'] ?? false,
-    type: ChatMessageType.values[json['type'] ?? 0],
-    queuePosition: json['queuePosition'],
-    imageUrls: json['imageUrls'] != null
-        ? List<String>.from(json['imageUrls'])
-        : null,
-    localImagePath: json['localImagePath'],
-  );
+  factory ChatMessage.fromJson(Map<String, dynamic> json) {
+    final senderType = _resolveSenderTypeFromJson(json);
+    return ChatMessage(
+      text: json['text'] ?? '',
+      senderType: senderType,
+      isUser: senderType == 'STUDENT',
+      time: DateTime.tryParse(json['time'] ?? '') ?? DateTime.now(),
+      isEscalation: _readBool(json['isEscalation']) ?? false,
+      isFromLibrarian: senderType == 'LIBRARIAN',
+      type: _resolveChatMessageType(json['type']),
+      queuePosition: json['queuePosition'],
+      imageUrls: json['imageUrls'] != null
+          ? List<String>.from(json['imageUrls'])
+          : null,
+      localImagePath: json['localImagePath'],
+    );
+  }
+
+  static ChatMessageType _resolveChatMessageType(dynamic rawType) {
+    final index = rawType is int
+        ? rawType
+        : int.tryParse(rawType?.toString() ?? '');
+    if (index == null || index < 0 || index >= ChatMessageType.values.length) {
+      return ChatMessageType.text;
+    }
+    return ChatMessageType.values[index];
+  }
+
+  static String _resolveSenderTypeFromJson(Map<String, dynamic> json) {
+    final rawSenderType = json['senderType']?.toString();
+    if (rawSenderType != null && rawSenderType.trim().isNotEmpty) {
+      return _normalizeSenderType(rawSenderType);
+    }
+
+    final isFromLibrarian = _readBool(json['isFromLibrarian']) ?? false;
+    if (isFromLibrarian) {
+      return 'LIBRARIAN';
+    }
+
+    final isUser = _readBool(json['isUser']);
+    if (isUser != null) {
+      return isUser ? 'STUDENT' : 'AI';
+    }
+
+    final type = _resolveChatMessageType(json['type']);
+    return switch (type) {
+      ChatMessageType.waiting ||
+      ChatMessageType.feedbackPrompt ||
+      ChatMessageType.withActions => 'AI',
+      ChatMessageType.supportRequestContext => 'LIBRARIAN',
+      ChatMessageType.text => 'AI',
+    };
+  }
+
+  static bool? _readBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true') return true;
+      if (normalized == 'false') return false;
+    }
+    return null;
+  }
+
+  static String _normalizeSenderType(String value) {
+    final normalized = value.trim().toUpperCase();
+    switch (normalized) {
+      case 'STUDENT':
+      case 'LIBRARIAN':
+      case 'SYSTEM':
+      case 'AI':
+        return normalized;
+      default:
+        return 'AI';
+    }
+  }
 }

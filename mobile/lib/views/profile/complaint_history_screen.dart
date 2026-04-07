@@ -4,6 +4,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/models/complaint.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/complaint/complaint_service.dart';
+import 'package:slib/views/profile/widgets/history_summary_card.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ComplaintHistoryScreen extends StatefulWidget {
@@ -82,16 +83,24 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
             )
           : _error != null
           ? _buildErrorState()
-          : _complaints.isEmpty
-          ? ErrorDisplayWidget.empty(message: 'Chưa có khiếu nại nào')
           : RefreshIndicator(
               onRefresh: _loadComplaints,
               color: AppColors.brandColor,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _complaints.length,
-                itemBuilder: (context, index) =>
-                    _buildComplaintCard(_complaints[index]),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  _buildComplaintSummaryHeader(),
+                  if (_complaints.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: ErrorDisplayWidget.empty(
+                        message: 'Chưa có khiếu nại nào',
+                      ),
+                    )
+                  else
+                    ..._complaints.map(_buildComplaintListItem),
+                ],
               ),
             ),
     );
@@ -251,6 +260,52 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildComplaintListItem(Complaint complaint) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _buildComplaintCard(complaint),
+    );
+  }
+
+  Widget _buildComplaintSummaryHeader() {
+    final pendingCount = _complaints.where((c) => c.status == 'PENDING').length;
+    final acceptedCount = _complaints
+        .where((c) => c.status == 'ACCEPTED')
+        .length;
+    final deniedCount = _complaints.where((c) => c.status == 'DENIED').length;
+
+    return HistorySummaryCard(
+      title: 'Tổng quan khiếu nại',
+      subtitle: _complaints.isEmpty
+          ? 'Bạn chưa gửi khiếu nại nào.'
+          : 'Theo dõi nhanh toàn bộ lịch sử khiếu nại của bạn.',
+      icon: Icons.gavel_rounded,
+      gradientColors: const [Color(0xFFEF6C00), Color(0xFFFFA726)],
+      metrics: [
+        HistorySummaryMetric(
+          icon: Icons.list_alt_rounded,
+          value: '${_complaints.length}',
+          label: 'Tổng lịch sử',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.hourglass_top_rounded,
+          value: '$pendingCount',
+          label: 'Chờ xử lý',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.check_circle_outline,
+          value: '$acceptedCount',
+          label: 'Chấp nhận',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.cancel_outlined,
+          value: '$deniedCount',
+          label: 'Từ chối',
+        ),
+      ],
     );
   }
 

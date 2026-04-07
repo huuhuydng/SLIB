@@ -6,6 +6,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/core/utils/snackbar_guard.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/profile/widgets/history_summary_card.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ViolationHistoryScreen extends StatefulWidget {
@@ -159,68 +160,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
             fontSize: 14,
           ),
           tabs: [
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.auto_fix_high, size: 18),
-                  const SizedBox(width: 6),
-                  const Text('Tự động'),
-                  if (_penalties.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha(30),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_penalties.length}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.report_outlined, size: 18),
-                  const SizedBox(width: 6),
-                  const Text('Bị báo cáo'),
-                  if (_violations.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha(30),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_violations.length}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            _buildTabLabel('Tự động', _penalties.length),
+            _buildTabLabel('Bị báo cáo', _violations.length),
           ],
         ),
       ),
@@ -274,63 +215,30 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   }
 
   Widget _buildPenaltyStatsHeader() {
-    final bool clean = _penalties.isEmpty;
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: clean
-              ? [Colors.green, Colors.green.shade300]
-              : [Colors.red.shade600, Colors.red.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return HistorySummaryCard(
+      title: 'Tổng quan vi phạm tự động',
+      subtitle: _penalties.isEmpty
+          ? 'Bạn chưa có vi phạm tự động nào.'
+          : 'Các vi phạm do hệ thống tự ghi nhận trong quá trình sử dụng thư viện.',
+      icon: Icons.auto_fix_high_rounded,
+      gradientColors: const [Color(0xFFD84315), Color(0xFFFF8A65)],
+      metrics: [
+        HistorySummaryMetric(
+          icon: Icons.list_alt_rounded,
+          value: '${_penalties.length}',
+          label: 'Tổng lịch sử',
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: clean
-          ? const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.verified_user_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Chưa có vi phạm tự động!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    Icons.gpp_bad_outlined,
-                    '${_penalties.length}',
-                    'Lần vi phạm',
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: Colors.white.withAlpha(100),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    Icons.remove_circle_outline,
-                    '-$_totalPenaltyPoints',
-                    'Điểm bị trừ',
-                  ),
-                ),
-              ],
-            ),
+        HistorySummaryMetric(
+          icon: Icons.gpp_bad_outlined,
+          value: '${_penalties.length}',
+          label: 'Số lần vi phạm',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.remove_circle_outline,
+          value: '$_totalPenaltyPoints',
+          label: 'Điểm bị trừ',
+        ),
+      ],
     );
   }
 
@@ -904,59 +812,39 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   }
 
   Widget _buildViolationStatsHeader() {
-    final bool clean = _violations.isEmpty;
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: clean
-              ? [Colors.green, Colors.green.shade300]
-              : [AppColors.brandColor, AppColors.brandColor.withAlpha(200)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final pendingCount = _violations
+        .where((violation) => violation['status'] == 'PENDING')
+        .length;
+
+    return HistorySummaryCard(
+      title: 'Tổng quan vi phạm bị báo cáo',
+      subtitle: _violations.isEmpty
+          ? 'Bạn chưa bị báo cáo vi phạm nào.'
+          : 'Các vi phạm đã được người khác báo cáo đối với bạn.',
+      icon: Icons.shield_outlined,
+      gradientColors: const [Color(0xFFFF7A18), Color(0xFFFFA34D)],
+      metrics: [
+        HistorySummaryMetric(
+          icon: Icons.list_alt_rounded,
+          value: '${_violations.length}',
+          label: 'Tổng lịch sử',
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: clean
-          ? const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.shield_outlined, color: Colors.white, size: 28),
-                SizedBox(width: 12),
-                Text(
-                  'Chưa bị báo cáo vi phạm!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    Icons.warning_amber_rounded,
-                    '$_totalViolations',
-                    'Vi phạm xác nhận',
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 50,
-                  color: Colors.white.withAlpha(100),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    Icons.remove_circle_outline,
-                    '-$_totalViolationPoints',
-                    'Điểm bị trừ',
-                  ),
-                ),
-              ],
-            ),
+        HistorySummaryMetric(
+          icon: Icons.hourglass_top_rounded,
+          value: '$pendingCount',
+          label: 'Chờ xử lý',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.verified_rounded,
+          value: '$_totalViolations',
+          label: 'Đã xác minh',
+        ),
+        HistorySummaryMetric(
+          icon: Icons.remove_circle_outline,
+          value: '$_totalViolationPoints',
+          label: 'Điểm bị trừ',
+        ),
+      ],
     );
   }
 
@@ -1515,24 +1403,30 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
   // ===================== SHARED WIDGETS =====================
 
-  Widget _buildStatItem(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 28),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+  Tab _buildTabLabel(String title, int count) {
+    return Tab(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(title),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.brandColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.brandColor,
+              ),
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 12),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
