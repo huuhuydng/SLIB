@@ -51,7 +51,16 @@ public class SecurityConfig {
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cấu hình tri thức, đồng bộ vector)
                         .requestMatchers("/slib/ai/admin/**").hasRole("ADMIN")
-                        // AI analytics endpoints are internal librarian/admin tools
+                        // AI analytics endpoints used by mobile patrons
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/realtime-capacity")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/density-prediction")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/seat-recommendation")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.POST, "/slib/ai/analytics/student-behavior")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        // Other AI analytics endpoints remain internal librarian/admin tools
                         .requestMatchers("/slib/ai/analytics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated
                         .requestMatchers("/slib/ai/**").authenticated()
