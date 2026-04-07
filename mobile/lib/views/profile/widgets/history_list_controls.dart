@@ -127,6 +127,10 @@ class HistoryListControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (totalCount == 0 && hiddenCount == 0) {
+      return const SizedBox.shrink();
+    }
+
     final theme = Theme.of(context);
     final canExpand = totalCount > 10;
 
