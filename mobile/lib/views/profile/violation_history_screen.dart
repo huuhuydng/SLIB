@@ -6,6 +6,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/core/utils/snackbar_guard.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/views/profile/widgets/history_list_controls.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ViolationHistoryScreen extends StatefulWidget {
@@ -17,6 +18,8 @@ class ViolationHistoryScreen extends StatefulWidget {
 
 class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     with SingleTickerProviderStateMixin {
+  static const int _collapsedLimit = 10;
+
   late TabController _tabController;
 
   bool _isLoading = true;
@@ -24,12 +27,11 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
   // Tab 1: Auto penalties from point_transactions
   List<Map<String, dynamic>> _penalties = [];
-  int _totalPenaltyPoints = 0;
 
   // Tab 2: Reported violations
   List<Map<String, dynamic>> _violations = [];
-  int _totalViolations = 0;
-  int _totalViolationPoints = 0;
+  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
+  final Map<int, bool> _expandedTabs = {0: false, 1: false};
 
   @override
   void initState() {
@@ -66,15 +68,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         final penalties = data.map((v) => v as Map<String, dynamic>).toList();
 
-        int totalPts = 0;
-        for (var p in penalties) {
-          totalPts += ((p['points'] ?? 0) as num).toInt().abs();
-        }
-
         if (mounted) {
           setState(() {
             _penalties = penalties;
-            _totalPenaltyPoints = totalPts;
             _errorMessage = null;
           });
         }
@@ -103,20 +99,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
         final violations = data.map((v) => v as Map<String, dynamic>).toList();
 
-        int totalPoints = 0;
-        for (var v in violations) {
-          if (v['status'] == 'VERIFIED') {
-            totalPoints += ((v['pointDeducted'] ?? 0) as num).toInt();
-          }
-        }
-
         if (mounted) {
           setState(() {
             _violations = violations;
-            _totalViolations = violations
-                .where((v) => v['status'] == 'VERIFIED')
-                .length;
-            _totalViolationPoints = totalPoints;
             _errorMessage = null;
           });
         }
@@ -128,6 +113,80 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         setState(() => _errorMessage = ErrorDisplayWidget.toVietnamese(e));
       }
     }
+  }
+
+  bool _matchesTimeFilter(DateTime dateTime) {
+    final now = DateTime.now();
+    switch (_selectedFilter) {
+      case HistoryTimeFilter.last7Days:
+        return !dateTime.isBefore(now.subtract(const Duration(days: 7)));
+      case HistoryTimeFilter.last30Days:
+        return !dateTime.isBefore(now.subtract(const Duration(days: 30)));
+      case HistoryTimeFilter.all:
+        return true;
+    }
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> get _filteredPenaltyItems {
+    return _penalties.where((penalty) {
+      final createdAt = _parseDate(penalty['createdAt']);
+      return createdAt == null ? true : _matchesTimeFilter(createdAt);
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get _visiblePenalties {
+    final items = _filteredPenaltyItems;
+    if (_expandedTabs[0] == true || items.length <= _collapsedLimit) {
+      return items;
+    }
+    return items.take(_collapsedLimit).toList();
+  }
+
+  int get _filteredPenaltyCount => _filteredPenaltyItems.length;
+
+  int get _filteredPenaltyPoints {
+    return _filteredPenaltyItems.fold<int>(0, (sum, item) {
+      return sum + (((item['points'] ?? 0) as num).toInt().abs());
+    });
+  }
+
+  List<Map<String, dynamic>> get _filteredViolationItems {
+    return _violations.where((violation) {
+      final createdAt = _parseDate(violation['createdAt']);
+      return createdAt == null ? true : _matchesTimeFilter(createdAt);
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> get _visibleViolations {
+    final items = _filteredViolationItems;
+    if (_expandedTabs[1] == true || items.length <= _collapsedLimit) {
+      return items;
+    }
+    return items.take(_collapsedLimit).toList();
+  }
+
+  int get _filteredViolationCountAll => _filteredViolationItems.length;
+
+  int get _filteredVerifiedViolationCount {
+    return _filteredViolationItems
+        .where((violation) => violation['status'] == 'VERIFIED')
+        .length;
+  }
+
+  int get _filteredViolationPoints {
+    return _filteredViolationItems.fold<int>(0, (sum, item) {
+      if (item['status'] != 'VERIFIED') return sum;
+      return sum + (((item['pointDeducted'] ?? 0) as num).toInt());
+    });
   }
 
   @override
@@ -242,13 +301,33 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   // ===================== TAB 1: AUTO PENALTIES =====================
 
   Widget _buildPenaltiesTab() {
+    final visiblePenalties = _visiblePenalties;
+
     return RefreshIndicator(
       color: AppColors.brandColor,
       onRefresh: _loadAll,
       child: CustomScrollView(
         slivers: [
+          SliverToBoxAdapter(
+            child: HistoryListControls(
+              selectedFilter: _selectedFilter,
+              onFilterChanged: (filter) {
+                setState(() {
+                  _selectedFilter = filter;
+                });
+              },
+              isExpanded: _expandedTabs[0] == true,
+              onExpandedChanged: (expanded) {
+                setState(() {
+                  _expandedTabs[0] = expanded;
+                });
+              },
+              totalCount: _filteredPenaltyCount,
+              visibleCount: visiblePenalties.length,
+            ),
+          ),
           SliverToBoxAdapter(child: _buildPenaltyStatsHeader()),
-          if (_penalties.isEmpty)
+          if (visiblePenalties.isEmpty)
             const SliverFillRemaining(
               child: _EmptyState(
                 icon: Icons.verified_user_outlined,
@@ -262,8 +341,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildPenaltyCard(_penalties[index]),
-                  childCount: _penalties.length,
+                  (context, index) =>
+                      _buildPenaltyCard(visiblePenalties[index]),
+                  childCount: visiblePenalties.length,
                 ),
               ),
             ),
@@ -274,7 +354,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   }
 
   Widget _buildPenaltyStatsHeader() {
-    final bool clean = _penalties.isEmpty;
+    final bool clean = _filteredPenaltyCount == 0;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -313,7 +393,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 Expanded(
                   child: _buildStatItem(
                     Icons.gpp_bad_outlined,
-                    '${_penalties.length}',
+                    '$_filteredPenaltyCount',
                     'Lần vi phạm',
                   ),
                 ),
@@ -325,7 +405,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 Expanded(
                   child: _buildStatItem(
                     Icons.remove_circle_outline,
-                    '-$_totalPenaltyPoints',
+                    '-$_filteredPenaltyPoints',
                     'Điểm bị trừ',
                   ),
                 ),
@@ -872,13 +952,33 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   // ===================== TAB 2: REPORTED VIOLATIONS =====================
 
   Widget _buildViolationsTab() {
+    final visibleViolations = _visibleViolations;
+
     return RefreshIndicator(
       color: AppColors.brandColor,
       onRefresh: _loadAll,
       child: CustomScrollView(
         slivers: [
+          SliverToBoxAdapter(
+            child: HistoryListControls(
+              selectedFilter: _selectedFilter,
+              onFilterChanged: (filter) {
+                setState(() {
+                  _selectedFilter = filter;
+                });
+              },
+              isExpanded: _expandedTabs[1] == true,
+              onExpandedChanged: (expanded) {
+                setState(() {
+                  _expandedTabs[1] = expanded;
+                });
+              },
+              totalCount: _filteredViolationCountAll,
+              visibleCount: visibleViolations.length,
+            ),
+          ),
           SliverToBoxAdapter(child: _buildViolationStatsHeader()),
-          if (_violations.isEmpty)
+          if (visibleViolations.isEmpty)
             const SliverFillRemaining(
               child: _EmptyState(
                 icon: Icons.shield_outlined,
@@ -892,8 +992,9 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildViolationCard(_violations[index]),
-                  childCount: _violations.length,
+                  (context, index) =>
+                      _buildViolationCard(visibleViolations[index]),
+                  childCount: visibleViolations.length,
                 ),
               ),
             ),
@@ -904,7 +1005,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   }
 
   Widget _buildViolationStatsHeader() {
-    final bool clean = _violations.isEmpty;
+    final bool clean = _filteredViolationCountAll == 0;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -939,7 +1040,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 Expanded(
                   child: _buildStatItem(
                     Icons.warning_amber_rounded,
-                    '$_totalViolations',
+                    '$_filteredVerifiedViolationCount',
                     'Vi phạm xác nhận',
                   ),
                 ),
@@ -951,7 +1052,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                 Expanded(
                   child: _buildStatItem(
                     Icons.remove_circle_outline,
-                    '-$_totalViolationPoints',
+                    '-$_filteredViolationPoints',
                     'Điểm bị trừ',
                   ),
                 ),

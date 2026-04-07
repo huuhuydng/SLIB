@@ -4,6 +4,7 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/models/complaint.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/complaint/complaint_service.dart';
+import 'package:slib/views/profile/widgets/history_list_controls.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
 class ComplaintHistoryScreen extends StatefulWidget {
@@ -14,10 +15,14 @@ class ComplaintHistoryScreen extends StatefulWidget {
 }
 
 class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
+  static const int _collapsedLimit = 10;
+
   final _service = ComplaintService();
   List<Complaint> _complaints = [];
   bool _isLoading = true;
   String? _error;
+  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -57,6 +62,8 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visibleComplaints = _filteredComplaints;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -82,19 +89,94 @@ class _ComplaintHistoryScreenState extends State<ComplaintHistoryScreen> {
             )
           : _error != null
           ? _buildErrorState()
-          : _complaints.isEmpty
-          ? ErrorDisplayWidget.empty(message: 'Chưa có khiếu nại nào')
           : RefreshIndicator(
               onRefresh: _loadComplaints,
               color: AppColors.brandColor,
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _complaints.length,
-                itemBuilder: (context, index) =>
-                    _buildComplaintCard(_complaints[index]),
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: visibleComplaints.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Column(
+                      children: [
+                        HistoryListControls(
+                          selectedFilter: _selectedFilter,
+                          onFilterChanged: (filter) {
+                            setState(() {
+                              _selectedFilter = filter;
+                            });
+                          },
+                          isExpanded: _expanded,
+                          onExpandedChanged: (expanded) {
+                            setState(() {
+                              _expanded = expanded;
+                            });
+                          },
+                          totalCount: _totalAfterFilter,
+                          visibleCount: visibleComplaints.length,
+                        ),
+                        if (visibleComplaints.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                            child: ErrorDisplayWidget.empty(
+                              message: _complaints.isEmpty
+                                  ? 'Chưa có khiếu nại nào'
+                                  : 'Không có dữ liệu phù hợp trong khoảng thời gian đã chọn',
+                            ),
+                          ),
+                      ],
+                    );
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _buildComplaintCard(visibleComplaints[index - 1]),
+                  );
+                },
               ),
             ),
     );
+  }
+
+  List<Complaint> get _filteredComplaints {
+    final now = DateTime.now();
+    final items = _complaints.where((complaint) {
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !complaint.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !complaint.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).toList();
+
+    if (_expanded || items.length <= _collapsedLimit) {
+      return items;
+    }
+    return items.take(_collapsedLimit).toList();
+  }
+
+  int get _totalAfterFilter {
+    final now = DateTime.now();
+    return _complaints.where((complaint) {
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !complaint.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !complaint.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).length;
   }
 
   Widget _buildErrorState() {
