@@ -24,6 +24,8 @@ public interface ComplaintRepository extends JpaRepository<ComplaintEntity, UUID
 
     List<ComplaintEntity> findByPointTransactionIdOrderByCreatedAtDesc(UUID pointTransactionId);
 
+    boolean existsByViolationReportId(UUID violationReportId);
+
     boolean existsByPointTransactionIdAndStatus(UUID pointTransactionId, ComplaintStatus status);
 
     boolean existsByViolationReportIdAndStatus(UUID violationReportId, ComplaintStatus status);
