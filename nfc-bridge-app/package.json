@@ -8,7 +8,10 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
+    "pack": "electron-builder --dir",
     "dist": "electron-builder",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -30,6 +33,7 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "protocols": [
       {
         "name": "SLIB NFC Bridge",
@@ -50,6 +54,12 @@
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "SLIB NFC Bridge"
     }
   }
 }

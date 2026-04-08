@@ -865,6 +865,11 @@
   background: #fff7ed;
 }
 
+.nfc-bridge-guide__box--highlight {
+  border-color: #fdba74;
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+}
+
 .nfc-bridge-guide__box-title {
   margin-bottom: 8px;
   font-size: 13px;
@@ -893,7 +898,7 @@
 
 .nfc-bridge-guide__footer-links {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
