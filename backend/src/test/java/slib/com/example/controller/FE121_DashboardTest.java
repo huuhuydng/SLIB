@@ -21,14 +21,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import slib.com.example.controller.dashboard.DashboardController;
 
 /**
- * Unit Tests for FE-121: View Analytics Dashboard
- * Test Report: doc/Report/FE122_TestReport.md
+ * Unit Tests for FE-121: View general analytics dashboard
+ * Test Report: doc/Report/UnitTestReport/FE121_TestReport.md
  */
 @WebMvcTest(value = DashboardController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
                 slib.com.example.security.JwtAuthenticationFilter.class }))
 @Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
-@DisplayName("FE-121: View Analytics Dashboard - Unit Tests")
+@DisplayName("FE-121: View general analytics dashboard - Unit Tests")
 class FE121_DashboardTest {
 
         @Autowired

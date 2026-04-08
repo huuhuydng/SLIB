@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.dto.users.ImportUserRequest;
 import slib.com.example.dto.users.AdminCreateUserRequest;
 import slib.com.example.dto.users.AdminUserListItemResponse;
@@ -455,12 +456,19 @@ public class UserService {
      * Lock/unlock user account
      */
     @Transactional
-    public User toggleUserActive(UUID userId, boolean isActive) {
+    public User toggleUserActive(UUID userId, boolean isActive, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User không tồn tại với ID: " + userId));
 
         if (!isActive) {
             ensureAdminWillRemain(user, false, user.getRole());
+            String normalizedReason = reason == null ? null : reason.trim();
+            if (normalizedReason == null || normalizedReason.isBlank()) {
+                throw new BadRequestException("Vui lòng nhập lý do khóa tài khoản");
+            }
+            user.setLockReason(normalizedReason);
+        } else {
+            user.setLockReason(null);
         }
 
         user.setIsActive(isActive);
@@ -557,6 +565,7 @@ public class UserService {
                 .userCode(user.getUserCode())
                 .role(user.getRole() != null ? user.getRole().name() : null)
                 .isActive(user.getIsActive())
+                .lockReason(user.getLockReason())
                 .avtUrl(user.getAvtUrl())
                 .passwordChanged(user.getPasswordChanged())
                 .phone(user.getPhone())

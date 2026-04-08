@@ -14,7 +14,7 @@ import "./KioskSeatBooking.css";
 import { API_BASE_URL } from '../../config/apiConfig';
 
 const getKioskHeaders = () => {
-    const token = localStorage.getItem('kiosk_device_token');
+    const token = localStorage.getItem('kiosk_device_token') || sessionStorage.getItem('kiosk_device_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -182,7 +182,6 @@ function KioskCanvas({ onSeatClick }) {
 
     const handleTouchStart = useCallback((e) => {
         if (e.touches.length === 2) {
-            e.preventDefault();
             touchRef.current.lastDistance = getDistance(e.touches[0], e.touches[1]);
             touchRef.current.lastCenter = getCenter(e.touches[0], e.touches[1]);
             touchRef.current.isPanning = false;
@@ -194,7 +193,6 @@ function KioskCanvas({ onSeatClick }) {
 
     const handleTouchMove = useCallback((e) => {
         if (e.touches.length === 2) {
-            e.preventDefault();
             const newDist = getDistance(e.touches[0], e.touches[1]);
             const newCenter = getCenter(e.touches[0], e.touches[1]);
             if (touchRef.current.lastDistance > 0) {

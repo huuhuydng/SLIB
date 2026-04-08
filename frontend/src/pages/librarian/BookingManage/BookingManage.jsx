@@ -210,6 +210,19 @@ function BookingManage() {
         return `${formatTime(iso)} ${formatDate(iso)}`;
     };
 
+    const getActualEndTimeLabel = (booking) => {
+        if (booking?.actualEndTime) {
+            return `Đã rời ghế lúc ${formatDateTime(booking.actualEndTime)}`;
+        }
+        if (booking?.status === "COMPLETED") {
+            return "Phiên đặt chỗ kết thúc tự động khi hết giờ";
+        }
+        if (booking?.status === "CONFIRMED") {
+            return "Sinh viên đang sử dụng chỗ ngồi";
+        }
+        return "";
+    };
+
     const getInitial = (name) => {
         if (!name) return "?";
         return name.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
@@ -779,11 +792,35 @@ function BookingManage() {
                                         <CalendarDays size={18} />
                                     </div>
                                     <div>
+                                        <div className="bm-modal-info-label">Kết thúc thực tế</div>
+                                        <div className="bm-modal-info-value">
+                                            {selectedBooking.actualEndTime
+                                                ? formatDateTime(selectedBooking.actualEndTime)
+                                                : selectedBooking.status === "COMPLETED"
+                                                    ? "Hệ thống tự kết thúc"
+                                                    : "Chưa kết thúc"}
+                                        </div>
+                                        <div className="bm-modal-info-sub">
+                                            {getActualEndTimeLabel(selectedBooking)}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bm-modal-info-card">
+                                    <div className="bm-modal-info-icon date">
+                                        <CalendarDays size={18} />
+                                    </div>
+                                    <div>
                                         <div className="bm-modal-info-label">Ngày tạo đặt chỗ</div>
                                         <div className="bm-modal-info-value">{formatDateTime(selectedBooking.createdAt)}</div>
                                     </div>
                                 </div>
                             </div>
+
+                            {getActualEndTimeLabel(selectedBooking) && (
+                                <div className="bm-modal-note">
+                                    {getActualEndTimeLabel(selectedBooking)}
+                                </div>
+                            )}
                         </div>
 
                         <div className="bm-modal-footer">

@@ -63,6 +63,9 @@ public class User implements UserDetails {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @Column(name = "lock_reason", columnDefinition = "TEXT")
+    private String lockReason;
+
     @Column(name = "password_changed")
     @Builder.Default
     private Boolean passwordChanged = false;

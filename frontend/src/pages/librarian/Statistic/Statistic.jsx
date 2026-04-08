@@ -6,6 +6,7 @@ import {
   Brain,
   CalendarCheck,
   Clock,
+  Download,
   Info,
   MapPin,
   MessageSquare,
@@ -46,6 +47,7 @@ const Statistic = () => {
   const [error, setError] = useState('');
   const [hoveredBar, setHoveredBar] = useState(null);
   const [feedbackPage, setFeedbackPage] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -72,6 +74,18 @@ const Statistic = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      await statisticService.exportStatistics(range);
+    } catch (e) {
+      console.error('Error exporting statistics:', e);
+      setError('Không thể xuất báo cáo thống kê ở thời điểm hiện tại.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   useEffect(() => {
@@ -296,6 +310,15 @@ const Statistic = () => {
               </button>
             ))}
           </div>
+          <button
+            className="st-export-btn"
+            onClick={handleExport}
+            disabled={exporting}
+            title="Xuất báo cáo thống kê"
+          >
+            <Download size={15} className={exporting ? 'spinning' : ''} />
+            <span>{exporting ? 'Đang xuất...' : 'Xuất báo cáo'}</span>
+          </button>
           <button className="st-refresh-btn" onClick={fetchData} title="Làm mới dữ liệu">
             <RefreshCw size={15} className={loading ? 'spinning' : ''} />
           </button>

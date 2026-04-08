@@ -78,8 +78,8 @@ function LibrarianArea({ area, onSeatClick }) {
     })();
   }, [area?.areaId]);
 
-  const areaZones = zones.filter((z) => z.areaId === area.areaId);
-  const areaFactories = factories.filter((f) => f.areaId === area.areaId);
+  const areaZones = zones.filter((z) => String(z.areaId) === String(area.areaId));
+  const areaFactories = factories.filter((f) => String(f.areaId) === String(area.areaId));
 
   return (
     <div

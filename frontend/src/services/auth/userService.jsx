@@ -291,9 +291,9 @@ class UserService {
     /**
      * Lock or unlock a user account
      */
-    async updateUserStatus(userId, isActive) {
+    async updateUserStatus(userId, isActive, reason = null) {
         try {
-            const response = await axiosInstance.patch(`/users/${userId}/status`, { isActive });
+            const response = await axiosInstance.patch(`/users/${userId}/status`, { isActive, reason });
             return response.data;
         } catch (error) {
             console.error('❌ [UserService] updateUserStatus error:', error);

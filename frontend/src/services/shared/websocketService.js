@@ -14,9 +14,10 @@ class WebSocketService {
 
   getAuthHeaders() {
     const token =
+      localStorage.getItem('kiosk_device_token') ||
       sessionStorage.getItem('librarian_token') ||
       localStorage.getItem('librarian_token') ||
-      localStorage.getItem('kiosk_device_token');
+      sessionStorage.getItem('kiosk_device_token');
 
     return token ? { Authorization: `Bearer ${token}` } : null;
   }

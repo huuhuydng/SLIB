@@ -141,6 +141,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/area_factories/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
                         .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
                         .requestMatchers("/slib/bookings/create").hasAnyRole(PATRON_BOOKING_ROLES)
+                        .requestMatchers("/slib/bookings/updateStatusReserv/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/bookings/leave-seat/**").hasAnyRole("ADMIN", "LIBRARIAN")

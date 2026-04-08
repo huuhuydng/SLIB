@@ -9,13 +9,13 @@
 <body>
   <div class="page">
     <div class="nav"><a href="index.html">Back to index</a></div>
-    <h1>Unit Test Report - FE-120: Response to Student manually</h1>
+    <h1>Unit Test Report - FE-120: Response to user manually</h1>
 <table class="report-meta">
-  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-120</td>  <td class="label">Function Name</td>  <td class="value link">Response to Student manually</td></tr>
+  <tr>  <td class="label">Function Code</td>  <td class="value italic">FE-120</td>  <td class="label">Function Name</td>  <td class="value link">Response to user manually</td></tr>
   <tr>  <td class="label">Created By</td>  <td class="value italic">Hadi</td>  <td class="label">Executed By</td>  <td class="value italic">Hadi</td></tr>
   <tr>  <td class="label">Lines of code</td>  <td class="value italic center">~12</td>  <td class="label">Lack of test cases</td>  <td class="value center">0</td></tr>
-  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>SupportRequestService.respond(UUID requestId, String response, UUID librarianId)</code></td></tr>
-  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify manual librarian response to support request, resolved status update, and notification side effects.</td></tr>
+  <tr>  <td class="label">Class Under Test</td>  <td class="value code" colspan="3"><code>SupportRequestController.respond(UUID id, Map&lt;String, String&gt; body, UserDetails userDetails), SupportRequestService.respond(UUID requestId, String response, UUID librarianId)</code></td></tr>
+  <tr>  <td class="label">Test requirement</td>  <td class="value italic" colspan="3">Verify manual response to support request through /slib/support-requests/{id}/respond, including validation of response content, RESOLVED status update, and error handling for invalid or missing requests.</td></tr>
   <tr>  <th class="stats-head center">Passed</th>  <th class="stats-head center">Failed</th>  <th class="stats-head center">Untested</th>  <th class="stats-head center">N / A / B</th>  <th class="stats-head center">Total Test Cases</th></tr>
   <tr>  <td class="value center">5</td>  <td class="value center">0</td>  <td class="value center">0</td>  <td class="value center">1 / 4 / 0</td>  <td class="value center">5</td></tr>
 </table>
@@ -26,15 +26,19 @@
   <tr><td class="item-cell">Manual response depends on support-request and user repositories</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="2">Mock State (Dependencies)</td><td class="item-cell">Support request and librarian exist</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
   <tr><td class="item-cell">Request or librarian lookup fails</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">POST</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/chat/conversations/{conversationId}/messages</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell" rowspan="1">Input</td><td class="item-cell">Manual response content is provided</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="section-cell" rowspan="6">Confirm</td><td class="category-cell" rowspan="1">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell" rowspan="5">Log message</td><td class="item-cell">Successfully created Manual Response for Manual response content is provided</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
-  <tr><td class="item-cell">Successfully created Manual Response for Manual response content is provided (UTCID02)</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
-  <tr><td class="item-cell">Successfully created Manual Response for Manual response content is provided (UTCID03)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
-  <tr><td class="item-cell">Successfully created Manual Response for Manual response content is provided (UTCID04)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-  <tr><td class="item-cell">Successfully created Manual Response for Manual response content is provided (UTCID05)</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">PUT</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/support-requests/{id}/respond</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="3">Input</td><td class="item-cell">Valid response content for an existing support request</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Empty response content</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Non-existent support request or service failure</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="8">Confirm</td><td class="category-cell" rowspan="3">Return</td><td class="item-cell">200: Success</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">400: Bad Request</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">500: Internal Server Error</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="5">Log message</td><td class="item-cell">Manual response is saved successfully for the support request</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Detailed response content is accepted and processed successfully</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Support request status is updated to RESOLVED after response</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">Manual response is rejected because response content is empty</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">System returns an error when the support request cannot be found</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
 </table>
   </div>
 </body>

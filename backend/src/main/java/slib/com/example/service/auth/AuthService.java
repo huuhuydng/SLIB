@@ -56,7 +56,7 @@ public class AuthService {
 
         // Check if account is locked
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new AccessDeniedException("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            throw new AccessDeniedException(buildLockedAccountMessage(user));
         }
 
         // Update FCM token if provided
@@ -164,6 +164,14 @@ public class AuthService {
                 || normalizedEmail.endsWith("@googlemail.com");
     }
 
+    private String buildLockedAccountMessage(User user) {
+        String reason = user.getLockReason();
+        if (reason != null && !reason.isBlank()) {
+            return "Tài khoản đã bị khóa. Lý do: " + reason.trim();
+        }
+        return "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.";
+    }
+
     /**
      * Login with email/username/MSSV and password
      */
@@ -175,7 +183,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            throw new RuntimeException(buildLockedAccountMessage(user));
         }
 
         if (user.getPassword() == null || user.getPassword().isEmpty()) {
