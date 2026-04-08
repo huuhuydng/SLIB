@@ -15,6 +15,7 @@ import slib.com.example.repository.hce.HceDeviceRepository;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -94,10 +95,15 @@ public class HceStationService {
     public HceStationResponse getStationById(Integer id) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
+        Map<String, Long> todayScanCounts = new HashMap<>();
+        todayScanCounts.put(station.getDeviceId(), getTodayScanCount(station.getDeviceId()));
+
+        Map<String, LocalDateTime> lastAccessTimes = new HashMap<>();
+        lastAccessTimes.put(station.getDeviceId(), getLastAccessTime(station.getDeviceId()));
         return toResponse(
                 station,
-                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
-                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
+                todayScanCounts,
+                lastAccessTimes);
     }
 
     /**
@@ -359,10 +365,15 @@ public class HceStationService {
      * Convert entity to response DTO
      */
     private HceStationResponse toResponse(HceDeviceEntity station) {
+        Map<String, Long> todayScanCounts = new HashMap<>();
+        todayScanCounts.put(station.getDeviceId(), getTodayScanCount(station.getDeviceId()));
+
+        Map<String, LocalDateTime> lastAccessTimes = new HashMap<>();
+        lastAccessTimes.put(station.getDeviceId(), getLastAccessTime(station.getDeviceId()));
         return toResponse(
                 station,
-                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
-                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
+                todayScanCounts,
+                lastAccessTimes);
     }
 
     /**
