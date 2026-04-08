@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useToast } from '../common/ToastProvider';
+import useAppDialog from '../../hooks/useAppDialog';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { API_BASE_URL } from '../../config/apiConfig';
@@ -30,6 +31,7 @@ import ChatSidebarRight from './ChatSidebarRight';
 
 const ChatManagement = () => {
     const toast = useToast();
+    const { confirm } = useAppDialog();
     // ================= STATE =================
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
@@ -418,7 +420,14 @@ const ChatManagement = () => {
                 return;
             }
             try {
-                if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
+                const confirmed = await confirm({
+                    title: 'Kết thúc cuộc hội thoại',
+                    message: 'Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?',
+                    confirmText: 'Kết thúc',
+                    cancelText: 'Huỷ',
+                    variant: 'warning',
+                });
+                if (!confirmed) return;
                 await resolveConversationAPI(activeConv.id);
                 // Clear selection and refresh
                 setSelectedUser(null);
@@ -435,7 +444,14 @@ const ChatManagement = () => {
         }
 
         try {
-            if (!confirm('Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?')) return;
+            const confirmed = await confirm({
+                title: 'Kết thúc cuộc hội thoại',
+                message: 'Bạn có chắc chắn muốn kết thúc cuộc hội thoại này?',
+                confirmText: 'Kết thúc',
+                cancelText: 'Huỷ',
+                variant: 'warning',
+            });
+            if (!confirmed) return;
             await resolveConversationAPI(selectedConversation.id);
             // Clear selection and refresh
             setSelectedUser(null);

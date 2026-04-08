@@ -103,7 +103,7 @@ public class SupportRequestController {
             @Valid @RequestBody SupportRequestStatusUpdateRequest body,
             @AuthenticationPrincipal UserDetails userDetails) {
         UUID librarianId = getCurrentUserId(userDetails);
-        return ResponseEntity.ok(supportRequestService.updateStatus(id, body.getStatus(), librarianId));
+        return ResponseEntity.ok(supportRequestService.updateStatus(id, body.getStatus(), body.getResponse(), librarianId));
     }
 
     /**
@@ -140,15 +140,9 @@ public class SupportRequestController {
     public ResponseEntity<?> startChat(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserDetails userDetails) {
-        try {
-            UUID librarianId = getCurrentUserId(userDetails);
-            UUID conversationId = supportRequestService.startChatForRequest(id, librarianId);
-            return ResponseEntity.ok(Map.of("conversationId", conversationId));
-        } catch (Exception e) {
-            log.error("[SupportRequest] Error starting chat for request {}: {}", id, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
+        UUID librarianId = getCurrentUserId(userDetails);
+        UUID conversationId = supportRequestService.startChatForRequest(id, librarianId);
+        return ResponseEntity.ok(Map.of("conversationId", conversationId));
     }
 
     /**
@@ -157,14 +151,7 @@ public class SupportRequestController {
      */
     @DeleteMapping("/batch")
     public ResponseEntity<?> deleteBatch(@Valid @RequestBody UuidBatchRequest body) {
-        try {
-            List<UUID> uuids = body.getIds();
-            supportRequestService.deleteBatch(uuids);
-            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
-        } catch (Exception e) {
-            log.error("[SupportRequest] Error deleting batch: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
+        List<UUID> uuids = body.getIds();
+        return ResponseEntity.ok(supportRequestService.deleteBatch(uuids));
     }
 }

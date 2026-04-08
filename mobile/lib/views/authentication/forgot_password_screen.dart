@@ -224,46 +224,60 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header
-            _buildHeader(size),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final headerHeight = keyboardVisible
+              ? 170.0
+              : (constraints.maxHeight * 0.38).clamp(280.0, 360.0);
+          final overlap = keyboardVisible ? 16.0 : 36.0;
 
-            // Form Card
-            Transform.translate(
-              offset: const Offset(0, -100),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 28,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: _buildForm(),
-              ),
+          return SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
-          ],
-        ),
+            child: Column(
+              children: [
+                _buildHeader(headerHeight, compact: keyboardVisible),
+                Transform.translate(
+                  offset: Offset(0, -overlap),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 28,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: _buildForm(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildHeader(Size size) {
+  Widget _buildHeader(double height, {required bool compact}) {
     String title;
     String subtitle;
 
@@ -287,54 +301,79 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return Container(
       width: double.infinity,
-      height: size.height * 0.45,
+      height: height,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: const BoxDecoration(color: AppColors.brandColor),
       child: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            // Back button
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                onPressed: () {
-                  if (_step > 1) {
-                    setState(() => _step--);
-                  } else {
-                    Navigator.of(context).pop();
-                  }
-                },
-                icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-              ),
-            ),
-            const Spacer(),
-            // Logo
-            Image.asset('assets/images/logo_nencam.png', height: 100),
-            const SizedBox(height: 16),
-            // Title
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Subtitle
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-            ),
-            const Spacer(),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final logoHeight = compact ? 0.0 : 100.0;
+            final titleSize = compact ? 20.0 : 26.0;
+            final subtitleSize = compact ? 12.0 : 14.0;
+            final bottomGap = compact ? 8.0 : 56.0;
+
+            return Column(
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    onPressed: () {
+                      if (_step > 1) {
+                        setState(() => _step--);
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!compact) ...[
+                            Image.asset(
+                              'assets/images/logo_nencam.png',
+                              height: logoHeight,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: titleSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.25,
+                            ),
+                          ),
+                          SizedBox(height: compact ? 4 : 8),
+                          Flexible(
+                            child: Text(
+                              subtitle,
+                              textAlign: TextAlign.center,
+                              maxLines: compact ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: subtitleSize,
+                                color: Colors.white.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: bottomGap),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -362,7 +401,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            hintText: 'Email (username@fpt.edu.vn)',
+            hintText: 'Hãy nhập email của bạn',
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,

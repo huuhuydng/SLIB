@@ -38,6 +38,7 @@ public class MaterialService {
     @Value("${slib.ai.material.max-file-size-bytes:15728640}")
     private long maxFileSizeBytes;
 
+    @Transactional(readOnly = true)
     public List<MaterialDTO.MaterialResponse> getAllMaterials() {
         return materialRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
@@ -45,6 +46,7 @@ public class MaterialService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public MaterialDTO.MaterialResponse getMaterialById(Long id) {
         MaterialEntity material = materialRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Material not found: " + id));
@@ -169,6 +171,7 @@ public class MaterialService {
         return toItemResponse(item);
     }
 
+    @Transactional(readOnly = true)
     public List<MaterialDTO.ItemResponse> getItemsByMaterialId(Long materialId) {
         return materialItemRepository.findByMaterialId(materialId)
                 .stream()

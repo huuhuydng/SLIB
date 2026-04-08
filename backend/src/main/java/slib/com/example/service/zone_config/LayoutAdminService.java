@@ -184,6 +184,7 @@ public class LayoutAdminService {
                         (left, right) -> right,
                         LinkedHashMap::new));
 
+        validateDuplicateNames(snapshot, conflicts);
         validateAreaOverlaps(snapshot.getAreas(), conflicts);
         validateZones(snapshot.getZones(), areasById, conflicts);
         validateFactories(snapshot.getFactories(), areasById, snapshot.getZones(), conflicts);
@@ -193,6 +194,42 @@ public class LayoutAdminService {
                 .valid(conflicts.isEmpty())
                 .conflicts(conflicts)
                 .build();
+    }
+
+    private void validateDuplicateNames(LayoutSnapshotRequest snapshot, List<LayoutConflictResponse> conflicts) {
+        Map<String, AreaResponse> areaNames = new HashMap<>();
+        for (AreaResponse area : snapshot.getAreas()) {
+            String normalizedName = safeName(area.getAreaName(), "").trim().toLowerCase(Locale.ROOT);
+            if (normalizedName.isEmpty()) {
+                continue;
+            }
+
+            AreaResponse existing = areaNames.putIfAbsent(normalizedName, area);
+            if (existing != null) {
+                conflicts.add(conflict("AREA_DUPLICATE_NAME", "error", "area", areaKey(area),
+                        "Tên phòng thư viện đang bị trùng",
+                        "Phòng \"" + safeName(area.getAreaName(), "Chưa đặt tên")
+                                + "\" đang bị trùng tên với một phòng khác trong sơ đồ."));
+            }
+        }
+
+        Map<Long, Map<String, ZoneResponse>> zoneNamesByArea = new HashMap<>();
+        for (ZoneResponse zone : snapshot.getZones()) {
+            Long areaId = zone.getAreaId() == null ? Long.MIN_VALUE : zone.getAreaId();
+            String normalizedName = safeName(zone.getZoneName(), "").trim().toLowerCase(Locale.ROOT);
+            if (normalizedName.isEmpty()) {
+                continue;
+            }
+
+            Map<String, ZoneResponse> zoneNames = zoneNamesByArea.computeIfAbsent(areaId, ignored -> new HashMap<>());
+            ZoneResponse existing = zoneNames.putIfAbsent(normalizedName, zone);
+            if (existing != null) {
+                conflicts.add(conflict("ZONE_DUPLICATE_NAME", "error", "zone", zoneKey(zone),
+                        "Tên khu vực ghế đang bị trùng",
+                        "Khu vực \"" + safeName(zone.getZoneName(), "Chưa đặt tên")
+                                + "\" đang bị trùng tên với khu vực khác trong cùng phòng thư viện."));
+            }
+        }
     }
 
     private void validateAreaOverlaps(List<AreaResponse> areas, List<LayoutConflictResponse> conflicts) {

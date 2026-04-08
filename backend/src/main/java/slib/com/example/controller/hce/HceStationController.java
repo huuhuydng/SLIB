@@ -11,6 +11,7 @@ import slib.com.example.dto.hce.HceStationResponse;
 import slib.com.example.dto.hce.HceStationStatusRequest;
 import slib.com.example.service.hce.HceStationService;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +24,13 @@ public class HceStationController {
 
     @Value("${gate.secret}")
     private String gateSecretKey;
+
+    private Map<String, Object> errorBody(String status, Exception e, String fallbackMessage) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", status);
+        body.put("message", e.getMessage() != null ? e.getMessage() : fallbackMessage);
+        return body;
+    }
 
     /**
      * Lấy danh sách tất cả trạm quét HCE
@@ -37,9 +45,7 @@ public class HceStationController {
             List<HceStationResponse> stations = hceStationService.getAllStations(search, status, deviceType);
             return ResponseEntity.ok(stations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(errorBody("ERROR", e, "Không thể tải danh sách trạm quét"));
         }
     }
 
@@ -53,13 +59,9 @@ public class HceStationController {
             HceStationResponse station = hceStationService.getStationById(id);
             return ResponseEntity.ok(station);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(404).body(Map.of(
-                    "status", "NOT_FOUND",
-                    "message", e.getMessage()));
+            return ResponseEntity.status(404).body(errorBody("NOT_FOUND", e, "Không tìm thấy trạm quét"));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(errorBody("ERROR", e, "Không thể lấy chi tiết trạm quét"));
         }
     }
 
@@ -73,9 +75,7 @@ public class HceStationController {
             HceStationResponse station = hceStationService.createStation(request);
             return ResponseEntity.status(201).body(station);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(errorBody("ERROR", e, "Không thể tạo trạm quét"));
         }
     }
 
@@ -91,9 +91,7 @@ public class HceStationController {
             HceStationResponse station = hceStationService.updateStation(id, request);
             return ResponseEntity.ok(station);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(errorBody("ERROR", e, "Không thể cập nhật trạm quét"));
         }
     }
 
@@ -109,9 +107,7 @@ public class HceStationController {
             HceStationResponse station = hceStationService.updateStationStatus(id, request);
             return ResponseEntity.ok(station);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "ERROR",
-                    "message", e.getMessage()));
+            return ResponseEntity.badRequest().body(errorBody("ERROR", e, "Không thể cập nhật trạng thái trạm quét"));
         }
     }
 

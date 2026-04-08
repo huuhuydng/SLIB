@@ -53,6 +53,11 @@ public class ReservationEntity {
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
+    // Actual end time when student physically left the seat (via NFC checkout or staff confirmation)
+    // Null = left via automatic completion (scheduler). Non-null = left early via manual checkout
+    @Column(name = "actual_end_time")
+    private LocalDateTime actualEndTime;
+
     @Column(name = "status", nullable = false)
     private String status;
 

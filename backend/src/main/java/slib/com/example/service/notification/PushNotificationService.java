@@ -432,6 +432,34 @@ public class PushNotificationService {
     }
 
     /**
+     * Send notification to all staff users (LIBRARIAN + ADMIN).
+     */
+    public void sendToStaff(String title, String body, NotificationType type, UUID referenceId) {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && u.getRole().isStaff())
+                .toList();
+
+        for (User user : users) {
+            sendToUser(user.getId(), title, body, type, referenceId);
+        }
+
+        log.info("Sent notification to {} staff users", users.size());
+    }
+
+    public void sendToStaff(String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category) {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && u.getRole().isStaff())
+                .toList();
+
+        for (User user : users) {
+            sendToUser(user.getId(), title, body, type, referenceId, referenceType, category);
+        }
+
+        log.info("Sent notification to {} staff users with referenceType {}", users.size(), referenceType);
+    }
+
+    /**
      * Check if notification should be sent based on user settings.
      * Kiểm tra cấu hình "Thông báo đẩy" trong UserSetting.
      * Khi user tắt toggle này, chặn TẤT CẢ notification.

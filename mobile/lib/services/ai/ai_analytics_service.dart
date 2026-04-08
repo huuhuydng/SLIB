@@ -1,20 +1,29 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:slib/core/constants/api_constants.dart';
+import 'package:slib/services/auth/auth_service.dart';
 
 class AIAnalyticsService {
-  static const _storage = FlutterSecureStorage();
+  static final AuthService _authService = AuthService();
 
   static String get _baseUrl => ApiConstants.aiAnalyticsUrl;
 
-  static Future<Map<String, String>> _authHeaders() async {
-    final token = await _storage.read(key: 'jwt_token');
-    return {
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  static Future<http.Response> _get(String url) {
+    return _authService.authenticatedRequest(
+      'GET',
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+    );
+  }
+
+  static Future<http.Response> _post(String url, {Object? body}) {
+    return _authService.authenticatedRequest(
+      'POST',
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: body,
+    );
   }
 
   /// Lấy dự đoán mật độ sử dụng
@@ -23,12 +32,9 @@ class AIAnalyticsService {
   }) async {
     try {
       final queryParams = zoneId != null ? '?zone_id=$zoneId' : '';
-      final response = await http
-          .get(
-            Uri.parse('$_baseUrl/density-prediction$queryParams'),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _get(
+        '$_baseUrl/density-prediction$queryParams',
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -45,12 +51,9 @@ class AIAnalyticsService {
     String period = 'week',
   }) async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$_baseUrl/usage-statistics?period=$period'),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _get(
+        '$_baseUrl/usage-statistics?period=$period',
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -65,12 +68,9 @@ class AIAnalyticsService {
   /// Lấy công suất thời gian thực
   static Future<Map<String, dynamic>?> getRealtimeCapacity() async {
     try {
-      final response = await http
-          .get(
-            Uri.parse('$_baseUrl/realtime-capacity'),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _get(
+        '$_baseUrl/realtime-capacity',
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -99,12 +99,9 @@ class AIAnalyticsService {
         '[AI_DEBUG] getSeatRecommendation URL: $_baseUrl/seat-recommendation?$queryParams',
       );
 
-      final response = await http
-          .get(
-            Uri.parse('$_baseUrl/seat-recommendation?$queryParams'),
-            headers: await _authHeaders(),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _get(
+        '$_baseUrl/seat-recommendation?$queryParams',
+      ).timeout(const Duration(seconds: 10));
 
       debugPrint(
         '[AI_DEBUG] getSeatRecommendation status: ${response.statusCode}',
@@ -128,13 +125,10 @@ class AIAnalyticsService {
     int days = 30,
   }) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse('$_baseUrl/student-behavior'),
-            headers: await _authHeaders(),
-            body: json.encode({'user_id': userId, 'days': days}),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _post(
+        '$_baseUrl/student-behavior',
+        body: json.encode({'user_id': userId, 'days': days}),
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return json.decode(response.body);

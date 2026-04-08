@@ -14,13 +14,15 @@ import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
 import librarianService from "../../../services/librarian/librarianService";
 import dashboardService from "../../../services/librarian/dashboardService";
 import { getAllNewBooksForAdmin } from "../../../services/librarian/newBookService";
-import { getBehaviorSummary, getDensityPrediction, getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
+import { getBehaviorIssues, getDensityPrediction, getRealtimeCapacity, sendBehaviorWarning } from "../../../services/admin/ai/analyticsService";
 import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
+import useAppDialog from "../../../hooks/useAppDialog";
 
 import "../../../styles/librarian/Dashboard.css";
 
 const Dashboard = () => {
+  const { confirm, alert } = useAppDialog();
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
@@ -47,6 +49,12 @@ const Dashboard = () => {
   const [quietHours, setQuietHours] = useState([]);
   const [densityHours, setDensityHours] = useState([]);
   const [behaviorIssues, setBehaviorIssues] = useState([]);
+  const [behaviorSummary, setBehaviorSummary] = useState({
+    totalFlagged: 0,
+    criticalCount: 0,
+    warningCount: 0,
+  });
+  const [sendingBehaviorWarningId, setSendingBehaviorWarningId] = useState(null);
   const [erroredViolationAvatars, setErroredViolationAvatars] = useState(new Set());
   const [chatOverview, setChatOverview] = useState({
     pendingReplies: 0,
@@ -81,6 +89,42 @@ const Dashboard = () => {
     if (!dateTimeString) return '';
     const date = new Date(dateTimeString);
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleOpenStudentProfile = (issue) => {
+    if (!issue?.user_id) return;
+    window.location.href = `/librarian/students?userId=${issue.user_id}`;
+  };
+
+  const handleSendBehaviorWarning = async (issue) => {
+    if (!issue?.user_id || sendingBehaviorWarningId === issue.user_id) return;
+    const confirmed = await confirm({
+      title: 'Gửi nhắc nhở sinh viên',
+      message: `Gửi nhắc nhở đến ${issue.full_name} về vấn đề "${issue.primary_issue}"?`,
+      confirmText: 'Gửi nhắc nhở',
+      cancelText: 'Huỷ',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
+
+    try {
+      setSendingBehaviorWarningId(issue.user_id);
+      const res = await sendBehaviorWarning(issue.user_id, issue.primary_issue, issue.detail);
+      await alert({
+        title: 'Đã gửi nhắc nhở',
+        message: res?.message || `Đã gửi nhắc nhở đến ${issue.full_name}.`,
+        icon: 'success',
+      });
+    } catch (error) {
+      const message = error?.response?.data?.message || 'Không thể gửi nhắc nhở cho sinh viên này.';
+      await alert({
+        title: 'Không thể gửi nhắc nhở',
+        message,
+        icon: 'error',
+      });
+    } finally {
+      setSendingBehaviorWarningId(null);
+    }
   };
 
   const formatRelativeTime = (dateTimeString) => {
@@ -283,9 +327,19 @@ const Dashboard = () => {
       } catch (e) { analyticsHealthy = false; console.warn('Could not fetch density:', e); }
 
       try {
-        const behaviorData = await getBehaviorSummary();
+        const behaviorData = await getBehaviorIssues(3);
         setBehaviorIssues(Array.isArray(behaviorData?.students) ? behaviorData.students : []);
-      } catch (e) { analyticsHealthy = false; console.warn('Could not fetch behavior issues:', e); }
+        setBehaviorSummary({
+          totalFlagged: behaviorData?.total_flagged || 0,
+          criticalCount: behaviorData?.critical_count || 0,
+          warningCount: behaviorData?.warning_count || 0,
+        });
+      } catch (e) {
+        analyticsHealthy = false;
+        setBehaviorIssues([]);
+        setBehaviorSummary({ totalFlagged: 0, criticalCount: 0, warningCount: 0 });
+        console.warn('Could not fetch behavior issues:', e);
+      }
 
       await fetchChatOverview();
       setServiceSignals((prev) => ({ ...prev, aiAnalytics: analyticsHealthy }));
@@ -411,6 +465,11 @@ const Dashboard = () => {
     );
   }, [searchText, accessLogs, accessFilter]);
 
+  const displayedAccessLogs = useMemo(
+    () => filteredStudents.slice(0, 10),
+    [filteredStudents]
+  );
+
   const stats = {
     currentlyInLibrary: dashStats?.currentlyInLibrary || 0,
     totalCheckInsToday: dashStats?.totalCheckInsToday || 0,
@@ -439,6 +498,16 @@ const Dashboard = () => {
     zoneOccupancies: dashStats?.zoneOccupancies || [],
     trendSummary: dashStats?.trendSummary || {}
   };
+
+  const displayedRecentBookings = useMemo(
+    () => stats.recentBookings.slice(0, 8),
+    [stats.recentBookings]
+  );
+
+  const pendingRecentViolations = useMemo(
+    () => (stats.recentViolations || []).filter((item) => item?.status === 'PENDING'),
+    [stats.recentViolations]
+  );
 
   // Greeting based on time of day
   const getGreeting = () => {
@@ -482,7 +551,7 @@ const Dashboard = () => {
   const getActiveRequestData = () => {
     switch (activeRequestTab) {
       case 'support': return stats.recentSupportRequests;
-      case 'violation': return stats.recentViolations;
+      case 'violation': return pendingRecentViolations;
       case 'complaint': return stats.recentComplaints;
       case 'feedback': return stats.recentFeedbacks;
       default: return [];
@@ -1302,8 +1371,8 @@ const Dashboard = () => {
                   <AlertTriangle size={14} color="#f59e0b" />
                   <span className="behavior-title">Sinh viên cần lưu ý</span>
                 </div>
-                {behaviorIssues.length > 0 && (
-                  <span className="behavior-count">{behaviorIssues.length}</span>
+                {behaviorSummary.totalFlagged > 0 && (
+                  <span className="behavior-count">{behaviorSummary.totalFlagged}</span>
                 )}
               </div>
 
@@ -1312,12 +1381,36 @@ const Dashboard = () => {
                   <span>✓ Chưa có sinh viên nào cần lưu ý</span>
                 </div>
               ) : (
-                <div className="behavior-list">
+                <div className="behavior-body">
+                  <div className="behavior-summary-strip">
+                    <div className="behavior-summary-pill">
+                      <span className="behavior-summary-value">{behaviorSummary.totalFlagged}</span>
+                      <span className="behavior-summary-label">Cần theo dõi</span>
+                    </div>
+                    <div className="behavior-summary-pill behavior-summary-pill--critical">
+                      <span className="behavior-summary-value">{behaviorSummary.criticalCount}</span>
+                      <span className="behavior-summary-label">Mức cao</span>
+                    </div>
+                    <div className="behavior-summary-pill behavior-summary-pill--warning">
+                      <span className="behavior-summary-value">{behaviorSummary.warningCount}</span>
+                      <span className="behavior-summary-label">Cần nhắc</span>
+                    </div>
+                  </div>
+
+                  <div className="behavior-list">
                   {behaviorIssues.map((s, idx) => (
                     <div key={idx} className={`behavior-item ${s.severity === 'critical' ? 'behavior-item--critical' : s.severity === 'warning' ? 'behavior-item--warning' : ''}`}>
                       <div className="behavior-item-top">
-                        <span className="behavior-item-name">{s.full_name}</span>
-                        <span className="behavior-item-code">{s.user_code}</span>
+                        <div className="behavior-item-heading">
+                          <span className="behavior-item-name">{s.full_name}</span>
+                          <span className="behavior-item-code">{s.user_code}</span>
+                        </div>
+                        <div className="behavior-priority-wrap">
+                          <span className="behavior-priority">Ưu tiên #{s.priority_rank}</span>
+                          <span className={`behavior-risk behavior-risk--${s.severity === 'critical' ? 'red' : s.severity === 'warning' ? 'amber' : 'gray'}`}>
+                            Risk {s.risk_score}
+                          </span>
+                        </div>
                       </div>
                       <div className="behavior-item-stats">
                         <span className={`behavior-score ${s.reputation_score < 70 ? 'score--low' : s.reputation_score < 90 ? 'score--mid' : ''}`}>
@@ -1327,10 +1420,43 @@ const Dashboard = () => {
                           {s.primary_issue}
                         </span>
                       </div>
+                      {Array.isArray(s.highlights) && s.highlights.length > 0 && (
+                        <div className="behavior-highlight-list">
+                          {s.highlights.map((metric) => (
+                            <span
+                              key={`${s.user_id}-${metric.label}`}
+                              className={`behavior-highlight behavior-highlight--${metric.tone || 'neutral'}`}
+                            >
+                              <span className="behavior-highlight-label">{metric.label}</span>
+                              <strong>{metric.value}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {s.detail && <div className="behavior-detail">{s.detail}</div>}
                       <div className="behavior-suggestion">{s.suggestion}</div>
+                      <div className="behavior-actions">
+                        <button
+                          type="button"
+                          className="behavior-action-btn behavior-action-btn--ghost"
+                          onClick={() => handleOpenStudentProfile(s)}
+                        >
+                          Mở hồ sơ
+                        </button>
+                        <button
+                          type="button"
+                          className="behavior-action-btn behavior-action-btn--primary"
+                          onClick={() => handleSendBehaviorWarning(s)}
+                          disabled={sendingBehaviorWarningId === s.user_id}
+                        >
+                          {sendingBehaviorWarningId === s.user_id
+                            ? 'Đang gửi...'
+                            : (s.next_action_label || 'Gửi nhắc nhở')}
+                        </button>
+                      </div>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1355,7 +1481,7 @@ const Dashboard = () => {
               </div>
               <a href="/librarian/students" className="view-all-link">Xem tất cả</a>
             </div>
-            {filteredStudents.length === 0 ? (
+            {displayedAccessLogs.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
                 Hiện chưa có sinh viên nào ra vào thư viện
               </div>
@@ -1372,7 +1498,7 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredStudents.map((log) => (
+                    {displayedAccessLogs.map((log) => (
                       <tr key={`${log.logId}-${log.action}`}>
                         <td className="cell-name">{log.userName}</td>
                         <td className="cell-code">{log.userCode}</td>
@@ -1405,13 +1531,13 @@ const Dashboard = () => {
               <a href="/librarian/bookings" className="view-all-link">Xem tất cả</a>
             </div>
 
-            {stats.recentBookings.length === 0 ? (
+            {displayedRecentBookings.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '300px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
                 Chưa có lượt đặt chỗ nào hôm nay
               </div>
             ) : (
               <div className="booking-list">
-                {stats.recentBookings.map((booking, idx) => {
+                {displayedRecentBookings.map((booking, idx) => {
                   const statusCfg = getStatusConfig(booking.status);
                   return (
                     <div key={idx} className="booking-row" onClick={() => setDetailModal({ type: 'booking', data: booking })}>
@@ -1512,11 +1638,11 @@ const Dashboard = () => {
             </div>
 
             {
-              stats.recentViolations.length === 0 ? (
-                <div className="empty-section">Chưa có vi phạm cần xử lý</div>
+              pendingRecentViolations.length === 0 ? (
+                <div className="empty-section">Hiện không có vi phạm nào cần được xử lý</div>
               ) : (
                 <div className="violations-list dashboard-entity-list">
-                  {stats.recentViolations.map((v, idx) => {
+                  {pendingRecentViolations.map((v, idx) => {
                     const statusCfg = getStatusConfig(v.status);
                     return (
                         <div key={idx} className="violation-item violation-item-clickable dashboard-entity-item" onClick={() => setDetailModal({ type: 'violation', data: v })}>
@@ -1591,7 +1717,7 @@ const Dashboard = () => {
                 onClick={() => setActiveRequestTab('violation')}
               >
                 <ShieldAlert size={14} />
-                Vi phạm ({stats.recentViolations.length})
+                Vi phạm ({pendingRecentViolations.length})
               </button>
               <button
                 className={`request-tab ${activeRequestTab === 'complaint' ? 'active' : ''}`}

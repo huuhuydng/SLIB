@@ -43,6 +43,9 @@ public class BackupService {
     @Value("${backup.pg-dump-path:pg_dump}")
     private String pgDumpPath;
 
+    @Value("${backup.pg-restore-path:pg_restore}")
+    private String pgRestorePath;
+
     private static final String BACKUP_DIR = "/tmp/slib-backups";
 
     /**
@@ -59,22 +62,7 @@ public class BackupService {
             throw new RuntimeException("Không thể tạo thư mục sao lưu: " + e.getMessage());
         }
 
-        // Parse database connection info
-        String dbHost = "localhost";
-        String dbPort = "5434";
-        String dbName = "slib";
-        try {
-            // jdbc:postgresql://localhost:5434/slib?...
-            String url = datasourceUrl.replace("jdbc:postgresql://", "");
-            String hostPortDb = url.split("\\?")[0]; // localhost:5434/slib
-            String[] parts = hostPortDb.split("/");
-            dbName = parts[1];
-            String[] hostPort = parts[0].split(":");
-            dbHost = hostPort[0];
-            dbPort = hostPort.length > 1 ? hostPort[1] : "5432";
-        } catch (Exception e) {
-            log.warn("[Backup] Không thể phân tích datasource URL, dùng cấu hình mặc định: {}", e.getMessage());
-        }
+        DatabaseConnectionInfo connectionInfo = parseDatabaseConnectionInfo();
 
         // Build filename
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
@@ -94,10 +82,10 @@ public class BackupService {
             // Run pg_dump
             ProcessBuilder pb = new ProcessBuilder(
                     pgDumpPath,
-                    "-h", dbHost,
-                    "-p", dbPort,
+                    "-h", connectionInfo.host(),
+                    "-p", connectionInfo.port(),
                     "-U", datasourceUsername,
-                    "-d", dbName,
+                    "-d", connectionInfo.database(),
                     "-F", "c",        // custom format (compressed)
                     "-f", filePath
             );
@@ -137,6 +125,64 @@ public class BackupService {
             history.setCompletedAt(LocalDateTime.now());
             backupHistoryRepository.save(history);
             systemLogService.logError("BackupService", "Tiến trình sao lưu gặp lỗi", normalizedMessage);
+            throw new RuntimeException(normalizedMessage);
+        }
+    }
+
+    /**
+     * Restore PostgreSQL database from an existing successful backup.
+     */
+    public void restoreBackup(UUID backupId) {
+        BackupHistoryEntity history = backupHistoryRepository.findById(backupId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bản sao lưu"));
+
+        if (history.getStatus() != BackupStatus.SUCCESS) {
+            throw new RuntimeException("Chỉ có thể khôi phục từ bản sao lưu thành công");
+        }
+
+        File backupFile = new File(history.getFilePath());
+        if (!backupFile.exists()) {
+            throw new RuntimeException("Không tìm thấy file sao lưu trên máy chủ");
+        }
+
+        DatabaseConnectionInfo connectionInfo = parseDatabaseConnectionInfo();
+
+        try {
+            ensurePgRestoreAvailable();
+
+            ProcessBuilder pb = new ProcessBuilder(
+                    pgRestorePath,
+                    "-h", connectionInfo.host(),
+                    "-p", connectionInfo.port(),
+                    "-U", datasourceUsername,
+                    "-d", connectionInfo.database(),
+                    "--clean",
+                    "--if-exists",
+                    "--no-owner",
+                    "--no-privileges",
+                    "--single-transaction",
+                    "--exit-on-error",
+                    backupFile.getAbsolutePath()
+            );
+            pb.environment().put("PGPASSWORD", datasourcePassword);
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            String output = new String(process.getInputStream().readAllBytes());
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                systemLogService.logError("BackupService", "Khôi phục dữ liệu thất bại", output);
+                throw new RuntimeException("Khôi phục thất bại: " + output);
+            }
+
+            systemLogService.logJobEvent(LogLevel.WARN, "BackupService",
+                    "Khôi phục dữ liệu PostgreSQL thành công từ bản sao lưu: " + backupFile.getName());
+            log.warn("[Backup] Restore completed from {}", backupFile.getName());
+
+        } catch (IOException | InterruptedException e) {
+            String normalizedMessage = normalizeRestoreErrorMessage(e);
+            systemLogService.logError("BackupService", "Khôi phục dữ liệu thất bại", normalizedMessage);
             throw new RuntimeException(normalizedMessage);
         }
     }
@@ -205,6 +251,34 @@ public class BackupService {
         }
     }
 
+    private void ensurePgRestoreAvailable() throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(pgRestorePath, "--version")
+                .redirectErrorStream(true)
+                .start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new IOException("Không thể chạy công cụ pg_restore tại đường dẫn: " + pgRestorePath);
+        }
+    }
+
+    private DatabaseConnectionInfo parseDatabaseConnectionInfo() {
+        String dbHost = "localhost";
+        String dbPort = "5434";
+        String dbName = "slib";
+        try {
+            String url = datasourceUrl.replace("jdbc:postgresql://", "");
+            String hostPortDb = url.split("\\?")[0];
+            String[] parts = hostPortDb.split("/");
+            dbName = parts[1];
+            String[] hostPort = parts[0].split(":");
+            dbHost = hostPort[0];
+            dbPort = hostPort.length > 1 ? hostPort[1] : "5432";
+        } catch (Exception e) {
+            log.warn("[Backup] Không thể phân tích datasource URL, dùng cấu hình mặc định: {}", e.getMessage());
+        }
+        return new DatabaseConnectionInfo(dbHost, dbPort, dbName);
+    }
+
     private String normalizeBackupErrorMessage(Exception e) {
         String rawMessage = e.getMessage() != null ? e.getMessage() : "Lỗi không xác định";
         if (rawMessage.contains("Cannot run program") || rawMessage.contains("No such file or directory")) {
@@ -215,5 +289,20 @@ public class BackupService {
             return "Tiến trình sao lưu bị gián đoạn ngoài ý muốn.";
         }
         return "Sao lưu thất bại: " + rawMessage;
+    }
+
+    private String normalizeRestoreErrorMessage(Exception e) {
+        String rawMessage = e.getMessage() != null ? e.getMessage() : "Lỗi không xác định";
+        if (rawMessage.contains("Cannot run program") || rawMessage.contains("No such file or directory")) {
+            return "Không tìm thấy công cụ khôi phục PostgreSQL (pg_restore). Vui lòng cài postgresql-client hoặc cấu hình backup.pg-restore-path đúng trên máy chủ.";
+        }
+        if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+            return "Tiến trình khôi phục bị gián đoạn ngoài ý muốn.";
+        }
+        return "Khôi phục dữ liệu thất bại: " + rawMessage;
+    }
+
+    private record DatabaseConnectionInfo(String host, String port, String database) {
     }
 }

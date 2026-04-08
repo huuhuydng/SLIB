@@ -32,6 +32,8 @@ import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.service.chat.CloudinaryService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -126,6 +128,11 @@ public class SeatViolationReportService {
             sendNewReportNotification(violator.getId(), saved);
         }
 
+        pushNotificationService.sendToStaff(
+                "Báo cáo vi phạm mới",
+                reporter.getFullName() + " vừa gửi một báo cáo vi phạm mới.",
+                NotificationType.VIOLATION_REPORT,
+                saved.getId());
         broadcastDashboardUpdate("VIOLATION_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("VIOLATION", "CREATED");
         return ViolationReportResponse.fromEntity(saved);
@@ -311,11 +318,52 @@ public class SeatViolationReportService {
      * Xoa nhieu bao cao cung luc
      */
     @Transactional
-    public void deleteBatch(List<UUID> ids) {
-        violationReportRepository.deleteAllById(ids);
-        log.info("[ViolationReport] Deleted {} reports", ids.size());
-        broadcastDashboardUpdate("VIOLATION_UPDATE", "DELETED");
-        librarianNotificationService.broadcastPendingCounts("VIOLATION", "DELETED");
+    public Map<String, Object> deleteBatch(List<UUID> ids) {
+        Map<UUID, SeatViolationReportEntity> reportsById = violationReportRepository.findAllById(ids)
+                .stream()
+                .collect(Collectors.toMap(SeatViolationReportEntity::getId, report -> report));
+
+        List<UUID> deletableIds = new ArrayList<>();
+        List<Map<String, String>> blockedReports = new ArrayList<>();
+
+        for (UUID id : ids) {
+            SeatViolationReportEntity report = reportsById.get(id);
+            if (report == null) {
+                blockedReports.add(buildBlockedDeleteReason(id, "Không tìm thấy báo cáo vi phạm."));
+                continue;
+            }
+
+            if (complaintRepository.existsByViolationReportId(id)) {
+                blockedReports.add(buildBlockedDeleteReason(
+                        id,
+                        "Không thể xoá vì báo cáo này đã có khiếu nại liên quan."));
+                continue;
+            }
+
+            if (report.getStatus() == ReportStatus.VERIFIED || report.getStatus() == ReportStatus.RESOLVED) {
+                blockedReports.add(buildBlockedDeleteReason(
+                        id,
+                        "Không thể xoá báo cáo đã được xử lý vì sẽ làm lệch lịch sử vi phạm và điểm phạt của sinh viên."));
+                continue;
+            }
+
+            deletableIds.add(id);
+        }
+
+        if (!deletableIds.isEmpty()) {
+            violationReportRepository.deleteAllById(deletableIds);
+            log.info("[ViolationReport] Deleted {} reports, blocked {}", deletableIds.size(), blockedReports.size());
+            broadcastDashboardUpdate("VIOLATION_UPDATE", "DELETED");
+            librarianNotificationService.broadcastPendingCounts("VIOLATION", "DELETED");
+        } else {
+            log.info("[ViolationReport] No reports deleted, blocked {}", blockedReports.size());
+        }
+
+        return Map.of(
+                "deleted", deletableIds.size(),
+                "deletedIds", deletableIds,
+                "blocked", blockedReports,
+                "blockedCount", blockedReports.size());
     }
 
     // ===== PRIVATE HELPERS =====
@@ -327,6 +375,13 @@ public class SeatViolationReportService {
         return findActiveConfirmedReservationBySeat(seatId)
                 .map(ReservationEntity::getUser)
                 .orElse(null);
+    }
+
+    private Map<String, String> buildBlockedDeleteReason(UUID reportId, String reason) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("id", reportId.toString());
+        item.put("reason", reason);
+        return item;
     }
 
     private java.util.Optional<ReservationEntity> findActiveConfirmedReservationBySeat(Integer seatId) {

@@ -100,6 +100,38 @@ export const getBehaviorSummary = async (days = 7) => {
   }
 };
 
+// Lấy danh sách sinh viên cần lưu ý cho dashboard thủ thư
+export const getBehaviorIssues = async (limit = 3) => {
+  try {
+    const response = await aiAnalyticsService.get('/behavior-issues', {
+      params: { limit },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching behavior issues:', error);
+    throw error;
+  }
+};
+
+export const sendBehaviorWarning = async (userId, primaryIssue, detail) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/slib/notifications/staff/behavior-warning`, {
+      userId,
+      primaryIssue,
+      detail,
+    }, {
+      headers: {
+        Authorization: `Bearer ${getStaffAuthToken()}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error sending behavior warning:', error);
+    throw error;
+  }
+};
+
 export default {
   getStudentBehaviorAnalytics,
   getDensityPrediction,
@@ -107,4 +139,6 @@ export default {
   getUsageStatistics,
   getRealtimeCapacity,
   getBehaviorSummary,
+  getBehaviorIssues,
+  sendBehaviorWarning,
 };

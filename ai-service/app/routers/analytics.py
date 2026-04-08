@@ -151,7 +151,7 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
 
 
 @router.get("/behavior-issues")
-async def get_behavior_issues() -> Dict[str, Any]:
+async def get_behavior_issues(limit: int = 3) -> Dict[str, Any]:
     """
     Lấy danh sách sinh viên có vấn đề hành vi (bỏ chỗ nhiều, điểm uy tín thấp, vi phạm)
     Được gọi bởi Librarian Dashboard.
@@ -164,7 +164,9 @@ async def get_behavior_issues() -> Dict[str, Any]:
         from sqlalchemy import text
 
         with engine.connect() as conn:
-            # Lấy sinh viên cùng thống kê đặt chỗ 30 ngày gần nhất
+            max_items = max(1, min(limit, 10))
+
+            # Lấy sinh viên cùng thống kê đặt chỗ 30 ngày gần nhất và các tín hiệu phạt gần đây
             result = conn.execute(text("""
                 WITH reservation_stats AS (
                     SELECT
@@ -176,8 +178,26 @@ async def get_behavior_issues() -> Dict[str, Any]:
                     FROM reservations r
                     WHERE r.created_at >= NOW() - INTERVAL '30 days'
                     GROUP BY r.user_id
+                ),
+                late_checkout_stats AS (
+                    SELECT
+                        pt.user_id,
+                        COUNT(*) AS late_checkout_count
+                    FROM point_transactions pt
+                    WHERE pt.transaction_type = 'CHECK_OUT_LATE_PENALTY'
+                      AND pt.created_at >= NOW() - INTERVAL '30 days'
+                    GROUP BY pt.user_id
+                ),
+                complaint_stats AS (
+                    SELECT
+                        c.user_id,
+                        COUNT(*) AS recent_complaints
+                    FROM complaints c
+                    WHERE c.created_at >= NOW() - INTERVAL '30 days'
+                    GROUP BY c.user_id
                 )
                 SELECT
+                    u.id,
                     u.full_name,
                     u.user_code,
                     sp.reputation_score,
@@ -185,88 +205,174 @@ async def get_behavior_issues() -> Dict[str, Any]:
                     COALESCE(rs.expired_count, 0) AS expired_count,
                     COALESCE(rs.cancelled_count, 0) AS cancelled_count,
                     COALESCE(rs.completed_count, 0) AS completed_count,
-                    sp.violation_count
+                    sp.violation_count,
+                    COALESCE(lcs.late_checkout_count, 0) AS late_checkout_count,
+                    COALESCE(cs.recent_complaints, 0) AS recent_complaints
                 FROM student_profiles sp
                 JOIN users u ON u.id = sp.user_id
                 LEFT JOIN reservation_stats rs ON rs.user_id = u.id
+                LEFT JOIN late_checkout_stats lcs ON lcs.user_id = u.id
+                LEFT JOIN complaint_stats cs ON cs.user_id = u.id
                 WHERE sp.reputation_score <= 80
                    OR sp.violation_count > 0
                    OR (rs.total_reservations >= 3
                        AND (rs.expired_count::float / rs.total_reservations) > 0.3)
+                   OR COALESCE(lcs.late_checkout_count, 0) > 0
                 ORDER BY sp.reputation_score ASC,
                          COALESCE(rs.expired_count, 0) DESC
-                LIMIT 20
+                LIMIT 30
             """))
 
             students = []
             for row in result:
-                full_name = row[0]
-                user_code = row[1]
-                reputation_score = row[2] if row[2] is not None else 100
-                total = row[3] or 0
-                expired = row[4] or 0
-                cancelled = row[5] or 0
-                violation_count = row[7] or 0
+                user_id = str(row[0])
+                full_name = row[1]
+                user_code = row[2]
+                reputation_score = row[3] if row[3] is not None else 100
+                total = row[4] or 0
+                expired = row[5] or 0
+                cancelled = row[6] or 0
+                completed = row[7] or 0
+                violation_count = row[8] or 0
+                late_checkout_count = row[9] or 0
+                recent_complaints = row[10] or 0
 
                 no_show_rate = (expired / total) if total >= 3 else 0
                 cancel_rate = (cancelled / total) if total >= 3 else 0
 
-                # Xác định severity
-                if reputation_score < 60 or (no_show_rate > 0.5 and total >= 3):
-                    severity = "critical"
-                elif reputation_score < 80 or (no_show_rate > 0.3 and total >= 3):
-                    severity = "warning"
-                else:
-                    severity = "info"
+                # Tính risk score để ưu tiên ổn định, không random
+                risk_score = 0.0
+                risk_score += max(0, 85 - reputation_score) * 1.35
+                risk_score += min(30, violation_count * 9)
+                risk_score += min(35, expired * 6)
+                risk_score += min(18, cancelled * 3)
+                risk_score += min(16, late_checkout_count * 5)
+                risk_score += min(12, recent_complaints * 4)
+                if total >= 3:
+                    risk_score += no_show_rate * 45
+                    risk_score += cancel_rate * 15
+                if reputation_score < 60:
+                    risk_score += 12
+                if total >= 3 and completed == 0:
+                    risk_score += 6
 
-                # Xác định vấn đề chính
+                risk_score = int(round(min(risk_score, 100)))
+
                 issues = []
                 if no_show_rate > 0.3 and total >= 3:
                     issues.append(("Bỏ chỗ nhiều", f"Tỷ lệ bỏ chỗ {int(no_show_rate * 100)}% ({expired}/{total} lượt)"))
                 if cancel_rate > 0.3 and total >= 3:
                     issues.append(("Huỷ chỗ thường xuyên", f"Tỷ lệ huỷ {int(cancel_rate * 100)}% ({cancelled}/{total} lượt)"))
+                if late_checkout_count > 0:
+                    issues.append(("Quên trả chỗ", f"Có {late_checkout_count} lần bị hệ thống tự động check-out trong 30 ngày"))
                 if reputation_score < 60:
                     issues.append(("Vi phạm nội quy", f"Điểm uy tín rất thấp: {reputation_score}/100"))
                 elif reputation_score <= 80:
                     issues.append(("Điểm uy tín thấp", f"Điểm uy tín: {reputation_score}/100"))
                 if violation_count > 0:
                     issues.append(("Có vi phạm", f"Đã vi phạm {violation_count} lần"))
+                if recent_complaints > 0:
+                    issues.append(("Có khiếu nại gần đây", f"Có {recent_complaints} khiếu nại trong 30 ngày"))
 
                 if not issues:
                     continue
 
+                if risk_score >= 70:
+                    severity = "critical"
+                elif risk_score >= 45:
+                    severity = "warning"
+                else:
+                    severity = "info"
+
                 primary_issue = issues[0][0]
                 detail = "; ".join(i[1] for i in issues)
 
-                # Gợi ý hành động
                 if severity == "critical":
-                    suggestion = "Cần nhắc nhở trực tiếp hoặc tạm khoá đặt chỗ"
+                    suggestion = "Ưu tiên mở hồ sơ, nhắc nhở ngay và cân nhắc hạn chế đặt chỗ nếu tiếp tục tái phạm"
+                    next_action_key = "warn_and_review"
+                    next_action_label = "Nhắc nhở ngay"
                 elif severity == "warning":
-                    suggestion = "Nên gửi cảnh báo qua thông báo"
+                    suggestion = "Nên gửi cảnh báo qua thông báo và theo dõi thêm trong tuần này"
+                    next_action_key = "notify_and_monitor"
+                    next_action_label = "Gửi cảnh báo"
                 else:
-                    suggestion = "Theo dõi thêm"
+                    suggestion = "Theo dõi thêm và nhắc nhở nhẹ nếu tiếp tục phát sinh"
+                    next_action_key = "monitor"
+                    next_action_label = "Theo dõi thêm"
+
+                highlights = []
+                if total > 0:
+                    highlights.append({"label": "Lượt đặt 30 ngày", "value": str(total), "tone": "neutral"})
+                if expired > 0:
+                    highlights.append({"label": "Bỏ chỗ", "value": str(expired), "tone": "danger"})
+                if late_checkout_count > 0:
+                    highlights.append({"label": "Quên trả chỗ", "value": str(late_checkout_count), "tone": "warning"})
+                if violation_count > 0:
+                    highlights.append({"label": "Vi phạm", "value": str(violation_count), "tone": "danger"})
 
                 students.append({
+                    "user_id": user_id,
                     "full_name": full_name,
                     "user_code": user_code,
                     "reputation_score": reputation_score,
+                    "risk_score": risk_score,
                     "severity": severity,
                     "primary_issue": primary_issue,
                     "detail": detail,
                     "suggestion": suggestion,
+                    "next_action_key": next_action_key,
+                    "next_action_label": next_action_label,
+                    "highlights": highlights[:4],
+                    "metrics": {
+                        "total_reservations": total,
+                        "expired_count": expired,
+                        "cancelled_count": cancelled,
+                        "completed_count": completed,
+                        "violation_count": violation_count,
+                        "late_checkout_count": late_checkout_count,
+                        "recent_complaints": recent_complaints,
+                        "no_show_rate": round(no_show_rate, 2),
+                        "cancel_rate": round(cancel_rate, 2),
+                    }
                 })
 
-            # Random 3 sinh viên để dashboard không quá nhiều
-            import random
-            if len(students) > 3:
-                students = random.sample(students, 3)
+            students.sort(
+                key=lambda s: (
+                    -s["risk_score"],
+                    s["reputation_score"],
+                    -s["metrics"]["violation_count"],
+                    -s["metrics"]["expired_count"],
+                    s["full_name"].lower(),
+                )
+            )
 
-            return {"students": students}
+            top_students = students[:max_items]
+
+            return {
+                "generated_at": datetime.now().isoformat(),
+                "total_flagged": len(students),
+                "displayed_count": len(top_students),
+                "critical_count": sum(1 for s in students if s["severity"] == "critical"),
+                "warning_count": sum(1 for s in students if s["severity"] == "warning"),
+                "students": [
+                    {
+                        **student,
+                        "priority_rank": index + 1,
+                    }
+                    for index, student in enumerate(top_students)
+                ],
+            }
 
     except Exception as e:
         logger.error(f"Lỗi khi truy vấn behavior-issues: {e}")
-        # Fallback: trả về danh sách rỗng thay vì lỗi 500
-        return {"students": []}
+        return {
+            "generated_at": datetime.now().isoformat(),
+            "total_flagged": 0,
+            "displayed_count": 0,
+            "critical_count": 0,
+            "warning_count": 0,
+            "students": [],
+        }
 
 
 @router.get("/behavior-summary")
@@ -291,7 +397,8 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                     SUM(CASE WHEN status = 'EXPIRED' THEN 1 ELSE 0 END) AS total_no_shows,
                     SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS total_cancellations
                 FROM reservations
-                WHERE created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                WHERE start_time >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND status IN ('COMPLETED', 'CONFIRMED', 'EXPIRED', 'CANCELLED')
             """), {"days": days})
             agg_row = agg_result.fetchone()
 
@@ -300,18 +407,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
             total_no_shows_reservations = agg_row[2] or 0
             total_cancellations = agg_row[3] or 0
 
-            # --- Check student_behaviors table for NO_SHOW records ---
-            try:
-                sb_result = conn.execute(text("""
-                    SELECT COUNT(*) FROM student_behaviors
-                    WHERE behavior_type = 'NO_SHOW'
-                      AND created_at >= NOW() - MAKE_INTERVAL(days => :days)
-                """), {"days": days})
-                sb_no_shows = sb_result.fetchone()[0] or 0
-            except Exception:
-                sb_no_shows = 0
-
-            total_no_shows = max(total_no_shows_reservations, sb_no_shows)
+            total_no_shows = total_no_shows_reservations
 
             avg_no_show_rate = round(total_no_shows / max(total_behaviors, 1), 4)
             avg_cancellation_rate = round(total_cancellations / max(total_behaviors, 1), 4)
@@ -326,7 +422,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                 FROM reservations r
                 JOIN users u ON u.id = r.user_id
                 WHERE r.status = 'EXPIRED'
-                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND r.start_time >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY r.user_id, u.full_name, u.user_code
                 ORDER BY no_show_count DESC
                 LIMIT 10
@@ -351,7 +447,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                 FROM reservations r
                 JOIN users u ON u.id = r.user_id
                 WHERE r.status IN ('COMPLETED', 'CONFIRMED')
-                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY r.user_id, u.full_name, u.user_code
                 ORDER BY usage_count DESC
                 LIMIT 10
@@ -400,21 +496,69 @@ async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -
         from sqlalchemy import text
 
         with engine.connect() as conn:
-            # Get total seats for normalization
-            seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
-            total_seats = seats_result.fetchone()[0] or 1
+            if zone_id:
+                seats_result = conn.execute(text("""
+                    SELECT COUNT(*)
+                    FROM seats
+                    WHERE is_active = true
+                      AND zone_id = CAST(:zone_id AS INTEGER)
+                """), {"zone_id": zone_id})
+                total_seats = seats_result.fetchone()[0] or 1
 
-            # Get hourly distribution
-            hourly_result = conn.execute(text("""
-                SELECT
-                    EXTRACT(HOUR FROM check_in_time) as hour,
-                    COUNT(*) as count,
-                    COUNT(DISTINCT DATE(check_in_time)) as num_days
-                FROM access_logs
-                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                GROUP BY EXTRACT(HOUR FROM check_in_time)
-                ORDER BY hour
-            """), {"days": days})
+                hourly_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time)) as hour,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(COALESCE(r.confirmed_at, r.start_time))) as num_days
+                    FROM reservations r
+                    JOIN seats s ON s.seat_id = r.seat_id
+                    WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                      AND r.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time))
+                    ORDER BY hour
+                """), {"zone_id": zone_id, "days": days})
+
+                daily_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time)) as day,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(COALESCE(r.confirmed_at, r.start_time))) as num_days
+                    FROM reservations r
+                    JOIN seats s ON s.seat_id = r.seat_id
+                    WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                      AND r.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time))
+                    ORDER BY day
+                """), {"zone_id": zone_id, "days": days})
+            else:
+                # Get total seats for normalization
+                seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
+                total_seats = seats_result.fetchone()[0] or 1
+
+                # Get hourly distribution
+                hourly_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(HOUR FROM check_in_time) as hour,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(check_in_time)) as num_days
+                    FROM access_logs
+                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(HOUR FROM check_in_time)
+                    ORDER BY hour
+                """), {"days": days})
+
+                daily_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(DOW FROM check_in_time) as day,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(check_in_time)) as num_days
+                    FROM access_logs
+                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(DOW FROM check_in_time)
+                    ORDER BY day
+                """), {"days": days})
 
             hourly_predictions = []
             for row in hourly_result:
@@ -426,18 +570,6 @@ async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -
                     "predicted_occupancy": round(occ, 2),
                     "confidence": 0.8
                 })
-
-            # Get daily predictions
-            daily_result = conn.execute(text("""
-                SELECT
-                    EXTRACT(DOW FROM check_in_time) as day,
-                    COUNT(*) as count,
-                    COUNT(DISTINCT DATE(check_in_time)) as num_days
-                FROM access_logs
-                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                GROUP BY EXTRACT(DOW FROM check_in_time)
-                ORDER BY day
-            """), {"days": days})
 
             day_names = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
             weekly_predictions = []
@@ -676,18 +808,26 @@ async def get_realtime_capacity() -> Dict[str, Any]:
             seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
             total_seats = seats_result.fetchone()[0] or 0
 
-            # Đếm reservations đang active (CONFIRMED/BOOKED) đang trong thời gian hiện tại
+            # Đếm ghế đang có sinh viên ngồi thật (đã xác nhận chỗ)
             now = datetime.now()
             active_result = conn.execute(text("""
                 SELECT COUNT(*) FROM reservations
-                WHERE status IN ('CONFIRMED', 'BOOKED')
+                WHERE status = 'CONFIRMED'
                   AND start_time <= :now
                   AND end_time >= :now
             """), {"now": now})
-            active_bookings = active_result.fetchone()[0] or 0
+            occupied_seats = active_result.fetchone()[0] or 0
+
+            booked_result = conn.execute(text("""
+                SELECT COUNT(*) FROM reservations
+                WHERE status = 'BOOKED'
+                  AND start_time <= :now
+                  AND end_time >= :now
+            """), {"now": now})
+            reserved_seats = booked_result.fetchone()[0] or 0
 
             # Tính % occupancy
-            occupancy_rate = (active_bookings / total_seats * 100) if total_seats > 0 else 0
+            occupancy_rate = (occupied_seats / total_seats * 100) if total_seats > 0 else 0
 
             # Lấy thông tin theo zone
             zones_result = conn.execute(text("""
@@ -700,7 +840,7 @@ async def get_realtime_capacity() -> Dict[str, Any]:
                         FROM reservations r
                         JOIN seats s2 ON r.seat_id = s2.seat_id
                         WHERE s2.zone_id = z.zone_id
-                          AND r.status IN ('CONFIRMED', 'BOOKED')
+                          AND r.status = 'CONFIRMED'
                           AND r.start_time <= :now
                           AND r.end_time >= :now
                     ), 0) as occupied_seats
@@ -734,21 +874,22 @@ async def get_realtime_capacity() -> Dict[str, Any]:
             # Xác định trạng thái
             if occupancy_rate >= 90:
                 status = "Đã kín"
-                message = "Thư viện gần như đã kín chỗ. Khuyến nghị sinh viên đặt chỗ trước."
+                message = "Số ghế đang có sinh viên ngồi gần chạm ngưỡng tối đa. Nên điều phối chỗ ngồi và theo dõi các khu đông."
             elif occupancy_rate >= 70:
                 status = "Khá đông"
-                message = "Thư viện đang đông. Nên đến sớm để có chỗ tốt."
+                message = "Số ghế đang được sử dụng ở mức khá cao so với hiện trạng toàn thư viện."
             elif occupancy_rate >= 50:
                 status = "Bình thường"
-                message = "Thư viện đang ở mức bình thường."
+                message = "Mức sử dụng chỗ ngồi đang ổn định."
             else:
                 status = "Còn trống"
-                message = "Thư viện còn nhiều chỗ trống."
+                message = "Số ghế đang được sử dụng thực tế vẫn còn thấp so với tổng số chỗ ngồi."
 
             return {
                 "timestamp": now.isoformat(),
                 "total_seats": total_seats,
-                "occupied_seats": active_bookings,
+                "occupied_seats": occupied_seats,
+                "reserved_seats": reserved_seats,
                 "occupancy_rate": round(occupancy_rate, 1),
                 "status": status,
                 "message": message,

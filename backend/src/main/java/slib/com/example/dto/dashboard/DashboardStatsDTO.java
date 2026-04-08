@@ -22,6 +22,7 @@ public class DashboardStatsDTO {
     // Seat stats
     private long totalSeats;
     private long occupiedSeats;
+    private long reservedSeats;
     private double occupancyRate;
 
     // Booking stats

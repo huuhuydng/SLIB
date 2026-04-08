@@ -13,6 +13,8 @@ import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.support.SupportRequest;
 import slib.com.example.entity.support.SupportRequestStatus;
 import slib.com.example.entity.users.User;
+import slib.com.example.exception.BadRequestException;
+import slib.com.example.exception.ResourceNotFoundException;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.support.SupportRequestRepository;
 import slib.com.example.service.notification.LibrarianNotificationService;
@@ -86,6 +88,11 @@ public class SupportRequestService {
         SupportRequest saved = supportRequestRepository.save(request);
         log.info("[SupportRequest] Created support request {} by student {}", saved.getId(), studentId);
 
+        pushNotificationService.sendToStaff(
+                "Yêu cầu hỗ trợ mới",
+                student.getFullName() + " vừa gửi yêu cầu hỗ trợ mới.",
+                NotificationType.SUPPORT_REQUEST,
+                saved.getId());
         broadcastDashboardUpdate("SUPPORT_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "CREATED");
         return SupportRequestDTO.fromEntity(saved);
@@ -125,21 +132,29 @@ public class SupportRequestService {
      * Cập nhật trạng thái yêu cầu
      */
     @Transactional
-    public SupportRequestDTO updateStatus(UUID requestId, SupportRequestStatus status, UUID librarianId) {
+    public SupportRequestDTO updateStatus(UUID requestId, SupportRequestStatus status, String response, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu hỗ trợ"));
         validateStatusTransition(request.getStatus(), status);
+
+        if (status == SupportRequestStatus.RESOLVED) {
+            throw new BadRequestException("Vui lòng dùng chức năng phản hồi để đánh dấu yêu cầu đã giải quyết.");
+        }
 
         request.setStatus(status);
 
         if (status == SupportRequestStatus.RESOLVED || status == SupportRequestStatus.REJECTED) {
             User librarian = userRepository.findById(librarianId)
-                    .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thủ thư"));
             request.setResolvedBy(librarian);
             request.setResolvedAt(LocalDateTime.now());
+            if (status == SupportRequestStatus.REJECTED) {
+                request.setAdminResponse(ContentValidationUtil.normalizeRequiredText(response, "Lý do từ chối", 2000));
+            }
         } else {
             request.setResolvedBy(null);
             request.setResolvedAt(null);
+            request.setAdminResponse(null);
         }
 
         SupportRequest saved = supportRequestRepository.save(request);
@@ -159,14 +174,14 @@ public class SupportRequestService {
     @Transactional
     public SupportRequestDTO respond(UUID requestId, String response, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu hỗ trợ"));
         String normalizedResponse = ContentValidationUtil.normalizeRequiredText(response, "Phản hồi", 2000);
-        if (request.getStatus() == SupportRequestStatus.REJECTED) {
-            throw new RuntimeException("Không thể phản hồi yêu cầu đã bị từ chối");
+        if (request.getStatus() != SupportRequestStatus.PENDING && request.getStatus() != SupportRequestStatus.IN_PROGRESS) {
+            throw new BadRequestException("Chỉ có thể phản hồi yêu cầu đang chờ hoặc đang xử lý.");
         }
 
         User librarian = userRepository.findById(librarianId)
-                .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thủ thư"));
 
         request.setAdminResponse(normalizedResponse);
         request.setStatus(SupportRequestStatus.RESOLVED);
@@ -192,9 +207,9 @@ public class SupportRequestService {
     @Transactional
     public UUID startChatForRequest(UUID requestId, UUID librarianId) {
         SupportRequest request = supportRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Support request not found: " + requestId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy yêu cầu hỗ trợ"));
         if (request.getStatus() == SupportRequestStatus.RESOLVED || request.getStatus() == SupportRequestStatus.REJECTED) {
-            throw new RuntimeException("Không thể mở chat cho yêu cầu đã kết thúc");
+            throw new BadRequestException("Không thể mở chat cho yêu cầu đã kết thúc.");
         }
 
         UUID studentId = request.getStudent().getId();
@@ -203,7 +218,7 @@ public class SupportRequestService {
         Conversation conversation = conversationService.getOrCreateConversation(studentId);
 
         User librarian = userRepository.findById(librarianId)
-                .orElseThrow(() -> new RuntimeException("Librarian not found: " + librarianId));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thủ thư"));
 
         // Gán librarian và set HUMAN_CHATTING
         // LUÔN increment humanSession cho mỗi request mới
@@ -259,11 +274,25 @@ public class SupportRequestService {
      * Xoá nhiều yêu cầu hỗ trợ cùng lúc
      */
     @Transactional
-    public void deleteBatch(List<UUID> ids) {
-        supportRequestRepository.deleteAllById(ids);
-        log.info("[SupportRequest] Deleted {} support requests", ids.size());
+    public java.util.Map<String, Integer> deleteBatch(List<UUID> ids) {
+        List<SupportRequest> requests = supportRequestRepository.findAllById(ids);
+        List<UUID> deletableIds = requests.stream()
+                .filter(request -> request.getStatus() == SupportRequestStatus.PENDING)
+                .map(SupportRequest::getId)
+                .toList();
+
+        if (deletableIds.isEmpty()) {
+            throw new BadRequestException("Chỉ có thể xoá yêu cầu hỗ trợ mới chưa được xử lý.");
+        }
+
+        supportRequestRepository.deleteAllById(deletableIds);
+        int blocked = requests.size() - deletableIds.size();
+        log.info("[SupportRequest] Deleted {} support requests, blocked {}", deletableIds.size(), blocked);
         broadcastDashboardUpdate("SUPPORT_UPDATE", "DELETED");
         librarianNotificationService.broadcastPendingCounts("SUPPORT_REQUEST", "DELETED");
+        return java.util.Map.of(
+                "deleted", deletableIds.size(),
+                "blocked", Math.max(blocked, 0));
     }
 
     /**
@@ -312,7 +341,7 @@ public class SupportRequestService {
         }
 
         if (!VALID_TRANSITIONS.getOrDefault(currentStatus, java.util.Set.of()).contains(nextStatus)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Không thể chuyển trạng thái yêu cầu hỗ trợ từ " + currentStatus + " sang " + nextStatus);
         }
     }

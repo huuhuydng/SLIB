@@ -63,6 +63,10 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     return widget.booking.status.toUpperCase() == 'CONFIRMED';
   }
 
+  bool get _canLeaveSeat {
+    return widget.booking.status.toUpperCase() == 'CONFIRMED';
+  }
+
   Future<void> _handleCancel() async {
     // Show confirmation dialog matching booking confirm screen style
     final confirmed = await showModalBottomSheet<bool>(
@@ -282,6 +286,174 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     }
   }
 
+  Future<void> _handleLeaveSeatByNfc() async {
+    final sheetNavigator = Navigator.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFFF5F7FA),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.logout_rounded,
+                size: 60,
+                color: Colors.orange.shade600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "Xác nhận trả chỗ ngồi",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Sau khi xác nhận và quét NFC, ghế sẽ được giải phóng ngay cho người khác đặt.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(13),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildInfoRow(
+                    Icons.location_on_rounded,
+                    "Khu vực",
+                    widget.booking.zoneName,
+                  ),
+                  const Divider(height: 30),
+                  _buildInfoRow(
+                    Icons.chair_alt_rounded,
+                    "Mã ghế",
+                    widget.booking.seatCode,
+                  ),
+                  const Divider(height: 30),
+                  _buildInfoRow(
+                    Icons.access_time_rounded,
+                    "Khung giờ",
+                    widget.booking.timeRange,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey[400]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Chưa',
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Tiếp tục quét NFC',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final rootContext = rootNavigator.context;
+    sheetNavigator.pop();
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    try {
+      if (!rootContext.mounted) return;
+
+      final result = await NfcVerificationDialog.show(
+        rootContext,
+        seatCode: widget.booking.seatCode,
+        seatId: widget.booking.seatId,
+        reservationId: widget.booking.reservationId,
+        mode: NfcSeatActionMode.leaveSeat,
+      );
+
+      if (result == true) {
+        widget.onActionComplete();
+        if (rootContext.mounted) {
+          ScaffoldMessenger.of(rootContext).showSnackBar(
+            const SnackBar(
+              content: Text('Đã trả chỗ ngồi thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('NFC leave-seat navigation error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -390,20 +562,24 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
 
               const SizedBox(height: 12),
 
-              // 2. NFC confirm button - ẩn hoặc hiển thị "Đã xác nhận"
+              // 2. NFC action button
               _buildActionButton(
-                icon: _isAlreadyConfirmed ? Icons.check_circle : Icons.nfc,
+                icon: _isAlreadyConfirmed ? Icons.logout_rounded : Icons.nfc,
                 label: _isAlreadyConfirmed
-                    ? 'Đã xác nhận chỗ ngồi'
+                    ? 'Trả chỗ ngồi bằng NFC'
                     : 'Xác nhận chỗ ngồi',
                 subtitle: _isAlreadyConfirmed
-                    ? 'Bạn đã check-in thành công'
+                    ? 'Quét lại NFC đúng ghế để rời chỗ an toàn'
                     : (_canConfirm
                           ? 'Chạm thẻ NFC trên bàn để check-in'
                           : 'Có thể check-in từ 15 phút trước giờ đặt'),
-                color: _isAlreadyConfirmed ? Colors.blue : Colors.green,
-                enabled: _canConfirm && !_isLoading,
-                onTap: _handleNfcConfirm,
+                color: _isAlreadyConfirmed ? Colors.orange : Colors.green,
+                enabled: _isAlreadyConfirmed
+                    ? _canLeaveSeat && !_isLoading
+                    : _canConfirm && !_isLoading,
+                onTap: _isAlreadyConfirmed
+                    ? _handleLeaveSeatByNfc
+                    : _handleNfcConfirm,
               ),
 
               const SizedBox(height: 20),

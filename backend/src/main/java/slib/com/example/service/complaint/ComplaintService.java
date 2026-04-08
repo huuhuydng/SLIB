@@ -116,6 +116,11 @@ public class ComplaintService {
 
                 ComplaintEntity saved = complaintRepository.save(complaint);
                 log.info("[Complaint] Sinh viên {} đã gửi khiếu nại: {}", student.getFullName(), subject);
+                pushNotificationService.sendToStaff(
+                                "Khiếu nại mới cần xử lý",
+                                student.getFullName() + " vừa gửi khiếu nại: " + normalizedSubject,
+                                NotificationType.COMPLAINT,
+                                saved.getId());
                 broadcastDashboardUpdate("COMPLAINT_UPDATE", "CREATED");
                 librarianNotificationService.broadcastPendingCounts("COMPLAINT", "CREATED");
                 return ComplaintDTO.fromEntity(saved);
@@ -273,17 +278,17 @@ public class ComplaintService {
                 ActivityLogEntity activityLog = activityLogRepository.save(ActivityLogEntity.builder()
                                 .userId(student.getId())
                                 .activityType(ActivityLogEntity.TYPE_APPEAL_REFUND)
-                                .title("Hoàn điểm do khiếu nại được chấp nhận")
-                                .description("Đã hoàn " + pointsToRefund
-                                                + " điểm uy tín từ giao dịch bị khiếu nại.")
+                                .title("Khiếu nại được chấp nhận")
+                                .description("Bạn đã được hoàn lại " + pointsToRefund
+                                                + " điểm uy tín từ giao dịch đang khiếu nại.")
                                 .build());
 
                 pointTransactionRepository.save(PointTransactionEntity.builder()
                                 .userId(student.getId())
                                 .points(pointsToRefund)
                                 .transactionType(PointTransactionEntity.TYPE_APPEAL_REFUND)
-                                .title("Hoàn điểm khiếu nại")
-                                .description("Hoàn điểm do khiếu nại được chấp nhận")
+                                .title("Hoàn lại điểm uy tín")
+                                .description("Khiếu nại của bạn đã được chấp nhận.")
                                 .balanceAfter(newScore)
                                 .activityLogId(activityLog.getId())
                                 .build());
@@ -329,8 +334,8 @@ public class ComplaintService {
                 ActivityLogEntity activityLog = activityLogRepository.save(ActivityLogEntity.builder()
                                 .userId(student.getId())
                                 .activityType(ActivityLogEntity.TYPE_APPEAL_REFUND)
-                                .title("Hoàn điểm do khiếu nại vi phạm được chấp nhận")
-                                .description("Đã hoàn " + pointsToRefund
+                                .title("Khiếu nại vi phạm được chấp nhận")
+                                .description("Bạn đã được hoàn lại " + pointsToRefund
                                                 + " điểm uy tín cho báo cáo vi phạm tại ghế "
                                                 + (seatCode != null ? seatCode : "không xác định") + ".")
                                 .reservationId(report.getReservationId())
@@ -342,8 +347,8 @@ public class ComplaintService {
                                 .userId(student.getId())
                                 .points(pointsToRefund)
                                 .transactionType(PointTransactionEntity.TYPE_APPEAL_REFUND)
-                                .title("Hoàn điểm khiếu nại vi phạm")
-                                .description("Hoàn điểm do báo cáo vi phạm bị đảo kết quả sau khiếu nại")
+                                .title("Hoàn lại điểm uy tín")
+                                .description("Khiếu nại vi phạm của bạn đã được chấp nhận.")
                                 .balanceAfter(newScore)
                                 .activityLogId(activityLog.getId())
                                 .build());

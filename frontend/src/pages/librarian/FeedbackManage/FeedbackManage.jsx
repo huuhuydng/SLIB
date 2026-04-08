@@ -188,6 +188,23 @@ function FeedbackManage() {
         await reviewFeedbacks(reviewableSelectedIds);
     };
 
+    const handleMarkAllReviewed = async () => {
+        if (reviewableFeedbackIds.length === 0) {
+            toast.info('Không có phản hồi mới nào để đánh dấu đã xem');
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: 'Đánh dấu đã xem tất cả',
+            message: `Đánh dấu ${reviewableFeedbackIds.length} phản hồi mới hiện tại là đã xem?`,
+            confirmText: 'Đã xem tất cả',
+            cancelText: 'Huỷ',
+        });
+
+        if (!confirmed) return;
+        await reviewFeedbacks(reviewableFeedbackIds);
+    };
+
     const handleBatchDelete = async () => {
         if (selectedIds.size === 0) return;
         const confirmed = await confirm({
@@ -350,6 +367,13 @@ function FeedbackManage() {
         });
         return list;
     }, [feedbacks, searchTerm, columnFilters, sortField, sortDir]);
+
+    const reviewableFeedbackIds = useMemo(
+        () => processedFeedbacks
+            .filter((feedback) => feedback.status === "NEW")
+            .map((feedback) => feedback.id),
+        [processedFeedbacks]
+    );
 
     // Pagination
     const totalPages = Math.ceil(processedFeedbacks.length / pageSize) || 1;
@@ -532,6 +556,12 @@ function FeedbackManage() {
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {reviewableFeedbackIds.length > 0 && (
+                        <button className="fm-batch-review-btn" onClick={handleMarkAllReviewed} disabled={submitting}>
+                            <Eye size={14} /> Đã xem tất cả {reviewableFeedbackIds.length}
+                        </button>
                     )}
 
                     {reviewableSelectedIds.length > 0 && (

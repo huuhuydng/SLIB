@@ -252,12 +252,11 @@ export const ToastProvider = ({ children }) => {
 export const useToast = () => {
     const context = useContext(ToastContext);
     if (!context) {
-        // Fallback to alert if not inside ToastProvider
         return {
-            success: (msg) => alert(msg),
-            error: (msg) => alert(msg),
-            warning: (msg) => alert(msg),
-            info: (msg) => alert(msg),
+            success: () => undefined,
+            error: () => undefined,
+            warning: () => undefined,
+            info: () => undefined,
         };
     }
     return context;

@@ -1,5 +1,7 @@
 package slib.com.example.service.users;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -7,6 +9,7 @@ import slib.com.example.dto.users.StudentProfileResponse;
 import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
@@ -21,6 +24,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class StudentProfileService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final StudentProfileRepository studentProfileRepository;
     private final UserRepository userRepository;
@@ -58,8 +64,9 @@ public class StudentProfileService {
                 .violationCount(0)
                 .build();
 
-        StudentProfile saved = studentProfileRepository.save(newProfile);
-        return buildProfileResponse(saved);
+        entityManager.persist(newProfile);
+        entityManager.flush();
+        return buildProfileResponse(newProfile);
     }
 
     /**
@@ -108,18 +115,18 @@ public class StudentProfileService {
         return userRepository.findById(userId)
                 .map(user -> {
                     if (request.getFullName() != null) {
-                        user.setFullName(UserValidationUtil.normalizeRequiredFullName(request.getFullName()));
+                        user.setFullName(normalizeFullNameForProfileUpdate(request.getFullName()));
                     }
                     if (request.getPhone() != null) {
-                        String normalizedPhone = UserValidationUtil.normalizeOptionalPhone(request.getPhone());
+                        String normalizedPhone = normalizePhoneForProfileUpdate(request.getPhone());
                         if (normalizedPhone != null && !normalizedPhone.equals(user.getPhone())
                                 && userRepository.existsByPhone(normalizedPhone)) {
-                            throw new RuntimeException("Số điện thoại đã được sử dụng");
+                            throw new BadRequestException("Số điện thoại đã được sử dụng");
                         }
                         user.setPhone(normalizedPhone);
                     }
                     if (request.getDob() != null) {
-                        user.setDob(UserValidationUtil.parseOptionalDob(request.getDob()));
+                        user.setDob(parseDobForProfileUpdate(request.getDob()));
                     }
                     userRepository.save(user);
                     return getOrCreateProfile(user);
@@ -161,5 +168,29 @@ public class StudentProfileService {
         response.setBookingRestriction(
                 bookingPolicyService.getCurrentRestrictionStatus(profile.getUserId(), currentReputation, settings));
         return response;
+    }
+
+    private String normalizeFullNameForProfileUpdate(String value) {
+        try {
+            return UserValidationUtil.normalizeRequiredFullName(value);
+        } catch (RuntimeException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private String normalizePhoneForProfileUpdate(String value) {
+        try {
+            return UserValidationUtil.normalizeOptionalPhone(value);
+        } catch (RuntimeException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
+    }
+
+    private java.time.LocalDate parseDobForProfileUpdate(String value) {
+        try {
+            return UserValidationUtil.parseOptionalDob(value);
+        } catch (RuntimeException ex) {
+            throw new BadRequestException(ex.getMessage());
+        }
     }
 }

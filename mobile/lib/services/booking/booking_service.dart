@@ -386,6 +386,32 @@ class BookingService {
     }
   }
 
+  /// Leave seat using NFC UID after the booking has been confirmed.
+  ///
+  /// Student must already be sitting at the confirmed seat. Backend validates
+  /// the scanned NFC tag against the reservation seat before completing it.
+  Future<Map<String, dynamic>> leaveSeatWithNfcUid(
+    String reservationId,
+    String nfcUid,
+  ) async {
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/leave-seat-nfc/$reservationId",
+    );
+
+    final response = await http.post(
+      url,
+      headers: await _authHeaders(json: true),
+      body: jsonEncode({"nfc_uid": nfcUid}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorMsg = utf8.decode(response.bodyBytes);
+      throw Exception(errorMsg);
+    }
+  }
+
   /// Legacy deep link check-in flow from iOS background NFC scanning.
   ///
   /// The old mobile flow expected a dedicated backend endpoint that accepted

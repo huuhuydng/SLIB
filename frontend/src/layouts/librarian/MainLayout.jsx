@@ -9,7 +9,6 @@ import {
   MessageSquare,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
   X,
 } from "lucide-react";
 import Sidebar from "../../components/sidebar_librarian/Sidebar_librarian";
@@ -21,13 +20,28 @@ import { useToast } from "../../components/common/ToastProvider";
 import "../../styles/librarian/MainLayout.css";
 import "../../styles/librarian/LibrarianNotification.css";
 
-const NOTIF_ICON_MAP = {
+const PENDING_ICON_MAP = {
   SUPPORT_REQUEST: { icon: LifeBuoy, cls: "support", label: "Yêu cầu hỗ trợ" },
   COMPLAINT: { icon: MessageCircle, cls: "complaint", label: "Khiếu nại" },
   FEEDBACK: { icon: Star, cls: "feedback", label: "Phản hồi" },
   SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: "seat-status", label: "Tình trạng ghế" },
   CHAT: { icon: MessageSquare, cls: "chat", label: "Trò chuyện" },
   VIOLATION: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
+};
+
+const STORED_NOTIF_ICON_MAP = {
+  SUPPORT_REQUEST: { icon: LifeBuoy, cls: "support", label: "Yêu cầu hỗ trợ" },
+  COMPLAINT: { icon: MessageCircle, cls: "complaint", label: "Khiếu nại" },
+  FEEDBACK: { icon: Star, cls: "feedback", label: "Phản hồi" },
+  SEAT_STATUS_REPORT: { icon: ClipboardCheck, cls: "seat-status", label: "Tình trạng ghế" },
+  VIOLATION_REPORT: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
+  VIOLATION: { icon: AlertTriangle, cls: "violation", label: "Vi phạm" },
+  CHAT_MESSAGE: { icon: MessageSquare, cls: "chat", label: "Tin nhắn" },
+  REPUTATION: { icon: Star, cls: "feedback", label: "Điểm uy tín" },
+  BOOKING: { icon: ClipboardCheck, cls: "seat-status", label: "Đặt chỗ" },
+  REMINDER: { icon: ClipboardCheck, cls: "seat-status", label: "Nhắc nhở" },
+  NEWS: { icon: Bell, cls: "feedback", label: "Tin tức" },
+  SYSTEM: { icon: Bell, cls: "feedback", label: "Hệ thống" },
 };
 
 const ACTION_LABELS = {
@@ -57,75 +71,24 @@ const NOTIF_ROUTE_MAP = {
 };
 
 // Map countKey từ API response
-const COUNT_KEY_MAP = {
-  SUPPORT_REQUEST: "supportRequests",
-  COMPLAINT: "complaints",
-  FEEDBACK: "feedbacks",
-  SEAT_STATUS_REPORT: "seatStatusReports",
-  CHAT: "chats",
-  VIOLATION: "violations",
-};
-
-// Lấy thông tin hiển thị từ item theo category
-function getItemDisplayInfo(category, item) {
-  switch (category) {
-    case "SUPPORT_REQUEST":
-      return {
-        name: item.studentName || "Sinh viên",
-        desc: item.description ? item.description.substring(0, 60) + (item.description.length > 60 ? "..." : "") : "Yêu cầu hỗ trợ mới",
-        time: item.createdAt,
-        route: NOTIF_ROUTE_MAP.SUPPORT_REQUEST,
-      };
-    case "COMPLAINT":
-      return {
-        name: item.studentName || "Sinh viên",
-        desc: item.subject || item.content?.substring(0, 60) || "Khiếu nại mới",
-        time: item.createdAt,
-        route: NOTIF_ROUTE_MAP.COMPLAINT,
-      };
-    case "FEEDBACK":
-      return {
-        name: item.studentName || "Sinh viên",
-        desc: item.content ? item.content.substring(0, 60) + (item.content.length > 60 ? "..." : "") : `Đánh giá ${item.rating || ""} sao`,
-        time: item.createdAt,
-        route: NOTIF_ROUTE_MAP.FEEDBACK,
-      };
-    case "SEAT_STATUS_REPORT":
-      return {
-        name: item.reporterName || "Sinh viên",
-        desc: item.issueTypeLabel || item.description?.substring(0, 60) || "Báo cáo tình trạng ghế",
-        time: item.createdAt,
-        route: NOTIF_ROUTE_MAP.SEAT_STATUS_REPORT,
-      };
-    case "CHAT":
-      return {
-        name: item.studentName || "Sinh viên",
-        desc: item.escalationReason || "Đang chờ hỗ trợ",
-        time: item.escalatedAt || item.createdAt,
-        route: `${NOTIF_ROUTE_MAP.CHAT}?conversationId=${item.id}`,
-      };
-    case "VIOLATION":
-      return {
-        name: item.reporterName || "Sinh viên",
-        desc: item.violationTypeLabel || item.description?.substring(0, 60) || "Báo cáo vi phạm",
-        time: item.createdAt,
-        route: NOTIF_ROUTE_MAP.VIOLATION,
-      };
-    default:
-      return { name: "---", desc: "---", time: null, route: "/" };
-  }
-}
-
 function HeaderBar() {
-  const { pendingCounts, notifications, pendingItems, fetchPendingItems, chatMessages, unreadChatCount } = useLibrarianNotification();
+  const {
+    userNotifications,
+    unreadNotificationCount,
+    markNotificationAsRead,
+    deleteNotification,
+    unreadChatCount,
+  } = useLibrarianNotification();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState(null);
-  const [loadingCategory, setLoadingCategory] = useState(null);
+  const [selectedFilter, setSelectedFilter] = useState("ALL");
   const bellRef = useRef(null);
   const navigate = useNavigate();
 
   const unreadMessageCount = unreadChatCount || 0;
-  const bellTotal = (pendingCounts.total || 0) + unreadMessageCount;
+  const bellTotal = (unreadNotificationCount || 0) + unreadMessageCount;
+  const filteredNotifications = selectedFilter === "UNREAD"
+    ? userNotifications.filter((notification) => !notification.isRead)
+    : userNotifications;
 
   // Dong dropdown khi click ra ngoai
   useEffect(() => {
@@ -133,34 +96,58 @@ function HeaderBar() {
     const handler = (e) => {
       if (bellRef.current && !bellRef.current.contains(e.target)) {
         setShowDropdown(false);
-        setExpandedCategory(null);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showDropdown]);
 
-  // Handle click vào category row
-  const handleCategoryClick = async (key) => {
-    if (expandedCategory === key) {
-      setExpandedCategory(null);
-      return;
-    }
-    setExpandedCategory(key);
-    // Fetch items nếu chưa có cache
-    if (!pendingItems[key]) {
-      setLoadingCategory(key);
-      await fetchPendingItems(key);
-      setLoadingCategory(null);
+  const getNotificationRoute = (notification) => {
+    const type = notification.notificationType;
+    const referenceType = notification.referenceType;
+    const key = referenceType || type;
+
+    switch (key) {
+      case "SUPPORT_REQUEST":
+        return "/librarian/support-requests";
+      case "COMPLAINT":
+        return "/librarian/complaints";
+      case "FEEDBACK":
+        return "/librarian/feedback";
+      case "SEAT_STATUS_REPORT":
+        return "/librarian/seat-status-reports";
+      case "VIOLATION_REPORT":
+      case "VIOLATION":
+        return "/librarian/violation";
+      case "NEWS":
+        return "/librarian/notification";
+      case "CHAT_MESSAGE":
+        return "/librarian/chat";
+      default:
+        return "/librarian/dashboard";
     }
   };
 
-  // Handle click vào item chi tiết -> navigate
-  const handleItemClick = (category, item) => {
-    const info = getItemDisplayInfo(category, item);
+  const handleStoredNotificationClick = async (notification) => {
+    if (!notification?.isRead) {
+      await markNotificationAsRead(notification.id);
+    }
     setShowDropdown(false);
-    setExpandedCategory(null);
-    navigate(info.route);
+    navigate(getNotificationRoute(notification));
+  };
+
+  const handleDeleteNotification = async (event, notificationId) => {
+    event.stopPropagation();
+    await deleteNotification(notificationId);
+  };
+
+  const handleDeleteReadNotifications = async () => {
+    const readNotifications = userNotifications.filter((notification) => notification.isRead);
+    if (readNotifications.length === 0) return;
+
+    await Promise.all(
+      readNotifications.map((notification) => deleteNotification(notification.id))
+    );
   };
 
   const [userData] = useState(() => {
@@ -185,7 +172,6 @@ function HeaderBar() {
             className="notif-bell"
             onClick={() => {
               setShowDropdown(!showDropdown);
-              if (showDropdown) setExpandedCategory(null);
             }}
             title="Thông báo"
           >
@@ -200,194 +186,97 @@ function HeaderBar() {
           {showDropdown && (
             <div className="notif-dropdown">
               <div className="notif-dropdown__header">
-                <h3 className="notif-dropdown__title">Thông báo</h3>
-                <span className="notif-dropdown__count">
-                  {bellTotal} cần xử lý
-                </span>
+                <div>
+                  <h3 className="notif-dropdown__title">Thông báo</h3>
+                  <span className="notif-dropdown__count">
+                    {bellTotal} chưa đọc
+                  </span>
+                </div>
+                <div className="notif-dropdown__actions">
+                  <div className="notif-dropdown__filters">
+                    <button
+                      type="button"
+                      className={`notif-dropdown__filter ${selectedFilter === "ALL" ? "is-active" : ""}`}
+                      onClick={() => setSelectedFilter("ALL")}
+                    >
+                      Tất cả
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-dropdown__filter ${selectedFilter === "UNREAD" ? "is-active" : ""}`}
+                      onClick={() => setSelectedFilter("UNREAD")}
+                    >
+                      Chưa đọc
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="notif-dropdown__clear"
+                    onClick={handleDeleteReadNotifications}
+                    disabled={!userNotifications.some((notification) => notification.isRead)}
+                  >
+                    Xoá đã đọc
+                  </button>
+                </div>
               </div>
 
               <div className="notif-dropdown__list">
-                {/* Tin nhắn mới từ sinh viên */}
-                {(unreadChatCount > 0 || chatMessages.length > 0) && (
-                  <div className="notif-category">
-                    <div
-                      className="notif-item notif-item--expandable notif-item--clickable"
-                      onClick={() => {
-                        setShowDropdown(false);
-                        setExpandedCategory(null);
-                        navigate('/librarian/chat');
-                      }}
-                    >
-                      <div className="notif-item__icon notif-item__icon--chat">
-                        <MessageSquare size={18} />
-                      </div>
-                      <div className="notif-item__body">
-                        <p className="notif-item__title">Tin nhắn</p>
-                        <p className="notif-item__desc">{unreadChatCount || chatMessages.length} tin nhắn mới</p>
-                      </div>
-                      {(unreadChatCount > 0 || chatMessages.length > 0) && (
-                        <span className="notif-item__badge">{unreadChatCount || chatMessages.length}</span>
-                      )}
-                    </div>
-                    {chatMessages.length > 0 && (
-                      <div className="notif-detail-list" style={{ display: 'block' }}>
-                        {chatMessages.slice(0, 5).map((msg) => (
-                          <div
-                            key={msg.id}
-                            className="notif-detail-item"
-                            onClick={() => {
-                              setShowDropdown(false);
-                              setExpandedCategory(null);
-                              navigate(`/librarian/chat?conversationId=${msg.conversationId}`);
-                            }}
-                          >
-                            <div className="notif-detail-item__body">
-                              <p className="notif-detail-item__name">{msg.senderName || 'Sinh viên'}</p>
-                              <p className="notif-detail-item__desc">
-                                {msg.content?.length > 50 ? msg.content.substring(0, 50) + '...' : msg.content}
-                              </p>
-                            </div>
-                            {msg.timestamp && (
-                              <span className="notif-detail-item__time">
-                                {getTimeAgo(msg.timestamp)}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                        <div
-                          className="notif-detail-viewall"
-                          onClick={() => {
-                            setShowDropdown(false);
-                            setExpandedCategory(null);
-                            navigate('/librarian/chat');
-                          }}
-                        >
-                          Xem tất cả tin nhắn
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Hiển thị summary counts với expand */}
-                {Object.entries(NOTIF_ICON_MAP).map(([key, config]) => {
-                  const countKey = COUNT_KEY_MAP[key];
-                  const count = pendingCounts[countKey] || 0;
-                  if (count === 0) return null;
-
+                {filteredNotifications.map((notification) => {
+                  const config = STORED_NOTIF_ICON_MAP[notification.notificationType]
+                    || STORED_NOTIF_ICON_MAP[notification.referenceType]
+                    || STORED_NOTIF_ICON_MAP.SYSTEM;
                   const Icon = config.icon;
-                  const isExpanded = expandedCategory === key;
-                  const isLoading = loadingCategory === key;
-                  const items = pendingItems[key] || [];
 
                   return (
-                    <div key={key} className="notif-category">
-                      <div
-                        className={`notif-item notif-item--expandable ${isExpanded ? "notif-item--expanded" : ""}`}
-                        onClick={() => handleCategoryClick(key)}
-                      >
-                        <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
-                          <Icon size={18} />
-                        </div>
-                        <div className="notif-item__body">
-                          <p className="notif-item__title">{config.label}</p>
-                          <p className="notif-item__desc">{count} mục cần xử lý</p>
-                        </div>
-                        <span className="notif-item__badge">{count}</span>
-                        <ChevronDown
-                          size={16}
-                          className={`notif-item__chevron ${isExpanded ? "notif-item__chevron--open" : ""}`}
-                        />
+                    <div
+                      key={notification.id}
+                      className="notif-item notif-item--clickable"
+                      onClick={() => handleStoredNotificationClick(notification)}
+                    >
+                      <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
+                        <Icon size={18} />
                       </div>
-
-                      {/* Detail list */}
-                      {isExpanded && (
-                        <div className="notif-detail-list">
-                          {isLoading ? (
-                            <div className="notif-detail-loading">Đang tải...</div>
-                          ) : items.length > 0 ? (
-                            items.slice(0, 5).map((item, idx) => {
-                              const info = getItemDisplayInfo(key, item);
-                              return (
-                                <div
-                                  key={item.id || idx}
-                                  className="notif-detail-item"
-                                  onClick={() => handleItemClick(key, item)}
-                                >
-                                  <div className="notif-detail-item__body">
-                                    <p className="notif-detail-item__name">{info.name}</p>
-                                    <p className="notif-detail-item__desc">{info.desc}</p>
-                                  </div>
-                                  {info.time && (
-                                    <span className="notif-detail-item__time">
-                                      {getTimeAgo(info.time)}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="notif-detail-loading">Không có dữ liệu</div>
+                      <div className="notif-item__body">
+                        <p className="notif-item__title">
+                          {notification.title}
+                          {!notification.isRead && (
+                            <span style={{ marginLeft: 8, color: "#f97316", fontSize: 12, fontWeight: 700 }}>
+                              Mới
+                            </span>
                           )}
-                          {items.length > 5 && (
-                            <div
-                              className="notif-detail-viewall"
-                              onClick={() => {
-                                setShowDropdown(false);
-                                setExpandedCategory(null);
-                                navigate(NOTIF_ROUTE_MAP[key]);
-                              }}
-                            >
-                              Xem tất cả {items.length} mục
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        </p>
+                        <p className="notif-item__desc">
+                          {notification.content?.length > 90
+                            ? `${notification.content.substring(0, 90)}...`
+                            : notification.content}
+                        </p>
+                      </div>
+                      <div className="notif-item__meta">
+                        <span className="notif-detail-item__time">
+                          {getTimeAgo(notification.createdAt)}
+                        </span>
+                        <button
+                          type="button"
+                          className="notif-item__delete"
+                          title="Xoá thông báo"
+                          aria-label="Xoá thông báo"
+                          onClick={(event) => handleDeleteNotification(event, notification.id)}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
 
-                {/* Recent activity */}
-                {notifications.length > 0 && (
-                  <>
-                    <div style={{ padding: "8px 12px 4px", fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>
-                      Hoạt động gần đây
-                    </div>
-                    {notifications.slice(0, 5).map((notif) => {
-                      const config = NOTIF_ICON_MAP[notif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
-                      const Icon = config.icon;
-                      const actionLabel = ACTION_LABELS[notif.action] || notif.action;
-                      const timeAgo = getTimeAgo(notif.timestamp);
-
-                      return (
-                        <div
-                          key={notif.id}
-                          className="notif-item notif-item--clickable"
-                          onClick={() => {
-                            setShowDropdown(false);
-                            setExpandedCategory(null);
-                            navigate(NOTIF_ROUTE_MAP[notif.source] || "/librarian/dashboard");
-                          }}
-                        >
-                          <div className={`notif-item__icon notif-item__icon--${config.cls}`}>
-                            <Icon size={18} />
-                          </div>
-                          <div className="notif-item__body">
-                            <p className="notif-item__title">
-                              {config.label} {actionLabel}
-                            </p>
-                            <p className="notif-item__desc">{timeAgo}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
-
-                {pendingCounts.total === 0 && notifications.length === 0 && chatMessages.length === 0 && (
+                {filteredNotifications.length === 0 && (
                   <div className="notif-dropdown__empty">
                     <CheckCircle2 size={40} />
-                    <p>Không có thông báo mới</p>
+                    <p>
+                      {selectedFilter === "UNREAD"
+                        ? "Không còn thông báo chưa đọc"
+                        : "Chưa có thông báo nào"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -494,7 +383,7 @@ function shouldSuppressRealtimeToast(source, action, pathname) {
 
 // Toast notification component — hiển thị ở góc phải trên khi có notification mới
 function ToastNotifications() {
-  const { notifications, pendingCounts } = useLibrarianNotification();
+  const { notifications } = useLibrarianNotification();
   const prevCountRef = useRef(0);
   const hasMountedRef = useRef(false);
   const toast = useToast();
@@ -527,7 +416,7 @@ function ToastNotifications() {
         return;
       }
 
-      const config = NOTIF_ICON_MAP[newNotif.source] || NOTIF_ICON_MAP.SUPPORT_REQUEST;
+      const config = PENDING_ICON_MAP[newNotif.source] || PENDING_ICON_MAP.SUPPORT_REQUEST;
       const route = NOTIF_ROUTE_MAP[newNotif.source] || '/librarian/dashboard';
 
       const detailMap = TOAST_DETAIL_MAP[newNotif.source] || {};
@@ -543,7 +432,7 @@ function ToastNotifications() {
       });
     }
     prevCountRef.current = notifications.length;
-  }, [notifications, pendingCounts]);
+  }, [notifications]);
 
   return null;
 }

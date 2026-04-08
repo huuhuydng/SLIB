@@ -12,6 +12,7 @@ import slib.com.example.dto.feedback.CreateViolationReportRequest;
 import slib.com.example.dto.feedback.ViolationReportResponse;
 import slib.com.example.entity.feedback.SeatViolationReportEntity.ReportStatus;
 import slib.com.example.entity.users.User;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.feedback.SeatViolationReportService;
 
@@ -153,8 +154,10 @@ public class SeatViolationReportController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Danh sách ID không được trống"));
             }
             List<UUID> uuids = ids.stream().map(UUID::fromString).collect(java.util.stream.Collectors.toList());
-            violationReportService.deleteBatch(uuids);
-            return ResponseEntity.ok(Map.of("deleted", uuids.size()));
+            return ResponseEntity.ok(violationReportService.deleteBatch(uuids));
+        } catch (BadRequestException e) {
+            log.warn("[ViolationReport] Invalid delete request: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("[ViolationReport] Error deleting batch: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

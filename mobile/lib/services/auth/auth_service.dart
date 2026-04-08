@@ -13,6 +13,8 @@ import 'package:slib/models/user_setting.dart';
 import 'package:slib/services/hce/hce_bridge.dart';
 import 'package:slib/services/user/user_setting_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
+import 'package:slib/services/deep_link/deep_link_service.dart';
+import 'package:slib/views/authentication/on_boarding_screen.dart';
 
 class AuthService extends ChangeNotifier {
   static const String _webClientId =
@@ -36,9 +38,33 @@ class AuthService extends ChangeNotifier {
 
   UserProfile? _currentUser;
   UserSetting? _currentSetting;
+  bool _isHandlingSessionExpiry = false;
 
   UserProfile? get currentUser => _currentUser;
   UserSetting? get currentSetting => _currentSetting;
+
+  static String _extractReadableErrorMessage(dynamic error) {
+    String raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      raw = raw.substring(11).trim();
+    }
+
+    if (raw.isEmpty) {
+      return 'Đã xảy ra lỗi, vui lòng thử lại.';
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['error'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      }
+    } catch (_) {}
+
+    return raw;
+  }
 
   Future<bool> checkLoginStatus() async {
     _currentSetting = await _localService.loadSettings();
@@ -87,6 +113,9 @@ class AuthService extends ChangeNotifier {
         return true;
       } else {
         debugPrint("Check login failed with status: ${response.statusCode}");
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          await _handleSessionExpired();
+        }
         return false;
       }
     } catch (e) {
@@ -99,11 +128,6 @@ class AuthService extends ChangeNotifier {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
-
-      if (!googleUser.email.toLowerCase().endsWith('@fpt.edu.vn')) {
-        await _googleSignIn.signOut();
-        throw Exception('Vui lòng sử dụng email FPT (@fpt.edu.vn)!');
-      }
 
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
@@ -165,12 +189,29 @@ class AuthService extends ChangeNotifier {
         notifyListeners();
         return _currentUser;
       } else {
-        throw Exception('Đăng nhập thất bại: ${response.statusCode}');
+        final decodedBody = utf8.decode(response.bodyBytes);
+        try {
+          final jsonMap = jsonDecode(decodedBody);
+          throw Exception(
+            jsonMap['message'] ??
+                jsonMap['error'] ??
+                'Đăng nhập thất bại: ${response.statusCode}',
+          );
+        } catch (_) {
+          throw Exception(
+            decodedBody.isNotEmpty
+                ? decodedBody
+                : 'Đăng nhập thất bại: ${response.statusCode}',
+          );
+        }
       }
     } catch (e) {
-      if (e.toString().contains("Vui lòng sử dụng email")) rethrow;
       debugPrint('Google Sign-In Error: $e');
-      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
+      final message = _extractReadableErrorMessage(e);
+      if (message.isEmpty) {
+        throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
+      }
+      throw Exception(message);
     }
   }
 
@@ -248,11 +289,7 @@ class AuthService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Password Sign-In Error: $e');
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -298,11 +335,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(errorMessage);
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -334,7 +367,7 @@ class AuthService extends ChangeNotifier {
       // QUAN TRỌNG: Xóa FCM token trên server TRƯỚC khi xóa JWT
       // Nếu không, user cũ vẫn giữ FCM token → nhận notification sai
       try {
-        String? token = await getToken();
+        String? token = await _readStoredToken();
         if (token != null) {
           await http.patch(
             Uri.parse('$baseUrl/me'),
@@ -397,7 +430,25 @@ class AuthService extends ChangeNotifier {
   // Token storage methods
   Future<void> _saveToken(String token) async =>
       await _storage.write(key: 'jwt_token', value: token);
-  Future<String?> getToken() async => await _storage.read(key: 'jwt_token');
+  Future<String?> _readStoredToken() async =>
+      await _storage.read(key: 'jwt_token');
+  Future<String?> getToken() async {
+    final token = await _readStoredToken();
+    if (token == null) return null;
+
+    if (!_isJwtExpired(token)) {
+      return token;
+    }
+
+    final refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return await _readStoredToken();
+    }
+
+    await _handleSessionExpired();
+    return null;
+  }
+
   Future<void> _saveRefreshToken(String token) async =>
       await _storage.write(key: 'refresh_token', value: token);
   Future<String?> getRefreshToken() async =>
@@ -473,7 +524,8 @@ class AuthService extends ChangeNotifier {
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         final refreshed = await refreshAccessToken();
-        if (refreshed) return await getToken();
+        if (refreshed) return await _readStoredToken();
+        await _handleSessionExpired();
         return null;
       }
 
@@ -503,13 +555,65 @@ class AuthService extends ChangeNotifier {
     if (response.statusCode == 401 || response.statusCode == 403) {
       final refreshed = await refreshAccessToken();
       if (refreshed) {
-        token = await getToken();
+        token = await _readStoredToken();
         mergedHeaders['Authorization'] = 'Bearer $token';
         response = await _sendRequest(method, url, mergedHeaders, body);
+      } else {
+        await _handleSessionExpired();
+      }
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        await _handleSessionExpired();
       }
     }
 
     return response;
+  }
+
+  bool _isJwtExpired(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return false;
+
+      final payload = parts[1];
+      final normalized = base64Url.normalize(payload);
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      final map = jsonDecode(decoded);
+      if (map is! Map<String, dynamic>) return false;
+
+      final exp = map['exp'];
+      if (exp is! num) return false;
+
+      final expiry = DateTime.fromMillisecondsSinceEpoch(
+        exp.toInt() * 1000,
+        isUtc: true,
+      );
+
+      return DateTime.now().toUtc().isAfter(
+        expiry.subtract(const Duration(seconds: 15)),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _handleSessionExpired() async {
+    if (_isHandlingSessionExpiry) return;
+    _isHandlingSessionExpiry = true;
+
+    try {
+      await logout();
+
+      final navigator = DeepLinkService.navigatorKey.currentState;
+      if (navigator != null) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const OnBoardingScreen()),
+          (route) => false,
+        );
+      }
+    } finally {
+      _isHandlingSessionExpiry = false;
+    }
   }
 
   Future<http.Response> _sendRequest(
@@ -554,11 +658,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể gửi OTP');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -589,11 +689,7 @@ class AuthService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -615,11 +711,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể gửi lại OTP');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 
@@ -641,11 +733,7 @@ class AuthService extends ChangeNotifier {
         throw Exception(jsonMap['message'] ?? 'Không thể đặt lại mật khẩu');
       }
     } catch (e) {
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
-      throw Exception(message);
+      throw Exception(_extractReadableErrorMessage(e));
     }
   }
 }

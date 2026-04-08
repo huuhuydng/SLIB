@@ -410,16 +410,20 @@ const AccountSettings = () => {
             </div>
 
             {/* Alerts */}
-            {success && (
-                <div className="settings-toast success">
-                    <Check size={18} />
-                    {success}
-                </div>
-            )}
-            {error && (
-                <div className="settings-toast error">
-                    <X size={18} />
-                    {error}
+            {(success || error) && (
+                <div className="settings-alerts">
+                    {success && (
+                        <div className="settings-toast success">
+                            <Check size={18} />
+                            {success}
+                        </div>
+                    )}
+                    {error && (
+                        <div className="settings-toast error">
+                            <X size={18} />
+                            {error}
+                        </div>
+                    )}
                 </div>
             )}
 
