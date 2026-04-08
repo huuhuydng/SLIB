@@ -47,6 +47,7 @@ public class KioskAdminController {
      * POST /slib/kiosk/admin/token/{kioskId}
      */
     @PostMapping("/token/{kioskId}")
+    @Transactional
     public ResponseEntity<Map<String, Object>> generateToken(
             @PathVariable Integer kioskId,
             @RequestParam(defaultValue = "false") boolean force,

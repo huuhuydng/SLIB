@@ -2024,6 +2024,14 @@ const Dashboard = () => {
                           <span className="detail-label">Kết thúc</span>
                           <span className="detail-value">{formatDateTime(d.endTime)}</span>
                         </div>
+                        {(d.actualEndTime || d.status === 'COMPLETED') && (
+                          <div className="detail-info-item">
+                            <span className="detail-label">Kết thúc thực tế</span>
+                            <span className="detail-value">
+                              {d.actualEndTime ? formatDateTime(d.actualEndTime) : 'Hệ thống tự kết thúc'}
+                            </span>
+                          </div>
+                        )}
                         <div className="detail-info-item">
                           <span className="detail-label">Trạng thái</span>
                           <span className="status-badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
@@ -2035,6 +2043,16 @@ const Dashboard = () => {
                           </div>
                         )}
                       </div>
+                      {(d.actualEndTime || d.status === 'COMPLETED') && (
+                        <div className="detail-description">
+                          <strong>Kết quả sử dụng chỗ ngồi</strong>
+                          <p>
+                            {d.actualEndTime
+                              ? `Sinh viên đã rời ghế lúc ${formatDateTime(d.actualEndTime)}.`
+                              : 'Phiên đặt chỗ đã được hệ thống tự kết thúc khi hết giờ.'}
+                          </p>
+                        </div>
+                      )}
                       <a
                         href="/librarian/bookings"
                         className="detail-view-btn"

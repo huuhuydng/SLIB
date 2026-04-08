@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:slib/core/constants/api_constants.dart';
@@ -152,7 +153,9 @@ class LibraryStatusService extends ChangeNotifier {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         _totalSeats = (data['totalSeats'] as num?)?.toInt() ?? 0;
         _occupiedSeats = (data['occupiedSeats'] as num?)?.toInt() ?? 0;
-        _occupancyRate = (data['occupancyRate'] as num?)?.toDouble() ?? 0.0;
+        final rawOccupancyRate =
+            (data['occupancyRate'] as num?)?.toDouble() ?? 0.0;
+        _occupancyRate = math.max(0, math.min(rawOccupancyRate, 100));
         _currentlyInLibrary =
             (data['currentlyInLibrary'] as num?)?.toInt() ?? 0;
         _hasLoadedData = true;

@@ -239,16 +239,18 @@ public class DashboardService {
      */
     public Map<String, Object> getLibraryStatus() {
         try {
+            LocalDateTime now = LocalDateTime.now();
             AccessLogStatsDTO accessStats = checkInService.getTodayStats();
-            long totalSeats = seatRepository.count();
+            long totalSeats = seatRepository.countByIsActiveTrue();
+            long occupiedSeats = reservationRepository.countActiveReservationsAtTime(now, List.of("CONFIRMED"));
             long currentlyInLibrary = Math.max(0, accessStats.getCurrentlyInLibrary());
             double occupancyRate = totalSeats > 0
-                    ? Math.round((double) currentlyInLibrary / totalSeats * 10000.0) / 100.0
+                    ? Math.round((double) occupiedSeats / totalSeats * 10000.0) / 100.0
                     : 0;
 
             return Map.of(
                     "totalSeats", totalSeats,
-                    "occupiedSeats", currentlyInLibrary,
+                    "occupiedSeats", occupiedSeats,
                     "occupancyRate", occupancyRate,
                     "currentlyInLibrary", currentlyInLibrary);
         } catch (Exception e) {
