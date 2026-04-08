@@ -14,7 +14,7 @@ import "./KioskSeatBooking.css";
 import { API_BASE_URL } from '../../config/apiConfig';
 
 const getKioskHeaders = () => {
-    const token = localStorage.getItem('kiosk_device_token');
+    const token = localStorage.getItem('kiosk_device_token') || sessionStorage.getItem('kiosk_device_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
