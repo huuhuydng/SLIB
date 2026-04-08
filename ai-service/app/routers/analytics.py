@@ -877,13 +877,13 @@ async def get_realtime_capacity() -> Dict[str, Any]:
                 message = "Số ghế đang có sinh viên ngồi gần chạm ngưỡng tối đa. Nên điều phối chỗ ngồi và theo dõi các khu đông."
             elif occupancy_rate >= 70:
                 status = "Khá đông"
-                message = "Thư viện đang khá đông theo số ghế đã được xác nhận sử dụng."
+                message = "Số ghế đang được sử dụng ở mức khá cao so với hiện trạng toàn thư viện."
             elif occupancy_rate >= 50:
                 status = "Bình thường"
-                message = "Mức sử dụng ghế đang ổn định."
+                message = "Mức sử dụng chỗ ngồi đang ổn định."
             else:
                 status = "Còn trống"
-                message = "Số ghế đang được sử dụng thực tế vẫn còn thấp."
+                message = "Số ghế đang được sử dụng thực tế vẫn còn thấp so với tổng số chỗ ngồi."
 
             return {
                 "timestamp": now.isoformat(),

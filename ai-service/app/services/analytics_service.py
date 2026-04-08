@@ -303,7 +303,7 @@ class AnalyticsAIService:
                     )
 
                 if avg_duration_minutes >= 180:
-                    insights.append("Thời gian sử dụng trung bình khá dài. Nên theo dõi thêm việc trả chỗ đúng giờ để tăng vòng quay ghế.")
+                    insights.append("Thời lượng sử dụng trung bình đang khá dài. Nên theo dõi thêm việc sinh viên trả chỗ đúng giờ để tăng khả năng phục vụ chỗ ngồi.")
                 elif avg_duration_minutes > 0:
                     insights.append("Thời lượng sử dụng trung bình đang ở mức hợp lý cho nhu cầu học tập trong thư viện.")
 
