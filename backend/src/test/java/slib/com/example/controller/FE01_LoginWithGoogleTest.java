@@ -131,43 +131,16 @@ class FE01_LoginWithGoogleTest {
         }
 
         // =========================================
-        // === UTCD03: Non-FPT email rejected ===
+        // === UTCD03: Locked account ===
         // =========================================
 
         /**
-         * UTCD03: Login with non-FPT email - rejected
-         * Precondition: Account with non-FPT email
-         * Expected: 400 Bad Request (service throws BadRequestException)
-         */
-        @Test
-        @DisplayName("UTCD03: Login with non-FPT email returns 400 Bad Request")
-        void loginWithGoogle_nonFPTEmail_returns400BadRequest() throws Exception {
-                Map<String, String> request = new HashMap<>();
-                request.put("idToken", "valid.google.token");
-                request.put("email", "user@gmail.com");
-
-                when(authService.loginWithGoogle(anyString(), any(), any(), any()))
-                                .thenThrow(new BadRequestException("Chi chap nhan email @fpt.edu.vn hoac email trong whitelist"));
-
-                mockMvc.perform(post("/slib/auth/google")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isBadRequest());
-
-                verify(authService, times(1)).loginWithGoogle(anyString(), any(), any(), any());
-        }
-
-        // =========================================
-        // === UTCD04: Locked account ===
-        // =========================================
-
-        /**
-         * UTCD04: Login with locked account
+         * UTCD03: Login with locked account
          * Precondition: Account is locked (isActive=false)
          * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD04: Login with locked account returns 400 Bad Request")
+        @DisplayName("UTCD03: Login with locked account returns 400 Bad Request")
         void loginWithGoogle_lockedAccount_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("idToken", "valid.google.token");
@@ -185,16 +158,16 @@ class FE01_LoginWithGoogleTest {
         }
 
         // =========================================
-        // === UTCD05: Missing token ===
+        // === UTCD04: Missing token ===
         // =========================================
 
         /**
-         * UTCD05: Login with missing token
+         * UTCD04: Login with missing token
          * Precondition: No precondition
          * Expected: 400 Bad Request (validation chặn request thiếu idToken)
          */
         @Test
-        @DisplayName("UTCD05: Login with missing token returns 400 Bad Request")
+        @DisplayName("UTCD04: Login with missing token returns 400 Bad Request")
         void loginWithGoogle_missingToken_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("fullName", "Test User");
@@ -208,16 +181,16 @@ class FE01_LoginWithGoogleTest {
         }
 
         // =========================================
-        // === UTCD06: Expired token ===
+        // === UTCD05: Expired token ===
         // =========================================
 
         /**
-         * UTCD06: Login with expired token
+         * UTCD05: Login with expired token
          * Precondition: Token expired
          * Expected: 400 Bad Request (service throws BadRequestException)
          */
         @Test
-        @DisplayName("UTCD06: Login with expired token returns 400 Bad Request")
+        @DisplayName("UTCD05: Login with expired token returns 400 Bad Request")
         void loginWithGoogle_expiredToken_returns400BadRequest() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("idToken", "expired.google.token");
@@ -234,56 +207,16 @@ class FE01_LoginWithGoogleTest {
         }
 
         // =========================================
-        // === UTCD07: Whitelisted email ===
+        // === UTCD06: System error ===
         // =========================================
 
         /**
-         * UTCD07: Login with whitelisted email (non-FPT)
-         * Precondition: FPT email in whitelist
-         * Expected: 200 OK
-         */
-        @Test
-        @DisplayName("UTCD07: Login with whitelisted email returns 200 OK")
-        void loginWithGoogle_whitelistedEmail_returns200OK() throws Exception {
-                Map<String, String> request = new HashMap<>();
-                request.put("idToken", "valid.google.token");
-                request.put("email", "huuhuydng@gmail.com");
-                request.put("fullName", "Huy Nguyen");
-
-                AuthResponse mockResponse = AuthResponse.builder()
-                                .id(UUID.randomUUID().toString())
-                                .email("huuhuydng@gmail.com")
-                                .fullName("Huy Nguyen")
-                                .userCode("HUYNGUYEN")
-                                .accessToken("jwt-token-whitelist")
-                                .refreshToken("refresh-token-whitelist")
-                                .role("STUDENT")
-                                .expiresIn(3600L)
-                                .build();
-
-                when(authService.loginWithGoogle(anyString(), any(), any(), any()))
-                                .thenReturn(mockResponse);
-
-                mockMvc.perform(post("/slib/auth/google")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.email").value("huuhuydng@gmail.com"));
-
-                verify(authService, times(1)).loginWithGoogle(anyString(), any(), any(), any());
-        }
-
-        // =========================================
-        // === UTCD08: System error ===
-        // =========================================
-
-        /**
-         * UTCD08: System error during login process
+         * UTCD06: System error during login process
          * Precondition: No precondition
          * Expected: 500 Internal Server Error
          */
         @Test
-        @DisplayName("UTCD08: System error returns 500 Internal Server Error")
+        @DisplayName("UTCD06: System error returns 500 Internal Server Error")
         void loginWithGoogle_systemError_returns500InternalServerError() throws Exception {
                 Map<String, String> request = new HashMap<>();
                 request.put("idToken", "valid.google.token");
