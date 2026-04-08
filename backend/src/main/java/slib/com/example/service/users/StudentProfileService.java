@@ -15,6 +15,7 @@ import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.booking.BookingPolicyService;
 import slib.com.example.service.chat.CloudinaryService;
+import slib.com.example.service.reputation.ReputationService;
 import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.util.UserValidationUtil;
 
@@ -34,6 +35,7 @@ public class StudentProfileService {
     private final ReservationRepository reservationRepository;
     private final LibrarySettingService librarySettingService;
     private final BookingPolicyService bookingPolicyService;
+    private final ReputationService reputationService;
 
     /**
      * Get student profile by user ID
@@ -91,6 +93,20 @@ public class StudentProfileService {
                     profile.setReputationScore(newScore);
                     return buildProfileResponse(studentProfileRepository.save(profile));
                 });
+    }
+
+    @Transactional
+    public Optional<StudentProfileResponse> applyManualReputationAdjustment(
+            UUID userId,
+            int points,
+            String reason,
+            User performedBy) {
+        if (!userRepository.existsById(userId)) {
+            return Optional.empty();
+        }
+
+        StudentProfile profile = reputationService.applyManualAdjustment(userId, points, reason, performedBy);
+        return Optional.of(buildProfileResponse(profile));
     }
 
     /**

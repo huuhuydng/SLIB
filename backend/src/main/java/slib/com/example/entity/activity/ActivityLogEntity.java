@@ -70,4 +70,5 @@ public class ActivityLogEntity {
     public static final String TYPE_LATE_CHECKOUT_PENALTY = "LATE_CHECKOUT_PENALTY";
     public static final String TYPE_WEEKLY_BONUS = "WEEKLY_BONUS";
     public static final String TYPE_APPEAL_REFUND = "APPEAL_REFUND";
+    public static final String TYPE_MANUAL_REPUTATION_ADJUSTMENT = "MANUAL_REPUTATION_ADJUSTMENT";
 }

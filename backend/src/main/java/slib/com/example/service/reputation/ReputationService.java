@@ -8,10 +8,13 @@ import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.activity.PointTransactionEntity;
 import slib.com.example.entity.reputation.ReputationRuleEntity;
 import slib.com.example.entity.users.StudentProfile;
+import slib.com.example.entity.users.User;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.activity.ActivityLogRepository;
 import slib.com.example.repository.activity.PointTransactionRepository;
 import slib.com.example.repository.reputation.ReputationRuleRepository;
+import slib.com.example.repository.users.UserRepository;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.service.notification.PushNotificationService;
 
@@ -35,6 +38,7 @@ public class ReputationService {
     private final ReputationRuleRepository reputationRuleRepository;
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
+    private final UserRepository userRepository;
     private final PushNotificationService pushNotificationService;
 
     public ReputationService(
@@ -42,11 +46,13 @@ public class ReputationService {
             ReputationRuleRepository reputationRuleRepository,
             ActivityLogRepository activityLogRepository,
             PointTransactionRepository pointTransactionRepository,
+            UserRepository userRepository,
             PushNotificationService pushNotificationService) {
         this.studentProfileRepository = studentProfileRepository;
         this.reputationRuleRepository = reputationRuleRepository;
         this.activityLogRepository = activityLogRepository;
         this.pointTransactionRepository = pointTransactionRepository;
+        this.userRepository = userRepository;
         this.pushNotificationService = pushNotificationService;
     }
 
@@ -216,6 +222,90 @@ public class ReputationService {
         } catch (Exception e) {
             log.warn("Failed to send reputation notification for user {}", userId, e);
         }
+    }
+
+    @Transactional
+    public StudentProfile applyManualAdjustment(UUID userId, int points, String reason, User performedBy) {
+        if (performedBy == null) {
+            throw new BadRequestException("Không xác định được quản trị viên thực hiện điều chỉnh");
+        }
+        if (points == 0) {
+            throw new BadRequestException("Số điểm điều chỉnh phải khác 0");
+        }
+        if (Math.abs(points) > 20) {
+            throw new BadRequestException("Chỉ được điều chỉnh tối đa 20 điểm mỗi lần");
+        }
+
+        String normalizedReason = reason != null ? reason.trim() : "";
+        if (normalizedReason.isBlank()) {
+            throw new BadRequestException("Lý do điều chỉnh điểm là bắt buộc");
+        }
+
+        User targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy người dùng cần điều chỉnh điểm"));
+
+        if (targetUser.getRole() == null || !targetUser.getRole().isPatron()) {
+            throw new BadRequestException("Chỉ được điều chỉnh điểm uy tín cho sinh viên hoặc giáo viên");
+        }
+
+        StudentProfile profile = studentProfileRepository.findByUserId(userId)
+                .orElseGet(() -> createDefaultProfile(targetUser));
+
+        int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
+        int newScore = Math.min(200, Math.max(0, currentScore + points));
+        profile.setReputationScore(newScore);
+        studentProfileRepository.save(profile);
+
+        String actionLabel = points > 0 ? "cộng" : "trừ";
+        String title = points > 0 ? "Điều chỉnh tăng điểm uy tín" : "Điều chỉnh giảm điểm uy tín";
+        String description = String.format(
+                "Quản trị viên %s đã %s %d điểm uy tín. Lý do: %s. Điểm trước: %d, điểm sau: %d.",
+                performedBy.getFullName() != null ? performedBy.getFullName() : performedBy.getEmail(),
+                actionLabel,
+                Math.abs(points),
+                normalizedReason,
+                currentScore,
+                newScore);
+
+        ActivityLogEntity activityLog = activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(userId)
+                .activityType(ActivityLogEntity.TYPE_MANUAL_REPUTATION_ADJUSTMENT)
+                .title(title)
+                .description(description)
+                .build());
+
+        PointTransactionEntity transaction = pointTransactionRepository.save(PointTransactionEntity.builder()
+                .userId(userId)
+                .points(points)
+                .transactionType(PointTransactionEntity.TYPE_MANUAL_ADJUSTMENT)
+                .title(title)
+                .description(description)
+                .balanceAfter(newScore)
+                .activityLogId(activityLog.getId())
+                .build());
+
+        sendReputationNotification(
+                userId,
+                points,
+                newScore,
+                "Lý do điều chỉnh: " + normalizedReason,
+                transaction.getId());
+
+        log.info("Admin {} adjusted reputation for user {}: {} -> {} (delta: {})",
+                performedBy.getId(), userId, currentScore, newScore, points);
+
+        return profile;
+    }
+
+    private StudentProfile createDefaultProfile(User user) {
+        StudentProfile profile = StudentProfile.builder()
+                .userId(user.getId())
+                .user(user)
+                .reputationScore(100)
+                .totalStudyHours(0.0)
+                .violationCount(0)
+                .build();
+        return studentProfileRepository.save(profile);
     }
 
     /**
