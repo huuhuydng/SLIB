@@ -73,6 +73,10 @@ jobs:
             cd frontend
             npm ci
             npm run build
+            mkdir -p dist/downloads/slib-nfc-bridge-app
+            if [ -d /var/www/slib/downloads/slib-nfc-bridge-app ]; then
+              rsync -a /var/www/slib/downloads/slib-nfc-bridge-app/ dist/downloads/slib-nfc-bridge-app/
+            fi
             rsync -a --delete dist/ /var/www/slib/
             cd ..
 

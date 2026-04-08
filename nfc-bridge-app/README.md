@@ -88,6 +88,14 @@ Luồng khuyến nghị:
    - `frontend/public/downloads/slib-nfc-bridge-app/`
 4. Deploy lại frontend để trang `admin/nfc-management` tải đúng bộ cài.
 
+Hoặc dùng workflow tự động:
+
+```txt
+.github/workflows/nfc_bridge_release.yml
+```
+
+Workflow này sẽ build installer và có thể đẩy thẳng file lên thư mục downloads trên VM.
+
 ## Khi nào dùng source zip cũ?
 
 Chỉ dùng `frontend/public/downloads/slib-nfc-bridge.zip` khi:

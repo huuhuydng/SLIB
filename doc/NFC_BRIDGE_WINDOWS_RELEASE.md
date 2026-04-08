@@ -58,6 +58,33 @@ và đổi tên theo quy ước:
 
 Sau khi chép file vào `frontend/public/downloads/slib-nfc-bridge-app/`, build/deploy lại frontend như bình thường.
 
+## Workflow tự động đã có
+
+Repo đã có workflow:
+
+```txt
+.github/workflows/nfc_bridge_release.yml
+```
+
+Workflow này sẽ:
+
+1. Build installer Windows từ `nfc-bridge-app`
+2. Build DMG macOS từ `nfc-bridge-app`
+3. Upload artifact vào GitHub Actions
+4. Nếu bật `deploy_to_vm`, tự chép file lên:
+
+```txt
+/var/www/slib/downloads/slib-nfc-bridge-app/
+```
+
+Như vậy team không cần copy thủ công lên VM nữa.
+
+## Lưu ý về các workflow deploy frontend hiện tại
+
+Các workflow deploy VM đã được vá để **giữ lại installer NFC Bridge** trong thư mục downloads khi frontend deploy mới.
+
+Nếu không có bước này, `rsync --delete` có thể xóa mất file `.exe/.dmg` đã upload trước đó.
+
 ## Hướng dẫn cho máy mới
 
 1. Vào `Admin > Quản lý NFC Tag`.

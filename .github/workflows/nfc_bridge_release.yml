@@ -1,0 +1,165 @@
+name: Build And Deploy NFC Bridge Installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_to_vm:
+        description: "Đẩy installer lên thư mục downloads trên VM"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nfc-bridge-release
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install NFC Bridge app dependencies
+        working-directory: nfc-bridge-app
+        run: npm install
+
+      - name: Build Windows NSIS installer
+        working-directory: nfc-bridge-app
+        run: npm run dist:win
+
+      - name: Prepare stable Windows artifact name
+        shell: pwsh
+        working-directory: nfc-bridge-app
+        run: |
+          $installer = Get-ChildItem release -Filter *.exe -Recurse |
+            Where-Object { $_.Name -ne "SLIB-NFC-Bridge-Setup.exe" } |
+            Select-Object -First 1
+
+          if (-not $installer) {
+            throw "Không tìm thấy file .exe trong thư mục release"
+          }
+
+          Copy-Item $installer.FullName "release/SLIB-NFC-Bridge-Setup.exe" -Force
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfc-bridge-windows-installer
+          path: nfc-bridge-app/release/SLIB-NFC-Bridge-Setup.exe
+          retention-days: 14
+
+  build-macos:
+    name: Build macOS installer
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install NFC Bridge app dependencies
+        working-directory: nfc-bridge-app
+        run: npm install
+
+      - name: Build macOS DMG
+        working-directory: nfc-bridge-app
+        run: npm run dist:mac
+
+      - name: Prepare stable macOS artifact name
+        run: |
+          set -euo pipefail
+          installer="$(find nfc-bridge-app/release -name '*.dmg' | head -n 1)"
+          if [ -z "${installer}" ]; then
+            echo "Không tìm thấy file .dmg trong thư mục release"
+            exit 1
+          fi
+          cp "${installer}" nfc-bridge-app/release/SLIB-NFC-Bridge.dmg
+
+      - name: Upload macOS installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nfc-bridge-macos-installer
+          path: nfc-bridge-app/release/SLIB-NFC-Bridge.dmg
+          retention-days: 14
+
+  deploy-to-vm:
+    name: Deploy installers to VM downloads
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    if: ${{ inputs.deploy_to_vm }}
+
+    steps:
+      - name: Download Windows installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nfc-bridge-windows-installer
+          path: /tmp/nfc-bridge-release/windows
+
+      - name: Download macOS installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nfc-bridge-macos-installer
+          path: /tmp/nfc-bridge-release/macos
+
+      - name: Connect runner to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.VPS_SSH_KEY }}" | tr -d '\r' > ~/.ssh/slib_vm_deploy
+          chmod 600 ~/.ssh/slib_vm_deploy
+          ssh-keygen -y -f ~/.ssh/slib_vm_deploy > /dev/null
+
+      - name: Upload installers to VM
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+
+          ssh -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" \
+            "mkdir -p /var/www/slib/downloads/slib-nfc-bridge-app"
+
+          scp -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            /tmp/nfc-bridge-release/windows/SLIB-NFC-Bridge-Setup.exe \
+            "${VPS_USER}@${VPS_HOST}:/var/www/slib/downloads/slib-nfc-bridge-app/SLIB-NFC-Bridge-Setup.exe"
+
+          scp -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            /tmp/nfc-bridge-release/macos/SLIB-NFC-Bridge.dmg \
+            "${VPS_USER}@${VPS_HOST}:/var/www/slib/downloads/slib-nfc-bridge-app/SLIB-NFC-Bridge.dmg"
+
+      - name: Verify deployed files on VM
+        env:
+          VPS_HOST: ${{ secrets.VPS_TAILSCALE_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          ssh -i ~/.ssh/slib_vm_deploy \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=15 \
+            "${VPS_USER}@${VPS_HOST}" \
+            "ls -lh /var/www/slib/downloads/slib-nfc-bridge-app"
