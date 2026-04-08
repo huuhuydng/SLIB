@@ -41,6 +41,7 @@ const NfcManagement = () => {
   });
   const [bridgeChecking, setBridgeChecking] = useState(false);
   const [bridgeLaunching, setBridgeLaunching] = useState(false);
+  const [bridgeDownloading, setBridgeDownloading] = useState(false);
   const [showBridgeGuide, setShowBridgeGuide] = useState(false);
   const [showBridgeDropdown, setShowBridgeDropdown] = useState(false);
   const bridgeDropdownRef = useRef(null);
@@ -91,6 +92,16 @@ const NfcManagement = () => {
     window.setTimeout(() => checkBridgeConnection(false), 4000);
     window.setTimeout(() => setBridgeLaunching(false), 4500);
   }, [checkBridgeConnection]);
+
+  const triggerDownload = useCallback((url) => {
+    if (typeof window === "undefined") return;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, []);
 
   // ===== LOAD ALL DATA =====
   const loadData = useCallback(async () => {
@@ -351,7 +362,9 @@ const NfcManagement = () => {
   const areaZones = zones.filter(z => z.areaId === selectedAreaId);
   const areaFactories = factories.filter(f => f.areaId === selectedAreaId);
 
-  const bridgeDownloadUrl = "/downloads/slib-nfc-bridge.zip";
+  const bridgeInstallerUrl = "/downloads/slib-nfc-bridge-app/SLIB-NFC-Bridge-Setup.exe";
+  const bridgeMacInstallerUrl = "/downloads/slib-nfc-bridge-app/SLIB-NFC-Bridge.dmg";
+  const bridgeSourceZipUrl = "/downloads/slib-nfc-bridge.zip";
   const bridgeStatusLabel = bridgeStatus.status === "ready"
     ? "Sẵn sàng"
     : bridgeStatus.status === "bridge_only"
@@ -359,6 +372,29 @@ const NfcManagement = () => {
       : bridgeStatus.status === "offline"
         ? "Chưa chạy"
         : "Đang kiểm tra";
+
+  const handleDownloadBridge = useCallback(async (platform = "windows") => {
+    const preferredUrl = platform === "mac" ? bridgeMacInstallerUrl : bridgeInstallerUrl;
+    setBridgeDownloading(true);
+    try {
+      try {
+        const response = await fetch(preferredUrl, { method: "HEAD", cache: "no-store" });
+        if (response.ok) {
+          triggerDownload(preferredUrl);
+          setShowBridgeDropdown(false);
+          return;
+        }
+      } catch (error) {
+        console.warn("Không kiểm tra được file cài NFC Bridge:", error);
+      }
+
+      showToast("Server chưa có bộ cài phát hành. Đang chuyển sang gói source zip dự phòng.", "error");
+      triggerDownload(bridgeSourceZipUrl);
+      setShowBridgeDropdown(false);
+    } finally {
+      setBridgeDownloading(false);
+    }
+  }, [bridgeInstallerUrl, bridgeMacInstallerUrl, bridgeSourceZipUrl, triggerDownload]);
 
   // ===== RENDER =====
   return (
@@ -405,14 +441,14 @@ const NfcManagement = () => {
                     <Wifi size={14} />
                     {bridgeLaunching ? "Đang mở công cụ..." : "Mở công cụ NFC"}
                   </button>
-                  <a
+                  <button
                     className="nfc-bridge-btn"
-                    href={bridgeDownloadUrl}
-                    download
+                    onClick={() => handleDownloadBridge("windows")}
+                    disabled={bridgeDownloading}
                   >
                     <Download size={14} />
-                    Tải công cụ NFC
-                  </a>
+                    {bridgeDownloading ? "Đang kiểm tra..." : "Tải app Windows"}
+                  </button>
                   <button
                     className="nfc-bridge-btn"
                     onClick={() => { setShowBridgeGuide(true); setShowBridgeDropdown(false); }}
@@ -824,16 +860,23 @@ const NfcManagement = () => {
 
             <div className="nfc-bridge-guide__body">
               <p className="nfc-bridge-guide__intro">
-                Máy nào cần quét thẻ NFC thì máy đó phải cài và chạy NFC Bridge cục bộ. Web chỉ gọi bridge trên chính máy đang mở trình duyệt.
+                Máy nào cần quét thẻ NFC thì máy đó phải cài <strong>SLIB NFC Bridge</strong> trên chính máy đó. Cách khuyến nghị là cài app desktop sẵn, không còn đi theo flow source zip và <code>npm install</code> như trước.
               </p>
 
+              <div className="nfc-bridge-guide__box nfc-bridge-guide__box--highlight">
+                <div className="nfc-bridge-guide__box-title">Khuyến nghị cho máy mới</div>
+                <ul className="nfc-bridge-guide__list">
+                  <li>Dùng <strong>bản cài đặt Windows</strong> nếu máy là máy thủ thư/kiosk mới.</li>
+                  <li>Chỉ dùng <strong>gói source zip</strong> khi team kỹ thuật cần chạy thủ công hoặc debug bridge.</li>
+                  <li>Sau khi cài app thành công, web có thể gọi trực tiếp nút <strong>Mở công cụ NFC</strong>.</li>
+                </ul>
+              </div>
+
               <ol className="nfc-bridge-guide__steps">
-                <li>Tải gói <strong>SLIB NFC Bridge</strong> bằng nút <strong>Tải công cụ NFC</strong>.</li>
-                <li>Giải nén file zip vào một thư mục cố định trên máy.</li>
-                <li>Cài <strong>Node.js 18+</strong> nếu máy chưa có.</li>
+                <li>Tải bộ cài <strong>SLIB NFC Bridge</strong> bằng nút <strong>Tải app Windows</strong>.</li>
+                <li>Mở file cài đặt và hoàn tất wizard cài app trên máy thủ thư/kiosk.</li>
                 <li>Cắm đầu đọc <strong>ACR122U</strong> vào máy.</li>
-                <li>Chạy file <strong>start-nfc-bridge.bat</strong> trên Windows hoặc <strong>start-nfc-bridge.command</strong> trên macOS/Linux.</li>
-                <li>Sau khi cài app desktop phiên bản mới, anh/chị có thể bấm trực tiếp <strong>Mở công cụ NFC</strong> trên web.</li>
+                <li>Mở app lần đầu hoặc bấm trực tiếp <strong>Mở công cụ NFC</strong> trên web để kích hoạt bridge.</li>
                 <li>Quay lại trang này và bấm <strong>Kiểm tra kết nối</strong>.</li>
               </ol>
 
@@ -843,6 +886,15 @@ const NfcManagement = () => {
                   <li>Bridge chạy ở <strong>{NFC_BRIDGE_URL}</strong>.</li>
                   <li>Trạng thái hiển thị <strong>Sẵn sàng</strong>.</li>
                   <li>Nếu hiện <strong>Chưa thấy đầu đọc</strong>, hãy kiểm tra lại cáp USB hoặc driver ACR122U.</li>
+                </ul>
+              </div>
+
+              <div className="nfc-bridge-guide__box">
+                <div className="nfc-bridge-guide__box-title">Phương án dự phòng cho team kỹ thuật</div>
+                <ul className="nfc-bridge-guide__list">
+                  <li>Nếu máy chưa có bộ cài phát hành, có thể dùng <strong>gói source zip</strong> để chạy bridge thủ công.</li>
+                  <li>Flow cũ yêu cầu cài <strong>Node 20 LTS</strong> và môi trường native module cho đầu đọc NFC.</li>
+                  <li>Chỉ nên dùng cách này cho máy kỹ thuật, không khuyến nghị cho máy mới ngoài hiện trường.</li>
                 </ul>
               </div>
 
@@ -858,22 +910,29 @@ const NfcManagement = () => {
                   <Wifi size={14} />
                   {bridgeLaunching ? "Đang mở..." : "Mở công cụ NFC"}
                 </button>
-                <a
+                <button
                   className="nfc-bridge-guide__footer-btn"
-                  href={bridgeDownloadUrl}
-                  download
+                  onClick={() => handleDownloadBridge("windows")}
+                  disabled={bridgeDownloading}
                 >
                   <Download size={14} />
-                  Tải công cụ NFC
-                </a>
+                  {bridgeDownloading ? "Đang kiểm tra..." : "Tải app Windows"}
+                </button>
+                <button
+                  className="nfc-bridge-guide__footer-btn"
+                  onClick={() => handleDownloadBridge("mac")}
+                  disabled={bridgeDownloading}
+                >
+                  <Download size={14} />
+                  Tải app macOS
+                </button>
                 <a
                   className="nfc-bridge-guide__footer-btn"
-                  href="https://nodejs.org/en/download"
-                  target="_blank"
-                  rel="noreferrer"
+                  href={bridgeSourceZipUrl}
+                  download
                 >
                   <Info size={14} />
-                  Tải Node.js
+                  Tải source zip dự phòng
                 </a>
               </div>
               <button
