@@ -34,6 +34,7 @@ import slib.com.example.service.system.SystemLogService;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
@@ -266,11 +267,12 @@ public class UserController {
                     (isActive ? "Mở khóa" : "Khóa") + " tài khoản người dùng: " + userId,
                     null,
                     userDetails != null ? userDetails.getUsername() : null);
-            return ResponseEntity.ok(Map.of(
-                    "message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản",
-                    "userId", userId,
-                    "isActive", updatedUser.getIsActive(),
-                    "lockReason", updatedUser.getLockReason()));
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản");
+            response.put("userId", userId);
+            response.put("isActive", updatedUser.getIsActive());
+            response.put("lockReason", updatedUser.getLockReason());
+            return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

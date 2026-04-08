@@ -65,11 +65,11 @@ class FE19_ChangeUserStatusTest {
         void changeUserStatus_admin_returns200OK() throws Exception {
                 UUID userId = UUID.randomUUID();
                 User mockUser = User.builder().isActive(false).build();
-                when(userService.toggleUserActive(any(), anyBoolean())).thenReturn(mockUser);
+                when(userService.toggleUserActive(any(), anyBoolean(), any())).thenReturn(mockUser);
 
                 mockMvc.perform(patch("/slib/users/" + userId + "/status")
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"isActive\":false}"))
+                                .content("{\"isActive\":false,\"reason\":\"Vi phạm nội quy\"}"))
                         .andExpect(status().isOk());
         }
 
@@ -79,7 +79,7 @@ class FE19_ChangeUserStatusTest {
         void changeUserStatus_invalidUUID_returns400() throws Exception {
                 mockMvc.perform(patch("/slib/users/invalid-uuid/status")
                                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                .content("{\"isActive\":false}"))
+                                .content("{\"isActive\":false,\"reason\":\"Vi phạm nội quy\"}"))
                         .andExpect(status().isBadRequest());
         }
 }
