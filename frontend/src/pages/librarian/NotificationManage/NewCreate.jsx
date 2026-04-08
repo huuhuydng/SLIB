@@ -31,8 +31,10 @@ import { createNews, updateNews, getNewsDetailForAdmin, getNewsImage } from '../
 import { createNewsTemplate } from '../../../utils/newsTemplate';
 import { API_BASE_URL } from '../../../config/apiConfig';
 import { getApiErrorMessage, normalizeText, validateNewsPayload } from '../../../utils/formValidation';
+import { useToast } from '../../../components/common/ToastProvider';
 
 const NewCreate = () => {
+  const toast = useToast();
   const LRM = '\u200E'; // Anchor to force LTR context inside contentEditable
   const navigate = useNavigate();
   const { id } = useParams(); // Nếu có id thì là edit mode
@@ -285,13 +287,13 @@ const NewCreate = () => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn file ảnh!');
+        toast.warning('Vui lòng chọn file ảnh!');
         return;
       }
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Kích thước file không được vượt quá 5MB!');
+        toast.warning('Kích thước file không được vượt quá 5MB!');
         return;
       }
 
@@ -317,7 +319,7 @@ const NewCreate = () => {
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('Kích thước file không được vượt quá 5MB!');
+        toast.warning('Kích thước file không được vượt quá 5MB!');
         return;
       }
       setThumbnailFile(file);
@@ -327,7 +329,7 @@ const NewCreate = () => {
       };
       reader.readAsDataURL(file);
     } else {
-      alert('Vui lòng chọn file ảnh!');
+      toast.warning('Vui lòng chọn file ảnh!');
     }
   };
 

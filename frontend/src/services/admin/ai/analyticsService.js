@@ -101,7 +101,7 @@ export const getBehaviorSummary = async (days = 7) => {
 };
 
 // Lấy danh sách sinh viên cần lưu ý cho dashboard thủ thư
-export const getBehaviorIssues = async (limit = 5) => {
+export const getBehaviorIssues = async (limit = 3) => {
   try {
     const response = await aiAnalyticsService.get('/behavior-issues', {
       params: { limit },

@@ -70,6 +70,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 /* --- Student Cell --- */
@@ -256,6 +257,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 .sr-card-header {

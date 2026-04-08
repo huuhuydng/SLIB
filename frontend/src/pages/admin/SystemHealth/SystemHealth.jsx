@@ -34,10 +34,12 @@ import {
 } from 'lucide-react';
 import systemHealthService from '../../../services/admin/systemHealthService';
 import LoadErrorState from '../../../components/common/LoadErrorState';
+import useAppDialog from '../../../hooks/useAppDialog';
 import './SystemHealth.css';
 
 
 const SystemHealth = () => {
+  const { confirm, alert } = useAppDialog();
   const [activeTab, setActiveTab] = useState('overview');
 
   // === SYSTEM INFO STATE (FE-55) ===
@@ -230,7 +232,13 @@ const SystemHealth = () => {
       return;
     }
 
-    const confirmed = window.confirm(`Bạn có chắc muốn dọn toàn bộ nhật ký trước ngày ${cleanupBeforeDate}?`);
+    const confirmed = await confirm({
+      title: 'Dọn nhật ký hệ thống',
+      message: `Bạn có chắc muốn dọn toàn bộ nhật ký trước ngày ${cleanupBeforeDate}?`,
+      confirmText: 'Dọn nhật ký',
+      cancelText: 'Huỷ',
+      variant: 'warning',
+    });
     if (!confirmed) {
       return;
     }
@@ -242,7 +250,11 @@ const SystemHealth = () => {
       await fetchLogs();
       setShowCleanupPanel(false);
       setCleanupBeforeDate('');
-      window.alert(result?.message || 'Đã dọn nhật ký cũ thành công');
+      await alert({
+        title: 'Dọn nhật ký thành công',
+        message: result?.message || 'Đã dọn nhật ký cũ thành công',
+        icon: 'success',
+      });
     } catch (e) {
       console.error('Failed to cleanup logs:', e);
       setLogsError(parseApiError(e, 'Không thể dọn nhật ký cũ'));

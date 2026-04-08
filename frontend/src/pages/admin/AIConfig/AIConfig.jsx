@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
+import useAppDialog from '../../../hooks/useAppDialog';
 import {
   Bot, Brain, MessageSquare, Sparkles, RefreshCw, Plus, Trash2, X, CheckCircle,
   AlertTriangle, BookOpen, Send, User, RotateCcw, Database, Upload, FileText,
@@ -35,6 +36,7 @@ const LOADING_ANIMATION_CSS = `
 
 const AIConfig = () => {
   const toast = useToast();
+  const { confirm } = useAppDialog();
   const [activeTab, setActiveTab] = useState('materials');
   const [apiStatus, setApiStatus] = useState('unknown');
 
@@ -144,7 +146,14 @@ const AIConfig = () => {
 
   // Clear chat and delete from MongoDB
   const handleClearChat = async () => {
-    if (!confirm('Bạn có chắc muốn xóa toàn bộ tin nhắn?')) return;
+    const confirmed = await confirm({
+      title: 'Xoá toàn bộ tin nhắn',
+      message: 'Bạn có chắc muốn xóa toàn bộ tin nhắn?',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await clearChatSession(sessionId);
       setChatHistory([
@@ -207,7 +216,14 @@ const AIConfig = () => {
   };
 
   const handleDeleteMaterial = async (id) => {
-    if (!confirm('Bạn có chắc muốn xóa tài liệu này?')) return;
+    const confirmed = await confirm({
+      title: 'Xoá nhóm tài liệu',
+      message: 'Bạn có chắc muốn xóa tài liệu này?',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteMaterial(id);
       await Promise.all([loadMaterials(), loadKnowledgeStores()]);
@@ -237,7 +253,14 @@ const AIConfig = () => {
   };
 
   const handleDeleteItem = async (materialId, itemId) => {
-    if (!confirm('Bạn có chắc muốn xóa mục này?')) return;
+    const confirmed = await confirm({
+      title: 'Xoá mục tài liệu',
+      message: 'Bạn có chắc muốn xóa mục này?',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteItem(materialId, itemId);
       await Promise.all([loadMaterials(), loadKnowledgeStores()]);
@@ -264,7 +287,14 @@ const AIConfig = () => {
   };
 
   const handleDeleteKS = async (id) => {
-    if (!confirm('Bạn có chắc muốn xóa kho tri thức này?')) return;
+    const confirmed = await confirm({
+      title: 'Xoá kho tri thức',
+      message: 'Bạn có chắc muốn xóa kho tri thức này?',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     try {
       await deleteKnowledgeStore(id);
       await loadKnowledgeStores();

@@ -17,10 +17,12 @@ import { getAllNewBooksForAdmin } from "../../../services/librarian/newBookServi
 import { getBehaviorIssues, getDensityPrediction, getRealtimeCapacity, sendBehaviorWarning } from "../../../services/admin/ai/analyticsService";
 import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
+import useAppDialog from "../../../hooks/useAppDialog";
 
 import "../../../styles/librarian/Dashboard.css";
 
 const Dashboard = () => {
+  const { confirm, alert } = useAppDialog();
   const [searchText, setSearchText] = useState("");
   const [insights, setInsights] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
@@ -96,18 +98,30 @@ const Dashboard = () => {
 
   const handleSendBehaviorWarning = async (issue) => {
     if (!issue?.user_id || sendingBehaviorWarningId === issue.user_id) return;
-    const confirmed = window.confirm(
-      `Gửi nhắc nhở đến ${issue.full_name} về vấn đề "${issue.primary_issue}"?`
-    );
+    const confirmed = await confirm({
+      title: 'Gửi nhắc nhở sinh viên',
+      message: `Gửi nhắc nhở đến ${issue.full_name} về vấn đề "${issue.primary_issue}"?`,
+      confirmText: 'Gửi nhắc nhở',
+      cancelText: 'Huỷ',
+      variant: 'warning',
+    });
     if (!confirmed) return;
 
     try {
       setSendingBehaviorWarningId(issue.user_id);
       const res = await sendBehaviorWarning(issue.user_id, issue.primary_issue, issue.detail);
-      window.alert(res?.message || `Đã gửi nhắc nhở đến ${issue.full_name}.`);
+      await alert({
+        title: 'Đã gửi nhắc nhở',
+        message: res?.message || `Đã gửi nhắc nhở đến ${issue.full_name}.`,
+        icon: 'success',
+      });
     } catch (error) {
       const message = error?.response?.data?.message || 'Không thể gửi nhắc nhở cho sinh viên này.';
-      window.alert(message);
+      await alert({
+        title: 'Không thể gửi nhắc nhở',
+        message,
+        icon: 'error',
+      });
     } finally {
       setSendingBehaviorWarningId(null);
     }
@@ -313,7 +327,7 @@ const Dashboard = () => {
       } catch (e) { analyticsHealthy = false; console.warn('Could not fetch density:', e); }
 
       try {
-        const behaviorData = await getBehaviorIssues(5);
+        const behaviorData = await getBehaviorIssues(3);
         setBehaviorIssues(Array.isArray(behaviorData?.students) ? behaviorData.students : []);
         setBehaviorSummary({
           totalFlagged: behaviorData?.total_flagged || 0,

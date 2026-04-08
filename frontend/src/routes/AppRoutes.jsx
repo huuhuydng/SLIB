@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useState, useEffect, useCallback } from "react";
 import { isTokenExpired } from "../utils/auth";
 import { isPatronRole, isStaffRole, normalizeRole } from "../utils/roles";
+import useAppDialog from "../hooks/useAppDialog";
 
 const AuthPage = lazy(() => import("../components/auth/AuthPage"));
 const AdminRoutes = lazy(() => import("./AdminRoutes"));
@@ -37,6 +38,7 @@ const LoadingScreen = () => (
 );
 
 function AppRoutes() {
+  const { alert } = useAppDialog();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -91,7 +93,11 @@ function AppRoutes() {
           // Không cho phép patron đăng nhập vào web
           console.warn(`[Auth] ${role} không được phép đăng nhập vào hệ thống web`);
           performLogout();
-          alert('Tài khoản người dùng thư viện không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.');
+          alert({
+            title: 'Không thể truy cập',
+            message: 'Tài khoản người dùng thư viện không được phép truy cập hệ thống web. Vui lòng sử dụng ứng dụng mobile.',
+            icon: 'warning',
+          });
         }
       } catch (error) {
         console.error('[Auth] Error parsing user data:', error);
@@ -109,7 +115,11 @@ function AppRoutes() {
       if (isTokenExpired(token)) {
         console.warn('[Auth] Token hết hạn, tự động đăng xuất');
         performLogout();
-        alert('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        alert({
+          title: 'Phiên đăng nhập hết hạn',
+          message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          icon: 'warning',
+        });
       }
     }, 60 * 1000);
 
