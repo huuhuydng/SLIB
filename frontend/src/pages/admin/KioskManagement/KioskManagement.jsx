@@ -33,6 +33,7 @@ import '../../../styles/admin/HceStationManagement.css';
 import '../UserManagement/UserManagement.css';
 import LoadErrorState from '../../../components/common/LoadErrorState';
 import { getApiErrorMessage, normalizeText, validateKioskPayload } from '../../../utils/formValidation';
+import useAppDialog from '../../../hooks/useAppDialog';
 
 import { API_BASE_URL as API_BASE } from '../../../config/apiConfig';
 
@@ -78,6 +79,7 @@ const authHeaders = () => {
 };
 
 function KioskManagement() {
+  const { confirm } = useAppDialog();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -308,9 +310,15 @@ function KioskManagement() {
 
   const handleActivate = async (session) => {
     const kioskId = session.id;
-    const forceReissue = session?.tokenValid && window.confirm(
-      `Kiosk ${session.kioskCode} đang có mã kích hoạt còn hiệu lực. Nếu cấp lại, kiosk đang chạy sẽ phải kích hoạt lại.\n\nBạn có chắc muốn tiếp tục không?`
-    );
+    const forceReissue = session?.tokenValid
+      ? await confirm({
+        title: 'Cấp lại mã kích hoạt',
+        message: `Kiosk ${session.kioskCode} đang có mã kích hoạt còn hiệu lực. Nếu cấp lại, kiosk đang chạy sẽ phải kích hoạt lại.\n\nBạn có chắc muốn tiếp tục không?`,
+        confirmText: 'Cấp lại',
+        cancelText: 'Huỷ',
+        variant: 'warning',
+      })
+      : false;
 
     if (session?.tokenValid && !forceReissue) {
       return;

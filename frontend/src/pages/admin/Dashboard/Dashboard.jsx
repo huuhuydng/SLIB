@@ -41,6 +41,20 @@ import LoadErrorState from "../../../components/common/LoadErrorState";
 import "../../../styles/Dashboard.css";
 
 const Dashboard = () => {
+  const PANEL_LIMITS = {
+    priorityTasks: 6,
+    attentionZones: 5,
+    recentActivities: 8,
+    recentBookings: 8,
+    topStudents: 5,
+    recentViolations: 5,
+    recentSupportRequests: 5,
+    recentComplaints: 5,
+    recentFeedbacks: 5,
+    news: 4,
+    recentNewBooks: 4,
+  };
+
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [topStudents, setTopStudents] = useState([]);
@@ -344,6 +358,17 @@ const Dashboard = () => {
   const chatAttention = stats?.chatAttention || null;
   const attentionZones = stats?.attentionZones || [];
   const recentActivities = stats?.recentActivities || [];
+  const displayedPriorityTasks = priorityTasks.slice(0, PANEL_LIMITS.priorityTasks);
+  const displayedAttentionZones = attentionZones.slice(0, PANEL_LIMITS.attentionZones);
+  const displayedRecentActivities = recentActivities.slice(0, PANEL_LIMITS.recentActivities);
+  const displayedRecentBookings = (stats?.recentBookings || []).slice(0, PANEL_LIMITS.recentBookings);
+  const displayedTopStudents = topStudents.slice(0, PANEL_LIMITS.topStudents);
+  const displayedRecentViolations = (stats?.recentViolations || []).slice(0, PANEL_LIMITS.recentViolations);
+  const displayedRecentSupportRequests = (stats?.recentSupportRequests || []).slice(0, PANEL_LIMITS.recentSupportRequests);
+  const displayedRecentComplaints = (stats?.recentComplaints || []).slice(0, PANEL_LIMITS.recentComplaints);
+  const displayedRecentFeedbacks = (stats?.recentFeedbacks || []).slice(0, PANEL_LIMITS.recentFeedbacks);
+  const displayedNews = news.slice(0, PANEL_LIMITS.news);
+  const displayedRecentNewBooks = recentNewBooks.slice(0, PANEL_LIMITS.recentNewBooks);
   const sourceErrorLabels = [
     sourceStatus.system === "error" ? "máy chủ thư viện" : null,
     sourceStatus.stations === "error" ? "trạm quét HCE" : null,
@@ -409,9 +434,9 @@ const Dashboard = () => {
     year: "Năm nay",
   };
   const topStudentsSubtitle = {
-    week: "Những sinh viên có thời lượng sử dụng cao trong 7 ngày gần đây.",
-    month: "Những sinh viên có thời lượng sử dụng cao trong 30 ngày gần đây.",
-    year: "Những sinh viên có thời lượng sử dụng cao trong 12 tháng gần đây.",
+    week: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 7 ngày gần đây.",
+    month: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 30 ngày gần đây.",
+    year: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 12 tháng gần đây.",
   };
   const adminQuickActions = [
     { title: "Người dùng", desc: "Quản lý tài khoản và phân quyền", icon: <Users size={18} />, path: "/admin/users", tone: "purple" },
@@ -669,10 +694,10 @@ const Dashboard = () => {
         <StatCard
           icon={<Armchair size={22} />}
           value={`${stats?.occupancyRate ?? 0}%`}
-          label="Ghế đang có người sử dụng"
+          label="Ghế đang được sử dụng"
           bg="#E8F5E9" color="#388E3C"
           trend={stats?.occupancyRate >= 80 ? "up" : "neutral"}
-          trendValue={`${stats?.occupiedSeats ?? 0} / ${stats?.totalSeats ?? 0} ghế đang có người`}
+          trendValue={`${stats?.occupiedSeats ?? 0} đang ngồi, ${stats?.reservedSeats ?? 0} đã giữ chỗ`}
         />
         <StatCard
           icon={<BarChart3 size={22} />}
@@ -680,7 +705,7 @@ const Dashboard = () => {
           label="Đặt chỗ bắt đầu hôm nay"
           bg="#E3F2FD" color="#0054A6"
           trend="neutral"
-          trendValue={`${stats?.activeBookings ?? 0} lượt đang diễn ra`}
+          trendValue={`${stats?.activeBookings ?? 0} lượt đang hiệu lực`}
         />
         <StatCard
           icon={<AlertTriangle size={22} />}
@@ -796,9 +821,9 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {priorityTasks.length > 0 ? (
+          {displayedPriorityTasks.length > 0 ? (
             <div className="dashboard-priority-list">
-              {priorityTasks.map((task) => (
+              {displayedPriorityTasks.map((task) => (
                 <div key={task.key} className={`dashboard-priority-item dashboard-priority-item--${task.severity}`}>
                   <div className="dashboard-priority-item__body">
                     <div className="dashboard-priority-item__header">
@@ -884,9 +909,9 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {attentionZones.length > 0 ? (
+          {displayedAttentionZones.length > 0 ? (
             <div className="dashboard-zone-list">
-              {attentionZones.map((zone) => (
+              {displayedAttentionZones.map((zone) => (
                 <div key={`${zone.zoneId}-${zone.zoneName}`} className={`dashboard-zone-item dashboard-zone-item--${zone.severity}`}>
                   <div className="dashboard-zone-item__header">
                     <div>
@@ -927,9 +952,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        {recentActivities.length > 0 ? (
+        {displayedRecentActivities.length > 0 ? (
           <div className="dashboard-activity-list">
-            {recentActivities.map((activity, index) => (
+            {displayedRecentActivities.map((activity, index) => (
               <div key={`${activity.type}-${activity.createdAt}-${index}`} className="dashboard-activity-item">
                 <div className={`dashboard-activity-item__dot dashboard-activity-item__dot--${activity.severity || "info"}`} />
                 <div className="dashboard-activity-item__body">
@@ -966,7 +991,7 @@ const Dashboard = () => {
                 <p className="panelSubtitle">Các lượt đặt chỗ có giờ bắt đầu trong hôm nay.</p>
               </div>
             </div>
-            {stats?.recentBookings?.length > 0 && (
+            {(stats?.recentBookings || []).length > 0 && (
               <span className="panelHeader__badge">{stats.recentBookings.length}</span>
             )}
           </div>
@@ -982,14 +1007,14 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {(stats?.recentBookings || []).length === 0 ? (
+                {displayedRecentBookings.length === 0 ? (
                   <tr><td colSpan={5}>
                     <div className="empty-state">
                       <BookOpen size={32} />
                       <p>Chưa có đặt chỗ nào</p>
                     </div>
                   </td></tr>
-                ) : stats.recentBookings.map((b, i) => (
+                ) : displayedRecentBookings.map((b, i) => (
                   <tr key={b.reservationId || i}>
                     <td>
                       <div className="user-cell">
@@ -1097,8 +1122,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Khu vực đang có người sử dụng</h3>
-                <p className="panelSubtitle">Tỷ lệ ghế có đặt chỗ còn hiệu lực theo từng khu vực.</p>
+                <h3 className="panelTitle">Khu vực đang được sử dụng</h3>
+                <p className="panelSubtitle">Tỷ lệ ghế đang có sinh viên ngồi thực tế theo từng khu vực.</p>
               </div>
             </div>
           </div>
@@ -1135,7 +1160,7 @@ const Dashboard = () => {
                     <div className="areaTop__name">
                       <span>{item.name}</span>
                       <span className="areaTop__seats">
-                        ({item.occupied}/{item.total} ghế)
+                        ({item.occupied}/{item.total} ghế đang sử dụng)
                       </span>
                     </div>
                     <span className="areaTop__pct" style={{ color }}>{item.pct}%</span>
@@ -1197,7 +1222,7 @@ const Dashboard = () => {
                   <p className="list-item__name" style={{ marginBottom: 4 }}>Dự báo 1 giờ tới</p>
                   <p className="list-item__desc">
                     Có {aiCapacity.upcoming_1h || 0} lượt đặt chỗ sắp tới.
-                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế đang có người sử dụng ({aiCapacity.occupancy_rate || 0}%)
+                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế đang được sử dụng ({aiCapacity.occupancy_rate || 0}%)
                   </p>
                 </div>
               </div>
@@ -1243,7 +1268,7 @@ const Dashboard = () => {
               <Award size={32} />
               <p>Chưa có dữ liệu</p>
             </div>
-          ) : topStudents.map((s, i) => {
+          ) : displayedTopStudents.map((s, i) => {
             const rankClass = i < 3 ? `top-student__rank--${i + 1}` : "top-student__rank--other";
             const avatarClass = i === 0 ? "top-student__avatar--gold" : i === 1 ? "top-student__avatar--accent" : "top-student__avatar--neutral";
             return (
@@ -1289,12 +1314,12 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {(stats?.recentViolations || []).length === 0 ? (
+          {displayedRecentViolations.length === 0 ? (
             <div className="empty-state">
               <Shield size={32} />
-              <p>Không có vi phạm</p>
+              <p>Hiện không có vi phạm nào cần được xử lý</p>
             </div>
-          ) : stats.recentViolations.map((v, i) => (
+          ) : displayedRecentViolations.map((v, i) => (
             <div key={v.id || i} className="list-item">
               <div className="list-item__icon" style={{ background: "#FFEBEE", color: "#D32F2F" }}>
                 <AlertTriangle size={16} />
@@ -1325,12 +1350,12 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {(stats?.recentSupportRequests || []).length === 0 ? (
+          {displayedRecentSupportRequests.length === 0 ? (
             <div className="empty-state">
               <Headphones size={32} />
               <p>Không có yêu cầu</p>
             </div>
-          ) : stats.recentSupportRequests.map((sr, i) => (
+          ) : displayedRecentSupportRequests.map((sr, i) => (
             <div key={sr.id || i} className="list-item">
               <div className="list-item__icon" style={{ background: "#E3F2FD", color: "#0054A6" }}>
                 <MessageSquare size={16} />
@@ -1364,12 +1389,12 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {(stats?.recentComplaints || []).length === 0 ? (
+          {displayedRecentComplaints.length === 0 ? (
             <div className="empty-state">
               <AlertCircle size={32} />
               <p>Không có khiếu nại</p>
             </div>
-          ) : stats.recentComplaints.map((c, i) => (
+          ) : displayedRecentComplaints.map((c, i) => (
             <div key={c.id || i} className="list-item">
               <div className="list-item__icon" style={{ background: "#FFF3E0", color: "#FF9800" }}>
                 <AlertCircle size={16} />
@@ -1400,12 +1425,12 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
-          {(stats?.recentFeedbacks || []).length === 0 ? (
+          {displayedRecentFeedbacks.length === 0 ? (
             <div className="empty-state">
               <Star size={32} />
               <p>Chưa có đánh giá</p>
             </div>
-          ) : stats.recentFeedbacks.map((f, i) => (
+          ) : displayedRecentFeedbacks.map((f, i) => (
             <div key={f.id || i} className="list-item">
               <div className="list-item__icon" style={{ background: "#E8F5E9", color: "#388E3C" }}>
                 <Star size={16} />
@@ -1433,9 +1458,9 @@ const Dashboard = () => {
       </div>
 
       {/* ===== NEWS / NEW BOOKS ===== */}
-      {(news.length > 0 || recentNewBooks.length > 0) && (
+      {(displayedNews.length > 0 || displayedRecentNewBooks.length > 0) && (
         <>
-      {news.length > 0 && (
+      {displayedNews.length > 0 && (
         <div className="panel" style={{ marginBottom: 20 }}>
           <div className="panelHeader">
             <div className="panelHeader__left">
@@ -1446,7 +1471,7 @@ const Dashboard = () => {
             </div>
             <span className="panelHeader__badge">{news.length} mới</span>
           </div>
-          {news.map((n, i) => (
+          {displayedNews.map((n, i) => (
             <div key={n.id || i} className="list-item">
               <div className="list-item__icon list-item__icon--news">
                 {n.imageUrl ? (
@@ -1479,12 +1504,12 @@ const Dashboard = () => {
           </div>
           <span className="panelHeader__badge">{recentNewBooks.length}</span>
         </div>
-        {recentNewBooks.length === 0 ? (
+        {displayedRecentNewBooks.length === 0 ? (
           <div className="empty-state">
             <BookOpen size={32} />
             <p>Chưa có sách nào đang hiển thị</p>
           </div>
-        ) : recentNewBooks.map((book, i) => {
+        ) : displayedRecentNewBooks.map((book, i) => {
           const title = book.title || "Chưa có tiêu đề";
           const author = book.author || book.publisher || "Chưa có thông tin tác giả";
           const cover = book.coverUrl || null;

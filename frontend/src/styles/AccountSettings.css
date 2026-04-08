@@ -4,7 +4,7 @@
 
 .account-settings-container {
     min-height: calc(100vh - 48px);
-    padding: 0 24px 32px;
+    padding: 16px 24px 32px;
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -139,10 +139,14 @@
 }
 
 /* ===== TOAST NOTIFICATIONS ===== */
+.settings-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 20px;
+}
+
 .settings-toast {
-    position: fixed;
-    top: 24px;
-    right: 24px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -150,7 +154,6 @@
     border-radius: 12px;
     font-size: 14px;
     font-weight: 500;
-    z-index: 1000;
     animation: slideIn 0.3s ease-out;
     box-shadow: var(--slib-shadow-lg, 0 10px 40px rgba(0, 0, 0, 0.12));
 }
@@ -519,7 +522,7 @@
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .account-settings-container {
-        padding: 0 16px 24px;
+        padding: 16px 16px 24px;
     }
 
     .settings-page-header {

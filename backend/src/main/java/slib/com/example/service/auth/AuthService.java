@@ -47,37 +47,16 @@ public class AuthService {
 
         String email = payload.getEmail();
         String googleName = (String) payload.get("name");
-
-        // Whitelist for testing (add your email here)
-        String[] whitelistEmails = {
-                "huuhuydng@gmail.com",
-                "huuhuy.k4@gmail.com"
-        };
-
-        // Validate FPT email or whitelist
-        boolean isWhitelisted = false;
-        for (String whitelistedEmail : whitelistEmails) {
-            if (email.equalsIgnoreCase(whitelistedEmail)) {
-                isWhitelisted = true;
-                break;
-            }
+        if (!isAllowedGoogleEmail(email)) {
+            throw new AccessDeniedException("Chỉ chấp nhận tài khoản Google có đuôi @gmail.com, @googlemail.com hoặc @fpt.edu.vn");
         }
-
-        if (!email.endsWith("@fpt.edu.vn") && !isWhitelisted) {
-            throw new AccessDeniedException("Only @fpt.edu.vn accounts or whitelisted emails are allowed");
-        }
-
-        // Extract user code from email (or use email prefix for non-FPT emails)
-        String userCode = email.endsWith("@fpt.edu.vn")
-                ? extractUserCode(email)
-                : email.split("@")[0].toUpperCase();
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new AccessDeniedException("Account does not have permission to access the system"));
+                .orElseThrow(() -> new AccessDeniedException("Tài khoản Google này chưa tồn tại trong hệ thống. Vui lòng liên hệ quản trị viên hoặc thủ thư để được cấp quyền."));
 
         // Check if account is locked
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new AccessDeniedException("Account is locked. Please contact an administrator for support.");
+            throw new AccessDeniedException(buildLockedAccountMessage(user));
         }
 
         // Update FCM token if provided
@@ -178,6 +157,21 @@ public class AuthService {
      */
     private static final String DEFAULT_PASSWORD = "Slib@2025";
 
+    private boolean isAllowedGoogleEmail(String email) {
+        final String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+        return normalizedEmail.endsWith("@fpt.edu.vn")
+                || normalizedEmail.endsWith("@gmail.com")
+                || normalizedEmail.endsWith("@googlemail.com");
+    }
+
+    private String buildLockedAccountMessage(User user) {
+        String reason = user.getLockReason();
+        if (reason != null && !reason.isBlank()) {
+            return "Tài khoản đã bị khóa. Lý do: " + reason.trim();
+        }
+        return "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.";
+    }
+
     /**
      * Login with email/username/MSSV and password
      */
@@ -189,7 +183,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Tài khoản hoặc mật khẩu không đúng"));
 
         if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new RuntimeException("Tài khoản đã bị khóa, vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            throw new RuntimeException(buildLockedAccountMessage(user));
         }
 
         if (user.getPassword() == null || user.getPassword().isEmpty()) {

@@ -273,6 +273,10 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen>
         icon = Icons.nfc;
         color = Colors.teal;
         break;
+      case 'SEAT_CHECKOUT':
+        icon = Icons.logout_rounded;
+        color = Colors.orange;
+        break;
       case 'GATE_ENTRY':
         icon = Icons.sensor_door;
         color = Colors.purple;

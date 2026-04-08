@@ -242,9 +242,9 @@ function layoutReducer(state, action) {
     case ACTIONS.MERGE_ZONES:
       // Merge zones for a specific area
       const { areaId, zones: newZones } = action.payload;
-      const otherZones = state.zones.filter(z => z.areaId !== areaId);
+      const otherZones = state.zones.filter(z => String(z.areaId) !== String(areaId));
       // Preserve pending new zones for this area (not yet saved to DB)
-      const pendingNewZonesForArea = state.pendingChanges.newZones.filter(z => z.areaId === areaId);
+      const pendingNewZonesForArea = state.pendingChanges.newZones.filter(z => String(z.areaId) === String(areaId));
       // Filter out zones that are marked for deletion
       const filteredNewZones = newZones.filter(z =>
         !state.pendingChanges.deletedZones.includes(z.zoneId)
@@ -385,9 +385,9 @@ function layoutReducer(state, action) {
     case ACTIONS.MERGE_FACTORIES:
       // Merge factories for a specific area
       const { areaId: factoryAreaId, factories: newFactories } = action.payload;
-      const otherFactories = state.factories.filter(f => f.areaId !== factoryAreaId);
+      const otherFactories = state.factories.filter(f => String(f.areaId) !== String(factoryAreaId));
       // Preserve pending new factories for this area (not yet saved to DB)
-      const pendingNewFactoriesForArea = state.pendingChanges.newFactories.filter(f => f.areaId === factoryAreaId);
+      const pendingNewFactoriesForArea = state.pendingChanges.newFactories.filter(f => String(f.areaId) === String(factoryAreaId));
       // Filter out factories that are marked for deletion
       const filteredNewFactories = newFactories.filter(f =>
         !state.pendingChanges.deletedFactories.includes(f.factoryId)

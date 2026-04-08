@@ -41,6 +41,14 @@ function CanvasBoard() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
 
+  const normalizeOptionalNfcTagUid = useCallback((value) => {
+    if (typeof value !== "string") {
+      return value ?? null;
+    }
+    const normalized = value.trim();
+    return normalized === "" ? null : normalized;
+  }, []);
+
   const formatDraftMetaTime = (value) => {
     if (!value) return "";
     try {
@@ -97,7 +105,7 @@ function CanvasBoard() {
       positionX: s.position_x ?? s.positionX ?? 0,
       positionY: s.position_y ?? s.positionY ?? 0,
       isActive: (s.is_active ?? s.isActive) ?? true,
-      nfcTagUid: s.nfc_tag_uid ?? s.nfcTagUid ?? "",
+      nfcTagUid: normalizeOptionalNfcTagUid(s.nfc_tag_uid ?? s.nfcTagUid),
       seatStatus: s.seat_status ?? s.seatStatus ?? "AVAILABLE",
     }));
     const factoriesNormalized = factoriesRaw.map((f) => ({
@@ -160,7 +168,7 @@ function CanvasBoard() {
       rowNumber: seat.rowNumber,
       columnNumber: seat.columnNumber,
       isActive: seat.isActive ?? true,
-      nfcTagUid: seat.nfcTagUid ?? null,
+      nfcTagUid: normalizeOptionalNfcTagUid(seat.nfcTagUid),
     })),
     factories: factories.map((factory) => ({
       factoryId: factory.factoryId,
@@ -172,7 +180,7 @@ function CanvasBoard() {
       height: Math.round(factory.height ?? 80),
       isLocked: factory.isLocked ?? false,
     })),
-  }), [areas, zones, seats, factories, draftMeta?.basedOnPublishedVersion]);
+  }), [areas, zones, seats, factories, draftMeta?.basedOnPublishedVersion, normalizeOptionalNfcTagUid]);
 
   const loadHistoryFeed = useCallback(async () => {
     try {

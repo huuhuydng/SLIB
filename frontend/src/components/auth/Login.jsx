@@ -240,6 +240,24 @@ function Login({ onLogin, onForgotPassword }) {
         title: 'Lỗi kết nối mạng',
         message: 'Không thể kết nối đến máy chủ.'
       });
+    } else if (errorMessage.includes('chỉ chấp nhận tài khoản google')) {
+      setError({
+        type: 'error',
+        title: 'Email Google không hợp lệ',
+        message: errorMessage
+      });
+    } else if (errorMessage.includes('chưa tồn tại trong hệ thống') || errorMessage.includes('không nằm trong hệ thống')) {
+      setError({
+        type: 'error',
+        title: 'Tài khoản chưa được cấp quyền',
+        message: errorMessage
+      });
+    } else if (errorMessage.includes('bị khóa')) {
+      setError({
+        type: 'warning',
+        title: 'Tài khoản đã bị khóa',
+        message: errorMessage
+      });
     } else if (errorMessage.includes('not found') || errorMessage.includes('không tồn tại')) {
       setError({
         type: 'error',

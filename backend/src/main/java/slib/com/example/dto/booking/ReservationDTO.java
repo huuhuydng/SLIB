@@ -11,6 +11,7 @@ public class ReservationDTO {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private LocalDateTime confirmedAt;
+    private LocalDateTime actualEndTime;
 
     public UUID getReservationId() {
         return reservationId;
@@ -66,5 +67,13 @@ public class ReservationDTO {
 
     public void setConfirmedAt(LocalDateTime confirmedAt) {
         this.confirmedAt = confirmedAt;
+    }
+
+    public LocalDateTime getActualEndTime() {
+        return actualEndTime;
+    }
+
+    public void setActualEndTime(LocalDateTime actualEndTime) {
+        this.actualEndTime = actualEndTime;
     }
 }

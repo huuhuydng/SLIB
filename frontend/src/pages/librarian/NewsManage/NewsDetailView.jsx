@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
+import useAppDialog from '../../../hooks/useAppDialog';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
 import '../../../styles/librarian/NewsDetailView.css';
@@ -8,6 +9,7 @@ import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const NewsDetailView = () => {
   const toast = useToast();
+  const { confirm } = useAppDialog();
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -75,7 +77,14 @@ const NewsDetailView = () => {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Bạn có chắc chắn muốn xóa tin tức này?')) return;
+    const confirmed = await confirm({
+      title: 'Xoá tin tức',
+      message: 'Bạn có chắc chắn muốn xóa tin tức này?',
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
 
     try {
       await deleteNews(id);

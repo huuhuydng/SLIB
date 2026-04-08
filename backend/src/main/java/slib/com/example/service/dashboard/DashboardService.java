@@ -66,7 +66,6 @@ public class DashboardService {
             LocalDate today = now.toLocalDate();
             LocalDateTime startOfDay = today.atStartOfDay();
             LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
-            List<String> activeBookingStatuses = List.of("BOOKED", "CONFIRMED");
             List<String> bookingStatuses = List.of("PROCESSING", "BOOKED", "CONFIRMED", "COMPLETED", "EXPIRED");
 
             // 1. Check-in/out stats
@@ -75,9 +74,11 @@ public class DashboardService {
             // 2. Seat stats
             long totalSeats = seatRepository.countByIsActiveTrue();
             long currentlyInLibrary = Math.max(0, accessStats.getCurrentlyInLibrary());
-            long activeBookings = reservationRepository.countActiveReservationsAtTime(now, activeBookingStatuses);
+            long occupiedSeats = reservationRepository.countActiveReservationsAtTime(now, List.of("CONFIRMED"));
+            long reservedSeats = reservationRepository.countActiveReservationsAtTime(now, List.of("BOOKED"));
+            long activeBookings = occupiedSeats + reservedSeats;
             double occupancyRate = totalSeats > 0
-                    ? Math.round((double) activeBookings / totalSeats * 10000.0) / 100.0
+                    ? Math.round((double) occupiedSeats / totalSeats * 10000.0) / 100.0
                     : 0;
 
             // 3. Booking stats
@@ -93,9 +94,7 @@ public class DashboardService {
             // 4. Violations today
             long violationsToday = violationReportRepository.countByCreatedAtBetween(startOfDay, endOfDay);
             long pendingViolations = violationReportRepository.countByStatusIn(
-                    Set.of(
-                            SeatViolationReportEntity.ReportStatus.PENDING,
-                            SeatViolationReportEntity.ReportStatus.VERIFIED));
+                    Set.of(SeatViolationReportEntity.ReportStatus.PENDING));
 
             // 5. Support requests
             long pendingSupportRequests = supportRequestRepository.countByStatus(SupportRequestStatus.PENDING);
@@ -182,7 +181,8 @@ public class DashboardService {
                     .totalCheckOutsToday(accessStats.getTotalCheckOutsToday())
                     .currentlyInLibrary(currentlyInLibrary)
                     .totalSeats(totalSeats)
-                    .occupiedSeats(activeBookings)
+                    .occupiedSeats(occupiedSeats)
+                    .reservedSeats(reservedSeats)
                     .occupancyRate(occupancyRate)
                     .totalBookingsToday(totalBookingsToday)
                     .activeBookings(activeBookings)
@@ -239,16 +239,18 @@ public class DashboardService {
      */
     public Map<String, Object> getLibraryStatus() {
         try {
+            LocalDateTime now = LocalDateTime.now();
             AccessLogStatsDTO accessStats = checkInService.getTodayStats();
-            long totalSeats = seatRepository.count();
+            long totalSeats = seatRepository.countByIsActiveTrue();
+            long occupiedSeats = reservationRepository.countActiveReservationsAtTime(now, List.of("CONFIRMED"));
             long currentlyInLibrary = Math.max(0, accessStats.getCurrentlyInLibrary());
             double occupancyRate = totalSeats > 0
-                    ? Math.round((double) currentlyInLibrary / totalSeats * 10000.0) / 100.0
+                    ? Math.round((double) occupiedSeats / totalSeats * 10000.0) / 100.0
                     : 0;
 
             return Map.of(
                     "totalSeats", totalSeats,
-                    "occupiedSeats", currentlyInLibrary,
+                    "occupiedSeats", occupiedSeats,
                     "occupancyRate", occupancyRate,
                     "currentlyInLibrary", currentlyInLibrary);
         } catch (Exception e) {
@@ -452,9 +454,7 @@ public class DashboardService {
     private List<DashboardStatsDTO.ViolationItemDTO> getRecentViolations() {
         try {
             return violationReportRepository.findByStatusInOrderByCreatedAtDesc(
-                    Set.of(
-                            SeatViolationReportEntity.ReportStatus.PENDING,
-                            SeatViolationReportEntity.ReportStatus.VERIFIED))
+                    Set.of(SeatViolationReportEntity.ReportStatus.PENDING))
                     .stream()
                     .limit(5)
                     .map(v -> DashboardStatsDTO.ViolationItemDTO.builder()
@@ -491,7 +491,7 @@ public class DashboardService {
                 days = 30;
             }
             LocalDateTime since = LocalDateTime.now().minusDays(days);
-            List<Object[]> data = accessLogRepository.findTopStudentsByStudyTime(since);
+            List<Object[]> data = reservationRepository.findTopStudentsByReservationTime(since);
             return data.stream()
                     .map(row -> DashboardStatsDTO.TopStudentDTO.builder()
                             .userId((UUID) row[0])
@@ -716,13 +716,10 @@ public class DashboardService {
                     now.minusMinutes(ADMIN_PRIORITY_SUPPORT_MINUTES));
             long waitingChats = conversationRepository.countByStatus(ConversationStatus.QUEUE_WAITING);
             long pendingViolations = violationReportRepository.countByStatusIn(
-                    Set.of(
-                            SeatViolationReportEntity.ReportStatus.PENDING,
-                            SeatViolationReportEntity.ReportStatus.VERIFIED));
+                    Set.of(SeatViolationReportEntity.ReportStatus.PENDING));
             long pendingSeatReports = seatStatusReportRepository.countByStatusIn(
                     Set.of(
-                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
-                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED));
+                            slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING));
             long pendingComplaints = complaintRepository.countByStatus(
                     slib.com.example.entity.complaint.ComplaintEntity.ComplaintStatus.PENDING);
             long newFeedbacks = feedbackRepository.countByStatus(
@@ -901,8 +898,7 @@ public class DashboardService {
             Map<Integer, Long> pendingSeatReportsByZone = seatStatusReportRepository
                     .findByStatusInOrderByCreatedAtDesc(
                             Set.of(
-                                    slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING,
-                                    slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.VERIFIED))
+                                    slib.com.example.entity.feedback.SeatStatusReportEntity.ReportStatus.PENDING))
                     .stream()
                     .filter(report -> report.getSeat() != null && report.getSeat().getZone() != null)
                     .collect(Collectors.groupingBy(
@@ -912,8 +908,7 @@ public class DashboardService {
             Map<Integer, Long> pendingViolationsByZone = violationReportRepository
                     .findByStatusInOrderByCreatedAtDesc(
                             Set.of(
-                                    SeatViolationReportEntity.ReportStatus.PENDING,
-                                    SeatViolationReportEntity.ReportStatus.VERIFIED))
+                                    SeatViolationReportEntity.ReportStatus.PENDING))
                     .stream()
                     .filter(report -> report.getSeat() != null && report.getSeat().getZone() != null)
                     .collect(Collectors.groupingBy(

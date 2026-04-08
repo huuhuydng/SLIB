@@ -1155,6 +1155,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 .sr-student-cell {
@@ -1355,6 +1356,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 .sr-card-header {

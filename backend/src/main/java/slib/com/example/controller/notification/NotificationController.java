@@ -26,14 +26,18 @@ public class NotificationController {
     private final PushNotificationService pushNotificationService;
     private final UserRepository userRepository;
 
-    private UUID resolveAuthorizedUserId(UUID requestedUserId, UserDetails userDetails) {
+    private User requireCurrentUser(UserDetails userDetails) {
         if (userDetails == null) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         }
 
-        User currentUser = userRepository.findByEmail(userDetails.getUsername())
+        return userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private UUID resolveAuthorizedUserId(UUID requestedUserId, UserDetails userDetails) {
+        User currentUser = requireCurrentUser(userDetails);
         if (currentUser.getRole() != null && currentUser.getRole().isStaff()) {
             return requestedUserId;
         }
@@ -222,14 +226,53 @@ public class NotificationController {
 
         try {
             pushNotificationService.sendToAll(title, body, NotificationType.SYSTEM, null);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Broadcast notification sent to all users"));
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Broadcast notification sent to all users"));
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of(
                     "success", false,
                     "message", "Failed: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/staff/behavior-warning")
+    public ResponseEntity<Map<String, Object>> sendBehaviorWarning(
+            @RequestBody BehaviorWarningRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        User currentUser = requireCurrentUser(userDetails);
+        if (currentUser.getRole() == null || !currentUser.getRole().isStaff()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Bạn không có quyền gửi cảnh báo hành vi.");
+        }
+
+        User targetUser = userRepository.findById(request.userId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String title = "Thư viện nhắc nhở về việc sử dụng chỗ ngồi";
+        String primaryIssue = request.primaryIssue() != null && !request.primaryIssue().isBlank()
+                ? request.primaryIssue().trim()
+                : "cần chú ý thêm";
+        String detail = request.detail() != null && !request.detail().isBlank()
+                ? request.detail().trim()
+                : "Hệ thống ghi nhận tài khoản của bạn có dấu hiệu sử dụng chỗ ngồi chưa thật sự ổn định.";
+        String body = "Thủ thư vừa gửi nhắc nhở: " + primaryIssue + ". " + detail
+                + ". Vui lòng kiểm tra lịch sử đặt chỗ, vi phạm và tuân thủ nội quy để tránh bị hạn chế đặt chỗ.";
+
+        pushNotificationService.sendToUser(
+                targetUser.getId(),
+                title,
+                body,
+                NotificationType.SYSTEM,
+                targetUser.getId(),
+                "BEHAVIOR_ALERT",
+                "BEHAVIOR_ALERT");
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Đã gửi nhắc nhở đến " + targetUser.getFullName(),
+                "userId", targetUser.getId().toString()));
     }
 
     /**
@@ -247,5 +290,11 @@ public class NotificationController {
     public record TestNotificationRequest(
             String title,
             String body) {
+    }
+
+    public record BehaviorWarningRequest(
+            UUID userId,
+            String primaryIssue,
+            String detail) {
     }
 }

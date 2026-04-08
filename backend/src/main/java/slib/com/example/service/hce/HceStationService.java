@@ -3,6 +3,7 @@ package slib.com.example.service.hce;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.dto.hce.HceStationRequest;
 import slib.com.example.dto.hce.HceStationResponse;
 import slib.com.example.dto.hce.HceStationStatusRequest;
@@ -14,12 +15,14 @@ import slib.com.example.repository.hce.HceDeviceRepository;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class HceStationService {
 
     @Autowired
@@ -39,6 +42,7 @@ public class HceStationService {
     /**
      * Lấy danh sách tất cả trạm quét với bộ lọc
      */
+    @Transactional(readOnly = true)
     public List<HceStationResponse> getAllStations(String search, String status, String deviceType) {
         HceDeviceEntity.DeviceStatus statusEnum = null;
         HceDeviceEntity.DeviceType typeEnum = null;
@@ -87,18 +91,25 @@ public class HceStationService {
     /**
      * Lấy chi tiết một trạm quét theo ID
      */
+    @Transactional(readOnly = true)
     public HceStationResponse getStationById(Integer id) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
+        Map<String, Long> todayScanCounts = new HashMap<>();
+        todayScanCounts.put(station.getDeviceId(), getTodayScanCount(station.getDeviceId()));
+
+        Map<String, LocalDateTime> lastAccessTimes = new HashMap<>();
+        lastAccessTimes.put(station.getDeviceId(), getLastAccessTime(station.getDeviceId()));
         return toResponse(
                 station,
-                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
-                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
+                todayScanCounts,
+                lastAccessTimes);
     }
 
     /**
      * Tạo trạm quét mới
      */
+    @Transactional
     public HceStationResponse createStation(HceStationRequest request) {
         // Validate required fields
         if (request.getDeviceId() == null || request.getDeviceId().trim().isEmpty()) {
@@ -159,6 +170,7 @@ public class HceStationService {
     /**
      * Cập nhật trạm quét
      */
+    @Transactional
     public HceStationResponse updateStation(Integer id, HceStationRequest request) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
@@ -212,6 +224,7 @@ public class HceStationService {
     /**
      * Cập nhật trạng thái trạm quét
      */
+    @Transactional
     public HceStationResponse updateStationStatus(Integer id, HceStationStatusRequest request) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
@@ -234,6 +247,7 @@ public class HceStationService {
     /**
      * Xóa trạm quét
      */
+    @Transactional
     public void deleteStation(Integer id) {
         HceDeviceEntity station = hceDeviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy trạm quét với ID: " + id));
@@ -243,6 +257,7 @@ public class HceStationService {
     /**
      * Xử lý heartbeat từ Raspberry Pi
      */
+    @Transactional
     public void processHeartbeat(String deviceId) {
         HceDeviceEntity station = hceDeviceRepository.findByDeviceId(deviceId)
                 .orElseThrow(() -> new RuntimeException(
@@ -261,6 +276,7 @@ public class HceStationService {
      * Validate trạm quét cho check-in flow
      * Được gọi từ CheckInService
      */
+    @Transactional
     public HceDeviceEntity validateStationForCheckIn(String gateId) {
         HceDeviceEntity station = hceDeviceRepository.findByDeviceId(gateId)
                 .orElseThrow(() -> new RuntimeException(
@@ -349,10 +365,15 @@ public class HceStationService {
      * Convert entity to response DTO
      */
     private HceStationResponse toResponse(HceDeviceEntity station) {
+        Map<String, Long> todayScanCounts = new HashMap<>();
+        todayScanCounts.put(station.getDeviceId(), getTodayScanCount(station.getDeviceId()));
+
+        Map<String, LocalDateTime> lastAccessTimes = new HashMap<>();
+        lastAccessTimes.put(station.getDeviceId(), getLastAccessTime(station.getDeviceId()));
         return toResponse(
                 station,
-                Map.of(station.getDeviceId(), getTodayScanCount(station.getDeviceId())),
-                Map.of(station.getDeviceId(), getLastAccessTime(station.getDeviceId())));
+                todayScanCounts,
+                lastAccessTimes);
     }
 
     /**

@@ -70,6 +70,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 /* --- Student Cell --- */
@@ -256,6 +257,7 @@
     cursor: pointer;
     width: 16px;
     height: 16px;
+    accent-color: #FF751F;
 }
 
 .sr-card-header {
@@ -480,6 +482,21 @@
 }
 
 .sr-modal-btn.primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sr-modal-btn.danger {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
+
+.sr-modal-btn.danger:hover {
+    background: #dc2626;
+}
+
+.sr-modal-btn.danger:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }

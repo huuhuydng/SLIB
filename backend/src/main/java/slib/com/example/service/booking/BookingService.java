@@ -34,6 +34,7 @@ import slib.com.example.service.activity.ActivityService;
 import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.reputation.ReputationService;
 import slib.com.example.service.system.LibrarySettingService;
+import slib.com.example.service.users.StudentProfileService;
 import slib.com.example.service.zone_config.SeatAvailabilityService;
 import slib.com.example.service.zone_config.SeatService;
 import slib.com.example.service.zone_config.SeatStatusSyncService;
@@ -58,6 +59,7 @@ public class BookingService {
         private final BookingPolicyService bookingPolicyService;
         private final ReputationService reputationService;
         private final SeatService seatService;
+        private final StudentProfileService studentProfileService;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
@@ -68,7 +70,8 @@ public class BookingService {
                         SimpMessagingTemplate messagingTemplate,
                         BookingPolicyService bookingPolicyService,
                         ReputationService reputationService,
-                        SeatService seatService) {
+                        SeatService seatService,
+                        StudentProfileService studentProfileService) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -82,6 +85,7 @@ public class BookingService {
                 this.bookingPolicyService = bookingPolicyService;
                 this.reputationService = reputationService;
                 this.seatService = seatService;
+                this.studentProfileService = studentProfileService;
         }
 
         @Transactional
@@ -252,6 +256,7 @@ public class BookingService {
                                 .areaName(zone.getArea().getAreaName())
                                 .startTime(reservation.getStartTime())
                                 .endTime(reservation.getEndTime())
+                                .actualEndTime(reservation.getActualEndTime())
                                 .createdAt(reservation.getCreatedAt())
                                 .build();
         }
@@ -576,6 +581,7 @@ public class BookingService {
                                 .startTime(reservation.getStartTime())
                                 .endTime(reservation.getEndTime())
                                 .confirmedAt(reservation.getConfirmedAt())
+                                .actualEndTime(reservation.getActualEndTime())
                                 .status(reservation.getStatus())
                                 .createdAt(reservation.getCreatedAt())
                                 .build();
@@ -842,5 +848,169 @@ public class BookingService {
 
                 broadcastDashboardUpdate("BOOKING_UPDATE", "CONFIRMED");
                 return saved;
+        }
+
+        /**
+         * Student leaves their seat before reservation end time.
+         * Triggered by: NFC scan at seat (2nd tap) OR librarian confirmation.
+         * Sets reservation to COMPLETED with actualEndTime recorded.
+         *
+         * This allows distinguishing "left early via checkout" vs "completed on time".
+         *
+         * @param reservationId The CONFIRMED reservation to complete
+         * @param seatCode Seat code for activity log
+         * @param zoneName Zone name for activity log
+         */
+        @Transactional
+        public ReservationEntity leaveSeat(UUID reservationId) {
+                ReservationEntity reservation = reservationRepository.findById(reservationId)
+                        .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+
+                if (!"CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
+                        throw new RuntimeException("Chỉ đặt chỗ đã xác nhận mới có thể thực hiện rời ghế");
+                }
+
+                SeatEntity seat = reservation.getSeat();
+                String seatCode = seat != null ? seat.getSeatCode() : "";
+                String zoneName = seat != null && seat.getZone() != null ? seat.getZone().getZoneName() : "";
+
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                LocalDateTime actualEnd = now;
+                reservation.setActualEndTime(actualEnd);
+                reservation.setStatus("COMPLETED");
+                ReservationEntity saved = reservationRepository.save(reservation);
+
+                // Calculate actual study duration
+                LocalDateTime effectiveStart = reservation.getConfirmedAt() != null
+                                ? reservation.getConfirmedAt()
+                                : reservation.getStartTime();
+                int durationMinutes = Math.max(
+                                0,
+                                (int) java.time.temporal.ChronoUnit.MINUTES.between(effectiveStart, actualEnd));
+
+                // Log activity
+                try {
+                        String actualEndStr = String.format("%02d:%02d", actualEnd.getHour(), actualEnd.getMinute());
+                        String endTimeStr = String.format("%02d:%02d", reservation.getEndTime().getHour(),
+                                reservation.getEndTime().getMinute());
+                        String timeSpent = formatDuration(durationMinutes);
+
+                        String desc;
+                        if (actualEnd.isBefore(reservation.getEndTime())) {
+                                desc = String.format("Rời ghế sớm lúc %s (kết thúc dự kiến: %s). Thời gian học: %s.",
+                                        actualEndStr, endTimeStr, timeSpent);
+                        } else if (actualEnd.isAfter(reservation.getEndTime())) {
+                                desc = String.format("Rời ghế lúc %s (quá giờ dự kiến: %s). Thời gian học: %s.",
+                                        actualEndStr, endTimeStr, timeSpent);
+                        } else {
+                                desc = String.format("Rời ghế đúng giờ lúc %s. Thời gian học: %s.",
+                                        actualEndStr, endTimeStr, timeSpent);
+                        }
+
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                .userId(reservation.getUser().getId())
+                                .activityType(ActivityLogEntity.TYPE_SEAT_CHECKOUT)
+                                .title("Rời ghế thành công")
+                                .description(desc)
+                                .seatCode(seatCode)
+                                .zoneName(zoneName)
+                                .durationMinutes(durationMinutes)
+                                .reservationId(saved.getReservationId())
+                                .build());
+                } catch (Exception e) {
+                        log.warn("Failed to log seat checkout activity for reservation {}", saved.getReservationId(), e);
+                }
+
+                // Add study hours to profile
+                double studyHours = durationMinutes / 60.0;
+                studentProfileService.addStudyHours(reservation.getUser().getId(), studyHours);
+
+                // Broadcast seat status update
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                                seat,
+                                "AVAILABLE",
+                                reservation.getStartTime(),
+                                reservation.getEndTime());
+
+                // Send push notification
+                try {
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String body = String.format(
+                                "Bạn đã rời ghế %s tại %s. Thời gian học: %d phút. Tạm biệt!",
+                                seatCode, zoneName, durationMinutes);
+                        pushNotificationService.sendToUser(
+                                reservation.getUser().getId(),
+                                "Rời ghế thành công",
+                                body,
+                                NotificationType.BOOKING,
+                                saved.getReservationId());
+                } catch (Exception e) {
+                        log.warn("Failed to send seat checkout notification for reservation {}",
+                                saved.getReservationId(), e);
+                }
+
+                broadcastDashboardUpdate("BOOKING_UPDATE", "SEAT_CHECKOUT");
+                return saved;
+        }
+
+        @Transactional
+        public ReservationEntity leaveSeatWithNfcUid(UUID reservationId, UUID userId, String rawNfcUid) {
+                ReservationEntity reservation = reservationRepository.findById(reservationId)
+                                .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+
+                if (reservation.getUser() == null || !reservation.getUser().getId().equals(userId)) {
+                        throw new BadRequestException("Bạn không có quyền trả chỗ cho lượt đặt này.");
+                }
+
+                if (!"CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
+                        throw new BadRequestException("Chỉ ghế đang được xác nhận mới có thể trả chỗ.");
+                }
+
+                SeatEntity nfcSeat = seatService.findSeatEntityByNfcUid(rawNfcUid);
+                SeatEntity expectedSeat = reservation.getSeat();
+                if (expectedSeat == null || !nfcSeat.getSeatId().equals(expectedSeat.getSeatId())) {
+                        throw new BadRequestException(
+                                        "Ghế không khớp! Bạn đang dùng ghế " + expectedSeat.getSeatCode()
+                                                        + " nhưng thẻ NFC là ghế " + nfcSeat.getSeatCode());
+                }
+
+                return leaveSeat(reservationId);
+        }
+
+        private String formatDuration(int minutes) {
+                int hours = minutes / 60;
+                int mins = minutes % 60;
+                if (hours > 0) {
+                        return hours + " giờ " + mins + " phút";
+                }
+                return mins + " phút";
+        }
+
+        /**
+         * Find active CONFIRMED reservation for a user at a specific seat.
+         * Used when student scans NFC at seat to check if they should checkout or check-in.
+         */
+        @Transactional(readOnly = true)
+        public java.util.Optional<ReservationEntity> findActiveConfirmedReservation(UUID userId, Integer seatId) {
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                return reservationRepository.findByUserId(userId).stream()
+                        .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                        .filter(r -> r.getSeat() != null && seatId.equals(r.getSeat().getSeatId()))
+                        .filter(r -> r.getEndTime().isAfter(now))
+                        .findFirst();
+        }
+
+        /**
+         * Find active CONFIRMED reservation for a user (any seat).
+         */
+        @Transactional(readOnly = true)
+        public java.util.Optional<ReservationEntity> findActiveConfirmedReservationByUser(UUID userId) {
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                return reservationRepository.findByUserId(userId).stream()
+                        .filter(r -> "CONFIRMED".equalsIgnoreCase(r.getStatus()))
+                        .filter(r -> r.getEndTime().isAfter(now))
+                        .findFirst();
         }
 }

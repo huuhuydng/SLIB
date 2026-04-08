@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:slib/assets/colors.dart';
 
 /// Widget hiển thị lỗi thống nhất trong toàn app.
@@ -15,6 +16,7 @@ class ErrorDisplayWidget extends StatelessWidget {
   final String? detail;
   final VoidCallback? onRetry;
   final IconData icon;
+  final bool showIcon;
 
   const ErrorDisplayWidget({
     super.key,
@@ -22,6 +24,7 @@ class ErrorDisplayWidget extends StatelessWidget {
     this.detail,
     this.onRetry,
     this.icon = Icons.error_outline_rounded,
+    this.showIcon = true,
   });
 
   /// Factory cho lỗi mạng
@@ -49,6 +52,7 @@ class ErrorDisplayWidget extends StatelessWidget {
     return ErrorDisplayWidget(
       message: message ?? 'Chưa có dữ liệu',
       icon: Icons.inbox_rounded,
+      showIcon: false,
     );
   }
 
@@ -64,7 +68,35 @@ class ErrorDisplayWidget extends StatelessWidget {
 
   /// Chuyển đổi Exception/error message thành thông báo tiếng Việt
   static String toVietnamese(dynamic error) {
-    final msg = error.toString().toLowerCase();
+    String raw = error.toString().trim();
+    if (raw.startsWith('Exception: ')) {
+      raw = raw.substring(11).trim();
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final extracted = decoded['message'] ?? decoded['error'];
+        if (extracted is String && extracted.trim().isNotEmpty) {
+          raw = extracted.trim();
+        }
+      }
+    } catch (_) {}
+
+    final msg = raw.toLowerCase();
+
+    if (msg.contains('chỉ chấp nhận tài khoản google')) {
+      return raw;
+    }
+    if (msg.contains('chưa tồn tại trong hệ thống') ||
+        msg.contains('không nằm trong hệ thống') ||
+        msg.contains('không tìm thấy người dùng') ||
+        msg.contains('chưa có email')) {
+      return raw;
+    }
+    if (msg.contains('tài khoản đã bị khóa')) {
+      return raw;
+    }
 
     if (msg.contains('tài khoản hoặc mật khẩu không đúng')) {
       return 'Tài khoản hoặc mật khẩu không đúng';
@@ -109,16 +141,18 @@ class ErrorDisplayWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.brandColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+            if (showIcon) ...[
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.brandColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 40, color: AppColors.brandColor),
               ),
-              child: Icon(icon, size: 40, color: AppColors.brandColor),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
+            ],
             Text(
               message,
               textAlign: TextAlign.center,

@@ -3,21 +3,41 @@ import 'package:provider/provider.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/models/seat_status_report.dart';
 import 'package:slib/models/violation_report.dart';
+import 'package:slib/services/app/history_preferences_service.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/report/seat_status_report_service.dart';
 import 'package:slib/services/report/violation_report_service.dart';
+import 'package:slib/views/profile/widgets/history_list_controls.dart';
 import 'package:slib/views/widgets/error_display_widget.dart';
 
-class ReportHistoryScreen extends StatelessWidget {
+class ReportHistoryScreen extends StatefulWidget {
   final int initialTab;
 
   const ReportHistoryScreen({super.key, this.initialTab = 0});
 
   @override
+  State<ReportHistoryScreen> createState() => _ReportHistoryScreenState();
+}
+
+class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
+  HistoryTimeFilter _selectedFilter = HistoryTimeFilter.all;
+
+  Future<void> _pickFilter() async {
+    final selected = await showHistoryFilterDialog(
+      context,
+      initialFilter: _selectedFilter,
+    );
+    if (selected == null || selected == _selectedFilter || !mounted) return;
+    setState(() {
+      _selectedFilter = selected;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      initialIndex: initialTab.clamp(0, 1),
+      initialIndex: widget.initialTab.clamp(0, 1),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7FA),
         appBar: AppBar(
@@ -33,6 +53,18 @@ class ReportHistoryScreen extends StatelessWidget {
           elevation: 0,
           scrolledUnderElevation: 0,
           iconTheme: const IconThemeData(color: Colors.black87),
+          actions: [
+            IconButton(
+              onPressed: _pickFilter,
+              icon: Icon(
+                Icons.filter_list_rounded,
+                color: _selectedFilter == HistoryTimeFilter.all
+                    ? Colors.black87
+                    : AppColors.brandColor,
+              ),
+              tooltip: 'Lọc theo thời gian',
+            ),
+          ],
           bottom: TabBar(
             labelColor: AppColors.brandColor,
             unselectedLabelColor: Colors.grey,
@@ -45,10 +77,10 @@ class ReportHistoryScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: TabBarView(
           children: [
-            _ViolationReportHistoryTab(),
-            _SeatStatusReportHistoryTab(),
+            _ViolationReportHistoryTab(selectedFilter: _selectedFilter),
+            _SeatStatusReportHistoryTab(selectedFilter: _selectedFilter),
           ],
         ),
       ),
@@ -57,7 +89,9 @@ class ReportHistoryScreen extends StatelessWidget {
 }
 
 class _ViolationReportHistoryTab extends StatefulWidget {
-  const _ViolationReportHistoryTab();
+  final HistoryTimeFilter selectedFilter;
+
+  const _ViolationReportHistoryTab({required this.selectedFilter});
 
   @override
   State<_ViolationReportHistoryTab> createState() =>
@@ -66,10 +100,18 @@ class _ViolationReportHistoryTab extends StatefulWidget {
 
 class _ViolationReportHistoryTabState
     extends State<_ViolationReportHistoryTab> {
+  static const int _collapsedLimit = 10;
+  static const String _hideScope = 'violation_report_history';
+
   final _service = ViolationReportService();
+  final _historyPreferences = HistoryPreferencesService();
+
   List<ViolationReport> _reports = [];
+  Set<String> _hiddenIds = <String>{};
   bool _isLoading = true;
   String? _error;
+  String? _currentUserId;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -86,13 +128,20 @@ class _ViolationReportHistoryTabState
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
-      if (token == null) {
+      final userId = authService.currentUser?.id;
+      if (token == null || userId == null) {
         setState(() {
           _error = 'auth';
           _isLoading = false;
         });
         return;
       }
+
+      _currentUserId = userId;
+      _hiddenIds = await _historyPreferences.loadHiddenIds(
+        scope: _hideScope,
+        userId: userId,
+      );
 
       final data = await _service.getMyReports(token);
       setState(() {
@@ -105,6 +154,113 @@ class _ViolationReportHistoryTabState
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _hideReport(ViolationReport report) async {
+    final userId = _currentUserId;
+    if (userId == null || report.id.isEmpty) return;
+
+    await _historyPreferences.hideItem(
+      scope: _hideScope,
+      userId: userId,
+      itemId: report.id,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _hiddenIds = {..._hiddenIds, report.id};
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Đã ẩn báo cáo khỏi danh sách này.'),
+        action: SnackBarAction(
+          label: 'Hoàn tác',
+          onPressed: () async {
+            await _historyPreferences.unhideItem(
+              scope: _hideScope,
+              userId: userId,
+              itemId: report.id,
+            );
+            if (!mounted) return;
+            setState(() {
+              _hiddenIds.remove(report.id);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreHiddenReports() async {
+    final userId = _currentUserId;
+    if (userId == null || _hiddenIds.isEmpty) return;
+    await _historyPreferences.clearHiddenItems(
+      scope: _hideScope,
+      userId: userId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _hiddenIds = <String>{};
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã hiện lại các mục đã ẩn.')));
+  }
+
+  List<ViolationReport> get _filteredReports {
+    final now = DateTime.now();
+    final items = _reports.where((report) {
+      if (_hiddenIds.contains(report.id)) return false;
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).toList();
+
+    if (_expanded || items.length <= _collapsedLimit) {
+      return items;
+    }
+    return items.take(_collapsedLimit).toList();
+  }
+
+  HistoryTimeFilter get _selectedFilter => widget.selectedFilter;
+
+  @override
+  void didUpdateWidget(covariant _ViolationReportHistoryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedFilter != widget.selectedFilter && _expanded) {
+      setState(() {
+        _expanded = false;
+      });
+    }
+  }
+
+  int get _totalAfterFilter {
+    final now = DateTime.now();
+    return _reports.where((report) {
+      if (_hiddenIds.contains(report.id)) return false;
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).length;
   }
 
   @override
@@ -122,17 +278,50 @@ class _ViolationReportHistoryTabState
       return ErrorDisplayWidget(message: _error!, onRetry: _loadReports);
     }
 
-    if (_reports.isEmpty) {
-      return ErrorDisplayWidget.empty(message: 'Chưa có báo cáo vi phạm nào');
-    }
+    final visibleReports = _filteredReports;
 
     return RefreshIndicator(
       onRefresh: _loadReports,
       color: AppColors.brandColor,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _reports.length,
-        itemBuilder: (context, index) => _buildReportCard(_reports[index]),
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: visibleReports.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Column(
+              children: [
+                HistoryListControls(
+                  isExpanded: _expanded,
+                  onExpandedChanged: (expanded) {
+                    setState(() {
+                      _expanded = expanded;
+                    });
+                  },
+                  totalCount: _totalAfterFilter,
+                  visibleCount: visibleReports.length,
+                  hiddenCount: _hiddenIds.length,
+                  onRestoreHidden: _hiddenIds.isEmpty
+                      ? null
+                      : _restoreHiddenReports,
+                ),
+                if (visibleReports.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: ErrorDisplayWidget.empty(
+                      message: _reports.isEmpty
+                          ? 'Chưa có báo cáo vi phạm nào'
+                          : 'Không còn mục nào sau khi lọc/ẩn',
+                    ),
+                  ),
+              ],
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildReportCard(visibleReports[index - 1]),
+          );
+        },
       ),
     );
   }
@@ -282,6 +471,22 @@ class _ViolationReportHistoryTabState
               ),
             ),
           ],
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: () => _hideReport(report),
+                icon: Icon(
+                  Icons.visibility_off_outlined,
+                  size: 20,
+                  color: Colors.grey[700],
+                ),
+                tooltip: 'Ẩn khỏi danh sách',
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -308,7 +513,9 @@ class _ViolationReportHistoryTabState
 }
 
 class _SeatStatusReportHistoryTab extends StatefulWidget {
-  const _SeatStatusReportHistoryTab();
+  final HistoryTimeFilter selectedFilter;
+
+  const _SeatStatusReportHistoryTab({required this.selectedFilter});
 
   @override
   State<_SeatStatusReportHistoryTab> createState() =>
@@ -317,10 +524,18 @@ class _SeatStatusReportHistoryTab extends StatefulWidget {
 
 class _SeatStatusReportHistoryTabState
     extends State<_SeatStatusReportHistoryTab> {
+  static const int _collapsedLimit = 10;
+  static const String _hideScope = 'seat_status_report_history';
+
   final _service = SeatStatusReportService();
+  final _historyPreferences = HistoryPreferencesService();
+
   List<SeatStatusReport> _reports = [];
+  Set<String> _hiddenIds = <String>{};
   bool _isLoading = true;
   String? _error;
+  String? _currentUserId;
+  bool _expanded = false;
 
   @override
   void initState() {
@@ -337,13 +552,20 @@ class _SeatStatusReportHistoryTabState
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final token = await authService.getToken();
-      if (token == null) {
+      final userId = authService.currentUser?.id;
+      if (token == null || userId == null) {
         setState(() {
           _error = 'auth';
           _isLoading = false;
         });
         return;
       }
+
+      _currentUserId = userId;
+      _hiddenIds = await _historyPreferences.loadHiddenIds(
+        scope: _hideScope,
+        userId: userId,
+      );
 
       final data = await _service.getMyReports(token);
       setState(() {
@@ -356,6 +578,113 @@ class _SeatStatusReportHistoryTabState
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _hideReport(SeatStatusReport report) async {
+    final userId = _currentUserId;
+    if (userId == null || report.id.isEmpty) return;
+
+    await _historyPreferences.hideItem(
+      scope: _hideScope,
+      userId: userId,
+      itemId: report.id,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _hiddenIds = {..._hiddenIds, report.id};
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Đã ẩn báo cáo khỏi danh sách này.'),
+        action: SnackBarAction(
+          label: 'Hoàn tác',
+          onPressed: () async {
+            await _historyPreferences.unhideItem(
+              scope: _hideScope,
+              userId: userId,
+              itemId: report.id,
+            );
+            if (!mounted) return;
+            setState(() {
+              _hiddenIds.remove(report.id);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _restoreHiddenReports() async {
+    final userId = _currentUserId;
+    if (userId == null || _hiddenIds.isEmpty) return;
+    await _historyPreferences.clearHiddenItems(
+      scope: _hideScope,
+      userId: userId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _hiddenIds = <String>{};
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Đã hiện lại các mục đã ẩn.')));
+  }
+
+  List<SeatStatusReport> get _filteredReports {
+    final now = DateTime.now();
+    final items = _reports.where((report) {
+      if (_hiddenIds.contains(report.id)) return false;
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).toList();
+
+    if (_expanded || items.length <= _collapsedLimit) {
+      return items;
+    }
+    return items.take(_collapsedLimit).toList();
+  }
+
+  HistoryTimeFilter get _selectedFilter => widget.selectedFilter;
+
+  @override
+  void didUpdateWidget(covariant _SeatStatusReportHistoryTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedFilter != widget.selectedFilter && _expanded) {
+      setState(() {
+        _expanded = false;
+      });
+    }
+  }
+
+  int get _totalAfterFilter {
+    final now = DateTime.now();
+    return _reports.where((report) {
+      if (_hiddenIds.contains(report.id)) return false;
+      switch (_selectedFilter) {
+        case HistoryTimeFilter.last7Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 7)),
+          );
+        case HistoryTimeFilter.last30Days:
+          return !report.createdAt.isBefore(
+            now.subtract(const Duration(days: 30)),
+          );
+        case HistoryTimeFilter.all:
+          return true;
+      }
+    }).length;
   }
 
   @override
@@ -373,19 +702,50 @@ class _SeatStatusReportHistoryTabState
       return ErrorDisplayWidget(message: _error!, onRetry: _loadReports);
     }
 
-    if (_reports.isEmpty) {
-      return ErrorDisplayWidget.empty(
-        message: 'Chưa có báo cáo tình trạng ghế nào',
-      );
-    }
+    final visibleReports = _filteredReports;
 
     return RefreshIndicator(
       onRefresh: _loadReports,
       color: AppColors.brandColor,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _reports.length,
-        itemBuilder: (context, index) => _buildReportCard(_reports[index]),
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: visibleReports.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Column(
+              children: [
+                HistoryListControls(
+                  isExpanded: _expanded,
+                  onExpandedChanged: (expanded) {
+                    setState(() {
+                      _expanded = expanded;
+                    });
+                  },
+                  totalCount: _totalAfterFilter,
+                  visibleCount: visibleReports.length,
+                  hiddenCount: _hiddenIds.length,
+                  onRestoreHidden: _hiddenIds.isEmpty
+                      ? null
+                      : _restoreHiddenReports,
+                ),
+                if (visibleReports.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: ErrorDisplayWidget.empty(
+                      message: _reports.isEmpty
+                          ? 'Chưa có báo cáo tình trạng ghế nào'
+                          : 'Không còn mục nào sau khi lọc/ẩn',
+                    ),
+                  ),
+              ],
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildReportCard(visibleReports[index - 1]),
+          );
+        },
       ),
     );
   }
@@ -503,6 +863,22 @@ class _SeatStatusReportHistoryTabState
               Text(
                 _formatDate(report.createdAt),
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                onPressed: () => _hideReport(report),
+                icon: Icon(
+                  Icons.visibility_off_outlined,
+                  size: 20,
+                  color: Colors.grey[700],
+                ),
+                tooltip: 'Ẩn khỏi danh sách',
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),

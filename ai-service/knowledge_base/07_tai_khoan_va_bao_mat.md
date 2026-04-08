@@ -4,17 +4,17 @@
 
 ### Đăng nhập bằng Google (FPT)
 
-Phương thức đăng nhập chính của SLIB dành cho sinh viên là Google OAuth, giới hạn cho tài khoản email FPT (đuôi @fpt.edu.vn):
+Phương thức đăng nhập chính của SLIB dành cho sinh viên là Google OAuth, áp dụng cho tài khoản Google hợp lệ có đuôi @gmail.com, @googlemail.com hoặc @fpt.edu.vn:
 
 1. Mở ứng dụng SLIB trên điện thoại
 2. Nhấn nút "Đăng nhập bằng Google"
-3. Chọn tài khoản Google có email @fpt.edu.vn
+3. Chọn tài khoản Google đã được cấp quyền trong hệ thống
 4. Xác nhận quyền truy cập
 5. Đăng nhập thành công
 
 Lưu ý quan trọng:
 
-- Chỉ tài khoản email có đuôi @fpt.edu.vn mới được phép đăng nhập
+- Chỉ tài khoản Google đã được cấp quyền trong hệ thống mới được phép đăng nhập
 - Email cá nhân (Gmail thường, Yahoo, v.v.) không được hỗ trợ
 - Tài khoản sinh viên phải được quản trị viên tạo sẵn trong hệ thống trước khi đăng nhập lần đầu
 
@@ -84,7 +84,7 @@ Sinh viên sử dụng đăng nhập bằng username/password có thể đổi m
 Nếu quên mật khẩu:
 
 1. Tại màn hình đăng nhập, chọn "Quên mật khẩu"
-2. Nhập email FPT đã đăng ký
+2. Nhập email đã đăng ký trong hệ thống
 3. Hệ thống gửi mã OTP đến email
 4. Nhập mã OTP để xác thực
 5. Đặt mật khẩu mới

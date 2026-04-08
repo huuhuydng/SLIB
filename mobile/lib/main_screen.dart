@@ -10,6 +10,7 @@ import 'package:slib/views/booking/floor_plan_screen.dart';
 import 'package:slib/views/chat/chat_screen.dart';
 import 'package:slib/views/menu/setting_screen.dart';
 import 'package:slib/views/widgets/bottom_nav_widget.dart';
+import 'package:slib/views/authentication/on_boarding_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,6 +28,8 @@ class MainScreenState extends State<MainScreen> {
 
   // Biến này để lưu user lấy từ Provider
   UserProfile? _currentUser;
+  AuthService? _authService;
+  VoidCallback? _authListener;
 
   @override
   void initState() {
@@ -37,6 +40,19 @@ class MainScreenState extends State<MainScreen> {
       context.read<LibraryStatusService>().initialize();
       _loadUserInfo();
     });
+
+    _authService = context.read<AuthService>();
+    _authListener = () {
+      if (!mounted) return;
+      if (_authService?.currentUser == null) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const OnBoardingScreen()),
+          (route) => false,
+        );
+      }
+    };
+    _authService?.addListener(_authListener!);
   }
 
   void _loadUserInfo() async {
@@ -79,6 +95,14 @@ class MainScreenState extends State<MainScreen> {
   /// Public method to switch tabs programmatically
   void switchToTab(int index) {
     _onItemTapped(index);
+  }
+
+  @override
+  void dispose() {
+    if (_authListener != null && _authService != null) {
+      _authService!.removeListener(_authListener!);
+    }
+    super.dispose();
   }
 
   @override

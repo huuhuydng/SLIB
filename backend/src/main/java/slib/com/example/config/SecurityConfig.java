@@ -51,7 +51,16 @@ public class SecurityConfig {
                         .requestMatchers("/ws-mobile/**").permitAll()
                         // AI Admin endpoints (cấu hình tri thức, đồng bộ vector)
                         .requestMatchers("/slib/ai/admin/**").hasRole("ADMIN")
-                        // AI analytics endpoints are internal librarian/admin tools
+                        // AI analytics endpoints used by mobile patrons
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/realtime-capacity")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/density-prediction")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.GET, "/slib/ai/analytics/seat-recommendation")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        .requestMatchers(HttpMethod.POST, "/slib/ai/analytics/student-behavior")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
+                        // Other AI analytics endpoints remain internal librarian/admin tools
                         .requestMatchers("/slib/ai/analytics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         // AI endpoints (proxy-chat + chat) - cần authenticated
                         .requestMatchers("/slib/ai/**").authenticated()
@@ -60,6 +69,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
                         .requestMatchers("/slib/files/**").authenticated()
                         .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/slib/dashboard/library-status")
+                        .hasAnyRole("STUDENT", "TEACHER", "ADMIN", "LIBRARIAN", "KIOSK")
                         .requestMatchers("/slib/dashboard/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/statistics/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/hce/access-logs/**").hasAnyRole("ADMIN", "LIBRARIAN")
@@ -130,8 +141,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/area_factories/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
                         .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
                         .requestMatchers("/slib/bookings/create").hasAnyRole(PATRON_BOOKING_ROLES)
+                        .requestMatchers("/slib/bookings/updateStatusReserv/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/bookings/leave-seat/**").hasAnyRole("ADMIN", "LIBRARIAN")
+                        .requestMatchers("/slib/bookings/leave-seat-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/confirm-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/confirm-nfc-uid/**").hasAnyRole(PATRON_BOOKING_ROLES)
                         // Cac endpoint khac

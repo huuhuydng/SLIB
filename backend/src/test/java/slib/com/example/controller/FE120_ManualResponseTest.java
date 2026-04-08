@@ -31,14 +31,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Unit Tests for FE-120: Manual Response
+ * Unit Tests for FE-120: Response to user manually
  * Test Report: doc/Report/UnitTestReport/FE120_TestReport.md
  */
 @WebMvcTest(value = SupportRequestController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
                 slib.com.example.security.JwtAuthenticationFilter.class }))
 @Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
-@DisplayName("FE-120: Manual Response - Unit Tests")
+@DisplayName("FE-120: Response to user manually - Unit Tests")
 class FE120_ManualResponseTest {
 
         @Autowired

@@ -248,7 +248,7 @@ export const useConfirm = () => {
     const context = useContext(ConfirmContext);
     if (!context) {
         return {
-            confirm: async (options) => window.confirm(options.message || options),
+            confirm: async () => false,
         };
     }
     return context;

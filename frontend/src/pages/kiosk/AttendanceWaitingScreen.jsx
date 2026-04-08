@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import { API_BASE_URL } from '../../config/apiConfig';
+import kioskService from '../../services/kiosk/kioskService';
 import "../../styles/Attendance.css";
 import logoFpt from '../../assets/fpt_logo.png';
 
@@ -40,15 +41,12 @@ const Attendance = () => {
 
     const fetchInitialLogs = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/slib/hce/latest-logs`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-        const data = await response.json();
+        const data = await kioskService.getRecentLogs(10);
         const historyLogs = Array.isArray(data) ? data.slice(0, 10).map((item, index) => ({
           id: `history-${index}-${Date.now()}`,
           name: item.fullName,
           code: item.userCode,
-          action: item.type === 'CHECK_IN' ? 'Vào' : 'Ra',
+          action: item.action === 'CHECK_IN' ? 'Vào' : 'Ra',
           zone: item.deviceId || 'GATE_01',
           time: formatTimeOnly(item.time)
         })) : [];
@@ -63,6 +61,7 @@ const Attendance = () => {
     const connect = () => {
       const authToken =
         localStorage.getItem('kiosk_device_token') ||
+        sessionStorage.getItem('kiosk_device_token') ||
         sessionStorage.getItem('librarian_token') ||
         localStorage.getItem('librarian_token');
 

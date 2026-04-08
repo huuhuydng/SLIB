@@ -16,7 +16,8 @@ class LiveStatusDashboard extends StatefulWidget {
   State<LiveStatusDashboard> createState() => LiveStatusDashboardState();
 }
 
-class LiveStatusDashboardState extends State<LiveStatusDashboard> {
+class LiveStatusDashboardState extends State<LiveStatusDashboard>
+    with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
   StudentProfile? _studentProfile;
   double _realStudyHours = 0.0;
@@ -29,6 +30,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadStudentProfile();
     _connectWebSocket();
     // Tự động fetch trạng thái thư viện khi vào trang
@@ -39,9 +41,17 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _stompClient?.deactivate();
     _stompClient = null;
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      refresh();
+    }
   }
 
   /// Connect STOMP WebSocket → subscribe /topic/dashboard
@@ -119,10 +129,7 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
     setState(() => _isLoading = true);
     await Future.wait([
       _loadStudentProfile(),
-      Provider.of<LibraryStatusService>(
-        context,
-        listen: false,
-      ).fetchLibraryStatus(),
+      Provider.of<LibraryStatusService>(context, listen: false).retrySync(),
     ]);
   }
 
@@ -269,7 +276,9 @@ class LiveStatusDashboardState extends State<LiveStatusDashboard> {
                     child: Text(
                       libraryStatus.isLoading
                           ? "..."
-                          : "${libraryStatus.occupancyRate.round()}% Full",
+                          : libraryStatus.hasLoadedData
+                          ? "${libraryStatus.occupancyRate.round()}% Full"
+                          : "--",
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

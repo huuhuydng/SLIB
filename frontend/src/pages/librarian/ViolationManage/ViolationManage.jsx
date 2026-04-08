@@ -201,9 +201,10 @@ function ViolationManage() {
 
     const handleDeleteBatch = async () => {
         if (selectedIds.size === 0) return;
+        const selectedCount = selectedIds.size;
         const confirmed = await confirm({
             title: 'Xoá báo cáo vi phạm',
-            message: `Bạn có chắc muốn xoá ${selectedIds.size} báo cáo đã chọn?`,
+            message: `Bạn có chắc muốn xoá ${selectedCount} báo cáo đã chọn?`,
             variant: 'danger',
             confirmText: 'Xoá',
             cancelText: 'Huỷ',
@@ -220,12 +221,28 @@ function ViolationManage() {
                 },
                 body: JSON.stringify({ ids: Array.from(selectedIds) }),
             });
+            const payload = await res.json().catch(() => ({}));
             if (res.ok) {
-                toast.success(`Đã xoá ${selectedIds.size} báo cáo vi phạm thành công.`);
+                const deletedCount = Number(payload.deleted || 0);
+                const blockedCount = Number(payload.blockedCount || 0);
+                const firstBlockedReason = payload.blocked?.[0]?.reason;
+
+                if (deletedCount > 0 && blockedCount === 0) {
+                    toast.success(`Đã xoá ${deletedCount} báo cáo vi phạm thành công.`);
+                } else if (deletedCount > 0 && blockedCount > 0) {
+                    toast.warning(
+                        `Đã xoá ${deletedCount}/${selectedCount} báo cáo. ${blockedCount} báo cáo còn lại bị chặn vì đã xử lý hoặc đã có khiếu nại.`,
+                    );
+                } else if (blockedCount > 0) {
+                    toast.warning(firstBlockedReason || 'Không thể xoá các báo cáo đã xử lý hoặc đã có khiếu nại.');
+                } else {
+                    toast.warning('Không có báo cáo nào được xoá.');
+                }
+
                 setSelectedIds(new Set());
                 fetchReports();
             } else {
-                toast.error('Không thể xoá báo cáo. Vui lòng thử lại.');
+                toast.error(payload.error || 'Không thể xoá báo cáo. Vui lòng thử lại.');
             }
         } catch (err) {
             console.error("Error deleting:", err);

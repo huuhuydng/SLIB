@@ -170,6 +170,54 @@ function SupportRequestManage() {
         }
     };
 
+    const handleReject = async () => {
+        const normalizedResponse = normalizeText(responseText);
+        if (!normalizedResponse || !selectedRequest) {
+            toast.error('Vui lòng nhập lý do từ chối');
+            return;
+        }
+        if (normalizedResponse.length > 2000) {
+            toast.error('Lý do từ chối không được vượt quá 2000 ký tự');
+            return;
+        }
+
+        const confirmed = await confirm({
+            title: 'Từ chối yêu cầu hỗ trợ',
+            message: 'Bạn có chắc muốn từ chối yêu cầu hỗ trợ này không?',
+            variant: 'danger',
+            confirmText: 'Từ chối',
+            cancelText: 'Huỷ',
+        });
+        if (!confirmed) return;
+
+        setSubmitting(true);
+        try {
+            const token = getToken();
+            const res = await fetch(`${API_BASE}/${selectedRequest.id}/status`, {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ status: "REJECTED", response: normalizedResponse }),
+            });
+            if (res.ok) {
+                toast.success('Đã từ chối yêu cầu hỗ trợ.');
+                setSelectedRequest(null);
+                setResponseText("");
+                fetchRequests();
+            } else {
+                const errorData = await res.json().catch(() => ({}));
+                toast.error(getApiErrorMessage({ response: { data: errorData } }, `Từ chối yêu cầu thất bại: ${res.statusText}`));
+            }
+        } catch (err) {
+            console.error("Error rejecting request:", err);
+            toast.error(getApiErrorMessage(err, 'Không thể từ chối yêu cầu'));
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const handleStartChat = async (requestId) => {
         setChatLoading(true);
         try {
@@ -216,12 +264,19 @@ function SupportRequestManage() {
                 body: JSON.stringify({ ids: Array.from(selectedIds) }),
             });
             if (res.ok) {
-                toast.success(`Đã xoá ${selectedIds.size} yêu cầu hỗ trợ thành công.`);
+                const data = await res.json().catch(() => ({}));
+                const deleted = Number(data.deleted || 0);
+                const blocked = Number(data.blocked || 0);
+                if (deleted > 0 && blocked > 0) {
+                    toast.info(`Đã xoá ${deleted} yêu cầu mới. ${blocked} yêu cầu đã xử lý nên không thể xoá.`);
+                } else if (deleted > 0) {
+                    toast.success(`Đã xoá ${deleted} yêu cầu hỗ trợ thành công.`);
+                }
                 setSelectedIds(new Set());
                 fetchRequests();
             } else {
                 const errorData = await res.json().catch(() => ({}));
-                toast.error('Xoá yêu cầu thất bại: ' + (errorData.message || res.statusText));
+                toast.error(getApiErrorMessage({ response: { data: errorData } }, `Xoá yêu cầu thất bại: ${res.statusText}`));
             }
         } catch (err) {
             console.error("Error deleting:", err);
@@ -847,12 +902,12 @@ function SupportRequestManage() {
                             {/* Response Form - only for PENDING or IN_PROGRESS */}
                             {(selectedRequest.status === "PENDING" || selectedRequest.status === "IN_PROGRESS") && (
                                 <div className="sr-modal-section">
-                                    <div className="sr-modal-label">Phản hồi yêu cầu</div>
+                                    <div className="sr-modal-label">Phản hồi xử lý hoặc lý do từ chối</div>
                                     <textarea
                                         className="sr-modal-textarea"
                                         value={responseText}
                                         onChange={(e) => setResponseText(e.target.value)}
-                                        placeholder="Nhập phản hồi cho sinh viên..."
+                                        placeholder="Nhập phản hồi cho sinh viên hoặc nêu rõ lý do từ chối..."
                                         rows={3}
                                     />
                                 </div>
@@ -868,6 +923,13 @@ function SupportRequestManage() {
                                         disabled={chatLoading}
                                     >
                                         {chatLoading ? "Đang mở..." : "Chat với sinh viên"}
+                                    </button>
+                                    <button
+                                        className="sr-modal-btn danger"
+                                        onClick={handleReject}
+                                        disabled={submitting || !responseText.trim()}
+                                    >
+                                        {submitting ? "Đang xử lý..." : "Từ chối"}
                                     </button>
                                     <button
                                         className="sr-modal-btn primary"

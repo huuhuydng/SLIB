@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path("/Users/hadi/Desktop/slib")
 REPORT_DIR = ROOT / "doc/Report/UnitTestReport"
-HTML_DIR = REPORT_DIR / "html"
+HTML_DIR = REPORT_DIR / "UnitTestHtml"
 CONTROLLERS_DIR = ROOT / "backend/src/main/java"
 LEGACY_REPORT_DIR = ROOT / "doc/Report"
 
@@ -118,8 +118,8 @@ FE-116|GET|/slib/chat/conversations/{conversationId}/messages
 FE-117|GET|/slib/chat/conversations/all;;/slib/chat/conversations/waiting;;/slib/chat/conversations/active
 FE-118|GET|/slib/chat/conversations/all;;/slib/chat/conversations/{conversationId}/messages
 FE-119|POST|/slib/chat/conversations/{conversationId}/messages;;/slib/chat/conversations/{conversationId}/messages/with-image
-FE-120|GET|/slib/ai/analytics/realtime-capacity;;/slib/ai/analytics/density-prediction;;/slib/ai/analytics/seat-recommendation?user_id={userId}
-FE-121|GET|/api/ai/analytics/density-prediction;;/api/ai/analytics/usage-statistics;;/api/ai/analytics/seat-recommendation;;/slib/analytics/behavior-summary?days={days}
+FE-120|PUT|/slib/support-requests/{id}/respond
+FE-121|GET|/slib/dashboard/stats;;/slib/dashboard/library-status;;/slib/dashboard/chart-stats?range={range}
 """
 
 
@@ -401,6 +401,93 @@ def parse_current_report(path: Path) -> dict:
             "marks": marks,
         })
 
+    return {"meta": meta, "stats": stats, "utcs": utcs, "rows": rows}
+
+
+def parse_existing_html_report(path: Path) -> dict:
+    text = path.read_text(encoding="utf-8")
+    heading_match = re.search(r"<h1>(.*?)</h1>", text, re.S)
+    heading = clean_text(heading_match.group(1)) if heading_match else path.stem
+    tables = extract_tables(text)
+    if len(tables) < 2:
+        raise ValueError(f"Unexpected HTML report format: {path}")
+
+    meta_rows = expand_table(parse_html_table(tables[0]))
+    matrix_rows = expand_table(parse_html_table(tables[1]))
+
+    meta = {
+        "heading": heading,
+        "function_code": "",
+        "function_name": "",
+        "created_by": "",
+        "executed_by": "",
+        "lines_of_code": "",
+        "lack_of_test_cases": "",
+        "class_under_test": "",
+        "test_requirement": "",
+        "html_filename": path.name,
+    }
+
+    for row in meta_rows:
+        texts = [c["text"] for c in row]
+        if not texts:
+            continue
+        first = texts[0]
+        if first == "Function Code":
+            meta["function_code"] = texts[1] if len(texts) > 1 else ""
+            meta["function_name"] = texts[3] if len(texts) > 3 else ""
+        elif first == "Created By":
+            meta["created_by"] = texts[1] if len(texts) > 1 else ""
+            meta["executed_by"] = texts[3] if len(texts) > 3 else ""
+        elif first == "Lines of code":
+            meta["lines_of_code"] = texts[1] if len(texts) > 1 else ""
+            meta["lack_of_test_cases"] = texts[3] if len(texts) > 3 else ""
+        elif first == "Class Under Test":
+            meta["class_under_test"] = texts[1] if len(texts) > 1 else ""
+        elif first == "Test requirement":
+            meta["test_requirement"] = texts[1] if len(texts) > 1 else ""
+
+    stats_header_idx = next((i for i, row in enumerate(meta_rows) if row and row[0]["text"] == "Passed"), None)
+    if stats_header_idx is None or stats_header_idx + 1 >= len(meta_rows):
+        raise ValueError(f"Unexpected HTML report stats format: {path}")
+    stats_values = [c["text"] for c in meta_rows[stats_header_idx + 1]]
+    stats = {
+        "Passed": stats_values[0] if len(stats_values) > 0 else "0",
+        "Failed": stats_values[1] if len(stats_values) > 1 else "0",
+        "Untested": stats_values[2] if len(stats_values) > 2 else "0",
+        "N/A/B": stats_values[3] if len(stats_values) > 3 else "0 / 0 / 0",
+        "Total Test Cases": stats_values[4] if len(stats_values) > 4 else "0",
+    }
+
+    header = [c["text"] for c in matrix_rows[0]]
+    utcs = header[3:]
+    rows = []
+    for row in matrix_rows[1:]:
+        texts = [c["text"] for c in row]
+        if not any(texts):
+            continue
+        section = texts[0] if len(texts) > 0 else ""
+        if section == "Result":
+            item = texts[2] if len(texts) > 2 else ""
+            marks = texts[3:3 + len(utcs)]
+            rows.append({"section": "Result", "category": "", "item": item, "marks": marks})
+            continue
+
+        category = texts[1] if len(texts) > 1 else ""
+        item = texts[2] if len(texts) > 2 else ""
+        marks = texts[3:3 + len(utcs)]
+        rows.append({
+            "section": normalize_section(section),
+            "category": normalize_category(category),
+            "item": item,
+            "marks": marks,
+        })
+
+    if not meta["function_code"]:
+        stem_match = re.match(r"(FE\d+)_", path.stem)
+        if stem_match:
+            digits = stem_match.group(1)[2:]
+            meta["function_code"] = f"FE-{int(digits)}" if digits.isdigit() else stem_match.group(1)
     return {"meta": meta, "stats": stats, "utcs": utcs, "rows": rows}
 
 
@@ -1770,27 +1857,65 @@ def render_html_page(report: dict) -> str:
     ])
 
 
+def render_index_html(reports: dict[str, dict]) -> str:
+    def fe_sort_key(code: str) -> int:
+        match = re.search(r"FE-(\d+)", code)
+        return int(match.group(1)) if match else 9999
+
+    items = []
+    for fe_code in sorted(reports.keys(), key=fe_sort_key):
+        report = reports[fe_code]
+        filename = report["meta"].get("html_filename") or f"{fe_code.replace('-', '')}_TestReport.html"
+        function_name = report["meta"].get("function_name") or filename.replace(".html", "")
+        items.append(f'      <li><a href="{html.escape(filename)}">{html.escape(fe_code)}: {html.escape(function_name)}</a></li>')
+
+    return "\n".join([
+        "<!DOCTYPE html>",
+        '<html lang="en">',
+        "<head>",
+        '  <meta charset="UTF-8">',
+        '  <meta name="viewport" content="width=device-width, initial-scale=1.0">',
+        '  <title>Unit Test Reports</title>',
+        '  <link rel="stylesheet" href="style.css">',
+        "</head>",
+        "<body>",
+        '  <div class="page">',
+        '    <h1>Unit Test Reports</h1>',
+        '    <ul>',
+        *items,
+        '    </ul>',
+        '  </div>',
+        "</body>",
+        "</html>",
+        "",
+    ])
+
+
 def main() -> None:
     controller_map = parse_controller_map()
     reports = {}
+    for path in sorted(HTML_DIR.glob("FE*.html")):
+        if path.name in {"index.html", "style.css"}:
+            continue
+        report = parse_existing_html_report(path)
+        reports[report["meta"]["function_code"]] = report
+
     for path in sorted(REPORT_DIR.glob("FE*_TestReport.md")):
         if not is_numeric_fe_stem(path.stem):
             continue
         report = parse_current_report(path)
+        existing = reports.get(report["meta"]["function_code"])
+        if existing:
+            report["meta"]["html_filename"] = existing["meta"].get("html_filename")
         reports[report["meta"]["function_code"]] = report
-
-    for path in sorted(HTML_DIR.glob("FE*_TestReport.html")):
-        if not is_numeric_fe_stem(path.stem):
-            continue
-        stem = path.stem.replace("_TestReport", "")
-        fe_code = f"FE-{stem[2:]}"
-        reports.setdefault(fe_code, empty_report_template(fe_code))
 
     for path in sorted(LEGACY_REPORT_DIR.glob("FE*_TestReport.md")):
         code = path.stem.replace("_TestReport", "")
         fe_code = f"FE-{code[2:]}"
         if fe_code in reports and legacy_report_matches_single_fe(path, fe_code):
-            reports[fe_code] = parse_legacy_report(path, reports[fe_code])
+            parsed = parse_legacy_report(path, reports[fe_code])
+            parsed["meta"]["html_filename"] = reports[fe_code]["meta"].get("html_filename")
+            reports[fe_code] = parsed
 
     override_reports(reports)
 
@@ -1803,9 +1928,12 @@ def main() -> None:
         report = dedupe_report_cases(report)
         report["meta"]["heading"] = f"Unit Test Report - {report['meta']['function_code']}: {report['meta']['function_name']}"
         md_path = REPORT_DIR / f"{report['meta']['function_code'].replace('-', '')}_TestReport.md"
-        html_path = HTML_DIR / f"{report['meta']['function_code'].replace('-', '')}_TestReport.html"
+        html_filename = report["meta"].get("html_filename") or f"{report['meta']['function_code'].replace('-', '')}_TestReport.html"
+        html_path = HTML_DIR / html_filename
         md_path.write_text(render_report_body(report), encoding="utf-8")
         html_path.write_text(render_html_page(report), encoding="utf-8")
+
+    (HTML_DIR / "index.html").write_text(render_index_html(reports), encoding="utf-8")
 
 
 if __name__ == "__main__":

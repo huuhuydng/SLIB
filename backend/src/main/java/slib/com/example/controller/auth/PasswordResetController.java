@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.exception.BadRequestException;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.security.JwtService;
@@ -44,7 +45,7 @@ public class PasswordResetController {
             return ResponseEntity.ok(Map.of(
                     "message", "Mã OTP đã được gửi đến email của bạn",
                     "email", email));
-        } catch (RuntimeException e) {
+        } catch (BadRequestException e) {
             // Business errors (email not found, no email, etc.)
             log.warn("Forgot password business error: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
@@ -116,6 +117,10 @@ public class PasswordResetController {
         try {
             otpService.resendOtp(email.trim().toLowerCase());
             return ResponseEntity.ok(Map.of("message", "Mã OTP mới đã được gửi đến email của bạn"));
+        } catch (BadRequestException e) {
+            log.warn("Resend OTP business error: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", e.getMessage()));
         } catch (Exception e) {
             log.error("Lỗi gửi lại OTP: {}", e.getMessage());
             return ResponseEntity.internalServerError().body(Map.of(

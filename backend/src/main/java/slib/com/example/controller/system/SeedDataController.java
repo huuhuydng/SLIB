@@ -154,7 +154,7 @@ public class SeedDataController {
 
     /**
      * Tạo dữ liệu test tính năng báo cáo vi phạm
-     * POST /slib/seed/violation-test?userCode=SL000001&neighbors=4&sameZone=true
+     * POST /slib/seed/violation-test?userCode=SL000001&neighbors=30&sameZone=false
      * 
      * Tạo booking CONFIRMED cho user chính + nhiều user khác (cùng zone hoặc khác
      * zone tuỳ sameZone)

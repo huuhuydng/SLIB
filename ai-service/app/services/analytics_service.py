@@ -34,21 +34,67 @@ class AnalyticsAIService:
             from sqlalchemy import text
 
             with engine.connect() as conn:
-                # Get total seats for normalization
-                seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
-                total_seats = seats_result.fetchone()[0] or 1
+                if area_id:
+                    seats_result = conn.execute(text("""
+                        SELECT COUNT(*)
+                        FROM seats
+                        WHERE is_active = true
+                          AND zone_id = CAST(:zone_id AS INTEGER)
+                    """), {"zone_id": area_id})
+                    total_seats = seats_result.fetchone()[0] or 1
 
-                # Get hourly check-in counts
-                result = conn.execute(text("""
-                    SELECT
-                        EXTRACT(HOUR FROM check_in_time) as hour,
-                        COUNT(*) as count,
-                        COUNT(DISTINCT DATE(check_in_time)) as num_days
-                    FROM access_logs
-                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                    GROUP BY EXTRACT(HOUR FROM check_in_time)
-                    ORDER BY hour
-                """), {"days": days})
+                    result = conn.execute(text("""
+                        SELECT
+                            EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time)) as hour,
+                            COUNT(*) as count,
+                            COUNT(DISTINCT DATE(COALESCE(r.confirmed_at, r.start_time))) as num_days
+                        FROM reservations r
+                        JOIN seats s ON s.seat_id = r.seat_id
+                        WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                          AND r.status IN ('CONFIRMED', 'COMPLETED')
+                          AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                        GROUP BY EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time))
+                        ORDER BY hour
+                    """), {"zone_id": area_id, "days": days})
+
+                    day_result = conn.execute(text("""
+                        SELECT
+                            EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time)) as day,
+                            COUNT(*) as count
+                        FROM reservations r
+                        JOIN seats s ON s.seat_id = r.seat_id
+                        WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                          AND r.status IN ('CONFIRMED', 'COMPLETED')
+                          AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                        GROUP BY EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time))
+                        ORDER BY count DESC
+                    """), {"zone_id": area_id, "days": days})
+                else:
+                    # Get total seats for normalization
+                    seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
+                    total_seats = seats_result.fetchone()[0] or 1
+
+                    # Get hourly check-in counts
+                    result = conn.execute(text("""
+                        SELECT
+                            EXTRACT(HOUR FROM check_in_time) as hour,
+                            COUNT(*) as count,
+                            COUNT(DISTINCT DATE(check_in_time)) as num_days
+                        FROM access_logs
+                        WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                        GROUP BY EXTRACT(HOUR FROM check_in_time)
+                        ORDER BY hour
+                    """), {"days": days})
+
+                    day_result = conn.execute(text("""
+                        SELECT
+                            EXTRACT(DOW FROM check_in_time) as day,
+                            COUNT(*) as count
+                        FROM access_logs
+                        WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                        GROUP BY EXTRACT(DOW FROM check_in_time)
+                        ORDER BY count DESC
+                    """), {"days": days})
 
                 hourly_data = []
                 for row in result:
@@ -69,17 +115,6 @@ class AnalyticsAIService:
                 sorted_by_occ = sorted(hourly_data, key=lambda x: x["avg_occupancy"], reverse=True)
                 peak_hours = sorted_by_occ[:3]
                 quiet_hours = sorted_by_occ[-3:][::-1] if len(sorted_by_occ) >= 3 else []
-
-                # Get busiest/quietest day
-                day_result = conn.execute(text("""
-                    SELECT
-                        EXTRACT(DOW FROM check_in_time) as day,
-                        COUNT(*) as count
-                    FROM access_logs
-                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                    GROUP BY EXTRACT(DOW FROM check_in_time)
-                    ORDER BY count DESC
-                """), {"days": days})
 
                 days_map = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
                 day_rows = list(day_result)
@@ -231,7 +266,8 @@ class AnalyticsAIService:
                     FROM reservations r
                     JOIN seats s ON s.seat_id = r.seat_id
                     JOIN zones z ON z.zone_id = s.zone_id
-                    WHERE r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                    WHERE r.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
                     GROUP BY z.zone_name
                     ORDER BY visits DESC
                     LIMIT 5
@@ -252,6 +288,25 @@ class AnalyticsAIService:
                     {"hour": int(row[0]), "visits": row[1]} for row in hourly_result
                 ]
 
+                insights = []
+                if peak_occupancy_rate >= 0.85:
+                    insights.append("Lưu lượng đang dồn mạnh vào một số khung giờ. Nên điều phối thêm sinh viên sang các khoảng ít cao điểm.")
+                elif peak_occupancy_rate >= 0.6:
+                    insights.append("Mức sử dụng đang khá cao ở một vài khung giờ. Cần theo dõi thêm theo từng khu vực để tránh quá tải cục bộ.")
+                else:
+                    insights.append("Mật độ sử dụng đang tương đối ổn định, chưa ghi nhận dấu hiệu quá tải lớn trong giai đoạn này.")
+
+                if most_popular_zones:
+                    top_zone = most_popular_zones[0]
+                    insights.append(
+                        f"Khu vực sử dụng nhiều nhất hiện là {top_zone['zone']} với {top_zone['visits']} lượt sử dụng thực tế."
+                    )
+
+                if avg_duration_minutes >= 180:
+                    insights.append("Thời lượng sử dụng trung bình đang khá dài. Nên theo dõi thêm việc sinh viên trả chỗ đúng giờ để tăng khả năng phục vụ chỗ ngồi.")
+                elif avg_duration_minutes > 0:
+                    insights.append("Thời lượng sử dụng trung bình đang ở mức hợp lý cho nhu cầu học tập trong thư viện.")
+
                 return {
                     "period": period,
                     "total_visits": total_visits,
@@ -260,7 +315,7 @@ class AnalyticsAIService:
                     "peak_occupancy_rate": round(peak_occupancy_rate, 2),
                     "most_popular_zones": most_popular_zones,
                     "hourly_distribution": hourly_distribution,
-                    "insights": [],
+                    "insights": insights,
                     "generated_at": datetime.now().isoformat()
                 }
         except Exception as e:

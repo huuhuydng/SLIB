@@ -112,6 +112,7 @@ const UserManagement = () => {
   const [showLockModal, setShowLockModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [lockReason, setLockReason] = useState('');
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -780,14 +781,21 @@ const UserManagement = () => {
     try {
       setActionLoading(true);
       const newStatus = selectedUser.isActive === false;
-      await userService.updateUserStatus(selectedUser.id, newStatus);
+      const normalizedReason = lockReason.trim();
+      if (!newStatus && !normalizedReason) {
+        toast.warning('Vui lòng nhập lý do khóa tài khoản');
+        setActionLoading(false);
+        return;
+      }
+      await userService.updateUserStatus(selectedUser.id, newStatus, newStatus ? null : normalizedReason);
       await fetchUsers();
       setShowLockModal(false);
+      setLockReason('');
       const userName = selectedUser.fullName || selectedUser.email;
       toast.success(newStatus ? `Đã mở khóa tài khoản ${userName}` : `Đã khóa tài khoản ${userName}`);
       setSelectedUser(null);
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message);
+      toast.error(err.response?.data?.error || err.response?.data?.message || err.message);
     } finally {
       setActionLoading(false);
     }
@@ -1103,7 +1111,7 @@ const UserManagement = () => {
                                     <Edit2 size={15} color="#e8600a" />
                                     <span style={{ color: '#e8600a' }}>Chỉnh sửa</span>
                                   </button>
-                                  <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowLockModal(true); setShowActionMenu(null); }}>
+                                  <button className="um-action-item" onClick={() => { setSelectedUser(user); setLockReason(''); setShowLockModal(true); setShowActionMenu(null); }}>
                                     {user.isActive !== false ? (
                                       <><Lock size={15} color="#F59E0B" /><span style={{ color: '#F59E0B' }}>Khóa tài khoản</span></>
                                     ) : (
@@ -1954,9 +1962,62 @@ const UserManagement = () => {
               <p style={{ fontSize: '14px', color: '#4A5568', margin: '0 0 20px' }}>
                 Bạn có chắc muốn {selectedUser.isActive !== false ? 'khóa' : 'mở khóa'} tài khoản <strong>{selectedUser.fullName}</strong>?
               </p>
+              {selectedUser.isActive !== false ? (
+                <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+                  <label
+                    htmlFor="lock-reason"
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#1A1A1A',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    Lý do khóa tài khoản <span style={{ color: '#DC2626' }}>*</span>
+                  </label>
+                  <textarea
+                    id="lock-reason"
+                    value={lockReason}
+                    onChange={(e) => setLockReason(e.target.value)}
+                    rows={4}
+                    placeholder="Nhập lý do khóa để người dùng thấy khi đăng nhập..."
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '14px',
+                      lineHeight: '1.5',
+                      resize: 'vertical',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ marginTop: '8px', fontSize: '12px', color: '#718096' }}>
+                    Lý do này sẽ được hiển thị cho người dùng khi họ đăng nhập vào web hoặc ứng dụng.
+                  </div>
+                </div>
+              ) : selectedUser.lockReason ? (
+                <div style={{
+                  textAlign: 'left',
+                  marginBottom: '20px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: '#F7FAFC',
+                  border: '1px solid #E2E8F0'
+                }}>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A1A', marginBottom: '6px' }}>
+                    Lý do khóa hiện tại
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#4A5568', lineHeight: '1.5' }}>
+                    {selectedUser.lockReason}
+                  </div>
+                </div>
+              ) : null}
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
-                  onClick={() => { setShowLockModal(false); setSelectedUser(null); }}
+                  onClick={() => { setShowLockModal(false); setSelectedUser(null); setLockReason(''); }}
                   disabled={actionLoading}
                   style={{
                     flex: 1,

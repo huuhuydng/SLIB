@@ -54,9 +54,11 @@ public class AreaService {
     // CREATE (FULL – từ FE)
     // =========================
     public AreaResponse createArea(AreaResponse req) {
+        String normalizedName = normalizeAreaName(req.getAreaName());
+        validateAreaNameUniqueness(normalizedName, null);
 
         AreaEntity area = AreaEntity.builder()
-                .areaName(req.getAreaName())
+                .areaName(normalizedName)
                 .width(req.getWidth())
                 .height(req.getHeight())
                 .positionX(req.getPositionX())
@@ -72,9 +74,11 @@ public class AreaService {
     // CREATE QUICK (default)
     // =========================
     public AreaResponse createArea(String areaName) {
+        String normalizedName = normalizeAreaName(areaName);
+        validateAreaNameUniqueness(normalizedName, null);
 
         AreaEntity area = AreaEntity.builder()
-                .areaName(areaName)
+                .areaName(normalizedName)
                 .width(800)
                 .height(600)
                 .positionX(0)
@@ -94,7 +98,10 @@ public class AreaService {
         AreaEntity area = areaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Area not found"));
 
-        area.setAreaName(req.getAreaName());
+        String normalizedName = normalizeAreaName(req.getAreaName());
+        validateAreaNameUniqueness(normalizedName, id);
+
+        area.setAreaName(normalizedName);
         area.setWidth(req.getWidth());
         area.setHeight(req.getHeight());
         area.setPositionX(req.getPositionX());
@@ -216,6 +223,22 @@ public class AreaService {
         
         area.setIsActive(req.getIsActive());
         return toResponse(areaRepository.save(area));
+    }
+
+    private String normalizeAreaName(String areaName) {
+        if (areaName == null || areaName.isBlank()) {
+            throw new RuntimeException("Tên phòng thư viện không được để trống");
+        }
+        return areaName.trim();
+    }
+
+    private void validateAreaNameUniqueness(String areaName, Long currentAreaId) {
+        boolean exists = currentAreaId == null
+                ? areaRepository.existsByAreaNameIgnoreCase(areaName)
+                : areaRepository.existsByAreaNameIgnoreCaseAndAreaIdNot(areaName, currentAreaId);
+        if (exists) {
+            throw new RuntimeException("Tên phòng thư viện đã tồn tại");
+        }
     }
 
     // =========================

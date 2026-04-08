@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import librarianService from "../services/librarianService";
 import { isStaffRole, normalizeRole } from "../utils/roles";
+import useAppDialog from "../hooks/useAppDialog";
 import "../styles/Auth.css";
 
 const GOOGLE_CLIENT_ID = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
@@ -8,6 +9,7 @@ const GOOGLE_CLIENT_ID = '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.goo
 function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const googleButtonRef = useRef(null);
+  const { alert } = useAppDialog();
 
   // ============ INIT GOOGLE SIGN-IN ============
   useEffect(() => {
@@ -118,11 +120,15 @@ function Login({ onLogin }) {
 
     } catch (err) {
       console.error("❌ Google login error:", err);
-      alert(
+      const errorMessage =
         err.response?.data?.message ||
         err.message ||
-        "Đăng nhập Google thất bại. Vui lòng thử lại."
-      );
+        "Đăng nhập Google thất bại. Vui lòng thử lại.";
+      alert({
+        title: 'Đăng nhập Google thất bại',
+        message: errorMessage,
+        icon: 'error',
+      });
     } finally {
       setLoading(false);
     }

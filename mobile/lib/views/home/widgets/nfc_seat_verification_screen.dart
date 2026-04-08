@@ -4,6 +4,8 @@ import 'package:slib/assets/colors.dart';
 import 'package:slib/services/nfc/nfc_uid_service.dart';
 import 'package:slib/services/booking/booking_service.dart';
 
+enum NfcSeatActionMode { checkIn, leaveSeat }
+
 /// Screen for verifying seat reservation via NFC scanning.
 ///
 /// This screen allows users to tap their phone on an NFC tag attached to
@@ -19,6 +21,8 @@ class NfcSeatVerificationScreen extends StatefulWidget {
   /// The reservation ID for updating status after verification.
   final String reservationId;
 
+  final NfcSeatActionMode mode;
+
   /// Callback when verification is successful.
   final Function(String seatId)? onVerificationSuccess;
 
@@ -30,6 +34,7 @@ class NfcSeatVerificationScreen extends StatefulWidget {
     required this.expectedSeatCode,
     required this.expectedSeatId,
     required this.reservationId,
+    this.mode = NfcSeatActionMode.checkIn,
     this.onVerificationSuccess,
     this.onCancel,
   });
@@ -128,8 +133,7 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     }
   }
 
-  /// Handle NFC UID found — confirm booking via backend using raw UID.
-  /// Backend hashes UID, resolves seat, validates, and confirms booking atomically.
+  /// Handle NFC UID found for check-in or leave-seat flow.
   Future<void> _handleUidFound(String uid) async {
     if (!mounted) return;
 
@@ -142,15 +146,17 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     });
 
     try {
-      // Call backend to confirm booking with raw NFC UID
-      // Backend handles: hash UID → find seat → validate match → confirm booking
-      await _bookingService.confirmSeatWithNfcUid(
-        widget.reservationId,
-        uid,
-        widget.expectedSeatId,
-      );
-
-      debugPrint('NfcVerification: Booking confirmed successfully');
+      if (widget.mode == NfcSeatActionMode.leaveSeat) {
+        await _bookingService.leaveSeatWithNfcUid(widget.reservationId, uid);
+        debugPrint('NfcVerification: Seat checkout completed successfully');
+      } else {
+        await _bookingService.confirmSeatWithNfcUid(
+          widget.reservationId,
+          uid,
+          widget.expectedSeatId,
+        );
+        debugPrint('NfcVerification: Booking confirmed successfully');
+      }
 
       if (!mounted) return;
 
@@ -174,6 +180,8 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
         // Seat mismatch — message already good from backend
       } else if (errorMsg.contains('check-in')) {
         // Time window error — message already good from backend
+      } else if (errorMsg.contains('trả chỗ')) {
+        // Leave-seat error — keep backend message
       }
 
       setState(() {
@@ -232,9 +240,14 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text(
-          'Xác nhận chỗ ngồi',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+        title: Text(
+          widget.mode == NfcSeatActionMode.leaveSeat
+              ? 'Trả chỗ ngồi'
+              : 'Xác nhận chỗ ngồi',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -376,8 +389,10 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     if (_verificationSuccess) {
       return Column(
         children: [
-          const Text(
-            'Xác nhận thành công!',
+          Text(
+            widget.mode == NfcSeatActionMode.leaveSeat
+                ? 'Trả chỗ thành công!'
+                : 'Xác nhận thành công!',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -386,7 +401,9 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Ghế ${widget.expectedSeatCode} đã được xác nhận',
+            widget.mode == NfcSeatActionMode.leaveSeat
+                ? 'Ghế ${widget.expectedSeatCode} đã được giải phóng'
+                : 'Ghế ${widget.expectedSeatCode} đã được xác nhận',
             style: TextStyle(fontSize: 16, color: Colors.grey[600]),
           ),
         ],
@@ -406,7 +423,9 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Hệ thống đang đối chiếu thẻ NFC với ghế ${widget.expectedSeatCode}',
+            widget.mode == NfcSeatActionMode.leaveSeat
+                ? 'Hệ thống đang đối chiếu thẻ NFC để trả ghế ${widget.expectedSeatCode}'
+                : 'Hệ thống đang đối chiếu thẻ NFC với ghế ${widget.expectedSeatCode}',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
@@ -438,8 +457,10 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
     if (_errorMessage != null) {
       return Column(
         children: [
-          const Text(
-            'Không thể xác nhận',
+          Text(
+            widget.mode == NfcSeatActionMode.leaveSeat
+                ? 'Không thể trả chỗ'
+                : 'Không thể xác nhận',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -468,7 +489,9 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Chạm điện thoại vào nhãn dán NFC\ntrên ghế ${widget.expectedSeatCode}',
+          widget.mode == NfcSeatActionMode.leaveSeat
+              ? 'Chạm điện thoại vào nhãn dán NFC\nđúng ghế ${widget.expectedSeatCode} để trả chỗ'
+              : 'Chạm điện thoại vào nhãn dán NFC\ntrên ghế ${widget.expectedSeatCode}',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
@@ -510,7 +533,9 @@ class _NfcSeatVerificationScreenState extends State<NfcSeatVerificationScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Ghế đã đặt',
+                widget.mode == NfcSeatActionMode.leaveSeat
+                    ? 'Ghế đang sử dụng'
+                    : 'Ghế đã đặt',
                 style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
               const SizedBox(height: 4),
@@ -691,6 +716,7 @@ class NfcVerificationDialog {
     required String seatCode,
     required int seatId,
     required String reservationId,
+    NfcSeatActionMode mode = NfcSeatActionMode.checkIn,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -708,6 +734,7 @@ class NfcVerificationDialog {
           expectedSeatCode: seatCode,
           expectedSeatId: seatId,
           reservationId: reservationId,
+          mode: mode,
           onVerificationSuccess:
               null, // Không dùng callback - dùng Navigator.pop với result
           onCancel: () {

@@ -10,6 +10,7 @@ import slib.com.example.service.notification.LibrarianNotificationService;
 import slib.com.example.dto.feedback.FeedbackDTO;
 import slib.com.example.entity.feedback.FeedbackEntity;
 import slib.com.example.entity.feedback.FeedbackEntity.FeedbackStatus;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.exception.BadRequestException;
@@ -17,6 +18,7 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.chat.ConversationRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.users.UserRepository;
+import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
@@ -36,6 +38,7 @@ public class FeedbackService {
     private final ConversationRepository conversationRepository;
     private final UserRepository userRepository;
     private final LibrarianNotificationService librarianNotificationService;
+    private final PushNotificationService pushNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -111,6 +114,13 @@ public class FeedbackService {
 
         FeedbackEntity saved = feedbackRepository.save(feedback);
         log.info("[Feedback] Sinh viên {} đã gửi phản hồi - rating: {}", student.getFullName(), rating);
+        pushNotificationService.sendToStaff(
+                "Phản hồi mới từ sinh viên",
+                student.getFullName() + " vừa gửi phản hồi mới cho thư viện.",
+                NotificationType.SYSTEM,
+                saved.getId(),
+                "FEEDBACK",
+                "PROCESSING");
         broadcastDashboardUpdate("FEEDBACK_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("FEEDBACK", "CREATED");
         return FeedbackDTO.fromEntity(saved);

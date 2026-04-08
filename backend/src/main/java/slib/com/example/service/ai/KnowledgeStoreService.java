@@ -45,6 +45,7 @@ public class KnowledgeStoreService {
     @Value("${slib.internal.api-key:}")
     private String internalApiKey;
 
+    @Transactional(readOnly = true)
     public List<KnowledgeStoreDTO.Response> getAllKnowledgeStores() {
         return knowledgeStoreRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
@@ -52,6 +53,7 @@ public class KnowledgeStoreService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public KnowledgeStoreDTO.Response getKnowledgeStoreById(Long id) {
         KnowledgeStoreEntity ks = knowledgeStoreRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("KnowledgeStore not found: " + id));

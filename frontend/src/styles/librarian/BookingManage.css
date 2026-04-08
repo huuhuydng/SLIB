@@ -471,6 +471,17 @@
     margin-top: 1px;
 }
 
+.bm-modal-note {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
 /* --- Footer Buttons --- */
 .bm-modal-footer {
     display: flex;

@@ -2,8 +2,10 @@ import { useRef, useState } from 'react';
 import { useLayout } from '../../../context/admin/area_management/LayoutContext';
 import { updateAreaFactory, dragAreaFactory, resizeAreaFactory, deleteAreaFactory } from '../../../services/admin/area_management/api';
 import { Rnd } from 'react-rnd';
+import { useConfirm } from '../../common/ConfirmDialog';
 
 function Factory({ factory }) {
+  const { confirm } = useConfirm();
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, factories, zones, canvas, isPreviewMode } = state;
 
@@ -211,19 +213,26 @@ function Factory({ factory }) {
   };
 
   const handleDeleteFactory = async () => {
-    if (confirm(`Delete factory "${factory.factoryName}"?`)) {
-      try {
-        // Only call API if factory has real ID (positive) - pending factories have negative tempId
-        if (factory.factoryId > 0) {
-          await deleteAreaFactory(factory.factoryId);
-        }
-        dispatch({
-          type: actions.DELETE_FACTORY,
-          payload: factory.factoryId,
-        });
-      } catch (e) {
-        console.error('Failed to delete factory', e);
+    const confirmed = await confirm({
+      title: 'Xoá khu chức năng',
+      message: `Bạn có chắc muốn xoá "${factory.factoryName}"?`,
+      confirmText: 'Xoá',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      // Only call API if factory has real ID (positive) - pending factories have negative tempId
+      if (factory.factoryId > 0) {
+        await deleteAreaFactory(factory.factoryId);
       }
+      dispatch({
+        type: actions.DELETE_FACTORY,
+        payload: factory.factoryId,
+      });
+    } catch (e) {
+      console.error('Failed to delete factory', e);
     }
   };
 

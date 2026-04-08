@@ -52,6 +52,8 @@ export function LibrarianNotificationProvider({ children }) {
         total: 0,
     });
     const [notifications, setNotifications] = useState([]);
+    const [userNotifications, setUserNotifications] = useState([]);
+    const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
     const [pendingItems, setPendingItems] = useState({
         SUPPORT_REQUEST: null,
         COMPLAINT: null,
@@ -71,6 +73,17 @@ export function LibrarianNotificationProvider({ children }) {
 
     const getToken = useCallback(() => {
         return sessionStorage.getItem('librarian_token') || localStorage.getItem('librarian_token');
+    }, []);
+
+    const getCurrentUserId = useCallback(() => {
+        try {
+            const raw = sessionStorage.getItem('librarian_user') || localStorage.getItem('librarian_user');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed?.id || null;
+        } catch {
+            return null;
+        }
     }, []);
 
     // Fetch pending counts from REST API
@@ -113,6 +126,113 @@ export function LibrarianNotificationProvider({ children }) {
             console.warn('[LibrarianNotification] Fetch unread chat error:', err);
         }
     }, [getToken]);
+
+    const fetchUserNotifications = useCallback(async (limit = 20) => {
+        try {
+            const token = getToken();
+            const userId = getCurrentUserId();
+            if (!token || !userId) return [];
+
+            const res = await fetch(`${API_BASE_URL}/slib/notifications/user/${userId}?limit=${limit}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (res.ok && mountedRef.current) {
+                const data = await res.json();
+                setUserNotifications(Array.isArray(data) ? data : []);
+                return Array.isArray(data) ? data : [];
+            }
+        } catch (err) {
+            console.warn('[LibrarianNotification] Fetch user notifications error:', err);
+        }
+        return [];
+    }, [getCurrentUserId, getToken]);
+
+    const fetchUnreadNotificationCount = useCallback(async () => {
+        try {
+            const token = getToken();
+            const userId = getCurrentUserId();
+            if (!token || !userId) return;
+
+            const res = await fetch(`${API_BASE_URL}/slib/notifications/unread-count/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (res.ok && mountedRef.current) {
+                const data = await res.json();
+                setUnreadNotificationCount(data.count ?? 0);
+            }
+        } catch (err) {
+            console.warn('[LibrarianNotification] Fetch unread notification count error:', err);
+        }
+    }, [getCurrentUserId, getToken]);
+
+    const markNotificationAsRead = useCallback(async (notificationId) => {
+        try {
+            const token = getToken();
+            const userId = getCurrentUserId();
+            if (!token || !userId || !notificationId) return false;
+
+            const res = await fetch(`${API_BASE_URL}/slib/notifications/mark-read/${notificationId}?userId=${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!res.ok) return false;
+
+            if (mountedRef.current) {
+                setUserNotifications(prev => prev.map((item) => (
+                    item.id === notificationId ? { ...item, isRead: true } : item
+                )));
+                setUnreadNotificationCount(prev => Math.max(0, prev - 1));
+            }
+            return true;
+        } catch (err) {
+            console.warn('[LibrarianNotification] Mark notification as read error:', err);
+            return false;
+        }
+    }, [getCurrentUserId, getToken]);
+
+    const deleteNotification = useCallback(async (notificationId) => {
+        try {
+            const token = getToken();
+            const userId = getCurrentUserId();
+            if (!token || !userId || !notificationId) return false;
+
+            const target = userNotifications.find((item) => item.id === notificationId);
+            const wasUnread = target?.isRead === false;
+
+            const res = await fetch(`${API_BASE_URL}/slib/notifications/${notificationId}?userId=${userId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!res.ok) return false;
+
+            if (mountedRef.current) {
+                setUserNotifications(prev => prev.filter((item) => item.id !== notificationId));
+                if (wasUnread) {
+                    setUnreadNotificationCount(prev => Math.max(0, prev - 1));
+                }
+            }
+            return true;
+        } catch (err) {
+            console.warn('[LibrarianNotification] Delete notification error:', err);
+            return false;
+        }
+    }, [getCurrentUserId, getToken, userNotifications]);
 
     // Fetch danh sách chi tiết pending items theo category
     const fetchPendingItems = useCallback(async (category) => {
@@ -165,21 +285,29 @@ export function LibrarianNotificationProvider({ children }) {
         mountedRef.current = true;
         fetchPendingCounts();
         fetchUnreadChatCount();
+        fetchUserNotifications();
+        fetchUnreadNotificationCount();
         const intervalId = window.setInterval(() => {
             fetchPendingCounts();
             fetchUnreadChatCount();
+            fetchUserNotifications();
+            fetchUnreadNotificationCount();
         }, 30000);
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 fetchPendingCounts();
                 fetchUnreadChatCount();
+                fetchUserNotifications();
+                fetchUnreadNotificationCount();
             }
         };
 
         const handleWindowFocus = () => {
             fetchPendingCounts();
             fetchUnreadChatCount();
+            fetchUserNotifications();
+            fetchUnreadNotificationCount();
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -191,7 +319,7 @@ export function LibrarianNotificationProvider({ children }) {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleWindowFocus);
         };
-    }, [fetchPendingCounts, fetchUnreadChatCount]);
+    }, [fetchPendingCounts, fetchUnreadChatCount, fetchUnreadNotificationCount, fetchUserNotifications]);
 
     // Subscribe to WebSocket - separate effect
     useEffect(() => {
@@ -207,6 +335,8 @@ export function LibrarianNotificationProvider({ children }) {
                     action: data.action,
                     timestamp: data.timestamp,
                 }, ...prev].slice(0, 20));
+                fetchUserNotifications();
+                fetchUnreadNotificationCount();
             } else if (data.type === 'CHAT_NEW_MESSAGE') {
                 // Toast thông báo tin nhắn mới từ student
                 setChatToast({
@@ -226,20 +356,56 @@ export function LibrarianNotificationProvider({ children }) {
                     timestamp: data.timestamp || new Date().toISOString(),
                 }, ...prev].slice(0, 20));
                 fetchUnreadChatCount();
+                fetchUserNotifications();
+                fetchUnreadNotificationCount();
 
                 // Also refresh pending counts
                 fetchPendingCounts();
             }
         };
 
+        const handleStoredNotification = (payload) => {
+            if (!mountedRef.current || !payload) return;
+            setUserNotifications((prev) => {
+                const next = [payload, ...prev.filter((item) => item.id !== payload.id)];
+                return next.slice(0, 20);
+            });
+            if (payload.isRead === false) {
+                if (typeof payload.unreadCount === 'number') {
+                    setUnreadNotificationCount(payload.unreadCount);
+                } else {
+                    setUnreadNotificationCount((prev) => prev + 1);
+                }
+            } else {
+                fetchUnreadNotificationCount();
+            }
+        };
+
         const trySubscribe = () => {
+            const userId = getCurrentUserId();
             if (websocketService.isConnected()) {
                 unsubFn = websocketService.subscribe('/topic/librarian-notifications', handleMessage);
+                if (userId) {
+                    const unsubStored = websocketService.subscribe(`/topic/notifications/${userId}`, handleStoredNotification);
+                    const prevUnsub = unsubFn;
+                    unsubFn = () => {
+                        if (prevUnsub) prevUnsub();
+                        unsubStored?.();
+                    };
+                }
             } else {
                 // WebSocket not ready yet, try connecting
                 websocketService.connect(
                     () => {
                         unsubFn = websocketService.subscribe('/topic/librarian-notifications', handleMessage);
+                        if (userId) {
+                            const unsubStored = websocketService.subscribe(`/topic/notifications/${userId}`, handleStoredNotification);
+                            const prevUnsub = unsubFn;
+                            unsubFn = () => {
+                                if (prevUnsub) prevUnsub();
+                                unsubStored?.();
+                            };
+                        }
                     },
                     (err) => console.error('[LibrarianNotification] WebSocket error:', err)
                 );
@@ -251,14 +417,19 @@ export function LibrarianNotificationProvider({ children }) {
         return () => {
             if (unsubFn) unsubFn();
         };
-    }, [clearPendingItems]);
+    }, [clearPendingItems, fetchPendingCounts, fetchUnreadChatCount, fetchUnreadNotificationCount, fetchUserNotifications, getCurrentUserId]);
 
     const value = {
         pendingCounts,
         notifications,
+        userNotifications,
+        unreadNotificationCount,
         pendingItems,
         fetchPendingItems,
         refetch: fetchPendingCounts,
+        fetchUserNotifications,
+        markNotificationAsRead,
+        deleteNotification,
         chatToast,
         setChatToast,
         chatMessages,

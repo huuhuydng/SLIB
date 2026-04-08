@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,6 +34,7 @@ import slib.com.example.service.system.SystemLogService;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
@@ -69,8 +71,10 @@ public class UserController {
         try {
             AuthResponse response = authService.loginWithGoogle(idToken, fullName, fcmToken, deviceInfo);
             return ResponseEntity.ok(response);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(403).body(Map.of("message", e.getMessage()));
         } catch (RuntimeException e) {
-            return ResponseEntity.status(401).body("Lỗi: " + e.getMessage());
+            return ResponseEntity.status(401).body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -249,24 +253,26 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Boolean> request,
+            @RequestBody UserStatusUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Boolean isActive = request.get("isActive");
+            Boolean isActive = request.isActive();
             if (isActive == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "isActive field is required"));
             }
 
-            User updatedUser = userService.toggleUserActive(userId, isActive);
+            User updatedUser = userService.toggleUserActive(userId, isActive, request.reason());
             systemLogService.logAudit(
                     "UserController",
                     (isActive ? "Mở khóa" : "Khóa") + " tài khoản người dùng: " + userId,
                     null,
                     userDetails != null ? userDetails.getUsername() : null);
-            return ResponseEntity.ok(Map.of(
-                    "message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản",
-                    "userId", userId,
-                    "isActive", updatedUser.getIsActive()));
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản");
+            response.put("userId", userId);
+            response.put("isActive", updatedUser.getIsActive());
+            response.put("lockReason", updatedUser.getLockReason());
+            return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -706,5 +712,8 @@ public class UserController {
             case "locked", "inactive", "đã khóa", "da khoa" -> false;
             default -> null;
         };
+    }
+
+    public record UserStatusUpdateRequest(Boolean isActive, String reason) {
     }
 }

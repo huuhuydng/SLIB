@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -21,7 +21,7 @@ const AI_TABS = [
   { id: 'density', label: 'Dự đoán mật độ', icon: TrendingUp },
   { id: 'usage', label: 'Thống kê sử dụng', icon: Users },
   { id: 'behavior', label: 'Hành vi sinh viên', icon: UserX },
-  { id: 'capacity', label: 'Công suất tức thời', icon: Armchair },
+  { id: 'capacity', label: 'Mức sử dụng hiện tại', icon: Armchair },
 ];
 
 function AIAnalyticsPanel({ period = 'week' }) {
@@ -33,11 +33,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, [period]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -79,7 +75,11 @@ function AIAnalyticsPanel({ period = 'week' }) {
     }
 
     setLoading(false);
-  };
+  }, [period]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const renderPanelEmpty = (message) => (
     <div className="st-panel-empty st-ai-empty">
@@ -96,7 +96,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
             <Brain size={20} color="#e8600a" />
             <div>
               <h2 className="st-ai-title">Phân tích hỗ trợ bằng AI</h2>
-              <p className="st-ai-subtitle">Đang tổng hợp dữ liệu sử dụng thư viện, mật độ và công suất hiện tại.</p>
+              <p className="st-ai-subtitle">Đang tổng hợp dữ liệu sử dụng thư viện, mật độ và tình trạng chỗ ngồi hiện tại.</p>
             </div>
           </div>
         </div>
@@ -115,7 +115,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
           <Brain size={20} color="#e8600a" />
           <div>
             <h2 className="st-ai-title">Phân tích hỗ trợ bằng AI</h2>
-            <p className="st-ai-subtitle">Tổng hợp nhận định về mật độ sử dụng, hành vi người dùng và công suất thư viện.</p>
+            <p className="st-ai-subtitle">Tổng hợp nhận định về mật độ sử dụng, hành vi người dùng và tình trạng chỗ ngồi trong thư viện.</p>
           </div>
         </div>
       </div>
@@ -265,7 +265,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 </div>
                 <div className="st-ai-metric-card">
                   <span className="st-ai-metric-value">{behaviorData.totalBehaviors || 0}</span>
-                  <span className="st-ai-metric-label">Tổng lượt hành vi</span>
+                  <span className="st-ai-metric-label">Tổng lượt sử dụng ghi nhận</span>
                 </div>
                 <div className="st-ai-metric-card danger">
                   <span className="st-ai-metric-value">{behaviorData.totalNoShows || 0}</span>
@@ -311,7 +311,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 <div className="st-ai-block">
                   <h3 className="st-ai-block-title">
                     <Activity size={16} />
-                    Sinh viên sử dụng nhiều
+                    Sinh viên sử dụng ghế nhiều
                   </h3>
                   <div className="st-ai-list">
                     {behaviorData.topActiveStudents?.length ? (
@@ -345,29 +345,35 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 </div>
                 <div className="st-ai-metric-card">
                   <span className="st-ai-metric-value">{capacityData.occupied_seats || 0}</span>
-                  <span className="st-ai-metric-label">Ghế đang có người ngồi</span>
+                  <span className="st-ai-metric-label">Ghế đang được sử dụng</span>
                 </div>
                 <div className="st-ai-metric-card">
                   <span className="st-ai-metric-value">{capacityData.occupancy_rate || 0}%</span>
-                  <span className="st-ai-metric-label">Tỷ lệ sinh viên đang ngồi tại thời điểm hiện tại</span>
+                  <span className="st-ai-metric-label">Tỷ lệ chỗ ngồi đang được sử dụng</span>
                 </div>
                 <div className="st-ai-metric-card">
                   <span className="st-ai-metric-value">{capacityData.upcoming_1h || 0}</span>
-                  <span className="st-ai-metric-label">Lượt đặt chỗ bắt đầu trong 1 giờ tới</span>
+                  <span className="st-ai-metric-label">Lượt đặt chỗ sắp bắt đầu trong 1 giờ tới</span>
                 </div>
               </div>
 
               <div className={`st-callout ${capacityData.occupancy_rate >= 80 ? 'warning' : 'info'}`}>
-                <div className="st-callout-title">{capacityData.status || 'Trạng thái thư viện'}</div>
+                <div className="st-callout-title">{capacityData.status || 'Tình trạng chỗ ngồi'}</div>
                 <div className="st-callout-body">
-                  {capacityData.message || 'Chưa có nhận định công suất ở thời điểm hiện tại.'}
+                  {capacityData.message || 'Chưa có nhận định về tình trạng chỗ ngồi ở thời điểm hiện tại.'}
+                  {capacityData.reserved_seats > 0 && (
+                    <>
+                      <br />
+                      Hiện có thêm {capacityData.reserved_seats} ghế đã được giữ chỗ nhưng sinh viên chưa xác nhận ngồi.
+                    </>
+                  )}
                 </div>
               </div>
 
               <div className="st-ai-block">
                 <h3 className="st-ai-block-title">
                   <Armchair size={16} />
-                  Tỷ lệ sử dụng ghế theo khu vực
+                  Mức sử dụng chỗ ngồi theo khu vực
                 </h3>
                 {capacityData.zones?.length ? (
                   <div className="st-ai-seat-list">
@@ -377,24 +383,24 @@ function AIAnalyticsPanel({ period = 'week' }) {
                         <div className="st-ai-seat-main">
                           <div className="st-ai-seat-title">{zone.zone_name}</div>
                           <div className="st-ai-seat-subtitle">
-                            {zone.occupied_seats}/{zone.total_seats} ghế đang có người ngồi
+                            {zone.occupied_seats}/{zone.total_seats} ghế đang được sử dụng
                           </div>
                         </div>
                         <div className="st-ai-seat-side">
                           <span className={`st-ai-seat-badge ${zone.occupancy_rate >= 80 ? 'warn' : 'good'}`}>
-                            {zone.occupancy_rate}% lấp đầy
+                            {zone.occupancy_rate}% đang sử dụng
                           </span>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  renderPanelEmpty('Chưa có dữ liệu công suất theo khu vực')
+                  renderPanelEmpty('Chưa có dữ liệu tình trạng chỗ ngồi theo khu vực')
                 )}
               </div>
             </>
           ) : (
-            renderPanelEmpty('Chưa có dữ liệu công suất hiện tại.')
+            renderPanelEmpty('Chưa có dữ liệu tình trạng chỗ ngồi hiện tại.')
           )}
         </div>
       )}

@@ -12,12 +12,14 @@ import {
   LogOut
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import useAppDialog from "../../hooks/useAppDialog";
 
 import logo from "../../assets/logonencam.png";
 import "../../styles/admin/sidebar_default.css";
 
 const SidebarAdmin = () => {
   const { user, logout } = useAuth();
+  const { confirm } = useAppDialog();
 
   // Menu items dành riêng cho Admin
   const adminMenuItems = [
@@ -34,8 +36,15 @@ const SidebarAdmin = () => {
     { icon: Sparkles, label: "Cấu hình AI", path: "/ai-config" },
   ];
 
-  const handleLogout = () => {
-    if (confirm('Bạn có chắc muốn đăng xuất?')) {
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có chắc muốn đăng xuất?',
+      confirmText: 'Đăng xuất',
+      cancelText: 'Huỷ',
+      variant: 'warning',
+    });
+    if (confirmed) {
       logout();
     }
   };

@@ -24,6 +24,15 @@ class _AICardState extends State<AICard> {
     _loadAIData();
   }
 
+  Future<void> refresh() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
+    await _loadAIData();
+  }
+
   Future<void> _loadAIData() async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -109,7 +118,7 @@ class _AICardState extends State<AICard> {
         _buildHeader(),
         const SizedBox(height: 16),
         const Text(
-          "Dự báo: 14:00 - 16:00 thư viện sẽ vắng",
+          "Hiện chưa tải được gợi ý phù hợp",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -118,11 +127,11 @@ class _AICardState extends State<AICard> {
         ),
         const SizedBox(height: 6),
         const Text(
-          "Đây là thời điểm lý tưởng để bạn đặt chỗ tại khu vực yên tĩnh.",
+          "Bạn vẫn có thể mở sơ đồ thư viện để xem chỗ trống và đặt chỗ ngay.",
           style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
         ),
         const SizedBox(height: 16),
-        _buildActionButton("Đặt chỗ ngay", () {
+        _buildActionButton("Mở sơ đồ chỗ ngồi", () {
           _navigateToBooking();
         }),
       ],
