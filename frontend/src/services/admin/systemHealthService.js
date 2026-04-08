@@ -102,6 +102,13 @@ const systemHealthService = {
         window.URL.revokeObjectURL(blobUrl);
     },
 
+    restoreBackup: async (backupId) => {
+        const res = await axios.post(`${API_BASE}/slib/system/backup/restore/${backupId}`, {}, {
+            headers: getAuthHeaders()
+        });
+        return res.data;
+    },
+
     // =========================================
     // === BACKUP SCHEDULE (FE-58) ===
     // =========================================

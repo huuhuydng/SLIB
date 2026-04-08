@@ -122,6 +122,34 @@ public class BackupController {
         }
     }
 
+    /**
+     * POST /slib/system/backup/restore/{id}
+     * Restore PostgreSQL database from an existing backup file.
+     */
+    @PostMapping("/restore/{id}")
+    public ResponseEntity<Map<String, Object>> restoreBackup(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            backupService.restoreBackup(id);
+            systemLogService.logAudit(
+                    "BackupController",
+                    "Khôi phục dữ liệu PostgreSQL từ backup: " + id,
+                    null,
+                    userDetails != null ? userDetails.getUsername() : null);
+            return ResponseEntity.ok(Map.of(
+                    "status", "SUCCESS",
+                    "message", "Khôi phục dữ liệu PostgreSQL thành công. Bạn nên kiểm tra lại hệ thống ngay sau khi phục hồi."
+            ));
+        } catch (Exception e) {
+            systemLogService.logError("BackupController", "Khôi phục dữ liệu thất bại", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "status", "FAILED",
+                    "message", e.getMessage() != null ? e.getMessage() : "Khôi phục dữ liệu thất bại"
+            ));
+        }
+    }
+
     // =========================================
     // === BACKUP SCHEDULE ===
     // =========================================

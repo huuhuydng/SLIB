@@ -72,6 +72,7 @@ const SystemHealth = () => {
   const [scheduleActive, setScheduleActive] = useState(false);
   const [loadingBackup, setLoadingBackup] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [restoringBackupId, setRestoringBackupId] = useState(null);
   const [backupError, setBackupError] = useState('');
 
   useEffect(() => {
@@ -202,6 +203,34 @@ const SystemHealth = () => {
     } catch (e) {
       console.error('Failed to download backup:', e);
       setBackupError(parseApiError(e, 'Không thể tải file sao lưu'));
+    }
+  };
+
+  const handleRestoreBackup = async (backupId, fileName) => {
+    const confirmed = await confirm({
+      title: 'Khôi phục dữ liệu PostgreSQL',
+      message: `Bạn có chắc muốn khôi phục dữ liệu PostgreSQL từ file ${fileName || 'đã chọn'}? Thao tác này có thể ghi đè dữ liệu hiện tại và nên thực hiện ngoài giờ vận hành.`,
+      confirmText: 'Khôi phục',
+      cancelText: 'Huỷ',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
+    try {
+      setRestoringBackupId(backupId);
+      setBackupError('');
+      const result = await systemHealthService.restoreBackup(backupId);
+      await fetchBackupData();
+      await alert({
+        title: 'Khôi phục thành công',
+        message: result?.message || 'Đã khôi phục dữ liệu PostgreSQL từ bản sao lưu đã chọn.',
+        icon: 'success',
+      });
+    } catch (e) {
+      console.error('Failed to restore backup:', e);
+      setBackupError(parseApiError(e, 'Không thể khôi phục dữ liệu từ file sao lưu'));
+    } finally {
+      setRestoringBackupId(null);
     }
   };
 
@@ -350,14 +379,14 @@ const SystemHealth = () => {
       note: 'Nhật ký được lưu theo nhóm lỗi hệ thống, hiệu năng, tích hợp, tác vụ nền và thao tác quản trị. Dùng tab này để truy vết nguyên nhân khi có sự cố vận hành.'
     },
     backup: {
-      title: 'Sao lưu dữ liệu',
-      description: 'Quản lý sao lưu thủ công và lịch sao lưu tự động để đảm bảo dữ liệu thư viện có thể khôi phục khi xảy ra sự cố.',
+      title: 'Sao lưu và khôi phục PostgreSQL',
+      description: 'Quản lý sao lưu thủ công, lịch sao lưu tự động và khôi phục dữ liệu PostgreSQL khi cần phục hồi dữ liệu thư viện.',
       chips: [
         scheduleActive ? 'Lịch sao lưu đang bật' : 'Lịch sao lưu đang tắt',
         `Giữ tối đa ${scheduleRetainDays} ngày`,
-        'Định dạng tệp PostgreSQL .dump',
+        'Chỉ áp dụng cho dữ liệu PostgreSQL (.dump)',
       ],
-      note: 'Bản sao lưu được tạo dưới định dạng PostgreSQL .dump để phục vụ khôi phục hệ thống. Nên kiểm tra định kỳ lịch sao lưu và tải thử một bản khi cần xác nhận quy trình phục hồi.'
+      note: 'Tab này hiện chỉ sao lưu và khôi phục dữ liệu PostgreSQL của hệ thống SLIB. Chưa bao gồm MongoDB chat history, Qdrant vector DB, Redis hay các file upload ngoài cơ sở dữ liệu.'
     }
   }[activeTab];
 
@@ -837,7 +866,7 @@ const SystemHealth = () => {
                 }}>
                   <HardDrive size={48} color="#e8600a" style={{ marginBottom: '12px' }} />
                   <p style={{ fontSize: '14px', color: '#4A5568', margin: '0 0 16px' }}>
-                    Tạo bản sao lưu database ngay lập tức
+                    Tạo bản sao lưu dữ liệu PostgreSQL ngay lập tức
                   </p>
                   <button
                     onClick={handleManualBackup}
@@ -862,6 +891,26 @@ const SystemHealth = () => {
                       </>
                     )}
                   </button>
+                </div>
+
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: '#FFFBEB',
+                  border: '1px solid #FDE68A'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <AlertTriangle size={18} color="#D97706" style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400E', marginBottom: '6px' }}>
+                        Phạm vi sao lưu hiện tại
+                      </div>
+                      <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#92400E' }}>
+                        Chỉ bao gồm dữ liệu PostgreSQL của SLIB. Chưa bao gồm MongoDB, Qdrant, Redis và các file upload ngoài cơ sở dữ liệu.
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {backupError && (
@@ -960,6 +1009,19 @@ const SystemHealth = () => {
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1A1A1A', margin: 0 }}>Lịch sử sao lưu</h3>
               </div>
               <div style={{ padding: '16px 24px' }}>
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  color: '#475569',
+                  fontSize: '13px',
+                  lineHeight: '1.6'
+                }}>
+                  Bạn có thể tải file <strong>.dump</strong> về để lưu trữ, hoặc dùng nút <strong>Khôi phục</strong> để phục hồi lại dữ liệu PostgreSQL từ một bản sao lưu thành công ngay trên hệ thống. Khuyến nghị chỉ khôi phục ngoài giờ vận hành.
+                </div>
+
                 {backupError && !loadingBackup && backupHistory.length === 0 ? (
                   <LoadErrorState
                     title="Không thể tải dữ liệu sao lưu"
@@ -1007,16 +1069,37 @@ const SystemHealth = () => {
                           </td>
                           <td style={{ padding: '16px', textAlign: 'center' }}>
                             {backup.status === 'SUCCESS' && (
-                              <button
-                                onClick={() => handleDownloadBackup(backup.id, backup.fileName)}
-                                style={{
-                                  padding: '8px 12px', background: '#F7FAFC', border: '1px solid #E2E8F0',
-                                  borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: '#4A5568',
-                                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
-                                }}>
-                                <Download size={14} />
-                                Tải xuống
-                              </button>
+                              <div style={{ display: 'inline-flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                                <button
+                                  onClick={() => handleDownloadBackup(backup.id, backup.fileName)}
+                                  style={{
+                                    padding: '8px 12px', background: '#F7FAFC', border: '1px solid #E2E8F0',
+                                    borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: '#4A5568',
+                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+                                  }}>
+                                  <Download size={14} />
+                                  Tải xuống
+                                </button>
+                                <button
+                                  onClick={() => handleRestoreBackup(backup.id, backup.fileName)}
+                                  disabled={restoringBackupId === backup.id}
+                                  style={{
+                                    padding: '8px 12px',
+                                    background: restoringBackupId === backup.id ? '#CBD5E1' : '#FFF7ED',
+                                    border: '1px solid #FDBA74',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    color: '#C2410C',
+                                    cursor: restoringBackupId === backup.id ? 'not-allowed' : 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                  }}>
+                                  <RotateCcw size={14} />
+                                  {restoringBackupId === backup.id ? 'Đang khôi phục...' : 'Khôi phục'}
+                                </button>
+                              </div>
                             )}
                             {backup.status === 'FAILED' && backup.errorMessage && (
                               <span style={{ fontSize: '12px', color: '#DC2626' }} title={backup.errorMessage}>Xem lỗi</span>
