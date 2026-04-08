@@ -92,7 +92,37 @@
   color: var(--lib-primary);
 }
 
+.st-export-btn {
+  height: 38px;
+  border: 1px solid rgba(232, 96, 10, 0.18);
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+  border-radius: var(--lib-r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--lib-primary);
+  transition: var(--lib-transition);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.st-export-btn:hover:not(:disabled) {
+  border-color: var(--lib-primary);
+  box-shadow: 0 8px 18px rgba(255, 117, 31, 0.14);
+  transform: translateY(-1px);
+}
+
+.st-export-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .st-refresh-btn .spinning,
+.st-export-btn .spinning,
 .st-ai-loading-icon {
   animation: lib-spin 0.8s linear infinite;
 }

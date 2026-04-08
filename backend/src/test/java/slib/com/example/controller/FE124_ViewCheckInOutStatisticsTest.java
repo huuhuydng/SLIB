@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-124: View check-in/check-out statistics
  * Tests StatisticController.getStatistics() with focus on check-in overview data
+ * Test Report: doc/Report/UnitTestReport/FE124_TestReport.md
  */
 @WebMvcTest(value = StatisticController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

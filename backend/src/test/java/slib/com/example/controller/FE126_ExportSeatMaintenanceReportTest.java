@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-126: Export seat & maintenance report
  * Tests HCEController.exportAccessLogsToExcel() endpoint
+ * Test Report: doc/Report/UnitTestReport/FE126_TestReport.md
  */
 @WebMvcTest(value = HCEController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

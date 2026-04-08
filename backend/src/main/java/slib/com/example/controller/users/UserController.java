@@ -252,15 +252,15 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> toggleUserStatus(
             @PathVariable java.util.UUID userId,
-            @RequestBody Map<String, Boolean> request,
+            @RequestBody UserStatusUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Boolean isActive = request.get("isActive");
+            Boolean isActive = request.isActive();
             if (isActive == null) {
                 return ResponseEntity.badRequest().body(Map.of("error", "isActive field is required"));
             }
 
-            User updatedUser = userService.toggleUserActive(userId, isActive);
+            User updatedUser = userService.toggleUserActive(userId, isActive, request.reason());
             systemLogService.logAudit(
                     "UserController",
                     (isActive ? "Mở khóa" : "Khóa") + " tài khoản người dùng: " + userId,
@@ -269,7 +269,8 @@ public class UserController {
             return ResponseEntity.ok(Map.of(
                     "message", isActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản",
                     "userId", userId,
-                    "isActive", updatedUser.getIsActive()));
+                    "isActive", updatedUser.getIsActive(),
+                    "lockReason", updatedUser.getLockReason()));
 
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -709,5 +710,8 @@ public class UserController {
             case "locked", "inactive", "đã khóa", "da khoa" -> false;
             default -> null;
         };
+    }
+
+    public record UserStatusUpdateRequest(Boolean isActive, String reason) {
     }
 }

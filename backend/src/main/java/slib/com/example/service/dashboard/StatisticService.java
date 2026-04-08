@@ -1,5 +1,15 @@
 package slib.com.example.service.dashboard;
 
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,7 +21,10 @@ import slib.com.example.repository.complaint.ComplaintRepository;
 import slib.com.example.repository.feedback.FeedbackRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.hce.AccessLogRepository;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -60,6 +73,29 @@ public class StatisticService {
                 .peakHours(peakHours)
                 .insights(buildInsights(bookingAnalysis, violationsByType, zoneUsage, peakHours, feedbackSummary))
                 .build();
+    }
+
+    public byte[] exportStatisticsToExcel(String range) throws IOException {
+        StatisticDTO statistic = getStatistics(range);
+        String rangeLabel = getRangeLabel(range);
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dataStyle = createDataStyle(workbook);
+            CellStyle titleStyle = createTitleStyle(workbook);
+
+            createOverviewSheet(workbook, statistic, rangeLabel, headerStyle, dataStyle, titleStyle);
+            createBookingSheet(workbook, statistic, headerStyle, dataStyle, titleStyle);
+            createViolationSheet(workbook, statistic, headerStyle, dataStyle, titleStyle);
+            createFeedbackSheet(workbook, statistic, headerStyle, dataStyle, titleStyle, dateTimeFormatter);
+            createZoneUsageSheet(workbook, statistic, headerStyle, dataStyle, titleStyle);
+            createPeakHoursSheet(workbook, statistic, headerStyle, dataStyle, titleStyle);
+            createInsightsSheet(workbook, statistic, headerStyle, dataStyle, titleStyle);
+
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
     }
 
     private PeriodWindow calculatePeriodWindow(String range) {
@@ -384,5 +420,347 @@ public class StatisticService {
             LocalDateTime currentEnd,
             LocalDateTime previousStart,
             LocalDateTime previousEnd) {
+    }
+
+    private String getRangeLabel(String range) {
+        return switch (range == null ? "" : range.toLowerCase(Locale.ROOT)) {
+            case "day" -> "Hôm nay";
+            case "month" -> "Tháng này";
+            case "year" -> "Năm nay";
+            default -> "Tuần này";
+        };
+    }
+
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setColor(IndexedColors.WHITE.getIndex());
+        style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.DARK_TEAL.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
+    private CellStyle createDataStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+
+    private CellStyle createTitleStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        style.setFont(font);
+        return style;
+    }
+
+    private void createOverviewSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            String rangeLabel,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Tong quan");
+        int rowIndex = 0;
+
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Báo cáo thống kê thư viện");
+        titleCell.setCellStyle(titleStyle);
+
+        Row rangeRow = sheet.createRow(rowIndex++);
+        rangeRow.createCell(0).setCellValue("Giai đoạn");
+        rangeRow.createCell(1).setCellValue(rangeLabel);
+
+        rowIndex++;
+
+        String[] headers = { "Chỉ số", "Giá trị hiện tại", "Kỳ trước", "Chênh lệch", "Tỷ lệ thay đổi (%)" };
+        Row headerRow = sheet.createRow(rowIndex++);
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        StatisticDTO.OverviewDTO overview = statistic.getOverview();
+        StatisticDTO.OverviewComparisonDTO comparison = statistic.getComparison();
+        writeMetricRow(sheet, rowIndex++, "Lượt check-in", overview != null ? overview.getTotalCheckIns() : 0,
+                comparison != null ? comparison.getCheckIns() : null, dataStyle);
+        writeMetricRow(sheet, rowIndex++, "Lượt đặt chỗ", overview != null ? overview.getTotalBookings() : 0,
+                comparison != null ? comparison.getBookings() : null, dataStyle);
+        writeMetricRow(sheet, rowIndex++, "Vi phạm", overview != null ? overview.getTotalViolations() : 0,
+                comparison != null ? comparison.getViolations() : null, dataStyle);
+        writeMetricRow(sheet, rowIndex++, "Phản hồi", overview != null ? overview.getTotalFeedbacks() : 0,
+                comparison != null ? comparison.getFeedbacks() : null, dataStyle);
+        writeMetricRow(sheet, rowIndex++, "Khiếu nại", overview != null ? overview.getTotalComplaints() : 0,
+                comparison != null ? comparison.getComplaints() : null, dataStyle);
+
+        setColumnWidths(sheet, 24, 18, 18, 16, 18);
+    }
+
+    private void writeMetricRow(Sheet sheet, int rowIndex, String label, long currentValue,
+            StatisticDTO.MetricDeltaDTO delta, CellStyle dataStyle) {
+        Row row = sheet.createRow(rowIndex);
+        writeCell(row, 0, label, dataStyle);
+        writeCell(row, 1, currentValue, dataStyle);
+        writeCell(row, 2, delta != null ? delta.getPreviousValue() : 0, dataStyle);
+        writeCell(row, 3, delta != null ? delta.getChangeValue() : 0, dataStyle);
+        writeCell(row, 4, delta != null ? delta.getChangePercent() : 0, dataStyle);
+    }
+
+    private void createBookingSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Dat cho");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Phân tích đặt chỗ");
+        titleCell.setCellStyle(titleStyle);
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Chỉ số", "Giá trị", "Tỷ lệ (%)" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        StatisticDTO.BookingAnalysisDTO booking = statistic.getBookingAnalysis();
+        if (booking != null) {
+            writeSimpleRow(sheet, rowIndex++, "Tổng lượt đặt chỗ", booking.getTotalBookings(), null, dataStyle);
+            writeSimpleRow(sheet, rowIndex++, "Đã sử dụng", booking.getUsedBookings(), booking.getUsedPercent(), dataStyle);
+            writeSimpleRow(sheet, rowIndex++, "Đã hủy", booking.getCancelledBookings(), booking.getCancelledPercent(), dataStyle);
+            writeSimpleRow(sheet, rowIndex++, "Không đến", booking.getExpiredNoShow(), booking.getExpiredPercent(), dataStyle);
+        }
+
+        setColumnWidths(sheet, 24, 16, 16);
+    }
+
+    private void writeSimpleRow(Sheet sheet, int rowIndex, String label, Number value, Double percent, CellStyle dataStyle) {
+        Row row = sheet.createRow(rowIndex);
+        writeCell(row, 0, label, dataStyle);
+        writeCell(row, 1, value != null ? value.doubleValue() : 0, dataStyle);
+        writeCell(row, 2, percent != null ? percent : null, dataStyle);
+    }
+
+    private void createViolationSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Vi pham");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Thống kê vi phạm");
+        titleCell.setCellStyle(titleStyle);
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Loại vi phạm", "Mã loại", "Số lượt" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        List<StatisticDTO.ViolationTypeStatDTO> rows = statistic.getViolationsByType();
+        if (rows != null) {
+            for (StatisticDTO.ViolationTypeStatDTO item : rows) {
+                Row row = sheet.createRow(rowIndex++);
+                writeCell(row, 0, item.getLabel(), dataStyle);
+                writeCell(row, 1, item.getViolationType(), dataStyle);
+                writeCell(row, 2, item.getCount(), dataStyle);
+            }
+        }
+
+        setColumnWidths(sheet, 28, 22, 12);
+    }
+
+    private void createFeedbackSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle,
+            DateTimeFormatter dateTimeFormatter) {
+        Sheet sheet = workbook.createSheet("Phan hoi");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Phản hồi gần đây");
+        titleCell.setCellStyle(titleStyle);
+
+        StatisticDTO.FeedbackSummaryDTO feedback = statistic.getFeedbackSummary();
+        rowIndex++;
+        Row summaryRow = sheet.createRow(rowIndex++);
+        writeCell(summaryRow, 0, "Điểm trung bình", dataStyle);
+        writeCell(summaryRow, 1, feedback != null ? feedback.getAverageRating() : 0, dataStyle);
+        writeCell(summaryRow, 2, "Tổng phản hồi", dataStyle);
+        writeCell(summaryRow, 3, feedback != null ? feedback.getTotalCount() : 0, dataStyle);
+
+        rowIndex++;
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Sinh viên", "Mã số", "Đánh giá", "Nội dung", "Thời gian" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        if (feedback != null && feedback.getRecentFeedbacks() != null) {
+            for (StatisticDTO.RecentFeedbackDTO item : feedback.getRecentFeedbacks()) {
+                Row row = sheet.createRow(rowIndex++);
+                writeCell(row, 0, item.getUserName(), dataStyle);
+                writeCell(row, 1, item.getUserCode(), dataStyle);
+                writeCell(row, 2, item.getRating(), dataStyle);
+                writeCell(row, 3, item.getContent(), dataStyle);
+                writeCell(row, 4, item.getCreatedAt() != null ? item.getCreatedAt().format(dateTimeFormatter) : "-", dataStyle);
+            }
+        }
+
+        setColumnWidths(sheet, 24, 14, 10, 48, 20);
+    }
+
+    private void createZoneUsageSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Khu vuc");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Mức sử dụng khu vực");
+        titleCell.setCellStyle(titleStyle);
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Khu vực", "Phòng", "Tổng ghế", "Lượt sử dụng", "Tỷ lệ sử dụng (%)" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        List<StatisticDTO.ZoneUsageDTO> rows = statistic.getZoneUsage();
+        if (rows != null) {
+            for (StatisticDTO.ZoneUsageDTO item : rows) {
+                Row row = sheet.createRow(rowIndex++);
+                writeCell(row, 0, item.getZoneName(), dataStyle);
+                writeCell(row, 1, item.getAreaName(), dataStyle);
+                writeCell(row, 2, item.getTotalSeats(), dataStyle);
+                writeCell(row, 3, item.getTotalBookings(), dataStyle);
+                writeCell(row, 4, item.getUsagePercent(), dataStyle);
+            }
+        }
+
+        setColumnWidths(sheet, 24, 24, 12, 14, 18);
+    }
+
+    private void createPeakHoursSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Khung gio");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Khung giờ check-in");
+        titleCell.setCellStyle(titleStyle);
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Khung giờ", "Lượt check-in" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        List<StatisticDTO.PeakHourDTO> rows = statistic.getPeakHours();
+        if (rows != null) {
+            for (StatisticDTO.PeakHourDTO item : rows) {
+                Row row = sheet.createRow(rowIndex++);
+                writeCell(row, 0, item.getHour() + ":00", dataStyle);
+                writeCell(row, 1, item.getCount(), dataStyle);
+            }
+        }
+
+        setColumnWidths(sheet, 16, 14);
+    }
+
+    private void createInsightsSheet(
+            Workbook workbook,
+            StatisticDTO statistic,
+            CellStyle headerStyle,
+            CellStyle dataStyle,
+            CellStyle titleStyle) {
+        Sheet sheet = workbook.createSheet("Nhan dinh");
+        int rowIndex = 0;
+        Row titleRow = sheet.createRow(rowIndex++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Nhận định nổi bật");
+        titleCell.setCellStyle(titleStyle);
+        rowIndex++;
+
+        Row headerRow = sheet.createRow(rowIndex++);
+        String[] headers = { "Nhóm", "Tiêu đề", "Mô tả", "Mức độ" };
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        List<StatisticDTO.InsightDTO> rows = statistic.getInsights();
+        if (rows != null) {
+            for (StatisticDTO.InsightDTO item : rows) {
+                Row row = sheet.createRow(rowIndex++);
+                writeCell(row, 0, item.getType(), dataStyle);
+                writeCell(row, 1, item.getTitle(), dataStyle);
+                writeCell(row, 2, item.getDescription(), dataStyle);
+                writeCell(row, 3, item.getTone(), dataStyle);
+            }
+        }
+
+        setColumnWidths(sheet, 16, 28, 52, 12);
+    }
+
+    private void writeCell(Row row, int colIndex, Object value, CellStyle style) {
+        Cell cell = row.createCell(colIndex);
+        if (value == null) {
+            cell.setCellValue("-");
+        } else if (value instanceof Number number) {
+            cell.setCellValue(number.doubleValue());
+        } else {
+            cell.setCellValue(String.valueOf(value));
+        }
+        cell.setCellStyle(style);
+    }
+
+    private void setColumnWidths(Sheet sheet, int... widths) {
+        for (int i = 0; i < widths.length; i++) {
+            sheet.setColumnWidth(i, widths[i] * 256);
+        }
     }
 }

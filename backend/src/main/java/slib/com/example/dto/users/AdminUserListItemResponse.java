@@ -14,6 +14,7 @@ public record AdminUserListItemResponse(
         String userCode,
         String role,
         Boolean isActive,
+        String lockReason,
         String avtUrl,
         Boolean passwordChanged,
         String phone,

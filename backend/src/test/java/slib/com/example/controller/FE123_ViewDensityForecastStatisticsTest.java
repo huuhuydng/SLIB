@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-123: View statistics of density forecast by using AI
  * Tests StatisticController.getStatistics() with focus on peak hours / density data
+ * Test Report: doc/Report/UnitTestReport/FE123_TestReport.md
  */
 @WebMvcTest(value = StatisticController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

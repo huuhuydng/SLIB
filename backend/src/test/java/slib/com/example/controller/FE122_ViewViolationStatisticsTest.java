@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-122: View violation statistics
  * Tests StatisticController.getStatistics() with focus on violation data
+ * Test Report: doc/Report/UnitTestReport/FE122_TestReport.md
  */
 @WebMvcTest(value = StatisticController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

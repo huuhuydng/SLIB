@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-125: View seat booking statistics
  * Tests StatisticController.getStatistics() with focus on booking analysis and zone usage
+ * Test Report: doc/Report/UnitTestReport/FE125_TestReport.md
  */
 @WebMvcTest(value = StatisticController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

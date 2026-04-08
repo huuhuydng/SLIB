@@ -21,6 +21,15 @@ import useAppDialog from "../../../hooks/useAppDialog";
 
 import "../../../styles/librarian/Dashboard.css";
 
+const PANEL_LIMITS = {
+  topStudents: 5,
+  pendingViolations: 5,
+  requestItems: 5,
+  recentNews: 4,
+  zoneAreas: 3,
+  zonesPerArea: 4,
+};
+
 const Dashboard = () => {
   const { confirm, alert } = useAppDialog();
   const [searchText, setSearchText] = useState("");
@@ -509,6 +518,21 @@ const Dashboard = () => {
     [stats.recentViolations]
   );
 
+  const displayedTopStudentsData = useMemo(
+    () => topStudentsData.slice(0, PANEL_LIMITS.topStudents),
+    [topStudentsData]
+  );
+
+  const displayedPendingRecentViolations = useMemo(
+    () => pendingRecentViolations.slice(0, PANEL_LIMITS.pendingViolations),
+    [pendingRecentViolations]
+  );
+
+  const displayedRecentNews = useMemo(
+    () => recentNews.slice(0, PANEL_LIMITS.recentNews),
+    [recentNews]
+  );
+
   // Greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -547,13 +571,19 @@ const Dashboard = () => {
     return grouped;
   }, [stats.zoneOccupancies]);
 
+  const displayedZonesByArea = useMemo(() => {
+    return Object.entries(zonesByArea)
+      .slice(0, PANEL_LIMITS.zoneAreas)
+      .map(([areaName, zones]) => [areaName, zones.slice(0, PANEL_LIMITS.zonesPerArea)]);
+  }, [zonesByArea]);
+
   // Get active request tab data
   const getActiveRequestData = () => {
     switch (activeRequestTab) {
-      case 'support': return stats.recentSupportRequests;
-      case 'violation': return pendingRecentViolations;
-      case 'complaint': return stats.recentComplaints;
-      case 'feedback': return stats.recentFeedbacks;
+      case 'support': return stats.recentSupportRequests.slice(0, PANEL_LIMITS.requestItems);
+      case 'violation': return pendingRecentViolations.slice(0, PANEL_LIMITS.requestItems);
+      case 'complaint': return stats.recentComplaints.slice(0, PANEL_LIMITS.requestItems);
+      case 'feedback': return stats.recentFeedbacks.slice(0, PANEL_LIMITS.requestItems);
       default: return [];
     }
   };
@@ -1168,10 +1198,10 @@ const Dashboard = () => {
                 </span>
               </div>
 
-              {Object.keys(zonesByArea).length === 0 ? (
+              {displayedZonesByArea.length === 0 ? (
                 <div className="empty-section">Chưa có dữ liệu công suất theo khu vực</div>
               ) : (
-                Object.entries(zonesByArea).map(([areaName, zones]) => (
+                displayedZonesByArea.map(([areaName, zones]) => (
                   <div key={areaName} className="zone-area-group">
                     <div className="zone-area-header">
                       <MapPin size={13} />
@@ -1578,13 +1608,13 @@ const Dashboard = () => {
               </select>
             </div>
 
-            {topStudentsData.length === 0 ? (
+            {displayedTopStudentsData.length === 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: '200px', color: 'var(--muted)', fontSize: '14px', fontStyle: 'italic' }}>
                 Chưa có dữ liệu sinh viên nổi bật
               </div>
             ) : (
               <div className="top-students-list dashboard-entity-list">
-                {topStudentsData.map((student, idx) => (
+                {displayedTopStudentsData.map((student, idx) => (
                   <div key={idx} className="top-student-item dashboard-entity-item">
                     <div className={`top-student-rank rank-${idx + 1}`}>
                       {idx + 1}
@@ -1638,11 +1668,11 @@ const Dashboard = () => {
             </div>
 
             {
-              pendingRecentViolations.length === 0 ? (
+              displayedPendingRecentViolations.length === 0 ? (
                 <div className="empty-section">Hiện không có vi phạm nào cần được xử lý</div>
               ) : (
                 <div className="violations-list dashboard-entity-list">
-                  {pendingRecentViolations.map((v, idx) => {
+                  {displayedPendingRecentViolations.map((v, idx) => {
                     const statusCfg = getStatusConfig(v.status);
                     return (
                         <div key={idx} className="violation-item violation-item-clickable dashboard-entity-item" onClick={() => setDetailModal({ type: 'violation', data: v })}>
@@ -1796,11 +1826,11 @@ const Dashboard = () => {
               </a>
             </div>
 
-            {recentNews.length === 0 ? (
+            {displayedRecentNews.length === 0 ? (
               <div className="empty-section">Chưa có tin tức</div>
             ) : (
               <div className="dashboard-media-list">
-                {recentNews.map((news, idx) => (
+                {displayedRecentNews.map((news, idx) => (
                   <div
                     key={idx}
                     className="dashboard-media-item dashboard-media-item--news news-card-clickable"

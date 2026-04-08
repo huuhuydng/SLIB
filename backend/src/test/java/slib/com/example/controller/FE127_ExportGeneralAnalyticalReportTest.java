@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Unit Tests for FE-127: Export general analytical report
  * Tests StatisticController.getStatistics() which provides data for analytical report export
+ * Test Report: doc/Report/UnitTestReport/FE127_TestReport.md
  */
 @WebMvcTest(value = StatisticController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
         slib.com.example.security.JwtAuthenticationFilter.class }))

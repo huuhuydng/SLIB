@@ -252,6 +252,12 @@ function Login({ onLogin, onForgotPassword }) {
         title: 'Tài khoản chưa được cấp quyền',
         message: errorMessage
       });
+    } else if (errorMessage.includes('bị khóa')) {
+      setError({
+        type: 'warning',
+        title: 'Tài khoản đã bị khóa',
+        message: errorMessage
+      });
     } else if (errorMessage.includes('not found') || errorMessage.includes('không tồn tại')) {
       setError({
         type: 'error',
