@@ -10,10 +10,11 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token =
+    localStorage.getItem("kiosk_device_token") ||
+    sessionStorage.getItem("kiosk_device_token") ||
     sessionStorage.getItem("librarian_token") ||
     localStorage.getItem("librarian_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("kiosk_device_token");
+    localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

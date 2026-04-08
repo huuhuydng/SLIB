@@ -182,7 +182,6 @@ function KioskCanvas({ onSeatClick }) {
 
     const handleTouchStart = useCallback((e) => {
         if (e.touches.length === 2) {
-            e.preventDefault();
             touchRef.current.lastDistance = getDistance(e.touches[0], e.touches[1]);
             touchRef.current.lastCenter = getCenter(e.touches[0], e.touches[1]);
             touchRef.current.isPanning = false;
@@ -194,7 +193,6 @@ function KioskCanvas({ onSeatClick }) {
 
     const handleTouchMove = useCallback((e) => {
         if (e.touches.length === 2) {
-            e.preventDefault();
             const newDist = getDistance(e.touches[0], e.touches[1]);
             const newCenter = getCenter(e.touches[0], e.touches[1]);
             if (touchRef.current.lastDistance > 0) {
