@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -33,11 +33,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, [period]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -79,7 +75,11 @@ function AIAnalyticsPanel({ period = 'week' }) {
     }
 
     setLoading(false);
-  };
+  }, [period]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const renderPanelEmpty = (message) => (
     <div className="st-panel-empty st-ai-empty">
@@ -265,7 +265,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 </div>
                 <div className="st-ai-metric-card">
                   <span className="st-ai-metric-value">{behaviorData.totalBehaviors || 0}</span>
-                  <span className="st-ai-metric-label">Tổng lượt hành vi</span>
+                  <span className="st-ai-metric-label">Tổng lượt sử dụng ghi nhận</span>
                 </div>
                 <div className="st-ai-metric-card danger">
                   <span className="st-ai-metric-value">{behaviorData.totalNoShows || 0}</span>
@@ -311,7 +311,7 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 <div className="st-ai-block">
                   <h3 className="st-ai-block-title">
                     <Activity size={16} />
-                    Sinh viên sử dụng nhiều
+                    Sinh viên sử dụng ghế nhiều
                   </h3>
                   <div className="st-ai-list">
                     {behaviorData.topActiveStudents?.length ? (
@@ -361,6 +361,12 @@ function AIAnalyticsPanel({ period = 'week' }) {
                 <div className="st-callout-title">{capacityData.status || 'Trạng thái thư viện'}</div>
                 <div className="st-callout-body">
                   {capacityData.message || 'Chưa có nhận định công suất ở thời điểm hiện tại.'}
+                  {capacityData.reserved_seats > 0 && (
+                    <>
+                      <br />
+                      Hiện có thêm {capacityData.reserved_seats} ghế đang được giữ chỗ nhưng chưa xác nhận ngồi.
+                    </>
+                  )}
                 </div>
               </div>
 

@@ -151,7 +151,7 @@ async def get_student_behavior_analytics(request: StudentBehaviorRequest) -> Dic
 
 
 @router.get("/behavior-issues")
-async def get_behavior_issues(limit: int = 5) -> Dict[str, Any]:
+async def get_behavior_issues(limit: int = 3) -> Dict[str, Any]:
     """
     Lấy danh sách sinh viên có vấn đề hành vi (bỏ chỗ nhiều, điểm uy tín thấp, vi phạm)
     Được gọi bởi Librarian Dashboard.
@@ -397,7 +397,8 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                     SUM(CASE WHEN status = 'EXPIRED' THEN 1 ELSE 0 END) AS total_no_shows,
                     SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS total_cancellations
                 FROM reservations
-                WHERE created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                WHERE start_time >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND status IN ('COMPLETED', 'CONFIRMED', 'EXPIRED', 'CANCELLED')
             """), {"days": days})
             agg_row = agg_result.fetchone()
 
@@ -406,18 +407,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
             total_no_shows_reservations = agg_row[2] or 0
             total_cancellations = agg_row[3] or 0
 
-            # --- Check student_behaviors table for NO_SHOW records ---
-            try:
-                sb_result = conn.execute(text("""
-                    SELECT COUNT(*) FROM student_behaviors
-                    WHERE behavior_type = 'NO_SHOW'
-                      AND created_at >= NOW() - MAKE_INTERVAL(days => :days)
-                """), {"days": days})
-                sb_no_shows = sb_result.fetchone()[0] or 0
-            except Exception:
-                sb_no_shows = 0
-
-            total_no_shows = max(total_no_shows_reservations, sb_no_shows)
+            total_no_shows = total_no_shows_reservations
 
             avg_no_show_rate = round(total_no_shows / max(total_behaviors, 1), 4)
             avg_cancellation_rate = round(total_cancellations / max(total_behaviors, 1), 4)
@@ -432,7 +422,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                 FROM reservations r
                 JOIN users u ON u.id = r.user_id
                 WHERE r.status = 'EXPIRED'
-                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND r.start_time >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY r.user_id, u.full_name, u.user_code
                 ORDER BY no_show_count DESC
                 LIMIT 10
@@ -457,7 +447,7 @@ async def get_behavior_summary(days: int = 7) -> Dict[str, Any]:
                 FROM reservations r
                 JOIN users u ON u.id = r.user_id
                 WHERE r.status IN ('COMPLETED', 'CONFIRMED')
-                  AND r.created_at >= NOW() - MAKE_INTERVAL(days => :days)
+                  AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
                 GROUP BY r.user_id, u.full_name, u.user_code
                 ORDER BY usage_count DESC
                 LIMIT 10
@@ -506,21 +496,69 @@ async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -
         from sqlalchemy import text
 
         with engine.connect() as conn:
-            # Get total seats for normalization
-            seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
-            total_seats = seats_result.fetchone()[0] or 1
+            if zone_id:
+                seats_result = conn.execute(text("""
+                    SELECT COUNT(*)
+                    FROM seats
+                    WHERE is_active = true
+                      AND zone_id = CAST(:zone_id AS INTEGER)
+                """), {"zone_id": zone_id})
+                total_seats = seats_result.fetchone()[0] or 1
 
-            # Get hourly distribution
-            hourly_result = conn.execute(text("""
-                SELECT
-                    EXTRACT(HOUR FROM check_in_time) as hour,
-                    COUNT(*) as count,
-                    COUNT(DISTINCT DATE(check_in_time)) as num_days
-                FROM access_logs
-                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                GROUP BY EXTRACT(HOUR FROM check_in_time)
-                ORDER BY hour
-            """), {"days": days})
+                hourly_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time)) as hour,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(COALESCE(r.confirmed_at, r.start_time))) as num_days
+                    FROM reservations r
+                    JOIN seats s ON s.seat_id = r.seat_id
+                    WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                      AND r.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(HOUR FROM COALESCE(r.confirmed_at, r.start_time))
+                    ORDER BY hour
+                """), {"zone_id": zone_id, "days": days})
+
+                daily_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time)) as day,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(COALESCE(r.confirmed_at, r.start_time))) as num_days
+                    FROM reservations r
+                    JOIN seats s ON s.seat_id = r.seat_id
+                    WHERE s.zone_id = CAST(:zone_id AS INTEGER)
+                      AND r.status IN ('CONFIRMED', 'COMPLETED')
+                      AND COALESCE(r.confirmed_at, r.start_time) >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(DOW FROM COALESCE(r.confirmed_at, r.start_time))
+                    ORDER BY day
+                """), {"zone_id": zone_id, "days": days})
+            else:
+                # Get total seats for normalization
+                seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
+                total_seats = seats_result.fetchone()[0] or 1
+
+                # Get hourly distribution
+                hourly_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(HOUR FROM check_in_time) as hour,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(check_in_time)) as num_days
+                    FROM access_logs
+                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(HOUR FROM check_in_time)
+                    ORDER BY hour
+                """), {"days": days})
+
+                daily_result = conn.execute(text("""
+                    SELECT
+                        EXTRACT(DOW FROM check_in_time) as day,
+                        COUNT(*) as count,
+                        COUNT(DISTINCT DATE(check_in_time)) as num_days
+                    FROM access_logs
+                    WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
+                    GROUP BY EXTRACT(DOW FROM check_in_time)
+                    ORDER BY day
+                """), {"days": days})
 
             hourly_predictions = []
             for row in hourly_result:
@@ -532,18 +570,6 @@ async def get_density_prediction(zone_id: Optional[str] = None, days: int = 7) -
                     "predicted_occupancy": round(occ, 2),
                     "confidence": 0.8
                 })
-
-            # Get daily predictions
-            daily_result = conn.execute(text("""
-                SELECT
-                    EXTRACT(DOW FROM check_in_time) as day,
-                    COUNT(*) as count,
-                    COUNT(DISTINCT DATE(check_in_time)) as num_days
-                FROM access_logs
-                WHERE check_in_time >= NOW() - MAKE_INTERVAL(days => :days)
-                GROUP BY EXTRACT(DOW FROM check_in_time)
-                ORDER BY day
-            """), {"days": days})
 
             day_names = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"]
             weekly_predictions = []
@@ -782,18 +808,26 @@ async def get_realtime_capacity() -> Dict[str, Any]:
             seats_result = conn.execute(text("SELECT COUNT(*) FROM seats WHERE is_active = true"))
             total_seats = seats_result.fetchone()[0] or 0
 
-            # Đếm reservations đang active (CONFIRMED/BOOKED) đang trong thời gian hiện tại
+            # Đếm ghế đang có sinh viên ngồi thật (đã xác nhận chỗ)
             now = datetime.now()
             active_result = conn.execute(text("""
                 SELECT COUNT(*) FROM reservations
-                WHERE status IN ('CONFIRMED', 'BOOKED')
+                WHERE status = 'CONFIRMED'
                   AND start_time <= :now
                   AND end_time >= :now
             """), {"now": now})
-            active_bookings = active_result.fetchone()[0] or 0
+            occupied_seats = active_result.fetchone()[0] or 0
+
+            booked_result = conn.execute(text("""
+                SELECT COUNT(*) FROM reservations
+                WHERE status = 'BOOKED'
+                  AND start_time <= :now
+                  AND end_time >= :now
+            """), {"now": now})
+            reserved_seats = booked_result.fetchone()[0] or 0
 
             # Tính % occupancy
-            occupancy_rate = (active_bookings / total_seats * 100) if total_seats > 0 else 0
+            occupancy_rate = (occupied_seats / total_seats * 100) if total_seats > 0 else 0
 
             # Lấy thông tin theo zone
             zones_result = conn.execute(text("""
@@ -806,7 +840,7 @@ async def get_realtime_capacity() -> Dict[str, Any]:
                         FROM reservations r
                         JOIN seats s2 ON r.seat_id = s2.seat_id
                         WHERE s2.zone_id = z.zone_id
-                          AND r.status IN ('CONFIRMED', 'BOOKED')
+                          AND r.status = 'CONFIRMED'
                           AND r.start_time <= :now
                           AND r.end_time >= :now
                     ), 0) as occupied_seats
@@ -840,21 +874,22 @@ async def get_realtime_capacity() -> Dict[str, Any]:
             # Xác định trạng thái
             if occupancy_rate >= 90:
                 status = "Đã kín"
-                message = "Thư viện gần như đã kín chỗ. Khuyến nghị sinh viên đặt chỗ trước."
+                message = "Số ghế đang có sinh viên ngồi gần chạm ngưỡng tối đa. Nên điều phối chỗ ngồi và theo dõi các khu đông."
             elif occupancy_rate >= 70:
                 status = "Khá đông"
-                message = "Thư viện đang đông. Nên đến sớm để có chỗ tốt."
+                message = "Thư viện đang khá đông theo số ghế đã được xác nhận sử dụng."
             elif occupancy_rate >= 50:
                 status = "Bình thường"
-                message = "Thư viện đang ở mức bình thường."
+                message = "Mức sử dụng ghế đang ổn định."
             else:
                 status = "Còn trống"
-                message = "Thư viện còn nhiều chỗ trống."
+                message = "Số ghế đang được sử dụng thực tế vẫn còn thấp."
 
             return {
                 "timestamp": now.isoformat(),
                 "total_seats": total_seats,
-                "occupied_seats": active_bookings,
+                "occupied_seats": occupied_seats,
+                "reserved_seats": reserved_seats,
                 "occupancy_rate": round(occupancy_rate, 1),
                 "status": status,
                 "message": message,
