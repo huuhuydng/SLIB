@@ -1,5 +1,7 @@
 package slib.com.example.service.users;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class StudentProfileService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final StudentProfileRepository studentProfileRepository;
     private final UserRepository userRepository;
@@ -59,8 +64,9 @@ public class StudentProfileService {
                 .violationCount(0)
                 .build();
 
-        StudentProfile saved = studentProfileRepository.save(newProfile);
-        return buildProfileResponse(saved);
+        entityManager.persist(newProfile);
+        entityManager.flush();
+        return buildProfileResponse(newProfile);
     }
 
     /**

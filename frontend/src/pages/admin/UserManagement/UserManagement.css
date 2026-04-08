@@ -162,6 +162,11 @@
     color: #059669;
 }
 
+.um-role-badge.teacher {
+    background: #fef3c7;
+    color: #d97706;
+}
+
 /* ---------- Status ---------- */
 .um-status {
     display: flex;

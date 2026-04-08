@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "../../common/ToastProvider";
+import useAppDialog from "../../../hooks/useAppDialog";
 import { useLayout } from "../../../context/admin/area_management/LayoutContext";
 import {
   getAmenitiesByZone,
@@ -19,6 +20,7 @@ const QUICK_AMENITIES = [
 
 function PropertiesPanel() {
   const toast = useToast();
+  const { confirm } = useAppDialog();
   const { state, dispatch, actions } = useLayout();
   const { selectedItem, areas, zones, seats, factories } = state;
 
@@ -275,8 +277,15 @@ function PropertiesPanel() {
       return;
     }
 
+    const nextTempAmenityId = amenities.reduce((minId, amenity) => {
+      if (typeof amenity?.amenityId === "number" && amenity.amenityId < minId) {
+        return amenity.amenityId;
+      }
+      return minId;
+    }, 0) - 1;
+
     const normalizedAmenity = {
-      amenityId: Date.now() * -1,
+      amenityId: nextTempAmenityId,
       amenityName: name,
       zoneId: selectedData.zoneId,
     };
@@ -1134,7 +1143,14 @@ function PropertiesPanel() {
 
                   <button
                     onClick={async () => {
-                      if (!confirm('Bạn có chắc muốn xóa NFC khỏi ghế này?')) return;
+                      const confirmed = await confirm({
+                        title: 'Xoá mã NFC',
+                        message: 'Bạn có chắc muốn xóa NFC khỏi ghế này?',
+                        confirmText: 'Xoá',
+                        cancelText: 'Huỷ',
+                        variant: 'danger',
+                      });
+                      if (!confirmed) return;
                       setNfcSaving(true);
                       setLocalNfcTagUid('');
                       dispatch({
