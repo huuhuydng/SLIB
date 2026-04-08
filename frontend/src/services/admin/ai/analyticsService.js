@@ -100,6 +100,17 @@ export const getBehaviorSummary = async (days = 7) => {
   }
 };
 
+// Lấy danh sách sinh viên cần lưu ý cho dashboard thủ thư
+export const getBehaviorIssues = async () => {
+  try {
+    const response = await aiAnalyticsService.get('/behavior-issues');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching behavior issues:', error);
+    throw error;
+  }
+};
+
 export default {
   getStudentBehaviorAnalytics,
   getDensityPrediction,
@@ -107,4 +118,5 @@ export default {
   getUsageStatistics,
   getRealtimeCapacity,
   getBehaviorSummary,
+  getBehaviorIssues,
 };

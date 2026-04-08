@@ -14,7 +14,7 @@ import { getLibraryInsights } from "../../../services/ai/geminiService.jsx";
 import librarianService from "../../../services/librarian/librarianService";
 import dashboardService from "../../../services/librarian/dashboardService";
 import { getAllNewBooksForAdmin } from "../../../services/librarian/newBookService";
-import { getBehaviorSummary, getDensityPrediction, getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
+import { getBehaviorIssues, getDensityPrediction, getRealtimeCapacity } from "../../../services/admin/ai/analyticsService";
 import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
 
@@ -283,7 +283,7 @@ const Dashboard = () => {
       } catch (e) { analyticsHealthy = false; console.warn('Could not fetch density:', e); }
 
       try {
-        const behaviorData = await getBehaviorSummary();
+        const behaviorData = await getBehaviorIssues();
         setBehaviorIssues(Array.isArray(behaviorData?.students) ? behaviorData.students : []);
       } catch (e) { analyticsHealthy = false; console.warn('Could not fetch behavior issues:', e); }
 

@@ -87,6 +87,20 @@ public class AIAnalyticsProxyController {
     }
 
     /**
+     * Proxy: /slib/ai/analytics/behavior-issues
+     */
+    @GetMapping("/analytics/behavior-issues")
+    public ResponseEntity<?> getBehaviorIssues() {
+        String url = aiServiceUrl + "/api/ai/analytics/behavior-issues";
+        ResponseEntity<Map> response = restTemplate.exchange(
+                url,
+                HttpMethod.GET,
+                buildInternalRequest(),
+                Map.class);
+        return ResponseEntity.ok(response.getBody());
+    }
+
+    /**
      * Proxy: /slib/ai/analytics/seat-recommendation
      */
     @GetMapping("/analytics/seat-recommendation")
