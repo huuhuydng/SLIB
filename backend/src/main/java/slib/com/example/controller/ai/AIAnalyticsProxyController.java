@@ -90,10 +90,13 @@ public class AIAnalyticsProxyController {
      * Proxy: /slib/ai/analytics/behavior-issues
      */
     @GetMapping("/analytics/behavior-issues")
-    public ResponseEntity<?> getBehaviorIssues() {
-        String url = aiServiceUrl + "/api/ai/analytics/behavior-issues";
+    public ResponseEntity<?> getBehaviorIssues(@RequestParam(required = false) Integer limit) {
+        StringBuilder url = new StringBuilder(aiServiceUrl + "/api/ai/analytics/behavior-issues");
+        if (limit != null) {
+            url.append("?limit=").append(limit);
+        }
         ResponseEntity<Map> response = restTemplate.exchange(
-                url,
+                url.toString(),
                 HttpMethod.GET,
                 buildInternalRequest(),
                 Map.class);
