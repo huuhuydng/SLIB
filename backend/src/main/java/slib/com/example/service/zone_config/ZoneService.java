@@ -61,10 +61,11 @@ public class ZoneService {
         AreaEntity area = areaRepository.findById(req.getAreaId())
                 .orElseThrow(() -> new RuntimeException("Area not found"));
         ensureAreaAllowsZoneMutation(area, "thêm khu vực ghế");
-        validateZoneCreateRequest(req);
+        String normalizedZoneName = validateZoneCreateRequest(req);
+        validateZoneNameUniqueness(area.getAreaId(), normalizedZoneName, null);
 
         ZoneEntity zone = ZoneEntity.builder()
-                .zoneName(req.getZoneName())
+                .zoneName(normalizedZoneName)
                 .zoneDes(req.getZoneDes())
                 .area(area)
 
@@ -85,8 +86,11 @@ public class ZoneService {
                 .orElseThrow(() -> new RuntimeException("Zone not found"));
         ensureZoneUpdateAllowed(zone, req);
 
-        if (req.getZoneName() != null)
-            zone.setZoneName(req.getZoneName());
+        if (req.getZoneName() != null) {
+            String normalizedZoneName = normalizeZoneName(req.getZoneName());
+            validateZoneNameUniqueness(zone.getArea().getAreaId(), normalizedZoneName, id);
+            zone.setZoneName(normalizedZoneName);
+        }
         if (req.getZoneDes() != null)
             zone.setZoneDes(req.getZoneDes());
         if (req.getIsLocked() != null)
@@ -144,8 +148,11 @@ public class ZoneService {
         ensureZoneUpdateAllowed(zone, req);
 
         // info
-        if (req.getZoneName() != null)
-            zone.setZoneName(req.getZoneName());
+        if (req.getZoneName() != null) {
+            String normalizedZoneName = normalizeZoneName(req.getZoneName());
+            validateZoneNameUniqueness(zone.getArea().getAreaId(), normalizedZoneName, id);
+            zone.setZoneName(normalizedZoneName);
+        }
         if (req.getZoneDes() != null)
             zone.setZoneDes(req.getZoneDes());
         if (req.getIsLocked() != null)
@@ -190,7 +197,7 @@ public class ZoneService {
         zoneRepository.deleteById(id);
     }
 
-    private void validateZoneCreateRequest(ZoneResponse req) {
+    private String validateZoneCreateRequest(ZoneResponse req) {
         if (req.getAreaId() == null) {
             throw new RuntimeException("Khu vực ghế phải thuộc một phòng thư viện");
         }
@@ -200,6 +207,7 @@ public class ZoneService {
         if (req.getWidth() == null || req.getWidth() <= 0 || req.getHeight() == null || req.getHeight() <= 0) {
             throw new RuntimeException("Kích thước khu vực ghế phải lớn hơn 0");
         }
+        return normalizeZoneName(req.getZoneName());
     }
 
     private void ensureAreaAllowsZoneMutation(AreaEntity area, String action) {
@@ -244,6 +252,19 @@ public class ZoneService {
 
     private <T> boolean sameOrNull(T requestedValue, T currentValue) {
         return requestedValue == null || requestedValue.equals(currentValue);
+    }
+
+    private String normalizeZoneName(String zoneName) {
+        return zoneName.trim();
+    }
+
+    private void validateZoneNameUniqueness(Long areaId, String zoneName, Integer currentZoneId) {
+        boolean exists = currentZoneId == null
+                ? zoneRepository.existsByArea_AreaIdAndZoneNameIgnoreCase(areaId, zoneName)
+                : zoneRepository.existsByArea_AreaIdAndZoneNameIgnoreCaseAndZoneIdNot(areaId, zoneName, currentZoneId);
+        if (exists) {
+            throw new RuntimeException("Tên khu vực ghế đã tồn tại trong phòng thư viện này");
+        }
     }
 
     private ZoneResponse toResponse(ZoneEntity zone) {

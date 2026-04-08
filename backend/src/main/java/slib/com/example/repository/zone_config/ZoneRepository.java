@@ -10,4 +10,8 @@ import java.util.List;
 @Repository
 public interface ZoneRepository extends JpaRepository<ZoneEntity, Integer> {
     List<ZoneEntity> findByArea_AreaId(Long areaId);
+
+    boolean existsByArea_AreaIdAndZoneNameIgnoreCase(Long areaId, String zoneName);
+
+    boolean existsByArea_AreaIdAndZoneNameIgnoreCaseAndZoneIdNot(Long areaId, String zoneName, Integer zoneId);
 }
