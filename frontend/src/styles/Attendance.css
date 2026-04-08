@@ -142,37 +142,78 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 250, 245, 0.86);
+  backdrop-filter: blur(10px);
 }
 
 .overlay-card {
   text-align: center;
-  padding: 50px;
-  border-radius: 40px;
+  padding: 44px 52px;
+  border-radius: 36px;
   width: 80%;
-  max-width: 700px;
-  color: white;
+  max-width: 760px;
+  color: #fff;
   animation: popShow 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.16);
 }
 
 .is-in .overlay-card {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 55%, #22c55e 100%);
 }
 
 .is-out .overlay-card {
-  background: linear-gradient(135deg, #f97316, #ea580c);
+  background: linear-gradient(135deg, #c2410c 0%, #ea580c 55%, #f97316 100%);
+}
+
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
 }
 
 .student-name {
   font-size: 3.8rem;
   font-weight: 700;
   margin: 10px 0;
+  color: #fffaf5;
+  line-height: 1.08;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.14);
 }
 
 .student-id {
   font-size: 2rem;
-  opacity: 0.9;
+  color: rgba(255, 247, 237, 0.96);
+  margin: 10px 0 4px;
+}
+
+.zone-info {
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: rgba(255, 247, 237, 0.88);
+}
+
+.is-out .student-name,
+.is-out .student-id,
+.is-out .zone-info,
+.is-out .status-label {
+  color: #fff7ed;
+}
+
+.is-in .student-name,
+.is-in .student-id,
+.is-in .zone-info,
+.is-in .status-label {
+  color: #f0fdf4;
 }
 
 @keyframes popShow {
@@ -221,14 +262,12 @@
 
 /* Màu Cam cho chữ RA */
 .text-out {
-  color: #ea580c;
-  /* Màu cam đậm của logo/check-out */
+  color: #dc2626;
 }
 
 /* Màu Xanh cho chữ VÀO */
 .text-in {
-  color: #16a34a;
-  /* Màu xanh lá của check-in */
+  color: #15803d;
 }
 
 /* Đảm bảo tiêu đề chính vẫn giữ font chữ cũ, chỉ đổi màu 2 chữ kia */
