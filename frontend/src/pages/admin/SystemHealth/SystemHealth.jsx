@@ -29,6 +29,7 @@ import {
   History,
   Play,
   Pause,
+  RotateCcw,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
