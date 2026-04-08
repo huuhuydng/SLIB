@@ -409,9 +409,9 @@ const Dashboard = () => {
     year: "Năm nay",
   };
   const topStudentsSubtitle = {
-    week: "Những sinh viên có thời lượng sử dụng cao trong 7 ngày gần đây.",
-    month: "Những sinh viên có thời lượng sử dụng cao trong 30 ngày gần đây.",
-    year: "Những sinh viên có thời lượng sử dụng cao trong 12 tháng gần đây.",
+    week: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 7 ngày gần đây.",
+    month: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 30 ngày gần đây.",
+    year: "Những sinh viên có thời lượng sử dụng chỗ ngồi thực tế cao trong 12 tháng gần đây.",
   };
   const adminQuickActions = [
     { title: "Người dùng", desc: "Quản lý tài khoản và phân quyền", icon: <Users size={18} />, path: "/admin/users", tone: "purple" },
@@ -669,10 +669,10 @@ const Dashboard = () => {
         <StatCard
           icon={<Armchair size={22} />}
           value={`${stats?.occupancyRate ?? 0}%`}
-          label="Ghế đang có người sử dụng"
+          label="Ghế đang được sử dụng"
           bg="#E8F5E9" color="#388E3C"
           trend={stats?.occupancyRate >= 80 ? "up" : "neutral"}
-          trendValue={`${stats?.occupiedSeats ?? 0} / ${stats?.totalSeats ?? 0} ghế đang có người`}
+          trendValue={`${stats?.occupiedSeats ?? 0} đang ngồi, ${stats?.reservedSeats ?? 0} đã giữ chỗ`}
         />
         <StatCard
           icon={<BarChart3 size={22} />}
@@ -680,7 +680,7 @@ const Dashboard = () => {
           label="Đặt chỗ bắt đầu hôm nay"
           bg="#E3F2FD" color="#0054A6"
           trend="neutral"
-          trendValue={`${stats?.activeBookings ?? 0} lượt đang diễn ra`}
+          trendValue={`${stats?.activeBookings ?? 0} lượt đang hiệu lực`}
         />
         <StatCard
           icon={<AlertTriangle size={22} />}
@@ -1097,8 +1097,8 @@ const Dashboard = () => {
           <div className="panelHeader">
             <div className="panelHeader__left">
               <div>
-                <h3 className="panelTitle">Khu vực đang có người sử dụng</h3>
-                <p className="panelSubtitle">Tỷ lệ ghế có đặt chỗ còn hiệu lực theo từng khu vực.</p>
+                <h3 className="panelTitle">Khu vực đang được sử dụng</h3>
+                <p className="panelSubtitle">Tỷ lệ ghế đang có sinh viên ngồi thực tế theo từng khu vực.</p>
               </div>
             </div>
           </div>
@@ -1135,7 +1135,7 @@ const Dashboard = () => {
                     <div className="areaTop__name">
                       <span>{item.name}</span>
                       <span className="areaTop__seats">
-                        ({item.occupied}/{item.total} ghế)
+                        ({item.occupied}/{item.total} ghế đang sử dụng)
                       </span>
                     </div>
                     <span className="areaTop__pct" style={{ color }}>{item.pct}%</span>
@@ -1197,7 +1197,7 @@ const Dashboard = () => {
                   <p className="list-item__name" style={{ marginBottom: 4 }}>Dự báo 1 giờ tới</p>
                   <p className="list-item__desc">
                     Có {aiCapacity.upcoming_1h || 0} lượt đặt chỗ sắp tới.
-                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế đang có người sử dụng ({aiCapacity.occupancy_rate || 0}%)
+                    Hiện tại: {aiCapacity.occupied_seats || 0}/{aiCapacity.total_seats || 0} ghế đang được sử dụng ({aiCapacity.occupancy_rate || 0}%)
                   </p>
                 </div>
               </div>
@@ -1292,7 +1292,7 @@ const Dashboard = () => {
           {(stats?.recentViolations || []).length === 0 ? (
             <div className="empty-state">
               <Shield size={32} />
-              <p>Không có vi phạm</p>
+              <p>Hiện không có vi phạm nào cần được xử lý</p>
             </div>
           ) : stats.recentViolations.map((v, i) => (
             <div key={v.id || i} className="list-item">

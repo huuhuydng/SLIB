@@ -83,13 +83,17 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                         @Param("startTime") LocalDateTime startTime,
                         @Param("endTime") LocalDateTime endTime);
 
-        // Top 5 sinh viên có thời gian học nhiều nhất (tính từ reservation
-        // CONFIRMED/COMPLETED)
+        // Top 5 sinh viên có thời gian sử dụng thực tế nhiều nhất
         @Query(value = "SELECT r.user_id, u.full_name, u.user_code, COUNT(*) as visit_count, " +
-                        "COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(r.actual_end_time, r.end_time) - COALESCE(r.confirmed_at, r.start_time))) / 60), 0) as total_minutes, " +
+                        "COALESCE(SUM(EXTRACT(EPOCH FROM (" +
+                        "CASE " +
+                        "WHEN r.status = 'CONFIRMED' THEN LEAST(CURRENT_TIMESTAMP, COALESCE(r.actual_end_time, r.end_time)) " +
+                        "ELSE COALESCE(r.actual_end_time, r.end_time) " +
+                        "END - COALESCE(r.confirmed_at, r.start_time))) / 60), 0) as total_minutes, " +
                         "u.avt_url " +
                         "FROM reservations r JOIN users u ON r.user_id = u.id " +
-                        "WHERE r.created_at >= :startDate AND r.status IN ('CONFIRMED', 'COMPLETED') " +
+                        "WHERE COALESCE(r.confirmed_at, r.start_time) >= :startDate " +
+                        "AND r.status IN ('CONFIRMED', 'COMPLETED') " +
                         "GROUP BY r.user_id, u.full_name, u.user_code, u.avt_url " +
                         "ORDER BY total_minutes DESC LIMIT 5", nativeQuery = true)
         List<Object[]> findTopStudentsByReservationTime(@Param("startDate") LocalDateTime startDate);
@@ -169,7 +173,7 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
                            AND s.is_active = true
                         LEFT JOIN reservations r
                             ON r.seat_id = s.seat_id
-                           AND r.status IN ('BOOKED', 'CONFIRMED')
+                           AND r.status = 'CONFIRMED'
                            AND r.start_time <= :now
                            AND r.end_time >= :now
                         GROUP BY z.zone_id, z.zone_name, a.area_name
