@@ -862,13 +862,17 @@ public class BookingService {
          * @param zoneName Zone name for activity log
          */
         @Transactional
-        public ReservationEntity leaveSeat(UUID reservationId, String seatCode, String zoneName) {
+        public ReservationEntity leaveSeat(UUID reservationId) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                         .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
 
                 if (!"CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
                         throw new RuntimeException("Chỉ đặt chỗ đã xác nhận mới có thể thực hiện rời ghế");
                 }
+
+                SeatEntity seat = reservation.getSeat();
+                String seatCode = seat != null ? seat.getSeatCode() : "";
+                String zoneName = seat != null && seat.getZone() != null ? seat.getZone().getZoneName() : "";
 
                 LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                 LocalDateTime actualEnd = now;
@@ -923,10 +927,10 @@ public class BookingService {
 
                 // Broadcast seat status update
                 seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
-                        reservation.getSeat(),
-                        "AVAILABLE",
-                        reservation.getStartTime(),
-                        reservation.getEndTime());
+                                seat,
+                                "AVAILABLE",
+                                reservation.getStartTime(),
+                                reservation.getEndTime());
 
                 // Send push notification
                 try {
@@ -972,10 +976,7 @@ public class BookingService {
                                                         + " nhưng thẻ NFC là ghế " + nfcSeat.getSeatCode());
                 }
 
-                return leaveSeat(
-                                reservationId,
-                                expectedSeat.getSeatCode(),
-                                expectedSeat.getZone() != null ? expectedSeat.getZone().getZoneName() : "");
+                return leaveSeat(reservationId);
         }
 
         private String formatDuration(int minutes) {

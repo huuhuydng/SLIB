@@ -107,14 +107,7 @@ public class BookingController {
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             getCurrentUserId(userDetails);
-            ReservationEntity reservation = reservationRepository.findById(reservationId)
-                    .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
-            String seatCode = reservation.getSeat() != null ? reservation.getSeat().getSeatCode() : "";
-            String zoneName = reservation.getSeat() != null && reservation.getSeat().getZone() != null
-                    ? reservation.getSeat().getZone().getZoneName()
-                    : "";
-
-            ReservationEntity reserv = bookingService.leaveSeat(reservationId, seatCode, zoneName);
+            ReservationEntity reserv = bookingService.leaveSeat(reservationId);
             return ResponseEntity.ok(toDTO(reserv));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
