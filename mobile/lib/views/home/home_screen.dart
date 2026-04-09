@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slib/assets/colors.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/models/new_book_model.dart';
@@ -163,27 +162,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final zoneName = data['zoneName'] as String? ?? '';
       final seatCode = data['seatCode'] as String? ?? '';
 
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('feedback_dismissed_$reservationId') == true) return;
-
       if (!mounted) return;
 
       _isFeedbackDialogOpen = true;
       try {
-        await showFeedbackPopup(
+        await showSeatFeedbackPopup(
           context,
-          title: 'Đánh giá trải nghiệm',
-          subtitle:
-              'Bạn vừa học tại $zoneName - Ghế $seatCode.\nHãy chia sẻ cảm nhận của bạn!',
           reservationId: reservationId,
-          onSubmitted: () async {
-            final p = await SharedPreferences.getInstance();
-            await p.setBool('feedback_dismissed_$reservationId', true);
-          },
-          onDismissed: () async {
-            final p = await SharedPreferences.getInstance();
-            await p.setBool('feedback_dismissed_$reservationId', true);
-          },
+          zoneName: zoneName,
+          seatCode: seatCode,
         );
       } finally {
         _isFeedbackDialogOpen = false;
@@ -358,7 +345,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                         Consumer<AuthService>(
                           builder: (context, authService, _) {
-                            final aiEnabled = authService.currentSetting?.isAiRecommendEnabled ?? true;
+                            final aiEnabled =
+                                authService
+                                    .currentSetting
+                                    ?.isAiRecommendEnabled ??
+                                true;
                             if (!aiEnabled) return const SizedBox.shrink();
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

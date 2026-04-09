@@ -211,9 +211,10 @@ public class FeedbackService {
     @Transactional(readOnly = true)
     public Map<String, Object> checkPendingFeedback(UUID userId) {
         LocalDateTime now = LocalDateTime.now();
-        // Chỉ hiện đánh giá khi reservation COMPLETED (user đã ngồi xong, kết thúc phiên)
+        // Cho phép hiện feedback ngay sau khi sinh viên rời ghế sớm:
+        // actualEndTime sẽ được ưu tiên nếu có, ngược lại dùng endTime kế hoạch.
         List<ReservationEntity> eligibleReservations = reservationRepository
-                .findByUserIdAndConfirmedAtIsNotNullAndEndTimeBeforeAndStatusInOrderByEndTimeDesc(
+                .findCompletedReservationsEligibleForFeedback(
                         userId,
                         now,
                         List.of("COMPLETED"));
@@ -232,12 +233,15 @@ public class FeedbackService {
         }
 
         Map<String, Object> result = new HashMap<>();
+        LocalDateTime effectiveEndTime = reservation.getActualEndTime() != null
+                ? reservation.getActualEndTime()
+                : reservation.getEndTime();
         result.put("hasPending", true);
         result.put("reservationId", reservation.getReservationId().toString());
         result.put("zoneName", reservation.getSeat().getZone().getZoneName());
         result.put("seatCode", reservation.getSeat().getSeatCode());
         result.put("confirmedAt", reservation.getConfirmedAt() != null ? reservation.getConfirmedAt().toString() : null);
-        result.put("endedAt", reservation.getEndTime().toString());
+        result.put("endedAt", effectiveEndTime.toString());
         return result;
     }
 
