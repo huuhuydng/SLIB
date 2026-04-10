@@ -14,7 +14,6 @@ import {
     Lock,
     Unlock,
     Trash2,
-    ExternalLink,
     Phone,
     Building,
     GraduationCap,
@@ -533,7 +532,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                     <div style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'space-between',
                                         marginBottom: '16px'
                                     }}>
                                         <h3 style={{
@@ -542,22 +540,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                             color: '#6B7280',
                                             margin: 0
                                         }}>Hoạt động gần đây</h3>
-                                        <button style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            padding: '8px 12px',
-                                            background: '#e8600a',
-                                            color: '#fff',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer'
-                                        }}>
-                                            <ExternalLink size={14} />
-                                            Xem tất cả
-                                        </button>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
