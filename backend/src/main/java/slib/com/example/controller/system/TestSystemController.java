@@ -24,4 +24,14 @@ public class TestSystemController {
     public ResponseEntity<Map<String, Object>> prepareExpiryWarning(@PathVariable UUID reservationId) {
         return ResponseEntity.ok(testSystemService.prepareExpiryWarning(reservationId));
     }
+
+    @PostMapping("/bookings/{reservationId}/prepare-seat-start")
+    public ResponseEntity<Map<String, Object>> prepareSeatStart(@PathVariable UUID reservationId) {
+        return ResponseEntity.ok(testSystemService.prepareSeatStartNow(reservationId));
+    }
+
+    @PostMapping("/bookings/{reservationId}/prepare-no-checkin-cancel")
+    public ResponseEntity<Map<String, Object>> prepareNoCheckinCancel(@PathVariable UUID reservationId) {
+        return ResponseEntity.ok(testSystemService.prepareNoCheckinAutoCancel(reservationId));
+    }
 }

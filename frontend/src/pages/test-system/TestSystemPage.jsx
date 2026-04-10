@@ -3,8 +3,10 @@ import {
   BellRing,
   CalendarClock,
   Database,
+  Hourglass,
   Loader2,
   LogOut,
+  PlayCircle,
   RefreshCw,
   ShieldCheck,
   Smartphone,
@@ -372,8 +374,8 @@ function TestSystemPage() {
           <article className="test-system-stat">
             <BellRing size={18} />
             <div>
-              <strong>15 phút / 10 phút</strong>
-              <span>Nhắc lịch bắt đầu / cảnh báo sắp hết giờ</span>
+              <strong>4 mốc booking</strong>
+              <span>Đến giờ ngồi, nhắc lịch, cảnh báo sắp hết giờ, hủy do chưa xác nhận</span>
             </div>
           </article>
         </section>
@@ -772,6 +774,24 @@ function TestSystemPage() {
                     <button
                       className="test-system-btn"
                       type="button"
+                      disabled={actionKey === `start-${booking.reservationId}`}
+                      onClick={() =>
+                        runAction(
+                          `start-${booking.reservationId}`,
+                          () => testSystemService.prepareSeatStart(token, booking.reservationId)
+                        )
+                      }
+                    >
+                      {actionKey === `start-${booking.reservationId}` ? (
+                        <Loader2 size={16} className="ts-spin" />
+                      ) : (
+                        <PlayCircle size={16} />
+                      )}
+                      Đã đến giờ ngồi
+                    </button>
+                    <button
+                      className="test-system-btn"
+                      type="button"
                       disabled={actionKey === `reminder-${booking.reservationId}`}
                       onClick={() =>
                         runAction(
@@ -804,6 +824,24 @@ function TestSystemPage() {
                         <CalendarClock size={16} />
                       )}
                       Cảnh báo sắp hết giờ
+                    </button>
+                    <button
+                      className="test-system-btn test-system-btn--danger"
+                      type="button"
+                      disabled={actionKey === `cancel-${booking.reservationId}`}
+                      onClick={() =>
+                        runAction(
+                          `cancel-${booking.reservationId}`,
+                          () => testSystemService.prepareNoCheckinCancel(token, booking.reservationId)
+                        )
+                      }
+                    >
+                      {actionKey === `cancel-${booking.reservationId}` ? (
+                        <Loader2 size={16} className="ts-spin" />
+                      ) : (
+                        <Hourglass size={16} />
+                      )}
+                      Hủy do chưa xác nhận
                     </button>
                   </div>
                 </div>

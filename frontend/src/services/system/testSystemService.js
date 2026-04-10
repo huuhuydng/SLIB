@@ -128,6 +128,20 @@ const testSystemService = {
       token,
     });
   },
+
+  prepareSeatStart(token, reservationId) {
+    return request(`/system/test-tools/bookings/${reservationId}/prepare-seat-start`, {
+      method: "POST",
+      token,
+    });
+  },
+
+  prepareNoCheckinCancel(token, reservationId) {
+    return request(`/system/test-tools/bookings/${reservationId}/prepare-no-checkin-cancel`, {
+      method: "POST",
+      token,
+    });
+  },
 };
 
 export default testSystemService;

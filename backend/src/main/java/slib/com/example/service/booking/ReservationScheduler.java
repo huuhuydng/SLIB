@@ -210,12 +210,59 @@ public class ReservationScheduler {
     private ReservationProcessingResult processExpiredBookedReservation(UUID reservationId, LocalDateTime now,
             int autoCancelMinutes) {
         return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
-                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes))
+                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes, false))
                 .orElse(ReservationProcessingResult.unchanged()));
+    }
+
+    public boolean forceExpireBookedReservation(UUID reservationId) {
+        LocalDateTime now = LocalDateTime.now();
+        int autoCancelMinutes = 15;
+        try {
+            LibrarySetting settings = librarySettingService.getSettings();
+            if (settings.getAutoCancelMinutes() != null) {
+                autoCancelMinutes = settings.getAutoCancelMinutes();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve auto-cancel minutes for forceExpireBookedReservation, fallback to 15", e);
+        }
+
+        ReservationProcessingResult result = reservationTransactionTemplate.execute(status -> reservationRepository
+                .findById(reservationId)
+                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes, true))
+                .orElse(ReservationProcessingResult.unchanged()));
+
+        if (result != null && result.changed() && result.seatUpdate() != null) {
+            SeatUpdatePayload seatUpdate = result.seatUpdate();
+            seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                    seatUpdate.seatId(),
+                    seatUpdate.zoneId(),
+                    seatUpdate.seatCode(),
+                    seatUpdate.status(),
+                    seatUpdate.startTime(),
+                    seatUpdate.endTime());
+            try {
+                messagingTemplate.convertAndSend("/topic/dashboard",
+                        java.util.Map.of(
+                                "type", "BOOKING_UPDATE",
+                                "action", "FORCED_AUTO_CANCEL",
+                                "count", 1,
+                                "timestamp", java.time.Instant.now().toString()));
+            } catch (Exception wsErr) {
+                log.warn("Failed to broadcast forced auto-cancel dashboard update", wsErr);
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private ReservationProcessingResult processExpiredBookedReservation(ReservationEntity reservation,
             LocalDateTime now, int autoCancelMinutes) {
+        return processExpiredBookedReservation(reservation, now, autoCancelMinutes, false);
+    }
+
+    private ReservationProcessingResult processExpiredBookedReservation(ReservationEntity reservation,
+            LocalDateTime now, int autoCancelMinutes, boolean force) {
         if (!"BOOKED".equals(reservation.getStatus())) {
             return ReservationProcessingResult.unchanged();
         }
@@ -224,7 +271,7 @@ public class ReservationScheduler {
                 ? reservation.getStartTime()
                 : reservation.getCreatedAt();
         LocalDateTime deadline = baseTime.plusMinutes(autoCancelMinutes);
-        if (!now.isAfter(deadline)) {
+        if (!force && !now.isAfter(deadline)) {
             return ReservationProcessingResult.unchanged();
         }
 

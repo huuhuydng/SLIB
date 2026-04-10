@@ -7,7 +7,9 @@ import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.notification.NotificationRepository;
+import slib.com.example.service.booking.ReservationScheduler;
 import slib.com.example.service.notification.NotificationScheduler;
+import slib.com.example.service.notification.PushNotificationService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -21,10 +23,13 @@ import java.util.UUID;
 public class TestSystemService {
 
     private static final String REMINDER_REFERENCE_TYPE = "REMINDER";
+    private static final String RESERVATION_REFERENCE_TYPE = "RESERVATION";
 
     private final ReservationRepository reservationRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationScheduler notificationScheduler;
+    private final ReservationScheduler reservationScheduler;
+    private final PushNotificationService pushNotificationService;
 
     public Map<String, Object> prepareCheckinReminder(UUID reservationId) {
         ReservationEntity reservation = getReservation(reservationId);
@@ -90,6 +95,81 @@ public class TestSystemService {
                         "note", "Hệ thống hiện gửi cảnh báo trước khi hết giờ 10 phút."));
     }
 
+    public Map<String, Object> prepareSeatStartNow(UUID reservationId) {
+        ReservationEntity reservation = getReservation(reservationId);
+        validateReservation(reservation);
+
+        LocalDateTime now = LocalDateTime.now();
+        long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
+        LocalDateTime startTime = now.plusSeconds(30);
+
+        reservation.setStatus("BOOKED");
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(startTime.plusMinutes(durationMinutes));
+        reservation.setConfirmedAt(null);
+        reservation.setActualEndTime(null);
+        reservation.setCancellationReason(null);
+        reservation.setCancelledByUserId(null);
+        reservationRepository.saveAndFlush(reservation);
+
+        clearRecentBookingArtifacts(reservation);
+        String title = "Đã đến giờ sử dụng ghế";
+        String body = String.format(
+                "Lịch đặt ghế %s của bạn đã bắt đầu. Hãy tới thư viện và xác nhận chỗ ngồi ngay để tránh bị hủy.",
+                reservation.getSeat().getSeatCode());
+        pushNotificationService.sendToUser(
+                reservation.getUser().getId(),
+                title,
+                body,
+                NotificationType.BOOKING,
+                reservation.getReservationId(),
+                RESERVATION_REFERENCE_TYPE,
+                "BOOKING");
+
+        log.info("[TestSystem] Prepared seat-start notification for reservation {}", reservationId);
+        return buildResult(
+                "Đã đưa lịch đặt về trạng thái vừa đến giờ sử dụng và gửi thông báo vào app.",
+                reservation,
+                Map.of(
+                        "scenario", "SEAT_START_NOW",
+                        "triggeredAt", now.toString(),
+                        "notificationTitle", title));
+    }
+
+    public Map<String, Object> prepareNoCheckinAutoCancel(UUID reservationId) {
+        ReservationEntity reservation = getReservation(reservationId);
+        validateReservation(reservation);
+
+        LocalDateTime now = LocalDateTime.now();
+        long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
+        LocalDateTime startTime = now.minusHours(2);
+
+        reservation.setStatus("BOOKED");
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(startTime.plusMinutes(durationMinutes + 120));
+        reservation.setConfirmedAt(null);
+        reservation.setActualEndTime(null);
+        reservation.setCancellationReason(null);
+        reservation.setCancelledByUserId(null);
+        reservationRepository.saveAndFlush(reservation);
+
+        clearRecentBookingArtifacts(reservation);
+        boolean changed = reservationScheduler.forceExpireBookedReservation(reservationId);
+        ReservationEntity updatedReservation = getReservation(reservationId);
+        if (!changed || !"EXPIRED".equalsIgnoreCase(updatedReservation.getStatus())) {
+            throw new RuntimeException("Không thể kích hoạt auto-cancel cho lịch đặt này.");
+        }
+
+        log.info("[TestSystem] Prepared no-checkin auto cancel for reservation {}", reservationId);
+        return buildResult(
+                "Đã kích hoạt hủy lịch do chưa xác nhận chỗ ngồi và gửi thông báo hủy vào app.",
+                updatedReservation,
+                Map.of(
+                        "scenario", "AUTO_CANCEL_NO_CHECKIN",
+                        "triggeredAt", now.toString(),
+                        "note", "Flow này dùng đúng luồng auto-cancel của hệ thống."));
+    }
+
     private ReservationEntity getReservation(UUID reservationId) {
         return reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch đặt: " + reservationId));
@@ -130,6 +210,20 @@ public class TestSystemService {
                 reservationId,
                 since);
         notificationScheduler.clearTracking(reservationId);
+    }
+
+    private void clearRecentBookingArtifacts(ReservationEntity reservation) {
+        UUID userId = reservation.getUser().getId();
+        UUID reservationId = reservation.getReservationId();
+        LocalDateTime since = LocalDateTime.now().minusMinutes(10);
+
+        clearRecentReminderArtifacts(reservation);
+        notificationRepository.deleteRecentByUserAndReference(
+                userId,
+                NotificationType.BOOKING,
+                RESERVATION_REFERENCE_TYPE,
+                reservationId,
+                since);
     }
 
     private Map<String, Object> buildResult(String message, ReservationEntity reservation, Map<String, Object> extras) {
