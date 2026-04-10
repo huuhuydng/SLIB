@@ -970,7 +970,7 @@ public class SeedDataService {
                         bookingReferenceId != null ? "REMINDER" : "REMINDER",
                         bookingReferenceId,
                         false,
-                        user -> "Phiên sử dụng ghế của bạn sắp kết thúc. Hãy chuẩn bị lưu tài liệu và rời chỗ đúng giờ."),
+                        user -> "Phiên sử dụng ghế của bạn sắp kết thúc. Hãy chủ động sắp xếp và rời chỗ đúng giờ."),
                 new NotificationSeedTemplate(
                         "Điểm uy tín vừa được cập nhật",
                         NotificationEntity.NotificationType.REPUTATION,

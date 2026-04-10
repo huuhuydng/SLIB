@@ -139,7 +139,7 @@ public class NotificationScheduler {
     private void sendExpiryWarningNotification(ReminderPayload reservation) {
         String title = "Sắp hết giờ sử dụng";
         String body = String.format(
-                "Phiên sử dụng ghế %s của bạn sẽ kết thúc lúc %s. Hãy chủ động lưu tài liệu và rời chỗ đúng giờ.",
+                "Phiên sử dụng ghế %s của bạn sẽ kết thúc lúc %s. Hãy chủ động sắp xếp và rời chỗ đúng giờ.",
                 reservation.seatCode(), reservation.timeDisplay());
 
         pushNotificationService.sendToUser(
