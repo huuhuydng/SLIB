@@ -24,9 +24,30 @@ const STORAGE_TOKEN_KEY = "test_system_token";
 const STORAGE_USER_KEY = "test_system_user";
 
 const DEFAULT_SEED_FORM = {
-  bookings: 15,
-  violations: 8,
-  supports: 8,
+  bookings: 18,
+  accessLogs: 28,
+  violations: 6,
+  supports: 6,
+  complaints: 5,
+  feedbacks: 6,
+  seatStatusReports: 6,
+  news: 6,
+  newBooks: 8,
+  notifications: 10,
+  studentCode: "",
+};
+
+const DEMO_READY_SEED_FORM = {
+  bookings: 18,
+  accessLogs: 28,
+  violations: 6,
+  supports: 6,
+  complaints: 5,
+  feedbacks: 6,
+  seatStatusReports: 6,
+  news: 6,
+  newBooks: 8,
+  notifications: 10,
   studentCode: "",
 };
 
@@ -360,7 +381,7 @@ function TestSystemPage() {
               <Sparkles size={20} />
               <div>
                 <h2>Dữ liệu mẫu toàn hệ thống</h2>
-                <span>Tạo hoặc dọn seed để đưa hệ thống về trạng thái dễ demo.</span>
+                <span>Tạo bộ dữ liệu đủ dày và cân đối để các màn hình nhìn đầy đặn, hợp lý khi bảo vệ.</span>
               </div>
             </div>
 
@@ -372,6 +393,15 @@ function TestSystemPage() {
                   min="1"
                   value={seedForm.bookings}
                   onChange={(event) => setSeedForm((prev) => ({ ...prev, bookings: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Access logs</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.accessLogs}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, accessLogs: event.target.value }))}
                 />
               </label>
               <label className="test-system-field">
@@ -393,6 +423,60 @@ function TestSystemPage() {
                 />
               </label>
               <label className="test-system-field">
+                <span>Số khiếu nại</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.complaints}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, complaints: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Số phản hồi</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.feedbacks}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, feedbacks: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Báo cáo tình trạng ghế</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.seatStatusReports}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, seatStatusReports: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Tin tức</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.news}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, news: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Sách mới</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.newBooks}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, newBooks: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
+                <span>Thông báo mẫu</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={seedForm.notifications}
+                  onChange={(event) => setSeedForm((prev) => ({ ...prev, notifications: event.target.value }))}
+                />
+              </label>
+              <label className="test-system-field">
                 <span>UserCode ưu tiên</span>
                 <input
                   value={seedForm.studentCode}
@@ -402,7 +486,22 @@ function TestSystemPage() {
               </label>
             </div>
 
+            <div className="test-system-note test-system-note--soft">
+              Gợi ý đẹp cho buổi demo: giữ khoảng 15-20 booking, 20-30 access logs và 4-8 bản ghi cho mỗi nhóm xử lý để dashboard và các trang danh sách vừa đủ dày nhưng không rối.
+            </div>
+
             <div className="test-system-actions">
+              <button
+                className="test-system-btn"
+                type="button"
+                onClick={() => {
+                  setSeedForm((prev) => ({ ...DEMO_READY_SEED_FORM, studentCode: prev.studentCode }));
+                  toast.success("Đã áp preset Demo Ready.");
+                }}
+              >
+                <Sparkles size={16} />
+                Điền preset Demo Ready
+              </button>
               <button
                 className="test-system-btn test-system-btn--primary"
                 type="button"

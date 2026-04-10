@@ -50,10 +50,28 @@ public class SeedDataController {
     @PostMapping("/all")
     public ResponseEntity<Map<String, Object>> seedAll(
             @RequestParam(defaultValue = "15") int bookings,
+            @RequestParam(defaultValue = "24") int accessLogs,
             @RequestParam(defaultValue = "8") int violations,
             @RequestParam(defaultValue = "8") int supports,
+            @RequestParam(defaultValue = "5") int complaints,
+            @RequestParam(defaultValue = "8") int feedbacks,
+            @RequestParam(defaultValue = "8") int seatStatusReports,
+            @RequestParam(defaultValue = "6") int news,
+            @RequestParam(defaultValue = "8") int newBooks,
+            @RequestParam(defaultValue = "8") int notifications,
             @RequestParam(required = false) String studentCode) {
-        return ResponseEntity.ok(seedDataService.seedAll(bookings, violations, supports, studentCode));
+        return ResponseEntity.ok(seedDataService.seedAll(
+                bookings,
+                accessLogs,
+                violations,
+                supports,
+                complaints,
+                feedbacks,
+                seatStatusReports,
+                news,
+                newBooks,
+                notifications,
+                studentCode));
     }
 
     /**
@@ -132,6 +150,13 @@ public class SeedDataController {
     public ResponseEntity<Map<String, Object>> seedNewBooks(
             @RequestParam(defaultValue = "8") int count) {
         return ResponseEntity.ok(seedDataService.seedNewBooks(count, "system-showcase"));
+    }
+
+    @PostMapping("/notifications")
+    public ResponseEntity<Map<String, Object>> seedNotifications(
+            @RequestParam(defaultValue = "8") int count,
+            @RequestParam(required = false) String userCode) {
+        return ResponseEntity.ok(seedDataService.seedNotifications(count, userCode, "system-showcase"));
     }
 
     /**

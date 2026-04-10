@@ -937,6 +937,67 @@ public class SeedDataService {
                         LocalDate.of(2016, Month.MARCH, 8)));
     }
 
+    private List<NotificationSeedTemplate> notificationTemplates(User mainUser, UUID bookingReferenceId) {
+        return List.of(
+                new NotificationSeedTemplate(
+                        "Nhắc nhở check-in",
+                        NotificationEntity.NotificationType.REMINDER,
+                        bookingReferenceId != null ? "REMINDER" : "REMINDER",
+                        bookingReferenceId,
+                        false,
+                        user -> "Bạn còn khoảng 15 phút để xác nhận lịch đặt chỗ của mình. Hãy đến đúng giờ để tránh bị huỷ lượt đặt."),
+                new NotificationSeedTemplate(
+                        "Sắp hết giờ sử dụng",
+                        NotificationEntity.NotificationType.REMINDER,
+                        bookingReferenceId != null ? "REMINDER" : "REMINDER",
+                        bookingReferenceId,
+                        false,
+                        user -> "Phiên sử dụng ghế của bạn sắp kết thúc. Hãy chuẩn bị lưu tài liệu và rời chỗ đúng giờ."),
+                new NotificationSeedTemplate(
+                        "Điểm uy tín vừa được cập nhật",
+                        NotificationEntity.NotificationType.REPUTATION,
+                        "REPUTATION",
+                        null,
+                        false,
+                        user -> "Điểm uy tín của " + (user.getFullName() != null ? user.getFullName() : "bạn")
+                                + " vừa được hệ thống cập nhật theo hoạt động gần đây."),
+                new NotificationSeedTemplate(
+                        "Thư viện vừa có tin mới",
+                        NotificationEntity.NotificationType.NEWS,
+                        "NEWS",
+                        null,
+                        false,
+                        user -> "Đã có thông báo mới về lịch mở cửa và khu vực học nhóm trong tuần này."),
+                new NotificationSeedTemplate(
+                        "Yêu cầu hỗ trợ đang được xử lý",
+                        NotificationEntity.NotificationType.SUPPORT_REQUEST,
+                        "SUPPORT_REQUEST",
+                        null,
+                        true,
+                        user -> "Thủ thư đã tiếp nhận yêu cầu hỗ trợ của bạn và đang cập nhật tiến độ xử lý."),
+                new NotificationSeedTemplate(
+                        "Khiếu nại đã được ghi nhận",
+                        NotificationEntity.NotificationType.COMPLAINT,
+                        "COMPLAINT",
+                        null,
+                        true,
+                        user -> "Khiếu nại gần đây của bạn đã được chuyển đến thủ thư để xem xét."),
+                new NotificationSeedTemplate(
+                        "Báo cáo vi phạm mới",
+                        NotificationEntity.NotificationType.VIOLATION_REPORT,
+                        "VIOLATION_REPORT",
+                        null,
+                        false,
+                        user -> "Hệ thống vừa ghi nhận một báo cáo vi phạm cần được kiểm tra thêm."),
+                new NotificationSeedTemplate(
+                        "Thông báo đặt chỗ",
+                        NotificationEntity.NotificationType.BOOKING,
+                        bookingReferenceId != null ? "RESERVATION" : "BOOKING",
+                        bookingReferenceId,
+                        false,
+                        user -> "Lịch đặt chỗ của bạn đã được cập nhật trạng thái mới để phục vụ demo hệ thống."));
+    }
+
     private record NewsSeedTemplate(
             String title,
             String summary,
@@ -958,27 +1019,57 @@ public class SeedDataService {
             LocalDate publishDate) {
     }
 
+    private record NotificationSeedTemplate(
+            String title,
+            NotificationEntity.NotificationType type,
+            String referenceType,
+            UUID referenceId,
+            boolean read,
+            java.util.function.Function<User, String> contentSupplier) {
+
+        String content(User user) {
+            return contentSupplier.apply(user);
+        }
+    }
+
     /**
      * Tạo tất cả dữ liệu mẫu cùng lúc (bao gồm dashboard data)
      */
     @Transactional
     public Map<String, Object> seedAll(int bookingCount, int violationCount, int supportCount) {
-        return seedAll(bookingCount, violationCount, supportCount, null);
+        return seedAll(bookingCount, 24, violationCount, supportCount, 5, 8, 8, 6, 8, 8, null);
     }
 
     @Transactional
     public Map<String, Object> seedAll(int bookingCount, int violationCount, int supportCount, String studentCode) {
+        return seedAll(bookingCount, 24, violationCount, supportCount, 5, 8, 8, 6, 8, 8, studentCode);
+    }
+
+    @Transactional
+    public Map<String, Object> seedAll(
+            int bookingCount,
+            int accessLogCount,
+            int violationCount,
+            int supportCount,
+            int complaintCount,
+            int feedbackCount,
+            int seatStatusReportCount,
+            int newsCount,
+            int newBookCount,
+            int notificationCount,
+            String studentCode) {
         ensureStudentCohort(Math.max(8, bookingCount / 2), SYSTEM_SHOWCASE_SCOPE);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("accessLogs", seedAccessLogs(50, SYSTEM_SHOWCASE_SCOPE));
+        result.put("accessLogs", seedAccessLogs(accessLogCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("bookings", seedBookings(bookingCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("violations", seedViolations(violationCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("supportRequests", seedSupportRequests(supportCount, SYSTEM_SHOWCASE_SCOPE));
-        result.put("complaints", seedComplaints(5, SYSTEM_SHOWCASE_SCOPE));
-        result.put("feedbacks", seedFeedbacks(8, SYSTEM_SHOWCASE_SCOPE));
-        result.put("seatStatusReports", seedSeatStatusReports(8, SYSTEM_SHOWCASE_SCOPE));
-        result.put("news", seedNews(6, SYSTEM_SHOWCASE_SCOPE));
-        result.put("newBooks", seedNewBooks(8, SYSTEM_SHOWCASE_SCOPE));
+        result.put("complaints", seedComplaints(complaintCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("feedbacks", seedFeedbacks(feedbackCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("seatStatusReports", seedSeatStatusReports(seatStatusReportCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("news", seedNews(newsCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("newBooks", seedNewBooks(newBookCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("notifications", seedNotifications(notificationCount, studentCode, SYSTEM_SHOWCASE_SCOPE));
 
         if (studentCode != null && !studentCode.isBlank()) {
             result.put("studentJourney", seedStudentJourney(studentCode.trim().toUpperCase(Locale.ROOT)));
@@ -986,9 +1077,54 @@ public class SeedDataService {
 
         result.put("status", "SUCCESS");
         result.put("message", String.format(
-                "Đã tạo bộ dữ liệu showcase gồm access logs, bookings, violations, supports, complaints, feedbacks, seat status reports, news, new books%s",
+                "Đã tạo bộ dữ liệu showcase gồm access logs, bookings, violations, supports, complaints, feedbacks, seat status reports, news, new books, notifications%s",
                 studentCode != null && !studentCode.isBlank() ? " và dữ liệu hành trình cho sinh viên " + studentCode : ""));
         return result;
+    }
+
+    @Transactional
+    public Map<String, Object> seedNotifications(int count, String userCode, String seedScope) {
+        List<User> students = ensureStudentCohort(Math.max(6, Math.min(count, 10)), seedScope);
+        if (students.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Cần có users trước khi seed notifications");
+        }
+
+        User preferredUser = null;
+        if (userCode != null && !userCode.isBlank()) {
+            preferredUser = userRepository.findByUserCode(userCode.trim().toUpperCase(Locale.ROOT)).orElse(null);
+        }
+
+        User mainUser = preferredUser != null ? preferredUser : students.get(0);
+        List<ReservationEntity> existingBookings = reservationRepository.findByUserId(mainUser.getId());
+        UUID bookingReferenceId = existingBookings.isEmpty() ? null : existingBookings.get(0).getReservationId();
+
+        List<NotificationSeedTemplate> templates = notificationTemplates(mainUser, bookingReferenceId);
+        List<UUID> createdIds = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            NotificationSeedTemplate template = templates.get(i % templates.size());
+            User targetUser = i % 3 == 0 ? mainUser : students.get(i % students.size());
+
+            NotificationEntity notification = notificationRepository.save(NotificationEntity.builder()
+                    .user(targetUser)
+                    .title(template.title())
+                    .content(template.content(targetUser))
+                    .notificationType(template.type())
+                    .referenceType(template.referenceType())
+                    .referenceId(template.referenceId())
+                    .isRead(template.read())
+                    .build());
+
+            createdIds.add(notification.getId());
+            recordSeed("NOTIFICATION", notification.getId(), seedScope);
+        }
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã tạo " + count + " thông báo mẫu",
+                "count", count,
+                "ids", createdIds,
+                "targetUser", mainUser.getUserCode());
     }
 
     @Transactional
