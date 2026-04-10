@@ -22,198 +22,206 @@ This file records the feature grouping used for Report 4.
 - `FE-11`: Turn on/Turn off notification
 - `FE-12`: Turn on/Turn off AI suggestion
 - `FE-13`: Turn on/Turn off HCE feature
+- `FE-14`: View booking restriction status by reputation
 
 ### User Management Module
 
-- `FE-14`: View list of users in the system
-- `FE-15`: Import Student and Teacher via file
-- `FE-16`: Download template of the file upload
-- `FE-17`: Add Librarian to the system
-- `FE-18`: View user details
-- `FE-19`: Change user status
-- `FE-20`: Delete user account
+- `FE-15`: View list of users in the system
+- `FE-16`: Import Student and Teacher via file
+- `FE-17`: Download template of the file upload
+- `FE-18`: Add Librarian to the system
+- `FE-19`: View user details
+- `FE-20`: Change user status
+- `FE-21`: Delete user account
 
 ### System Configuration Module
 
 #### Area Management
 
-- `FE-21`: View area map
-- `FE-22`: CRUD area
-- `FE-23`: Change area status
-- `FE-24`: Lock area movement
+- `FE-22`: View area map
+- `FE-23`: CRUD area
+- `FE-24`: Change area status
+- `FE-25`: Lock area movement
 
 #### Zone Management
 
-- `FE-25`: View zone map
-- `FE-26`: CRUD zone
-- `FE-27`: CRUD zone attribute
-- `FE-28`: View zone details
-- `FE-29`: Lock zone movement
+- `FE-26`: View zone map
+- `FE-27`: CRUD zone
+- `FE-28`: CRUD zone attribute
+- `FE-29`: View zone details
+- `FE-30`: Lock zone movement
 
 #### Seat Management
 
-- `FE-30`: View seat map
-- `FE-31`: CRUD seat
-- `FE-32`: Change seat status
+- `FE-31`: View seat map
+- `FE-32`: CRUD seat
+- `FE-33`: Change seat status
 
 #### Reputation Rule Management
 
-- `FE-33`: View list of reputation rules
-- `FE-34`: CRUD reputation rule
-- `FE-35`: Set the deducted point for each reputation rule
+- `FE-34`: View list of reputation rules
+- `FE-35`: CRUD reputation rule
+- `FE-36`: Set the deducted point for each reputation rule
 
 #### Library Configuration Management
 
-- `FE-36`: Set library operating hours
-- `FE-37`: Configure booking rules
-- `FE-38`: Turn on/Turn off automatic check-out when time exceeds
-- `FE-39`: Enable/Disable library
+- `FE-37`: Set library operating hours
+- `FE-38`: Configure booking rules
+- `FE-39`: Setting time for automatic check-out when time exceeds
+- `FE-40`: Enable/Disable library
 
 #### HCE Scan Station Management
 
-- `FE-40`: View HCE scan stations
-- `FE-41`: View HCE scan stations details
-- `FE-42`: Manage HCE station registration
+- `FE-41`: View HCE scan stations
+- `FE-42`: View HCE scan stations details
+- `FE-43`: Manage HCE station registration
 
 #### AI Configuration Management
 
-- `FE-43`: CRUD material
-- `FE-44`: View list of materials
-- `FE-45`: CRUD knowledge store
-- `FE-46`: View list of knowledge stores
-- `FE-47`: Test AI chat
+- `FE-44`: CRUD material
+- `FE-45`: View list of materials
+- `FE-46`: CRUD knowledge store
+- `FE-47`: View list of knowledge stores
+- `FE-48`: Test AI chat
 
 #### NFC Tag Management
 
-- `FE-48`: Manage NFC Tag UID mapping
-- `FE-49`: View NFC Tag mapping list
-- `FE-50`: View NFC Tag mapping details
+- `FE-49`: Manage NFC Tag UID mapping
+- `FE-50`: View NFC Tag mapping list
+- `FE-51`: View NFC Tag mapping details
 
 #### Kiosk Management
 
-- `FE-51`: View list of Kiosk images
-- `FE-52`: CRUD Kiosk image
-- `FE-53`: Change image status
-- `FE-54`: Preview Kiosk display
+- `FE-52`: View list of Kiosk devices
+- `FE-53`: View Kiosk device details
+- `FE-54`: CRUD Kiosk device
+- `FE-55`: Activate Kiosk device
 
 #### Others
 
-- `FE-55`: Config system notification
-- `FE-56`: View system overview information
-- `FE-57`: View system log
-- `FE-58`: Backup data manually
-- `FE-59`: Set automatic backup schedule
+- `FE-56`: Config system notification
+- `FE-57`: View system overview information
+- `FE-58`: View system log
+- `FE-59`: Backup data manually
+- `FE-60`: Set automatic backup schedule
 
 ### Booking Seat Module
 
-- `FE-60`: View real time seat map
-- `FE-61`: Filter seat map
-- `FE-62`: View map density
-- `FE-63`: Booking seat
-- `FE-64`: Preview booking information
-- `FE-65`: Confirm booking via NFC
-- `FE-66`: View history of booking
-- `FE-67`: Cancel booking
-- `FE-68`: Ask AI for recommending seat
-- `FE-69`: View list of user bookings
-- `FE-70`: Search and Filter user booking
-- `FE-71`: View booking details and status
+- `FE-61`: View real time seat map
+- `FE-62`: Filter seat map
+- `FE-63`: View map density
+- `FE-64`: Booking seat
+- `FE-65`: Preview booking information
+- `FE-66`: Confirm booking via NFC
+- `FE-67`: View history of booking
+- `FE-68`: Cancel booking
+- `FE-69`: Ask AI for recommending seat
+- `FE-70`: View list of user bookings
+- `FE-71`: Search and Filter user booking
+- `FE-72`: View user booking details and status
+- `FE-73`: Leave seat via NFC
+- `FE-74`: Release occupied seat by Librarian
+- `FE-75`: View actual seat end time
 
 ### Library Access Module
 
-- `FE-72`: Check-in/Check-out library via HCE
-- `FE-73`: Check-in/Check-out library via QR code
-- `FE-74`: View history of check-ins/check-outs
-- `FE-75`: View list of users access to library
+- `FE-76`: Check-in/Check-out library via HCE
+- `FE-77`: Check-in/Check-out library via QR code
+- `FE-78`: View history of check-ins/check-outs
+- `FE-79`: View list of users access to library
 
 ### Reputation & Violation Module
 
 #### Reputation Score Management
 
-- `FE-76`: View reputation score
-- `FE-77`: View history of changed reputation points
-- `FE-78`: View detailed reason for deducting point
-- `FE-79`: View list of users violation
-- `FE-80`: View user violation details
+- `FE-80`: View reputation score
+- `FE-81`: View history of changed reputation points
+- `FE-82`: View detailed reason for deducting point
+- `FE-83`: View list of users violation
+- `FE-84`: View user violation details
 
 #### Complaint Management
 
-- `FE-81`: Create complaint
-- `FE-82`: View history of sending complaint
-- `FE-83`: View list of complaints
-- `FE-84`: View complaint details
-- `FE-85`: Verify complaint
+- `FE-85`: Create complaint
+- `FE-86`: View history of sending complaint
+- `FE-87`: View list of complaints
+- `FE-88`: View complaint details
+- `FE-89`: Verify complaint
 
 ### Feedback Module
 
 #### Feedback System Management
 
-- `FE-86`: Create feedback after check-out
-- `FE-87`: View list of feedbacks
-- `FE-88`: View feedback details
+- `FE-90`: Create feedback after check-out
+- `FE-91`: View list of feedbacks
+- `FE-92`: View feedback details
 
 #### Seat Status Management
 
-- `FE-89`: Create seat status report
-- `FE-90`: View history of sending seat status report
-- `FE-91`: View list of seat status reports
-- `FE-92`: View seat status report details
-- `FE-93`: Verify seat status report
+- `FE-93`: Create seat status report
+- `FE-94`: View history of sending seat status report
+- `FE-95`: View list of seat status reports
+- `FE-96`: View seat status report details
+- `FE-97`: Verify seat status report
 
 #### Report Seat Violation Management
 
-- `FE-94`: Create report seat violation
-- `FE-95`: View history of sending report seat violation
-- `FE-96`: View list of seat violation reports
-- `FE-97`: View report seat violation details
-- `FE-98`: Verify seat violation report
+- `FE-98`: Create report seat violation
+- `FE-99`: View history of sending report seat violation
+- `FE-100`: View list of seat violation reports
+- `FE-101`: View report seat violation details
+- `FE-102`: Verify seat violation report
 
 ### Notification Module
 
-- `FE-99`: View and delete list of notifications
-- `FE-100`: View notification details
-- `FE-101`: Filter notification
-- `FE-102`: Mark notification as read
+- `FE-103`: View and delete list of notifications
+- `FE-104`: View notification details
+- `FE-105`: Filter notification
+- `FE-106`: Mark notification as read
 
 ### News & Announcement Module
 
-- `FE-103`: View list of news & announcements
-- `FE-104`: View news & announcement details
-- `FE-105`: View list of news & announcement categories
-- `FE-106`: View list of new books
-- `FE-107`: View basic information of new book
-- `FE-108`: CRUD new book
-- `FE-109`: CRUD news & announcement
-- `FE-110`: CRUD news & announcement category
-- `FE-111`: Set time to post news & announcement
-- `FE-112`: Save news & announcement draft
+- `FE-107`: View list of news & announcements
+- `FE-108`: View news & announcement details
+- `FE-109`: View list of news & announcement categories
+- `FE-110`: View list of new books
+- `FE-111`: View basic information of new book
+- `FE-112`: CRUD new book
+- `FE-113`: CRUD news & announcement
+- `FE-114`: Create news & announcement category
+- `FE-115`: Set time to post news & announcement
+- `FE-116`: Save news & announcement draft
+- `FE-117`: View list of Kiosk images
+- `FE-118`: CRUD Kiosk image
+- `FE-119`: Change image status
+- `FE-120`: Preview Kiosk display
 
 ### Chat & Support Module
 
-- `FE-113`: Chat with AI virtual assistant
-- `FE-114`: Chat with Librarian
-- `FE-115`: Send request for support
-- `FE-116`: View list of support requests
-- `FE-117`: View history of chat
-- `FE-118`: View list of chats
-- `FE-119`: View chat details
-- `FE-120`: Response to user manually
-- `FE-121`: Response to user with AI suggestion
+- `FE-121`: Chat with AI virtual assistant
+- `FE-122`: Chat with Librarian
+- `FE-123`: Send request for support
+- `FE-124`: View list of support requests
+- `FE-125`: View history of chat
+- `FE-126`: View list of chats
+- `FE-127`: View chat details
+- `FE-128`: Response to user manually
 
 ### Statistics & Report Module
 
 #### Statistics Management
 
-- `FE-122`: View general analytics dashboard
-- `FE-123`: View violation statistics
-- `FE-124`: View statistics of density forecast by using AI
-- `FE-125`: View check-in/check-out statistics (Daily/Weekly/Monthly)
-- `FE-126`: View seat booking statistics
+- `FE-129`: View general analytics dashboard
+- `FE-130`: View violation statistics
+- `FE-131`: View statistics of density forecast by using AI
+- `FE-132`: View check-in/check-out statistics (Daily/Weekly/Monthly)
+- `FE-133`: View seat booking statistics
+- `FE-134`: View AI prioritized students
+- `FE-135`: Send warning to student from AI analytics dashboard
 
 #### Report Management
 
-- `FE-127`: Export seat & maintenance report
-- `FE-128`: Export general analytical report
+- `FE-136`: Export general analytical report
 
 ## Use Case Actor Mapping
 
@@ -234,6 +242,7 @@ This section is the actor-based use case reference for the next modules and diag
 | Turn on/Turn off notification | Student, Teacher |
 | Turn on/Turn off AI suggestion | Student, Teacher |
 | Turn on/Turn off HCE feature | Student, Teacher |
+| View booking restriction status by reputation | Student, Teacher |
 | View list of users in the system | Admin |
 | Import Student and Teacher via file | Admin |
 | Download template of file upload | Admin |
@@ -269,7 +278,7 @@ This section is the actor-based use case reference for the next modules and diag
 | Set library operating hours | Admin |
 | Configure booking rules | Admin |
 | Set automatic backup schedule | Admin |
-| Turn on/Turn off automatic check-out | Admin |
+| Setting time for automatic check-out | Admin |
 | Enable/Disable Library | Admin |
 | View HCE scan station | Admin |
 | Register HCE station | Admin |
@@ -290,12 +299,12 @@ This section is the actor-based use case reference for the next modules and diag
 | View NFC Tag mapping list | Admin |
 | View NFC Tag mapping details | Admin |
 | Test AI chat | Admin |
-| Create Kiosk image | Admin |
-| View list of Kiosk images | Admin |
-| Update Kiosk image | Admin |
-| Delete Kiosk image | Admin |
-| Change image status | Admin |
-| Preview Kiosk display | Admin |
+| View list of Kiosk devices | Admin |
+| View Kiosk device details | Admin |
+| Create Kiosk device | Admin |
+| Update Kiosk device | Admin |
+| Delete Kiosk device | Admin |
+| Activate Kiosk device | Admin |
 | Config system notification | Admin |
 | View system overview information | Admin |
 | Backup data manually | Admin |
@@ -312,12 +321,15 @@ This section is the actor-based use case reference for the next modules and diag
 | View list of user bookings | Librarian |
 | Search & Filter user booking | Librarian |
 | View user booking details | Librarian |
+| Leave seat via NFC | Student, Teacher |
+| Release occupied seat by Librarian | Librarian |
+| View actual seat end time | Librarian, Student, Teacher |
 | Check-in library via HCE | Student, Teacher |
 | Check-out library via HCE | Student, Teacher |
 | Check-in library via QR code | Student, Teacher |
 | Check-out library via QR code | Student, Teacher |
 | View history of check-ins/check-outs | Student, Teacher |
-| View list of Students access to library | Admin, Librarian |
+| View list of users access to library | Admin, Librarian |
 | View reputation score | Student, Teacher |
 | View history of changed reputation score | Student, Teacher |
 | View detailed reason of deducting points | Student, Teacher |
@@ -353,26 +365,31 @@ This section is the actor-based use case reference for the next modules and diag
 | Delete news & announcement | Librarian |
 | View list of news & announcement categories | Librarian |
 | Create news & announcement category | Librarian |
-| Update news & announcement category | Librarian |
-| Delete news & announcement category | Librarian |
 | Set time to post news & announcement | Librarian |
 | Save news & announcement draft | Librarian |
 | View list of news & announcements | Librarian, Student, Teacher |
 | View news & announcement details | Librarian, Student, Teacher |
 | View list of new books | Librarian, Student, Teacher |
 | View basic information of new book | Librarian, Student, Teacher |
+| Create Kiosk image | Librarian |
+| View list of Kiosk images | Librarian |
+| Update Kiosk image | Librarian |
+| Delete Kiosk image | Librarian |
+| Change image status | Librarian |
+| Preview Kiosk display | Librarian |
 | Chat with AI virtual assistant | Student |
 | View history of chat | Student |
 | Chat with Librarian | Student |
 | Send request for support | Student |
+| View list of support requests | Librarian |
 | View list of chats | Librarian |
 | View chat details | Librarian |
 | Response to user manually | Librarian |
-| Response to user with AI suggestion | Librarian |
 | View general analytics dashboard | Librarian |
 | View violation statistics | Librarian |
 | View statistics of density forecast via AI | Librarian |
 | View check-in/check-out statistics | Librarian |
 | View seat booking statistics | Librarian |
+| View AI prioritized students | Librarian |
+| Send warning to student from AI analytics dashboard | Librarian |
 | Export general analytical report | Librarian |
-| Export seat & maintenance report | Librarian |

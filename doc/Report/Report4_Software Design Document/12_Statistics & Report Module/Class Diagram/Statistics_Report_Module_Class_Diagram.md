@@ -19,8 +19,12 @@ classDiagram
         +getUsageStatistics(period)
         +getRealtimeCapacity()
         +getBehaviorSummary(days)
-        +getSeatRecommendation(user_id, zone_preference, time_slot, date)
+        +getBehaviorIssues(limit)
         +getStudentBehavior(body)
+    }
+
+    class NotificationController {
+        +sendBehaviorWarning(body)
     }
 
     class HCEController {
@@ -55,41 +59,13 @@ classDiagram
         +exportAccessLogsToExcel(startDate, endDate)
     }
 
-    class DashboardStatsDTO {
-        +totalCheckInsToday
-        +totalCheckOutsToday
-        +currentlyInLibrary
-        +totalBookingsToday
-        +activeBookings
-        +violationsToday
-        +recentBookings
-        +recentViolations
-        +recentSupportRequests
-        +recentComplaints
-        +recentFeedbacks
-        +recentSeatStatusReports
-        +weeklyStats
-        +zoneOccupancies
-        +priorityTasks
-        +chatAttention
-    }
-
-    class StatisticDTO {
-        +overview
-        +comparison
-        +bookingAnalysis
-        +violationsByType
-        +feedbackSummary
-        +zoneUsage
-        +peakHours
-        +insights
-    }
-
     class DashboardPage {
         +fetchDashboardData()
         +refreshStatsOnly()
         +fetchAccessLogs()
         +fetchChatOverview()
+        +handleOpenStudentProfile(issue)
+        +handleSendBehaviorWarning(issue)
     }
 
     class StatisticPage {
@@ -130,6 +106,8 @@ classDiagram
         +getUsageStatistics(period)
         +getRealtimeCapacity()
         +getBehaviorSummary(days)
+        +getBehaviorIssues(limit)
+        +sendBehaviorWarning(userId, primaryIssue, detail)
     }
 
     class LibrarianServiceClient {
@@ -138,66 +116,11 @@ classDiagram
         +getAccessLogsByDateRange(startDate, endDate)
     }
 
-    class AccessLogRepository {
-        +countByCheckInTimeBetween(start, end)
-        +countByCheckInTimeAfter(startDate)
-        +countCheckInsByHour(startDate)
-        +countCheckInsByDay(startDate)
-        +findRecentLogs(pageable)
-    }
-
-    class ReservationRepository {
-        +countByCreatedAtBetween(start, end)
-        +countBookingsGroupByStatus(startDate)
-        +countBookingsByZone(startDate)
-        +countBookingsByHour(startDate)
-        +countBookingsByDay(startDate)
-        +countActiveReservationsAtTime(now, statuses)
-    }
-
-    class SeatViolationReportRepository {
-        +countByCreatedAtBetween(start, end)
-        +countByViolationTypeAfter(startDate)
-        +findTop5ByOrderByCreatedAtDesc()
-    }
-
-    class FeedbackRepository {
-        +countByCreatedAtBetween(start, end)
-        +countByCreatedAtAfter(startDate)
-        +getAverageRatingAfter(startDate)
-        +countByRatingAfter(startDate)
-        +findTop10ByCreatedAtAfterOrderByCreatedAtDesc(startDate)
-    }
-
-    class ComplaintRepository {
-        +countByCreatedAtBetween(start, end)
-        +countByCreatedAtAfter(startDate)
-        +findTop5ByOrderByCreatedAtDesc()
-    }
-
     DashboardController --> DashboardService
     StatisticController --> StatisticService
     AIAnalyticsProxyController --> AnalyticsServiceClient
+    NotificationController --> AnalyticsServiceClient
     HCEController --> CheckInService
-
-    DashboardService --> CheckInService
-    DashboardService --> AccessLogRepository
-    DashboardService --> ReservationRepository
-    DashboardService --> SeatViolationReportRepository
-    DashboardService --> ComplaintRepository
-    DashboardService --> FeedbackRepository
-
-    StatisticService --> AccessLogRepository
-    StatisticService --> ReservationRepository
-    StatisticService --> SeatViolationReportRepository
-    StatisticService --> FeedbackRepository
-    StatisticService --> ComplaintRepository
-
-    DashboardController --> DashboardStatsDTO
-    StatisticController --> StatisticDTO
-    DashboardService --> DashboardStatsDTO
-    StatisticService --> StatisticDTO
-
     DashboardPage --> DashboardServiceClient
     DashboardPage --> AnalyticsServiceClient
     DashboardPage --> LibrarianServiceClient
@@ -208,4 +131,3 @@ classDiagram
     CheckInOutPage --> LibrarianServiceClient
     CheckInOutPage --> HCEController
 ```
-

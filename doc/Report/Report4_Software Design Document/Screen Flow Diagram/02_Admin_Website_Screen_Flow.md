@@ -1,98 +1,152 @@
-﻿# Admin Website Screen Flow Diagram
+# Admin Website Screen Flow Diagram
 
 ```mermaid
-flowchart TB
-    start["Start accessing SLIB Web"] --> auth{"Already signed in?"}
-    auth -->|No| login["Staff Login Screen<br/>AuthPage / Login"]
-    login --> forgot["Forgot Password"]
+---
+config:
+  layout: elk
+---
+flowchart LR
+ subgraph routes["Admin route screens"]
+        libraryMap["Library Map Management Screen"]
+        dashboard["Admin Dashboard"]
+        users["User Management Screen"]
+        devices["HCE Scan Station Management Screen"]
+        nfc["NFC Tag Management Screen"]
+        kiosk["Kiosk Device Management Screen"]
+        config["System Configuration Screen"]
+        health["System Health Screen"]
+        aiConfig["AI Configuration Screen"]
+        settings["Account Settings Screen"]
+  end
+ subgraph dashflow["Dashboard flow"]
+        summaryCards["System Summary Widgets"]
+        quickNav["Quick Navigation Tiles"]
+  end
+ subgraph mapflow["Library map editor flow"]
+        mapCanvas["Layout Canvas Board"]
+        areaProps["Area Properties Panel"]
+        zoneProps["Zone Properties Panel"]
+        seatProps["Seat Properties Panel"]
+        factoryProps["Factory / Shape Properties Panel"]
+        amenityEditor["Amenity Editor State"]
+        previewMode["Preview Mode"]
+        publishDraft["Save / Publish Layout Action"]
+  end
+ subgraph userflow["User management flow"]
+        userSearch["Search / Filter / Pagination"]
+        addLibrarian["Add Librarian Modal"]
+        importModal["Import Users Modal"]
+        downloadTemplate["Download Template Action"]
+        userDetail["User Details Modal\nInfo / Stats / History tabs"]
+        changeStatus["Change Status Confirm Dialog"]
+        deleteUser["Delete User Modal"]
+  end
+ subgraph deviceflow["HCE station flow"]
+        deviceFilter["Search / Type / Status Filter"]
+        deviceDetail["Device Detail Modal / Panel"]
+        registerDevice["Register / Create Station Dialog"]
+        editDevice["Update Station Dialog"]
+        deleteDevice["Delete Station Confirm Dialog"]
+        heartbeatState["Realtime Heartbeat / Status State"]
+  end
+    entry["Open SLIB Web"] --> auth{"Authenticated session?"}
+    auth -- No --> login["Unified Login Screen\nAuthPage / Login form"]
+    login --> forgot["Forgot Password Screen / Panel"] & errSession["Session Expired Screen"] & errToken["Token Expired Screen"] & errForbidden["Forbidden Screen"] & errServer["Server Error Screen"] & errTimeout["Session Timeout Screen"] & err404["Not Found Screen"]
     forgot --> login
-    login -->|Login successful as ADMIN| dash["Admin Dashboard"]
-    auth -->|Yes| dash
-
-    subgraph admin_core["Main navigation flow of the Admin Website"]
-        dash --> libraryMap["Library Map Management"]
-        dash --> users["User Management"]
-        dash --> devices["HCE Device / Station Management"]
-        dash --> nfc["NFC Tag Management"]
-        dash --> kiosk["Kiosk Management"]
-        dash --> config["System / Library Configuration"]
-        dash --> health["System Health"]
-        dash --> ai["AI Configuration"]
-        dash --> settings["Account Settings"]
+    login -- Admin login success --> dashboard
+    auth -- Yes --> dashboard
+    dashboard --> libraryMap & users & devices & nfc & kiosk & config & health & aiConfig & settings & summaryCards & quickNav
+    libraryMap --> mapCanvas & areaProps & zoneProps & seatProps & factoryProps & amenityEditor & previewMode & publishDraft
+    users --> userSearch & addLibrarian & importModal & downloadTemplate & userDetail & changeStatus & deleteUser
+    userDetail --> users
+    addLibrarian --> users
+    importModal --> users
+    changeStatus --> users
+    deleteUser --> users
+    devices --> deviceFilter & deviceDetail & registerDevice & editDevice & deleteDevice & heartbeatState
+    deviceDetail --> devices
+    subgraph nfcflow["NFC management flow"]
+        nfc --> nfcMap["NFC Seat Map Screen State"]
+        nfc --> bridgeDropdown["Bridge Action Dropdown"]
+        nfc --> bridgeGuide["Bridge Guide Modal"]
+        nfc --> seatInfo["Seat NFC Detail Modal"]
+        nfc --> nfcCheck["NFC Scan / Verify Modal"]
+        nfc --> bindTag["Bind / Update Tag Action"]
+        nfc --> removeTag["Delete Mapping Confirm Dialog"]
+        seatInfo --> bindTag
+        nfcCheck --> nfc
     end
 
-    subgraph map_flow["Library configuration flow"]
-        libraryMap --> areaEditor["Design Area / Zone / Seat / Factory / Amenity"]
-        areaEditor --> libraryMap
-        config --> systemRules["Configure Opening Hours, Booking Rules, and System Parameters"]
-        systemRules --> config
+    subgraph kioskflow["Kiosk administration flow"]
+        kiosk --> kioskList["Kiosk Device List"]
+        kiosk --> kioskDetail["Kiosk Device Detail Panel"]
+        kiosk --> kioskCreate["Create Kiosk Dialog"]
+        kiosk --> kioskEdit["Update Kiosk Dialog"]
+        kiosk --> kioskDelete["Delete Kiosk Confirm Dialog"]
+        kiosk --> kioskActivate["Activate Kiosk Dialog / Code Flow"]
+        kiosk --> kioskToken["Token / QR Session State"]
+        kioskDetail --> kiosk
     end
 
-    subgraph user_flow["User administration flow"]
-        users --> userDetail["View User Detail"]
-        users --> importUsers["Import Users from File"]
-        users --> templateDownload["Download Import Template"]
-        users --> addLibrarian["Add Librarian"]
-        users --> changeStatus["Change Account Status"]
-        users --> deleteUser["Delete Account"]
-        userDetail --> users
-        importUsers --> users
-        templateDownload --> users
-        addLibrarian --> users
-        changeStatus --> users
-        deleteUser --> users
+    subgraph configflow["System configuration flow"]
+        config --> areaConfig["Area / Zone / Seat rules section"]
+        config --> reputationConfig["Reputation Rule section"]
+        config --> bookingRules["Booking Rules section"]
+        config --> autoCheckout["Automatic Check-Out Time section"]
+        config --> libraryStatus["Enable / Disable Library section"]
+        config --> notificationConfig["System Notification section"]
+        config --> backupConfig["Backup Schedule section"]
+        config --> saveConfig["Save Configuration Confirm / Success"]
     end
 
-    subgraph infra_flow["Infrastructure and kiosk flow"]
-        devices --> stationDetail["Device Detail / Heartbeat Status"]
-        stationDetail --> devices
-        nfc --> nfcMapping["Map NFC Tag to Seat / Verify Mapping"]
-        nfcMapping --> nfc
-        kiosk --> kioskSession["Kiosk Activation Session Management"]
-        kiosk --> kioskSlides["Kiosk Slideshow Management"]
-        kioskSession --> kiosk
-        kioskSlides --> kiosk
+    subgraph healthflow["System health flow"]
+        health --> healthCards["Service Health Cards"]
+        health --> logTable["System Log Table"]
+        health --> logFilter["Level / Source / Search Filter"]
+        health --> backupManual["Manual Backup Action"]
+        health --> backupHistory["Backup History View"]
+        health --> backupResult["Backup Result Dialog / Toast"]
     end
 
-    subgraph ai_flow["AI administration flow"]
-        ai --> promptTemplate["Prompt Template"]
-        ai --> knowledgeBase["Knowledge Base"]
-        ai --> materialStore["Documents / Materials"]
-        ai --> analyticsProxy["AI Analytics / Data Sync"]
-        promptTemplate --> ai
-        knowledgeBase --> ai
-        materialStore --> ai
-        analyticsProxy --> ai
+    subgraph aiflow["AI configuration flow"]
+        aiConfig --> materialList["Material List"]
+        aiConfig --> materialForm["Create / Update Material Dialog"]
+        aiConfig --> materialDelete["Delete Material Confirm"]
+        aiConfig --> storeList["Knowledge Store List"]
+        aiConfig --> storeForm["Create / Update Store Dialog"]
+        aiConfig --> storeDelete["Delete Store Confirm"]
+        aiConfig --> testChat["AI Chat Test Panel"]
+        aiConfig --> syncState["Sync / Processing State"]
     end
 
-    health --> monitor["View Health Check / Service Status"]
-    monitor --> health
+    subgraph globalflow["Global header and account flow"]
+        dashboard --> profileMenu["Account Dropdown"]
+        profileMenu --> settings
+        profileMenu --> logoutConfirm["Logout Confirm Dialog"]
+    end
 
-    settings --> logout{"Log out?"}
-    logout -->|Yes| login
-    logout -->|No| settings
+    settings --> logoutConfirm
+    logoutConfirm -->|Confirm| login
+    logoutConfirm -->|Cancel| settings
 
     classDef startEnd fill:#e8600a,color:#ffffff,stroke:#b84b05,stroke-width:2px;
-    classDef authFlow fill:#fff1e8,color:#7a3412,stroke:#f59e0b,stroke-width:1.5px;
-    classDef dashboard fill:#dbeafe,color:#1e3a8a,stroke:#60a5fa,stroke-width:1.5px;
-    classDef mainFlow fill:#ecfdf5,color:#065f46,stroke:#34d399,stroke-width:1.5px;
-    classDef configFlow fill:#fef3c7,color:#92400e,stroke:#fbbf24,stroke-width:1.5px;
-    classDef detailFlow fill:#f5f3ff,color:#5b21b6,stroke:#a78bfa,stroke-width:1.5px;
-    classDef infraFlow fill:#fee2e2,color:#991b1b,stroke:#f87171,stroke-width:1.5px;
-    classDef aiFlow fill:#e0f2fe,color:#0c4a6e,stroke:#38bdf8,stroke-width:1.5px;
+    classDef auth fill:#fff1e8,color:#7a3412,stroke:#f59e0b,stroke-width:1.5px;
+    classDef route fill:#dbeafe,color:#1e3a8a,stroke:#60a5fa,stroke-width:1.5px;
+    classDef panel fill:#ecfdf5,color:#065f46,stroke:#34d399,stroke-width:1.5px;
+    classDef modal fill:#f5f3ff,color:#5b21b6,stroke:#a78bfa,stroke-width:1.5px;
+    classDef warn fill:#fee2e2,color:#991b1b,stroke:#f87171,stroke-width:1.5px;
+    classDef configstyle fill:#fef3c7,color:#92400e,stroke:#fbbf24,stroke-width:1.5px;
 
-    class start,login,forgot,logout startEnd;
-    class auth authFlow;
-    class dash dashboard;
-    class libraryMap,users,devices,nfc,kiosk,config,health,ai,settings mainFlow;
-    class areaEditor,systemRules,importUsers,templateDownload,addLibrarian,changeStatus,deleteUser configFlow;
-    class userDetail,stationDetail,nfcMapping,kioskSession,kioskSlides,monitor detailFlow;
-    class devices,nfc,kiosk infraFlow;
-    class promptTemplate,knowledgeBase,materialStore,analyticsProxy aiFlow;
+    class entry,logoutConfirm startEnd;
+    class auth,login,forgot,errSession,errToken,errForbidden,errServer,errTimeout,err404 auth;
+    class dashboard,libraryMap,users,devices,nfc,kiosk,config,health,aiConfig,settings route;
+    class summaryCards,quickNav,mapCanvas,areaProps,zoneProps,seatProps,factoryProps,amenityEditor,previewMode,publishDraft,userSearch,downloadTemplate,deviceFilter,heartbeatState,nfcMap,bridgeDropdown,bindTag,kioskList,kioskToken,areaConfig,reputationConfig,bookingRules,autoCheckout,libraryStatus,notificationConfig,backupConfig,saveConfig,healthCards,logTable,logFilter,backupManual,backupHistory,backupResult,materialList,storeList,testChat,syncState,panel,profileMenu panel;
+    class addLibrarian,importModal,userDetail,changeStatus,deleteUser,deviceDetail,registerDevice,editDevice,deleteDevice,bridgeGuide,seatInfo,nfcCheck,kioskDetail,kioskCreate,kioskEdit,kioskDelete,kioskActivate,materialForm,storeForm,settings modal;
+    class removeTag,materialDelete,storeDelete warn;
 ```
 
 ## Notes
 
-- This diagram follows the current routes in `frontend/src/routes/AdminRoutes.jsx`.
-- The Admin side currently has fewer separate detail routes than the Librarian side; most subflows happen inside each management page or inside modal interactions.
-- `library-map`, `users`, `devices`, `nfc-management`, `kiosk`, `config`, `health`, `ai-config`, and `settings` are the current real route-based screens in the codebase.
+- This diagram follows the current route structure in `frontend/src/routes/AdminRoutes.jsx` and the in-page modal flows found in Admin pages and Admin components.
+- The Admin website has fewer standalone routes than the Librarian site, so many important UI screens exist as modals, drawers, editor panels, and confirm dialogs inside each main page.
+- Kiosk public screens are excluded here because they belong to the public kiosk flow, not the Admin website flow.
