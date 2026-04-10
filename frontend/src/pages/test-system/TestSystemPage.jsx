@@ -7,6 +7,7 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Target,
   Trash2,
@@ -81,6 +82,7 @@ function TestSystemPage() {
   const [authLoading, setAuthLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [actionKey, setActionKey] = useState("");
+  const [lastActionResult, setLastActionResult] = useState(null);
 
   const [seedForm, setSeedForm] = useState(DEFAULT_SEED_FORM);
   const [journeyUserCode, setJourneyUserCode] = useState("");
@@ -223,6 +225,7 @@ function TestSystemPage() {
     setActionKey(key);
     try {
       const result = await executor();
+      setLastActionResult({ key, result, executedAt: new Date().toISOString() });
       if (successMessage || result?.message) {
         toast.success(successMessage || result.message);
       }
@@ -546,31 +549,45 @@ function TestSystemPage() {
             <div className="test-system-stack">
               <div className="test-system-inline">
                 <label className="test-system-field">
-                  <span>Hành trình sinh viên</span>
+                  <span>Demo mobile đầy đủ</span>
                   <input
                     value={journeyUserCode}
-                    onChange={(event) => setJourneyUserCode(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setJourneyUserCode(value);
+                      setSeedForm((prev) => ({ ...prev, studentCode: value }));
+                    }}
                     placeholder="Ví dụ: DE180295"
                   />
                 </label>
               <button
                 className="test-system-btn test-system-btn--primary"
                 type="button"
-                disabled={actionKey === "student-journey"}
+                disabled={actionKey === "student-mobile-demo"}
                 onClick={() => {
                   if (!journeyUserCode.trim()) {
-                    toast.error("Vui lòng nhập userCode cho hành trình sinh viên.");
+                    toast.error("Vui lòng nhập userCode để tạo preset mobile cho sinh viên.");
                     return;
                   }
                   runAction(
-                    "student-journey",
-                    () => testSystemService.seedStudentJourney(token, journeyUserCode.trim())
+                    "student-mobile-demo",
+                    () => testSystemService.seedStudentMobileDemo(token, journeyUserCode.trim())
                   );
                 }}
               >
-                  {actionKey === "student-journey" ? <Loader2 size={16} className="ts-spin" /> : <Sparkles size={16} />}
-                  Tạo journey demo
+                  {actionKey === "student-mobile-demo" ? (
+                    <Loader2 size={16} className="ts-spin" />
+                  ) : (
+                    <Smartphone size={16} />
+                  )}
+                  Tạo preset mobile
                 </button>
+              </div>
+
+              <div className="test-system-note test-system-note--soft">
+                Preset này tạo sẵn cho một sinh viên: booking đang dùng, booking sắp tới, booking đã hoàn thành,
+                booking đã hết hạn, booking đã bị thủ thư hủy kèm lý do, lịch sử hoạt động, điểm uy tín, vi phạm
+                bị ghi nhận, vi phạm đã báo cáo, khiếu nại, phản hồi, hỗ trợ, báo cáo ghế và thông báo mobile.
               </div>
 
               <div className="test-system-inline">
@@ -651,6 +668,73 @@ function TestSystemPage() {
             </div>
           </article>
         </section>
+
+        {lastActionResult?.result && (
+          <section className="test-system-grid">
+            <article className="test-system-card">
+              <div className="test-system-card__header">
+                <Sparkles size={20} />
+                <div>
+                  <h2>Kết quả thao tác gần nhất</h2>
+                  <span>{lastActionResult.result.message || "Đã chạy xong thao tác gần nhất."}</span>
+                </div>
+              </div>
+
+              <div className="test-system-result-grid">
+                {lastActionResult.result.userCode && (
+                  <div className="test-system-result-pill">
+                    <strong>UserCode</strong>
+                    <span>{lastActionResult.result.userCode}</span>
+                  </div>
+                )}
+                {lastActionResult.result.studentName && (
+                  <div className="test-system-result-pill">
+                    <strong>Sinh viên</strong>
+                    <span>{lastActionResult.result.studentName}</span>
+                  </div>
+                )}
+                {lastActionResult.result.reputationScore !== undefined && (
+                  <div className="test-system-result-pill">
+                    <strong>Điểm uy tín</strong>
+                    <span>{lastActionResult.result.reputationScore}</span>
+                  </div>
+                )}
+                {lastActionResult.result.currentSeat && (
+                  <div className="test-system-result-pill">
+                    <strong>Ghế đang dùng</strong>
+                    <span>{lastActionResult.result.currentSeat}</span>
+                  </div>
+                )}
+                {lastActionResult.result.upcomingSeat && (
+                  <div className="test-system-result-pill">
+                    <strong>Ghế sắp tới</strong>
+                    <span>{lastActionResult.result.upcomingSeat}</span>
+                  </div>
+                )}
+                {lastActionResult.result.cancelledSeat && (
+                  <div className="test-system-result-pill">
+                    <strong>Ghế đã hủy</strong>
+                    <span>{lastActionResult.result.cancelledSeat}</span>
+                  </div>
+                )}
+                {lastActionResult.result.notificationCount !== undefined && (
+                  <div className="test-system-result-pill">
+                    <strong>Thông báo tạo ra</strong>
+                    <span>{lastActionResult.result.notificationCount}</span>
+                  </div>
+                )}
+              </div>
+
+              {Array.isArray(lastActionResult.result.coverage) && lastActionResult.result.coverage.length > 0 && (
+                <div className="test-system-result-list">
+                  {lastActionResult.result.coverage.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+              )}
+            </article>
+          </section>
+        )}
 
         <section className="test-system-grid">
           <article className="test-system-card">

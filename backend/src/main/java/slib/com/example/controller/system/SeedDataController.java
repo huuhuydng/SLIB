@@ -211,4 +211,14 @@ public class SeedDataController {
             @RequestParam String userCode) {
         return ResponseEntity.ok(seedDataService.seedStudentJourney(userCode));
     }
+
+    /**
+     * Alias rõ nghĩa cho buổi demo mobile của một sinh viên
+     * POST /slib/seed/student-mobile-demo?userCode=SE171001
+     */
+    @PostMapping("/student-mobile-demo")
+    public ResponseEntity<Map<String, Object>> seedStudentMobileDemo(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedStudentJourney(userCode));
+    }
 }

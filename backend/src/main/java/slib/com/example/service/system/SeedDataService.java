@@ -1213,15 +1213,20 @@ public class SeedDataService {
 
         List<User> staff = getActiveStaff();
         User librarian = staff.isEmpty() ? null : staff.get(0);
+        User peerStudent = ensureStudentCohort(6, seedScope).stream()
+                .filter(candidate -> !candidate.getId().equals(student.getId()))
+                .findFirst()
+                .orElseGet(() -> ensureStudentUser("SE173099", seedScope, 99));
         List<SeatEntity> seats = getActiveSeats();
-        if (seats.size() < 4) {
-            return Map.of("status", "ERROR", "message", "Cần có tối thiểu 4 ghế active để tạo dữ liệu hành trình sinh viên");
+        if (seats.size() < 5) {
+            return Map.of("status", "ERROR", "message", "Cần có tối thiểu 5 ghế active để tạo dữ liệu demo mobile cho sinh viên");
         }
 
         SeatEntity currentSeat = seats.get(0);
         SeatEntity pastSeat1 = seats.get(1);
         SeatEntity pastSeat2 = seats.get(2);
         SeatEntity futureSeat = seats.get(3);
+        SeatEntity cancelledSeat = seats.get(4);
         LocalDateTime now = LocalDateTime.now();
 
         ReservationEntity currentReservation = reservationRepository.save(ReservationEntity.builder()
@@ -1261,6 +1266,17 @@ public class SeedDataService {
                 .status("BOOKED")
                 .build());
         recordSeed("RESERVATION", upcomingReservation.getReservationId(), seedScope);
+
+        ReservationEntity cancelledReservation = reservationRepository.save(ReservationEntity.builder()
+                .user(student)
+                .seat(cancelledSeat)
+                .startTime(now.plusDays(2).withHour(8).withMinute(30))
+                .endTime(now.plusDays(2).withHour(10).withMinute(30))
+                .status("CANCELLED")
+                .cancellationReason("Thủ thư hủy lịch này để bảo trì khu vực và sắp xếp lại ghế trước ca cao điểm.")
+                .cancelledByUserId(librarian != null ? librarian.getId() : student.getId())
+                .build());
+        recordSeed("RESERVATION", cancelledReservation.getReservationId(), seedScope);
 
         AccessLog currentAccess = accessLogRepository.save(AccessLog.builder()
                 .user(student)
@@ -1316,9 +1332,22 @@ public class SeedDataService {
                 .build());
         recordSeed("ACTIVITY_LOG", checkOutActivity.getId(), seedScope);
 
+        ActivityLogEntity cancellationActivity = activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(student.getId())
+                .activityType(ActivityLogEntity.TYPE_BOOKING_CANCEL)
+                .title("Lịch đặt đã bị hủy")
+                .description("Thủ thư đã hủy lịch tại ghế " + cancelledSeat.getSeatCode()
+                        + " do khu vực đang được bảo trì trước giờ mở cửa.")
+                .reservationId(cancelledReservation.getReservationId())
+                .seatCode(cancelledSeat.getSeatCode())
+                .zoneName(cancelledSeat.getZone().getZoneName())
+                .createdAt(now.minusHours(6).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")))
+                .build());
+        recordSeed("ACTIVITY_LOG", cancellationActivity.getId(), seedScope);
+
         PointTransactionEntity rewardTransaction = pointTransactionRepository.save(PointTransactionEntity.builder()
                 .userId(student.getId())
-                .points(8)
+                .points(5)
                 .transactionType(PointTransactionEntity.TYPE_WEEKLY_BONUS)
                 .title("Thưởng học tập đều")
                 .description("Hoàn thành đủ 4 buổi học đúng giờ trong tuần này.")
@@ -1338,8 +1367,8 @@ public class SeedDataService {
                 .build());
         recordSeed("POINT_TRANSACTION", penaltyTransaction.getId(), seedScope);
 
-        SeatViolationReportEntity violation = violationReportRepository.save(SeatViolationReportEntity.builder()
-                .reporter(student)
+        SeatViolationReportEntity receivedViolation = violationReportRepository.save(SeatViolationReportEntity.builder()
+                .reporter(librarian != null ? librarian : peerStudent)
                 .violator(student)
                 .seat(pastSeat2)
                 .violationType(SeatViolationReportEntity.ViolationType.LEFT_BELONGINGS)
@@ -1349,12 +1378,23 @@ public class SeedDataService {
                 .pointDeducted(5)
                 .verifiedAt(now.minusDays(3).plusHours(2))
                 .build());
-        recordSeed("VIOLATION_REPORT", violation.getId(), seedScope);
+        recordSeed("VIOLATION_REPORT", receivedViolation.getId(), seedScope);
+
+        SeatViolationReportEntity reportedViolation = violationReportRepository.save(SeatViolationReportEntity.builder()
+                .reporter(student)
+                .violator(peerStudent)
+                .seat(cancelledSeat)
+                .violationType(SeatViolationReportEntity.ViolationType.NOISE)
+                .description("Bạn sinh viên ngồi ghế bên cạnh nói chuyện nhóm quá lớn trong giờ tự học và chưa giảm âm lượng.")
+                .status(SeatViolationReportEntity.ReportStatus.PENDING)
+                .reservationId(currentReservation.getReservationId())
+                .build());
+        recordSeed("VIOLATION_REPORT", reportedViolation.getId(), seedScope);
 
         ComplaintEntity complaint = complaintRepository.save(ComplaintEntity.builder()
                 .user(student)
                 .pointTransactionId(penaltyTransaction.getId())
-                .violationReportId(violation.getId())
+                .violationReportId(receivedViolation.getId())
                 .subject("Mong thư viện xem lại mức trừ điểm của lượt no-show")
                 .content("Em có việc gấp nên đến trễ khoảng 15 phút và không cố ý bỏ chỗ. Mong thư viện cân nhắc giảm mức trừ điểm.")
                 .status(ComplaintEntity.ComplaintStatus.PENDING)
@@ -1411,6 +1451,35 @@ public class SeedDataService {
                         .build(),
                 NotificationEntity.builder()
                         .user(student)
+                        .title("Lịch đặt đã bị thủ thư hủy")
+                        .content("Lượt đặt ghế " + cancelledSeat.getSeatCode()
+                                + " đã bị hủy. Lý do: Thủ thư hủy để bảo trì khu vực trước giờ cao điểm.")
+                        .notificationType(NotificationEntity.NotificationType.BOOKING)
+                        .referenceType("RESERVATION")
+                        .referenceId(cancelledReservation.getReservationId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
+                        .title("Bạn đã bị ghi nhận vi phạm")
+                        .content("Thư viện đã xác minh vi phạm giữ chỗ sai quy định tại ghế " + pastSeat2.getSeatCode()
+                                + " và trừ 5 điểm uy tín.")
+                        .notificationType(NotificationEntity.NotificationType.VIOLATION)
+                        .referenceType("VIOLATION_REPORT")
+                        .referenceId(receivedViolation.getId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
+                        .title("Khiếu nại đang chờ xử lý")
+                        .content("Khiếu nại về lượt no-show của bạn đã được ghi nhận và đang chờ thủ thư phản hồi.")
+                        .notificationType(NotificationEntity.NotificationType.COMPLAINT)
+                        .referenceType("COMPLAINT")
+                        .referenceId(complaint.getId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
                         .title("Có tin mới từ thư viện")
                         .content("Thư viện vừa cập nhật lịch mở cửa dịp cao điểm giữa kỳ.")
                         .notificationType(NotificationEntity.NotificationType.NEWS)
@@ -1422,20 +1491,37 @@ public class SeedDataService {
             recordSeed("NOTIFICATION", saved.getId(), seedScope);
         });
 
-        profile.setReputationScore(92);
+        profile.setReputationScore(97);
         profile.setTotalStudyHours(26.5);
         profile.setViolationCount(1);
         studentProfileRepository.save(profile);
-        student.setReputationScore(92);
+        student.setReputationScore(97);
         userRepository.save(student);
 
-        return Map.of(
-                "status", "SUCCESS",
-                "message", "Đã tạo dữ liệu hành trình cho sinh viên " + userCode,
-                "studentId", student.getId(),
-                "userCode", student.getUserCode(),
-                "currentSeat", currentSeat.getSeatCode(),
-                "upcomingSeat", futureSeat.getSeatCode());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "SUCCESS");
+        result.put("message", "Đã tạo preset mobile đầy đủ cho sinh viên " + userCode);
+        result.put("studentId", student.getId());
+        result.put("userCode", student.getUserCode());
+        result.put("studentName", student.getFullName());
+        result.put("reputationScore", student.getReputationScore());
+        result.put("currentSeat", currentSeat.getSeatCode());
+        result.put("upcomingSeat", futureSeat.getSeatCode());
+        result.put("cancelledSeat", cancelledSeat.getSeatCode());
+        result.put("bookingStatuses", List.of("CONFIRMED", "COMPLETED", "EXPIRED", "BOOKED", "CANCELLED"));
+        result.put("coverage", List.of(
+                "Trang chủ và điểm uy tín",
+                "Lịch sử đặt chỗ đủ 5 trạng thái",
+                "Lịch sử hoạt động",
+                "Thông báo mobile",
+                "Khiếu nại và phản hồi",
+                "Lịch sử vi phạm",
+                "Lịch sử báo cáo tình trạng ghế",
+                "Yêu cầu hỗ trợ"));
+        result.put("notificationCount", notifications.size());
+        result.put("reportedViolationId", reportedViolation.getId());
+        result.put("receivedViolationId", receivedViolation.getId());
+        return result;
     }
 
     /**

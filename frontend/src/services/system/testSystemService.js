@@ -81,6 +81,13 @@ const testSystemService = {
     });
   },
 
+  seedStudentMobileDemo(token, userCode) {
+    return request(`/seed/student-mobile-demo?userCode=${encodeURIComponent(userCode)}`, {
+      method: "POST",
+      token,
+    });
+  },
+
   seedReminderTest(token, userCode) {
     return request(`/seed/reminder-test?userCode=${encodeURIComponent(userCode)}`, {
       method: "POST",
