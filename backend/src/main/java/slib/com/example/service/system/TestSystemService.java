@@ -125,6 +125,7 @@ public class TestSystemService {
                 reservation.getReservationId(),
                 RESERVATION_REFERENCE_TYPE,
                 "BOOKING");
+        notificationScheduler.markSeatStartNotificationSent(reservation.getReservationId());
 
         log.info("[TestSystem] Prepared seat-start notification for reservation {}", reservationId);
         return buildResult(
