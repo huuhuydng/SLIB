@@ -6,6 +6,7 @@ import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SupportRequestManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 import { getApiErrorMessage, normalizeText } from '../../../utils/formValidation';
@@ -96,6 +97,21 @@ function SupportRequestManage() {
         fetchRequests();
     }, [fetchRequests]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/librarian-notifications',
+            shouldRefresh: (message) => (
+                message?.type === 'PENDING_COUNTS_UPDATE' &&
+                message?.source === 'SUPPORT_REQUEST'
+            ),
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchRequests,
+        subscriptions: realtimeSubscriptions,
+    });
+
     useEffect(() => {
         const requestedStatus = (searchParams.get("status") || searchParams.get("tab") || "").toUpperCase();
         const isValidStatus = STATUS_OPTIONS.some((option) => option.value === requestedStatus);
@@ -134,6 +150,18 @@ function SupportRequestManage() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        if (!selectedRequest) return;
+        const freshRequest = requests.find((request) => request.id === selectedRequest.id);
+        if (freshRequest) {
+            setSelectedRequest(freshRequest);
+            setResponseText(freshRequest.adminResponse || "");
+            return;
+        }
+        setSelectedRequest(null);
+        setResponseText("");
+    }, [requests, selectedRequest]);
 
     const handleRespond = async () => {
         const normalizedResponse = normalizeText(responseText);

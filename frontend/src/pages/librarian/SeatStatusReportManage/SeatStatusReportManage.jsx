@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, Filter, LayoutGrid, Layo
 import { useSearchParams } from "react-router-dom";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 import "../../../styles/librarian/librarian-shared.css";
 import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/SeatStatusReportManage.css";
@@ -177,6 +178,21 @@ function SeatStatusReportManage() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  const realtimeSubscriptions = useMemo(() => ([
+    {
+      topic: '/topic/librarian-notifications',
+      shouldRefresh: (message) => (
+        message?.type === 'PENDING_COUNTS_UPDATE' &&
+        message?.source === 'SEAT_STATUS_REPORT'
+      ),
+    },
+  ]), []);
+
+  useLibrarianRealtimeRefresh({
+    onRefresh: fetchReports,
+    subscriptions: realtimeSubscriptions,
+  });
 
   // Auto-open detail modal from URL param (e.g. ?detail=<id>)
   useEffect(() => {

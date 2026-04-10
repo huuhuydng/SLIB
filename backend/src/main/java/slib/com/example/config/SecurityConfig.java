@@ -26,6 +26,7 @@ import java.util.List;
 public class SecurityConfig {
     private static final String[] LIBRARY_LAYOUT_READ_ROLES = {"STUDENT", "TEACHER", "LIBRARIAN", "ADMIN", "KIOSK"};
     private static final String[] PATRON_BOOKING_ROLES = {"STUDENT", "TEACHER", "KIOSK"};
+    private static final String[] CANCEL_BOOKING_ROLES = {"STUDENT", "TEACHER", "KIOSK", "LIBRARIAN", "ADMIN"};
 
     private final JwtAuthenticationFilter jwtAuthFilter;
 
@@ -142,7 +143,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/slib/zone_amenities/**").hasAnyRole(LIBRARY_LAYOUT_READ_ROLES)
                         .requestMatchers("/slib/bookings/create").hasAnyRole(PATRON_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/updateStatusReserv/**").hasAnyRole(PATRON_BOOKING_ROLES)
-                        .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(PATRON_BOOKING_ROLES)
+                        .requestMatchers("/slib/bookings/cancel/**").hasAnyRole(CANCEL_BOOKING_ROLES)
                         .requestMatchers("/slib/bookings/manual-confirm/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/bookings/leave-seat/**").hasAnyRole("ADMIN", "LIBRARIAN")
                         .requestMatchers("/slib/bookings/leave-seat-nfc/**").hasAnyRole(PATRON_BOOKING_ROLES)

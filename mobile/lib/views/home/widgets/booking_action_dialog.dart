@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/services/booking/booking_service.dart';
 import 'package:slib/views/home/widgets/nfc_seat_verification_screen.dart';
+import 'package:slib/views/widgets/feedback_dialog.dart';
 
 class BookingActionDialog extends StatefulWidget {
   final UpcomingBooking booking;
@@ -446,6 +447,15 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               content: Text('Đã trả chỗ ngồi thành công!'),
               backgroundColor: Colors.green,
             ),
+          );
+        }
+        await Future.delayed(const Duration(milliseconds: 150));
+        if (rootContext.mounted) {
+          await showSeatFeedbackPopup(
+            rootContext,
+            reservationId: widget.booking.reservationId,
+            zoneName: widget.booking.zoneName,
+            seatCode: widget.booking.seatCode,
           );
         }
       }

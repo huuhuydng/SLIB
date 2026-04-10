@@ -222,8 +222,8 @@ function HeaderBar() {
 
               <div className="notif-dropdown__list">
                 {filteredNotifications.map((notification) => {
-                  const config = STORED_NOTIF_ICON_MAP[notification.notificationType]
-                    || STORED_NOTIF_ICON_MAP[notification.referenceType]
+                  const config = STORED_NOTIF_ICON_MAP[notification.referenceType]
+                    || STORED_NOTIF_ICON_MAP[notification.notificationType]
                     || STORED_NOTIF_ICON_MAP.SYSTEM;
                   const Icon = config.icon;
 
@@ -386,6 +386,7 @@ function ToastNotifications() {
   const { notifications } = useLibrarianNotification();
   const prevCountRef = useRef(0);
   const hasMountedRef = useRef(false);
+  const lastFeedbackToastAtRef = useRef(0);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -416,6 +417,15 @@ function ToastNotifications() {
         return;
       }
 
+      if (newNotif.source === 'FEEDBACK') {
+        const now = Date.now();
+        if (now - lastFeedbackToastAtRef.current < 2500) {
+          prevCountRef.current = notifications.length;
+          return;
+        }
+        lastFeedbackToastAtRef.current = now;
+      }
+
       const config = PENDING_ICON_MAP[newNotif.source] || PENDING_ICON_MAP.SUPPORT_REQUEST;
       const route = NOTIF_ROUTE_MAP[newNotif.source] || '/librarian/dashboard';
 
@@ -425,8 +435,8 @@ function ToastNotifications() {
         desc: `Có hoạt động mới liên quan đến ${config.label.toLowerCase()}.`,
       };
 
-      toast.info(detail.desc, {
-        title: detail.title,
+      toast.info(newNotif.content || detail.desc, {
+        title: newNotif.title || detail.title,
         actionText: 'Xem chi tiết',
         onClick: () => navigate(route),
       });

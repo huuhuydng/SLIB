@@ -6,7 +6,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,6 +42,9 @@ import slib.com.example.service.notification.PushNotificationService;
 @Service
 @Slf4j
 public class ReservationScheduler {
+    public static final int CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES = 5;
+    private static final String RESERVATION_REFERENCE_TYPE = "RESERVATION";
+
     private final ReservationRepository reservationRepository;
     private final ActivityLogRepository activityLogRepository;
     private final ReputationService reputationService;
@@ -48,6 +53,7 @@ public class ReservationScheduler {
     private final LibrarySettingService librarySettingService;
     private final PushNotificationService pushNotificationService;
     private final TransactionTemplate reservationTransactionTemplate;
+    private final Set<UUID> sentSeatLeaveNotifications = ConcurrentHashMap.newKeySet();
 
     public ReservationScheduler(ReservationRepository reservationRepository,
             ActivityLogRepository activityLogRepository,
@@ -104,14 +110,25 @@ public class ReservationScheduler {
             }
 
             // =========================================================
-            // 2. CONFIRMED đã hết hạn (endTime < now) → COMPLETED
-            // CONFIRMED = đã quét NFC thành công, hết giờ → hoàn thành
+            // 2. CONFIRMED tới endTime → gửi nhắc rời chỗ trong 5 phút
+            // Sau 5 phút chưa xác nhận rời chỗ → phạt + COMPLETED
             // =========================================================
-            List<UUID> confirmedIds = reservationRepository.findByEndTimeBeforeAndStatus(now, "CONFIRMED").stream()
+            List<UUID> confirmedEndingNowIds = reservationRepository
+                    .findByStatusAndEndTimeBetween("CONFIRMED", now.minusSeconds(10), now.plusSeconds(10)).stream()
+                    .map(ReservationEntity::getReservationId)
+                    .collect(Collectors.toList());
+            for (UUID reservationId : confirmedEndingNowIds) {
+                sendSeatLeaveNotificationIfNeeded(reservationId);
+            }
+
+            List<UUID> confirmedIds = reservationRepository
+                    .findByEndTimeBeforeAndStatus(now.minusMinutes(CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES),
+                            "CONFIRMED")
+                    .stream()
                     .map(ReservationEntity::getReservationId)
                     .collect(Collectors.toList());
             for (UUID reservationId : confirmedIds) {
-                ReservationProcessingResult result = processCompletedConfirmedReservation(reservationId);
+                ReservationProcessingResult result = processCompletedConfirmedReservation(reservationId, now, false);
                 if (result.changed()) {
                     totalChanged++;
                     seatUpdates.add(result.seatUpdate());
@@ -153,6 +170,8 @@ public class ReservationScheduler {
                     log.warn("Failed to broadcast dashboard update", wsErr);
                 }
             }
+
+            cleanupTrackingIfNeeded();
         } catch (Exception e) {
             log.error("Error in releaseExpiredSeats", e);
         }
@@ -210,12 +229,60 @@ public class ReservationScheduler {
     private ReservationProcessingResult processExpiredBookedReservation(UUID reservationId, LocalDateTime now,
             int autoCancelMinutes) {
         return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
-                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes))
+                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes, false))
                 .orElse(ReservationProcessingResult.unchanged()));
+    }
+
+    public boolean forceExpireBookedReservation(UUID reservationId) {
+        LocalDateTime now = LocalDateTime.now();
+        int resolvedAutoCancelMinutes = 15;
+        try {
+            LibrarySetting settings = librarySettingService.getSettings();
+            if (settings.getAutoCancelMinutes() != null) {
+                resolvedAutoCancelMinutes = settings.getAutoCancelMinutes();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve auto-cancel minutes for forceExpireBookedReservation, fallback to 15", e);
+        }
+        final int autoCancelMinutes = resolvedAutoCancelMinutes;
+
+        ReservationProcessingResult result = reservationTransactionTemplate.execute(status -> reservationRepository
+                .findById(reservationId)
+                .map(reservation -> processExpiredBookedReservation(reservation, now, autoCancelMinutes, true))
+                .orElse(ReservationProcessingResult.unchanged()));
+
+        if (result != null && result.changed() && result.seatUpdate() != null) {
+            SeatUpdatePayload seatUpdate = result.seatUpdate();
+            seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                    seatUpdate.seatId(),
+                    seatUpdate.zoneId(),
+                    seatUpdate.seatCode(),
+                    seatUpdate.status(),
+                    seatUpdate.startTime(),
+                    seatUpdate.endTime());
+            try {
+                messagingTemplate.convertAndSend("/topic/dashboard",
+                        java.util.Map.of(
+                                "type", "BOOKING_UPDATE",
+                                "action", "FORCED_AUTO_CANCEL",
+                                "count", 1,
+                                "timestamp", java.time.Instant.now().toString()));
+            } catch (Exception wsErr) {
+                log.warn("Failed to broadcast forced auto-cancel dashboard update", wsErr);
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private ReservationProcessingResult processExpiredBookedReservation(ReservationEntity reservation,
             LocalDateTime now, int autoCancelMinutes) {
+        return processExpiredBookedReservation(reservation, now, autoCancelMinutes, false);
+    }
+
+    private ReservationProcessingResult processExpiredBookedReservation(ReservationEntity reservation,
+            LocalDateTime now, int autoCancelMinutes, boolean force) {
         if (!"BOOKED".equals(reservation.getStatus())) {
             return ReservationProcessingResult.unchanged();
         }
@@ -224,7 +291,7 @@ public class ReservationScheduler {
                 ? reservation.getStartTime()
                 : reservation.getCreatedAt();
         LocalDateTime deadline = baseTime.plusMinutes(autoCancelMinutes);
-        if (!now.isAfter(deadline)) {
+        if (!force && !now.isAfter(deadline)) {
             return ReservationProcessingResult.unchanged();
         }
 
@@ -265,19 +332,138 @@ public class ReservationScheduler {
         return ReservationProcessingResult.changed(toSeatUpdatePayload(reservation, "AVAILABLE"));
     }
 
-    private ReservationProcessingResult processCompletedConfirmedReservation(UUID reservationId) {
+    public boolean forceSendSeatLeaveNotification(UUID reservationId) {
         return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
-                .map(this::processCompletedConfirmedReservation)
+                .map(reservation -> sendSeatLeaveNotificationIfNeeded(reservation, true))
+                .orElse(false));
+    }
+
+    private boolean sendSeatLeaveNotificationIfNeeded(UUID reservationId) {
+        return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
+                .map(reservation -> sendSeatLeaveNotificationIfNeeded(reservation, false))
+                .orElse(false));
+    }
+
+    private boolean sendSeatLeaveNotificationIfNeeded(ReservationEntity reservation, boolean force) {
+        if (!"CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
+            return false;
+        }
+        if (!force && sentSeatLeaveNotifications.contains(reservation.getReservationId())) {
+            return false;
+        }
+
+        try {
+            SeatEntity seat = reservation.getSeat();
+            String seatCode = seat != null ? seat.getSeatCode() : "";
+            String zoneName = seat != null && seat.getZone() != null ? seat.getZone().getZoneName() : "";
+            String body = String.format(
+                    "Phiên sử dụng ghế %s tại %s đã đến giờ kết thúc. Vui lòng xác nhận rời chỗ trong %d phút để tránh bị trừ điểm uy tín.",
+                    seatCode,
+                    zoneName != null && !zoneName.isBlank() ? zoneName : "thư viện",
+                    CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES);
+
+            pushNotificationService.sendToUser(
+                    reservation.getUser().getId(),
+                    "Đã đến giờ rời chỗ",
+                    body,
+                    NotificationType.BOOKING,
+                    reservation.getReservationId(),
+                    RESERVATION_REFERENCE_TYPE,
+                    "BOOKING");
+            sentSeatLeaveNotifications.add(reservation.getReservationId());
+            return true;
+        } catch (Exception e) {
+            log.warn("Failed to send seat leave notification for reservation {}", reservation.getReservationId(), e);
+            return false;
+        }
+    }
+
+    private ReservationProcessingResult processCompletedConfirmedReservation(UUID reservationId) {
+        return processCompletedConfirmedReservation(reservationId, LocalDateTime.now(), false);
+    }
+
+    private ReservationProcessingResult processCompletedConfirmedReservation(UUID reservationId, LocalDateTime now,
+            boolean force) {
+        return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
+                .map(reservation -> processCompletedConfirmedReservation(reservation, now, force))
                 .orElse(ReservationProcessingResult.unchanged()));
     }
 
-    private ReservationProcessingResult processCompletedConfirmedReservation(ReservationEntity reservation) {
+    public boolean forceCompleteConfirmedReservationAfterGrace(UUID reservationId) {
+        LocalDateTime now = LocalDateTime.now();
+        ReservationProcessingResult result = processCompletedConfirmedReservation(reservationId, now, true);
+
+        if (result != null && result.changed() && result.seatUpdate() != null) {
+            SeatUpdatePayload seatUpdate = result.seatUpdate();
+            seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                    seatUpdate.seatId(),
+                    seatUpdate.zoneId(),
+                    seatUpdate.seatCode(),
+                    seatUpdate.status(),
+                    seatUpdate.startTime(),
+                    seatUpdate.endTime());
+            try {
+                messagingTemplate.convertAndSend("/topic/dashboard",
+                        java.util.Map.of(
+                                "type", "BOOKING_UPDATE",
+                                "action", "FORCED_LATE_CHECKOUT_AUTO_COMPLETE",
+                                "count", 1,
+                                "timestamp", java.time.Instant.now().toString()));
+            } catch (Exception wsErr) {
+                log.warn("Failed to broadcast forced late-checkout completion update", wsErr);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    private ReservationProcessingResult processCompletedConfirmedReservation(ReservationEntity reservation,
+            LocalDateTime now, boolean force) {
         if (!"CONFIRMED".equals(reservation.getStatus())) {
             return ReservationProcessingResult.unchanged();
+        }
+        if (!force && reservation.getEndTime() != null
+                && now.isBefore(reservation.getEndTime().plusMinutes(CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES))) {
+            return ReservationProcessingResult.unchanged();
+        }
+
+        SeatEntity seat = reservation.getSeat();
+        String seatCode = seat != null ? seat.getSeatCode() : "";
+        String zoneName = seat != null && seat.getZone() != null ? seat.getZone().getZoneName() : "";
+
+        try {
+            reputationService.applyLateCheckoutPenalty(
+                    reservation.getUser().getId(),
+                    seatCode,
+                    zoneName,
+                    reservation.getReservationId());
+        } catch (Exception penaltyErr) {
+            log.warn("Failed to apply LATE_CHECKOUT penalty for reservation {}", reservation.getReservationId(),
+                    penaltyErr);
         }
 
         reservation.setStatus("COMPLETED");
         reservationRepository.save(reservation);
+
+        try {
+            pushNotificationService.sendToUser(
+                    reservation.getUser().getId(),
+                    "Phiên ngồi đã tự động kết thúc",
+                    String.format(
+                            "Bạn chưa xác nhận rời ghế %s trong vòng %d phút sau khi hết giờ. Hệ thống đã tự động kết thúc phiên sử dụng và áp dụng trừ điểm uy tín.",
+                            seatCode,
+                            CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES),
+                    NotificationType.BOOKING,
+                    reservation.getReservationId(),
+                    RESERVATION_REFERENCE_TYPE,
+                    "BOOKING");
+        } catch (Exception e) {
+            log.warn("Failed to send late checkout auto-complete notification for reservation {}",
+                    reservation.getReservationId(), e);
+        }
+
+        sentSeatLeaveNotifications.remove(reservation.getReservationId());
         return ReservationProcessingResult.changed(toSeatUpdatePayload(reservation, "AVAILABLE"));
     }
 
@@ -295,6 +481,13 @@ public class ReservationScheduler {
         reservation.setStatus("CANCEL");
         reservationRepository.save(reservation);
         return ReservationProcessingResult.changed(toSeatUpdatePayload(reservation, "AVAILABLE"));
+    }
+
+    private void cleanupTrackingIfNeeded() {
+        if (sentSeatLeaveNotifications.size() > 10000) {
+            sentSeatLeaveNotifications.clear();
+            log.info("Cleared seat-leave notification tracking cache");
+        }
     }
 
     private SeatUpdatePayload toSeatUpdatePayload(ReservationEntity reservation, String status) {

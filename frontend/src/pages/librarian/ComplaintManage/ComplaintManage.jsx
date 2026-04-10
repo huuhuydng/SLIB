@@ -6,6 +6,7 @@ import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ComplaintManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 
@@ -100,6 +101,21 @@ function ComplaintManage() {
         fetchComplaints();
     }, [fetchComplaints]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/librarian-notifications',
+            shouldRefresh: (message) => (
+                message?.type === 'PENDING_COUNTS_UPDATE' &&
+                message?.source === 'COMPLAINT'
+            ),
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchComplaints,
+        subscriptions: realtimeSubscriptions,
+    });
+
     // Auto-open detail modal from URL param (e.g. ?detail=<id>)
     useEffect(() => {
         if (loading || complaints.length === 0) return;
@@ -124,6 +140,16 @@ function ComplaintManage() {
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
+
+    useEffect(() => {
+        if (!selectedComplaint) return;
+        const freshComplaint = complaints.find((complaint) => complaint.id === selectedComplaint.id);
+        if (freshComplaint) {
+            setSelectedComplaint(freshComplaint);
+            return;
+        }
+        setSelectedComplaint(null);
+    }, [complaints, selectedComplaint]);
 
     // Actions
     const handleAccept = async (id) => {

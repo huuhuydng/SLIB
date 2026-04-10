@@ -317,6 +317,22 @@ class UserService {
     }
 
     /**
+     * Manual reputation adjustment (Admin only)
+     */
+    async adjustUserReputation(userId, points, reason) {
+        try {
+            const response = await axiosInstance.patch(
+                `/student-profile/${userId}/reputation/manual-adjust`,
+                { points, reason },
+            );
+            return response.data;
+        } catch (error) {
+            console.error('❌ [UserService] adjustUserReputation error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Reset user password to default (Admin only)
      */
     async resetPasswordToDefault(email) {

@@ -71,4 +71,5 @@ public class PointTransactionEntity {
     public static final String TYPE_CHECK_OUT_LATE_PENALTY = "CHECK_OUT_LATE_PENALTY";
     public static final String TYPE_LATE_CHECKIN_PENALTY = "LATE_CHECKIN_PENALTY";
     public static final String TYPE_APPEAL_REFUND = "APPEAL_REFUND";
+    public static final String TYPE_MANUAL_ADJUSTMENT = "MANUAL_ADJUSTMENT";
 }

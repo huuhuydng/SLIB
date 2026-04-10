@@ -6,6 +6,7 @@ import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/ViolationManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 
@@ -105,6 +106,21 @@ function ViolationManage() {
         fetchReports();
     }, [fetchReports]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/librarian-notifications',
+            shouldRefresh: (message) => (
+                message?.type === 'PENDING_COUNTS_UPDATE' &&
+                message?.source === 'VIOLATION'
+            ),
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchReports,
+        subscriptions: realtimeSubscriptions,
+    });
+
     // Auto-open detail modal from URL param (e.g. ?detail=<id>)
     useEffect(() => {
         if (loading || reports.length === 0) return;
@@ -130,6 +146,16 @@ function ViolationManage() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        if (!selectedReport) return;
+        const freshReport = reports.find((report) => report.id === selectedReport.id);
+        if (freshReport) {
+            setSelectedReport(freshReport);
+            return;
+        }
+        setSelectedReport(null);
+    }, [reports, selectedReport]);
 
     const handleVerify = async (report) => {
         if (!report) return;

@@ -50,10 +50,28 @@ public class SeedDataController {
     @PostMapping("/all")
     public ResponseEntity<Map<String, Object>> seedAll(
             @RequestParam(defaultValue = "15") int bookings,
+            @RequestParam(defaultValue = "24") int accessLogs,
             @RequestParam(defaultValue = "8") int violations,
             @RequestParam(defaultValue = "8") int supports,
+            @RequestParam(defaultValue = "5") int complaints,
+            @RequestParam(defaultValue = "8") int feedbacks,
+            @RequestParam(defaultValue = "8") int seatStatusReports,
+            @RequestParam(defaultValue = "6") int news,
+            @RequestParam(defaultValue = "8") int newBooks,
+            @RequestParam(defaultValue = "8") int notifications,
             @RequestParam(required = false) String studentCode) {
-        return ResponseEntity.ok(seedDataService.seedAll(bookings, violations, supports, studentCode));
+        return ResponseEntity.ok(seedDataService.seedAll(
+                bookings,
+                accessLogs,
+                violations,
+                supports,
+                complaints,
+                feedbacks,
+                seatStatusReports,
+                news,
+                newBooks,
+                notifications,
+                studentCode));
     }
 
     /**
@@ -134,6 +152,13 @@ public class SeedDataController {
         return ResponseEntity.ok(seedDataService.seedNewBooks(count, "system-showcase"));
     }
 
+    @PostMapping("/notifications")
+    public ResponseEntity<Map<String, Object>> seedNotifications(
+            @RequestParam(defaultValue = "8") int count,
+            @RequestParam(required = false) String userCode) {
+        return ResponseEntity.ok(seedDataService.seedNotifications(count, userCode, "system-showcase"));
+    }
+
     /**
      * Xoá dữ liệu seed đã tạo qua seed tracker và dọn luôn dữ liệu marker cũ
      * DELETE /slib/seed/clear
@@ -178,11 +203,31 @@ public class SeedDataController {
     }
 
     /**
+     * Tạo dữ liệu test cho tình huống đang ngồi học
+     * POST /slib/seed/active-booking-test?userCode=SL000001
+     */
+    @PostMapping("/active-booking-test")
+    public ResponseEntity<Map<String, Object>> seedActiveBookingTestData(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedActiveBookingTestData(userCode));
+    }
+
+    /**
      * Tạo dữ liệu hành trình thực tế cho 1 sinh viên
      * POST /slib/seed/student-journey?userCode=SE171001
      */
     @PostMapping("/student-journey")
     public ResponseEntity<Map<String, Object>> seedStudentJourney(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedStudentJourney(userCode));
+    }
+
+    /**
+     * Alias rõ nghĩa cho buổi demo mobile của một sinh viên
+     * POST /slib/seed/student-mobile-demo?userCode=SE171001
+     */
+    @PostMapping("/student-mobile-demo")
+    public ResponseEntity<Map<String, Object>> seedStudentMobileDemo(
             @RequestParam String userCode) {
         return ResponseEntity.ok(seedDataService.seedStudentJourney(userCode));
     }

@@ -17,7 +17,12 @@ public class AreaFactoryController {
     private final AreaFactoryService areaFactoryService;
 
     @GetMapping
-    public List<AreaFactoryResponse> getAll() {
+    public List<AreaFactoryResponse> getAll(
+            @RequestParam(required = false) Long areaId
+    ) {
+        if (areaId != null) {
+            return areaFactoryService.getFactoriesByAreaId(areaId);
+        }
         return areaFactoryService.getAllAreaFactories();
     }
 
