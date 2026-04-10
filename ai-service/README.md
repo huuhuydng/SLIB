@@ -44,7 +44,7 @@ ai-service/
 │   ├── __init__.py
 │   └── main.py                  # FastAPI app
 ├── .env                         # Environment variables
-├── .env.docker                  # Docker environment
+├── .env.docker                  # Docker environment template
 ├── Dockerfile                   # Docker build
 ├── requirements.txt             # Python dependencies
 ├── start.sh                     # Startup script
@@ -135,6 +135,10 @@ docker run -p 8001:8001 \
   --env-file .env.docker \
   slib-ai-service
 ```
+
+Lưu ý:
+- `.env.docker` chỉ nên là file mẫu, không được commit API key hoặc mật khẩu thật.
+- Giá trị thật nên cấp qua `.env` riêng trên máy chạy, VM, hoặc GitHub Secrets.
 
 ---
 
