@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   Search,
@@ -120,6 +121,7 @@ const UserManagement = () => {
   const [reputationForm, setReputationForm] = useState({ points: '', reason: '' });
   const [showActionMenu, setShowActionMenu] = useState(null);
   const [actionMenuPlacement, setActionMenuPlacement] = useState('downward');
+  const [actionMenuStyle, setActionMenuStyle] = useState({ top: 0, left: 0 });
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -205,6 +207,18 @@ const UserManagement = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!showActionMenu) return undefined;
+
+    const closeActionMenu = () => setShowActionMenu(null);
+    window.addEventListener('scroll', closeActionMenu, true);
+    window.addEventListener('resize', closeActionMenu);
+    return () => {
+      window.removeEventListener('scroll', closeActionMenu, true);
+      window.removeEventListener('resize', closeActionMenu);
+    };
+  }, [showActionMenu]);
 
   // Get user value for a column (used for sort/filter)
   const getUserValue = useCallback((user, column) => {
@@ -305,21 +319,29 @@ const UserManagement = () => {
     setActiveFilterCol(null);
   };
 
-  const handleToggleActionMenu = (userId, event) => {
+  const handleToggleActionMenu = (userId, event, hasReputationAction) => {
     if (showActionMenu === userId) {
       setShowActionMenu(null);
       return;
     }
 
     const triggerRect = event.currentTarget.getBoundingClientRect();
-    const estimatedMenuHeight = 260;
-    const viewportPadding = 24;
+    const estimatedMenuHeight = hasReputationAction ? 260 : 220;
+    const estimatedMenuWidth = 210;
+    const viewportPadding = 16;
     const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
     const spaceAbove = triggerRect.top - viewportPadding;
-
-    setActionMenuPlacement(
-      spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'upward' : 'downward'
+    const shouldOpenUpward = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    const left = Math.min(
+      Math.max(viewportPadding, triggerRect.right - estimatedMenuWidth),
+      window.innerWidth - estimatedMenuWidth - viewportPadding
     );
+    const top = shouldOpenUpward
+      ? Math.max(viewportPadding, triggerRect.top - estimatedMenuHeight - 4)
+      : Math.min(window.innerHeight - estimatedMenuHeight - viewportPadding, triggerRect.bottom + 4);
+
+    setActionMenuPlacement(shouldOpenUpward ? 'upward' : 'downward');
+    setActionMenuStyle({ top, left });
     setShowActionMenu(userId);
   };
 
@@ -1175,13 +1197,17 @@ const UserManagement = () => {
                             >
                               <button
                                 className="um-action-btn"
-                                onClick={(event) => handleToggleActionMenu(user.id, event)}
+                                onClick={(event) => handleToggleActionMenu(user.id, event, canAdjustReputation)}
                               >
                                 <MoreVertical size={16} color="#64748b" />
                               </button>
 
-                              {showActionMenu === user.id && (
-                                <div className={`um-action-menu ${actionMenuPlacement}`}>
+                              {showActionMenu === user.id && createPortal(
+                                <div
+                                  ref={actionMenuRef}
+                                  className={`um-action-menu fixed ${actionMenuPlacement}`}
+                                  style={actionMenuStyle}
+                                >
                                   <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}>
                                     <Eye size={15} color="#2563EB" />
                                     <span style={{ color: '#2563EB' }}>Xem chi tiết</span>
@@ -1219,7 +1245,8 @@ const UserManagement = () => {
                                     <Trash2 size={15} color="#DC2626" />
                                     <span style={{ color: '#DC2626' }}>Xóa tài khoản</span>
                                   </button>
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
                           </td>

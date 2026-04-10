@@ -253,9 +253,21 @@
     animation: cio-dropdown-in 0.12s ease;
 }
 
+.um-action-menu.fixed {
+    position: fixed;
+    top: 0;
+    right: auto;
+    bottom: auto;
+}
+
 .um-action-menu.upward {
     top: auto;
     bottom: calc(100% + 4px);
+}
+
+.um-action-menu.fixed.upward,
+.um-action-menu.fixed.downward {
+    bottom: auto;
 }
 
 .um-action-menu.downward {
