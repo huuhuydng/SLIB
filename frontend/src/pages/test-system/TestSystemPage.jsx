@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Armchair,
   BellRing,
   CalendarClock,
   Database,
@@ -88,6 +89,7 @@ function TestSystemPage() {
 
   const [seedForm, setSeedForm] = useState(DEFAULT_SEED_FORM);
   const [journeyUserCode, setJourneyUserCode] = useState("");
+  const [activeBookingUserCode, setActiveBookingUserCode] = useState("");
   const [reminderUserCode, setReminderUserCode] = useState("");
   const [violationForm, setViolationForm] = useState(DEFAULT_VIOLATION_FORM);
 
@@ -590,6 +592,39 @@ function TestSystemPage() {
                 Preset này tạo sẵn cho một sinh viên: booking đang dùng, booking sắp tới, booking đã hoàn thành,
                 booking đã hết hạn, booking đã bị thủ thư hủy kèm lý do, lịch sử hoạt động, điểm uy tín, vi phạm
                 bị ghi nhận, vi phạm đã báo cáo, khiếu nại, phản hồi, hỗ trợ, báo cáo ghế và thông báo mobile.
+              </div>
+
+              <div className="test-system-inline">
+                <label className="test-system-field">
+                  <span>Đặt chỗ đang ngồi</span>
+                  <input
+                    value={activeBookingUserCode}
+                    onChange={(event) => setActiveBookingUserCode(event.target.value)}
+                    placeholder="Ví dụ: DE180295"
+                  />
+                </label>
+              <button
+                className="test-system-btn"
+                type="button"
+                disabled={actionKey === "active-booking-seed"}
+                onClick={() => {
+                  if (!activeBookingUserCode.trim()) {
+                    toast.error("Vui lòng nhập userCode để tạo đặt chỗ đang ngồi.");
+                    return;
+                  }
+                  runAction(
+                    "active-booking-seed",
+                    () => testSystemService.seedActiveBookingTest(token, activeBookingUserCode.trim())
+                  );
+                }}
+              >
+                  {actionKey === "active-booking-seed" ? (
+                    <Loader2 size={16} className="ts-spin" />
+                  ) : (
+                    <Armchair size={16} />
+                  )}
+                  Tạo đặt chỗ đang ngồi
+                </button>
               </div>
 
               <div className="test-system-inline">

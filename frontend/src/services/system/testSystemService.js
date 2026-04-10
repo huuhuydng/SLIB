@@ -95,6 +95,13 @@ const testSystemService = {
     });
   },
 
+  seedActiveBookingTest(token, userCode) {
+    return request(`/seed/active-booking-test?userCode=${encodeURIComponent(userCode)}`, {
+      method: "POST",
+      token,
+    });
+  },
+
   seedViolationTest(token, { userCode, neighbors, sameZone }) {
     const query = new URLSearchParams({
       userCode,

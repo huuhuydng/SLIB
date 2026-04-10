@@ -43,6 +43,7 @@ import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
+import slib.com.example.service.zone_config.SeatStatusSyncService;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -79,6 +80,7 @@ public class SeedDataService {
     private final SeedRecordRepository seedRecordRepository;
     private final ZoneRepository zoneRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SeatStatusSyncService seatStatusSyncService;
 
     // Legacy marker chỉ dùng để dọn dữ liệu cũ đã seed từ phiên bản trước
     private static final String LEGACY_SEED_MARKER = "[SEED]";
@@ -723,6 +725,21 @@ public class SeedDataService {
                 .filter(seat -> seat.getIsActive() == null || Boolean.TRUE.equals(seat.getIsActive()))
                 .sorted(Comparator.comparing(SeatEntity::getSeatCode, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
                 .toList();
+    }
+
+    private boolean isActiveReservationStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return "PROCESSING".equals(normalized) || "BOOKED".equals(normalized) || "CONFIRMED".equals(normalized);
+    }
+
+    private boolean overlapsNow(ReservationEntity reservation, LocalDateTime now) {
+        return reservation.getStartTime() != null
+                && reservation.getEndTime() != null
+                && !reservation.getStartTime().isAfter(now)
+                && reservation.getEndTime().isAfter(now);
     }
 
     private String buildAvatarUrl(String fullName, int colorIndex) {
@@ -1976,5 +1993,111 @@ public class SeedDataService {
                 "message", String.format("Đã tạo booking lúc %s cho user %s", startTime.toString(), userCode),
                 "startTime", startTime.toString(),
                 "seatCode", seat.getSeatCode());
+    }
+
+    /**
+     * Tạo hoặc ép một booking hiện tại sang trạng thái đang ngồi (CONFIRMED)
+     * để demo mobile/web realtime ngay lập tức.
+     */
+    @Transactional
+    public Map<String, Object> seedActiveBookingTestData(String userCode) {
+        String normalizedUserCode = userCode.trim().toUpperCase(Locale.ROOT);
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + normalizedUserCode + ":active-booking-test";
+
+        User mainUser = ensureStudentUser(normalizedUserCode, seedScope, Math.abs(normalizedUserCode.hashCode()));
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime = now.minusMinutes(18);
+        LocalDateTime endTime = now.plusHours(1).plusMinutes(42);
+
+        ReservationEntity activeReservation = reservationRepository.findByUserId(mainUser.getId()).stream()
+                .filter(reservation -> isActiveReservationStatus(reservation.getStatus()))
+                .filter(reservation -> overlapsNow(reservation, now) || "BOOKED".equalsIgnoreCase(reservation.getStatus())
+                        || "PROCESSING".equalsIgnoreCase(reservation.getStatus()))
+                .sorted(Comparator.comparing(ReservationEntity::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)).reversed())
+                .findFirst()
+                .orElse(null);
+
+        if (activeReservation == null) {
+            SeatEntity seat = getActiveSeats().stream()
+                    .filter(candidate -> candidate.getReservation().stream()
+                            .noneMatch(existing -> isActiveReservationStatus(existing.getStatus()) && overlapsNow(existing, now)))
+                    .findFirst()
+                    .orElse(null);
+
+            if (seat == null) {
+                return Map.of("status", "ERROR", "message", "Không còn ghế trống để tạo đặt chỗ đang ngồi.");
+            }
+
+            activeReservation = ReservationEntity.builder()
+                    .user(mainUser)
+                    .seat(seat)
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .confirmedAt(startTime)
+                    .status("CONFIRMED")
+                    .build();
+        } else {
+            activeReservation.setStartTime(startTime);
+            activeReservation.setEndTime(endTime);
+            activeReservation.setConfirmedAt(startTime);
+            activeReservation.setStatus("CONFIRMED");
+            activeReservation.setActualEndTime(null);
+            activeReservation.setCancellationReason(null);
+            activeReservation.setCancelledByUserId(null);
+        }
+
+        ReservationEntity savedReservation = reservationRepository.save(activeReservation);
+        recordSeed("RESERVATION", savedReservation.getReservationId(), seedScope);
+
+        AccessLog accessLog = AccessLog.builder()
+                .user(mainUser)
+                .checkInTime(startTime)
+                .checkOutTime(null)
+                .deviceId("gate-main-active-booking-test")
+                .reservationId(savedReservation.getReservationId())
+                .build();
+        accessLogRepository.save(accessLog);
+        recordSeed("ACCESS_LOG", accessLog.getLogId(), seedScope);
+
+        ActivityLogEntity activity = activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(mainUser.getId())
+                .activityType(ActivityLogEntity.TYPE_CHECK_IN)
+                .title("Check-in thành công")
+                .description("Bạn đang ngồi học tại ghế " + savedReservation.getSeat().getSeatCode()
+                        + " để demo trạng thái đang sử dụng.")
+                .seatCode(savedReservation.getSeat().getSeatCode())
+                .zoneName(savedReservation.getSeat().getZone() != null ? savedReservation.getSeat().getZone().getZoneName() : "")
+                .reservationId(savedReservation.getReservationId())
+                .build());
+        recordSeed("ACTIVITY_LOG", activity.getId(), seedScope);
+
+        seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                savedReservation.getSeat(),
+                "CONFIRMED",
+                savedReservation.getStartTime(),
+                savedReservation.getEndTime());
+
+        Map<String, Object> wsMsg = new HashMap<>();
+        wsMsg.put("type", "CHECK_IN");
+        wsMsg.put("userId", mainUser.getId().toString());
+        wsMsg.put("fullName", mainUser.getFullName());
+        wsMsg.put("userCode", mainUser.getUserCode());
+        wsMsg.put("deviceId", "gate-main-active-booking-test");
+        wsMsg.put("time", startTime.toString());
+        wsMsg.put("checkInTime", startTime.toString());
+        messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
+        messagingTemplate.convertAndSend("/topic/dashboard",
+                Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_IN", "timestamp",
+                        java.time.Instant.now().toString()));
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã tạo đặt chỗ đang ngồi cho user " + normalizedUserCode,
+                "userCode", normalizedUserCode,
+                "seatCode", savedReservation.getSeat().getSeatCode(),
+                "zoneName", savedReservation.getSeat().getZone() != null ? savedReservation.getSeat().getZone().getZoneName() : "",
+                "bookingStatus", savedReservation.getStatus(),
+                "startTime", savedReservation.getStartTime().toString(),
+                "endTime", savedReservation.getEndTime().toString());
     }
 }

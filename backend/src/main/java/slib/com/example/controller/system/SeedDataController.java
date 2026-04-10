@@ -203,6 +203,16 @@ public class SeedDataController {
     }
 
     /**
+     * Tạo dữ liệu test cho tình huống đang ngồi học
+     * POST /slib/seed/active-booking-test?userCode=SL000001
+     */
+    @PostMapping("/active-booking-test")
+    public ResponseEntity<Map<String, Object>> seedActiveBookingTestData(
+            @RequestParam String userCode) {
+        return ResponseEntity.ok(seedDataService.seedActiveBookingTestData(userCode));
+    }
+
+    /**
      * Tạo dữ liệu hành trình thực tế cho 1 sinh viên
      * POST /slib/seed/student-journey?userCode=SE171001
      */
