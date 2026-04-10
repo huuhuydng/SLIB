@@ -271,7 +271,7 @@ public class TestSystemService {
     }
 
     private ReservationEntity getReservation(UUID reservationId) {
-        return reservationRepository.findById(reservationId)
+        return reservationRepository.findDetailById(reservationId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch đặt: " + reservationId));
     }
 
