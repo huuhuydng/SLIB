@@ -200,7 +200,11 @@ const UserManagement = () => {
       if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
         setShowColumnMenu(false);
       }
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) {
+      if (
+        actionMenuRef.current &&
+        !actionMenuRef.current.contains(e.target) &&
+        !e.target.closest('.um-action-btn')
+      ) {
         setShowActionMenu(null);
       }
     };
@@ -1191,10 +1195,7 @@ const UserManagement = () => {
                             </td>
                           )}
                           <td style={{ textAlign: 'center' }}>
-                            <div
-                              className="um-action-menu-anchor"
-                              ref={showActionMenu === user.id ? actionMenuRef : null}
-                            >
+                            <div className="um-action-menu-anchor">
                               <button
                                 className="um-action-btn"
                                 onClick={(event) => handleToggleActionMenu(user.id, event, canAdjustReputation)}
