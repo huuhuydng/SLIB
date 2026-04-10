@@ -24,6 +24,7 @@ import slib.com.example.service.system.SystemLogService;
 @Service
 @Slf4j
 public class NotificationScheduler {
+    private static final String RESERVATION_REFERENCE_TYPE = "RESERVATION";
 
     private final ReservationRepository reservationRepository;
     private final PushNotificationService pushNotificationService;
@@ -33,6 +34,7 @@ public class NotificationScheduler {
     // Track sent reminders to avoid duplicates (in memory - will reset on restart)
     private final Set<UUID> sentReminders = ConcurrentHashMap.newKeySet();
     private final Set<UUID> sentExpiryWarnings = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> sentSeatStartNotifications = ConcurrentHashMap.newKeySet();
 
     public NotificationScheduler(ReservationRepository reservationRepository,
             PushNotificationService pushNotificationService,
@@ -54,6 +56,8 @@ public class NotificationScheduler {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime reminderTime = now.plusMinutes(15);
         LocalDateTime expiryWarningTime = now.plusMinutes(10);
+        LocalDateTime seatStartWindowStart = now.minusSeconds(30);
+        LocalDateTime seatStartWindowEnd = now.plusSeconds(45);
 
         List<ReminderPayload> upcomingReservations = loadUpcomingReminders(now, reminderTime.plusMinutes(1));
         for (ReminderPayload reservation : upcomingReservations) {
@@ -66,6 +70,20 @@ public class NotificationScheduler {
                         e.getMessage());
                 systemLogService.logJobEvent(LogLevel.ERROR, "NotificationScheduler",
                         "Failed to send booking reminder: " + e.getMessage());
+            }
+        }
+
+        List<ReminderPayload> startingReservations = loadSeatStartNotifications(seatStartWindowStart, seatStartWindowEnd);
+        for (ReminderPayload reservation : startingReservations) {
+            try {
+                sendSeatStartNotification(reservation);
+                sentSeatStartNotifications.add(reservation.reservationId());
+                log.info("Sent seat start notification for reservation: {}", reservation.reservationId());
+            } catch (Exception e) {
+                log.error("Failed to send seat start notification for reservation {}: {}", reservation.reservationId(),
+                        e.getMessage());
+                systemLogService.logJobEvent(LogLevel.ERROR, "NotificationScheduler",
+                        "Failed to send seat start notification: " + e.getMessage());
             }
         }
 
@@ -102,10 +120,26 @@ public class NotificationScheduler {
                 PushNotificationService.DELIVERY_KEY_CHECKIN_REMINDER);
     }
 
+    private void sendSeatStartNotification(ReminderPayload reservation) {
+        String title = "Đã đến giờ sử dụng ghế";
+        String body = String.format(
+                "Lịch đặt ghế %s của bạn đã bắt đầu lúc %s. Hãy tới thư viện và xác nhận chỗ ngồi ngay để tránh bị hủy.",
+                reservation.seatCode(), reservation.timeDisplay());
+
+        pushNotificationService.sendToUser(
+                reservation.userId(),
+                title,
+                body,
+                NotificationType.BOOKING,
+                reservation.reservationId(),
+                RESERVATION_REFERENCE_TYPE,
+                "BOOKING");
+    }
+
     private void sendExpiryWarningNotification(ReminderPayload reservation) {
         String title = "Sắp hết giờ sử dụng";
         String body = String.format(
-                "Phiên sử dụng ghế %s của bạn sẽ kết thúc lúc %s. Hãy chủ động lưu tài liệu và rời chỗ đúng giờ.",
+                "Phiên sử dụng ghế %s của bạn sẽ kết thúc lúc %s. Hãy chủ động sắp xếp và rời chỗ đúng giờ.",
                 reservation.seatCode(), reservation.timeDisplay());
 
         pushNotificationService.sendToUser(
@@ -123,6 +157,27 @@ public class NotificationScheduler {
             for (ReservationEntity reservation : reservationRepository
                     .findByStatusAndStartTimeBetween("BOOKED", now, reminderWindowEnd)) {
                 if (sentReminders.contains(reservation.getReservationId()) || reservation.getUser() == null) {
+                    continue;
+                }
+                String startTimeStr = reservation.getStartTime() != null
+                        ? reservation.getStartTime().toLocalTime().toString().substring(0, 5)
+                        : "N/A";
+                payloads.add(new ReminderPayload(
+                        reservation.getReservationId(),
+                        reservation.getUser().getId(),
+                        reservation.getSeat() != null ? reservation.getSeat().getSeatCode() : "N/A",
+                        startTimeStr));
+            }
+            return payloads;
+        });
+    }
+
+    private List<ReminderPayload> loadSeatStartNotifications(LocalDateTime windowStart, LocalDateTime windowEnd) {
+        return readOnlyTransactionTemplate.execute(status -> {
+            List<ReminderPayload> payloads = new ArrayList<>();
+            for (ReservationEntity reservation : reservationRepository
+                    .findByStatusAndStartTimeBetween("BOOKED", windowStart, windowEnd)) {
+                if (sentSeatStartNotifications.contains(reservation.getReservationId()) || reservation.getUser() == null) {
                     continue;
                 }
                 String startTimeStr = reservation.getStartTime() != null
@@ -169,6 +224,26 @@ public class NotificationScheduler {
             sentExpiryWarnings.clear();
             log.info("Cleared expiry warning cache");
         }
+        if (sentSeatStartNotifications.size() > 10000) {
+            sentSeatStartNotifications.clear();
+            log.info("Cleared seat start notification cache");
+        }
+    }
+
+    public void clearTracking(UUID reservationId) {
+        if (reservationId == null) {
+            return;
+        }
+        sentReminders.remove(reservationId);
+        sentExpiryWarnings.remove(reservationId);
+        sentSeatStartNotifications.remove(reservationId);
+    }
+
+    public void markSeatStartNotificationSent(UUID reservationId) {
+        if (reservationId == null) {
+            return;
+        }
+        sentSeatStartNotifications.add(reservationId);
     }
 
     private record ReminderPayload(UUID reservationId, UUID userId, String seatCode, String timeDisplay) {

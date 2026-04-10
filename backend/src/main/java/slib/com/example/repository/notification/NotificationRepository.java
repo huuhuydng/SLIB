@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 
@@ -121,4 +122,21 @@ public interface NotificationRepository extends JpaRepository<NotificationEntity
     @Modifying
     @Query("UPDATE NotificationEntity n SET n.isRead = true WHERE n.user.id = :userId AND n.isRead = false")
     void markAllAsReadByUserId(@Param("userId") UUID userId);
+
+    @Modifying
+    @Transactional
+    @Query("""
+            DELETE FROM NotificationEntity n
+            WHERE n.user.id = :userId
+              AND n.notificationType = :type
+              AND n.referenceType = :referenceType
+              AND n.referenceId = :referenceId
+              AND n.createdAt >= :since
+            """)
+    int deleteRecentByUserAndReference(
+            @Param("userId") UUID userId,
+            @Param("type") NotificationType type,
+            @Param("referenceType") String referenceType,
+            @Param("referenceId") UUID referenceId,
+            @Param("since") LocalDateTime since);
 }

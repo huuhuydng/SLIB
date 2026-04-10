@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:slib/core/constants/api_constants.dart';
 import 'package:slib/services/auth/auth_service.dart';
 
@@ -341,5 +342,35 @@ Future<void> showFeedbackPopup(
         },
       ),
     ),
+  );
+}
+
+Future<void> showSeatFeedbackPopup(
+  BuildContext context, {
+  required String reservationId,
+  required String zoneName,
+  required String seatCode,
+}) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool('feedback_dismissed_$reservationId') == true) {
+    return;
+  }
+
+  if (!context.mounted) return;
+
+  await showFeedbackPopup(
+    context,
+    title: 'Đánh giá trải nghiệm',
+    subtitle:
+        'Bạn vừa học tại $zoneName - Ghế $seatCode.\nHãy chia sẻ cảm nhận của bạn!',
+    reservationId: reservationId,
+    onSubmitted: () async {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('feedback_dismissed_$reservationId', true);
+    },
+    onDismissed: () async {
+      final p = await SharedPreferences.getInstance();
+      await p.setBool('feedback_dismissed_$reservationId', true);
+    },
   );
 }

@@ -11,10 +11,15 @@ const api = axios.create({
 
 // Add Authorization header if token exists
 api.interceptors.request.use((config) => {
-  const token =
-    localStorage.getItem("kiosk_device_token") ||
-    sessionStorage.getItem("kiosk_device_token") ||
-    getStaffAuthToken();
+  const isKioskRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/kiosk");
+  const token = isKioskRoute
+    ? (
+        localStorage.getItem("kiosk_device_token") ||
+        sessionStorage.getItem("kiosk_device_token") ||
+        getStaffAuthToken()
+      )
+    : getStaffAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

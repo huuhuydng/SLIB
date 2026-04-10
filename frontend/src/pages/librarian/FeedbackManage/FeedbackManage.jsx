@@ -5,6 +5,7 @@ import "../../../styles/librarian/CheckInOut.css";
 import "../../../styles/librarian/FeedbackManage.css";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 
@@ -115,6 +116,21 @@ function FeedbackManage() {
         fetchFeedbacks();
     }, [fetchFeedbacks]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/librarian-notifications',
+            shouldRefresh: (message) => (
+                message?.type === 'PENDING_COUNTS_UPDATE' &&
+                message?.source === 'FEEDBACK'
+            ),
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchFeedbacks,
+        subscriptions: realtimeSubscriptions,
+    });
+
     // Close dropdowns on outside click
     useEffect(() => {
         const handler = (e) => {
@@ -124,6 +140,16 @@ function FeedbackManage() {
         document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
     }, []);
+
+    useEffect(() => {
+        if (!selectedFeedback) return;
+        const freshFeedback = feedbacks.find((feedback) => feedback.id === selectedFeedback.id);
+        if (freshFeedback) {
+            setSelectedFeedback(freshFeedback);
+            return;
+        }
+        setSelectedFeedback(null);
+    }, [feedbacks, selectedFeedback]);
 
     // Actions
     const reviewableSelectedIds = useMemo(

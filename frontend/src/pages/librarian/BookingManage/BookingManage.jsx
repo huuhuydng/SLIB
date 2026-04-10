@@ -6,6 +6,7 @@ import "../../../styles/librarian/BookingManage.css";
 import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 
@@ -87,6 +88,8 @@ function BookingManage() {
     // Student detail modal
     const [showStudentModal, setShowStudentModal] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState(null);
+    const [cancelReason, setCancelReason] = useState("");
+    const [cancelReasonError, setCancelReasonError] = useState("");
 
     const getToken = () =>
         sessionStorage.getItem("librarian_token") || localStorage.getItem("librarian_token");
@@ -113,6 +116,18 @@ function BookingManage() {
         fetchBookings();
     }, [fetchBookings]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/dashboard',
+            shouldRefresh: (message) => message?.type === 'BOOKING_UPDATE',
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchBookings,
+        subscriptions: realtimeSubscriptions,
+    });
+
     // Close filter dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -124,10 +139,40 @@ function BookingManage() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    const resetCancelForm = useCallback(() => {
+        setCancelReason("");
+        setCancelReasonError("");
+    }, []);
+
+    useEffect(() => {
+        resetCancelForm();
+    }, [selectedBooking?.reservationId, resetCancelForm]);
+
+    useEffect(() => {
+        if (!selectedBooking) return;
+        const freshBooking = bookings.find((booking) => booking.reservationId === selectedBooking.reservationId);
+        if (freshBooking) {
+            setSelectedBooking(freshBooking);
+            return;
+        }
+        setSelectedBooking(null);
+    }, [bookings, selectedBooking]);
+
+    const closeBookingModal = () => {
+        setSelectedBooking(null);
+        resetCancelForm();
+    };
+
     const handleCancelBooking = async (reservationId) => {
+        const normalizedReason = cancelReason.trim();
+        if (!normalizedReason) {
+            setCancelReasonError("Vui lòng nhập lý do huỷ đặt chỗ.");
+            return;
+        }
+
         const confirmed = await confirm({
             title: 'Huỷ đặt chỗ',
-            message: 'Bạn có chắc muốn huỷ đặt chỗ này?',
+            message: 'Bạn có chắc muốn huỷ đặt chỗ này? Hệ thống sẽ gửi thông báo kèm lý do cho người dùng.',
             variant: 'danger',
             confirmText: 'Huỷ đặt chỗ',
             cancelText: 'Huỷ',
@@ -138,15 +183,19 @@ function BookingManage() {
             const token = getToken();
             const res = await fetch(`${API_BASE}/cancel/${reservationId}`, {
                 method: "PUT",
-                headers: { Authorization: `Bearer ${token}` },
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ reason: normalizedReason }),
             });
             if (res.ok) {
                 toast.success("Huỷ đặt chỗ thành công.");
                 fetchBookings();
-                setSelectedBooking(null);
+                closeBookingModal();
             } else {
-                const errData = await res.json().catch(() => null);
-                const errMsg = errData?.message || `Lỗi máy chủ (${res.status})`;
+                const errText = (await res.text().catch(() => "")).trim();
+                const errMsg = errText || `Lỗi máy chủ (${res.status})`;
                 toast.error("Huỷ đặt chỗ thất bại: " + errMsg);
             }
         } catch (err) {
@@ -208,6 +257,11 @@ function BookingManage() {
     const formatDateTime = (iso) => {
         if (!iso) return "";
         return `${formatTime(iso)} ${formatDate(iso)}`;
+    };
+
+    const getCancellationReasonLabel = (booking) => {
+        if (!booking?.cancellationReason) return "";
+        return booking.cancelledByStaff ? "Lý do thủ thư huỷ" : "Lý do huỷ";
     };
 
     const getActualEndTimeLabel = (booking) => {
@@ -715,13 +769,13 @@ function BookingManage() {
             {/* Modal - Detail */}
             {selectedBooking && (
                 <>
-                    <div className="bm-modal-overlay" onClick={() => setSelectedBooking(null)} />
+                    <div className="bm-modal-overlay" onClick={closeBookingModal} />
                     <div className="bm-modal">
                         <div className="bm-modal-header">
                             <h2>Chi tiết đặt chỗ</h2>
                             <button
                                 className="bm-modal-close"
-                                onClick={() => setSelectedBooking(null)}
+                                onClick={closeBookingModal}
                             >
                                 <X size={20} />
                             </button>
@@ -821,12 +875,47 @@ function BookingManage() {
                                     {getActualEndTimeLabel(selectedBooking)}
                                 </div>
                             )}
+
+                            {(selectedBooking.status === "BOOKED" || selectedBooking.status === "PROCESSING") && (
+                                <div className="bm-modal-reason-panel">
+                                    <label className="bm-modal-reason-label" htmlFor="bm-cancel-reason">
+                                        Lý do huỷ <span className="bm-modal-reason-required">*</span>
+                                    </label>
+                                    <textarea
+                                        id="bm-cancel-reason"
+                                        className={`bm-modal-reason-input${cancelReasonError ? " has-error" : ""}`}
+                                        placeholder="Nhập lý do để gửi cho người dùng..."
+                                        value={cancelReason}
+                                        onChange={(e) => {
+                                            setCancelReason(e.target.value);
+                                            if (cancelReasonError) {
+                                                setCancelReasonError("");
+                                            }
+                                        }}
+                                        rows={4}
+                                        maxLength={500}
+                                    />
+                                    <div className="bm-modal-reason-meta">
+                                        <span>Người dùng sẽ nhận được thông báo và thấy lý do này trong lịch sử đặt chỗ đã huỷ.</span>
+                                        <span>{cancelReason.trim().length}/500</span>
+                                    </div>
+                                    {cancelReasonError && (
+                                        <div className="bm-modal-reason-error">{cancelReasonError}</div>
+                                    )}
+                                </div>
+                            )}
+
+                            {selectedBooking.cancellationReason && (
+                                <div className="bm-modal-note bm-modal-note-danger">
+                                    <strong>{getCancellationReasonLabel(selectedBooking)}:</strong> {selectedBooking.cancellationReason}
+                                </div>
+                            )}
                         </div>
 
                         <div className="bm-modal-footer">
                             <button
                                 className="bm-modal-btn close"
-                                onClick={() => setSelectedBooking(null)}
+                                onClick={closeBookingModal}
                             >
                                 Đóng
                             </button>

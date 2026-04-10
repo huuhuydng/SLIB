@@ -36,4 +36,6 @@ public class BookingHistoryResponse {
     private LocalDateTime endTime;
     private LocalDateTime actualEndTime;
     private LocalDateTime createdAt;
+    private String cancellationReason;
+    private Boolean cancelledByStaff;
 }

@@ -8,6 +8,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.booking.BookingResponse;
+import slib.com.example.dto.booking.CancelBookingRequest;
 import slib.com.example.dto.booking.ReservationDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.booking.ReservationRepository;
@@ -199,12 +200,28 @@ public class BookingController {
     // --- CANCEL BOOKING ---
     @PutMapping("/cancel/{reservationId}")
     public ResponseEntity<?> cancelBooking(@PathVariable UUID reservationId,
+            @RequestBody(required = false) CancelBookingRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
             ReservationEntity existingReservation = reservationRepository.findById(reservationId)
                     .orElseThrow(() -> new RuntimeException("Reservation not found"));
             resolveAuthorizedUserId(existingReservation.getUser().getId());
-            ReservationEntity reservation = bookingService.cancelBooking(reservationId);
+            Authentication authentication = requireAuthentication();
+            UUID currentUserId = null;
+            boolean cancelledByStaff = false;
+
+            if (!(authentication instanceof KioskDevicePrincipal)) {
+                currentUserId = getCurrentUserId();
+                User currentUser = userRepository.findById(currentUserId)
+                        .orElseThrow(() -> new RuntimeException("User not found"));
+                cancelledByStaff = currentUser.getRole() != null && currentUser.getRole().isStaff();
+            }
+
+            ReservationEntity reservation = bookingService.cancelBooking(
+                    reservationId,
+                    currentUserId,
+                    cancelledByStaff,
+                    request != null ? request.getReason() : null);
             return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

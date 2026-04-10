@@ -61,6 +61,12 @@ public class ReservationEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
+
+    @Column(name = "cancelled_by_user_id")
+    private UUID cancelledByUserId;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

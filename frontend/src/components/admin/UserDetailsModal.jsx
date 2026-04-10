@@ -14,7 +14,6 @@ import {
     Lock,
     Unlock,
     Trash2,
-    ExternalLink,
     Phone,
     Building,
     GraduationCap,
@@ -271,7 +270,8 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                             <h2 style={{
                                 margin: '0 0 8px 0',
                                 fontSize: '24px',
-                                fontWeight: '700'
+                                fontWeight: '700',
+                                color: '#FFFFFF'
                             }}>
                                 {user.fullName || 'Chưa có tên'}
                             </h2>
@@ -294,7 +294,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                     alignItems: 'center',
                                     gap: '6px',
                                     fontSize: '14px',
-                                    opacity: 0.9
+                                    color: 'rgba(255, 255, 255, 0.92)'
                                 }}>
                                     <Mail size={14} />
                                     {user.email}
@@ -532,7 +532,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                     <div style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'space-between',
                                         marginBottom: '16px'
                                     }}>
                                         <h3 style={{
@@ -541,22 +540,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                             color: '#6B7280',
                                             margin: 0
                                         }}>Hoạt động gần đây</h3>
-                                        <button style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            padding: '8px 12px',
-                                            background: '#e8600a',
-                                            color: '#fff',
-                                            border: 'none',
-                                            borderRadius: '8px',
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            cursor: 'pointer'
-                                        }}>
-                                            <ExternalLink size={14} />
-                                            Xem tất cả
-                                        </button>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -591,7 +574,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onEdit, onLock, onDelete }) =
                                                         <div style={{
                                                             fontSize: '14px',
                                                             fontWeight: '600',
-                                                            color: '#1A1A1A',
+                                                            color: '#1E293B',
                                                             marginBottom: '4px'
                                                         }}>
                                                             {activity.title}
@@ -724,8 +707,8 @@ const InfoRow = ({ icon: Icon, label, value }) => (
             <Icon size={16} color="#6B7280" />
         </div>
         <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '12px', color: '#A0AEC0', marginBottom: '2px' }}>{label}</div>
-            <div style={{ fontSize: '14px', color: '#1A1A1A', fontWeight: '500' }}>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '2px' }}>{label}</div>
+            <div style={{ fontSize: '14px', color: '#334155', fontWeight: '500' }}>
                 {typeof value === 'string' ? value : value}
             </div>
         </div>

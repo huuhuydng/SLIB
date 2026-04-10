@@ -95,6 +95,8 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                 ? DateTime.tryParse(booking['actualEndTime'])
                 : null,
             'status': status,
+            'cancellationReason': booking['cancellationReason']?.toString(),
+            'cancelledByStaff': booking['cancelledByStaff'] == true,
             'date': DateFormat('dd/MM/yyyy').format(startTime),
             'time':
                 '${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}',
@@ -418,6 +420,8 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     final startTime = booking['startTime'] as DateTime;
     final endTime = booking['endTime'] as DateTime;
     final actualEndTime = booking['actualEndTime'] as DateTime?;
+    final cancellationReason = booking['cancellationReason'] as String?;
+    final cancelledByStaff = booking['cancelledByStaff'] == true;
     final now = DateTime.now();
 
     Color statusColor;
@@ -613,6 +617,56 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                               ? Colors.green[800]
                               : Colors.grey[700],
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if ((status == 'CANCEL' || status == 'CANCELLED') &&
+                cancellationReason != null &&
+                cancellationReason.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: Color(0xFFDC2626),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red[800],
+                            height: 1.5,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: cancelledByStaff
+                                  ? 'Lý do thủ thư huỷ: '
+                                  : 'Lý do huỷ: ',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            TextSpan(text: cancellationReason.trim()),
+                          ],
                         ),
                       ),
                     ),

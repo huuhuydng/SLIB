@@ -41,6 +41,8 @@ const NOTIF_ICON_MAP = {
     VIOLATION: { icon: null, cls: 'violation', label: 'Vi phạm' },
 };
 
+const resolveNotificationSource = (payload) => payload?.referenceType || payload?.notificationType || null;
+
 export function LibrarianNotificationProvider({ children }) {
     const [pendingCounts, setPendingCounts] = useState({
         supportRequests: 0,
@@ -366,6 +368,8 @@ export function LibrarianNotificationProvider({ children }) {
 
         const handleStoredNotification = (payload) => {
             if (!mountedRef.current || !payload) return;
+
+            const source = resolveNotificationSource(payload);
             setUserNotifications((prev) => {
                 const next = [payload, ...prev.filter((item) => item.id !== payload.id)];
                 return next.slice(0, 20);
@@ -378,6 +382,18 @@ export function LibrarianNotificationProvider({ children }) {
                 }
             } else {
                 fetchUnreadNotificationCount();
+            }
+
+            if (source === 'FEEDBACK') {
+                setNotifications((prev) => [{
+                    id: `stored-${payload.id}`,
+                    source,
+                    action: 'CREATED',
+                    title: payload.title,
+                    content: payload.content,
+                    timestamp: payload.createdAt || new Date().toISOString(),
+                    fromStoredNotification: true,
+                }, ...prev].slice(0, 20));
             }
         };
 

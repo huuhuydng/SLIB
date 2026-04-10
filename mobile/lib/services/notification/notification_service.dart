@@ -841,7 +841,7 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
       navigator.push(
         MaterialPageRoute(
           builder: (_) => BookingHistoryScreen(
-            initialTab: _bookingHistoryTabFromText(combined),
+            initialTab: _resolveBookingHistoryTab(referenceType, combined),
           ),
         ),
       );
@@ -923,6 +923,16 @@ class NotificationService extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     return 0;
+  }
+
+  int _resolveBookingHistoryTab(String referenceType, String combined) {
+    if (referenceType == 'RESERVATION' &&
+        combined.contains('thủ thư') &&
+        (combined.contains('huỷ') || combined.contains('hủy'))) {
+      return 2;
+    }
+
+    return _bookingHistoryTabFromText(combined);
   }
 
   /// Refresh all notification data

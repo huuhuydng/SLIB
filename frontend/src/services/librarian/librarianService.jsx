@@ -2,6 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL as BASE } from '../../config/apiConfig';
 
 const API_BASE_URL = `${BASE}/api/librarian`;
+const AUTH_API_BASE_URL = `${BASE}/slib/auth`;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -129,7 +130,7 @@ class LibrarianService {
 
   async forgotPassword(email) {
     try {
-      const response = await axiosInstance.post('/forgot-password', {
+      const response = await axios.post(`${AUTH_API_BASE_URL}/forgot-password`, {
         email: email.trim().toLowerCase()
       });
 
@@ -143,7 +144,7 @@ class LibrarianService {
 
   async verifyOtp(email, token, type = 'recovery') {
     try {
-      const response = await axiosInstance.post('/verify-otp', {
+      const response = await axios.post(`${AUTH_API_BASE_URL}/verify-otp`, {
         email: email.trim().toLowerCase(),
         token: token.trim(),
         type: type
@@ -170,7 +171,7 @@ class LibrarianService {
 
   async resendOtp(email, type = 'recovery') {
     try {
-      const response = await axiosInstance.post('/resend-otp', {
+      const response = await axios.post(`${AUTH_API_BASE_URL}/resend-otp`, {
         email: email.trim().toLowerCase(),
         type: type
       });
@@ -191,7 +192,7 @@ class LibrarianService {
         throw new Error('Không tìm thấy token xác thực. Vui lòng xác thực OTP lại.');
       }
 
-      const response = await axiosInstance.post('/update-password', {
+      const response = await axios.post(`${AUTH_API_BASE_URL}/update-password`, {
         password: newPassword
       }, {
         headers: {

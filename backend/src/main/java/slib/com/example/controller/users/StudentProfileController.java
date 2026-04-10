@@ -3,8 +3,10 @@ package slib.com.example.controller.users;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.users.ManualReputationAdjustmentRequest;
 import slib.com.example.dto.users.StudentProfileResponse;
 import slib.com.example.entity.users.User;
 import slib.com.example.service.users.StudentProfileService;
@@ -60,6 +62,34 @@ public class StudentProfileController {
         return studentProfileService.updateReputationScore(userId, score)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Admin: Manual reputation adjustment with mandatory reason and audit trail
+     */
+    @PatchMapping("/{userId}/reputation/manual-adjust")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> manualAdjustReputation(
+            @PathVariable UUID userId,
+            @Valid @RequestBody ManualReputationAdjustmentRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(java.util.Map.of("error", "Token không hợp lệ hoặc hết hạn"));
+        }
+
+        try {
+            return studentProfileService.applyManualReputationAdjustment(
+                            userId,
+                            request.points(),
+                            request.reason(),
+                            currentUser)
+                    .<ResponseEntity<?>>map(profile -> ResponseEntity.ok(java.util.Map.of(
+                            "message", "Đã điều chỉnh điểm uy tín",
+                            "profile", profile)))
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
     }
 
     /**

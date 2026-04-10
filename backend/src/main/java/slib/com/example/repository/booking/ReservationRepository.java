@@ -13,6 +13,16 @@ import java.util.UUID;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<ReservationEntity, UUID> {
+        @Query("""
+                        SELECT r FROM ReservationEntity r
+                        JOIN FETCH r.user u
+                        JOIN FETCH r.seat s
+                        LEFT JOIN FETCH s.zone z
+                        LEFT JOIN FETCH z.area a
+                        WHERE r.reservationId = :reservationId
+                        """)
+        java.util.Optional<ReservationEntity> findDetailById(@Param("reservationId") UUID reservationId);
+
         List<ReservationEntity> findByUserId(UUID userId);
 
         List<ReservationEntity> findBySeat_SeatId(Integer seatId);
@@ -192,8 +202,16 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findTop1ByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, String status);
 
-        List<ReservationEntity> findByUserIdAndConfirmedAtIsNotNullAndEndTimeBeforeAndStatusInOrderByEndTimeDesc(
-                        UUID userId,
-                        LocalDateTime endTime,
-                        List<String> statuses);
+        @Query("""
+                        SELECT r FROM ReservationEntity r
+                        WHERE r.user.id = :userId
+                        AND r.confirmedAt IS NOT NULL
+                        AND r.status IN :statuses
+                        AND COALESCE(r.actualEndTime, r.endTime) <= :effectiveEndTime
+                        ORDER BY COALESCE(r.actualEndTime, r.endTime) DESC
+                        """)
+        List<ReservationEntity> findCompletedReservationsEligibleForFeedback(
+                        @Param("userId") UUID userId,
+                        @Param("effectiveEndTime") LocalDateTime effectiveEndTime,
+                        @Param("statuses") List<String> statuses);
 }

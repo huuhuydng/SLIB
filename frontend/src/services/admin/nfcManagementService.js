@@ -1,10 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL as API_BASE, NFC_BRIDGE_URL } from '../../config/apiConfig';
-
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('librarian_token') || sessionStorage.getItem('librarian_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-};
+import { getStaffAuthHeaders } from '../shared/staffAuth';
 
 const nfcManagementService = {
     openBridgeApp: (action = 'open') => {
@@ -77,7 +73,7 @@ const nfcManagementService = {
 
             const res = await axios.get(`${API_BASE}/slib/seats/nfc-mappings`, {
                 params,
-                headers: getAuthHeaders()
+                headers: getStaffAuthHeaders()
             });
             return res.data;
         } catch (e) {
@@ -93,7 +89,7 @@ const nfcManagementService = {
     getNfcInfo: async (seatId) => {
         try {
             const res = await axios.get(`${API_BASE}/slib/seats/${seatId}/nfc-info`, {
-                headers: getAuthHeaders()
+                headers: getStaffAuthHeaders()
             });
             return res.data;
         } catch (e) {
@@ -111,7 +107,7 @@ const nfcManagementService = {
             const res = await axios.put(`${API_BASE}/slib/seats/${seatId}/nfc-uid`, {
                 nfcTagUid: nfcUid,
             }, {
-                headers: getAuthHeaders()
+                headers: getStaffAuthHeaders()
             });
             return res.data;
         } catch (e) {
@@ -127,7 +123,7 @@ const nfcManagementService = {
     clearNfcUid: async (seatId) => {
         try {
             const res = await axios.delete(`${API_BASE}/slib/seats/${seatId}/nfc-uid`, {
-                headers: getAuthHeaders()
+                headers: getStaffAuthHeaders()
             });
             return res.data;
         } catch (e) {

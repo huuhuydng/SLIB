@@ -43,6 +43,7 @@ import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
+import slib.com.example.service.zone_config.SeatStatusSyncService;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -79,11 +80,13 @@ public class SeedDataService {
     private final SeedRecordRepository seedRecordRepository;
     private final ZoneRepository zoneRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SeatStatusSyncService seatStatusSyncService;
 
     // Legacy marker chỉ dùng để dọn dữ liệu cũ đã seed từ phiên bản trước
     private static final String LEGACY_SEED_MARKER = "[SEED]";
     private static final String SYSTEM_SHOWCASE_SCOPE = "system-showcase";
     private static final String STUDENT_JOURNEY_SCOPE_PREFIX = "student-journey:";
+    private static final String DEFAULT_SEED_GATE_DEVICE_ID = "gate-main-01";
     private static final List<String> SAMPLE_DEVICE_IDS = List.of(
             "gate-main-01",
             "gate-east-02",
@@ -725,6 +728,21 @@ public class SeedDataService {
                 .toList();
     }
 
+    private boolean isActiveReservationStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return false;
+        }
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return "PROCESSING".equals(normalized) || "BOOKED".equals(normalized) || "CONFIRMED".equals(normalized);
+    }
+
+    private boolean overlapsNow(ReservationEntity reservation, LocalDateTime now) {
+        return reservation.getStartTime() != null
+                && reservation.getEndTime() != null
+                && !reservation.getStartTime().isAfter(now)
+                && reservation.getEndTime().isAfter(now);
+    }
+
     private String buildAvatarUrl(String fullName, int colorIndex) {
         String normalizedName = Arrays.stream(fullName.trim().split("\\s+"))
                 .filter(part -> !part.isBlank())
@@ -937,6 +955,67 @@ public class SeedDataService {
                         LocalDate.of(2016, Month.MARCH, 8)));
     }
 
+    private List<NotificationSeedTemplate> notificationTemplates(User mainUser, UUID bookingReferenceId) {
+        return List.of(
+                new NotificationSeedTemplate(
+                        "Nhắc nhở check-in",
+                        NotificationEntity.NotificationType.REMINDER,
+                        bookingReferenceId != null ? "REMINDER" : "REMINDER",
+                        bookingReferenceId,
+                        false,
+                        user -> "Bạn còn khoảng 15 phút để xác nhận lịch đặt chỗ của mình. Hãy đến đúng giờ để tránh bị huỷ lượt đặt."),
+                new NotificationSeedTemplate(
+                        "Sắp hết giờ sử dụng",
+                        NotificationEntity.NotificationType.REMINDER,
+                        bookingReferenceId != null ? "REMINDER" : "REMINDER",
+                        bookingReferenceId,
+                        false,
+                        user -> "Phiên sử dụng ghế của bạn sắp kết thúc. Hãy chủ động sắp xếp và rời chỗ đúng giờ."),
+                new NotificationSeedTemplate(
+                        "Điểm uy tín vừa được cập nhật",
+                        NotificationEntity.NotificationType.REPUTATION,
+                        "REPUTATION",
+                        null,
+                        false,
+                        user -> "Điểm uy tín của " + (user.getFullName() != null ? user.getFullName() : "bạn")
+                                + " vừa được hệ thống cập nhật theo hoạt động gần đây."),
+                new NotificationSeedTemplate(
+                        "Thư viện vừa có tin mới",
+                        NotificationEntity.NotificationType.NEWS,
+                        "NEWS",
+                        null,
+                        false,
+                        user -> "Đã có thông báo mới về lịch mở cửa và khu vực học nhóm trong tuần này."),
+                new NotificationSeedTemplate(
+                        "Yêu cầu hỗ trợ đang được xử lý",
+                        NotificationEntity.NotificationType.SUPPORT_REQUEST,
+                        "SUPPORT_REQUEST",
+                        null,
+                        true,
+                        user -> "Thủ thư đã tiếp nhận yêu cầu hỗ trợ của bạn và đang cập nhật tiến độ xử lý."),
+                new NotificationSeedTemplate(
+                        "Khiếu nại đã được ghi nhận",
+                        NotificationEntity.NotificationType.COMPLAINT,
+                        "COMPLAINT",
+                        null,
+                        true,
+                        user -> "Khiếu nại gần đây của bạn đã được chuyển đến thủ thư để xem xét."),
+                new NotificationSeedTemplate(
+                        "Báo cáo vi phạm mới",
+                        NotificationEntity.NotificationType.VIOLATION_REPORT,
+                        "VIOLATION_REPORT",
+                        null,
+                        false,
+                        user -> "Hệ thống vừa ghi nhận một báo cáo vi phạm cần được kiểm tra thêm."),
+                new NotificationSeedTemplate(
+                        "Thông báo đặt chỗ",
+                        NotificationEntity.NotificationType.BOOKING,
+                        bookingReferenceId != null ? "RESERVATION" : "BOOKING",
+                        bookingReferenceId,
+                        false,
+                        user -> "Lịch đặt chỗ của bạn vừa được cập nhật trạng thái mới trong hệ thống."));
+    }
+
     private record NewsSeedTemplate(
             String title,
             String summary,
@@ -958,27 +1037,57 @@ public class SeedDataService {
             LocalDate publishDate) {
     }
 
+    private record NotificationSeedTemplate(
+            String title,
+            NotificationEntity.NotificationType type,
+            String referenceType,
+            UUID referenceId,
+            boolean read,
+            java.util.function.Function<User, String> contentSupplier) {
+
+        String content(User user) {
+            return contentSupplier.apply(user);
+        }
+    }
+
     /**
      * Tạo tất cả dữ liệu mẫu cùng lúc (bao gồm dashboard data)
      */
     @Transactional
     public Map<String, Object> seedAll(int bookingCount, int violationCount, int supportCount) {
-        return seedAll(bookingCount, violationCount, supportCount, null);
+        return seedAll(bookingCount, 24, violationCount, supportCount, 5, 8, 8, 6, 8, 8, null);
     }
 
     @Transactional
     public Map<String, Object> seedAll(int bookingCount, int violationCount, int supportCount, String studentCode) {
+        return seedAll(bookingCount, 24, violationCount, supportCount, 5, 8, 8, 6, 8, 8, studentCode);
+    }
+
+    @Transactional
+    public Map<String, Object> seedAll(
+            int bookingCount,
+            int accessLogCount,
+            int violationCount,
+            int supportCount,
+            int complaintCount,
+            int feedbackCount,
+            int seatStatusReportCount,
+            int newsCount,
+            int newBookCount,
+            int notificationCount,
+            String studentCode) {
         ensureStudentCohort(Math.max(8, bookingCount / 2), SYSTEM_SHOWCASE_SCOPE);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("accessLogs", seedAccessLogs(50, SYSTEM_SHOWCASE_SCOPE));
+        result.put("accessLogs", seedAccessLogs(accessLogCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("bookings", seedBookings(bookingCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("violations", seedViolations(violationCount, SYSTEM_SHOWCASE_SCOPE));
         result.put("supportRequests", seedSupportRequests(supportCount, SYSTEM_SHOWCASE_SCOPE));
-        result.put("complaints", seedComplaints(5, SYSTEM_SHOWCASE_SCOPE));
-        result.put("feedbacks", seedFeedbacks(8, SYSTEM_SHOWCASE_SCOPE));
-        result.put("seatStatusReports", seedSeatStatusReports(8, SYSTEM_SHOWCASE_SCOPE));
-        result.put("news", seedNews(6, SYSTEM_SHOWCASE_SCOPE));
-        result.put("newBooks", seedNewBooks(8, SYSTEM_SHOWCASE_SCOPE));
+        result.put("complaints", seedComplaints(complaintCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("feedbacks", seedFeedbacks(feedbackCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("seatStatusReports", seedSeatStatusReports(seatStatusReportCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("news", seedNews(newsCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("newBooks", seedNewBooks(newBookCount, SYSTEM_SHOWCASE_SCOPE));
+        result.put("notifications", seedNotifications(notificationCount, studentCode, SYSTEM_SHOWCASE_SCOPE));
 
         if (studentCode != null && !studentCode.isBlank()) {
             result.put("studentJourney", seedStudentJourney(studentCode.trim().toUpperCase(Locale.ROOT)));
@@ -986,9 +1095,54 @@ public class SeedDataService {
 
         result.put("status", "SUCCESS");
         result.put("message", String.format(
-                "Đã tạo bộ dữ liệu showcase gồm access logs, bookings, violations, supports, complaints, feedbacks, seat status reports, news, new books%s",
+                "Đã tạo bộ dữ liệu showcase gồm access logs, bookings, violations, supports, complaints, feedbacks, seat status reports, news, new books, notifications%s",
                 studentCode != null && !studentCode.isBlank() ? " và dữ liệu hành trình cho sinh viên " + studentCode : ""));
         return result;
+    }
+
+    @Transactional
+    public Map<String, Object> seedNotifications(int count, String userCode, String seedScope) {
+        List<User> students = ensureStudentCohort(Math.max(6, Math.min(count, 10)), seedScope);
+        if (students.isEmpty()) {
+            return Map.of("status", "ERROR", "message", "Cần có users trước khi seed notifications");
+        }
+
+        User preferredUser = null;
+        if (userCode != null && !userCode.isBlank()) {
+            preferredUser = userRepository.findByUserCode(userCode.trim().toUpperCase(Locale.ROOT)).orElse(null);
+        }
+
+        User mainUser = preferredUser != null ? preferredUser : students.get(0);
+        List<ReservationEntity> existingBookings = reservationRepository.findByUserId(mainUser.getId());
+        UUID bookingReferenceId = existingBookings.isEmpty() ? null : existingBookings.get(0).getReservationId();
+
+        List<NotificationSeedTemplate> templates = notificationTemplates(mainUser, bookingReferenceId);
+        List<UUID> createdIds = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            NotificationSeedTemplate template = templates.get(i % templates.size());
+            User targetUser = i % 3 == 0 ? mainUser : students.get(i % students.size());
+
+            NotificationEntity notification = notificationRepository.save(NotificationEntity.builder()
+                    .user(targetUser)
+                    .title(template.title())
+                    .content(template.content(targetUser))
+                    .notificationType(template.type())
+                    .referenceType(template.referenceType())
+                    .referenceId(template.referenceId())
+                    .isRead(template.read())
+                    .build());
+
+            createdIds.add(notification.getId());
+            recordSeed("NOTIFICATION", notification.getId(), seedScope);
+        }
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã tạo " + count + " thông báo mẫu",
+                "count", count,
+                "ids", createdIds,
+                "targetUser", mainUser.getUserCode());
     }
 
     @Transactional
@@ -1077,15 +1231,20 @@ public class SeedDataService {
 
         List<User> staff = getActiveStaff();
         User librarian = staff.isEmpty() ? null : staff.get(0);
+        User peerStudent = ensureStudentCohort(6, seedScope).stream()
+                .filter(candidate -> !candidate.getId().equals(student.getId()))
+                .findFirst()
+                .orElseGet(() -> ensureStudentUser("SE173099", seedScope, 99));
         List<SeatEntity> seats = getActiveSeats();
-        if (seats.size() < 4) {
-            return Map.of("status", "ERROR", "message", "Cần có tối thiểu 4 ghế active để tạo dữ liệu hành trình sinh viên");
+        if (seats.size() < 5) {
+            return Map.of("status", "ERROR", "message", "Cần có tối thiểu 5 ghế active để tạo dữ liệu demo mobile cho sinh viên");
         }
 
         SeatEntity currentSeat = seats.get(0);
         SeatEntity pastSeat1 = seats.get(1);
         SeatEntity pastSeat2 = seats.get(2);
         SeatEntity futureSeat = seats.get(3);
+        SeatEntity cancelledSeat = seats.get(4);
         LocalDateTime now = LocalDateTime.now();
 
         ReservationEntity currentReservation = reservationRepository.save(ReservationEntity.builder()
@@ -1125,6 +1284,17 @@ public class SeedDataService {
                 .status("BOOKED")
                 .build());
         recordSeed("RESERVATION", upcomingReservation.getReservationId(), seedScope);
+
+        ReservationEntity cancelledReservation = reservationRepository.save(ReservationEntity.builder()
+                .user(student)
+                .seat(cancelledSeat)
+                .startTime(now.plusDays(2).withHour(8).withMinute(30))
+                .endTime(now.plusDays(2).withHour(10).withMinute(30))
+                .status("CANCELLED")
+                .cancellationReason("Thủ thư hủy lịch này để bảo trì khu vực và sắp xếp lại ghế trước ca cao điểm.")
+                .cancelledByUserId(librarian != null ? librarian.getId() : student.getId())
+                .build());
+        recordSeed("RESERVATION", cancelledReservation.getReservationId(), seedScope);
 
         AccessLog currentAccess = accessLogRepository.save(AccessLog.builder()
                 .user(student)
@@ -1180,9 +1350,22 @@ public class SeedDataService {
                 .build());
         recordSeed("ACTIVITY_LOG", checkOutActivity.getId(), seedScope);
 
+        ActivityLogEntity cancellationActivity = activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(student.getId())
+                .activityType(ActivityLogEntity.TYPE_BOOKING_CANCEL)
+                .title("Lịch đặt đã bị hủy")
+                .description("Thủ thư đã hủy lịch tại ghế " + cancelledSeat.getSeatCode()
+                        + " do khu vực đang được bảo trì trước giờ mở cửa.")
+                .reservationId(cancelledReservation.getReservationId())
+                .seatCode(cancelledSeat.getSeatCode())
+                .zoneName(cancelledSeat.getZone().getZoneName())
+                .createdAt(now.minusHours(6).atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh")))
+                .build());
+        recordSeed("ACTIVITY_LOG", cancellationActivity.getId(), seedScope);
+
         PointTransactionEntity rewardTransaction = pointTransactionRepository.save(PointTransactionEntity.builder()
                 .userId(student.getId())
-                .points(8)
+                .points(5)
                 .transactionType(PointTransactionEntity.TYPE_WEEKLY_BONUS)
                 .title("Thưởng học tập đều")
                 .description("Hoàn thành đủ 4 buổi học đúng giờ trong tuần này.")
@@ -1202,8 +1385,8 @@ public class SeedDataService {
                 .build());
         recordSeed("POINT_TRANSACTION", penaltyTransaction.getId(), seedScope);
 
-        SeatViolationReportEntity violation = violationReportRepository.save(SeatViolationReportEntity.builder()
-                .reporter(student)
+        SeatViolationReportEntity receivedViolation = violationReportRepository.save(SeatViolationReportEntity.builder()
+                .reporter(librarian != null ? librarian : peerStudent)
                 .violator(student)
                 .seat(pastSeat2)
                 .violationType(SeatViolationReportEntity.ViolationType.LEFT_BELONGINGS)
@@ -1213,12 +1396,23 @@ public class SeedDataService {
                 .pointDeducted(5)
                 .verifiedAt(now.minusDays(3).plusHours(2))
                 .build());
-        recordSeed("VIOLATION_REPORT", violation.getId(), seedScope);
+        recordSeed("VIOLATION_REPORT", receivedViolation.getId(), seedScope);
+
+        SeatViolationReportEntity reportedViolation = violationReportRepository.save(SeatViolationReportEntity.builder()
+                .reporter(student)
+                .violator(peerStudent)
+                .seat(cancelledSeat)
+                .violationType(SeatViolationReportEntity.ViolationType.NOISE)
+                .description("Bạn sinh viên ngồi ghế bên cạnh nói chuyện nhóm quá lớn trong giờ tự học và chưa giảm âm lượng.")
+                .status(SeatViolationReportEntity.ReportStatus.PENDING)
+                .reservationId(currentReservation.getReservationId())
+                .build());
+        recordSeed("VIOLATION_REPORT", reportedViolation.getId(), seedScope);
 
         ComplaintEntity complaint = complaintRepository.save(ComplaintEntity.builder()
                 .user(student)
                 .pointTransactionId(penaltyTransaction.getId())
-                .violationReportId(violation.getId())
+                .violationReportId(receivedViolation.getId())
                 .subject("Mong thư viện xem lại mức trừ điểm của lượt no-show")
                 .content("Em có việc gấp nên đến trễ khoảng 15 phút và không cố ý bỏ chỗ. Mong thư viện cân nhắc giảm mức trừ điểm.")
                 .status(ComplaintEntity.ComplaintStatus.PENDING)
@@ -1275,6 +1469,35 @@ public class SeedDataService {
                         .build(),
                 NotificationEntity.builder()
                         .user(student)
+                        .title("Lịch đặt đã bị thủ thư hủy")
+                        .content("Lượt đặt ghế " + cancelledSeat.getSeatCode()
+                                + " đã bị hủy. Lý do: Thủ thư hủy để bảo trì khu vực trước giờ cao điểm.")
+                        .notificationType(NotificationEntity.NotificationType.BOOKING)
+                        .referenceType("RESERVATION")
+                        .referenceId(cancelledReservation.getReservationId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
+                        .title("Bạn đã bị ghi nhận vi phạm")
+                        .content("Thư viện đã xác minh vi phạm giữ chỗ sai quy định tại ghế " + pastSeat2.getSeatCode()
+                                + " và trừ 5 điểm uy tín.")
+                        .notificationType(NotificationEntity.NotificationType.VIOLATION)
+                        .referenceType("VIOLATION_REPORT")
+                        .referenceId(receivedViolation.getId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
+                        .title("Khiếu nại đang chờ xử lý")
+                        .content("Khiếu nại về lượt no-show của bạn đã được ghi nhận và đang chờ thủ thư phản hồi.")
+                        .notificationType(NotificationEntity.NotificationType.COMPLAINT)
+                        .referenceType("COMPLAINT")
+                        .referenceId(complaint.getId())
+                        .isRead(false)
+                        .build(),
+                NotificationEntity.builder()
+                        .user(student)
                         .title("Có tin mới từ thư viện")
                         .content("Thư viện vừa cập nhật lịch mở cửa dịp cao điểm giữa kỳ.")
                         .notificationType(NotificationEntity.NotificationType.NEWS)
@@ -1286,20 +1509,37 @@ public class SeedDataService {
             recordSeed("NOTIFICATION", saved.getId(), seedScope);
         });
 
-        profile.setReputationScore(92);
+        profile.setReputationScore(97);
         profile.setTotalStudyHours(26.5);
         profile.setViolationCount(1);
         studentProfileRepository.save(profile);
-        student.setReputationScore(92);
+        student.setReputationScore(97);
         userRepository.save(student);
 
-        return Map.of(
-                "status", "SUCCESS",
-                "message", "Đã tạo dữ liệu hành trình cho sinh viên " + userCode,
-                "studentId", student.getId(),
-                "userCode", student.getUserCode(),
-                "currentSeat", currentSeat.getSeatCode(),
-                "upcomingSeat", futureSeat.getSeatCode());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("status", "SUCCESS");
+        result.put("message", "Đã tạo preset mobile đầy đủ cho sinh viên " + userCode);
+        result.put("studentId", student.getId());
+        result.put("userCode", student.getUserCode());
+        result.put("studentName", student.getFullName());
+        result.put("reputationScore", student.getReputationScore());
+        result.put("currentSeat", currentSeat.getSeatCode());
+        result.put("upcomingSeat", futureSeat.getSeatCode());
+        result.put("cancelledSeat", cancelledSeat.getSeatCode());
+        result.put("bookingStatuses", List.of("CONFIRMED", "COMPLETED", "EXPIRED", "BOOKED", "CANCELLED"));
+        result.put("coverage", List.of(
+                "Trang chủ và điểm uy tín",
+                "Lịch sử đặt chỗ đủ 5 trạng thái",
+                "Lịch sử hoạt động",
+                "Thông báo mobile",
+                "Khiếu nại và phản hồi",
+                "Lịch sử vi phạm",
+                "Lịch sử báo cáo tình trạng ghế",
+                "Yêu cầu hỗ trợ"));
+        result.put("notificationCount", notifications.size());
+        result.put("reportedViolationId", reportedViolation.getId());
+        result.put("receivedViolationId", receivedViolation.getId());
+        return result;
     }
 
     /**
@@ -1506,7 +1746,7 @@ public class SeedDataService {
      */
     @Transactional
     public Map<String, Object> seedViolationTestData(String userCode, int neighborCount, boolean sameZone) {
-        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":violation-test";
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":violation";
         // 1. Tìm user chính
         Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
         if (mainUserOpt.isEmpty()) {
@@ -1588,7 +1828,7 @@ public class SeedDataService {
                 .user(mainUser)
                 .checkInTime(startTime)
                 .checkOutTime(null) // Đang trong thư viện
-                .deviceId("gate-main-violation-test")
+                .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
                 .reservationId(mainBooking.getReservationId())
                 .build();
         accessLogRepository.save(mainAccessLog);
@@ -1599,7 +1839,7 @@ public class SeedDataService {
                 .userId(mainUser.getId())
                 .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                 .title("Check-in thành công")
-                .description("Bạn đã vào thư viện qua cổng kiểm tra tình huống vi phạm")
+                .description("Bạn đã vào thư viện qua cổng chính.")
                 .build());
 
         // Broadcast websocket
@@ -1608,7 +1848,7 @@ public class SeedDataService {
         wsMsg.put("userId", mainUser.getId().toString());
         wsMsg.put("fullName", mainUser.getFullName());
         wsMsg.put("userCode", mainUser.getUserCode());
-        wsMsg.put("deviceId", "gate-main-violation-test");
+        wsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
         wsMsg.put("time", startTime.toString());
         wsMsg.put("checkInTime", startTime.toString());
         messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
@@ -1654,7 +1894,7 @@ public class SeedDataService {
                     .user(neighbor)
                     .checkInTime(nStart)
                     .checkOutTime(null) // Đang trong thư viện
-                    .deviceId("gate-main-violation-test")
+                    .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
                     .reservationId(neighborBooking.getReservationId())
                     .build();
             accessLogRepository.save(neighborAccessLog);
@@ -1665,7 +1905,7 @@ public class SeedDataService {
                     .userId(neighbor.getId())
                     .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                     .title("Check-in thành công")
-                    .description("Bạn đã vào thư viện qua cổng kiểm tra tình huống vi phạm")
+                    .description("Bạn đã vào thư viện qua cổng chính.")
                     .build());
 
             // Broadcast websocket
@@ -1674,7 +1914,7 @@ public class SeedDataService {
             neighWsMsg.put("userId", neighbor.getId().toString());
             neighWsMsg.put("fullName", neighbor.getFullName());
             neighWsMsg.put("userCode", neighbor.getUserCode());
-            neighWsMsg.put("deviceId", "gate-main-violation-test");
+            neighWsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
             neighWsMsg.put("time", nStart.toString());
             neighWsMsg.put("checkInTime", nStart.toString());
             messagingTemplate.convertAndSend("/topic/access-logs", neighWsMsg);
@@ -1716,7 +1956,7 @@ public class SeedDataService {
      */
     @Transactional
     public Map<String, Object> seedReminderTestData(String userCode) {
-        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":reminder-test";
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":reminder";
         Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
         if (mainUserOpt.isEmpty()) {
             return Map.of("status", "ERROR", "message", "Không tìm thấy user với mã: " + userCode);
@@ -1754,5 +1994,110 @@ public class SeedDataService {
                 "message", String.format("Đã tạo booking lúc %s cho user %s", startTime.toString(), userCode),
                 "startTime", startTime.toString(),
                 "seatCode", seat.getSeatCode());
+    }
+
+    /**
+     * Tạo hoặc ép một booking hiện tại sang trạng thái đang ngồi (CONFIRMED)
+     * để demo mobile/web realtime ngay lập tức.
+     */
+    @Transactional
+    public Map<String, Object> seedActiveBookingTestData(String userCode) {
+        String normalizedUserCode = userCode.trim().toUpperCase(Locale.ROOT);
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + normalizedUserCode + ":active-booking";
+
+        User mainUser = ensureStudentUser(normalizedUserCode, seedScope, Math.abs(normalizedUserCode.hashCode()));
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime = now.minusMinutes(18);
+        LocalDateTime endTime = now.plusHours(1).plusMinutes(42);
+
+        ReservationEntity activeReservation = reservationRepository.findByUserId(mainUser.getId()).stream()
+                .filter(reservation -> isActiveReservationStatus(reservation.getStatus()))
+                .filter(reservation -> overlapsNow(reservation, now) || "BOOKED".equalsIgnoreCase(reservation.getStatus())
+                        || "PROCESSING".equalsIgnoreCase(reservation.getStatus()))
+                .sorted(Comparator.comparing(ReservationEntity::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)).reversed())
+                .findFirst()
+                .orElse(null);
+
+        if (activeReservation == null) {
+            SeatEntity seat = getActiveSeats().stream()
+                    .filter(candidate -> candidate.getReservation().stream()
+                            .noneMatch(existing -> isActiveReservationStatus(existing.getStatus()) && overlapsNow(existing, now)))
+                    .findFirst()
+                    .orElse(null);
+
+            if (seat == null) {
+                return Map.of("status", "ERROR", "message", "Không còn ghế trống để tạo đặt chỗ đang ngồi.");
+            }
+
+            activeReservation = ReservationEntity.builder()
+                    .user(mainUser)
+                    .seat(seat)
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .confirmedAt(startTime)
+                    .status("CONFIRMED")
+                    .build();
+        } else {
+            activeReservation.setStartTime(startTime);
+            activeReservation.setEndTime(endTime);
+            activeReservation.setConfirmedAt(startTime);
+            activeReservation.setStatus("CONFIRMED");
+            activeReservation.setActualEndTime(null);
+            activeReservation.setCancellationReason(null);
+            activeReservation.setCancelledByUserId(null);
+        }
+
+        ReservationEntity savedReservation = reservationRepository.save(activeReservation);
+        recordSeed("RESERVATION", savedReservation.getReservationId(), seedScope);
+
+        AccessLog accessLog = AccessLog.builder()
+                .user(mainUser)
+                .checkInTime(startTime)
+                .checkOutTime(null)
+                .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
+                .reservationId(savedReservation.getReservationId())
+                .build();
+        accessLogRepository.save(accessLog);
+        recordSeed("ACCESS_LOG", accessLog.getLogId(), seedScope);
+
+        ActivityLogEntity activity = activityLogRepository.save(ActivityLogEntity.builder()
+                .userId(mainUser.getId())
+                .activityType(ActivityLogEntity.TYPE_CHECK_IN)
+                .title("Check-in thành công")
+                .description("Bạn đang ngồi học tại ghế " + savedReservation.getSeat().getSeatCode() + ".")
+                .seatCode(savedReservation.getSeat().getSeatCode())
+                .zoneName(savedReservation.getSeat().getZone() != null ? savedReservation.getSeat().getZone().getZoneName() : "")
+                .reservationId(savedReservation.getReservationId())
+                .build());
+        recordSeed("ACTIVITY_LOG", activity.getId(), seedScope);
+
+        seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                savedReservation.getSeat(),
+                "CONFIRMED",
+                savedReservation.getStartTime(),
+                savedReservation.getEndTime());
+
+        Map<String, Object> wsMsg = new HashMap<>();
+        wsMsg.put("type", "CHECK_IN");
+        wsMsg.put("userId", mainUser.getId().toString());
+        wsMsg.put("fullName", mainUser.getFullName());
+        wsMsg.put("userCode", mainUser.getUserCode());
+        wsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
+        wsMsg.put("time", startTime.toString());
+        wsMsg.put("checkInTime", startTime.toString());
+        messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
+        messagingTemplate.convertAndSend("/topic/dashboard",
+                Map.of("type", "CHECKIN_UPDATE", "action", "CHECK_IN", "timestamp",
+                        java.time.Instant.now().toString()));
+
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã tạo đặt chỗ đang ngồi cho user " + normalizedUserCode,
+                "userCode", normalizedUserCode,
+                "seatCode", savedReservation.getSeat().getSeatCode(),
+                "zoneName", savedReservation.getSeat().getZone() != null ? savedReservation.getSeat().getZone().getZoneName() : "",
+                "bookingStatus", savedReservation.getStatus(),
+                "startTime", savedReservation.getStartTime().toString(),
+                "endTime", savedReservation.getEndTime().toString());
     }
 }

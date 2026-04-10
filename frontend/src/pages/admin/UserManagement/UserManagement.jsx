@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   Search,
@@ -25,7 +26,8 @@ import {
   ArrowUp,
   ArrowDown,
   Filter,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Star
 } from 'lucide-react';
 
 import userService from '../../../services/auth/userService';
@@ -93,6 +95,8 @@ const UserManagement = () => {
   });
   const [activeFilterCol, setActiveFilterCol] = useState(null);
   const filterRef = useRef(null);
+  const columnMenuRef = useRef(null);
+  const actionMenuRef = useRef(null);
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
@@ -111,9 +115,13 @@ const UserManagement = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showLockModal, setShowLockModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [showReputationModal, setShowReputationModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [lockReason, setLockReason] = useState('');
+  const [reputationForm, setReputationForm] = useState({ points: '', reason: '' });
   const [showActionMenu, setShowActionMenu] = useState(null);
+  const [actionMenuPlacement, setActionMenuPlacement] = useState('downward');
+  const [actionMenuStyle, setActionMenuStyle] = useState({ top: 0, left: 0 });
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -189,10 +197,32 @@ const UserManagement = () => {
       if (filterRef.current && !filterRef.current.contains(e.target)) {
         setActiveFilterCol(null);
       }
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+        setShowColumnMenu(false);
+      }
+      if (
+        actionMenuRef.current &&
+        !actionMenuRef.current.contains(e.target) &&
+        !e.target.closest('.um-action-btn')
+      ) {
+        setShowActionMenu(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!showActionMenu) return undefined;
+
+    const closeActionMenu = () => setShowActionMenu(null);
+    window.addEventListener('scroll', closeActionMenu, true);
+    window.addEventListener('resize', closeActionMenu);
+    return () => {
+      window.removeEventListener('scroll', closeActionMenu, true);
+      window.removeEventListener('resize', closeActionMenu);
+    };
+  }, [showActionMenu]);
 
   // Get user value for a column (used for sort/filter)
   const getUserValue = useCallback((user, column) => {
@@ -291,6 +321,32 @@ const UserManagement = () => {
   const clearColumnFilter = (column) => {
     setColumnFilters(prev => ({ ...prev, [column]: '' }));
     setActiveFilterCol(null);
+  };
+
+  const handleToggleActionMenu = (userId, event, hasReputationAction) => {
+    if (showActionMenu === userId) {
+      setShowActionMenu(null);
+      return;
+    }
+
+    const triggerRect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = hasReputationAction ? 260 : 220;
+    const estimatedMenuWidth = 210;
+    const viewportPadding = 16;
+    const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
+    const spaceAbove = triggerRect.top - viewportPadding;
+    const shouldOpenUpward = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    const left = Math.min(
+      Math.max(viewportPadding, triggerRect.right - estimatedMenuWidth),
+      window.innerWidth - estimatedMenuWidth - viewportPadding
+    );
+    const top = shouldOpenUpward
+      ? Math.max(viewportPadding, triggerRect.top - estimatedMenuHeight - 4)
+      : Math.min(window.innerHeight - estimatedMenuHeight - viewportPadding, triggerRect.bottom + 4);
+
+    setActionMenuPlacement(shouldOpenUpward ? 'upward' : 'downward');
+    setActionMenuStyle({ top, left });
+    setShowActionMenu(userId);
   };
 
   const getPageNumbers = () => {
@@ -425,6 +481,8 @@ const UserManagement = () => {
     if (diff < 1440) return `${Math.floor(diff / 60)} giờ trước`;
     return `${Math.floor(diff / 1440)} ngày trước`;
   };
+
+  const isPatronUser = (user) => user?.role === 'STUDENT' || user?.role === 'TEACHER';
 
   // Handle file upload for import (Excel or Zip)
   const handleFileUpload = async (event) => {
@@ -818,6 +876,48 @@ const UserManagement = () => {
     }
   };
 
+  const closeReputationModal = () => {
+    setShowReputationModal(false);
+    setReputationForm({ points: '', reason: '' });
+    setSelectedUser(null);
+  };
+
+  const handleAdjustReputation = async () => {
+    if (!selectedUser) return;
+
+    const points = Number.parseInt(reputationForm.points, 10);
+    const reason = reputationForm.reason.trim();
+
+    if (!Number.isInteger(points)) {
+      toast.warning('Vui lòng nhập số điểm điều chỉnh hợp lệ');
+      return;
+    }
+    if (points === 0) {
+      toast.warning('Số điểm điều chỉnh phải khác 0');
+      return;
+    }
+    if (Math.abs(points) > 20) {
+      toast.warning('Chỉ được điều chỉnh tối đa 20 điểm mỗi lần');
+      return;
+    }
+    if (!reason) {
+      toast.warning('Vui lòng nhập lý do điều chỉnh điểm');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await userService.adjustUserReputation(selectedUser.id, points, reason);
+      await fetchUsers();
+      toast.success(`Đã điều chỉnh điểm uy tín cho ${selectedUser.fullName || selectedUser.email}`);
+      closeReputationModal();
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Open edit modal with user data
   const openEditModal = (user) => {
     setSelectedUser(user);
@@ -936,17 +1036,18 @@ const UserManagement = () => {
         <div className="lib-panel">
           {/* Toolbar */}
           <div className="cio-toolbar">
-            <div className="lib-search">
+            <div className="lib-search um-search">
               <Search size={16} className="lib-search-icon" />
               <input
                 type="text"
                 placeholder="Tìm tên, email, mã..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
+                style={{ paddingLeft: '44px' }}
               />
             </div>
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={columnMenuRef}>
               <button
                 className="cio-column-toggle"
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
@@ -1048,6 +1149,7 @@ const UserManagement = () => {
                         .join('')
                         .toUpperCase();
                       const roleClass = (user.role || '').toLowerCase();
+                      const canAdjustReputation = isPatronUser(user);
 
                       return (
                         <tr key={user.id} className="sr-table-row">
@@ -1093,16 +1195,20 @@ const UserManagement = () => {
                             </td>
                           )}
                           <td style={{ textAlign: 'center' }}>
-                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <div className="um-action-menu-anchor">
                               <button
                                 className="um-action-btn"
-                                onClick={() => setShowActionMenu(showActionMenu === user.id ? null : user.id)}
+                                onClick={(event) => handleToggleActionMenu(user.id, event, canAdjustReputation)}
                               >
                                 <MoreVertical size={16} color="#64748b" />
                               </button>
 
-                              {showActionMenu === user.id && (
-                                <div className="um-action-menu">
+                              {showActionMenu === user.id && createPortal(
+                                <div
+                                  ref={actionMenuRef}
+                                  className={`um-action-menu fixed ${actionMenuPlacement}`}
+                                  style={actionMenuStyle}
+                                >
                                   <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}>
                                     <Eye size={15} color="#2563EB" />
                                     <span style={{ color: '#2563EB' }}>Xem chi tiết</span>
@@ -1111,6 +1217,20 @@ const UserManagement = () => {
                                     <Edit2 size={15} color="#e8600a" />
                                     <span style={{ color: '#e8600a' }}>Chỉnh sửa</span>
                                   </button>
+                                  {canAdjustReputation && (
+                                    <button
+                                      className="um-action-item"
+                                      onClick={() => {
+                                        setSelectedUser(user);
+                                        setReputationForm({ points: '', reason: '' });
+                                        setShowReputationModal(true);
+                                        setShowActionMenu(null);
+                                      }}
+                                    >
+                                      <Star size={15} color="#D97706" />
+                                      <span style={{ color: '#D97706' }}>Điều chỉnh điểm</span>
+                                    </button>
+                                  )}
                                   <button className="um-action-item" onClick={() => { setSelectedUser(user); setLockReason(''); setShowLockModal(true); setShowActionMenu(null); }}>
                                     {user.isActive !== false ? (
                                       <><Lock size={15} color="#F59E0B" /><span style={{ color: '#F59E0B' }}>Khóa tài khoản</span></>
@@ -1126,7 +1246,8 @@ const UserManagement = () => {
                                     <Trash2 size={15} color="#DC2626" />
                                     <span style={{ color: '#DC2626' }}>Xóa tài khoản</span>
                                   </button>
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
                           </td>
@@ -2383,6 +2504,193 @@ const UserManagement = () => {
                 >
                   {actionLoading && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
                   Reset mật khẩu
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Reputation Adjustment Modal */}
+      {showReputationModal && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '16px',
+            width: '520px',
+            maxWidth: 'calc(100vw - 32px)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{
+              padding: '24px 28px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: '#FEF3C7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Star size={20} color="#D97706" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A1A', margin: 0 }}>
+                    Điều chỉnh điểm uy tín
+                  </h3>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                    Chỉ áp dụng cho sinh viên hoặc giáo viên, có lưu lịch sử và gửi thông báo.
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={closeReputationModal}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} color="#9CA3AF" />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px 28px 28px' }}>
+              <div style={{
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: '#FFF7ED',
+                border: '1px solid #FED7AA',
+                marginBottom: '18px'
+              }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#9A3412', marginBottom: '6px' }}>
+                  {selectedUser.fullName || selectedUser.email}
+                </div>
+                <div style={{ fontSize: '13px', color: '#7C2D12' }}>
+                  Điểm hiện tại: <strong>{selectedUser.reputationScore ?? 100}</strong>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Số điểm điều chỉnh <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="number"
+                  min="-20"
+                  max="20"
+                  step="1"
+                  value={reputationForm.points}
+                  onChange={(e) => setReputationForm(prev => ({ ...prev, points: e.target.value }))}
+                  placeholder="Nhập số dương để cộng, số âm để trừ"
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <div style={{ marginTop: '6px', fontSize: '12px', color: '#64748b' }}>
+                  Mỗi lần chỉ được điều chỉnh tối đa 20 điểm.
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Lý do điều chỉnh <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={reputationForm.reason}
+                  onChange={(e) => setReputationForm(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Ví dụ: xác minh phạt nhầm, điều chỉnh ngoại lệ do lỗi hệ thống..."
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    lineHeight: '1.5',
+                    resize: 'vertical',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{
+                marginBottom: '24px',
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0'
+              }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '6px' }}>Điểm sau điều chỉnh</div>
+                <div style={{ fontSize: '22px', fontWeight: '700', color: '#1A1A1A' }}>
+                  {(() => {
+                    const parsedPoints = Number.parseInt(reputationForm.points, 10);
+                    const currentScore = selectedUser.reputationScore ?? 100;
+                    if (!Number.isInteger(parsedPoints)) return currentScore;
+                    return Math.min(200, Math.max(0, currentScore + parsedPoints));
+                  })()}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={closeReputationModal}
+                  disabled={actionLoading}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#F7FAFC',
+                    border: '2px solid #E2E8F0',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#4A5568',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAdjustReputation}
+                  disabled={actionLoading}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: '#D97706',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#fff',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: actionLoading ? 0.7 : 1
+                  }}
+                >
+                  {actionLoading && <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                  Xác nhận điều chỉnh
                 </button>
               </div>
             </div>
