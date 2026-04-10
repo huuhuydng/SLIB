@@ -376,8 +376,8 @@ function TestSystemPage() {
           <article className="test-system-stat">
             <BellRing size={18} />
             <div>
-              <strong>7 mốc booking</strong>
-              <span>Đến giờ ngồi, nhắc lịch gần tới, nhắc lịch 15 phút, sắp hết giờ, đến giờ rời chỗ, quá giờ 5 phút, hủy do chưa xác nhận</span>
+              <strong>6 mốc booking</strong>
+              <span>Còn 15 phút tới giờ ngồi, đến giờ ngồi, sắp hết giờ, đã hết giờ còn 5 phút để rời chỗ, quá 5 phút chưa rời chỗ, hủy do chưa xác nhận</span>
             </div>
           </article>
         </section>
@@ -795,10 +795,6 @@ function TestSystemPage() {
             <div className="test-system-table">
               {filteredBookings.map((booking) => (
                 (() => {
-                  const normalizedStatus = (booking.status || "").toUpperCase();
-                  const isBooked = normalizedStatus === "BOOKED";
-                  const isConfirmed = normalizedStatus === "CONFIRMED";
-
                   return (
                     <div key={booking.reservationId} className="test-system-row">
                       <div className="test-system-row__main">
@@ -812,146 +808,114 @@ function TestSystemPage() {
                         </span>
                       </div>
                       <div className="test-system-row__actions">
-                        {isBooked && (
-                          <button
-                            className="test-system-btn"
-                            type="button"
-                            disabled={actionKey === `near-reminder-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `near-reminder-${booking.reservationId}`,
-                                () => testSystemService.prepareNearReminder(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `near-reminder-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <BellRing size={16} />
-                            )}
-                            Nhắc lịch gần tới
-                          </button>
-                        )}
-                        {isBooked && (
-                          <button
-                            className="test-system-btn"
-                            type="button"
-                            disabled={actionKey === `start-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `start-${booking.reservationId}`,
-                                () => testSystemService.prepareSeatStart(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `start-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <PlayCircle size={16} />
-                            )}
-                            Đã đến giờ ngồi
-                          </button>
-                        )}
-                        {isBooked && (
-                          <button
-                            className="test-system-btn"
-                            type="button"
-                            disabled={actionKey === `reminder-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `reminder-${booking.reservationId}`,
-                                () => testSystemService.prepareReminder(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `reminder-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <BellRing size={16} />
-                            )}
-                            Nhắc lịch sau 15 phút
-                          </button>
-                        )}
-                        {isConfirmed && (
-                          <button
-                            className="test-system-btn"
-                            type="button"
-                            disabled={actionKey === `leave-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `leave-${booking.reservationId}`,
-                                () => testSystemService.prepareSeatLeave(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `leave-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <LogOut size={16} />
-                            )}
-                            Đã đến giờ rời chỗ
-                          </button>
-                        )}
-                        {isConfirmed && (
-                          <button
-                            className="test-system-btn"
-                            type="button"
-                            disabled={actionKey === `expiry-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `expiry-${booking.reservationId}`,
-                                () => testSystemService.prepareExpiryWarning(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `expiry-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <CalendarClock size={16} />
-                            )}
-                            Cảnh báo sắp hết giờ
-                          </button>
-                        )}
-                        {isConfirmed && (
-                          <button
-                            className="test-system-btn test-system-btn--danger"
-                            type="button"
-                            disabled={actionKey === `late-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `late-${booking.reservationId}`,
-                                () => testSystemService.prepareLateCheckout(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `late-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <Hourglass size={16} />
-                            )}
-                            Quá 5 phút chưa rời chỗ
-                          </button>
-                        )}
-                        {isBooked && (
-                          <button
-                            className="test-system-btn test-system-btn--danger"
-                            type="button"
-                            disabled={actionKey === `cancel-${booking.reservationId}`}
-                            onClick={() =>
-                              runAction(
-                                `cancel-${booking.reservationId}`,
-                                () => testSystemService.prepareNoCheckinCancel(token, booking.reservationId)
-                              )
-                            }
-                          >
-                            {actionKey === `cancel-${booking.reservationId}` ? (
-                              <Loader2 size={16} className="ts-spin" />
-                            ) : (
-                              <Hourglass size={16} />
-                            )}
-                            Hủy do chưa xác nhận
-                          </button>
-                        )}
+                        <button
+                          className="test-system-btn"
+                          type="button"
+                          disabled={actionKey === `reminder-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `reminder-${booking.reservationId}`,
+                              () => testSystemService.prepareReminder(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `reminder-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <BellRing size={16} />
+                          )}
+                          Còn 15 phút tới giờ ngồi
+                        </button>
+                        <button
+                          className="test-system-btn"
+                          type="button"
+                          disabled={actionKey === `start-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `start-${booking.reservationId}`,
+                              () => testSystemService.prepareSeatStart(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `start-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <PlayCircle size={16} />
+                          )}
+                          Đã đến giờ ngồi
+                        </button>
+                        <button
+                          className="test-system-btn"
+                          type="button"
+                          disabled={actionKey === `expiry-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `expiry-${booking.reservationId}`,
+                              () => testSystemService.prepareExpiryWarning(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `expiry-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <CalendarClock size={16} />
+                          )}
+                          Sắp hết giờ
+                        </button>
+                        <button
+                          className="test-system-btn"
+                          type="button"
+                          disabled={actionKey === `leave-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `leave-${booking.reservationId}`,
+                              () => testSystemService.prepareSeatLeave(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `leave-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <LogOut size={16} />
+                          )}
+                          Đã hết giờ, còn 5 phút để rời chỗ
+                        </button>
+                        <button
+                          className="test-system-btn test-system-btn--danger"
+                          type="button"
+                          disabled={actionKey === `late-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `late-${booking.reservationId}`,
+                              () => testSystemService.prepareLateCheckout(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `late-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <Hourglass size={16} />
+                          )}
+                          Quá 5 phút chưa rời chỗ
+                        </button>
+                        <button
+                          className="test-system-btn test-system-btn--danger"
+                          type="button"
+                          disabled={actionKey === `cancel-${booking.reservationId}`}
+                          onClick={() =>
+                            runAction(
+                              `cancel-${booking.reservationId}`,
+                              () => testSystemService.prepareNoCheckinCancel(token, booking.reservationId)
+                            )
+                          }
+                        >
+                          {actionKey === `cancel-${booking.reservationId}` ? (
+                            <Loader2 size={16} className="ts-spin" />
+                          ) : (
+                            <Hourglass size={16} />
+                          )}
+                          Hủy do chưa xác nhận
+                        </button>
                       </div>
                     </div>
                   );
