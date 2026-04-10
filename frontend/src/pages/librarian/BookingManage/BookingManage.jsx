@@ -6,6 +6,7 @@ import "../../../styles/librarian/BookingManage.css";
 import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
+import useLibrarianRealtimeRefresh from "../../../hooks/useLibrarianRealtimeRefresh";
 
 import { API_BASE_URL } from '../../../config/apiConfig';
 
@@ -115,6 +116,18 @@ function BookingManage() {
         fetchBookings();
     }, [fetchBookings]);
 
+    const realtimeSubscriptions = useMemo(() => ([
+        {
+            topic: '/topic/dashboard',
+            shouldRefresh: (message) => message?.type === 'BOOKING_UPDATE',
+        },
+    ]), []);
+
+    useLibrarianRealtimeRefresh({
+        onRefresh: fetchBookings,
+        subscriptions: realtimeSubscriptions,
+    });
+
     // Close filter dropdown on outside click
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -134,6 +147,16 @@ function BookingManage() {
     useEffect(() => {
         resetCancelForm();
     }, [selectedBooking?.reservationId, resetCancelForm]);
+
+    useEffect(() => {
+        if (!selectedBooking) return;
+        const freshBooking = bookings.find((booking) => booking.reservationId === selectedBooking.reservationId);
+        if (freshBooking) {
+            setSelectedBooking(freshBooking);
+            return;
+        }
+        setSelectedBooking(null);
+    }, [bookings, selectedBooking]);
 
     const closeBookingModal = () => {
         setSelectedBooking(null);

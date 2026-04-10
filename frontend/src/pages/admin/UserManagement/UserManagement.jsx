@@ -94,6 +94,8 @@ const UserManagement = () => {
   });
   const [activeFilterCol, setActiveFilterCol] = useState(null);
   const filterRef = useRef(null);
+  const columnMenuRef = useRef(null);
+  const actionMenuRef = useRef(null);
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState({
@@ -117,6 +119,7 @@ const UserManagement = () => {
   const [lockReason, setLockReason] = useState('');
   const [reputationForm, setReputationForm] = useState({ points: '', reason: '' });
   const [showActionMenu, setShowActionMenu] = useState(null);
+  const [actionMenuPlacement, setActionMenuPlacement] = useState('downward');
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -191,6 +194,12 @@ const UserManagement = () => {
     const handleClickOutside = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) {
         setActiveFilterCol(null);
+      }
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+        setShowColumnMenu(false);
+      }
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) {
+        setShowActionMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -294,6 +303,24 @@ const UserManagement = () => {
   const clearColumnFilter = (column) => {
     setColumnFilters(prev => ({ ...prev, [column]: '' }));
     setActiveFilterCol(null);
+  };
+
+  const handleToggleActionMenu = (userId, event) => {
+    if (showActionMenu === userId) {
+      setShowActionMenu(null);
+      return;
+    }
+
+    const triggerRect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = 260;
+    const viewportPadding = 24;
+    const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
+    const spaceAbove = triggerRect.top - viewportPadding;
+
+    setActionMenuPlacement(
+      spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'upward' : 'downward'
+    );
+    setShowActionMenu(userId);
   };
 
   const getPageNumbers = () => {
@@ -983,7 +1010,7 @@ const UserManagement = () => {
         <div className="lib-panel">
           {/* Toolbar */}
           <div className="cio-toolbar">
-            <div className="lib-search">
+            <div className="lib-search um-search">
               <Search size={16} className="lib-search-icon" />
               <input
                 type="text"
@@ -993,7 +1020,7 @@ const UserManagement = () => {
               />
             </div>
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative' }} ref={columnMenuRef}>
               <button
                 className="cio-column-toggle"
                 onClick={() => setShowColumnMenu(!showColumnMenu)}
@@ -1141,16 +1168,19 @@ const UserManagement = () => {
                             </td>
                           )}
                           <td style={{ textAlign: 'center' }}>
-                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                            <div
+                              className="um-action-menu-anchor"
+                              ref={showActionMenu === user.id ? actionMenuRef : null}
+                            >
                               <button
                                 className="um-action-btn"
-                                onClick={() => setShowActionMenu(showActionMenu === user.id ? null : user.id)}
+                                onClick={(event) => handleToggleActionMenu(user.id, event)}
                               >
                                 <MoreVertical size={16} color="#64748b" />
                               </button>
 
                               {showActionMenu === user.id && (
-                                <div className="um-action-menu">
+                                <div className={`um-action-menu ${actionMenuPlacement}`}>
                                   <button className="um-action-item" onClick={() => { setSelectedUser(user); setShowUserDetailsModal(true); setShowActionMenu(null); }}>
                                     <Eye size={15} color="#2563EB" />
                                     <span style={{ color: '#2563EB' }}>Xem chi tiết</span>

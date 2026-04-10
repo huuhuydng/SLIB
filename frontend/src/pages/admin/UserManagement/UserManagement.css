@@ -47,6 +47,22 @@
 }
 
 /* ---------- Toolbar Buttons ---------- */
+.um-search {
+    width: min(360px, 100%);
+    flex: 1 1 320px;
+}
+
+.um-search input {
+    width: 100%;
+    min-width: 0;
+    padding-left: 44px;
+}
+
+.um-search .lib-search-icon {
+    z-index: 1;
+    pointer-events: none;
+}
+
 .um-toolbar-btn {
     display: inline-flex;
     align-items: center;
@@ -200,6 +216,12 @@
 }
 
 /* ---------- Actions ---------- */
+.um-action-menu-anchor {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+}
+
 .um-action-btn {
     padding: 6px;
     background: #f8fafc;
@@ -229,6 +251,16 @@
     z-index: 100;
     overflow: hidden;
     animation: cio-dropdown-in 0.12s ease;
+}
+
+.um-action-menu.upward {
+    top: auto;
+    bottom: calc(100% + 4px);
+}
+
+.um-action-menu.downward {
+    top: calc(100% + 4px);
+    bottom: auto;
 }
 
 .um-action-item {
@@ -320,5 +352,10 @@
 @media (max-width: 768px) {
     .um-stats {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .um-search {
+        max-width: none;
+        flex-basis: auto;
     }
 }
