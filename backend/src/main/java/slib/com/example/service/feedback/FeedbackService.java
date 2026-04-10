@@ -114,13 +114,22 @@ public class FeedbackService {
 
         FeedbackEntity saved = feedbackRepository.save(feedback);
         log.info("[Feedback] Sinh viên {} đã gửi phản hồi - rating: {}", student.getFullName(), rating);
+
+        boolean isMessageFeedback = "MESSAGE".equalsIgnoreCase(resolvedCategory);
+        String staffTitle = isMessageFeedback
+                ? "Đánh giá mới cho phiên hỗ trợ"
+                : "Phản hồi mới từ sinh viên";
+        String staffBody = isMessageFeedback
+                ? student.getFullName() + " vừa gửi đánh giá mới cho cuộc trò chuyện hỗ trợ."
+                : student.getFullName() + " vừa gửi phản hồi mới sau khi sử dụng chỗ ngồi.";
+
         pushNotificationService.sendToStaff(
-                "Phản hồi mới từ sinh viên",
-                student.getFullName() + " vừa gửi phản hồi mới cho thư viện.",
+                staffTitle,
+                staffBody,
                 NotificationType.SYSTEM,
                 saved.getId(),
                 "FEEDBACK",
-                "PROCESSING");
+                resolvedCategory);
         broadcastDashboardUpdate("FEEDBACK_UPDATE", "CREATED");
         librarianNotificationService.broadcastPendingCounts("FEEDBACK", "CREATED");
         return FeedbackDTO.fromEntity(saved);
