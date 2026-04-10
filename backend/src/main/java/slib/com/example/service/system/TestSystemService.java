@@ -5,11 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
+import slib.com.example.entity.users.User;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.notification.NotificationRepository;
 import slib.com.example.service.booking.ReservationScheduler;
 import slib.com.example.service.notification.NotificationScheduler;
 import slib.com.example.service.notification.PushNotificationService;
+import slib.com.example.service.reputation.ReputationService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,6 +32,18 @@ public class TestSystemService {
     private final NotificationScheduler notificationScheduler;
     private final ReservationScheduler reservationScheduler;
     private final PushNotificationService pushNotificationService;
+    private final ReputationService reputationService;
+
+    public Map<String, Object> setTargetReputation(UUID userId, int targetScore, String reason, User currentUser) {
+        var profile = reputationService.applyManualAdjustmentToTargetScore(userId, targetScore, reason, currentUser);
+        log.info("[TestSystem] Set target reputation for user {} to {}", userId, targetScore);
+        return Map.of(
+                "status", "SUCCESS",
+                "message", "Đã cập nhật điểm uy tín theo đúng mức mục tiêu trong Test System.",
+                "userId", userId,
+                "targetScore", targetScore,
+                "currentScore", profile.getReputationScore());
+    }
 
     public Map<String, Object> prepareCheckinReminder(UUID reservationId) {
         ReservationEntity reservation = getReservation(reservationId);

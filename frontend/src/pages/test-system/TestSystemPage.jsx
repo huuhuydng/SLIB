@@ -249,8 +249,8 @@ function TestSystemPage() {
     }
 
     const targetScore = Number.parseInt(reputationTarget, 10);
-    if (Number.isNaN(targetScore) || targetScore < 0 || targetScore > 100) {
-      toast.error("Điểm mục tiêu phải nằm trong khoảng 0-100.");
+    if (Number.isNaN(targetScore) || targetScore < 0 || targetScore > 200) {
+      toast.error("Điểm mục tiêu phải nằm trong khoảng 0-200.");
       return;
     }
 
@@ -261,15 +261,14 @@ function TestSystemPage() {
     }
 
     const currentScore = selectedUser.reputationScore ?? 100;
-    const delta = targetScore - currentScore;
-    if (delta === 0) {
+    if (targetScore === currentScore) {
       toast.error("Điểm mục tiêu đang trùng với điểm hiện tại.");
       return;
     }
 
     await runAction(
       "adjust-reputation",
-      () => testSystemService.adjustReputation(token, selectedUser.id, delta, reason),
+      () => testSystemService.adjustReputation(token, selectedUser.id, targetScore, reason),
       `Đã điều chỉnh điểm uy tín của ${selectedUser.fullName}.`
     );
   };
@@ -971,10 +970,10 @@ function TestSystemPage() {
                 <input
                   type="number"
                   min="0"
-                  max="100"
+                  max="200"
                   value={reputationTarget}
                   onChange={(event) => setReputationTarget(event.target.value)}
-                  placeholder="0 - 100"
+                  placeholder="0 - 200"
                 />
               </label>
               <label className="test-system-field test-system-field--wide">

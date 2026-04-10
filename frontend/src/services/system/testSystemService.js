@@ -114,11 +114,11 @@ const testSystemService = {
     });
   },
 
-  adjustReputation(token, userId, points, reason) {
-    return request(`/student-profile/${userId}/reputation/manual-adjust`, {
+  adjustReputation(token, userId, targetScore, reason) {
+    return request(`/system/test-tools/users/${userId}/set-reputation`, {
       method: "PATCH",
       token,
-      body: { points, reason },
+      body: { targetScore, reason },
     });
   },
 

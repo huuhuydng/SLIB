@@ -1,8 +1,12 @@
 package slib.com.example.controller.system;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import slib.com.example.dto.system.TestSystemReputationTargetRequest;
+import slib.com.example.entity.users.User;
 import slib.com.example.service.system.TestSystemService;
 
 import java.util.Map;
@@ -14,6 +18,18 @@ import java.util.UUID;
 public class TestSystemController {
 
     private final TestSystemService testSystemService;
+
+    @PatchMapping("/users/{userId}/set-reputation")
+    public ResponseEntity<Map<String, Object>> setTargetReputation(
+            @PathVariable UUID userId,
+            @Valid @RequestBody TestSystemReputationTargetRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(testSystemService.setTargetReputation(
+                userId,
+                request.targetScore(),
+                request.reason(),
+                currentUser));
+    }
 
     @PostMapping("/bookings/{reservationId}/prepare-reminder")
     public ResponseEntity<Map<String, Object>> prepareReminder(@PathVariable UUID reservationId) {

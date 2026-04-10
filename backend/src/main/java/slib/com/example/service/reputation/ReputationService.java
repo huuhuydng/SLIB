@@ -236,6 +236,45 @@ public class ReputationService {
             throw new BadRequestException("Chỉ được điều chỉnh tối đa 20 điểm mỗi lần");
         }
 
+        return applyManualAdjustmentInternal(userId, points, reason, performedBy);
+    }
+
+    @Transactional
+    public StudentProfile applyManualAdjustmentToTargetScore(UUID userId, int targetScore, String reason, User performedBy) {
+        if (performedBy == null) {
+            throw new BadRequestException("Không xác định được quản trị viên thực hiện điều chỉnh");
+        }
+        if (targetScore < 0 || targetScore > 200) {
+            throw new BadRequestException("Điểm mục tiêu phải nằm trong khoảng 0-200");
+        }
+
+        User targetUser = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy người dùng cần điều chỉnh điểm"));
+
+        if (targetUser.getRole() == null || !targetUser.getRole().isPatron()) {
+            throw new BadRequestException("Chỉ được điều chỉnh điểm uy tín cho sinh viên hoặc giáo viên");
+        }
+
+        StudentProfile profile = studentProfileRepository.findByUserId(userId)
+                .orElseGet(() -> createDefaultProfile(targetUser));
+
+        int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
+        int delta = targetScore - currentScore;
+        if (delta == 0) {
+            throw new BadRequestException("Điểm mục tiêu đang trùng với điểm hiện tại");
+        }
+
+        return applyManualAdjustmentInternal(userId, delta, reason, performedBy);
+    }
+
+    private StudentProfile applyManualAdjustmentInternal(UUID userId, int points, String reason, User performedBy) {
+        if (performedBy == null) {
+            throw new BadRequestException("Không xác định được quản trị viên thực hiện điều chỉnh");
+        }
+        if (points == 0) {
+            throw new BadRequestException("Số điểm điều chỉnh phải khác 0");
+        }
+
         String normalizedReason = reason != null ? reason.trim() : "";
         if (normalizedReason.isBlank()) {
             throw new BadRequestException("Lý do điều chỉnh điểm là bắt buộc");
