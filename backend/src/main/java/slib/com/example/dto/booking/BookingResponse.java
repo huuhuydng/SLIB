@@ -29,6 +29,8 @@ public class BookingResponse {
     private LocalDateTime actualEndTime;
     private String status;
     private LocalDateTime createdAt;
+    private String cancellationReason;
+    private Boolean cancelledByStaff;
 
     @Data
     @Builder

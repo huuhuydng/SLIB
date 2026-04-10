@@ -258,6 +258,8 @@ public class BookingService {
                                 .endTime(reservation.getEndTime())
                                 .actualEndTime(reservation.getActualEndTime())
                                 .createdAt(reservation.getCreatedAt())
+                                .cancellationReason(reservation.getCancellationReason())
+                                .cancelledByStaff(isCancelledByStaff(reservation))
                                 .build();
         }
 
@@ -320,11 +322,13 @@ public class BookingService {
         }
 
         /**
-         * Cancel booking with 12-hour rule validation
-         * User must cancel at least 12 hours before start time
+         * Cancel booking.
+         * Patrons must respect the 12-hour rule, while staff can cancel future bookings
+         * with a mandatory reason.
          */
         @Transactional
-        public ReservationEntity cancelBooking(UUID reservationId) {
+        public ReservationEntity cancelBooking(UUID reservationId, UUID cancelledByUserId, boolean cancelledByStaff,
+                        String cancellationReason) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Reservation not found"));
 
@@ -337,12 +341,24 @@ public class BookingService {
                         throw new RuntimeException("Không thể hủy đặt chỗ đã hoàn thành");
                 }
 
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                String normalizedCancellationReason = cancellationReason != null ? cancellationReason.trim() : null;
+
+                if (cancelledByStaff) {
+                        if (normalizedCancellationReason == null || normalizedCancellationReason.isBlank()) {
+                                throw new BadRequestException("Vui lòng nhập lý do hủy đặt chỗ.");
+                        }
+                        if (!reservation.getStartTime().isAfter(now)) {
+                                throw new BadRequestException(
+                                                "Thủ thư chỉ có thể hủy đặt chỗ trước giờ bắt đầu. Nếu sinh viên đã vào chỗ, hãy dùng chức năng trả chỗ.");
+                        }
+                }
+
                 // PROCESSING reservations can be cancelled immediately (user is still
                 // confirming)
                 // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
-                if (!"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                if (!cancelledByStaff && !"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
                         // Check 12-hour rule for confirmed bookings
-                        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                         LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
                         if (now.isAfter(cancelDeadline)) {
@@ -356,6 +372,8 @@ public class BookingService {
                 }
 
                 reservation.setStatus("CANCEL");
+                reservation.setCancellationReason(normalizedCancellationReason);
+                reservation.setCancelledByUserId(cancelledByUserId);
                 ReservationEntity saved = reservationRepository.save(reservation);
 
                 // Log activity for BOOKING_CANCEL
@@ -384,6 +402,10 @@ public class BookingService {
 
                 // Broadcast dashboard update
                 broadcastDashboardUpdate("BOOKING_UPDATE", "CANCELLED");
+
+                if (cancelledByStaff) {
+                        sendStaffCancellationNotification(saved, normalizedCancellationReason);
+                }
 
                 return saved;
         }
@@ -584,7 +606,44 @@ public class BookingService {
                                 .actualEndTime(reservation.getActualEndTime())
                                 .status(reservation.getStatus())
                                 .createdAt(reservation.getCreatedAt())
+                                .cancellationReason(reservation.getCancellationReason())
+                                .cancelledByStaff(isCancelledByStaff(reservation))
                                 .build();
+        }
+
+        private boolean isCancelledByStaff(ReservationEntity reservation) {
+                return reservation.getCancelledByUserId() != null
+                                && reservation.getUser() != null
+                                && !reservation.getCancelledByUserId().equals(reservation.getUser().getId());
+        }
+
+        private void sendStaffCancellationNotification(ReservationEntity reservation, String cancellationReason) {
+                try {
+                        SeatEntity seat = reservation.getSeat();
+                        String zoneName = seat.getZone() != null ? seat.getZone().getZoneName() : "";
+                        String timeStr = String.format("%02d:%02d - %02d:%02d",
+                                        reservation.getStartTime().getHour(), reservation.getStartTime().getMinute(),
+                                        reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
+                        String title = "Đặt chỗ đã bị thủ thư hủy";
+                        String body = String.format(
+                                        "Ghế %s tại %s (%s) đã bị thủ thư hủy. Lý do: %s",
+                                        seat.getSeatCode(),
+                                        zoneName,
+                                        timeStr,
+                                        cancellationReason);
+
+                        pushNotificationService.sendToUser(
+                                        reservation.getUser().getId(),
+                                        title,
+                                        body,
+                                        NotificationType.BOOKING,
+                                        reservation.getReservationId(),
+                                        "RESERVATION",
+                                        "BOOKING");
+                } catch (Exception e) {
+                        log.warn("Failed to send staff cancellation notification for reservation {}",
+                                        reservation.getReservationId(), e);
+                }
         }
 
         @Transactional(readOnly = true)
