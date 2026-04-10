@@ -10,6 +10,7 @@ const AuthPage = lazyWithReload(() => import("./components/auth/AuthPage"));
 const AdminRoutes = lazyWithReload(() => import("./routes/AdminRoutes"));
 const LibrarianRoutes = lazyWithReload(() => import("./routes/LibrarianRoutes"));
 const KioskRoutes = lazyWithReload(() => import("./routes/KioskRoutes"));
+const TestSystemPage = lazyWithReload(() => import("./pages/test-system/TestSystemPage"));
 const ChatWidget = lazyWithReload(() => import("./components/chat/ChatWidget"));
 const SessionExpired = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.SessionExpired })));
 const TokenExpired = lazyWithReload(() => import("./pages/errors/ErrorPages").then((module) => ({ default: module.TokenExpired })));
@@ -269,6 +270,8 @@ function App() {
                     <LazyChunkErrorBoundary>
                         <Suspense fallback={<LoadingScreen />}>
                             <Routes>
+                            <Route path="/test_system" element={<TestSystemPage />} />
+
                             {/* Unified Login Route */}
                             <Route path="/login" element={
                                 isLoggedIn

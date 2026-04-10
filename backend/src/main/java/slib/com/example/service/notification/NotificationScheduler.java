@@ -171,6 +171,14 @@ public class NotificationScheduler {
         }
     }
 
+    public void clearTracking(UUID reservationId) {
+        if (reservationId == null) {
+            return;
+        }
+        sentReminders.remove(reservationId);
+        sentExpiryWarnings.remove(reservationId);
+    }
+
     private record ReminderPayload(UUID reservationId, UUID userId, String seatCode, String timeDisplay) {
     }
 }
