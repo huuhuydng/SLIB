@@ -131,7 +131,7 @@ function TestSystemPage() {
 
   const filteredBookings = useMemo(() => {
     const query = bookingSearch.trim().toLowerCase();
-    const visibleStatuses = new Set(["BOOKED", "CONFIRMED", "PROCESSING", "COMPLETED", "EXPIRED", "CANCEL", "CANCELLED"]);
+    const visibleStatuses = new Set(["BOOKED", "CONFIRMED"]);
     const base = bookings.filter((booking) => visibleStatuses.has(booking.status));
 
     const sorted = [...base].sort((a, b) => {
@@ -759,92 +759,108 @@ function TestSystemPage() {
 
             <div className="test-system-table">
               {filteredBookings.map((booking) => (
-                <div key={booking.reservationId} className="test-system-row">
-                  <div className="test-system-row__main">
-                    <strong>{booking.user?.fullName || "Không rõ người dùng"}</strong>
-                    <span>
-                      {booking.user?.userCode || "N/A"} • {booking.seat?.seatCode || "N/A"} •{" "}
-                      {booking.seat?.zone?.zoneName || "N/A"}
-                    </span>
-                    <span>
-                      {booking.status} • {formatDateTime(booking.startTime)} → {formatDateTime(booking.endTime)}
-                    </span>
-                  </div>
-                  <div className="test-system-row__actions">
-                    <button
-                      className="test-system-btn"
-                      type="button"
-                      disabled={actionKey === `start-${booking.reservationId}`}
-                      onClick={() =>
-                        runAction(
-                          `start-${booking.reservationId}`,
-                          () => testSystemService.prepareSeatStart(token, booking.reservationId)
-                        )
-                      }
-                    >
-                      {actionKey === `start-${booking.reservationId}` ? (
-                        <Loader2 size={16} className="ts-spin" />
-                      ) : (
-                        <PlayCircle size={16} />
-                      )}
-                      Đã đến giờ ngồi
-                    </button>
-                    <button
-                      className="test-system-btn"
-                      type="button"
-                      disabled={actionKey === `reminder-${booking.reservationId}`}
-                      onClick={() =>
-                        runAction(
-                          `reminder-${booking.reservationId}`,
-                          () => testSystemService.prepareReminder(token, booking.reservationId)
-                        )
-                      }
-                    >
-                      {actionKey === `reminder-${booking.reservationId}` ? (
-                        <Loader2 size={16} className="ts-spin" />
-                      ) : (
-                        <BellRing size={16} />
-                      )}
-                      Nhắc lịch sau 15 phút
-                    </button>
-                    <button
-                      className="test-system-btn"
-                      type="button"
-                      disabled={actionKey === `expiry-${booking.reservationId}`}
-                      onClick={() =>
-                        runAction(
-                          `expiry-${booking.reservationId}`,
-                          () => testSystemService.prepareExpiryWarning(token, booking.reservationId)
-                        )
-                      }
-                    >
-                      {actionKey === `expiry-${booking.reservationId}` ? (
-                        <Loader2 size={16} className="ts-spin" />
-                      ) : (
-                        <CalendarClock size={16} />
-                      )}
-                      Cảnh báo sắp hết giờ
-                    </button>
-                    <button
-                      className="test-system-btn test-system-btn--danger"
-                      type="button"
-                      disabled={actionKey === `cancel-${booking.reservationId}`}
-                      onClick={() =>
-                        runAction(
-                          `cancel-${booking.reservationId}`,
-                          () => testSystemService.prepareNoCheckinCancel(token, booking.reservationId)
-                        )
-                      }
-                    >
-                      {actionKey === `cancel-${booking.reservationId}` ? (
-                        <Loader2 size={16} className="ts-spin" />
-                      ) : (
-                        <Hourglass size={16} />
-                      )}
-                      Hủy do chưa xác nhận
-                    </button>
-                  </div>
-                </div>
+                (() => {
+                  const normalizedStatus = (booking.status || "").toUpperCase();
+                  const isBooked = normalizedStatus === "BOOKED";
+                  const isConfirmed = normalizedStatus === "CONFIRMED";
+
+                  return (
+                    <div key={booking.reservationId} className="test-system-row">
+                      <div className="test-system-row__main">
+                        <strong>{booking.user?.fullName || "Không rõ người dùng"}</strong>
+                        <span>
+                          {booking.user?.userCode || "N/A"} • {booking.seat?.seatCode || "N/A"} •{" "}
+                          {booking.seat?.zone?.zoneName || "N/A"}
+                        </span>
+                        <span>
+                          {booking.status} • {formatDateTime(booking.startTime)} → {formatDateTime(booking.endTime)}
+                        </span>
+                      </div>
+                      <div className="test-system-row__actions">
+                        {isBooked && (
+                          <button
+                            className="test-system-btn"
+                            type="button"
+                            disabled={actionKey === `start-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `start-${booking.reservationId}`,
+                                () => testSystemService.prepareSeatStart(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `start-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <PlayCircle size={16} />
+                            )}
+                            Đã đến giờ ngồi
+                          </button>
+                        )}
+                        {isBooked && (
+                          <button
+                            className="test-system-btn"
+                            type="button"
+                            disabled={actionKey === `reminder-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `reminder-${booking.reservationId}`,
+                                () => testSystemService.prepareReminder(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `reminder-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <BellRing size={16} />
+                            )}
+                            Nhắc lịch sau 15 phút
+                          </button>
+                        )}
+                        {isConfirmed && (
+                          <button
+                            className="test-system-btn"
+                            type="button"
+                            disabled={actionKey === `expiry-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `expiry-${booking.reservationId}`,
+                                () => testSystemService.prepareExpiryWarning(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `expiry-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <CalendarClock size={16} />
+                            )}
+                            Cảnh báo sắp hết giờ
+                          </button>
+                        )}
+                        {isBooked && (
+                          <button
+                            className="test-system-btn test-system-btn--danger"
+                            type="button"
+                            disabled={actionKey === `cancel-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `cancel-${booking.reservationId}`,
+                                () => testSystemService.prepareNoCheckinCancel(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `cancel-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <Hourglass size={16} />
+                            )}
+                            Hủy do chưa xác nhận
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
               ))}
 
               {!filteredBookings.length && (
