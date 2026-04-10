@@ -129,6 +129,13 @@ const testSystemService = {
     });
   },
 
+  prepareNearReminder(token, reservationId) {
+    return request(`/system/test-tools/bookings/${reservationId}/prepare-near-reminder`, {
+      method: "POST",
+      token,
+    });
+  },
+
   prepareExpiryWarning(token, reservationId) {
     return request(`/system/test-tools/bookings/${reservationId}/prepare-expiry-warning`, {
       method: "POST",

@@ -60,6 +60,35 @@ public class TestSystemService {
                         "triggeredAt", now.toString()));
     }
 
+    public Map<String, Object> prepareNearReminder(UUID reservationId) {
+        ReservationEntity reservation = getReservation(reservationId);
+        validateReservation(reservation);
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startTime = now.plusMinutes(3).plusSeconds(30);
+        long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
+
+        reservation.setStatus("BOOKED");
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(startTime.plusMinutes(durationMinutes));
+        reservation.setConfirmedAt(null);
+        reservation.setActualEndTime(null);
+        reservation.setCancellationReason(null);
+        reservation.setCancelledByUserId(null);
+        reservationRepository.saveAndFlush(reservation);
+
+        clearRecentReminderArtifacts(reservation);
+        notificationScheduler.sendBookingReminders();
+
+        log.info("[TestSystem] Prepared near reminder for reservation {}", reservationId);
+        return buildResult(
+                "Đã đưa lịch đặt về trạng thái còn khoảng 3 phút để bắt đầu và kích hoạt gửi nhắc lịch gần tới.",
+                reservation,
+                Map.of(
+                        "scenario", "NEAR_CHECKIN_REMINDER",
+                        "triggeredAt", now.toString()));
+    }
+
     public Map<String, Object> prepareExpiryWarning(UUID reservationId) {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);

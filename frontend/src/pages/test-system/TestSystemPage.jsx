@@ -376,8 +376,8 @@ function TestSystemPage() {
           <article className="test-system-stat">
             <BellRing size={18} />
             <div>
-              <strong>6 mốc booking</strong>
-              <span>Đến giờ ngồi, nhắc lịch, sắp hết giờ, đến giờ rời chỗ, quá giờ 5 phút, hủy do chưa xác nhận</span>
+              <strong>7 mốc booking</strong>
+              <span>Đến giờ ngồi, nhắc lịch gần tới, nhắc lịch 15 phút, sắp hết giờ, đến giờ rời chỗ, quá giờ 5 phút, hủy do chưa xác nhận</span>
             </div>
           </article>
         </section>
@@ -812,6 +812,26 @@ function TestSystemPage() {
                         </span>
                       </div>
                       <div className="test-system-row__actions">
+                        {isBooked && (
+                          <button
+                            className="test-system-btn"
+                            type="button"
+                            disabled={actionKey === `near-reminder-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `near-reminder-${booking.reservationId}`,
+                                () => testSystemService.prepareNearReminder(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `near-reminder-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <BellRing size={16} />
+                            )}
+                            Nhắc lịch gần tới
+                          </button>
+                        )}
                         {isBooked && (
                           <button
                             className="test-system-btn"

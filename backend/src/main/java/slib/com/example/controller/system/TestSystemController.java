@@ -20,6 +20,11 @@ public class TestSystemController {
         return ResponseEntity.ok(testSystemService.prepareCheckinReminder(reservationId));
     }
 
+    @PostMapping("/bookings/{reservationId}/prepare-near-reminder")
+    public ResponseEntity<Map<String, Object>> prepareNearReminder(@PathVariable UUID reservationId) {
+        return ResponseEntity.ok(testSystemService.prepareNearReminder(reservationId));
+    }
+
     @PostMapping("/bookings/{reservationId}/prepare-expiry-warning")
     public ResponseEntity<Map<String, Object>> prepareExpiryWarning(@PathVariable UUID reservationId) {
         return ResponseEntity.ok(testSystemService.prepareExpiryWarning(reservationId));
