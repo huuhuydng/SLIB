@@ -86,6 +86,7 @@ public class SeedDataService {
     private static final String LEGACY_SEED_MARKER = "[SEED]";
     private static final String SYSTEM_SHOWCASE_SCOPE = "system-showcase";
     private static final String STUDENT_JOURNEY_SCOPE_PREFIX = "student-journey:";
+    private static final String DEFAULT_SEED_GATE_DEVICE_ID = "gate-main-01";
     private static final List<String> SAMPLE_DEVICE_IDS = List.of(
             "gate-main-01",
             "gate-east-02",
@@ -1012,7 +1013,7 @@ public class SeedDataService {
                         bookingReferenceId != null ? "RESERVATION" : "BOOKING",
                         bookingReferenceId,
                         false,
-                        user -> "Lịch đặt chỗ của bạn đã được cập nhật trạng thái mới để phục vụ demo hệ thống."));
+                        user -> "Lịch đặt chỗ của bạn vừa được cập nhật trạng thái mới trong hệ thống."));
     }
 
     private record NewsSeedTemplate(
@@ -1745,7 +1746,7 @@ public class SeedDataService {
      */
     @Transactional
     public Map<String, Object> seedViolationTestData(String userCode, int neighborCount, boolean sameZone) {
-        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":violation-test";
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":violation";
         // 1. Tìm user chính
         Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
         if (mainUserOpt.isEmpty()) {
@@ -1827,7 +1828,7 @@ public class SeedDataService {
                 .user(mainUser)
                 .checkInTime(startTime)
                 .checkOutTime(null) // Đang trong thư viện
-                .deviceId("gate-main-violation-test")
+                .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
                 .reservationId(mainBooking.getReservationId())
                 .build();
         accessLogRepository.save(mainAccessLog);
@@ -1838,7 +1839,7 @@ public class SeedDataService {
                 .userId(mainUser.getId())
                 .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                 .title("Check-in thành công")
-                .description("Bạn đã vào thư viện qua cổng kiểm tra tình huống vi phạm")
+                .description("Bạn đã vào thư viện qua cổng chính.")
                 .build());
 
         // Broadcast websocket
@@ -1847,7 +1848,7 @@ public class SeedDataService {
         wsMsg.put("userId", mainUser.getId().toString());
         wsMsg.put("fullName", mainUser.getFullName());
         wsMsg.put("userCode", mainUser.getUserCode());
-        wsMsg.put("deviceId", "gate-main-violation-test");
+        wsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
         wsMsg.put("time", startTime.toString());
         wsMsg.put("checkInTime", startTime.toString());
         messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
@@ -1893,7 +1894,7 @@ public class SeedDataService {
                     .user(neighbor)
                     .checkInTime(nStart)
                     .checkOutTime(null) // Đang trong thư viện
-                    .deviceId("gate-main-violation-test")
+                    .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
                     .reservationId(neighborBooking.getReservationId())
                     .build();
             accessLogRepository.save(neighborAccessLog);
@@ -1904,7 +1905,7 @@ public class SeedDataService {
                     .userId(neighbor.getId())
                     .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                     .title("Check-in thành công")
-                    .description("Bạn đã vào thư viện qua cổng kiểm tra tình huống vi phạm")
+                    .description("Bạn đã vào thư viện qua cổng chính.")
                     .build());
 
             // Broadcast websocket
@@ -1913,7 +1914,7 @@ public class SeedDataService {
             neighWsMsg.put("userId", neighbor.getId().toString());
             neighWsMsg.put("fullName", neighbor.getFullName());
             neighWsMsg.put("userCode", neighbor.getUserCode());
-            neighWsMsg.put("deviceId", "gate-main-violation-test");
+            neighWsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
             neighWsMsg.put("time", nStart.toString());
             neighWsMsg.put("checkInTime", nStart.toString());
             messagingTemplate.convertAndSend("/topic/access-logs", neighWsMsg);
@@ -1955,7 +1956,7 @@ public class SeedDataService {
      */
     @Transactional
     public Map<String, Object> seedReminderTestData(String userCode) {
-        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":reminder-test";
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + userCode + ":reminder";
         Optional<User> mainUserOpt = userRepository.findByUserCode(userCode);
         if (mainUserOpt.isEmpty()) {
             return Map.of("status", "ERROR", "message", "Không tìm thấy user với mã: " + userCode);
@@ -2002,7 +2003,7 @@ public class SeedDataService {
     @Transactional
     public Map<String, Object> seedActiveBookingTestData(String userCode) {
         String normalizedUserCode = userCode.trim().toUpperCase(Locale.ROOT);
-        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + normalizedUserCode + ":active-booking-test";
+        String seedScope = STUDENT_JOURNEY_SCOPE_PREFIX + normalizedUserCode + ":active-booking";
 
         User mainUser = ensureStudentUser(normalizedUserCode, seedScope, Math.abs(normalizedUserCode.hashCode()));
         LocalDateTime now = LocalDateTime.now();
@@ -2053,7 +2054,7 @@ public class SeedDataService {
                 .user(mainUser)
                 .checkInTime(startTime)
                 .checkOutTime(null)
-                .deviceId("gate-main-active-booking-test")
+                .deviceId(DEFAULT_SEED_GATE_DEVICE_ID)
                 .reservationId(savedReservation.getReservationId())
                 .build();
         accessLogRepository.save(accessLog);
@@ -2063,8 +2064,7 @@ public class SeedDataService {
                 .userId(mainUser.getId())
                 .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                 .title("Check-in thành công")
-                .description("Bạn đang ngồi học tại ghế " + savedReservation.getSeat().getSeatCode()
-                        + " để demo trạng thái đang sử dụng.")
+                .description("Bạn đang ngồi học tại ghế " + savedReservation.getSeat().getSeatCode() + ".")
                 .seatCode(savedReservation.getSeat().getSeatCode())
                 .zoneName(savedReservation.getSeat().getZone() != null ? savedReservation.getSeat().getZone().getZoneName() : "")
                 .reservationId(savedReservation.getReservationId())
@@ -2082,7 +2082,7 @@ public class SeedDataService {
         wsMsg.put("userId", mainUser.getId().toString());
         wsMsg.put("fullName", mainUser.getFullName());
         wsMsg.put("userCode", mainUser.getUserCode());
-        wsMsg.put("deviceId", "gate-main-active-booking-test");
+        wsMsg.put("deviceId", DEFAULT_SEED_GATE_DEVICE_ID);
         wsMsg.put("time", startTime.toString());
         wsMsg.put("checkInTime", startTime.toString());
         messagingTemplate.convertAndSend("/topic/access-logs", wsMsg);
