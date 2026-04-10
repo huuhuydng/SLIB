@@ -5,6 +5,7 @@ import {
   getSeats,
 } from "../../../services/admin/area_management/api";
 import { generateNewSeatData } from "../../../utils/admin/seatLayout";
+import { getNextTempIntId } from "../../../utils/admin/tempIds";
 import "../../../styles/admin/sidebar_area.css";
 
 // Constants for seat creation
@@ -27,6 +28,7 @@ function Sidebar() {
     areas,
     zones,
     seats,
+    factories,
     selectedItem,
     selectedAreaId,
     selectedZoneId,
@@ -93,7 +95,7 @@ function Sidebar() {
     }
 
     const newAreaName = `Phòng thư viện ${areas.length + 1}`;
-    const tempId = -Date.now();
+    const tempId = getNextTempIntId(areas.map((area) => area.areaId));
     const newArea = {
       areaId: tempId,
       areaName: newAreaName,
@@ -140,7 +142,10 @@ function Sidebar() {
     const zoneName = `Khu Vực ${zoneNumber}`;
 
     // Generate temporary negative ID (will be replaced with real ID after save)
-    const tempId = -Date.now();
+    const tempId = getNextTempIntId(
+      zones.map((zone) => zone.zoneId),
+      seats.map((seat) => seat.zoneId)
+    );
 
     const newZone = {
       zoneId: tempId,
@@ -175,7 +180,7 @@ function Sidebar() {
     dispatch({ type: actions.PUSH_HISTORY });
 
     // Generate temporary negative ID
-    const tempId = -Date.now();
+    const tempId = getNextTempIntId(factories.map((factory) => factory.factoryId));
 
     const newFactory = {
       factoryId: tempId,
@@ -219,7 +224,7 @@ function Sidebar() {
     });
 
     // Generate temporary ID for the new seat (negative to identify as pending)
-    const tempId = -Date.now();
+    const tempId = getNextTempIntId(seats.map((seat) => seat.seatId));
     const tempSeat = {
       ...seatData,
       seatId: tempId,
@@ -251,7 +256,10 @@ function Sidebar() {
       });
 
       // Generate temporary ID for optimistic update (negative to identify as pending)
-      const tempId = -Date.now() - i;
+      const tempId = getNextTempIntId(
+        seats.map((seat) => seat.seatId),
+        newSeats.map((seat) => seat.seatId)
+      );
       const tempSeat = {
         ...seatData,
         seatId: tempId,

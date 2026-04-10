@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer } from "react";
+import { getNextTempIntId } from "../../../utils/admin/tempIds";
 
 /**
  * =========================
@@ -710,9 +711,9 @@ function layoutReducer(state, action) {
     case ACTIONS.PASTE:
       if (!state.clipboard || !state.selectedAreaId) return state;
       const { clipboard } = state;
-      const tempId = -Date.now();
 
       if (clipboard.type === 'zone') {
+        const tempId = getNextTempIntId(state.zones.map((zone) => zone.zoneId));
         const newZone = {
           ...clipboard.data,
           zoneId: tempId,
@@ -733,6 +734,7 @@ function layoutReducer(state, action) {
           hasUnsavedChanges: true,
         };
       } else if (clipboard.type === 'factory') {
+        const tempId = getNextTempIntId(state.factories.map((factory) => factory.factoryId));
         const newFactory = {
           ...clipboard.data,
           factoryId: tempId,
@@ -871,7 +873,7 @@ function layoutReducer(state, action) {
         .map((s) => s.seatId);
 
       // Separate pending (not yet saved) vs existing (already in DB)
-      // Pending items have negative IDs (tempId = -Date.now())
+      // Pending items always use negative temporary IDs.
       const existingZoneIdsToDelete = zoneIdsToDelete.filter(id => id > 0);
       const existingFactoryIdsToDelete = factoryIdsToDelete.filter(id => id > 0);
       const pendingZoneIdsToDelete = zoneIdsToDelete.filter(id => id < 0);
