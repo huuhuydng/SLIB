@@ -136,6 +136,20 @@ const testSystemService = {
     });
   },
 
+  prepareSeatLeave(token, reservationId) {
+    return request(`/system/test-tools/bookings/${reservationId}/prepare-seat-leave`, {
+      method: "POST",
+      token,
+    });
+  },
+
+  prepareLateCheckout(token, reservationId) {
+    return request(`/system/test-tools/bookings/${reservationId}/prepare-late-checkout`, {
+      method: "POST",
+      token,
+    });
+  },
+
   prepareSeatStart(token, reservationId) {
     return request(`/system/test-tools/bookings/${reservationId}/prepare-seat-start`, {
       method: "POST",

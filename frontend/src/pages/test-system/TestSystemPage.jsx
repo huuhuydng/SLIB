@@ -376,8 +376,8 @@ function TestSystemPage() {
           <article className="test-system-stat">
             <BellRing size={18} />
             <div>
-              <strong>4 mốc booking</strong>
-              <span>Đến giờ ngồi, nhắc lịch, cảnh báo sắp hết giờ, hủy do chưa xác nhận</span>
+              <strong>6 mốc booking</strong>
+              <span>Đến giờ ngồi, nhắc lịch, sắp hết giờ, đến giờ rời chỗ, quá giờ 5 phút, hủy do chưa xác nhận</span>
             </div>
           </article>
         </section>
@@ -779,7 +779,7 @@ function TestSystemPage() {
               <BellRing size={20} />
               <div>
                 <h2>Booking demo tức thì</h2>
-                <span>Chọn lịch đặt hiện có và ép về mốc thông báo để chạy ngay trong buổi bảo vệ.</span>
+                <span>Chọn lịch đặt hiện có và ép về từng mốc notification hoặc auto-status để chạy ngay trong buổi bảo vệ.</span>
               </div>
             </div>
 
@@ -856,6 +856,26 @@ function TestSystemPage() {
                           <button
                             className="test-system-btn"
                             type="button"
+                            disabled={actionKey === `leave-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `leave-${booking.reservationId}`,
+                                () => testSystemService.prepareSeatLeave(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `leave-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <LogOut size={16} />
+                            )}
+                            Đã đến giờ rời chỗ
+                          </button>
+                        )}
+                        {isConfirmed && (
+                          <button
+                            className="test-system-btn"
+                            type="button"
                             disabled={actionKey === `expiry-${booking.reservationId}`}
                             onClick={() =>
                               runAction(
@@ -870,6 +890,26 @@ function TestSystemPage() {
                               <CalendarClock size={16} />
                             )}
                             Cảnh báo sắp hết giờ
+                          </button>
+                        )}
+                        {isConfirmed && (
+                          <button
+                            className="test-system-btn test-system-btn--danger"
+                            type="button"
+                            disabled={actionKey === `late-${booking.reservationId}`}
+                            onClick={() =>
+                              runAction(
+                                `late-${booking.reservationId}`,
+                                () => testSystemService.prepareLateCheckout(token, booking.reservationId)
+                              )
+                            }
+                          >
+                            {actionKey === `late-${booking.reservationId}` ? (
+                              <Loader2 size={16} className="ts-spin" />
+                            ) : (
+                              <Hourglass size={16} />
+                            )}
+                            Quá 5 phút chưa rời chỗ
                           </button>
                         )}
                         {isBooked && (

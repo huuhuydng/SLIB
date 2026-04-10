@@ -95,6 +95,76 @@ public class TestSystemService {
                         "note", "Hệ thống hiện gửi cảnh báo trước khi hết giờ 10 phút."));
     }
 
+    public Map<String, Object> prepareSeatLeavePrompt(UUID reservationId) {
+        ReservationEntity reservation = getReservation(reservationId);
+        validateReservation(reservation);
+
+        LocalDateTime now = LocalDateTime.now();
+        long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
+        LocalDateTime endTime = now.plusSeconds(30);
+        LocalDateTime startTime = endTime.minusMinutes(durationMinutes);
+        if (!startTime.isBefore(now)) {
+            startTime = now.minusMinutes(60);
+            endTime = now.plusSeconds(30);
+        }
+
+        reservation.setStatus("CONFIRMED");
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(endTime);
+        reservation.setConfirmedAt(startTime);
+        reservation.setActualEndTime(null);
+        reservation.setCancellationReason(null);
+        reservation.setCancelledByUserId(null);
+        reservationRepository.saveAndFlush(reservation);
+
+        clearRecentBookingArtifacts(reservation);
+        reservationScheduler.forceSendSeatLeaveNotification(reservationId);
+
+        log.info("[TestSystem] Prepared seat-leave prompt for reservation {}", reservationId);
+        return buildResult(
+                "Đã đưa lịch đặt tới đúng giờ kết thúc và gửi thông báo yêu cầu rời chỗ trong 5 phút.",
+                reservation,
+                Map.of(
+                        "scenario", "SEAT_LEAVE_PROMPT",
+                        "triggeredAt", now.toString(),
+                        "notificationTitle", "Đã đến giờ rời chỗ"));
+    }
+
+    public Map<String, Object> prepareLateCheckoutAutoComplete(UUID reservationId) {
+        ReservationEntity reservation = getReservation(reservationId);
+        validateReservation(reservation);
+
+        LocalDateTime now = LocalDateTime.now();
+        long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
+        LocalDateTime endTime = now.minusMinutes(ReservationScheduler.CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES + 1L);
+        LocalDateTime startTime = endTime.minusMinutes(durationMinutes);
+
+        reservation.setStatus("CONFIRMED");
+        reservation.setStartTime(startTime);
+        reservation.setEndTime(endTime);
+        reservation.setConfirmedAt(startTime);
+        reservation.setActualEndTime(null);
+        reservation.setCancellationReason(null);
+        reservation.setCancelledByUserId(null);
+        reservationRepository.saveAndFlush(reservation);
+
+        clearRecentBookingArtifacts(reservation);
+        boolean changed = reservationScheduler.forceCompleteConfirmedReservationAfterGrace(reservationId);
+        ReservationEntity updatedReservation = getReservation(reservationId);
+        if (!changed || !"COMPLETED".equalsIgnoreCase(updatedReservation.getStatus())) {
+            throw new RuntimeException("Không thể kích hoạt auto-complete và phạt quá giờ cho lịch đặt này.");
+        }
+
+        log.info("[TestSystem] Prepared late-checkout auto completion for reservation {}", reservationId);
+        return buildResult(
+                "Đã kích hoạt quá 5 phút chưa rời chỗ: hệ thống tự kết thúc phiên và trừ điểm uy tín.",
+                updatedReservation,
+                Map.of(
+                        "scenario", "LATE_CHECKOUT_AUTO_COMPLETE",
+                        "triggeredAt", now.toString(),
+                        "note", "Flow này dùng đúng nhánh scheduler xử lý quá giờ sau khi đang ngồi."));
+    }
+
     public Map<String, Object> prepareSeatStartNow(UUID reservationId) {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);

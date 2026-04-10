@@ -25,6 +25,16 @@ public class TestSystemController {
         return ResponseEntity.ok(testSystemService.prepareExpiryWarning(reservationId));
     }
 
+    @PostMapping("/bookings/{reservationId}/prepare-seat-leave")
+    public ResponseEntity<Map<String, Object>> prepareSeatLeave(@PathVariable UUID reservationId) {
+        return ResponseEntity.ok(testSystemService.prepareSeatLeavePrompt(reservationId));
+    }
+
+    @PostMapping("/bookings/{reservationId}/prepare-late-checkout")
+    public ResponseEntity<Map<String, Object>> prepareLateCheckout(@PathVariable UUID reservationId) {
+        return ResponseEntity.ok(testSystemService.prepareLateCheckoutAutoComplete(reservationId));
+    }
+
     @PostMapping("/bookings/{reservationId}/prepare-seat-start")
     public ResponseEntity<Map<String, Object>> prepareSeatStart(@PathVariable UUID reservationId) {
         return ResponseEntity.ok(testSystemService.prepareSeatStartNow(reservationId));
