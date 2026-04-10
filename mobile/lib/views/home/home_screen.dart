@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:slib/models/new_book_model.dart';
 import 'package:slib/models/user_profile.dart';
 import 'package:slib/models/news_model.dart';
 import 'package:slib/services/auth/auth_service.dart';
+import 'package:slib/services/library/library_status_service.dart';
 import 'package:slib/services/news/news_service.dart';
 import 'package:slib/services/new_books/new_book_service.dart';
 import 'package:slib/services/app/local_storage_service.dart';
@@ -51,11 +53,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final NewBookService _newBookService = NewBookService();
   final LocalStorageService _localService = LocalStorageService();
 
+  StreamSubscription<Map<String, dynamic>>? _dashboardEventSubscription;
+  Timer? _realtimeRefreshDebounce;
   double _headerOpacity = 1.0;
   double _headerOffset = 0.0;
   bool _showCompactHeader = false;
   bool _isCheckingFeedback = false;
   bool _isFeedbackDialogOpen = false;
+  bool _hasPendingRealtimeRefresh = false;
 
   @override
   void initState() {
@@ -63,6 +68,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     _loadHomeContent();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bindDashboardRealtime();
+    });
     _schedulePendingFeedbackCheck(delay: const Duration(seconds: 2));
   }
 
@@ -70,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didUpdateWidget(covariant HomeScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!oldWidget.isActive && widget.isActive) {
+      _flushPendingRealtimeRefresh();
       _schedulePendingFeedbackCheck();
     }
   }
@@ -77,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && widget.isActive) {
+      _flushPendingRealtimeRefresh(force: true);
       _schedulePendingFeedbackCheck();
     }
   }
@@ -182,6 +192,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _bindDashboardRealtime() {
+    _dashboardEventSubscription?.cancel();
+    final libraryStatus = Provider.of<LibraryStatusService>(
+      context,
+      listen: false,
+    );
+    _dashboardEventSubscription = libraryStatus.dashboardEvents.listen((event) {
+      final type = (event['type']?.toString() ?? '').toUpperCase();
+      if (type == 'BOOKING_UPDATE' || type == 'CHECKIN_UPDATE') {
+        debugPrint(
+          '[HOME] Realtime dashboard event received: $type/${event['action']}',
+        );
+        _scheduleRealtimeRefresh();
+      }
+    });
+  }
+
+  void _scheduleRealtimeRefresh() {
+    _hasPendingRealtimeRefresh = true;
+    if (!widget.isActive || !mounted) {
+      return;
+    }
+
+    _realtimeRefreshDebounce?.cancel();
+    _realtimeRefreshDebounce = Timer(const Duration(milliseconds: 350), () {
+      _flushPendingRealtimeRefresh();
+    });
+  }
+
+  void _flushPendingRealtimeRefresh({bool force = false}) {
+    if (!mounted) return;
+    if (!widget.isActive && !force) return;
+    if (!_hasPendingRealtimeRefresh && !force) return;
+
+    _hasPendingRealtimeRefresh = false;
+    _refreshRealtimeHomeSections();
+  }
+
+  Future<void> _refreshRealtimeHomeSections() async {
+    await Future.wait([
+      _refreshBookingCard(),
+      _refreshLiveStatus(),
+    ]);
+  }
+
   Future<void> _onRefresh() async {
     // Refresh tất cả widgets cùng lúc
     await Future.wait([
@@ -233,6 +288,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _dashboardEventSubscription?.cancel();
+    _realtimeRefreshDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();

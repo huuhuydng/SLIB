@@ -14,6 +14,8 @@ class LibraryStatusService extends ChangeNotifier {
 
   StompClient? _stompClient;
   Timer? _fallbackTimer;
+  final StreamController<Map<String, dynamic>> _dashboardEventController =
+      StreamController<Map<String, dynamic>>.broadcast();
   bool _wsConnected = false;
   bool _isWsConnecting = false;
   bool _isInitialized = false;
@@ -38,6 +40,8 @@ class LibraryStatusService extends ChangeNotifier {
   bool get hasLoadedData => _hasLoadedData;
   bool get hasSyncError => !_isLoading && !_hasLoadedData;
   String? get lastError => _lastError;
+  Stream<Map<String, dynamic>> get dashboardEvents =>
+      _dashboardEventController.stream;
 
   /// Trạng thái text dựa trên occupancyRate
   String get statusText {
@@ -254,6 +258,9 @@ class LibraryStatusService extends ChangeNotifier {
             debugPrint(
               '[LibraryStatus] Dashboard update: ${data['type']} - ${data['action']}',
             );
+            if (data is Map<String, dynamic>) {
+              _dashboardEventController.add(Map<String, dynamic>.from(data));
+            }
             // Khi nhận event dashboard update → refresh data từ API
             fetchLibraryStatus();
           } catch (e) {
@@ -303,6 +310,7 @@ class LibraryStatusService extends ChangeNotifier {
     _stompClient = null;
     _stopFallbackPolling();
     _isWsConnecting = false;
+    _dashboardEventController.close();
     super.dispose();
   }
 }
