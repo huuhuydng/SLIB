@@ -1017,6 +1017,7 @@ const UserManagement = () => {
                 placeholder="Tìm tên, email, mã..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
+                style={{ paddingLeft: '44px' }}
               />
             </div>
 
