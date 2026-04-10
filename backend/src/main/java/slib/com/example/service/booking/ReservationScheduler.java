@@ -216,15 +216,16 @@ public class ReservationScheduler {
 
     public boolean forceExpireBookedReservation(UUID reservationId) {
         LocalDateTime now = LocalDateTime.now();
-        int autoCancelMinutes = 15;
+        int resolvedAutoCancelMinutes = 15;
         try {
             LibrarySetting settings = librarySettingService.getSettings();
             if (settings.getAutoCancelMinutes() != null) {
-                autoCancelMinutes = settings.getAutoCancelMinutes();
+                resolvedAutoCancelMinutes = settings.getAutoCancelMinutes();
             }
         } catch (Exception e) {
             log.warn("Failed to resolve auto-cancel minutes for forceExpireBookedReservation, fallback to 15", e);
         }
+        final int autoCancelMinutes = resolvedAutoCancelMinutes;
 
         ReservationProcessingResult result = reservationTransactionTemplate.execute(status -> reservationRepository
                 .findById(reservationId)
