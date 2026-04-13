@@ -272,7 +272,23 @@ class BookingService {
     final response = await http.put(url, headers: await _authHeaders());
 
     if (response.statusCode != 200) {
-      throw Exception("Failed to cancel reservation: ${response.body}");
+      throw Exception(utf8.decode(response.bodyBytes));
+    }
+  }
+
+  Future<void> changeSeatForAffectedReservation({
+    required String reservationId,
+    required int newSeatId,
+  }) async {
+    final url = Uri.parse("${ApiConstants.bookingUrl}/change-seat/$reservationId");
+    final response = await http.put(
+      url,
+      headers: await _authHeaders(json: true),
+      body: jsonEncode({"seatId": newSeatId}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(utf8.decode(response.bodyBytes));
     }
   }
 

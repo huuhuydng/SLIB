@@ -24,6 +24,7 @@ import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.service.notification.PushNotificationService;
+import slib.com.example.service.reputation.ReputationService;
 import slib.com.example.util.ContentValidationUtil;
 
 import java.time.LocalDateTime;
@@ -271,7 +272,7 @@ public class ComplaintService {
                 StudentProfile profile = studentProfileRepository.findByUserId(student.getId())
                                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ sinh viên"));
                 int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-                int newScore = Math.min(200, currentScore + pointsToRefund);
+                int newScore = Math.min(ReputationService.MAX_REPUTATION_SCORE, currentScore + pointsToRefund);
                 profile.setReputationScore(newScore);
                 studentProfileRepository.save(profile);
 
@@ -320,7 +321,7 @@ public class ComplaintService {
                 StudentProfile profile = studentProfileRepository.findByUserId(student.getId())
                                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hồ sơ sinh viên"));
                 int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-                int newScore = Math.min(200, currentScore + pointsToRefund);
+                int newScore = Math.min(ReputationService.MAX_REPUTATION_SCORE, currentScore + pointsToRefund);
                 profile.setReputationScore(newScore);
                 int currentViolationCount = profile.getViolationCount() != null ? profile.getViolationCount() : 0;
                 profile.setViolationCount(Math.max(0, currentViolationCount - 1));

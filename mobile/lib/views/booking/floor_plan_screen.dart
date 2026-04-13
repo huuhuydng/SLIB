@@ -8,6 +8,7 @@ import 'package:slib/models/area.dart';
 import 'package:slib/models/area_factory.dart';
 import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
+import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/models/zones.dart';
 import 'package:slib/services/auth/auth_service.dart';
 import 'package:slib/services/booking/booking_service.dart';
@@ -20,8 +21,18 @@ import 'package:intl/intl.dart';
 class FloorPlanScreen extends StatefulWidget {
   final int? initialZoneId;
   final int? initialSeatId;
+  final DateTime? initialDate;
+  final String? initialTimeSlot;
+  final String? replacementReservationId;
 
-  const FloorPlanScreen({super.key, this.initialZoneId, this.initialSeatId});
+  const FloorPlanScreen({
+    super.key,
+    this.initialZoneId,
+    this.initialSeatId,
+    this.initialDate,
+    this.initialTimeSlot,
+    this.replacementReservationId,
+  });
 
   @override
   State<FloorPlanScreen> createState() => _FloorPlanScreenState();
@@ -29,6 +40,7 @@ class FloorPlanScreen extends StatefulWidget {
 
 class _FloorPlanScreenState extends State<FloorPlanScreen> {
   final BookingService _bookingService = BookingService();
+  bool get _replacementMode => widget.replacementReservationId != null;
 
   List<Area> _areas = [];
   List<Zone> _zones = [];
@@ -67,12 +79,117 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   // Library locked check
   bool _isLibraryClosed = false;
   String? _closedReason;
+  UpcomingBooking? _currentUserUpcomingBooking;
 
   @override
   void initState() {
     super.initState();
+    if (widget.initialDate != null) {
+      _selectedDate = widget.initialDate!;
+    }
+    if (widget.initialTimeSlot != null && widget.initialTimeSlot!.trim().isNotEmpty) {
+      _selectedTimeSlot = widget.initialTimeSlot;
+    }
+    _loadCurrentUserUpcomingBooking();
     _loadData();
     _setupWebSocket();
+  }
+
+  bool _isSameCalendarDay(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  bool _isCurrentUserBookedSeat(Seat seat) {
+    final booking = _currentUserUpcomingBooking;
+    if (booking == null || _selectedTimeSlot == null) {
+      return false;
+    }
+
+    return booking.seatId == seat.seatId &&
+        _isSameCalendarDay(booking.startTime, _selectedDate) &&
+        booking.timeRange.trim() == _selectedTimeSlot!.trim();
+  }
+
+  Color _seatFillColor(Seat seat) {
+    if (seat.isUnavailable || seat.seatStatus == 'MAINTENANCE') {
+      return Colors.grey[400]!;
+    }
+    if (_isCurrentUserBookedSeat(seat)) {
+      return AppColors.brandColor;
+    }
+    if (seat.seatStatus == 'AVAILABLE') {
+      return Colors.green;
+    }
+    return Colors.red[400]!;
+  }
+
+  Color _seatBorderColor(Seat seat) {
+    if (seat.isUnavailable || seat.seatStatus == 'MAINTENANCE') {
+      return Colors.grey[600]!;
+    }
+    if (_isCurrentUserBookedSeat(seat)) {
+      return const Color(0xFFE85A00);
+    }
+    if (seat.seatStatus == 'AVAILABLE') {
+      return Colors.green[700]!;
+    }
+    return Colors.red[700]!;
+  }
+
+  String _seatTooltipLabel(Seat seat) {
+    if (seat.isUnavailable || seat.seatStatus == 'MAINTENANCE') {
+      return '${seat.seatCode} - Ghế đang bị hạn chế';
+    }
+    if (_isCurrentUserBookedSeat(seat)) {
+      return '${seat.seatCode} - Ghế của bạn';
+    }
+    if (seat.seatStatus == 'AVAILABLE') {
+      return '${seat.seatCode} - Trống';
+    }
+    return '${seat.seatCode} - Đã được người khác đặt';
+  }
+
+  String _seatBlockedMessage(Seat seat) {
+    if (seat.isUnavailable || seat.seatStatus == 'MAINTENANCE') {
+      return 'Ghế ${seat.seatCode} hiện đang bị hạn chế sử dụng';
+    }
+    if (_isCurrentUserBookedSeat(seat)) {
+      return 'Ghế ${seat.seatCode} là ghế anh đã đặt trong khung giờ này';
+    }
+    if (seat.seatStatus == 'HOLDING') {
+      return 'Ghế ${seat.seatCode} đang được người khác chọn';
+    }
+    if (seat.seatStatus == 'CONFIRMED') {
+      return 'Ghế ${seat.seatCode} đang có người sử dụng';
+    }
+    return 'Ghế ${seat.seatCode} đã được người khác đặt';
+  }
+
+  Future<void> _loadCurrentUserUpcomingBooking() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userId = authService.currentUser?.id;
+    if (userId == null) {
+      if (mounted) {
+        setState(() => _currentUserUpcomingBooking = null);
+      }
+      return;
+    }
+
+    try {
+      final data = await _bookingService.getUpcomingBooking(userId);
+      if (!mounted) return;
+
+      UpcomingBooking? booking;
+      if (data is Map<String, dynamic>) {
+        booking = UpcomingBooking.fromJson(data);
+      }
+
+      setState(() => _currentUserUpcomingBooking = booking);
+    } catch (e) {
+      debugPrint('Không thể tải upcoming booking hiện tại: $e');
+    }
   }
 
   /// Setup WebSocket for real-time seat updates
@@ -779,7 +896,15 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
             const SizedBox(height: 8),
             _buildLegendRow(Colors.green, 'Ghế trống', 'Có thể đặt'),
             const SizedBox(height: 8),
+            _buildLegendRow(
+              AppColors.brandColor,
+              'Ghế của bạn',
+              'Suất anh đã đặt trong khung giờ này',
+            ),
+            const SizedBox(height: 8),
             _buildLegendRow(Colors.red, 'Ghế đã đặt', 'Không thể đặt'),
+            const SizedBox(height: 8),
+            _buildLegendRow(Colors.grey, 'Ghế bị hạn chế', 'Tạm ngưng sử dụng'),
           ],
         ),
         actions: [
@@ -1033,16 +1158,11 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final navigator = Navigator.of(context);
     final authService = Provider.of<AuthService>(context, listen: false);
     final bookingService = Provider.of<BookingService>(context, listen: false);
+    bool loadingShown = false;
 
     // Kiểm tra ghế có available không
     if (seat.seatStatus != 'AVAILABLE') {
-      String message = seat.seatStatus == 'HOLDING'
-          ? 'Ghế ${seat.seatCode} đang được người khác chọn'
-          : seat.seatStatus == 'CONFIRMED'
-          ? 'Ghế ${seat.seatCode} đang có người sử dụng'
-          : seat.seatStatus == 'MAINTENANCE'
-          ? 'Ghế ${seat.seatCode} hiện không hoạt động'
-          : 'Ghế ${seat.seatCode} đã được đặt';
+      final message = _seatBlockedMessage(seat);
       messenger.showSnackBar(
         SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
@@ -1089,8 +1209,24 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         barrierDismissible: false,
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
+      loadingShown = true;
 
       final timeParts = _selectedTimeSlot!.split(' - ');
+
+      if (_replacementMode) {
+        await bookingService.changeSeatForAffectedReservation(
+          reservationId: widget.replacementReservationId!,
+          newSeatId: seat.seatId,
+        );
+
+        if (!mounted) return;
+        if (loadingShown && navigator.canPop()) {
+          navigator.pop();
+        }
+        navigator.pop(true);
+        return;
+      }
+
       final result = await bookingService.createBooking(
         seatId: seat.seatId,
         userId: user.id,
@@ -1132,7 +1268,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
           });
     } catch (e) {
       if (!mounted) return;
-      if (navigator.canPop()) {
+      if (loadingShown && navigator.canPop()) {
         navigator.pop();
       }
       // Parse lỗi để hiển thị message thân thiện
@@ -1390,10 +1526,12 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     color: const Color(0xFFFFF5EE),
-                    child: const Text(
-                      'Chạm vào ghế màu xanh để đặt chỗ',
+                    child: Text(
+                      _replacementMode
+                          ? 'Chạm vào ghế màu xanh để đổi sang ghế mới cho lịch hiện tại'
+                          : 'Chạm vào ghế màu xanh để đặt chỗ',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ),
               ],
@@ -1639,12 +1777,48 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_replacementMode) ...[
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDBA74)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFEA580C),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Bạn đang đổi ghế cho lịch đặt bị ảnh hưởng. Ngày và khung giờ hiện tại được giữ nguyên.',
+                      style: TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Row 1: Date selector
           Row(
             children: [
               Expanded(
                 child: InkWell(
-                  onTap: () async {
+                  onTap: _replacementMode
+                      ? null
+                      : () async {
                     final date = await showDatePicker(
                       context: context,
                       initialDate: _selectedDate,
@@ -1752,12 +1926,14 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                         selected: isSelected,
                         selectedColor: AppColors.brandColor,
                         backgroundColor: Colors.grey[100],
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _selectedTimeSlot = slot.label);
-                            _loadSeatsOnly(); // Chỉ reload seats - nhanh hơn
-                          }
-                        },
+                        onSelected: _replacementMode
+                            ? null
+                            : (selected) {
+                                if (selected) {
+                                  setState(() => _selectedTimeSlot = slot.label);
+                                  _loadSeatsOnly(); // Chỉ reload seats - nhanh hơn
+                                }
+                              },
                       ),
                     );
                   }).toList(),
@@ -2099,8 +2275,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
             children: rowSeats.asMap().entries.map((entry) {
               final j = entry.key;
               final seat = entry.value;
-              final isAvailable = seat.seatStatus == 'AVAILABLE';
-              final seatLabel = '$rowLabel${seat.columnNumber}';
+                      final seatLabel = '$rowLabel${seat.columnNumber}';
               return Padding(
                 // Giãn cách ngang giữa các ghế
                 padding: EdgeInsets.only(
@@ -2112,22 +2287,15 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                 child: GestureDetector(
                   onTap: () => _onSeatTap(seat, zone),
                   child: Tooltip(
-                    message:
-                        '${seat.seatCode} - ${isAvailable ? "Trống" : "Đã đặt"}',
+                    message: _seatTooltipLabel(seat),
                     child: Container(
                       width: fixedSeatSize,
                       height: fixedSeatSize,
                       decoration: BoxDecoration(
-                        color: seat.isUnavailable
-                            ? Colors.grey[400]
-                            : (isAvailable ? Colors.green : Colors.red[400]),
+                        color: _seatFillColor(seat),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: seat.isUnavailable
-                              ? Colors.grey[600]!
-                              : (isAvailable
-                                    ? Colors.green[700]!
-                                    : Colors.red[700]!),
+                          color: _seatBorderColor(seat),
                           width: 1.5,
                         ),
                       ),
@@ -2200,6 +2368,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   String? _selectedTime;
   bool _isLoading = true;
   LibrarySetting? _settings;
+  UpcomingBooking? _currentUserUpcomingBooking;
 
   final List<String> _timeSlots = [
     "07:00 - 09:00",
@@ -2211,7 +2380,50 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserUpcomingBooking();
     _loadData();
+  }
+
+  bool _isSameCalendarDay(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  bool _isCurrentUserBookedSeat(Seat seat) {
+    final booking = _currentUserUpcomingBooking;
+    if (booking == null || _selectedDate == null || _selectedTime == null) {
+      return false;
+    }
+
+    return booking.seatId == seat.seatId &&
+        _isSameCalendarDay(booking.startTime, _selectedDate!) &&
+        booking.timeRange.trim() == _selectedTime!.trim();
+  }
+
+  Future<void> _loadCurrentUserUpcomingBooking() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userId = authService.currentUser?.id;
+    if (userId == null) {
+      if (mounted) {
+        setState(() => _currentUserUpcomingBooking = null);
+      }
+      return;
+    }
+
+    try {
+      final data = await _bookingService.getUpcomingBooking(userId);
+      if (!mounted) return;
+
+      UpcomingBooking? booking;
+      if (data is Map<String, dynamic>) {
+        booking = UpcomingBooking.fromJson(data);
+      }
+
+      setState(() => _currentUserUpcomingBooking = booking);
+    } catch (e) {
+      debugPrint('Không thể tải upcoming booking hiện tại: $e');
+    }
   }
 
   Future<void> _loadData() async {
@@ -2526,6 +2738,8 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
               children: [
                 _legend(AppColors.seatAvailable, 'Trống'),
                 const SizedBox(width: 16),
+                _legend(AppColors.brandColor, 'Ghế của tôi'),
+                const SizedBox(width: 16),
                 _legend(AppColors.seatOccupied, 'Đã đặt'),
                 const SizedBox(width: 16),
                 _legend(Colors.grey[400]!, 'Bảo trì'),
@@ -2606,6 +2820,7 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                       final globalIndex = _seats.indexOf(seat);
                       final isSelected = _selectedIndex == globalIndex;
                       final isUnavailable = seat.isUnavailable;
+                      final isCurrentUserSeat = _isCurrentUserBookedSeat(seat);
                       final isAvailable =
                           seat.seatStatus == 'AVAILABLE' && !isUnavailable;
 
@@ -2614,6 +2829,8 @@ class _SeatGridScreenState extends State<SeatGridScreen> {
                         color = AppColors.brandColor;
                       } else if (isUnavailable) {
                         color = Colors.grey[400]!;
+                      } else if (isCurrentUserSeat) {
+                        color = AppColors.brandColor;
                       } else if (isAvailable) {
                         color = AppColors.seatAvailable;
                       } else {

@@ -10,6 +10,8 @@ import slib.com.example.dto.booking.TimeSlotDTO;
 import slib.com.example.repository.system.LibrarySettingRepository;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
@@ -190,16 +192,17 @@ public class LibrarySettingService {
         validateSettings(settings);
         List<TimeSlotDTO> slots = new ArrayList<>();
 
-        LocalTime start = LocalTime.parse(settings.getOpenTime(), TIME_FORMATTER);
-        LocalTime end = LocalTime.parse(settings.getCloseTime(), TIME_FORMATTER);
+        LocalDate anchorDate = LocalDate.of(2000, 1, 1);
+        LocalDateTime start = LocalDateTime.of(anchorDate, LocalTime.parse(settings.getOpenTime(), TIME_FORMATTER));
+        LocalDateTime end = LocalDateTime.of(anchorDate, LocalTime.parse(settings.getCloseTime(), TIME_FORMATTER));
         int durationMinutes = settings.getSlotDuration();
 
-        LocalTime current = start;
-        while (current.plusMinutes(durationMinutes).compareTo(end) <= 0) {
-            LocalTime slotEnd = current.plusMinutes(durationMinutes);
+        LocalDateTime current = start;
+        while (!current.plusMinutes(durationMinutes).isAfter(end)) {
+            LocalDateTime slotEnd = current.plusMinutes(durationMinutes);
 
-            String startStr = current.format(TIME_FORMATTER);
-            String endStr = slotEnd.format(TIME_FORMATTER);
+            String startStr = current.toLocalTime().format(TIME_FORMATTER);
+            String endStr = slotEnd.toLocalTime().format(TIME_FORMATTER);
 
             slots.add(TimeSlotDTO.builder()
                     .startTime(startStr)

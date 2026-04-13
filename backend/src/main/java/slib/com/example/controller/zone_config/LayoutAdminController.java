@@ -55,6 +55,34 @@ public class LayoutAdminController {
         return ResponseEntity.ok(layoutAdminService.discardDraft(authentication));
     }
 
+    @GetMapping("/schedule")
+    public ResponseEntity<LayoutScheduleResponse> getActiveSchedule() {
+        return ResponseEntity.ok(layoutAdminService.getActiveSchedule());
+    }
+
+    @PostMapping("/schedule")
+    public ResponseEntity<?> schedulePublish(@RequestBody LayoutScheduleRequest request, Authentication authentication) {
+        try {
+            return ResponseEntity.ok(layoutAdminService.schedulePublish(request, authentication));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "LAYOUT_VERSION_CONFLICT",
+                    "message", ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            LayoutSnapshotRequest snapshot = request != null ? request.getSnapshot() : null;
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                    "error", "LAYOUT_CONFLICT",
+                    "message", ex.getMessage(),
+                    "validation", snapshot != null ? layoutAdminService.validate(snapshot) : null));
+        }
+    }
+
+    @DeleteMapping("/schedule/{scheduleId}")
+    public ResponseEntity<LayoutScheduleResponse> cancelSchedule(@PathVariable Long scheduleId,
+                                                                Authentication authentication) {
+        return ResponseEntity.ok(layoutAdminService.cancelScheduledPublish(scheduleId, authentication));
+    }
+
     @PostMapping("/publish")
     public ResponseEntity<?> publish(@RequestBody LayoutSnapshotRequest request, Authentication authentication) {
         try {

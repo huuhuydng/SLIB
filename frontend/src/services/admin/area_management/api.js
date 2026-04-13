@@ -243,6 +243,15 @@ export const saveLayoutDraft = (payload) =>
 export const discardLayoutDraft = () =>
   api.delete("/layout-admin/draft");
 
+export const getLayoutSchedule = () =>
+  api.get("/layout-admin/schedule");
+
+export const scheduleLayoutSnapshot = (payload) =>
+  api.post("/layout-admin/schedule", payload);
+
+export const cancelLayoutSchedule = (scheduleId) =>
+  api.delete(`/layout-admin/schedule/${scheduleId}`);
+
 export const publishLayoutSnapshot = (payload) =>
   api.post("/layout-admin/publish", payload);
 

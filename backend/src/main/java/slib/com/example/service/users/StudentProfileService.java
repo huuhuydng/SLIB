@@ -61,7 +61,7 @@ public class StudentProfileService {
         StudentProfile newProfile = StudentProfile.builder()
                 .userId(user.getId())
                 .user(user)
-                .reputationScore(100)
+                .reputationScore(ReputationService.MAX_REPUTATION_SCORE)
                 .totalStudyHours(0.0)
                 .violationCount(0)
                 .build();
@@ -90,7 +90,7 @@ public class StudentProfileService {
     public Optional<StudentProfileResponse> updateReputationScore(UUID userId, int newScore) {
         return studentProfileRepository.findByUserId(userId)
                 .map(profile -> {
-                    profile.setReputationScore(newScore);
+                    profile.setReputationScore(reputationService.clampReputationScore(newScore));
                     return buildProfileResponse(studentProfileRepository.save(profile));
                 });
     }

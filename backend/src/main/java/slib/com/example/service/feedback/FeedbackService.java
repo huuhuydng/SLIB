@@ -288,8 +288,11 @@ public class FeedbackService {
 
             LocalDateTime now = LocalDateTime.now();
             String status = reservation.getStatus() != null ? reservation.getStatus().toUpperCase() : "";
-            if (!List.of("CONFIRMED", "COMPLETED").contains(status) || reservation.getEndTime() == null
-                    || reservation.getEndTime().isAfter(now)) {
+            LocalDateTime effectiveEndTime = reservation.getActualEndTime() != null
+                    ? reservation.getActualEndTime()
+                    : reservation.getEndTime();
+            if (!List.of("CONFIRMED", "COMPLETED").contains(status) || effectiveEndTime == null
+                    || effectiveEndTime.isAfter(now)) {
                 throw new BadRequestException("Chỉ có thể gửi phản hồi cho lượt đặt chỗ đã sử dụng và đã kết thúc.");
             }
         }

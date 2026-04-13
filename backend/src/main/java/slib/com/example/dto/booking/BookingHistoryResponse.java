@@ -38,4 +38,10 @@ public class BookingHistoryResponse {
     private LocalDateTime createdAt;
     private String cancellationReason;
     private Boolean cancelledByStaff;
+    private Boolean layoutChanged;
+    private String layoutChangeTitle;
+    private String layoutChangeMessage;
+    private LocalDateTime layoutChangedAt;
+    private Boolean canCancel;
+    private Boolean canChangeSeat;
 }

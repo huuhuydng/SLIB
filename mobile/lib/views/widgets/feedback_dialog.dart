@@ -39,6 +39,7 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
   final _commentController = TextEditingController();
   bool _isSubmitting = false;
   bool _submitted = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -48,7 +49,10 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
 
   Future<void> _submit() async {
     if (_rating == 0) return;
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -78,12 +82,46 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
       if (response.statusCode == 201 || response.statusCode == 200) {
         setState(() => _submitted = true);
         widget.onSubmitted?.call();
+      } else {
+        setState(() {
+          _errorMessage = _extractErrorMessage(response.body);
+        });
       }
-    } catch (_) {
-      // silently ignore
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Không thể gửi đánh giá lúc này. Vui lòng thử lại.';
+      });
+      debugPrint('[FEEDBACK_DIALOG] Submit error: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  String _extractErrorMessage(String rawBody) {
+    if (rawBody.trim().isEmpty) {
+      return 'Không thể gửi đánh giá lúc này. Vui lòng thử lại.';
+    }
+
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['error'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+
+        final errors = decoded['errors'];
+        if (errors is Map<String, dynamic>) {
+          for (final value in errors.values) {
+            if (value is String && value.trim().isNotEmpty) {
+              return value.trim();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    return 'Không thể gửi đánh giá lúc này. Vui lòng thử lại.';
   }
 
   @override
@@ -268,9 +306,21 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
+              ),
             ),
           ),
+          if (_errorMessage != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFD32F2F),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           TextButton(
             onPressed: () {

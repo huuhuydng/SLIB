@@ -371,40 +371,37 @@ public class KioskQrAuthService {
     /**
      * Get current active session for kiosk
      */
+    @Transactional(readOnly = true)
     public Optional<KioskQrDTO.KioskSessionResponse> getActiveSession(String kioskCode) {
-        KioskConfigEntity kiosk = kioskConfigRepository.findByKioskCode(kioskCode)
-                .orElse(null);
-
-        if (kiosk == null)
-            return Optional.empty();
-
-        return qrSessionRepository.findByKioskIdAndStatusIn(kiosk.getId(), java.util.List.of("ACTIVE", "USED"))
-                .stream()
-                .filter(s -> s.getStudent() != null)
+        return qrSessionRepository
+                .findFirstByKiosk_KioskCodeAndStatusInAndStudentIsNotNullOrderByUpdatedAtDesc(
+                        kioskCode,
+                        java.util.List.of("ACTIVE", "USED"))
                 .map(session -> {
-                    String[] actionHolder = { "CHECK_IN" };
-                    LocalDateTime[] checkInTimeHolder = { null };
+                    String currentAction = "CHECK_IN";
+                    LocalDateTime checkInTime = null;
 
                     if (session.getAccessLogId() != null) {
-                        accessLogRepository.findById(session.getAccessLogId()).ifPresent(log -> {
-                            actionHolder[0] = log.getCheckOutTime() == null ? "CHECK_IN" : "CHECK_OUT";
-                            checkInTimeHolder[0] = log.getCheckInTime();
-                        });
+                        Optional<AccessLog> accessLog = accessLogRepository.findById(session.getAccessLogId());
+                        if (accessLog.isPresent()) {
+                            currentAction = accessLog.get().getCheckOutTime() == null ? "CHECK_IN" : "CHECK_OUT";
+                            checkInTime = accessLog.get().getCheckInTime();
+                        }
                     }
 
+                    User student = session.getStudent();
                     return KioskQrDTO.KioskSessionResponse.builder()
                             .sessionToken(session.getSessionToken())
-                            .studentId(session.getStudent().getId())
-                            .studentCode(session.getStudent().getUserCode())
-                            .studentName(session.getStudent().getFullName())
-                            .studentAvatar(session.getStudent().getAvtUrl())
+                            .studentId(student.getId())
+                            .studentCode(student.getUserCode())
+                            .studentName(student.getFullName())
+                            .studentAvatar(student.getAvtUrl())
                             .accessLogId(session.getAccessLogId())
-                            .currentAction(actionHolder[0])
-                            .checkInTime(checkInTimeHolder[0])
+                            .currentAction(currentAction)
+                            .checkInTime(checkInTime)
                             .expiresAt(session.getQrExpiresAt())
                             .build();
-                })
-                .findFirst();
+                });
     }
 
     // Helper methods

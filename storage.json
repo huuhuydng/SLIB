@@ -1,0 +1,8 @@
+{
+  "local": {
+    "librarian_token": "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiQURNSU4iLCJ0eXBlIjoiYWNjZXNzIiwiZW1haWwiOiJodXVodXlkbmdAZ21haWwuY29tIiwidXNlckNvZGUiOiJIVVVIVVlETkciLCJzdWIiOiJodXVodXlkbmdAZ21haWwuY29tIiwiaWF0IjoxNzc2MDQ5ODAzLCJleHAiOjE3NzYwNTM0MDN9.RzxIt5CM0Pcy8fyo79G3zz3PQU81USkYVyaKVbzmE4Q",
+    "refresh_token": "eyJhbGciOiJIUzI1NiJ9.eyJ0b2tlbklkIjoiYzZiOGQ4YzYtNjIwNy00YTQxLWE4YTMtNDI1YmVhZDI3ZjBmIiwidHlwZSI6InJlZnJlc2giLCJzdWIiOiJodXVodXlkbmdAZ21haWwuY29tIiwiaWF0IjoxNzc2MDQ5ODAzLCJleHAiOjE3NzY2NTQ2MDN9.RUEReUnjpS27Q0hlavTXpzF7qaS_f-vHu2oqaGhwwM0",
+    "librarian_user": "{\"id\":\"4e3f4237-868c-4c22-a2ed-b355b329fb7f\",\"email\":\"huuhuydng@gmail.com\",\"fullName\":\"Nguyễn Hữu Huy\",\"studentCode\":\"HUUHUYDNG\",\"role\":\"ADMIN\"}"
+  },
+  "session": {}
+}

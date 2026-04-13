@@ -31,6 +31,8 @@ import java.time.ZonedDateTime;
 @Service
 @Slf4j
 public class ReputationService {
+    public static final int MIN_REPUTATION_SCORE = 0;
+    public static final int MAX_REPUTATION_SCORE = 100;
     private static final int NO_SHOW_SECOND_OFFENSE_POINTS = 15;
     private static final int NO_SHOW_REPEAT_POINTS = 20;
 
@@ -107,7 +109,7 @@ public class ReputationService {
 
         // Update reputation score
         int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-        int newScore = Math.min(200, Math.max(0, currentScore + appliedPoints));
+        int newScore = clampReputationScore(currentScore + appliedPoints);
         profile.setReputationScore(newScore);
         studentProfileRepository.save(profile);
 
@@ -244,8 +246,8 @@ public class ReputationService {
         if (performedBy == null) {
             throw new BadRequestException("Không xác định được quản trị viên thực hiện điều chỉnh");
         }
-        if (targetScore < 0 || targetScore > 200) {
-            throw new BadRequestException("Điểm mục tiêu phải nằm trong khoảng 0-200");
+        if (targetScore < MIN_REPUTATION_SCORE || targetScore > MAX_REPUTATION_SCORE) {
+            throw new BadRequestException("Điểm mục tiêu phải nằm trong khoảng 0-100");
         }
 
         User targetUser = userRepository.findById(userId)
@@ -291,7 +293,7 @@ public class ReputationService {
                 .orElseGet(() -> createDefaultProfile(targetUser));
 
         int currentScore = profile.getReputationScore() != null ? profile.getReputationScore() : 100;
-        int newScore = Math.min(200, Math.max(0, currentScore + points));
+        int newScore = clampReputationScore(currentScore + points);
         profile.setReputationScore(newScore);
         studentProfileRepository.save(profile);
 
@@ -340,7 +342,7 @@ public class ReputationService {
         StudentProfile profile = StudentProfile.builder()
                 .userId(user.getId())
                 .user(user)
-                .reputationScore(100)
+                .reputationScore(MAX_REPUTATION_SCORE)
                 .totalStudyHours(0.0)
                 .violationCount(0)
                 .build();
@@ -437,7 +439,11 @@ public class ReputationService {
      */
     public int getUserReputationScore(UUID userId) {
         return studentProfileRepository.findByUserId(userId)
-                .map(profile -> profile.getReputationScore() != null ? profile.getReputationScore() : 100)
-                .orElse(100);
+                .map(profile -> profile.getReputationScore() != null ? profile.getReputationScore() : MAX_REPUTATION_SCORE)
+                .orElse(MAX_REPUTATION_SCORE);
+    }
+
+    public int clampReputationScore(int score) {
+        return Math.max(MIN_REPUTATION_SCORE, Math.min(MAX_REPUTATION_SCORE, score));
     }
 }

@@ -19,6 +19,7 @@ import slib.com.example.service.users.StagingImportService;
 import slib.com.example.service.users.UserService;
 import slib.com.example.service.chat.CloudinaryService;
 import slib.com.example.service.system.SystemLogService;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -101,5 +102,20 @@ class FE17_DownloadTemplateTest {
 
                 mockMvc.perform(get("/slib/users/import/template"))
                         .andExpect(status().isOk());
+        }
+
+        @Test
+        @WithMockUser(username = "admin@fpt.edu.vn", roles = "ADMIN")
+        @DisplayName("UTCD04: Download template returns XLSX binary content")
+        void downloadTemplate_returnsXlsxBinaryContent() throws Exception {
+                MvcResult result = mockMvc.perform(get("/slib/users/import/template"))
+                        .andExpect(status().isOk())
+                        .andReturn();
+
+                byte[] content = result.getResponse().getContentAsByteArray();
+
+                org.junit.jupiter.api.Assertions.assertTrue(content.length > 0);
+                org.junit.jupiter.api.Assertions.assertEquals('P', content[0]);
+                org.junit.jupiter.api.Assertions.assertEquals('K', content[1]);
         }
 }

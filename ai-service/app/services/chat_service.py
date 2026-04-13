@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 SPAM_THRESHOLD = 0.35 
 STRICT_GROUNDED_SCORE_THRESHOLD = 0.62
 RELAXED_FAQ_SCORE_THRESHOLD = 0.60
+PROCEDURAL_KNOWLEDGE_SCORE_THRESHOLD = 0.68
 
 # Điểm >= 0.75 (Lấy từ settings): Mới được coi là tìm thấy thông tin
 # Khoảng giữa (0.35 - 0.75): Coi là câu hỏi khó/không có data -> Xin lỗi nhẹ nhàng
@@ -308,7 +309,8 @@ class RAGChatService:
         return MSG_NO_INFO_VARIANTS[variant_index]
 
     def _strip_accents(self, text: str) -> str:
-        normalized = unicodedata.normalize("NFD", text or "")
+        normalized = (text or "").replace("đ", "d").replace("Đ", "D")
+        normalized = unicodedata.normalize("NFD", normalized)
         return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
 
     def _normalize_for_match(self, text: str) -> str:
@@ -378,6 +380,7 @@ class RAGChatService:
         context_chunks: List[Dict[str, Any]],
         live_data: str = "",
     ) -> Tuple[bool, str]:
+        is_procedural_query = self._is_procedural_query(query)
         evidence_parts = [chunk.get("content", "") for chunk in context_chunks if chunk.get("content")]
         if live_data:
             evidence_parts.append(live_data)
@@ -397,6 +400,15 @@ class RAGChatService:
             if self._is_boilerplate_sentence(sentence):
                 continue
 
+            normalized_sentence = self._normalize_for_match(sentence)
+            if is_procedural_query and (
+                "thuc hien theo cac buoc sau" in normalized_sentence
+                or "lam theo cac buoc sau" in normalized_sentence
+                or "co the lam theo huong dan sau" in normalized_sentence
+                or "ban co the lam theo cac buoc sau" in normalized_sentence
+            ):
+                continue
+
             fact_tokens = self._extract_fact_tokens(sentence)
             if fact_tokens:
                 continue
@@ -406,7 +418,7 @@ class RAGChatService:
                 continue
 
             matched_keywords = [keyword for keyword in keywords if keyword in evidence_text]
-            min_required = 2 if len(keywords) >= 3 else 1
+            min_required = 1 if is_procedural_query else (2 if len(keywords) >= 3 else 1)
             if len(matched_keywords) < min_required:
                 return False, f"Câu trả lời chưa bám đủ evidence cho ý: '{sentence}'"
 
@@ -422,6 +434,8 @@ class RAGChatService:
 
         normalized_query = query.lower().strip()
         is_hours_query = self._is_library_hours_query(query)
+        is_procedural_query = self._is_procedural_query(query)
+        is_booking_guide_query = self._is_booking_guide_query(query)
 
         def rank(chunk: Dict[str, Any]) -> tuple[float, float]:
             content = chunk.get("content", "").lower()
@@ -437,6 +451,20 @@ class RAGChatService:
                     bonus += 0.10
                 if "01_gioi_thieu_thu_vien" in source or "08_cau_hoi_thuong_gap" in source:
                     bonus += 0.15
+
+            if is_booking_guide_query:
+                if "02_huong_dan_dat_cho" in source:
+                    bonus += 0.65
+                if "08_cau_hoi_thuong_gap" in source:
+                    bonus += 0.18
+                if "03_khu_vuc_cho_ngoi" in source:
+                    bonus -= 0.10
+                if "bước 1" in content or "bước 2" in content or "xác nhận đặt chỗ" in content:
+                    bonus += 0.15
+                if "đặt chỗ" in content or "khung giờ" in content or "chọn ghế" in content:
+                    bonus += 0.12
+                if "trang web" in content or "mượn" in content:
+                    bonus -= 0.12
 
             keyword_hits = 0
             for token in normalized_query.split():
@@ -512,6 +540,242 @@ class RAGChatService:
             return "\n".join(cleaned_lines)
 
         return "Thông tin bạn cần như sau:\n" + "\n".join(cleaned_lines)
+
+    def _is_procedural_query(self, query: str) -> bool:
+        normalized = self._normalize_for_match(query)
+        procedural_patterns = [
+            r"\b(cach|huong dan|lam sao|the nao|quy trinh|cac buoc|buoc)\b",
+            r"\b(dat cho|check in|check out|su dung|dang ky|dat ghe|dat cho ngoi)\b",
+        ]
+        return any(re.search(pattern, normalized) for pattern in procedural_patterns)
+
+    def _is_booking_guide_query(self, query: str) -> bool:
+        normalized = self._normalize_for_match(query)
+        booking_terms = (
+            "dat cho",
+            "dat ghe",
+            "dat cho ngoi",
+            "giu cho",
+            "book cho",
+        )
+        guide_terms = (
+            "cach",
+            "huong dan",
+            "lam sao",
+            "the nao",
+            "quy trinh",
+            "cac buoc",
+            "buoc",
+        )
+        return any(term in normalized for term in booking_terms) and (
+            any(term in normalized for term in guide_terms)
+            or normalized.strip() == "dat cho"
+        )
+
+    def _load_knowledge_base_markdown(self, filename: str) -> str:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base"))
+        document_path = os.path.join(base_dir, filename)
+        try:
+            with open(document_path, "r", encoding="utf-8") as file:
+                return file.read()
+        except OSError as exc:
+            logger.warning("[RAGChatService] Cannot read knowledge document %s: %s", filename, exc)
+            return ""
+
+    def _extract_markdown_section(self, markdown_text: str, heading: str) -> List[str]:
+        lines = markdown_text.splitlines()
+        section_lines: List[str] = []
+        in_section = False
+
+        for raw_line in lines:
+            line = raw_line.rstrip()
+            if not in_section:
+                if line.strip() == heading:
+                    in_section = True
+                continue
+
+            if line.startswith("## "):
+                break
+            section_lines.append(line)
+
+        return section_lines
+
+    def _build_booking_steps_from_mobile_guide(self, section_lines: List[str]) -> List[str]:
+        steps: List[str] = []
+        current_title: Optional[str] = None
+        current_description: List[str] = []
+
+        def flush_current_step() -> None:
+            nonlocal current_title, current_description
+            if not current_title:
+                return
+
+            steps.append(current_title)
+
+            current_title = None
+            current_description = []
+
+        for raw_line in section_lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("### Bước"):
+                flush_current_step()
+                current_title = re.sub(r"^###\s*Bước\s*\d+:\s*", "", line, flags=re.IGNORECASE).strip().rstrip(".")
+                continue
+            if line.startswith("### ") or line.startswith("## "):
+                continue
+            if line.startswith(("-", "*")):
+                continue
+            current_description.append(line)
+
+        flush_current_step()
+        return steps
+
+    def _try_answer_booking_guide_from_knowledge(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> Optional[str]:
+        if not self._is_booking_guide_query(query):
+            return None
+
+        has_booking_evidence = any(
+            "02_huong_dan_dat_cho" in ((chunk.get("source") or "").lower())
+            for chunk in chunks[:8]
+        )
+        if best_score < RELAXED_FAQ_SCORE_THRESHOLD and not has_booking_evidence:
+            return None
+
+        markdown_text = self._load_knowledge_base_markdown("02_huong_dan_dat_cho.md")
+        if not markdown_text:
+            return None
+
+        normalized_query = self._normalize_for_match(query)
+        if "kiosk" in normalized_query:
+            kiosk_lines = self._extract_markdown_section(markdown_text, "## Đặt chỗ qua Kiosk")
+            kiosk_steps = []
+            for line in kiosk_lines:
+                stripped = line.strip()
+                if re.match(r"^\d+\.\s+", stripped):
+                    kiosk_steps.append(stripped)
+            if kiosk_steps:
+                return "Bạn có thể đặt chỗ qua kiosk theo các bước sau:\n" + "\n".join(kiosk_steps[:5])
+
+        mobile_lines = self._extract_markdown_section(markdown_text, "## Quy trình đặt chỗ qua ứng dụng mobile")
+        mobile_steps = self._build_booking_steps_from_mobile_guide(mobile_lines)
+        if not mobile_steps:
+            return None
+
+        condensed_steps = []
+        for index, step in enumerate(mobile_steps[:6], start=1):
+            normalized_step = re.sub(r"\s+", " ", step).strip()
+            condensed_steps.append(f"{index}. {normalized_step}")
+
+        return "Bạn có thể đặt chỗ theo các bước sau:\n" + "\n".join(condensed_steps)
+
+    def _chunk_has_instructional_structure(self, content: str) -> bool:
+        if not content:
+            return False
+
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        if not lines:
+            return False
+
+        instructional_line_count = 0
+        for line in lines[:12]:
+            normalized_line = self._normalize_for_match(line)
+            if (
+                re.match(r"^(buoc|b\d+|step)\b", normalized_line)
+                or re.match(r"^\d+\b", normalized_line)
+                or line.startswith(("-", "*", "•", "#"))
+                or "dang nhap" in normalized_line
+                or "chon" in normalized_line
+                or "nhan" in normalized_line
+                or "quet" in normalized_line
+                or "xac nhan" in normalized_line
+                or "mo ung dung" in normalized_line
+            ):
+                instructional_line_count += 1
+
+        return instructional_line_count >= 2
+
+    def _try_answer_procedural_from_top_chunks(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> Optional[str]:
+        if not self._is_procedural_query(query):
+            return None
+        if best_score < PROCEDURAL_KNOWLEDGE_SCORE_THRESHOLD or not chunks:
+            return None
+
+        normalized_query = self._normalize_for_match(query)
+        source_hints = [
+            "huong_dan_dat_cho",
+            "dat_cho",
+            "check_in_check_out",
+            "cau_hoi_thuong_gap",
+        ]
+
+        candidate_chunks = []
+        for chunk in chunks[:8]:
+            content = (chunk.get("content") or "").strip()
+            source = (chunk.get("source") or "").strip().lower()
+            if not content:
+                continue
+
+            evidence_text = self._normalize_for_match(content)
+            source_matches_query = any(hint in source for hint in source_hints)
+            keyword_overlap = sum(
+                1
+                for token in normalized_query.split()
+                if len(token) >= 3 and (token in evidence_text or token in source)
+            )
+
+            if not source_matches_query and keyword_overlap < 2:
+                continue
+            if not source_matches_query and not self._chunk_has_instructional_structure(content):
+                continue
+
+            candidate_chunks.append(content)
+
+        if not candidate_chunks:
+            return None
+
+        merged_lines: List[str] = []
+        seen = set()
+        for content in candidate_chunks:
+            for line in content.splitlines():
+                cleaned_line = line.strip()
+                if not cleaned_line:
+                    continue
+                normalized_line = self._normalize_for_match(cleaned_line)
+                if normalized_line in seen:
+                    continue
+                seen.add(normalized_line)
+                merged_lines.append(cleaned_line)
+
+        if not merged_lines:
+            return None
+
+        if merged_lines[0].startswith("#"):
+            merged_lines = merged_lines[1:]
+
+        cleaned_lines = []
+        for line in merged_lines[:10]:
+            normalized_line = re.sub(r"^\s*[-*]\s*", "- ", line)
+            cleaned_lines.append(normalized_line)
+
+        if not cleaned_lines:
+            return None
+
+        if any(re.match(r"^\d+\.", line) for line in cleaned_lines):
+            return "Bạn có thể làm theo các bước sau:\n" + "\n".join(cleaned_lines)
+
+        return "Bạn có thể làm theo hướng dẫn sau:\n" + "\n".join(cleaned_lines)
 
     def _try_answer_hours_from_chunks(self, query: str, chunks: List[Dict[str, Any]]) -> Optional[str]:
         if not self._is_library_hours_query(query) or not chunks:
@@ -945,7 +1209,8 @@ class RAGChatService:
                 "sources": []
             }
 
-        preferred_top_k = max(self.max_chunks, 12) if self._is_library_hours_query(message) else self.max_chunks
+        should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
+        preferred_top_k = max(self.max_chunks, 12) if should_expand_top_k else self.max_chunks
 
         # 2. Retrieve Context from document knowledge base first
         chunks, best_score = self.retrieve_context(
@@ -988,11 +1253,37 @@ class RAGChatService:
                 ]
             }
 
+        booking_guide_response = self._try_answer_booking_guide_from_knowledge(message, chunks, best_score)
+        if booking_guide_response:
+            return {
+                "success": True,
+                "reply": booking_guide_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
         faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
         if faq_response:
             return {
                 "success": True,
                 "reply": faq_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
+        procedural_response = self._try_answer_procedural_from_top_chunks(message, chunks, best_score)
+        if procedural_response:
+            return {
+                "success": True,
+                "reply": procedural_response,
                 "action": ActionType.NONE,
                 "similarity_score": best_score,
                 "sources": [
@@ -1065,6 +1356,17 @@ class RAGChatService:
         relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
         if not relevant_chunks and use_relaxed_faq_threshold:
             relevant_chunks = chunks[:2]
+        if self._is_procedural_query(message):
+            focused_chunks = [
+                c for c in relevant_chunks
+                if (
+                    "02_huong_dan_dat_cho" in (c.get("source") or "")
+                    or "08_cau_hoi_thuong_gap" in (c.get("source") or "")
+                    or "05_check_in_check_out" in (c.get("source") or "")
+                )
+            ]
+            if focused_chunks:
+                relevant_chunks = focused_chunks[:3]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
@@ -1089,6 +1391,19 @@ class RAGChatService:
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
                 "similarity_score": best_score,
                 "sources": []
+            }
+
+        if self._is_procedural_query(message) and best_score >= PROCEDURAL_KNOWLEDGE_SCORE_THRESHOLD:
+            sources = [
+                {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                for c in relevant_chunks[:3]
+            ]
+            return {
+                "success": True,
+                "reply": response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": sources
             }
 
         is_grounded, grounding_reason = self._verify_response_grounding(message, response, relevant_chunks, live_data=live_data)
@@ -1166,7 +1481,8 @@ class RAGChatService:
             }
         
         # 2. Retrieve from document knowledge base first
-        preferred_top_k = max(self.max_chunks, 12) if self._is_library_hours_query(message) else self.max_chunks
+        should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
+        preferred_top_k = max(self.max_chunks, 12) if should_expand_top_k else self.max_chunks
         chunks, best_score = self.retrieve_context(
             message,
             top_k=preferred_top_k,
@@ -1221,12 +1537,32 @@ class RAGChatService:
                 "debug": debug
             }
 
+        booking_guide_response = self._try_answer_booking_guide_from_knowledge(message, chunks, best_score)
+        if booking_guide_response:
+            debug["generation"]["action_reason"] = "Answered directly from booking guide knowledge"
+            return {
+                "success": True,
+                "reply": booking_guide_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
+
         faq_response = self._try_answer_faq_from_top_chunk(message, chunks, best_score)
         if faq_response:
             debug["generation"]["action_reason"] = "Answered directly from FAQ chunk"
             return {
                 "success": True,
                 "reply": faq_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
+
+        procedural_response = self._try_answer_procedural_from_top_chunks(message, chunks, best_score)
+        if procedural_response:
+            debug["generation"]["action_reason"] = "Answered directly from procedural knowledge chunks"
+            return {
+                "success": True,
+                "reply": procedural_response,
                 "action": ActionType.NONE,
                 "debug": debug
             }
@@ -1282,6 +1618,17 @@ class RAGChatService:
         relevant_chunks = [c for c in chunks if c["similarity_score"] >= effective_threshold]
         if not relevant_chunks and use_relaxed_faq_threshold:
             relevant_chunks = chunks[:2]
+        if self._is_procedural_query(message):
+            focused_chunks = [
+                c for c in relevant_chunks
+                if (
+                    "02_huong_dan_dat_cho" in (c.get("source") or "")
+                    or "08_cau_hoi_thuong_gap" in (c.get("source") or "")
+                    or "05_check_in_check_out" in (c.get("source") or "")
+                )
+            ]
+            if focused_chunks:
+                relevant_chunks = focused_chunks[:3]
         if self._is_library_hours_query(message):
             focused_chunks = [
                 c for c in relevant_chunks
@@ -1315,6 +1662,15 @@ class RAGChatService:
                 "success": True,
                 "reply": self._build_no_info_reply(message),
                 "action": ActionType.ESCALATE_TO_LIBRARIAN,
+                "debug": debug
+            }
+
+        if self._is_procedural_query(message) and best_score >= PROCEDURAL_KNOWLEDGE_SCORE_THRESHOLD:
+            debug["generation"]["action_reason"] = "Accepted procedural answer with high retrieval score"
+            return {
+                "success": True,
+                "reply": response,
+                "action": ActionType.NONE,
                 "debug": debug
             }
 
