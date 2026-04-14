@@ -48,7 +48,7 @@ public class KioskQrAuthService {
     private final KioskWebSocketService kioskWebSocketService;
     private final SimpMessagingTemplate messagingTemplate;
 
-    @Value("${kiosk.qr.ttl-seconds:600}") // 10 minutes default
+    @Value("${kiosk.qr.ttl-seconds:30}") // 30 seconds default
     private int qrTtlSeconds;
 
     @Value("${kiosk.qr.algorithm:HmacSHA256}")

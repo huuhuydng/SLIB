@@ -56,7 +56,7 @@ class FE40_EnableDisableLibraryTest {
                                 .closedReason("Bao tri he thong")
                                 .build();
 
-                when(librarySettingService.toggleLibraryClosed(eq(true), eq("Bao tri he thong")))
+                when(librarySettingService.toggleLibraryClosed(eq(true), eq("Bao tri he thong"), isNull(), isNull()))
                                 .thenReturn(dto);
 
                 Map<String, Object> body = Map.of(
@@ -69,7 +69,7 @@ class FE40_EnableDisableLibraryTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.libraryClosed").value(true));
 
-                verify(librarySettingService, times(1)).toggleLibraryClosed(eq(true), eq("Bao tri he thong"));
+                verify(librarySettingService, times(1)).toggleLibraryClosed(eq(true), eq("Bao tri he thong"), isNull(), isNull());
         }
 
         // =========================================
@@ -79,7 +79,7 @@ class FE40_EnableDisableLibraryTest {
         @Test
         @DisplayName("UTCID02: Toggle library without token returns 500 Internal Server Error")
         void toggleLock_noToken_returns500() throws Exception {
-                when(librarySettingService.toggleLibraryClosed(any(), any()))
+                when(librarySettingService.toggleLibraryClosed(any(), any(), any(), any()))
                                 .thenThrow(new RuntimeException("Unauthorized"));
 
                 Map<String, Object> body = Map.of("closed", true, "reason", "test");
@@ -97,7 +97,7 @@ class FE40_EnableDisableLibraryTest {
         @Test
         @DisplayName("UTCID03: Toggle library with non-admin JWT returns 403 Forbidden")
         void toggleLock_nonAdmin_returns403Forbidden() throws Exception {
-                when(librarySettingService.toggleLibraryClosed(any(), any()))
+                when(librarySettingService.toggleLibraryClosed(any(), any(), any(), any()))
                                 .thenThrow(new org.springframework.security.access.AccessDeniedException(
                                                 "Khong co quyen truy cap"));
 
@@ -116,7 +116,7 @@ class FE40_EnableDisableLibraryTest {
         @Test
         @DisplayName("UTCID04: Toggle library to same status returns 400 Bad Request")
         void toggleLock_sameStatus_returns400BadRequest() throws Exception {
-                when(librarySettingService.toggleLibraryClosed(any(), any()))
+                when(librarySettingService.toggleLibraryClosed(any(), any(), any(), any()))
                                 .thenThrow(new slib.com.example.exception.BadRequestException(
                                                 "Thu vien da o trang thai nay"));
 
@@ -135,7 +135,7 @@ class FE40_EnableDisableLibraryTest {
         @Test
         @DisplayName("UTCID05: Toggle library with system error returns 500 Internal Server Error")
         void toggleLock_systemError_returns500() throws Exception {
-                when(librarySettingService.toggleLibraryClosed(any(), any()))
+                when(librarySettingService.toggleLibraryClosed(any(), any(), any(), any()))
                                 .thenThrow(new RuntimeException("Database connection failed"));
 
                 Map<String, Object> body = Map.of("closed", false, "reason", "");

@@ -39,11 +39,20 @@ public class LibrarySettingController {
     /**
      * Toggle đóng/mở thư viện (Admin only)
      * POST /slib/settings/library/toggle-lock
-     * Body: { "closed": true/false, "reason": "Lý do đóng" }
+     * Body: {
+     *   "closed": true/false,
+     *   "reason": "Lý do đóng",
+     *   "closedFrom": "2026-04-14T08:00:00",
+     *   "closedUntil": "2026-04-16T08:00:00"
+     * }
      */
     @PostMapping("/library/toggle-lock")
     public ResponseEntity<LibrarySettingDTO> toggleLock(@Valid @RequestBody LibraryLockToggleRequest body) {
-        return ResponseEntity.ok(librarySettingService.toggleLibraryClosed(body.getClosed(), body.getReason()));
+        return ResponseEntity.ok(librarySettingService.toggleLibraryClosed(
+                body.getClosed(),
+                body.getReason(),
+                body.getClosedFrom(),
+                body.getClosedUntil()));
     }
 
     /**

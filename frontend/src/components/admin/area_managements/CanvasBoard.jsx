@@ -1123,7 +1123,7 @@ function CanvasBoard() {
         </div>
       </div>
 
-	      {showConflictPanel && (
+      {showConflictPanel && (
         <div style={{
           position: 'absolute',
           top: '86px',
@@ -1155,120 +1155,7 @@ function CanvasBoard() {
               <div style={{ padding: '14px', borderRadius: '12px', background: '#F0FDF4', color: '#166534', fontWeight: 600 }}>
                 Sơ đồ hiện tại không có xung đột. Anh có thể lưu nháp hoặc xuất bản.
               </div>
-	      )}
-
-        {showScheduleDialog && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 220,
-            background: 'rgba(15, 23, 42, 0.24)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px',
-          }}>
-            <div style={{
-              width: 'min(460px, 100%)',
-              background: 'white',
-              borderRadius: '20px',
-              boxShadow: '0 24px 80px rgba(15, 23, 42, 0.24)',
-              border: '1px solid #E2E8F0',
-              padding: '22px',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Hẹn giờ áp dụng sơ đồ</div>
-                  <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
-                    Hệ thống sẽ tự xuất bản snapshot hiện tại vào đúng thời điểm anh chọn nếu lúc đó vẫn an toàn để áp dụng.
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowScheduleDialog(false)}
-                  style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}
-                >
-                  Đóng
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#334155', fontWeight: 600 }}>
-                  Thời điểm áp dụng
-                  <input
-                    type="datetime-local"
-                    value={scheduleDateTime}
-                    min={toDateTimeLocalValue(new Date().toISOString())}
-                    onChange={(event) => setScheduleDateTime(event.target.value)}
-                    style={{
-                      borderRadius: '12px',
-                      border: '1px solid #CBD5E1',
-                      padding: '12px 14px',
-                      fontSize: '14px',
-                      color: '#0F172A',
-                    }}
-                  />
-                </label>
-
-                {draftMeta?.scheduledPublish && (
-                  <div style={{
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    background: '#F8FAFC',
-                    border: '1px solid #E2E8F0',
-                    fontSize: '13px',
-                    color: '#475569',
-                  }}>
-                    Lịch hiện tại: {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
-                  </div>
-                )}
-
-                <div style={{
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  background: '#FFF7ED',
-                  color: '#9A3412',
-                  fontSize: '13px',
-                  lineHeight: 1.45,
-                }}>
-                  Nếu đến giờ hẹn mà sơ đồ vẫn đụng ghế đang được sử dụng hoặc booking không thể thay thế an toàn, hệ thống sẽ không auto-publish và sẽ ghi lại lý do thất bại.
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-                <button
-                  onClick={() => setShowScheduleDialog(false)}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '12px',
-                    border: '1px solid #CBD5E1',
-                    background: 'white',
-                    color: '#475569',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  Đóng
-                </button>
-                <button
-                  onClick={handleSchedulePublish}
-                  disabled={!scheduleDateTime || isScheduling}
-                  style={{
-                    padding: '10px 18px',
-                    borderRadius: '12px',
-                    border: 'none',
-                    background: isScheduling ? '#E9D5FF' : 'linear-gradient(135deg, #A855F7 0%, #7C3AED 100%)',
-                    color: 'white',
-                    cursor: !scheduleDateTime || isScheduling ? 'not-allowed' : 'pointer',
-                    fontWeight: 700,
-                    opacity: !scheduleDateTime ? 0.7 : 1,
-                  }}
-                >
-                  {isScheduling ? 'Đang lưu lịch...' : 'Lưu lịch áp dụng'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            )}
             {validationConflicts.map((conflict, index) => (
               <div
                 key={`${conflict.code}-${conflict.entityKey}-${index}`}
@@ -1283,6 +1170,119 @@ function CanvasBoard() {
                 <div style={{ fontSize: '13px', color: '#475569' }}>{conflict.message}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {showScheduleDialog && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 220,
+          background: 'rgba(15, 23, 42, 0.24)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        }}>
+          <div style={{
+            width: 'min(460px, 100%)',
+            background: 'white',
+            borderRadius: '20px',
+            boxShadow: '0 24px 80px rgba(15, 23, 42, 0.24)',
+            border: '1px solid #E2E8F0',
+            padding: '22px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Hẹn giờ áp dụng sơ đồ</div>
+                <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
+                  Hệ thống sẽ tự xuất bản snapshot hiện tại vào đúng thời điểm anh chọn nếu lúc đó vẫn an toàn để áp dụng.
+                </div>
+              </div>
+              <button
+                onClick={() => setShowScheduleDialog(false)}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#334155', fontWeight: 600 }}>
+                Thời điểm áp dụng
+                <input
+                  type="datetime-local"
+                  value={scheduleDateTime}
+                  min={toDateTimeLocalValue(new Date().toISOString())}
+                  onChange={(event) => setScheduleDateTime(event.target.value)}
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid #CBD5E1',
+                    padding: '12px 14px',
+                    fontSize: '14px',
+                    color: '#0F172A',
+                  }}
+                />
+              </label>
+
+              {draftMeta?.scheduledPublish && (
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  fontSize: '13px',
+                  color: '#475569',
+                }}>
+                  Lịch hiện tại: {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
+                </div>
+              )}
+
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: '#FFF7ED',
+                color: '#9A3412',
+                fontSize: '13px',
+                lineHeight: 1.45,
+              }}>
+                Nếu đến giờ hẹn mà sơ đồ vẫn đụng ghế đang được sử dụng hoặc booking không thể thay thế an toàn, hệ thống sẽ không auto-publish và sẽ ghi lại lý do thất bại.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+              <button
+                onClick={() => setShowScheduleDialog(false)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid #CBD5E1',
+                  background: 'white',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Đóng
+              </button>
+              <button
+                onClick={handleSchedulePublish}
+                disabled={!scheduleDateTime || isScheduling}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: isScheduling ? '#E9D5FF' : 'linear-gradient(135deg, #A855F7 0%, #7C3AED 100%)',
+                  color: 'white',
+                  cursor: !scheduleDateTime || isScheduling ? 'not-allowed' : 'pointer',
+                  fontWeight: 700,
+                  opacity: !scheduleDateTime ? 0.7 : 1,
+                }}
+              >
+                {isScheduling ? 'Đang lưu lịch...' : 'Lưu lịch áp dụng'}
+              </button>
+            </div>
           </div>
         </div>
       )}

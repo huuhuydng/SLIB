@@ -272,9 +272,19 @@ async def legacy_chat(request: ChatRequest):
             action=ActionType.ESCALATE_TO_LIBRARIAN
         )
     
+    from app.services.mongo_service import get_mongo_service
+    mongo_service = get_mongo_service()
+    raw_history = mongo_service.get_session_history(session_id, limit=6)
+    chat_history = [
+        {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+        for msg in raw_history
+    ] if raw_history else None
+
+    mongo_service.save_message(session_id, "user", request.message)
+
     # Use RAG service
     rag_service = get_rag_chat_service()
-    result = rag_service.query(request.message)
+    result = rag_service.query(request.message, chat_history=chat_history)
     
     needs_review = result["action"] == ActionType.ESCALATE_TO_LIBRARIAN
     
@@ -288,9 +298,6 @@ async def legacy_chat(request: ChatRequest):
     confidence_score = min(result["similarity_score"], 1.0) if not needs_review else 0.3
     
     # Save to MongoDB (để backend Java có thể đọc qua /api/v1/chat/history/{session_id})
-    from app.services.mongo_service import get_mongo_service
-    mongo_service = get_mongo_service()
-    mongo_service.save_message(session_id, "user", request.message)
     mongo_service.save_message(session_id, "assistant", result["reply"],
                                action=result["action"].value if result["action"] else None)
     

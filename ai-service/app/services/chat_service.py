@@ -9,6 +9,7 @@ import os
 import re
 import unicodedata
 import hashlib
+import time
 import httpx
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
@@ -198,6 +199,9 @@ class RAGChatService:
             template=RAG_SYSTEM_PROMPT,
             input_variables=["context", "question", "live_data", "chat_history"]
         )
+        self._runtime_config_refresh_interval_seconds = 120.0
+        self._last_runtime_config_refresh_at = 0.0
+        self._knowledge_markdown_cache: Dict[str, str] = {}
         
         logger.info(
             f"[RAGChatService] Initialized. Model={self.model}, "
@@ -212,8 +216,17 @@ class RAGChatService:
             num_predict=self.max_tokens
         )
 
-    def _refresh_runtime_config(self) -> None:
+    def _refresh_runtime_config(self, force: bool = False) -> None:
         """Sync runtime model/url with the AI config managed in the Java backend."""
+        now = time.monotonic()
+        if (
+            not force
+            and self._last_runtime_config_refresh_at
+            and now - self._last_runtime_config_refresh_at < self._runtime_config_refresh_interval_seconds
+        ):
+            return
+
+        self._last_runtime_config_refresh_at = now
         try:
             config = self.java_client.get_ai_config(force_refresh=True)
         except Exception as exc:
@@ -572,12 +585,44 @@ class RAGChatService:
             or normalized.strip() == "dat cho"
         )
 
+    def _is_google_login_query(self, query: str) -> bool:
+        normalized = self._normalize_for_match(query)
+        has_google = "google" in normalized or "oauth" in normalized
+        has_login = (
+            "dang nhap" in normalized
+            or "login" in normalized
+            or "dang nhap bang google" in normalized
+        )
+        return has_google and has_login
+
+    def _is_google_login_issue_query(self, query: str) -> bool:
+        normalized = self._normalize_for_match(query)
+        if not self._is_google_login_query(query):
+            return False
+
+        issue_terms = (
+            "khong duoc",
+            "khong dang nhap duoc",
+            "bi tu choi",
+            "bi loi",
+            "that bai",
+            "khong vao duoc",
+            "loi",
+            "tu choi",
+        )
+        return any(term in normalized for term in issue_terms)
+
     def _load_knowledge_base_markdown(self, filename: str) -> str:
+        if filename in self._knowledge_markdown_cache:
+            return self._knowledge_markdown_cache[filename]
+
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base"))
         document_path = os.path.join(base_dir, filename)
         try:
             with open(document_path, "r", encoding="utf-8") as file:
-                return file.read()
+                content = file.read()
+                self._knowledge_markdown_cache[filename] = content
+                return content
         except OSError as exc:
             logger.warning("[RAGChatService] Cannot read knowledge document %s: %s", filename, exc)
             return ""
@@ -599,6 +644,44 @@ class RAGChatService:
             section_lines.append(line)
 
         return section_lines
+
+    def _extract_markdown_heading_section(self, markdown_text: str, heading: str) -> List[str]:
+        lines = markdown_text.splitlines()
+        section_lines: List[str] = []
+        in_section = False
+        heading_level = len(heading) - len(heading.lstrip("#"))
+
+        for raw_line in lines:
+            line = raw_line.rstrip()
+            if not in_section:
+                if line.strip() == heading:
+                    in_section = True
+                continue
+
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                current_level = len(stripped) - len(stripped.lstrip("#"))
+                if current_level <= heading_level:
+                    break
+
+            section_lines.append(line)
+
+        return section_lines
+
+    def _extract_markdown_numbered_steps(self, section_lines: List[str]) -> List[str]:
+        return [
+            line.strip()
+            for line in section_lines
+            if re.match(r"^\d+\.\s+", line.strip())
+        ]
+
+    def _extract_markdown_bullets(self, section_lines: List[str]) -> List[str]:
+        bullets: List[str] = []
+        for raw_line in section_lines:
+            stripped = raw_line.strip()
+            if stripped.startswith(("-", "*")):
+                bullets.append(re.sub(r"^\s*[-*]\s*", "", stripped))
+        return bullets
 
     def _build_booking_steps_from_mobile_guide(self, section_lines: List[str]) -> List[str]:
         steps: List[str] = []
@@ -674,6 +757,59 @@ class RAGChatService:
             condensed_steps.append(f"{index}. {normalized_step}")
 
         return "Bạn có thể đặt chỗ theo các bước sau:\n" + "\n".join(condensed_steps)
+
+    def _try_answer_google_login_from_knowledge(self, query: str) -> Optional[str]:
+        if not self._is_google_login_query(query):
+            return None
+
+        faq_markdown = self._load_knowledge_base_markdown("08_cau_hoi_thuong_gap.md")
+        account_markdown = self._load_knowledge_base_markdown("07_tai_khoan_va_bao_mat.md")
+        if not faq_markdown or not account_markdown:
+            return None
+
+        if self._is_google_login_issue_query(query):
+            issue_lines = self._extract_markdown_heading_section(
+                faq_markdown,
+                "### Tôi đăng nhập Google nhưng bị từ chối?",
+            )
+            checks = self._extract_markdown_bullets(issue_lines)
+            if checks:
+                response_lines = ["Bạn hãy kiểm tra các điểm sau:"]
+                for index, item in enumerate(checks, start=1):
+                    response_lines.append(f"{index}. {item}")
+                response_lines.append(
+                    "Nếu đã đúng các điều trên mà vẫn không đăng nhập được, bạn hãy liên hệ thủ thư hoặc quản trị viên."
+                )
+                return "\n".join(response_lines)
+
+        login_lines = self._extract_markdown_heading_section(
+            account_markdown,
+            "### Đăng nhập bằng Google (FPT)",
+        )
+        login_steps = self._extract_markdown_numbered_steps(login_lines)
+        login_notes = self._extract_markdown_bullets(login_lines)
+        if not login_steps:
+            return None
+
+        response_lines = ["Bạn có thể đăng nhập Google theo các bước sau:"]
+        response_lines.extend(login_steps[:5])
+
+        condensed_notes = []
+        for note in login_notes:
+            normalized_note = self._normalize_for_match(note)
+            if "chi tai khoan google da duoc cap quyen" in normalized_note:
+                condensed_notes.append("Chỉ tài khoản đã được cấp quyền trong hệ thống mới đăng nhập được.")
+            elif "email ca nhan" in normalized_note:
+                condensed_notes.append("Email cá nhân không được hỗ trợ.")
+            elif "tai khoan sinh vien phai duoc quan tri vien tao san" in normalized_note:
+                condensed_notes.append("Tài khoản sinh viên phải được tạo sẵn trong hệ thống.")
+
+        if condensed_notes:
+            response_lines.append("Lưu ý:")
+            for note in condensed_notes[:3]:
+                response_lines.append(f"- {note}")
+
+        return "\n".join(response_lines)
 
     def _chunk_has_instructional_structure(self, content: str) -> bool:
         if not content:
@@ -874,6 +1010,7 @@ class RAGChatService:
         r'bao nhiêu\s*lượt',
         r'(điểm uy tín|uy tín|uy tin)',
         r'(bị trừ|trừ|cộng)\s*bao nhiêu\s*điểm',
+        r'(đăng nhập|dang nhap|login|google|oauth|mật khẩu|mat khau|otp|tài khoản|tai khoan)',
     ]
 
     def _get_realtime_embeddings(self):
@@ -1209,6 +1346,19 @@ class RAGChatService:
                 "sources": []
             }
 
+        google_login_response = self._try_answer_google_login_from_knowledge(message)
+        if google_login_response:
+            return {
+                "success": True,
+                "reply": google_login_response,
+                "action": ActionType.NONE,
+                "similarity_score": 1.0,
+                "sources": [
+                    {"source": "08_cau_hoi_thuong_gap", "score": 1.0},
+                    {"source": "07_tai_khoan_va_bao_mat", "score": 1.0},
+                ]
+            }
+
         should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
         preferred_top_k = max(self.max_chunks, 12) if should_expand_top_k else self.max_chunks
 
@@ -1479,6 +1629,16 @@ class RAGChatService:
                 "action": ActionType.NONE, 
                 "debug": debug
             }
+
+        google_login_response = self._try_answer_google_login_from_knowledge(message)
+        if google_login_response:
+            debug["generation"]["action_reason"] = "Answered directly from Google login knowledge"
+            return {
+                "success": True,
+                "reply": google_login_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
         
         # 2. Retrieve from document knowledge base first
         should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
@@ -1696,7 +1856,7 @@ class RAGChatService:
     def test_connection(self) -> Dict[str, Any]:
         """Test RAG service connections"""
         try:
-            self._refresh_runtime_config()
+            self._refresh_runtime_config(force=True)
 
             # Test embedding
             embed_result = self.embedding_service.test_connection()
