@@ -70,6 +70,56 @@ const parseApiError = async (response, fallbackMessage) => {
   return fallbackMessage;
 };
 
+const getNowDateTimeLocalInput = () => {
+  const now = new Date();
+  now.setSeconds(0, 0);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const toDateTimeLocalInput = (value) => {
+  if (!value) return '';
+  const normalized = String(value);
+  return normalized.length >= 16 ? normalized.slice(0, 16) : '';
+};
+
+const formatDateTimeDisplay = (value) => {
+  if (!value) return '';
+  try {
+    const normalized = String(value).length === 16 ? `${value}:00` : value;
+    return new Date(normalized).toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return value;
+  }
+};
+
+const addDaysToDateTimeInput = (startValue, days) => {
+  if (!startValue) return '';
+  const start = new Date(startValue);
+  if (Number.isNaN(start.getTime())) return '';
+  const next = new Date(start);
+  next.setDate(next.getDate() + Math.max(1, Number(days) || 1));
+  const local = new Date(next.getTime() - next.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+
+const toLocalDateTimePayload = (value) => (value ? `${value}:00` : null);
+
+const resolveClosureDurationDays = (startValue, endValue) => {
+  if (!startValue || !endValue) return 1;
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 1;
+  const diffDays = Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.max(1, diffDays || 1);
+};
+
 const SystemConfig = () => {
   const toast = useToast();
   const { confirm } = useConfirm();
@@ -91,6 +141,10 @@ const SystemConfig = () => {
   // Library Lock State
   const [libraryClosed, setLibraryClosed] = useState(false);
   const [closedReason, setClosedReason] = useState('');
+  const [scheduledClosedFromAt, setScheduledClosedFromAt] = useState('');
+  const [scheduledClosedUntilAt, setScheduledClosedUntilAt] = useState('');
+  const [closureFormStartAt, setClosureFormStartAt] = useState(getNowDateTimeLocalInput());
+  const [closureDurationDays, setClosureDurationDays] = useState(1);
 
   // Library Config State
   const [libraryConfig, setLibraryConfig] = useState(DEFAULT_LIBRARY_CONFIG);
@@ -98,6 +152,10 @@ const SystemConfig = () => {
   const applyLibrarySettings = (data) => {
     setLibraryClosed(data.libraryClosed || false);
     setClosedReason(data.closedReason || '');
+    setScheduledClosedFromAt(data.closedFromAt || '');
+    setScheduledClosedUntilAt(data.closedUntilAt || '');
+    setClosureFormStartAt(toDateTimeLocalInput(data.closedFromAt) || getNowDateTimeLocalInput());
+    setClosureDurationDays(resolveClosureDurationDays(data.closedFromAt, data.closedUntilAt));
     setLibraryConfig({
       openTime: data.openTime || DEFAULT_LIBRARY_CONFIG.openTime,
       closeTime: data.closeTime || DEFAULT_LIBRARY_CONFIG.closeTime,
@@ -274,29 +332,79 @@ const SystemConfig = () => {
     setLibraryConfig(prev => ({ ...prev, [key]: value }));
   };
 
-  // Toggle library lock
-  const handleToggleLock = async () => {
-    const newClosed = !libraryClosed;
-    if (newClosed && !closedReason.trim()) {
-      toast.warning('Vui lòng nhập lý do đóng thư viện');
+  const previewClosedUntilAt = addDaysToDateTimeInput(closureFormStartAt, closureDurationDays);
+  const hasClosureSchedule = Boolean(scheduledClosedFromAt || scheduledClosedUntilAt);
+  const isFutureClosureScheduled = hasClosureSchedule && !libraryClosed;
+
+  const handleScheduleLibraryClosure = async () => {
+    if (!closedReason.trim()) {
+      toast.warning('Vui lòng nhập lý do tạm đóng thư viện');
       return;
     }
+    if (!closureFormStartAt) {
+      toast.warning('Vui lòng chọn thời điểm bắt đầu tạm đóng');
+      return;
+    }
+    if (!previewClosedUntilAt) {
+      toast.warning('Không thể tính được thời điểm tự mở lại');
+      return;
+    }
+
     setToggling(true);
     try {
       const response = await fetch(`${API_BASE_URL}/library/toggle-lock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ closed: newClosed, reason: newClosed ? closedReason.trim() : null }),
+        body: JSON.stringify({
+          closed: true,
+          reason: closedReason.trim(),
+          closedFrom: toLocalDateTimePayload(closureFormStartAt),
+          closedUntil: toLocalDateTimePayload(previewClosedUntilAt),
+        }),
       });
       if (response.ok) {
         const data = await response.json();
         applyLibrarySettings(data);
-        toast.success(newClosed ? 'Đã tạm đóng thư viện' : 'Đã mở lại thư viện');
+        toast.success(isFutureClosureScheduled ? 'Đã cập nhật lịch tạm đóng thư viện' : 'Đã lên lịch tạm đóng thư viện');
       } else {
-        toast.error(await parseApiError(response, 'Lỗi khi thay đổi trạng thái thư viện'));
+        toast.error(await parseApiError(response, 'Lỗi khi lên lịch tạm đóng thư viện'));
       }
     } catch (error) {
-      console.error('Error toggling lock:', error);
+      console.error('Error scheduling library closure:', error);
+      toast.error(error?.message || 'Lỗi kết nối server');
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  const handleClearLibraryClosure = async () => {
+    const confirmed = await confirm({
+      title: libraryClosed ? 'Mở lại thư viện' : 'Hủy lịch tạm đóng',
+      message: libraryClosed
+        ? 'Thư viện sẽ được mở lại ngay lập tức. Bạn có muốn tiếp tục không?'
+        : 'Lịch tạm đóng thư viện đang chờ sẽ bị hủy. Bạn có muốn tiếp tục không?',
+      confirmText: libraryClosed ? 'Mở lại ngay' : 'Hủy lịch',
+      variant: libraryClosed ? 'warning' : 'danger',
+    });
+
+    if (!confirmed) return;
+
+    setToggling(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/library/toggle-lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ closed: false, reason: null, closedFrom: null, closedUntil: null }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        applyLibrarySettings(data);
+        toast.success(libraryClosed ? 'Đã mở lại thư viện' : 'Đã hủy lịch tạm đóng thư viện');
+      } else {
+        toast.error(await parseApiError(response, 'Lỗi khi cập nhật trạng thái thư viện'));
+      }
+    } catch (error) {
+      console.error('Error clearing library closure:', error);
       toast.error(error?.message || 'Lỗi kết nối server');
     } finally {
       setToggling(false);
@@ -496,13 +604,21 @@ const SystemConfig = () => {
                   </p>
                 </div>
                 <div style={{ padding: '24px' }}>
-                  {/* Library Lock Toggle */}
+                    {/* Library Lock Schedule */}
                   <div style={{
                     marginBottom: '32px',
                     padding: '20px',
-                    background: libraryClosed ? 'linear-gradient(135deg, #FFF5F5, #FED7D7)' : 'linear-gradient(135deg, #F0FFF4, #C6F6D5)',
+                    background: libraryClosed
+                      ? 'linear-gradient(135deg, #FFF5F5, #FED7D7)'
+                      : hasClosureSchedule
+                        ? 'linear-gradient(135deg, #FFFAF0, #FEEBC8)'
+                        : 'linear-gradient(135deg, #F0FFF4, #C6F6D5)',
                     borderRadius: '16px',
-                    border: libraryClosed ? '2px solid #FC8181' : '2px solid #68D391',
+                    border: libraryClosed
+                      ? '2px solid #FC8181'
+                      : hasClosureSchedule
+                        ? '2px solid #F6AD55'
+                        : '2px solid #68D391',
                     transition: 'all 0.3s ease'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -511,72 +627,45 @@ const SystemConfig = () => {
                           width: '44px',
                           height: '44px',
                           borderRadius: '12px',
-                          background: libraryClosed ? '#FC8181' : '#68D391',
+                          background: libraryClosed ? '#FC8181' : hasClosureSchedule ? '#F6AD55' : '#68D391',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           transition: 'background 0.3s ease'
                         }}>
-                          {libraryClosed ? <Lock size={22} color="#fff" /> : <Unlock size={22} color="#fff" />}
+                          {libraryClosed ? <Lock size={22} color="#fff" /> : hasClosureSchedule ? <Calendar size={22} color="#fff" /> : <Unlock size={22} color="#fff" />}
                         </div>
                         <div>
-                          <h3 style={{ fontSize: '16px', fontWeight: '700', color: libraryClosed ? '#C53030' : '#276749', margin: '0 0 2px 0' }}>
-                            {libraryClosed ? 'Thư viện đang tạm đóng' : 'Thư viện đang hoạt động'}
+                          <h3 style={{
+                            fontSize: '16px',
+                            fontWeight: '700',
+                            color: libraryClosed ? '#C53030' : hasClosureSchedule ? '#C05621' : '#276749',
+                            margin: '0 0 2px 0'
+                          }}>
+                            {libraryClosed
+                              ? 'Thư viện đang tạm đóng'
+                              : hasClosureSchedule
+                                ? 'Đã lên lịch tạm đóng thư viện'
+                                : 'Thư viện đang hoạt động'}
                           </h3>
-                          <p style={{ fontSize: '13px', color: libraryClosed ? '#E53E3E' : '#38A169', margin: 0, fontWeight: '500' }}>
-                            {libraryClosed ? 'Sinh viên không thể đặt chỗ' : 'Sinh viên có thể đặt chỗ bình thường'}
+                          <p style={{
+                            fontSize: '13px',
+                            color: libraryClosed ? '#E53E3E' : hasClosureSchedule ? '#DD6B20' : '#38A169',
+                            margin: 0,
+                            fontWeight: '500'
+                          }}>
+                            {libraryClosed
+                              ? (scheduledClosedUntilAt
+                                  ? `Tự mở lại vào ${formatDateTimeDisplay(scheduledClosedUntilAt)}`
+                                  : 'Sinh viên không thể đặt chỗ cho đến khi admin mở lại')
+                              : hasClosureSchedule
+                                ? `Dự kiến đóng từ ${formatDateTimeDisplay(scheduledClosedFromAt)}`
+                                : 'Sinh viên có thể đặt chỗ bình thường'}
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={handleToggleLock}
-                        disabled={toggling}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '10px 20px',
-                          background: libraryClosed ? '#38A169' : '#E53E3E',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          cursor: toggling ? 'not-allowed' : 'pointer',
-                          opacity: toggling ? 0.7 : 1,
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Power size={16} />}
-                        {libraryClosed ? 'Mở lại thư viện' : 'Tạm đóng thư viện'}
-                      </button>
                     </div>
-                    {/* Reason input - show when open and about to close */}
-                    {!libraryClosed && (
-                      <div style={{ marginTop: '12px' }}>
-                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
-                          Lý do tạm đóng (bắt buộc)
-                        </label>
-                        <input
-                          type="text"
-                          value={closedReason}
-                          onChange={(e) => setClosedReason(e.target.value)}
-                          placeholder="VD: Sự kiện đặc biệt, Bảo trì hệ thống..."
-                          style={{
-                            width: '100%',
-                            padding: '10px 14px',
-                            border: '2px solid #E2E8F0',
-                            borderRadius: '10px',
-                            fontSize: '14px',
-                            outline: 'none',
-                            background: '#fff',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-                    )}
-                    {/* Show reason when closed */}
-                    {libraryClosed && closedReason && (
+                    {closedReason && (
                       <div style={{
                         marginTop: '8px',
                         padding: '10px 14px',
@@ -590,6 +679,195 @@ const SystemConfig = () => {
                         <span style={{ fontSize: '13px', color: '#742A2A', fontWeight: '500' }}>
                           Lý do: {closedReason}
                         </span>
+                      </div>
+                    )}
+
+                    {!libraryClosed && (
+                      <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px' }}>
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
+                            Lý do tạm đóng
+                          </label>
+                          <input
+                            type="text"
+                            value={closedReason}
+                            onChange={(e) => setClosedReason(e.target.value)}
+                            placeholder="VD: Bảo trì hệ thống điện, Sự kiện đặc biệt..."
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '10px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              background: '#fff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
+                            Bắt đầu tạm đóng
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={closureFormStartAt}
+                            min={getNowDateTimeLocalInput()}
+                            onChange={(e) => setClosureFormStartAt(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '10px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              background: '#fff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '6px' }}>
+                            Tạm đóng trong bao nhiêu ngày
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            value={closureDurationDays}
+                            onChange={(e) => setClosureDurationDays(Math.max(1, parseInt(e.target.value || '1', 10)))}
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '10px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              background: '#fff',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{
+                          gridColumn: 'span 2',
+                          padding: '10px 14px',
+                          background: '#fff',
+                          borderRadius: '10px',
+                          border: '1px dashed #F6AD55',
+                          fontSize: '13px',
+                          color: '#7B341E',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <Timer size={16} color="#DD6B20" />
+                          {previewClosedUntilAt
+                            ? `Hệ thống sẽ tự mở lại vào ${formatDateTimeDisplay(previewClosedUntilAt)}.`
+                            : 'Vui lòng chọn thời điểm bắt đầu hợp lệ để hệ thống tính thời điểm tự mở lại.'}
+                        </div>
+
+                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={handleScheduleLibraryClosure}
+                            disabled={toggling}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '10px 20px',
+                              background: hasClosureSchedule ? '#DD6B20' : '#E53E3E',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              cursor: toggling ? 'not-allowed' : 'pointer',
+                              opacity: toggling ? 0.7 : 1,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Power size={16} />}
+                            {hasClosureSchedule ? 'Cập nhật lịch tạm đóng' : 'Lên lịch tạm đóng'}
+                          </button>
+
+                          {hasClosureSchedule && (
+                            <button
+                              onClick={handleClearLibraryClosure}
+                              disabled={toggling}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 20px',
+                                background: '#fff',
+                                color: '#C53030',
+                                border: '2px solid #FC8181',
+                                borderRadius: '10px',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                cursor: toggling ? 'not-allowed' : 'pointer',
+                                opacity: toggling ? 0.7 : 1
+                              }}
+                            >
+                              <X size={16} />
+                              Hủy lịch tạm đóng
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {libraryClosed && (
+                      <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        {scheduledClosedFromAt && (
+                          <div style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255,255,255,0.72)',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            color: '#742A2A',
+                            fontWeight: '500'
+                          }}>
+                            Bắt đầu: {formatDateTimeDisplay(scheduledClosedFromAt)}
+                          </div>
+                        )}
+                        {scheduledClosedUntilAt && (
+                          <div style={{
+                            padding: '10px 14px',
+                            background: 'rgba(255,255,255,0.72)',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            color: '#742A2A',
+                            fontWeight: '500'
+                          }}>
+                            Tự mở lại: {formatDateTimeDisplay(scheduledClosedUntilAt)}
+                          </div>
+                        )}
+                        <button
+                          onClick={handleClearLibraryClosure}
+                          disabled={toggling}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 20px',
+                            background: '#38A169',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            cursor: toggling ? 'not-allowed' : 'pointer',
+                            opacity: toggling ? 0.7 : 1,
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {toggling ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Unlock size={16} />}
+                          Mở lại thư viện ngay
+                        </button>
                       </div>
                     )}
                   </div>

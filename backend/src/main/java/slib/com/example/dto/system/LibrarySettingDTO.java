@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -56,6 +58,9 @@ public class LibrarySettingDTO {
 
     @Size(max = 500, message = "Lý do đóng thư viện không được vượt quá 500 ký tự")
     private String closedReason; // Lý do đóng thư viện
+
+    private LocalDateTime closedFromAt; // Thời điểm bắt đầu tạm đóng
+    private LocalDateTime closedUntilAt; // Thời điểm tự mở lại
 
     // Notification Settings (FE-51)
     private Boolean notifyBookingSuccess;

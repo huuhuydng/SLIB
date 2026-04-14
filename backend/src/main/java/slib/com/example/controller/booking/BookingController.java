@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.dto.booking.CancelBookingRequest;
+import slib.com.example.dto.booking.ChangeSeatRequest;
 import slib.com.example.dto.booking.ReservationDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.booking.ReservationRepository;
@@ -222,6 +223,31 @@ public class BookingController {
                     currentUserId,
                     cancelledByStaff,
                     request != null ? request.getReason() : null);
+            return ResponseEntity.ok(toDTO(reservation));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/change-seat/{reservationId}")
+    public ResponseEntity<?> changeSeat(
+            @PathVariable UUID reservationId,
+            @RequestBody ChangeSeatRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            if (request == null || request.getSeatId() == null) {
+                return ResponseEntity.badRequest().body("Vui lòng chọn ghế mới");
+            }
+
+            ReservationEntity existingReservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new RuntimeException("Reservation not found"));
+            resolveAuthorizedUserId(existingReservation.getUser().getId());
+            UUID currentUserId = getCurrentUserId();
+
+            ReservationEntity reservation = bookingService.changeSeatForLayoutAffectedReservation(
+                    reservationId,
+                    currentUserId,
+                    request.getSeatId());
             return ResponseEntity.ok(toDTO(reservation));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import slib.com.example.entity.analytics.StudentBehaviorEntity;
 import slib.com.example.repository.analytics.StudentBehaviorRepository;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -59,5 +60,16 @@ public class StudentBehaviorService {
         recordBehavior(userId, StudentBehaviorEntity.BehaviorType.CHECKIN_LATE,
                 "Check-in muộn " + minutesLate + " phút", bookingId, seatId, zoneId, 0,
                 "{\"minutesLate\": " + minutesLate + "}");
+    }
+
+    public boolean hasRecordedSeatHolding(UUID userId, UUID logId, LocalDateTime checkInTime) {
+        String logMarker = logId != null ? "\"logId\":\"" + logId + "\"" : "";
+        String checkInMarker = checkInTime != null ? "\"checkInTime\":\"" + checkInTime + "\"" : "";
+
+        return behaviorRepository.existsRecordedBehavior(
+                userId,
+                StudentBehaviorEntity.BehaviorType.SEAT_HOLDING,
+                logMarker,
+                checkInMarker);
     }
 }

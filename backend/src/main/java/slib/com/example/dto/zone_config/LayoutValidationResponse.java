@@ -14,6 +14,7 @@ import java.util.List;
 @Builder
 public class LayoutValidationResponse {
     private boolean valid;
+    private boolean publishable;
     @Builder.Default
     private List<LayoutConflictResponse> conflicts = new ArrayList<>();
 }

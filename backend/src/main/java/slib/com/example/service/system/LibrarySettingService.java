@@ -10,6 +10,8 @@ import slib.com.example.dto.booking.TimeSlotDTO;
 import slib.com.example.repository.system.LibrarySettingRepository;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
@@ -31,7 +33,8 @@ public class LibrarySettingService {
      * Lấy cấu hình thư viện, tạo default nếu chưa có
      */
     public LibrarySetting getSettings() {
-        return repository.findById(1).orElseGet(() -> repository.save(buildDefaultSettings()));
+        LibrarySetting settings = repository.findById(1).orElseGet(() -> repository.save(buildDefaultSettings()));
+        return syncLibraryClosureState(settings);
     }
 
     /**
@@ -52,6 +55,8 @@ public class LibrarySettingService {
                 .minReputation(settings.getMinReputation())
                 .libraryClosed(settings.getLibraryClosed())
                 .closedReason(settings.getClosedReason())
+                .closedFromAt(settings.getClosedFromAt())
+                .closedUntilAt(settings.getClosedUntilAt())
                 .notifyBookingSuccess(settings.getNotifyBookingSuccess())
                 .notifyCheckinReminder(settings.getNotifyCheckinReminder())
                 .notifyTimeExpiry(settings.getNotifyTimeExpiry())
@@ -133,17 +138,30 @@ public class LibrarySettingService {
      * Toggle trạng thái đóng/mở thư viện
      */
     @Transactional
-    public LibrarySettingDTO toggleLibraryClosed(Boolean closed, String reason) {
+    public LibrarySettingDTO toggleLibraryClosed(Boolean closed, String reason, LocalDateTime closedFrom, LocalDateTime closedUntil) {
         LibrarySetting settings = getSettings();
         boolean nextClosed = closed != null && closed;
 
-        if (Boolean.TRUE.equals(settings.getLibraryClosed()) == nextClosed) {
-            throw new IllegalArgumentException("Thư viện đã ở trạng thái này");
+        if (!nextClosed) {
+            if (!hasClosurePlan(settings)) {
+                throw new IllegalArgumentException("Thư viện hiện không có lịch tạm đóng");
+            }
+
+            settings.setLibraryClosed(false);
+            settings.setClosedReason(null);
+            settings.setClosedFromAt(null);
+            settings.setClosedUntilAt(null);
+            repository.save(settings);
+            return getSettingsDTO();
         }
 
-        settings.setLibraryClosed(nextClosed);
-        settings.setClosedReason(nextClosed ? normalizeClosedReason(reason) : null);
+        LocalDateTime normalizedStart = closedFrom != null ? closedFrom : LocalDateTime.now();
+        validateClosureWindow(normalizedStart, closedUntil);
 
+        settings.setClosedReason(normalizeClosedReason(reason));
+        settings.setClosedFromAt(normalizedStart);
+        settings.setClosedUntilAt(closedUntil);
+        settings.setLibraryClosed(isClosureActive(normalizedStart, closedUntil, LocalDateTime.now()));
         validateSettings(settings);
         repository.save(settings);
         return getSettingsDTO();
@@ -169,6 +187,8 @@ public class LibrarySettingService {
         settings.setMinReputation(defaults.getMinReputation());
         settings.setLibraryClosed(defaults.getLibraryClosed());
         settings.setClosedReason(defaults.getClosedReason());
+        settings.setClosedFromAt(defaults.getClosedFromAt());
+        settings.setClosedUntilAt(defaults.getClosedUntilAt());
         settings.setNotifyBookingSuccess(defaults.getNotifyBookingSuccess());
         settings.setNotifyCheckinReminder(defaults.getNotifyCheckinReminder());
         settings.setNotifyTimeExpiry(defaults.getNotifyTimeExpiry());
@@ -190,16 +210,17 @@ public class LibrarySettingService {
         validateSettings(settings);
         List<TimeSlotDTO> slots = new ArrayList<>();
 
-        LocalTime start = LocalTime.parse(settings.getOpenTime(), TIME_FORMATTER);
-        LocalTime end = LocalTime.parse(settings.getCloseTime(), TIME_FORMATTER);
+        LocalDate anchorDate = LocalDate.of(2000, 1, 1);
+        LocalDateTime start = LocalDateTime.of(anchorDate, LocalTime.parse(settings.getOpenTime(), TIME_FORMATTER));
+        LocalDateTime end = LocalDateTime.of(anchorDate, LocalTime.parse(settings.getCloseTime(), TIME_FORMATTER));
         int durationMinutes = settings.getSlotDuration();
 
-        LocalTime current = start;
-        while (current.plusMinutes(durationMinutes).compareTo(end) <= 0) {
-            LocalTime slotEnd = current.plusMinutes(durationMinutes);
+        LocalDateTime current = start;
+        while (!current.plusMinutes(durationMinutes).isAfter(end)) {
+            LocalDateTime slotEnd = current.plusMinutes(durationMinutes);
 
-            String startStr = current.format(TIME_FORMATTER);
-            String endStr = slotEnd.format(TIME_FORMATTER);
+            String startStr = current.toLocalTime().format(TIME_FORMATTER);
+            String endStr = slotEnd.toLocalTime().format(TIME_FORMATTER);
 
             slots.add(TimeSlotDTO.builder()
                     .startTime(startStr)
@@ -228,6 +249,8 @@ public class LibrarySettingService {
                 .minReputation(0)
                 .libraryClosed(false)
                 .closedReason(null)
+                .closedFromAt(null)
+                .closedUntilAt(null)
                 .notifyBookingSuccess(true)
                 .notifyCheckinReminder(true)
                 .notifyTimeExpiry(true)
@@ -278,11 +301,42 @@ public class LibrarySettingService {
 
         settings.setWorkingDays(normalizeWorkingDays(settings.getWorkingDays()));
 
-        if (Boolean.TRUE.equals(settings.getLibraryClosed())) {
+        if (hasScheduledClosure(settings)) {
+            validateClosureWindow(settings.getClosedFromAt(), settings.getClosedUntilAt());
+            settings.setClosedReason(normalizeClosedReason(settings.getClosedReason()));
+        } else if (Boolean.TRUE.equals(settings.getLibraryClosed())) {
             settings.setClosedReason(normalizeClosedReason(settings.getClosedReason()));
         } else {
             settings.setClosedReason(null);
+            settings.setClosedFromAt(null);
+            settings.setClosedUntilAt(null);
         }
+    }
+
+    private LibrarySetting syncLibraryClosureState(LibrarySetting settings) {
+        if (!hasScheduledClosure(settings)) {
+            return settings;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime closedFromAt = settings.getClosedFromAt();
+        LocalDateTime closedUntilAt = settings.getClosedUntilAt();
+
+        if (closedUntilAt != null && !now.isBefore(closedUntilAt)) {
+            settings.setLibraryClosed(false);
+            settings.setClosedReason(null);
+            settings.setClosedFromAt(null);
+            settings.setClosedUntilAt(null);
+            return repository.save(settings);
+        }
+
+        boolean shouldBeClosed = isClosureActive(closedFromAt, closedUntilAt, now);
+        if (Boolean.TRUE.equals(settings.getLibraryClosed()) != shouldBeClosed) {
+            settings.setLibraryClosed(shouldBeClosed);
+            return repository.save(settings);
+        }
+
+        return settings;
     }
 
     private LocalTime parseTime(String value, String fieldName) {
@@ -334,5 +388,31 @@ public class LibrarySettingService {
             throw new IllegalArgumentException("Lý do đóng thư viện không được vượt quá 500 ký tự");
         }
         return normalized;
+    }
+
+    private void validateClosureWindow(LocalDateTime closedFrom, LocalDateTime closedUntil) {
+        if (closedFrom == null) {
+            throw new IllegalArgumentException("Vui lòng chọn thời điểm bắt đầu tạm đóng");
+        }
+        if (closedUntil != null && !closedUntil.isAfter(closedFrom)) {
+            throw new IllegalArgumentException("Thời điểm tự mở lại phải sau thời điểm bắt đầu tạm đóng");
+        }
+        if (closedUntil != null && !closedUntil.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Thời điểm tự mở lại phải nằm trong tương lai");
+        }
+    }
+
+    private boolean isClosureActive(LocalDateTime closedFrom, LocalDateTime closedUntil, LocalDateTime now) {
+        boolean hasStarted = closedFrom == null || !now.isBefore(closedFrom);
+        boolean notExpired = closedUntil == null || now.isBefore(closedUntil);
+        return hasStarted && notExpired;
+    }
+
+    private boolean hasScheduledClosure(LibrarySetting settings) {
+        return settings.getClosedFromAt() != null || settings.getClosedUntilAt() != null;
+    }
+
+    private boolean hasClosurePlan(LibrarySetting settings) {
+        return Boolean.TRUE.equals(settings.getLibraryClosed()) || hasScheduledClosure(settings);
     }
 }

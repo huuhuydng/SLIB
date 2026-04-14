@@ -21,16 +21,17 @@ import slib.com.example.exception.GlobalExceptionHandler;
 import slib.com.example.service.users.StudentProfileService;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Unit Tests for FE-80: View reputation score
- * Test Report: doc/Report/FE80_TestReport.md
  */
 @WebMvcTest(value = StudentProfileController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
                 slib.com.example.security.JwtAuthenticationFilter.class }))
@@ -59,35 +60,77 @@ class FE80_ViewReputationTest {
         private RequestPostProcessor authenticatedUser(User user) {
                 return request -> {
                         SecurityContextHolder.getContext().setAuthentication(
-                                new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
+                                        new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
                         return request;
                 };
         }
 
         @Test
-        @DisplayName("UTCD01: View student profile returns 200 OK")
-        void viewReputation_validToken_returns200OK() throws Exception {
+        @DisplayName("UTCID01: View current student profile with reputation score")
+        void viewCurrentStudentProfile_withReputationScore() throws Exception {
                 User user = mockUser();
                 StudentProfileResponse response = StudentProfileResponse.builder()
-                        .userId(studentId).reputationScore(100).build();
+                                .userId(studentId)
+                                .reputationScore(100)
+                                .build();
                 when(studentProfileService.getOrCreateProfile(any(User.class))).thenReturn(response);
 
                 mockMvc.perform(get("/slib/student-profile/me")
                                 .with(authenticatedUser(user)))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.reputationScore").value(100));
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.reputationScore").value(100));
         }
 
         @Test
-        @DisplayName("UTCD02: View student profile by userId returns 200 OK")
-        void viewReputation_byUserId_returns200OK() throws Exception {
+        @DisplayName("UTCID02: View student profile by userId")
+        void viewStudentProfile_byUserId() throws Exception {
                 StudentProfileResponse response = StudentProfileResponse.builder()
-                        .userId(studentId).reputationScore(85).build();
+                                .userId(studentId)
+                                .reputationScore(85)
+                                .build();
                 when(studentProfileService.getProfileByUserId(studentId))
-                        .thenReturn(java.util.Optional.of(response));
+                                .thenReturn(Optional.of(response));
 
                 mockMvc.perform(get("/slib/student-profile/{userId}", studentId))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.reputationScore").value(85));
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.reputationScore").value(85));
+        }
+
+        @Test
+        @DisplayName("UTCID03: View student profile by userId when profile does not exist")
+        void viewStudentProfile_byUserIdWhenProfileDoesNotExist() throws Exception {
+                when(studentProfileService.getProfileByUserId(studentId))
+                                .thenReturn(Optional.empty());
+
+                mockMvc.perform(get("/slib/student-profile/{userId}", studentId))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("UTCID04: View current student profile with zero reputation score")
+        void viewCurrentStudentProfile_withZeroReputationScore() throws Exception {
+                User user = mockUser();
+                StudentProfileResponse response = StudentProfileResponse.builder()
+                                .userId(studentId)
+                                .reputationScore(0)
+                                .build();
+                when(studentProfileService.getOrCreateProfile(any(User.class))).thenReturn(response);
+
+                mockMvc.perform(get("/slib/student-profile/me")
+                                .with(authenticatedUser(user)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.reputationScore").value(0));
+        }
+
+        @Test
+        @DisplayName("UTCID05: View current student profile when service fails")
+        void viewCurrentStudentProfile_whenServiceFails() throws Exception {
+                User user = mockUser();
+                when(studentProfileService.getOrCreateProfile(any(User.class)))
+                                .thenThrow(new RuntimeException("Database error"));
+
+                mockMvc.perform(get("/slib/student-profile/me")
+                                .with(authenticatedUser(user)))
+                                .andExpect(status().isInternalServerError());
         }
 }

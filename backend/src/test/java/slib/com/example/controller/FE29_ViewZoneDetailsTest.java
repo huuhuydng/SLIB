@@ -10,6 +10,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+
 import slib.com.example.controller.zone_config.ZoneController;
 import slib.com.example.dto.zone_config.ZoneResponse;
 import slib.com.example.exception.GlobalExceptionHandler;
@@ -17,103 +18,105 @@ import slib.com.example.exception.ResourceNotFoundException;
 import slib.com.example.service.booking.BookingService;
 import slib.com.example.service.zone_config.ZoneService;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * Unit Tests for FE-29: View zone details
- * Test Report: doc/Report/UnitTestReport/FE28_TestReport.md
- */
-@WebMvcTest(value = ZoneController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
-                slib.com.example.security.JwtAuthenticationFilter.class }))
+@WebMvcTest(value = ZoneController.class, excludeFilters = @ComponentScan.Filter(
+        type = FilterType.ASSIGNABLE_TYPE,
+        classes = { slib.com.example.security.JwtAuthenticationFilter.class }))
 @Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("FE-29: View zone details - Unit Tests")
 class FE29_ViewZoneDetailsTest {
 
-        @Autowired
-        private MockMvc mockMvc;
+    @Autowired
+    private MockMvc mockMvc;
 
-        @MockBean
-        private ZoneService zoneService;
+    @MockBean
+    private ZoneService zoneService;
 
-        @MockBean
-        private BookingService bookingService;
+    @MockBean
+    private BookingService bookingService;
 
-        // =========================================
-        // === UTCD01: Valid request - Success ===
-        // =========================================
+    @Test
+    @DisplayName("UTCID01: View zone details with full fields")
+    void viewZoneDetailsWithFullFields() throws Exception {
+        when(zoneService.getZoneById(1)).thenReturn(zoneResponse(1, "Quiet Zone", "Near window", 2, 4, 8, 6, false));
 
-        /**
-         * UTCD01: View zone details with valid token
-         * Precondition: Authorized, Zone exists
-         * Expected: 200 OK
-         */
-        @Test
-        @DisplayName("UTCD01: View zone details with valid token returns 200 OK")
-        void viewZoneDetails_validToken_returns200OK() throws Exception {
-                ZoneResponse response = new ZoneResponse();
-                when(zoneService.getZoneById(1)).thenReturn(response);
+        mockMvc.perform(get("/slib/zones/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zoneId").value(1))
+                .andExpect(jsonPath("$.zoneName").value("Quiet Zone"))
+                .andExpect(jsonPath("$.zoneDes").value("Near window"));
 
-                mockMvc.perform(get("/slib/zones/1"))
-                        .andExpect(status().isOk());
+        verify(zoneService).getZoneById(1);
+    }
 
-                verify(zoneService, times(1)).getZoneById(1);
-        }
+    @Test
+    @DisplayName("UTCID02: View zone details when optional fields are null")
+    void viewZoneDetailsWhenOptionalFieldsAreNull() throws Exception {
+        when(zoneService.getZoneById(2)).thenReturn(zoneResponse(2, "Group Zone", null, 6, 3, 10, 8, true));
 
-        // =========================================
-        // === UTCD02: System error ===
-        // =========================================
+        mockMvc.perform(get("/slib/zones/2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zoneId").value(2))
+                .andExpect(jsonPath("$.zoneName").value("Group Zone"))
+                .andExpect(jsonPath("$.isLocked").value(true));
 
-        /**
-         * UTCD02: View zone details - service error
-         * Expected: 500 Internal Server Error
-         */
-        @Test
-        @DisplayName("UTCD02: View zone details with service error returns 500 Internal Server Error")
-        void viewZoneDetails_serviceError_returns500() throws Exception {
-                when(zoneService.getZoneById(1))
-                        .thenThrow(new RuntimeException("Database error"));
+        verify(zoneService).getZoneById(2);
+    }
 
-                mockMvc.perform(get("/slib/zones/1"))
-                        .andExpect(status().isInternalServerError());
-        }
+    @Test
+    @DisplayName("UTCID03: View zone details with invalid zoneId format")
+    void viewZoneDetailsWithInvalidZoneIdFormat() throws Exception {
+        mockMvc.perform(get("/slib/zones/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
 
-        // =========================================
-        // === UTCD03: Zone not found ===
-        // =========================================
+    @Test
+    @DisplayName("UTCID04: View zone details for non-existent zoneId")
+    void viewZoneDetailsForNonExistentZoneId() throws Exception {
+        when(zoneService.getZoneById(999))
+                .thenThrow(new ResourceNotFoundException("Zone not found with id: 999"));
 
-        /**
-         * UTCD03: View zone details for non-existent zone
-         * Precondition: Authorized, Zone not found
-         * Expected: 404 Not Found
-         */
-        @Test
-        @DisplayName("UTCD03: View zone details for non-existent zone returns 404 Not Found")
-        void viewZoneDetails_zoneNotFound_returns404() throws Exception {
-                when(zoneService.getZoneById(999))
-                        .thenThrow(new ResourceNotFoundException("Zone not found with id: 999"));
+        mockMvc.perform(get("/slib/zones/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Zone not found with id: 999"));
 
-                mockMvc.perform(get("/slib/zones/999"))
-                        .andExpect(status().isNotFound());
+        verify(zoneService).getZoneById(999);
+    }
 
-                verify(zoneService, times(1)).getZoneById(999);
-        }
+    @Test
+    @DisplayName("UTCID05: View zone details when service throws runtime exception")
+    void viewZoneDetailsWhenServiceThrowsRuntimeException() throws Exception {
+        when(zoneService.getZoneById(5)).thenThrow(new RuntimeException("Database error"));
 
-        // =========================================
-        // === UTCD04: Invalid zone ID format ===
-        // =========================================
+        mockMvc.perform(get("/slib/zones/5"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.message").value("Database error"));
 
-        /**
-         * UTCD04: View zone details with invalid zone ID format
-         * Precondition: Authorized, Invalid zone ID format
-         * Expected: 400 Bad Request
-         */
-        @Test
-        @DisplayName("UTCD04: View zone details with invalid zone ID format returns 400 Bad Request")
-        void viewZoneDetails_invalidIdFormat_returns400BadRequest() throws Exception {
-                mockMvc.perform(get("/slib/zones/abc"))
-                        .andExpect(status().isBadRequest());
-        }
+        verify(zoneService).getZoneById(5);
+    }
+
+    private ZoneResponse zoneResponse(Integer zoneId, String zoneName, String zoneDes,
+            Integer positionX, Integer positionY, Integer width, Integer height, Boolean isLocked) {
+        ZoneResponse response = new ZoneResponse();
+        response.setZoneId(zoneId);
+        response.setZoneName(zoneName);
+        response.setZoneDes(zoneDes);
+        response.setPositionX(positionX);
+        response.setPositionY(positionY);
+        response.setWidth(width);
+        response.setHeight(height);
+        response.setIsLocked(isLocked);
+        response.setAreaId(1L);
+        return response;
+    }
 }

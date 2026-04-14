@@ -3,6 +3,8 @@ package slib.com.example.entity.library;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "library_settings")
 @Getter
@@ -63,6 +65,12 @@ public class LibrarySetting {
 
     @Column(name = "closed_reason", length = 500)
     private String closedReason; // Lý do đóng thư viện (VD: "Sự kiện đặc biệt", "Bảo trì")
+
+    @Column(name = "closed_from_at")
+    private LocalDateTime closedFromAt; // Thời điểm bắt đầu tạm đóng
+
+    @Column(name = "closed_until_at")
+    private LocalDateTime closedUntilAt; // Thời điểm tự mở lại
 
     // === Notification Settings (FE-51) ===
 

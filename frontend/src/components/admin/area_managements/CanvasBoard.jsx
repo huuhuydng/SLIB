@@ -5,11 +5,13 @@ import { useLayout } from "../../../context/admin/area_management/LayoutContext"
 import { useUnsavedChanges } from "../../../hooks/useUnsavedChanges";
 import Area from "./Area";
 import {
+  cancelLayoutSchedule,
   discardLayoutDraft,
   getLayoutDraft,
   getLayoutHistory,
   publishLayoutSnapshot,
   saveLayoutDraft,
+  scheduleLayoutSnapshot,
   validateLayoutSnapshot,
 } from "../../../services/admin/area_management/api";
 import { clearAllPositionCache } from "../../../utils/positionCache";
@@ -40,6 +42,10 @@ function CanvasBoard() {
   const [showConflictPanel, setShowConflictPanel] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDateTime, setScheduleDateTime] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [isCancellingSchedule, setIsCancellingSchedule] = useState(false);
 
   const normalizeOptionalNfcTagUid = useCallback((value) => {
     if (typeof value !== "string") {
@@ -59,6 +65,31 @@ function CanvasBoard() {
     } catch {
       return "";
     }
+  };
+
+  const formatScheduledPublish = (value) => {
+    if (!value) return "";
+    try {
+      return new Date(value).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    } catch {
+      return "";
+    }
+  };
+
+  const toDateTimeLocalValue = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
   };
 
   const hydrateLayoutSnapshot = useCallback((snapshot) => {
@@ -516,6 +547,8 @@ function CanvasBoard() {
   const totalZones = zones.length;
   const extractValidationPayload = (error) =>
     error?.response?.data?.validation || error?.response?.data;
+  const canPublishValidation = (validation) =>
+    Boolean(validation?.valid) && (validation?.publishable ?? true);
 
   const runValidation = useCallback(async (snapshot) => {
     try {
@@ -569,11 +602,15 @@ function CanvasBoard() {
     try {
       const snapshot = buildLayoutSnapshot();
       const validation = await runValidation(snapshot);
-      if (!validation?.valid) {
+      if (!validation?.valid || !canPublishValidation(validation)) {
         setValidationConflicts(validation?.conflicts || []);
         setShowConflictPanel(true);
         setIsPublishing(false);
-        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể xuất bản`);
+        toast.error(
+          canPublishValidation(validation)
+            ? `Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể xuất bản`
+            : (validation?.conflicts?.[0]?.message || "Sơ đồ hiện chưa thể xuất bản do đang có ghế hoặc lịch đặt bị ảnh hưởng")
+        );
         return;
       }
 
@@ -615,6 +652,96 @@ function CanvasBoard() {
       setIsPublishing(false);
     }
   }, [actions, buildLayoutSnapshot, confirm, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadDraftSnapshot, loadHistoryFeed, runValidation, toast]);
+
+  const handleOpenScheduleDialog = useCallback(() => {
+    const existing = draftMeta?.scheduledPublish?.scheduledFor;
+    if (existing) {
+      setScheduleDateTime(toDateTimeLocalValue(existing));
+    } else {
+      const nextHour = new Date();
+      nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+      setScheduleDateTime(toDateTimeLocalValue(nextHour.toISOString()));
+    }
+    setShowScheduleDialog(true);
+  }, [draftMeta?.scheduledPublish?.scheduledFor]);
+
+  const handleSchedulePublish = useCallback(async () => {
+    if (!scheduleDateTime || isScheduling) {
+      return;
+    }
+
+    setIsScheduling(true);
+    try {
+      const snapshot = buildLayoutSnapshot();
+      const validation = await runValidation(snapshot);
+      if (!validation?.valid) {
+        setValidationConflicts(validation?.conflicts || []);
+        setShowConflictPanel(true);
+        toast.error(`Sơ đồ còn ${validation.conflicts.length} xung đột, chưa thể lên lịch`);
+        return;
+      }
+
+      await scheduleLayoutSnapshot({
+        snapshot,
+        scheduledFor: scheduleDateTime,
+      });
+      await loadDraftSnapshot();
+      setShowScheduleDialog(false);
+      toast.success("Đã lưu lịch áp dụng sơ đồ");
+    } catch (error) {
+      console.error("Schedule layout failed:", error);
+      if (error?.response?.data?.error === 'LAYOUT_VERSION_CONFLICT') {
+        const shouldReload = await confirm({
+          title: "Sơ đồ đã có phiên bản mới",
+          message: "Có người vừa xuất bản sơ đồ khác trước khi anh lên lịch. Tải lại để tiếp tục?",
+          confirmText: "Tải lại",
+          variant: "warning",
+        });
+        if (shouldReload) {
+          await loadDraftSnapshot();
+        }
+        return;
+      }
+
+      const validation = extractValidationPayload(error);
+      if (validation?.conflicts) {
+        setValidationConflicts(validation.conflicts);
+        setShowConflictPanel(true);
+      }
+      toast.error(error?.response?.data?.message || "Không thể lên lịch xuất bản sơ đồ");
+    } finally {
+      setIsScheduling(false);
+    }
+  }, [buildLayoutSnapshot, confirm, extractValidationPayload, isScheduling, loadDraftSnapshot, runValidation, scheduleDateTime, toast]);
+
+  const handleCancelSchedule = useCallback(async () => {
+    const scheduleId = draftMeta?.scheduledPublish?.scheduleId;
+    if (!scheduleId || isCancellingSchedule) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: "Hủy lịch áp dụng sơ đồ",
+      message: "Lịch xuất bản đang chờ sẽ bị hủy. Bạn có chắc muốn tiếp tục không?",
+      confirmText: "Hủy lịch",
+      variant: "danger",
+    });
+    if (!confirmed) {
+      return;
+    }
+
+    setIsCancellingSchedule(true);
+    try {
+      await cancelLayoutSchedule(scheduleId);
+      await loadDraftSnapshot();
+      toast.success("Đã hủy lịch áp dụng sơ đồ");
+    } catch (error) {
+      console.error("Cancel layout schedule failed:", error);
+      toast.error(error?.response?.data?.message || "Không thể hủy lịch áp dụng sơ đồ");
+    } finally {
+      setIsCancellingSchedule(false);
+    }
+  }, [confirm, draftMeta?.scheduledPublish?.scheduleId, isCancellingSchedule, loadDraftSnapshot, toast]);
 
   const handleDiscardDraft = useCallback(async () => {
     if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing) return;
@@ -767,6 +894,30 @@ function CanvasBoard() {
             </div>
           )}
 
+          {draftMeta?.scheduledPublish && (
+            <div style={{
+              padding: '8px 10px',
+              borderRadius: '12px',
+              background: '#ECFDF5',
+              border: '1px solid #86EFAC',
+              color: '#166534',
+              fontSize: '11px',
+              lineHeight: 1.25,
+              minWidth: '180px',
+              maxWidth: '230px',
+            }}>
+              <div style={{ fontWeight: 800, color: '#14532D', marginBottom: '2px' }}>
+                Đang chờ áp dụng theo lịch
+              </div>
+              <div>
+                {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
+              </div>
+              <div style={{ color: '#166534', opacity: 0.85 }}>
+                {draftMeta.scheduledPublish.requestedByName ? `Người hẹn: ${draftMeta.scheduledPublish.requestedByName}` : 'Đã lưu lịch hẹn'}
+              </div>
+            </div>
+          )}
+
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setShowHistoryPanel((prev) => !prev)}
@@ -820,20 +971,30 @@ function CanvasBoard() {
                   {historyItems.map((item) => (
                     <div key={item.historyId} style={{ padding: '12px 14px', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
-                          {item.actionType === 'PUBLISH'
-                            ? 'Xuất bản sơ đồ'
-                            : item.actionType === 'DISCARD_DRAFT'
-                              ? 'Bỏ nháp sơ đồ'
-                              : 'Lưu nháp sơ đồ'}
-                        </div>
+	                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A' }}>
+	                          {item.actionType === 'PUBLISH'
+	                            ? 'Xuất bản sơ đồ'
+	                            : item.actionType === 'AUTO_PUBLISH'
+	                              ? 'Tự động xuất bản theo lịch'
+	                              : item.actionType === 'SCHEDULE_PUBLISH'
+	                                ? 'Lên lịch xuất bản'
+	                                : item.actionType === 'RESCHEDULE_PUBLISH'
+	                                  ? 'Cập nhật lịch xuất bản'
+	                                  : item.actionType === 'CANCEL_SCHEDULE_PUBLISH'
+	                                    ? 'Hủy lịch xuất bản'
+	                                    : item.actionType === 'AUTO_PUBLISH_FAILED'
+	                                      ? 'Tự động xuất bản thất bại'
+	                                      : item.actionType === 'DISCARD_DRAFT'
+	                                        ? 'Bỏ nháp sơ đồ'
+	                                        : 'Lưu nháp sơ đồ'}
+	                        </div>
                         <div style={{ fontSize: '12px', color: '#64748B' }}>
                           {item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}
                         </div>
                       </div>
-                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '4px' }}>{item.summary}</div>
-                      <div style={{ fontSize: '12px', color: '#64748B' }}>
-                        {item.createdByName ? `Người thao tác: ${item.createdByName}` : 'Không rõ người thao tác'}
+	                      <div style={{ fontSize: '13px', color: '#475569', marginBottom: '4px' }}>{item.summary}</div>
+	                      <div style={{ fontSize: '12px', color: '#64748B' }}>
+	                        {item.createdByName ? `Người thao tác: ${item.createdByName}` : 'Không rõ người thao tác'}
                         {item.publishedVersion ? ` · Phiên bản ${item.publishedVersion}` : ''}
                       </div>
                     </div>
@@ -893,6 +1054,47 @@ function CanvasBoard() {
           >
             {isSaving ? 'Đang lưu nháp...' : 'Lưu nháp'}
           </button>
+
+          <button
+            onClick={handleOpenScheduleDialog}
+            disabled={isScheduling || isSaving || isPublishing}
+            title="Lên lịch áp dụng sơ đồ vào thời điểm tương lai"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: '2px solid #A855F7',
+              background: '#FAF5FF',
+              color: '#7E22CE',
+              cursor: isScheduling || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              transition: 'all 0.2s',
+              opacity: isScheduling ? 0.7 : 1,
+            }}
+          >
+            {draftMeta?.scheduledPublish ? 'Đổi lịch' : 'Hẹn giờ'}
+          </button>
+
+          {draftMeta?.scheduledPublish && (
+            <button
+              onClick={handleCancelSchedule}
+              disabled={isCancellingSchedule || isSaving || isPublishing}
+              title="Hủy lịch áp dụng sơ đồ đang chờ"
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1px solid #FECACA',
+                background: '#FFF7F7',
+                color: '#B91C1C',
+                cursor: isCancellingSchedule || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                opacity: isCancellingSchedule ? 0.7 : 1,
+              }}
+            >
+              {isCancellingSchedule ? 'Đang hủy lịch...' : 'Hủy lịch'}
+            </button>
+          )}
 
           <button
             onClick={handlePublish}
@@ -968,6 +1170,119 @@ function CanvasBoard() {
                 <div style={{ fontSize: '13px', color: '#475569' }}>{conflict.message}</div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {showScheduleDialog && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 220,
+          background: 'rgba(15, 23, 42, 0.24)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        }}>
+          <div style={{
+            width: 'min(460px, 100%)',
+            background: 'white',
+            borderRadius: '20px',
+            boxShadow: '0 24px 80px rgba(15, 23, 42, 0.24)',
+            border: '1px solid #E2E8F0',
+            padding: '22px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Hẹn giờ áp dụng sơ đồ</div>
+                <div style={{ fontSize: '13px', color: '#64748B', marginTop: '4px' }}>
+                  Hệ thống sẽ tự xuất bản snapshot hiện tại vào đúng thời điểm anh chọn nếu lúc đó vẫn an toàn để áp dụng.
+                </div>
+              </div>
+              <button
+                onClick={() => setShowScheduleDialog(false)}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: '#64748B', fontWeight: 700 }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: '#334155', fontWeight: 600 }}>
+                Thời điểm áp dụng
+                <input
+                  type="datetime-local"
+                  value={scheduleDateTime}
+                  min={toDateTimeLocalValue(new Date().toISOString())}
+                  onChange={(event) => setScheduleDateTime(event.target.value)}
+                  style={{
+                    borderRadius: '12px',
+                    border: '1px solid #CBD5E1',
+                    padding: '12px 14px',
+                    fontSize: '14px',
+                    color: '#0F172A',
+                  }}
+                />
+              </label>
+
+              {draftMeta?.scheduledPublish && (
+                <div style={{
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  fontSize: '13px',
+                  color: '#475569',
+                }}>
+                  Lịch hiện tại: {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
+                </div>
+              )}
+
+              <div style={{
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: '#FFF7ED',
+                color: '#9A3412',
+                fontSize: '13px',
+                lineHeight: 1.45,
+              }}>
+                Nếu đến giờ hẹn mà sơ đồ vẫn đụng ghế đang được sử dụng hoặc booking không thể thay thế an toàn, hệ thống sẽ không auto-publish và sẽ ghi lại lý do thất bại.
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
+              <button
+                onClick={() => setShowScheduleDialog(false)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  border: '1px solid #CBD5E1',
+                  background: 'white',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Đóng
+              </button>
+              <button
+                onClick={handleSchedulePublish}
+                disabled={!scheduleDateTime || isScheduling}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: isScheduling ? '#E9D5FF' : 'linear-gradient(135deg, #A855F7 0%, #7C3AED 100%)',
+                  color: 'white',
+                  cursor: !scheduleDateTime || isScheduling ? 'not-allowed' : 'pointer',
+                  fontWeight: 700,
+                  opacity: !scheduleDateTime ? 0.7 : 1,
+                }}
+              >
+                {isScheduling ? 'Đang lưu lịch...' : 'Lưu lịch áp dụng'}
+              </button>
+            </div>
           </div>
         </div>
       )}

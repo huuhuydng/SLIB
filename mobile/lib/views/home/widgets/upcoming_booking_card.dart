@@ -219,6 +219,7 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     final bool isConfirmed = _isConfirmed(
       booking,
     ); // Đã xác nhận NFC (CONFIRMED)
+    final bool hasLayoutWarning = booking.layoutChanged;
 
     // Xác định màu sắc:
     // - Xám (grey): chưa đến giờ, lịch sắp tới
@@ -228,7 +229,11 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
     Color bgColor;
     String statusText;
 
-    if (isActive && isConfirmed) {
+    if (hasLayoutWarning) {
+      primaryColor = const Color(0xFFEA580C);
+      bgColor = const Color(0xFFFFF7ED);
+      statusText = "Cần kiểm tra lại";
+    } else if (isActive && isConfirmed) {
       // Đang trong giờ + đã xác nhận NFC → Xanh lá, "Đang học"
       primaryColor = Colors.green;
       bgColor = const Color(0xFFE8F5E9);
@@ -322,6 +327,14 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                         ),
                       ),
                     ],
+                    if (hasLayoutWarning) ...[
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.error_rounded,
+                        size: 16,
+                        color: Color(0xFFEA580C),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -361,6 +374,46 @@ class UpcomingBookingCardState extends State<UpcomingBookingCard>
                     ),
                   ],
                 ),
+                if (hasLayoutWarning) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFDBA74)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 16,
+                          color: Color(0xFFEA580C),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            booking.layoutChangeMessage ??
+                                'Sơ đồ thư viện vừa thay đổi. Nhấn vào để kiểm tra và đổi chỗ nếu cần.',
+                            style: const TextStyle(
+                              color: Color(0xFF9A3412),
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

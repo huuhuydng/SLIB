@@ -23,6 +23,14 @@ class UpcomingBooking {
   final int dayOfMonth;
   final String timeRange;
 
+  // Layout-change warning
+  final bool layoutChanged;
+  final String? layoutChangeTitle;
+  final String? layoutChangeMessage;
+  final DateTime? layoutChangedAt;
+  final bool canCancel;
+  final bool canChangeSeat;
+
   UpcomingBooking({
     required this.reservationId,
     required this.status,
@@ -37,6 +45,12 @@ class UpcomingBooking {
     required this.dayOfWeek,
     required this.dayOfMonth,
     required this.timeRange,
+    this.layoutChanged = false,
+    this.layoutChangeTitle,
+    this.layoutChangeMessage,
+    this.layoutChangedAt,
+    this.canCancel = false,
+    this.canChangeSeat = false,
   });
 
   factory UpcomingBooking.fromJson(Map<String, dynamic> json) {
@@ -54,6 +68,14 @@ class UpcomingBooking {
       dayOfWeek: json['dayOfWeek'] ?? '',
       dayOfMonth: json['dayOfMonth'] ?? 0,
       timeRange: json['timeRange'] ?? '',
+      layoutChanged: json['layoutChanged'] == true,
+      layoutChangeTitle: json['layoutChangeTitle']?.toString(),
+      layoutChangeMessage: json['layoutChangeMessage']?.toString(),
+      layoutChangedAt: json['layoutChangedAt'] != null
+          ? DateTime.tryParse(json['layoutChangedAt'].toString())
+          : null,
+      canCancel: json['canCancel'] == true,
+      canChangeSeat: json['canChangeSeat'] == true,
     );
   }
 
