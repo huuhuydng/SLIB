@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +46,8 @@ public class BookingService {
         private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
         private static final Set<String> ACTIVE_RESERVATION_STATUSES = Set.of("PROCESSING", "BOOKED", "CONFIRMED");
         private static final long PROCESSING_TIMEOUT_SECONDS = 120L;
+        private static final DateTimeFormatter LAYOUT_CHANGE_TIME_FORMAT = DateTimeFormatter
+                        .ofPattern("HH:mm 'ngày' dd/MM/yyyy");
 
         private final ReservationRepository reservationRepository;
         private final UserRepository userRepository;
@@ -260,6 +263,12 @@ public class BookingService {
                                 .createdAt(reservation.getCreatedAt())
                                 .cancellationReason(reservation.getCancellationReason())
                                 .cancelledByStaff(isCancelledByStaff(reservation))
+                                .layoutChanged(Boolean.TRUE.equals(reservation.getLayoutChanged()))
+                                .layoutChangeTitle(reservation.getLayoutChangeTitle())
+                                .layoutChangeMessage(reservation.getLayoutChangeMessage())
+                                .layoutChangedAt(reservation.getLayoutChangedAt())
+                                .canCancel(canUserCancelReservationNow(reservation))
+                                .canChangeSeat(canUserChangeSeatNow(reservation))
                                 .build();
         }
 
@@ -318,6 +327,12 @@ public class BookingService {
                                 .dayOfWeek(dayOfWeek)
                                 .dayOfMonth(reservation.getStartTime().getDayOfMonth())
                                 .timeRange(timeRange)
+                                .layoutChanged(Boolean.TRUE.equals(reservation.getLayoutChanged()))
+                                .layoutChangeTitle(reservation.getLayoutChangeTitle())
+                                .layoutChangeMessage(reservation.getLayoutChangeMessage())
+                                .layoutChangedAt(reservation.getLayoutChangedAt())
+                                .canCancel(canUserCancelReservationNow(reservation))
+                                .canChangeSeat(canUserChangeSeatNow(reservation))
                                 .build();
         }
 
@@ -343,6 +358,7 @@ public class BookingService {
 
                 LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                 String normalizedCancellationReason = cancellationReason != null ? cancellationReason.trim() : null;
+                boolean flexibleCancellation = canBypassStandardCancellationWindow(reservation, now);
 
                 if (cancelledByStaff) {
                         if (normalizedCancellationReason == null || normalizedCancellationReason.isBlank()) {
@@ -357,7 +373,7 @@ public class BookingService {
                 // PROCESSING reservations can be cancelled immediately (user is still
                 // confirming)
                 // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
-                if (!cancelledByStaff && !"PROCESSING".equalsIgnoreCase(reservation.getStatus())) {
+                if (!cancelledByStaff && !"PROCESSING".equalsIgnoreCase(reservation.getStatus()) && !flexibleCancellation) {
                         // Check 12-hour rule for confirmed bookings
                         LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
 
@@ -369,6 +385,11 @@ public class BookingService {
                                                                 "Còn " + hoursUntilStart
                                                                 + " tiếng nữa là đến giờ đặt.");
                         }
+                }
+
+                if (!cancelledByStaff && flexibleCancellation
+                                && (normalizedCancellationReason == null || normalizedCancellationReason.isBlank())) {
+                        normalizedCancellationReason = "Sinh viên hủy chỗ do sơ đồ thư viện thay đổi";
                 }
 
                 reservation.setStatus("CANCEL");
@@ -408,6 +429,135 @@ public class BookingService {
                 }
 
                 return saved;
+        }
+
+        @Transactional
+        public ReservationEntity changeSeatForLayoutAffectedReservation(UUID reservationId, UUID actorUserId,
+                        Integer newSeatId) {
+                if (newSeatId == null) {
+                        throw new BadRequestException("Vui lòng chọn ghế mới.");
+                }
+
+                ReservationEntity reservation = reservationRepository.findDetailById(reservationId)
+                                .orElseThrow(() -> new RuntimeException("Reservation not found"));
+
+                if (!reservation.getUser().getId().equals(actorUserId)) {
+                        throw new BadRequestException("Bạn không có quyền đổi chỗ cho đặt chỗ này.");
+                }
+
+                if (!Boolean.TRUE.equals(reservation.getLayoutChanged())) {
+                        throw new BadRequestException(
+                                        "Chỉ các đặt chỗ bị ảnh hưởng bởi chỉnh sửa sơ đồ mới được đổi chỗ trực tiếp.");
+                }
+
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                if (!reservation.getStartTime().isAfter(now)) {
+                        throw new BadRequestException("Chỉ có thể đổi chỗ trước giờ bắt đầu.");
+                }
+
+                String normalizedStatus = normalizeStatus(reservation.getStatus());
+                if (!ACTIVE_RESERVATION_STATUSES.contains(normalizedStatus)) {
+                        throw new BadRequestException("Đặt chỗ này không còn đủ điều kiện để đổi chỗ.");
+                }
+
+                if (reservation.getSeat() != null && newSeatId.equals(reservation.getSeat().getSeatId())) {
+                        throw new BadRequestException("Bạn đang chọn lại đúng ghế hiện tại.");
+                }
+
+                SeatEntity currentSeat = reservation.getSeat();
+                SeatEntity targetSeat = seatRepository.findByIdForUpdate(newSeatId)
+                                .orElseThrow(() -> new RuntimeException("Seat not found"));
+
+                if (!Boolean.TRUE.equals(targetSeat.getIsActive())) {
+                        throw new BadRequestException("Ghế mới hiện không hoạt động.");
+                }
+
+                if (!seatAvailabilityService.isAvailable(targetSeat.getSeatId(),
+                                reservation.getStartTime(), reservation.getEndTime())) {
+                        throw new BadRequestException("Ghế mới không còn trống trong khung giờ này.");
+                }
+
+                reservation.setSeat(targetSeat);
+                clearLayoutChangeState(reservation);
+                ReservationEntity saved = reservationRepository.save(reservation);
+
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                                currentSeat,
+                                "AVAILABLE",
+                                reservation.getStartTime(),
+                                reservation.getEndTime());
+                seatStatusSyncService.broadcastSeatUpdateWithTimeSlot(
+                                targetSeat,
+                                mapSeatBroadcastStatus(saved),
+                                reservation.getStartTime(),
+                                reservation.getEndTime());
+
+                try {
+                        activityService.logActivity(ActivityLogEntity.builder()
+                                        .userId(actorUserId)
+                                        .activityType(ActivityLogEntity.TYPE_BOOKING_SUCCESS)
+                                        .title("Đổi ghế do sơ đồ thư viện thay đổi")
+                                        .description("Đã đổi từ ghế " + currentSeat.getSeatCode() + " sang ghế "
+                                                        + targetSeat.getSeatCode())
+                                        .seatCode(targetSeat.getSeatCode())
+                                        .zoneName(targetSeat.getZone() != null ? targetSeat.getZone().getZoneName() : "")
+                                        .reservationId(saved.getReservationId())
+                                        .build());
+                } catch (Exception e) {
+                        log.warn("Failed to log layout-change seat swap for reservation {}", saved.getReservationId(), e);
+                }
+
+                pushNotificationService.sendToUser(
+                                actorUserId,
+                                "Đã đổi ghế thành công",
+                                "SLIB đã cập nhật ghế mới cho suất đặt chỗ của bạn: "
+                                                + targetSeat.getSeatCode() + " (" + buildTimeRange(saved) + ").",
+                                NotificationType.BOOKING,
+                                saved.getReservationId(),
+                                "RESERVATION",
+                                "BOOKING");
+
+                broadcastDashboardUpdate("BOOKING_UPDATE", saved.getStatus());
+                return saved;
+        }
+
+        @Transactional
+        public void markReservationsAffectedByLayoutChange(List<ReservationEntity> reservations, LocalDateTime changedAt) {
+                if (reservations == null || reservations.isEmpty()) {
+                        return;
+                }
+
+                String title = "Lịch đặt chỗ của bạn vừa bị ảnh hưởng";
+                for (ReservationEntity reservation : reservations) {
+                        reservation.setLayoutChanged(true);
+                        reservation.setLayoutChangeTitle(title);
+                        reservation.setLayoutChangeMessage(buildLayoutChangeMessage(reservation, changedAt));
+                        reservation.setLayoutChangedAt(changedAt);
+                }
+                reservationRepository.saveAll(reservations);
+
+                for (ReservationEntity reservation : reservations) {
+                        pushNotificationService.sendToUser(
+                                        reservation.getUser().getId(),
+                                        reservation.getLayoutChangeTitle(),
+                                        reservation.getLayoutChangeMessage(),
+                                        NotificationType.BOOKING,
+                                        reservation.getReservationId(),
+                                        "RESERVATION",
+                                        "BOOKING");
+                }
+        }
+
+        @Transactional
+        public void clearLayoutChangeWarnings(List<ReservationEntity> reservations) {
+                if (reservations == null || reservations.isEmpty()) {
+                        return;
+                }
+
+                for (ReservationEntity reservation : reservations) {
+                        clearLayoutChangeState(reservation);
+                }
+                reservationRepository.saveAll(reservations);
         }
 
         /**
@@ -615,6 +765,84 @@ public class BookingService {
                 return reservation.getCancelledByUserId() != null
                                 && reservation.getUser() != null
                                 && !reservation.getCancelledByUserId().equals(reservation.getUser().getId());
+        }
+
+        private boolean canUserCancelReservationNow(ReservationEntity reservation) {
+                if (reservation == null) {
+                        return false;
+                }
+
+                String status = normalizeStatus(reservation.getStatus());
+                if ("CANCEL".equals(status) || "COMPLETED".equals(status) || "EXPIRED".equals(status)) {
+                        return false;
+                }
+
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                if (!reservation.getStartTime().isAfter(now)) {
+                        return "PROCESSING".equals(status);
+                }
+
+                if ("PROCESSING".equals(status)) {
+                        return true;
+                }
+
+                return canBypassStandardCancellationWindow(reservation, now)
+                                || now.isBefore(reservation.getStartTime().minusHours(12));
+        }
+
+        private boolean canUserChangeSeatNow(ReservationEntity reservation) {
+                if (reservation == null || !Boolean.TRUE.equals(reservation.getLayoutChanged())) {
+                        return false;
+                }
+
+                String status = normalizeStatus(reservation.getStatus());
+                if (!ACTIVE_RESERVATION_STATUSES.contains(status)) {
+                        return false;
+                }
+
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                return reservation.getStartTime().isAfter(now);
+        }
+
+        private boolean canBypassStandardCancellationWindow(ReservationEntity reservation, LocalDateTime now) {
+                return Boolean.TRUE.equals(reservation.getLayoutChanged())
+                                && reservation.getStartTime() != null
+                                && reservation.getStartTime().isAfter(now)
+                                && ACTIVE_RESERVATION_STATUSES.contains(normalizeStatus(reservation.getStatus()));
+        }
+
+        private void clearLayoutChangeState(ReservationEntity reservation) {
+                reservation.setLayoutChanged(false);
+                reservation.setLayoutChangeTitle(null);
+                reservation.setLayoutChangeMessage(null);
+                reservation.setLayoutChangedAt(null);
+        }
+
+        private String buildLayoutChangeMessage(ReservationEntity reservation, LocalDateTime changedAt) {
+                String timeText = changedAt != null
+                                ? changedAt.format(LAYOUT_CHANGE_TIME_FORMAT)
+                                : LocalDateTime.now(VIETNAM_ZONE).format(LAYOUT_CHANGE_TIME_FORMAT);
+                return "Thư viện vừa cập nhật sơ đồ vào " + timeText
+                                + ". Suất ghế của bạn ở khung giờ " + buildTimeRange(reservation)
+                                + " có thể đã thay đổi vị trí hiển thị. Bạn có thể mở ứng dụng để kiểm tra lại, đổi ghế khác hoặc hủy chỗ này mà không bị giới hạn 12 giờ.";
+        }
+
+        private String buildTimeRange(ReservationEntity reservation) {
+                return String.format("%02d:%02d - %02d:%02d ngày %02d/%02d",
+                                reservation.getStartTime().getHour(),
+                                reservation.getStartTime().getMinute(),
+                                reservation.getEndTime().getHour(),
+                                reservation.getEndTime().getMinute(),
+                                reservation.getStartTime().getDayOfMonth(),
+                                reservation.getStartTime().getMonthValue());
+        }
+
+        private String mapSeatBroadcastStatus(ReservationEntity reservation) {
+                return switch (normalizeStatus(reservation.getStatus())) {
+                        case "PROCESSING" -> "HOLDING";
+                        case "CONFIRMED" -> "CONFIRMED";
+                        default -> "BOOKED";
+                };
         }
 
         private void sendStaffCancellationNotification(ReservationEntity reservation, String cancellationReason) {

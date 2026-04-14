@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -16,9 +17,11 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.feedback.SeatStatusReportRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.zone_config.*;
+import slib.com.example.service.booking.BookingService;
 import slib.com.example.service.users.UserService;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,6 +30,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class LayoutAdminService {
+    public static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    public static final String SCHEDULE_STATUS_PENDING = "PENDING";
+    public static final String SCHEDULE_STATUS_EXECUTING = "EXECUTING";
+    public static final String SCHEDULE_STATUS_EXECUTED = "EXECUTED";
+    public static final String SCHEDULE_STATUS_CANCELLED = "CANCELLED";
+    public static final String SCHEDULE_STATUS_FAILED = "FAILED";
 
     private final AreaRepository areaRepository;
     private final ZoneRepository zoneRepository;
@@ -38,9 +47,12 @@ public class LayoutAdminService {
     private final SeatViolationReportRepository seatViolationReportRepository;
     private final LayoutDraftRepository layoutDraftRepository;
     private final LayoutHistoryRepository layoutHistoryRepository;
+    private final LayoutScheduleRepository layoutScheduleRepository;
     private final UserService userService;
+    private final BookingService bookingService;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public LayoutDraftResponse getDraftOrPublishedSnapshot(Authentication authentication) {
@@ -54,6 +66,7 @@ public class LayoutAdminService {
                         .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
                         .updatedByName(entity.getUpdatedByName())
                         .updatedAt(entity.getUpdatedAt())
+                        .scheduledPublish(getActiveSchedule())
                         .snapshot(readSnapshot(entity.getSnapshotJson()))
                         .build();
             } catch (RuntimeException ex) {
@@ -64,8 +77,16 @@ public class LayoutAdminService {
         return LayoutDraftResponse.builder()
                 .hasDraft(false)
                 .basedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L))
+                .scheduledPublish(getActiveSchedule())
                 .snapshot(buildCurrentSnapshot())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public LayoutScheduleResponse getActiveSchedule() {
+        return layoutScheduleRepository.findFirstByStatusOrderByScheduledForAsc(SCHEDULE_STATUS_PENDING)
+                .map(this::toScheduleResponse)
+                .orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -117,6 +138,7 @@ public class LayoutAdminService {
                 .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
                 .updatedByName(entity.getUpdatedByName())
                 .updatedAt(entity.getUpdatedAt())
+                .scheduledPublish(getActiveSchedule())
                 .snapshot(normalized)
                 .build();
     }
@@ -134,8 +156,94 @@ public class LayoutAdminService {
         return LayoutDraftResponse.builder()
                 .hasDraft(false)
                 .basedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L))
+                .scheduledPublish(getActiveSchedule())
                 .snapshot(buildCurrentSnapshot())
                 .build();
+    }
+
+    @Transactional
+    public LayoutScheduleResponse schedulePublish(LayoutScheduleRequest request, Authentication authentication) {
+        if (request == null || request.getSnapshot() == null) {
+            throw new IllegalArgumentException("Thiếu snapshot sơ đồ để lên lịch xuất bản");
+        }
+        if (request.getScheduledFor() == null) {
+            throw new IllegalArgumentException("Vui lòng chọn thời điểm áp dụng sơ đồ");
+        }
+
+        LayoutSnapshotRequest normalized = normalizeSnapshot(request.getSnapshot());
+        LayoutValidationResponse validation = validateSnapshot(normalized);
+        if (!validation.isValid()) {
+            throw new IllegalArgumentException("Sơ đồ còn xung đột hình học, chưa thể lên lịch xuất bản");
+        }
+
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        if (!request.getScheduledFor().isAfter(now)) {
+            throw new IllegalArgumentException("Thời điểm áp dụng phải lớn hơn thời gian hiện tại");
+        }
+
+        ActorInfo actor = resolveRequiredActor(authentication);
+        long latestPublishedVersion = layoutHistoryRepository.findLatestPublishedVersion().orElse(0L);
+        long basedOnPublishedVersion = resolveBasedOnPublishedVersion(normalized, null, latestPublishedVersion);
+        if (basedOnPublishedVersion != latestPublishedVersion) {
+            throw new IllegalStateException("Sơ đồ đã được người khác xuất bản phiên bản mới. Vui lòng tải lại trước khi lên lịch.");
+        }
+
+        LayoutScheduleEntity entity = layoutScheduleRepository.findFirstByStatusOrderByScheduledForAsc(SCHEDULE_STATUS_PENDING)
+                .orElse(LayoutScheduleEntity.builder()
+                        .createdAt(now)
+                        .build());
+        boolean isReschedule = entity.getScheduleId() != null;
+
+        entity.setSnapshotJson(writeSnapshot(normalized));
+        entity.setBasedOnPublishedVersion(basedOnPublishedVersion);
+        entity.setScheduledFor(request.getScheduledFor());
+        entity.setStatus(SCHEDULE_STATUS_PENDING);
+        entity.setLastError(null);
+        entity.setRequestedByUserId(actor.userId());
+        entity.setRequestedByName(actor.displayName());
+        entity.setUpdatedAt(now);
+        entity.setCancelledAt(null);
+        entity.setExecutedAt(null);
+
+        LayoutScheduleEntity saved = layoutScheduleRepository.save(entity);
+        recordHistory(
+                isReschedule ? "RESCHEDULE_PUBLISH" : "SCHEDULE_PUBLISH",
+                buildScheduleSummary(isReschedule ? "Đã cập nhật lịch xuất bản sơ đồ" : "Đã lên lịch xuất bản sơ đồ",
+                        normalized,
+                        saved.getScheduledFor()),
+                normalized,
+                null,
+                actor
+        );
+        publishScheduleChangedEvent();
+        return toScheduleResponse(saved);
+    }
+
+    @Transactional
+    public LayoutScheduleResponse cancelScheduledPublish(Long scheduleId, Authentication authentication) {
+        LayoutScheduleEntity entity = layoutScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lịch xuất bản sơ đồ"));
+        if (!SCHEDULE_STATUS_PENDING.equalsIgnoreCase(entity.getStatus())) {
+            throw new IllegalArgumentException("Lịch này không còn ở trạng thái chờ để hủy");
+        }
+
+        ActorInfo actor = resolveRequiredActor(authentication);
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        entity.setStatus(SCHEDULE_STATUS_CANCELLED);
+        entity.setCancelledAt(now);
+        entity.setUpdatedAt(now);
+        entity.setLastError(null);
+
+        LayoutScheduleEntity saved = layoutScheduleRepository.save(entity);
+        recordHistory(
+                "CANCEL_SCHEDULE_PUBLISH",
+                "Đã hủy lịch xuất bản sơ đồ dự kiến vào " + formatScheduleTime(saved.getScheduledFor()),
+                readSnapshot(saved.getSnapshotJson()),
+                null,
+                actor
+        );
+        publishScheduleChangedEvent();
+        return toScheduleResponse(saved);
     }
 
     @Transactional
@@ -147,24 +255,242 @@ public class LayoutAdminService {
         }
 
         ActorInfo actor = resolveRequiredActor(authentication);
+        return publishInternal(normalized, actor, "PUBLISH", "Đã xuất bản sơ đồ");
+    }
+
+    @Transactional
+    public void executeScheduledPublish(Long scheduleId) {
+        LayoutScheduleEntity schedule = layoutScheduleRepository.findById(scheduleId)
+                .orElse(null);
+        if (schedule == null || !SCHEDULE_STATUS_PENDING.equalsIgnoreCase(schedule.getStatus())) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        if (schedule.getScheduledFor() != null && schedule.getScheduledFor().isAfter(now)) {
+            return;
+        }
+
+        schedule.setStatus(SCHEDULE_STATUS_EXECUTING);
+        schedule.setUpdatedAt(now);
+        layoutScheduleRepository.save(schedule);
+
+        try {
+            LayoutSnapshotRequest snapshot = readSnapshot(schedule.getSnapshotJson());
+            LayoutValidationResponse validation = validateSnapshot(snapshot);
+            if (!validation.isValid() || !validation.isPublishable()) {
+                throw new IllegalStateException(resolveScheduleFailureReason(validation));
+            }
+
+            publishInternal(snapshot,
+                    new ActorInfo(schedule.getRequestedByUserId(), schedule.getRequestedByName()),
+                    "AUTO_PUBLISH",
+                    "Đã tự động xuất bản sơ đồ theo lịch");
+
+            schedule.setStatus(SCHEDULE_STATUS_EXECUTED);
+            schedule.setExecutedAt(LocalDateTime.now(VIETNAM_ZONE));
+            schedule.setUpdatedAt(schedule.getExecutedAt());
+            schedule.setLastError(null);
+            layoutScheduleRepository.save(schedule);
+        } catch (Exception ex) {
+            log.warn("Tự động xuất bản sơ đồ thất bại cho lịch {}: {}", scheduleId, ex.getMessage());
+            schedule.setStatus(SCHEDULE_STATUS_FAILED);
+            schedule.setLastError(ex.getMessage());
+            schedule.setUpdatedAt(LocalDateTime.now(VIETNAM_ZONE));
+            layoutScheduleRepository.save(schedule);
+            recordHistory(
+                    "AUTO_PUBLISH_FAILED",
+                    "Lịch tự động xuất bản sơ đồ thất bại: " + ex.getMessage(),
+                    readSnapshot(schedule.getSnapshotJson()),
+                    null,
+                    new ActorInfo(schedule.getRequestedByUserId(), schedule.getRequestedByName())
+            );
+        } finally {
+            publishScheduleChangedEvent();
+        }
+    }
+
+    private LayoutPublishResponse publishInternal(LayoutSnapshotRequest normalized,
+                                                 ActorInfo actor,
+                                                 String actionType,
+                                                 String summaryPrefix) {
         long latestPublishedVersion = layoutHistoryRepository.findLatestPublishedVersion().orElse(0L);
         long basedOnPublishedVersion = resolveBasedOnPublishedVersion(normalized, null, latestPublishedVersion);
         if (basedOnPublishedVersion != latestPublishedVersion) {
             throw new IllegalStateException("Sơ đồ đã được người khác xuất bản phiên bản mới. Vui lòng tải lại trước khi xuất bản tiếp.");
         }
 
+        LayoutSnapshotRequest currentSnapshot = buildCurrentSnapshot();
+        LayoutChangeImpact impact = analyzeLayoutChangeImpact(currentSnapshot, normalized);
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        assertPublishAllowed(impact, now);
+        List<slib.com.example.entity.booking.ReservationEntity> futureWarnReservations =
+                findFutureReservations(impact.warnOnlySeatIds(), now);
+        Set<UUID> futureWarnReservationIds = futureWarnReservations.stream()
+                .map(slib.com.example.entity.booking.ReservationEntity::getReservationId)
+                .collect(Collectors.toSet());
+        List<slib.com.example.entity.booking.ReservationEntity> staleWarnings =
+                reservationRepository.findFutureLayoutChangedReservations(now).stream()
+                        .filter(reservation -> !futureWarnReservationIds.contains(reservation.getReservationId()))
+                        .toList();
+
         applySnapshot(normalized);
         LayoutSnapshotRequest publishedSnapshot = buildCurrentSnapshot();
         long publishedVersion = latestPublishedVersion + 1;
 
+        bookingService.clearLayoutChangeWarnings(staleWarnings);
+        bookingService.markReservationsAffectedByLayoutChange(futureWarnReservations, now);
+
         layoutDraftRepository.deleteAllInBatch();
-        recordHistory("PUBLISH", buildSummary("Đã xuất bản sơ đồ", publishedSnapshot), publishedSnapshot, publishedVersion, actor);
+        cancelPendingSchedulesAfterImmediatePublish(actor, actionType, now);
+        recordHistory(actionType, buildSummary(summaryPrefix, publishedSnapshot), publishedSnapshot, publishedVersion, actor);
 
         return LayoutPublishResponse.builder()
                 .publishedVersion(publishedVersion)
                 .publishedByName(actor.displayName())
                 .snapshot(publishedSnapshot)
                 .build();
+    }
+
+    private LayoutChangeImpact analyzeLayoutChangeImpact(LayoutSnapshotRequest currentSnapshot,
+                                                         LayoutSnapshotRequest nextSnapshot) {
+        Map<Long, AreaResponse> currentAreas = currentSnapshot.getAreas().stream()
+                .filter(area -> area.getAreaId() != null)
+                .collect(Collectors.toMap(AreaResponse::getAreaId, Function.identity()));
+        Map<Long, AreaResponse> nextAreas = nextSnapshot.getAreas().stream()
+                .filter(area -> area.getAreaId() != null)
+                .collect(Collectors.toMap(AreaResponse::getAreaId, Function.identity()));
+        Map<Integer, ZoneResponse> currentZones = currentSnapshot.getZones().stream()
+                .filter(zone -> zone.getZoneId() != null)
+                .collect(Collectors.toMap(ZoneResponse::getZoneId, Function.identity()));
+        Map<Integer, ZoneResponse> nextZones = nextSnapshot.getZones().stream()
+                .filter(zone -> zone.getZoneId() != null)
+                .collect(Collectors.toMap(ZoneResponse::getZoneId, Function.identity()));
+        Map<Integer, SeatResponse> nextSeats = nextSnapshot.getSeats().stream()
+                .filter(seat -> seat.getSeatId() != null)
+                .collect(Collectors.toMap(SeatResponse::getSeatId, Function.identity()));
+
+        Set<Integer> blockedSeatIds = new LinkedHashSet<>();
+        Set<Integer> destructiveSeatIds = new LinkedHashSet<>();
+        Set<Integer> warnOnlySeatIds = new LinkedHashSet<>();
+
+        for (SeatResponse currentSeat : currentSnapshot.getSeats()) {
+            Integer seatId = currentSeat.getSeatId();
+            if (seatId == null) {
+                continue;
+            }
+
+            ZoneResponse currentZone = currentZones.get(currentSeat.getZoneId());
+            AreaResponse currentArea = currentZone != null ? currentAreas.get(currentZone.getAreaId()) : null;
+            SeatResponse nextSeat = nextSeats.get(seatId);
+
+            if (nextSeat == null) {
+                blockedSeatIds.add(seatId);
+                destructiveSeatIds.add(seatId);
+                continue;
+            }
+
+            ZoneResponse nextZone = nextZones.get(nextSeat.getZoneId());
+            AreaResponse nextArea = nextZone != null ? nextAreas.get(nextZone.getAreaId()) : null;
+
+            boolean destructive = nextZone == null
+                    || nextArea == null
+                    || !Boolean.TRUE.equals(nextSeat.getIsActive())
+                    || !Boolean.TRUE.equals(nextArea.getIsActive());
+
+            if (destructive) {
+                blockedSeatIds.add(seatId);
+                destructiveSeatIds.add(seatId);
+                continue;
+            }
+
+            boolean seatChanged = hasSeatStructureChanged(currentSeat, nextSeat);
+            boolean zoneChanged = currentZone != null && nextZone != null && hasZoneStructureChanged(currentZone, nextZone);
+            boolean areaChanged = currentArea != null && nextArea != null && hasAreaStructureChanged(currentArea, nextArea);
+
+            if (seatChanged || zoneChanged || areaChanged) {
+                blockedSeatIds.add(seatId);
+                warnOnlySeatIds.add(seatId);
+            }
+        }
+
+        return new LayoutChangeImpact(blockedSeatIds, destructiveSeatIds, warnOnlySeatIds);
+    }
+
+    private void assertPublishAllowed(LayoutChangeImpact impact, LocalDateTime now) {
+        List<slib.com.example.entity.booking.ReservationEntity> currentReservations =
+                findCurrentReservations(impact.blockedSeatIds(), now);
+        if (!currentReservations.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Không thể xuất bản vì có ghế đang được sử dụng hoặc giữ chỗ trong sơ đồ bị thay đổi: "
+                            + summarizeSeats(currentReservations) + ".");
+        }
+
+        List<slib.com.example.entity.booking.ReservationEntity> futureDestructiveReservations =
+                findFutureReservations(impact.destructiveSeatIds(), now);
+        if (!futureDestructiveReservations.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Không thể xuất bản vì có lịch đặt sắp tới ở các ghế sẽ bị gỡ hoặc ngừng hoạt động: "
+                            + summarizeSeats(futureDestructiveReservations)
+                            + ". Hãy xử lý các lịch này trước hoặc giữ lại ghế cho đến khi sinh viên đổi/hủy chỗ.");
+        }
+    }
+
+    private List<slib.com.example.entity.booking.ReservationEntity> findCurrentReservations(Set<Integer> seatIds,
+                                                                                            LocalDateTime now) {
+        if (seatIds == null || seatIds.isEmpty()) {
+            return List.of();
+        }
+        return reservationRepository.findCurrentReservationsForSeats(
+                new ArrayList<>(seatIds),
+                List.of("PROCESSING", "BOOKED", "CONFIRMED"),
+                now);
+    }
+
+    private List<slib.com.example.entity.booking.ReservationEntity> findFutureReservations(Set<Integer> seatIds,
+                                                                                           LocalDateTime now) {
+        if (seatIds == null || seatIds.isEmpty()) {
+            return List.of();
+        }
+        return reservationRepository.findFutureReservationsForSeats(
+                new ArrayList<>(seatIds),
+                List.of("PROCESSING", "BOOKED", "CONFIRMED"),
+                now);
+    }
+
+    private String summarizeSeats(List<slib.com.example.entity.booking.ReservationEntity> reservations) {
+        return reservations.stream()
+                .map(reservation -> reservation.getSeat() != null ? reservation.getSeat().getSeatCode() : null)
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(5)
+                .collect(Collectors.joining(", "));
+    }
+
+    private boolean hasSeatStructureChanged(SeatResponse currentSeat, SeatResponse nextSeat) {
+        return !Objects.equals(currentSeat.getZoneId(), nextSeat.getZoneId())
+                || !Objects.equals(currentSeat.getSeatCode(), nextSeat.getSeatCode())
+                || !Objects.equals(currentSeat.getRowNumber(), nextSeat.getRowNumber())
+                || !Objects.equals(currentSeat.getColumnNumber(), nextSeat.getColumnNumber())
+                || !Objects.equals(currentSeat.getIsActive(), nextSeat.getIsActive());
+    }
+
+    private boolean hasZoneStructureChanged(ZoneResponse currentZone, ZoneResponse nextZone) {
+        return !Objects.equals(currentZone.getAreaId(), nextZone.getAreaId())
+                || !Objects.equals(currentZone.getZoneName(), nextZone.getZoneName())
+                || !Objects.equals(currentZone.getPositionX(), nextZone.getPositionX())
+                || !Objects.equals(currentZone.getPositionY(), nextZone.getPositionY())
+                || !Objects.equals(currentZone.getWidth(), nextZone.getWidth())
+                || !Objects.equals(currentZone.getHeight(), nextZone.getHeight());
+    }
+
+    private boolean hasAreaStructureChanged(AreaResponse currentArea, AreaResponse nextArea) {
+        return !Objects.equals(currentArea.getAreaName(), nextArea.getAreaName())
+                || !Objects.equals(currentArea.getPositionX(), nextArea.getPositionX())
+                || !Objects.equals(currentArea.getPositionY(), nextArea.getPositionY())
+                || !Objects.equals(currentArea.getWidth(), nextArea.getWidth())
+                || !Objects.equals(currentArea.getHeight(), nextArea.getHeight())
+                || !Objects.equals(currentArea.getIsActive(), nextArea.getIsActive());
     }
 
     private LayoutValidationResponse validateSnapshot(LayoutSnapshotRequest snapshot) {
@@ -190,10 +516,55 @@ public class LayoutAdminService {
         validateFactories(snapshot.getFactories(), areasById, snapshot.getZones(), conflicts);
         validateSeats(snapshot.getSeats(), zonesById, conflicts);
 
+        boolean draftValid = conflicts.stream().noneMatch(conflict -> "error".equalsIgnoreCase(conflict.getSeverity()));
+        if (draftValid) {
+            LayoutSnapshotRequest currentSnapshot = buildCurrentSnapshot();
+            LayoutChangeImpact impact = analyzeLayoutChangeImpact(currentSnapshot, snapshot);
+            conflicts.addAll(buildPublishReadinessConflicts(impact, LocalDateTime.now(VIETNAM_ZONE)));
+        }
+
+        boolean publishable = draftValid
+                && conflicts.stream().noneMatch(conflict -> "error".equalsIgnoreCase(conflict.getSeverity()));
+
         return LayoutValidationResponse.builder()
-                .valid(conflicts.isEmpty())
+                .valid(draftValid)
+                .publishable(publishable)
                 .conflicts(conflicts)
                 .build();
+    }
+
+    private List<LayoutConflictResponse> buildPublishReadinessConflicts(LayoutChangeImpact impact, LocalDateTime now) {
+        List<LayoutConflictResponse> conflicts = new ArrayList<>();
+
+        List<slib.com.example.entity.booking.ReservationEntity> currentReservations =
+                findCurrentReservations(impact.blockedSeatIds(), now);
+        if (!currentReservations.isEmpty()) {
+            conflicts.add(conflict(
+                    "PUBLISH_SEAT_IN_USE",
+                    "error",
+                    "layout",
+                    "publish-readiness",
+                    "Ghế đang được sử dụng hoặc giữ chỗ",
+                    "Chưa thể xuất bản vì các ghế sau đang được sử dụng hoặc có lượt giữ chỗ đang hiệu lực: "
+                            + summarizeSeats(currentReservations) + "."
+            ));
+        }
+
+        List<slib.com.example.entity.booking.ReservationEntity> futureDestructiveReservations =
+                findFutureReservations(impact.destructiveSeatIds(), now);
+        if (!futureDestructiveReservations.isEmpty()) {
+            conflicts.add(conflict(
+                    "PUBLISH_FUTURE_BOOKING_IMPACT",
+                    "error",
+                    "layout",
+                    "publish-readiness",
+                    "Ghế đang có lịch đặt sắp tới",
+                    "Chưa thể xuất bản vì các ghế sau có lịch đặt sắp tới và sẽ bị gỡ hoặc ngừng hoạt động: "
+                            + summarizeSeats(futureDestructiveReservations) + "."
+            ));
+        }
+
+        return conflicts;
     }
 
     private void validateDuplicateNames(LayoutSnapshotRequest snapshot, List<LayoutConflictResponse> conflicts) {
@@ -722,6 +1093,76 @@ public class LayoutAdminService {
                 + snapshot.getFactories().size() + " vật cản";
     }
 
+    private String buildScheduleSummary(String prefix, LayoutSnapshotRequest snapshot, LocalDateTime scheduledFor) {
+        return prefix + " vào " + formatScheduleTime(scheduledFor) + ". "
+                + snapshot.getAreas().size() + " phòng, "
+                + snapshot.getZones().size() + " khu vực, "
+                + snapshot.getSeats().size() + " ghế, "
+                + snapshot.getFactories().size() + " vật cản";
+    }
+
+    private String formatScheduleTime(LocalDateTime value) {
+        if (value == null) {
+            return "thời điểm không xác định";
+        }
+        return value.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm 'ngày' dd/MM/yyyy"));
+    }
+
+    private String resolveScheduleFailureReason(LayoutValidationResponse validation) {
+        if (validation == null) {
+            return "Không thể xác định trạng thái lịch xuất bản";
+        }
+        return validation.getConflicts().stream()
+                .filter(conflict -> "error".equalsIgnoreCase(conflict.getSeverity()))
+                .map(LayoutConflictResponse::getMessage)
+                .findFirst()
+                .orElse("Sơ đồ không còn hợp lệ để xuất bản theo lịch");
+    }
+
+    private LayoutScheduleResponse toScheduleResponse(LayoutScheduleEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return LayoutScheduleResponse.builder()
+                .scheduleId(entity.getScheduleId())
+                .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
+                .scheduledFor(entity.getScheduledFor())
+                .status(entity.getStatus())
+                .requestedByName(entity.getRequestedByName())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .cancelledAt(entity.getCancelledAt())
+                .executedAt(entity.getExecutedAt())
+                .lastError(entity.getLastError())
+                .build();
+    }
+
+    private void publishScheduleChangedEvent() {
+        eventPublisher.publishEvent(new LayoutScheduleChangedEvent());
+    }
+
+    private void cancelPendingSchedulesAfterImmediatePublish(ActorInfo actor, String actionType, LocalDateTime now) {
+        if ("AUTO_PUBLISH".equals(actionType)) {
+            return;
+        }
+
+        List<LayoutScheduleEntity> pendingSchedules =
+                layoutScheduleRepository.findByStatusOrderByScheduledForAsc(SCHEDULE_STATUS_PENDING);
+        if (pendingSchedules.isEmpty()) {
+            return;
+        }
+
+        for (LayoutScheduleEntity schedule : pendingSchedules) {
+            schedule.setStatus(SCHEDULE_STATUS_CANCELLED);
+            schedule.setCancelledAt(now);
+            schedule.setUpdatedAt(now);
+            schedule.setLastError("Lịch đã bị hủy vì sơ đồ được xuất bản thủ công bởi "
+                    + safeName(actor.displayName(), "người dùng khác") + ".");
+        }
+        layoutScheduleRepository.saveAll(pendingSchedules);
+        publishScheduleChangedEvent();
+    }
+
     private Long resolveAreaId(Long requestedAreaId, Map<Long, Long> areaIdMap) {
         if (requestedAreaId == null) {
             throw new RuntimeException("Thiếu areaId khi xuất bản sơ đồ");
@@ -828,6 +1269,11 @@ public class LayoutAdminService {
 
     private String safeName(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private record LayoutChangeImpact(Set<Integer> blockedSeatIds,
+                                      Set<Integer> destructiveSeatIds,
+                                      Set<Integer> warnOnlySeatIds) {
     }
 
     private record ActorInfo(UUID userId, String displayName) {

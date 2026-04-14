@@ -1,5 +1,6 @@
 package slib.com.example.repository.kiosk;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -22,6 +23,11 @@ public interface KioskQrSessionRepository extends JpaRepository<KioskQrSessionEn
     Optional<KioskQrSessionEntity> findByKioskIdAndStatus(Integer kioskId, String status);
 
     List<KioskQrSessionEntity> findByKioskIdAndStatusIn(Integer kioskId, List<String> statuses);
+
+    @EntityGraph(attributePaths = { "student", "kiosk" })
+    Optional<KioskQrSessionEntity> findFirstByKiosk_KioskCodeAndStatusInAndStudentIsNotNullOrderByUpdatedAtDesc(
+            String kioskCode,
+            List<String> statuses);
 
     @Modifying
     @Query("UPDATE KioskQrSessionEntity q SET q.status = 'EXPIRED' WHERE q.qrExpiresAt < :now AND q.status = 'ACTIVE'")

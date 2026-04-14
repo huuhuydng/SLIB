@@ -97,6 +97,8 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
         // Performance: query trực tiếp thay cho findAll + stream filter
         List<AccessLog> findByCheckOutTimeIsNullAndCheckInTimeBefore(LocalDateTime threshold);
 
+        List<AccessLog> findByCheckOutTimeIsNullAndCheckInTimeBetween(LocalDateTime start, LocalDateTime end);
+
         List<AccessLog> findByCheckOutTimeIsNull();
 
         @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user ORDER BY COALESCE(a.checkOutTime, a.checkInTime) DESC")

@@ -150,6 +150,48 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
 
         List<ReservationEntity> findByStatusIn(List<String> statuses);
 
+        @Query("""
+                        SELECT r FROM ReservationEntity r
+                        JOIN FETCH r.user u
+                        JOIN FETCH r.seat s
+                        LEFT JOIN FETCH s.zone z
+                        LEFT JOIN FETCH z.area a
+                        WHERE s.seatId IN :seatIds
+                        AND r.status IN :statuses
+                        AND r.startTime <= :now
+                        AND COALESCE(r.actualEndTime, r.endTime) > :now
+                        """)
+        List<ReservationEntity> findCurrentReservationsForSeats(
+                        @Param("seatIds") List<Integer> seatIds,
+                        @Param("statuses") List<String> statuses,
+                        @Param("now") LocalDateTime now);
+
+        @Query("""
+                        SELECT r FROM ReservationEntity r
+                        JOIN FETCH r.user u
+                        JOIN FETCH r.seat s
+                        LEFT JOIN FETCH s.zone z
+                        LEFT JOIN FETCH z.area a
+                        WHERE s.seatId IN :seatIds
+                        AND r.status IN :statuses
+                        AND r.startTime > :now
+                        """)
+        List<ReservationEntity> findFutureReservationsForSeats(
+                        @Param("seatIds") List<Integer> seatIds,
+                        @Param("statuses") List<String> statuses,
+                        @Param("now") LocalDateTime now);
+
+        @Query("""
+                        SELECT r FROM ReservationEntity r
+                        JOIN FETCH r.user u
+                        JOIN FETCH r.seat s
+                        LEFT JOIN FETCH s.zone z
+                        LEFT JOIN FETCH z.area a
+                        WHERE r.layoutChanged = true
+                        AND r.startTime > :now
+                        """)
+        List<ReservationEntity> findFutureLayoutChangedReservations(@Param("now") LocalDateTime now);
+
         long countByStartTimeBetweenAndStatusIn(LocalDateTime start, LocalDateTime end, List<String> statuses);
 
         @Query("SELECT COUNT(r) FROM ReservationEntity r " +

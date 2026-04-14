@@ -7,18 +7,18 @@ import './DynamicQrCode.css';
 
 /**
  * DynamicQrCode Component
- * Hiển thị QR code và tự động làm mới mỗi 10 phút
+ * Hiển thị QR code và tự động làm mới theo TTL từ backend
  */
 const DynamicQrCode = ({
   onSessionUpdate,
   onError,
-  kioskCode,
-  refreshIntervalMs = 600000 // 10 phút mặc định
+  kioskCode
 }) => {
   // Lấy kiosk code từ props hoặc localStorage nếu không được truyền
   const resolvedKioskCode = kioskCode || kioskService.getKioskCode();
   const [qrData, setQrData] = useState(null);
   const [expiresAt, setExpiresAt] = useState(null);
+  const [ttlSeconds, setTtlSeconds] = useState(30);
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +30,11 @@ const DynamicQrCode = ({
     onErrorRef.current = onError;
   }, [onError]);
 
+  const refreshingRef = useRef(false);
+  useEffect(() => {
+    refreshingRef.current = refreshing;
+  }, [refreshing]);
+
   // Generate QR code
   const generateQr = useCallback(async () => {
     try {
@@ -40,6 +45,7 @@ const DynamicQrCode = ({
 
       setQrData(response.qrPayload);
       setExpiresAt(new Date(response.expiresAt));
+      setTtlSeconds(response.ttlSeconds || 30);
       setLoading(false);
     } catch (err) {
       setError(err.message || 'Không thể tải mã QR');
@@ -66,8 +72,7 @@ const DynamicQrCode = ({
       const remaining = calculateTimeLeft();
       setTimeLeft(remaining);
 
-      // Auto refresh when 30 seconds left
-      if (remaining <= 30 && remaining > 0) {
+      if (remaining <= 0 && !refreshingRef.current) {
         generateQr();
       }
     }, 1000);
@@ -78,14 +83,7 @@ const DynamicQrCode = ({
   // Initial generation
   useEffect(() => {
     generateQr();
-
-    // Set up auto-refresh interval
-    const refreshInterval = setInterval(() => {
-      generateQr();
-    }, refreshIntervalMs);
-
-    return () => clearInterval(refreshInterval);
-  }, [generateQr, refreshIntervalMs]);
+  }, [generateQr]);
 
   // Format time left as MM:SS
   const formatTimeLeft = (seconds) => {
@@ -96,9 +94,8 @@ const DynamicQrCode = ({
 
   // Get progress percentage
   const getProgress = () => {
-    if (!expiresAt) return 0;
-    const totalSeconds = refreshIntervalMs / 1000;
-    return (timeLeft / totalSeconds) * 100;
+    if (!expiresAt || ttlSeconds <= 0) return 0;
+    return (timeLeft / ttlSeconds) * 100;
   };
 
   if (loading && !qrData) {
@@ -159,7 +156,7 @@ const DynamicQrCode = ({
       <div className="dynamic-qr__instructions">
         <p>Quét mã QR bằng App SLIB để đăng nhập</p>
         <p className="dynamic-qr__hint">
-          Mã QR tự động làm mới mỗi 10 phút
+          Mã QR tự động làm mới mỗi {ttlSeconds} giây
         </p>
       </div>
 

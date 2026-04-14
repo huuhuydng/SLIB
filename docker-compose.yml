@@ -149,7 +149,7 @@ services:
     environment:
       - AI_PROVIDER=ollama
       - OLLAMA_URL=http://host.docker.internal:11434
-      - OLLAMA_MODEL=llama3.2
+      - OLLAMA_MODEL=llama3.2:3b
       - OLLAMA_EMBEDDING_MODEL=nomic-embed-text
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@slib-postgres:5432/${POSTGRES_DB}

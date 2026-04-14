@@ -86,8 +86,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
           final parsedBooking = {
             'reservationId': booking['reservationId']?.toString() ?? '',
+            'seatId': booking['seatId'] ?? 0,
             'seatCode': booking['seatCode'] ?? 'N/A',
+            'zoneId': booking['zoneId'] ?? 0,
             'zoneName': booking['zoneName'] ?? 'N/A',
+            'areaId': booking['areaId'] ?? 0,
             'areaName': booking['areaName'] ?? 'N/A',
             'startTime': startTime,
             'endTime': endTime,
@@ -97,6 +100,14 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             'status': status,
             'cancellationReason': booking['cancellationReason']?.toString(),
             'cancelledByStaff': booking['cancelledByStaff'] == true,
+            'layoutChanged': booking['layoutChanged'] == true,
+            'layoutChangeTitle': booking['layoutChangeTitle']?.toString(),
+            'layoutChangeMessage': booking['layoutChangeMessage']?.toString(),
+            'layoutChangedAt': booking['layoutChangedAt'] != null
+                ? DateTime.tryParse(booking['layoutChangedAt'].toString())
+                : null,
+            'canCancel': booking['canCancel'] == true,
+            'canChangeSeat': booking['canChangeSeat'] == true,
             'date': DateFormat('dd/MM/yyyy').format(startTime),
             'time':
                 '${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}',
@@ -150,17 +161,23 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     final upcomingBooking = UpcomingBooking(
       reservationId: booking['reservationId'],
       status: booking['status'],
-      seatId: 0,
+      seatId: booking['seatId'] ?? 0,
       seatCode: booking['seatCode'],
-      zoneId: 0,
+      zoneId: booking['zoneId'] ?? 0,
       zoneName: booking['zoneName'],
-      areaId: 0,
+      areaId: booking['areaId'] ?? 0,
       areaName: booking['areaName'],
       startTime: booking['startTime'],
       endTime: booking['endTime'],
       dayOfWeek: '',
       dayOfMonth: (booking['startTime'] as DateTime).day,
       timeRange: booking['time'],
+      layoutChanged: booking['layoutChanged'] == true,
+      layoutChangeTitle: booking['layoutChangeTitle']?.toString(),
+      layoutChangeMessage: booking['layoutChangeMessage']?.toString(),
+      layoutChangedAt: booking['layoutChangedAt'] as DateTime?,
+      canCancel: booking['canCancel'] == true,
+      canChangeSeat: booking['canChangeSeat'] == true,
     );
 
     BookingActionDialog.show(context, upcomingBooking, _loadBookings);
@@ -422,6 +439,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     final actualEndTime = booking['actualEndTime'] as DateTime?;
     final cancellationReason = booking['cancellationReason'] as String?;
     final cancelledByStaff = booking['cancelledByStaff'] == true;
+    final hasLayoutWarning = booking['layoutChanged'] == true;
     final now = DateTime.now();
 
     Color statusColor;
@@ -429,7 +447,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     IconData statusIcon;
     final isOngoing = now.isAfter(startTime) && now.isBefore(endTime);
 
-    if (status == 'CANCEL' || status == 'CANCELLED') {
+    if (hasLayoutWarning) {
+      statusColor = const Color(0xFFEA580C);
+      statusText = 'Cần kiểm tra lại';
+      statusIcon = Icons.warning_amber_rounded;
+    } else if (status == 'CANCEL' || status == 'CANCELLED') {
       statusColor = Colors.red;
       statusText = 'Đã huỷ';
       statusIcon = Icons.cancel_outlined;
@@ -580,6 +602,45 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   Icon(Icons.chevron_right, color: Colors.grey[400]),
               ],
             ),
+            if (hasLayoutWarning) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFDBA74)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: Color(0xFFEA580C),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (booking['layoutChangeMessage']?.toString().trim().isNotEmpty ?? false)
+                            ? booking['layoutChangeMessage'].toString().trim()
+                            : 'Sơ đồ thư viện vừa thay đổi. Bạn có thể mở lịch này để đổi ghế hoặc hủy mà không bị giới hạn 12 giờ.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9A3412),
+                          height: 1.45,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (status == 'COMPLETED') ...[
               const SizedBox(height: 10),
               Container(

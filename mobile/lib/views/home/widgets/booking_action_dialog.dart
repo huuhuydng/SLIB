@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/services/booking/booking_service.dart';
+import 'package:slib/views/booking/floor_plan_screen.dart';
 import 'package:slib/views/home/widgets/nfc_seat_verification_screen.dart';
 import 'package:slib/views/widgets/feedback_dialog.dart';
 
@@ -40,11 +41,11 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
 
   /// Check if booking can be cancelled (more than 12 hours before start)
   bool get _canCancel {
-    final now = DateTime.now();
-    final cancelDeadline = widget.booking.startTime.subtract(
-      const Duration(hours: 12),
-    );
-    return now.isBefore(cancelDeadline);
+    return widget.booking.canCancel;
+  }
+
+  bool get _canChangeSeat {
+    return widget.booking.canChangeSeat;
   }
 
   /// Check if booking can be confirmed (within 15 mins before start to end AND not already confirmed)
@@ -242,6 +243,39 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleChangeSeat() async {
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final rootContext = rootNavigator.context;
+
+    Navigator.pop(context);
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!rootContext.mounted) return;
+
+    final result = await Navigator.of(rootContext).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => FloorPlanScreen(
+          initialZoneId: widget.booking.zoneId,
+          initialSeatId: widget.booking.seatId,
+          initialDate: widget.booking.startTime,
+          initialTimeSlot: widget.booking.timeRange,
+          replacementReservationId: widget.booking.reservationId,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      widget.onActionComplete();
+      if (rootContext.mounted) {
+        ScaffoldMessenger.of(rootContext).showSnackBar(
+          const SnackBar(
+            content: Text('Đã đổi ghế thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
@@ -491,6 +525,56 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               ),
               const SizedBox(height: 20),
 
+              if (widget.booking.layoutChanged) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFFDBA74)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFEA580C),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.booking.layoutChangeTitle ??
+                                  'Lịch đặt chỗ này vừa bị ảnh hưởng',
+                              style: const TextStyle(
+                                color: Color(0xFF9A3412),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.booking.layoutChangeMessage ??
+                                  'Thư viện vừa chỉnh sửa sơ đồ. Bạn nên kiểm tra lại và đổi ghế nếu cần.',
+                              style: const TextStyle(
+                                color: Color(0xFF9A3412),
+                                fontSize: 12,
+                                height: 1.45,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Booking info header
               Row(
                 children: [
@@ -557,13 +641,31 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               const SizedBox(height: 24),
 
               // Action buttons
+              if (widget.booking.layoutChanged) ...[
+                _buildActionButton(
+                  icon: Icons.swap_horiz_rounded,
+                  label: 'Đổi sang ghế khác',
+                  subtitle: _canChangeSeat
+                      ? 'Giữ nguyên ngày và khung giờ, chỉ đổi ghế'
+                      : 'Chỉ đổi ghế được trước giờ bắt đầu',
+                  color: const Color(0xFFEA580C),
+                  enabled: _canChangeSeat && !_isLoading,
+                  onTap: _handleChangeSeat,
+                ),
+                const SizedBox(height: 12),
+              ],
+
               // 1. Cancel booking button
               _buildActionButton(
                 icon: Icons.cancel_outlined,
                 label: 'Hủy đặt chỗ',
-                subtitle: _canCancel
-                    ? 'Hủy trước 12 giờ để không bị trừ điểm'
-                    : 'Không thể hủy (còn dưới 12 giờ)',
+                subtitle: widget.booking.layoutChanged
+                    ? (_canCancel
+                          ? 'Bạn được hủy lịch này dù đã gần tới giờ'
+                          : 'Không thể hủy khi lịch đã bắt đầu')
+                    : (_canCancel
+                          ? 'Hủy trước 12 giờ để không bị trừ điểm'
+                          : 'Không thể hủy (còn dưới 12 giờ)'),
                 color: Colors.red,
                 enabled: _canCancel && !_isLoading,
                 isLoading: _isLoading,

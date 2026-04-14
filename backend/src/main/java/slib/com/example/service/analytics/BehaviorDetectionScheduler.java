@@ -22,6 +22,7 @@ public class BehaviorDetectionScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(BehaviorDetectionScheduler.class);
 
+    private static final int MAX_LOOKBACK_DAYS = 7;
     private final AccessLogRepository accessLogRepository;
     private final StudentBehaviorService studentBehaviorService;
 
@@ -43,28 +44,42 @@ public class BehaviorDetectionScheduler {
         try {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime threshold = now.minusMinutes(SEAT_HOLDING_THRESHOLD_MINUTES);
+            LocalDateTime earliestTrackedTime = now.minusDays(MAX_LOOKBACK_DAYS);
 
-            // Tìm tất cả logs chưa checkout và đã check-in quá lâu
+            // Chỉ quét phiên còn mở trong khoảng thời gian hữu ích để tránh lôi toàn bộ log cũ vào bộ nhớ.
             List<AccessLog> uncheckedLogs = accessLogRepository
-                    .findByCheckOutTimeIsNullAndCheckInTimeBefore(threshold);
+                    .findByCheckOutTimeIsNullAndCheckInTimeBetween(earliestTrackedTime, threshold);
 
             for (AccessLog log : uncheckedLogs) {
                 try {
                     UUID userId = log.getUserId();
                     LocalDateTime checkInTime = log.getCheckInTime();
+                    UUID logId = log.getLogId();
 
                     long minutesAway = ChronoUnit.MINUTES.between(checkInTime, now);
+
+                    // Cùng một access log chỉ ghi nhận hành vi giữ chỗ một lần.
+                    if (studentBehaviorService.hasRecordedSeatHolding(userId, logId, checkInTime)) {
+                        continue;
+                    }
+
+                    String metadata = String.format(
+                            "{\"logId\":\"%s\",\"reservationId\":%s,\"checkInTime\":\"%s\",\"minutesAway\":%d}",
+                            logId,
+                            log.getReservationId() != null ? "\"" + log.getReservationId() + "\"" : null,
+                            checkInTime,
+                            minutesAway);
 
                     // Ghi nhận hành vi giữ chỗ bất thường
                     studentBehaviorService.recordBehavior(
                             userId,
                             StudentBehaviorEntity.BehaviorType.SEAT_HOLDING,
                             "Phát hiện giữ chỗ bất thường: đã rời " + minutesAway + " phút không checkout",
-                            null,
+                            log.getReservationId(),
                             null,
                             null,
                             -5, // Trừ điểm
-                            String.format("{\"checkInTime\": \"%s\", \"minutesAway\": %d}", checkInTime.toString(), minutesAway)
+                            metadata
                     );
 
                     logger.warn("Phát hiện hành vi giữ chỗ bất thường: userId={}, minutesAway={}",

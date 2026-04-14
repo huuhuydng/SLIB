@@ -40,4 +40,12 @@ public class UpcomingBookingResponse {
     private String dayOfWeek; // "TH 2", "TH 3", etc.
     private int dayOfMonth; // 24
     private String timeRange; // "14:00 - 16:00"
+
+    // Layout change warning
+    private Boolean layoutChanged;
+    private String layoutChangeTitle;
+    private String layoutChangeMessage;
+    private LocalDateTime layoutChangedAt;
+    private Boolean canCancel;
+    private Boolean canChangeSeat;
 }

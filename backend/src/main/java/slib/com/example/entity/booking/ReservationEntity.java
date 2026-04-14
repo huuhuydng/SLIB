@@ -67,6 +67,19 @@ public class ReservationEntity {
     @Column(name = "cancelled_by_user_id")
     private UUID cancelledByUserId;
 
+    @Builder.Default
+    @Column(name = "layout_changed", nullable = false)
+    private Boolean layoutChanged = false;
+
+    @Column(name = "layout_change_title", length = 200)
+    private String layoutChangeTitle;
+
+    @Column(name = "layout_change_message", columnDefinition = "TEXT")
+    private String layoutChangeMessage;
+
+    @Column(name = "layout_changed_at")
+    private LocalDateTime layoutChangedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

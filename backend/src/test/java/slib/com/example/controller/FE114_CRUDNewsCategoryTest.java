@@ -49,7 +49,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID01: Normal - create category ===
         // =========================================
         @Test
-        @DisplayName("UTCID01: Create category with valid name and colorCode returns 200 OK")
+        @DisplayName("UTCID01: Create category with valid name and colorCode")
         void createCategory_validData_returns200() throws Exception {
                 Category category = new Category();
                 category.setId(1L);
@@ -71,7 +71,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID02: Create category without colorCode ===
         // =========================================
         @Test
-        @DisplayName("UTCID02: Create category with name only returns 200 OK")
+        @DisplayName("UTCID02: Create category with name only")
         void createCategory_nameOnly_returns200() throws Exception {
                 Category category = new Category();
                 category.setId(2L);
@@ -92,7 +92,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID03: List all categories ===
         // =========================================
         @Test
-        @DisplayName("UTCID03: List all categories returns 200 OK")
+        @DisplayName("UTCID03: List all categories")
         void listCategories_returns200() throws Exception {
                 Category cat1 = new Category();
                 cat1.setName("Su kien");
@@ -112,7 +112,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID04: Create duplicate category ===
         // =========================================
         @Test
-        @DisplayName("UTCID04: Create duplicate category returns 400 Bad Request")
+        @DisplayName("UTCID04: Create duplicate category")
         void createCategory_duplicate_returns400() throws Exception {
                 when(categoryService.createCategory(eq("Su kien"), anyString()))
                                 .thenThrow(new RuntimeException("Danh muc da ton tai"));
@@ -129,7 +129,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID05: Delete existing category ===
         // =========================================
         @Test
-        @DisplayName("UTCID05: Delete existing category returns 200 OK")
+        @DisplayName("UTCID05: Delete existing category")
         void deleteCategory_existing_returns200() throws Exception {
                 doNothing().when(categoryService).deleteCategory(eq(1L));
 
@@ -143,7 +143,7 @@ class FE114_CRUDNewsCategoryTest {
         // === UTCID06: Delete non-existent category ===
         // =========================================
         @Test
-        @DisplayName("UTCID06: Delete non-existent category returns 400 Bad Request")
+        @DisplayName("UTCID06: Delete non-existent category")
         void deleteCategory_notFound_returns400() throws Exception {
                 doThrow(new RuntimeException("Khong tim thay danh muc"))
                                 .when(categoryService).deleteCategory(eq(999L));

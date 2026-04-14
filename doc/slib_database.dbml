@@ -393,6 +393,13 @@ Table reservations {
 // NEWS
 // =============================================
 
+Table categories {
+  id bigint [pk, not null, increment]
+  name varchar(50) [not null, unique]
+  color_code varchar(20)
+  created_at timestamp
+}
+
 Table news_categories {
   id bigint [pk, not null, increment]
   name varchar(50) [not null, unique]
@@ -826,7 +833,7 @@ Table kiosk_qr_sessions {
   kiosk_id integer [not null, ref: > kiosk_configs.id]
   session_token varchar(255) [not null, unique]
   student_id uuid [ref: > users.id]
-  access_log_id uuid
+  access_log_id uuid [ref: > access_logs.log_id]
   qr_payload text [not null]
   qr_expires_at timestamp [not null]
   status varchar(20) [not null, default: 'ACTIVE', note: 'ACTIVE, USED, EXPIRED']
@@ -916,3 +923,50 @@ Table system_logs {
     source [name: 'idx_system_logs_source']
   }
 }
+
+Table seed_records {
+  id bigint [pk, not null, increment]
+  entity_type varchar(60) [not null]
+  entity_id varchar(100) [not null]
+  seed_scope varchar(120) [not null]
+  created_at timestamp [not null]
+}
+
+Table layout_drafts {
+  draft_id bigint [pk, not null, increment]
+  snapshot_json text [not null]
+  based_on_published_version bigint
+  updated_by_user_id uuid [ref: > users.id]
+  updated_by_name varchar(255)
+  updated_at timestamp [not null]
+}
+
+Table layout_history {
+  history_id bigint [pk, not null, increment]
+  action_type varchar(32) [not null]
+  summary text
+  snapshot_json text [not null]
+  published_version bigint
+  created_by_user_id uuid [ref: > users.id]
+  created_by_name varchar(255)
+  created_at timestamp [not null]
+}
+
+Table flyway_schema_history {
+  installed_rank integer [pk, not null]
+  version varchar(50)
+  description varchar(200) [not null]
+  type varchar(20) [not null]
+  script varchar(1000) [not null]
+  checksum integer
+  installed_by varchar(100) [not null]
+  installed_on timestamp [not null]
+  execution_time integer [not null]
+  success boolean [not null]
+}
+
+Ref: news.category_id > categories.id
+Ref: kiosk_configs.device_token_issued_by > users.id
+Ref: student_behaviors.related_booking_id > reservations.reservation_id
+Ref: student_behaviors.related_seat_id > seats.seat_id
+Ref: student_behaviors.related_zone_id > zones.zone_id
