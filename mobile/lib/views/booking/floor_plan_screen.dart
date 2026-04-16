@@ -80,6 +80,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   bool _isLibraryClosed = false;
   String? _closedReason;
   UpcomingBooking? _currentUserUpcomingBooking;
+  List<UpcomingBooking> _currentUserBookings = [];
 
   @override
   void initState() {
@@ -102,7 +103,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
   }
 
   bool _isCurrentUserBookedSeat(Seat seat) {
-    final booking = _currentUserUpcomingBooking;
+    final booking = _getCurrentUserBookingForSelectedSlot();
     if (booking == null || _selectedTimeSlot == null) {
       return false;
     }
@@ -110,6 +111,29 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     return booking.seatId == seat.seatId &&
         _isSameCalendarDay(booking.startTime, _selectedDate) &&
         booking.timeRange.trim() == _selectedTimeSlot!.trim();
+  }
+
+  UpcomingBooking? _getCurrentUserBookingForSelectedSlot() {
+    if (_selectedTimeSlot == null) {
+      return null;
+    }
+
+    for (final booking in _currentUserBookings) {
+      final status = booking.status.toUpperCase();
+      final isBookableStatus =
+          status == 'BOOKED' || status == 'PROCESSING' || status == 'CONFIRMED';
+
+      if (!isBookableStatus) {
+        continue;
+      }
+
+      if (_isSameCalendarDay(booking.startTime, _selectedDate) &&
+          booking.timeRange.trim() == _selectedTimeSlot!.trim()) {
+        return booking;
+      }
+    }
+
+    return _currentUserUpcomingBooking;
   }
 
   Color _seatFillColor(Seat seat) {
@@ -172,21 +196,33 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final userId = authService.currentUser?.id;
     if (userId == null) {
       if (mounted) {
-        setState(() => _currentUserUpcomingBooking = null);
+        setState(() {
+          _currentUserUpcomingBooking = null;
+          _currentUserBookings = [];
+        });
       }
       return;
     }
 
     try {
-      final data = await _bookingService.getUpcomingBooking(userId);
+      final results = await Future.wait([
+        _bookingService.getUpcomingBooking(userId),
+        _bookingService.getUserBookingHistory(userId),
+      ]);
       if (!mounted) return;
 
       UpcomingBooking? booking;
-      if (data is Map<String, dynamic>) {
-        booking = UpcomingBooking.fromJson(data);
+      final upcomingData = results[0];
+      final bookingHistory = results[1] as List<UpcomingBooking>;
+
+      if (upcomingData is Map<String, dynamic>) {
+        booking = UpcomingBooking.fromJson(upcomingData);
       }
 
-      setState(() => _currentUserUpcomingBooking = booking);
+      setState(() {
+        _currentUserUpcomingBooking = booking;
+        _currentUserBookings = bookingHistory;
+      });
     } catch (e) {
       debugPrint('Không thể tải upcoming booking hiện tại: $e');
     }
@@ -1220,6 +1256,46 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         );
 
         if (!mounted) return;
+        final currentBooking = _currentUserUpcomingBooking;
+        if (currentBooking != null &&
+            currentBooking.reservationId == widget.replacementReservationId) {
+          setState(() {
+            _currentUserUpcomingBooking = currentBooking.copyWith(
+              seatId: seat.seatId,
+              seatCode: seat.seatCode,
+              zoneId: zone.zoneId,
+              zoneName: zone.zoneName,
+              layoutChanged: false,
+              layoutChangeTitle: null,
+              layoutChangeMessage: null,
+              canChangeSeat: false,
+            );
+          });
+        }
+
+        setState(() {
+          _currentUserBookings = _currentUserBookings
+              .map(
+                (booking) => booking.reservationId == widget.replacementReservationId
+                    ? booking.copyWith(
+                        seatId: seat.seatId,
+                        seatCode: seat.seatCode,
+                        zoneId: zone.zoneId,
+                        zoneName: zone.zoneName,
+                        layoutChanged: false,
+                        layoutChangeTitle: null,
+                        layoutChangeMessage: null,
+                        canChangeSeat: false,
+                      )
+                    : booking,
+              )
+              .toList();
+        });
+
+        await _loadCurrentUserUpcomingBooking();
+        await _loadZonesAndFactories();
+        if (!mounted) return;
+
         if (loadingShown && navigator.canPop()) {
           navigator.pop();
         }
@@ -2077,11 +2153,6 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     final w = zone.width * scale;
     final h = zone.height * scale;
 
-    // Tính kích thước ghế dựa trên zone size
-    final seatSize = totalSeats > 0
-        ? ((w - 16) / (totalSeats > 6 ? 6 : totalSeats)).clamp(20.0, 40.0)
-        : 30.0;
-
     return Positioned(
       left: x,
       top: y,
@@ -2186,21 +2257,53 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                           ],
                         ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: _buildSeatRows(
-                              sortedSeats,
-                              seatSize,
-                              color,
-                              w,
-                              h,
-                              zone,
-                            ),
-                          ),
-                        ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: sortedSeats.map((seat) {
+                              final layout = _calculateDynamicSeatLayout(
+                                seat: seat,
+                                zoneSeats: sortedSeats,
+                                zoneWidth: w,
+                                zoneHeight: h,
+                              );
+
+                              return Positioned(
+                                left: layout.$1,
+                                top: layout.$2,
+                                child: GestureDetector(
+                                  onTap: () => _onSeatTap(seat, zone),
+                                  child: Tooltip(
+                                    message: _seatTooltipLabel(seat),
+                                    child: Container(
+                                      width: layout.$3,
+                                      height: layout.$4,
+                                      decoration: BoxDecoration(
+                                        color: _seatFillColor(seat),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: _seatBorderColor(seat),
+                                          width: 1.5,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          seat.seatCode,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
                       ),
               ),
             ],
@@ -2210,116 +2313,50 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     );
   }
 
-  /// Build seat rows grouped by row number - mã ghế đầy đủ (A1, A2...)
-  List<Widget> _buildSeatRows(
-    List<Seat> seats,
-    double seatSize,
-    Color color,
-    double zoneWidth,
-    double zoneHeight,
-    Zone zone,
-  ) {
-    // Group seats by row
-    Map<int, List<Seat>> seatsByRow = {};
-    for (final seat in seats) {
-      seatsByRow.putIfAbsent(seat.rowNumber, () => []).add(seat);
-    }
+  (double, double, double, double) _calculateDynamicSeatLayout({
+    required Seat seat,
+    required List<Seat> zoneSeats,
+    required double zoneWidth,
+    required double zoneHeight,
+  }) {
+    final maxColumn = zoneSeats.isEmpty
+        ? 1
+        : zoneSeats.map((s) => s.columnNumber).reduce(max);
+    final maxRow = zoneSeats.isEmpty
+        ? 1
+        : zoneSeats.map((s) => s.rowNumber).reduce(max);
 
-    // Convert row number to letter (1=A, 2=B, etc.)
-    String getRowLabel(int rowNumber) {
-      return String.fromCharCode('A'.codeUnitAt(0) + rowNumber - 1);
-    }
+    const seatWidth = 44.0;
+    const seatHeight = 44.0;
+    const seatMargin = 4.0;
+    const zonePadding = 8.0;
+    const headerHeight = 24.0;
+    const footerHeight = 20.0;
 
-    // Calculate dynamic spacing based on zone size
-    final numRows = seatsByRow.length;
-    final maxSeatsPerRow = seatsByRow.values
-        .map((r) => r.length)
-        .reduce((a, b) => a > b ? a : b);
+    final availableWidth = max(40.0, zoneWidth - zonePadding * 2);
+    final availableHeight = max(
+      40.0,
+      zoneHeight - zonePadding * 2 - headerHeight - footerHeight,
+    );
 
-    // Kích thước ghế cố định
-    const fixedSeatSize = 35.0;
+    final totalSeatsWidth = maxColumn * seatWidth;
+    final totalSeatsHeight = maxRow * seatHeight;
 
-    // Available space (trừ padding)
-    final availableWidth = zoneWidth - 16; // padding 8 mỗi bên
-    final availableHeight = zoneHeight - 50; // header ~30 + padding top/bottom
+    final horizontalGap = max(
+      seatMargin,
+      (availableWidth - totalSeatsWidth) / (maxColumn + 1),
+    );
+    final verticalGap = max(
+      seatMargin,
+      (availableHeight - totalSeatsHeight) / (maxRow + 1),
+    );
 
-    // Tính giãn cách đều để ghế phân bố toàn bộ zone
-    // Giãn cách ngang = (không gian trống) / (số khe giữa ghế + 2 khe 2 bên)
-    final totalSeatWidthInRow = fixedSeatSize * maxSeatsPerRow;
-    final hSpacing =
-        (availableWidth - totalSeatWidthInRow) / (maxSeatsPerRow + 1);
+    final positionX =
+        horizontalGap + (seat.columnNumber - 1) * (seatWidth + horizontalGap);
+    final positionY =
+        verticalGap + (seat.rowNumber - 1) * (seatHeight + verticalGap);
 
-    // Giãn cách dọc = (không gian trống) / (số khe giữa hàng + 2 khe trên dưới)
-    final totalSeatHeightInCol = fixedSeatSize * numRows;
-    final vSpacing = (availableHeight - totalSeatHeightInCol) / (numRows + 1);
-
-    List<Widget> rows = [];
-    final sortedRowNumbers = seatsByRow.keys.toList()..sort();
-
-    for (int i = 0; i < sortedRowNumbers.length; i++) {
-      final rowNum = sortedRowNumbers[i];
-      final rowSeats = seatsByRow[rowNum]!;
-      // Sort seats in row by column
-      rowSeats.sort((a, b) => a.columnNumber.compareTo(b.columnNumber));
-      final rowLabel = getRowLabel(rowNum);
-
-      rows.add(
-        Padding(
-          // Giãn cách dọc giữa các hàng
-          padding: EdgeInsets.only(
-            top: i == 0 ? max(vSpacing, 4.0) : 0,
-            bottom: max(vSpacing, 4.0),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: rowSeats.asMap().entries.map((entry) {
-              final j = entry.key;
-              final seat = entry.value;
-                      final seatLabel = '$rowLabel${seat.columnNumber}';
-              return Padding(
-                // Giãn cách ngang giữa các ghế
-                padding: EdgeInsets.only(
-                  left: j == 0 ? max(hSpacing, 4.0) : max(hSpacing / 2, 2.0),
-                  right: j == rowSeats.length - 1
-                      ? max(hSpacing, 4.0)
-                      : max(hSpacing / 2, 2.0),
-                ),
-                child: GestureDetector(
-                  onTap: () => _onSeatTap(seat, zone),
-                  child: Tooltip(
-                    message: _seatTooltipLabel(seat),
-                    child: Container(
-                      width: fixedSeatSize,
-                      height: fixedSeatSize,
-                      decoration: BoxDecoration(
-                        color: _seatFillColor(seat),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: _seatBorderColor(seat),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          seatLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      );
-    }
-
-    return rows;
+    return (positionX, positionY, seatWidth, seatHeight);
   }
 }
 

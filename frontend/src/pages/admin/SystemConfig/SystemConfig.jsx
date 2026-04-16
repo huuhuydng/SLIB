@@ -36,11 +36,16 @@ const DEFAULT_LIBRARY_CONFIG = {
   closeTime: '21:00',
   slotDuration: 60,
   maxBookingsPerDay: 3,
+  maxActiveBookings: 2,
   maxHoursPerDay: 4,
   maxBookingDays: 14,
   workingDays: '2,3,4,5,6',
   autoCancelMinutes: 15,
   autoCancelOnLeaveMinutes: 30,
+  seatConfirmationLeadMinutes: 15,
+  bookingReminderLeadMinutes: 15,
+  expiryWarningLeadMinutes: 10,
+  bookingCancelDeadlineHours: 12,
   minReputation: 0,
   notifyBookingSuccess: true,
   notifyCheckinReminder: true,
@@ -161,11 +166,16 @@ const SystemConfig = () => {
       closeTime: data.closeTime || DEFAULT_LIBRARY_CONFIG.closeTime,
       slotDuration: data.slotDuration ?? DEFAULT_LIBRARY_CONFIG.slotDuration,
       maxBookingsPerDay: data.maxBookingsPerDay ?? DEFAULT_LIBRARY_CONFIG.maxBookingsPerDay,
+      maxActiveBookings: data.maxActiveBookings ?? DEFAULT_LIBRARY_CONFIG.maxActiveBookings,
       maxHoursPerDay: data.maxHoursPerDay ?? DEFAULT_LIBRARY_CONFIG.maxHoursPerDay,
       maxBookingDays: data.maxBookingDays ?? DEFAULT_LIBRARY_CONFIG.maxBookingDays,
       workingDays: data.workingDays || DEFAULT_LIBRARY_CONFIG.workingDays,
       autoCancelMinutes: data.autoCancelMinutes ?? DEFAULT_LIBRARY_CONFIG.autoCancelMinutes,
       autoCancelOnLeaveMinutes: data.autoCancelOnLeaveMinutes ?? DEFAULT_LIBRARY_CONFIG.autoCancelOnLeaveMinutes,
+      seatConfirmationLeadMinutes: data.seatConfirmationLeadMinutes ?? DEFAULT_LIBRARY_CONFIG.seatConfirmationLeadMinutes,
+      bookingReminderLeadMinutes: data.bookingReminderLeadMinutes ?? DEFAULT_LIBRARY_CONFIG.bookingReminderLeadMinutes,
+      expiryWarningLeadMinutes: data.expiryWarningLeadMinutes ?? DEFAULT_LIBRARY_CONFIG.expiryWarningLeadMinutes,
+      bookingCancelDeadlineHours: data.bookingCancelDeadlineHours ?? DEFAULT_LIBRARY_CONFIG.bookingCancelDeadlineHours,
       minReputation: data.minReputation ?? DEFAULT_LIBRARY_CONFIG.minReputation,
       notifyBookingSuccess: data.notifyBookingSuccess ?? DEFAULT_LIBRARY_CONFIG.notifyBookingSuccess,
       notifyCheckinReminder: data.notifyCheckinReminder ?? DEFAULT_LIBRARY_CONFIG.notifyCheckinReminder,
@@ -325,7 +335,7 @@ const SystemConfig = () => {
   const tabs = [
     { id: 'library', label: 'Tham số thư viện', icon: Clock },
     { id: 'reputation', label: 'Quy tắc điểm uy tín', icon: Star },
-    { id: 'notifications', label: 'Cấu hình thông báo', icon: Bell },
+    { id: 'notifications', label: 'Thông báo', icon: Bell },
   ];
 
   const handleConfigChange = (key, value) => {
@@ -963,7 +973,7 @@ const SystemConfig = () => {
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Số lượt đặt tối đa/ngày/người
+                          Số lượt tối đa trong cùng một ngày sử dụng
                         </label>
                         <input
                           type="number"
@@ -978,10 +988,34 @@ const SystemConfig = () => {
                             outline: 'none'
                           }}
                         />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Chỉ tính các booking có cùng ngày sử dụng, không phải tổng số booking sắp tới
+                        </div>
                       </div>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Số giờ tối đa/ngày/người
+                          Số booking sắp tới tối đa/người
+                        </label>
+                        <input
+                          type="number"
+                          value={libraryConfig.maxActiveBookings}
+                          onChange={(e) => handleConfigChange('maxActiveBookings', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Giới hạn tổng số booking chưa diễn ra hoặc chưa hoàn tất để tránh giữ chỗ liên tiếp trên nhiều ngày
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Tổng số giờ tối đa trong cùng một ngày sử dụng
                         </label>
                         <input
                           type="number"
@@ -996,6 +1030,53 @@ const SystemConfig = () => {
                             outline: 'none'
                           }}
                         />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Cộng tổng thời lượng các booking trong cùng ngày sử dụng
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Xác nhận ghế trước giờ bắt đầu (phút)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={libraryConfig.seatConfirmationLeadMinutes}
+                          onChange={(e) => handleConfigChange('seatConfirmationLeadMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Sinh viên được quét NFC để xác nhận ghế sớm hơn số phút này
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Hủy chỗ trước giờ bắt đầu (giờ)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={libraryConfig.bookingCancelDeadlineHours}
+                          onChange={(e) => handleConfigChange('bookingCancelDeadlineHours', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Sinh viên phải hủy trước số giờ này, trừ các trường hợp được hệ thống cho phép ngoại lệ
+                        </div>
                       </div>
                       <div style={{ gridColumn: 'span 2' }}>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
@@ -1028,7 +1109,7 @@ const SystemConfig = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
-                          Tự hủy sau (phút) nếu không check-in
+                          Tự hủy sau (phút) nếu không xác nhận ghế
                         </label>
                         <input
                           type="number"
@@ -1044,7 +1125,7 @@ const SystemConfig = () => {
                           }}
                         />
                         <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
-                          Đặt chỗ sẽ bị hủy nếu không check-in sau số phút này
+                          Đặt chỗ sẽ bị hủy nếu không xác nhận ghế trong thời gian này
                         </div>
                       </div>
                       <div>
@@ -1299,17 +1380,76 @@ const SystemConfig = () => {
               }}>
                 <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0' }}>
                   <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#1A1A1A', margin: '0 0 4px 0' }}>
-                    Cấu hình thông báo
+                    Thông báo
                   </h2>
                   <p style={{ fontSize: '14px', color: '#A0AEC0', margin: 0 }}>
-                    Thiết lập các loại thông báo gửi đến người dùng
+                    Thiết lập thời gian và loại thông báo gửi đến người dùng
                   </p>
                 </div>
                 <div style={{ padding: '24px' }}>
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Timer size={18} color="#e8600a" />
+                      Thời gian thông báo
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Nhắc lịch trước giờ bắt đầu (phút)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={libraryConfig.bookingReminderLeadMinutes}
+                          onChange={(e) => handleConfigChange('bookingReminderLeadMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Hệ thống gửi thông báo nhắc lịch trước số phút này
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#4A5568', marginBottom: '8px' }}>
+                          Cảnh báo sắp hết giờ (phút)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={libraryConfig.expiryWarningLeadMinutes}
+                          onChange={(e) => handleConfigChange('expiryWarningLeadMinutes', parseInt(e.target.value))}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            border: '2px solid #E2E8F0',
+                            borderRadius: '12px',
+                            fontSize: '14px',
+                            outline: 'none'
+                          }}
+                        />
+                        <div style={{ fontSize: '12px', color: '#A0AEC0', marginTop: '4px' }}>
+                          Hệ thống gửi cảnh báo trước khi phiên sử dụng sắp kết thúc
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#1A1A1A', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Bell size={18} color="#e8600a" />
+                      Loại thông báo
+                    </h3>
+                  </div>
                   {[
                     { key: 'notifyBookingSuccess', label: 'Thông báo đặt chỗ thành công', description: 'Gửi khi sinh viên đặt chỗ thành công' },
-                    { key: 'notifyCheckinReminder', label: 'Nhắc nhở check-in', description: 'Gửi trước 15 phút khi đến giờ đặt' },
-                    { key: 'notifyTimeExpiry', label: 'Cảnh báo hết giờ', description: 'Gửi trước 10 phút khi hết thời gian đặt' },
+                    { key: 'notifyCheckinReminder', label: 'Nhắc nhở xác nhận ghế', description: `Gửi trước ${libraryConfig.bookingReminderLeadMinutes} phút khi đến giờ đặt` },
+                    { key: 'notifyTimeExpiry', label: 'Cảnh báo hết giờ', description: `Gửi trước ${libraryConfig.expiryWarningLeadMinutes} phút khi hết thời gian đặt` },
                     { key: 'notifyViolation', label: 'Thông báo vi phạm', description: 'Gửi khi sinh viên bị ghi nhận vi phạm' },
                     { key: 'notifyWeeklyReport', label: 'Báo cáo tuần', description: 'Gửi email tổng kết cuối tuần cho admin' },
                     { key: 'notifyDeviceAlert', label: 'Cảnh báo thiết bị', description: 'Thông báo khi thiết bị NFC gặp sự cố' },

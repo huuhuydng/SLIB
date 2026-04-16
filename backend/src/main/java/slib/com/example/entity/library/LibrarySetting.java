@@ -43,17 +43,37 @@ public class LibrarySetting {
     @Builder.Default
     private Integer maxBookingsPerDay = 3; // Số lần đặt tối đa mỗi ngày cho 1 user
 
+    @Column(name = "max_active_bookings", nullable = false)
+    @Builder.Default
+    private Integer maxActiveBookings = 2; // Số booking sắp tới tối đa được giữ cùng lúc
+
     @Column(name = "max_hours_per_day", nullable = false)
     @Builder.Default
     private Integer maxHoursPerDay = 4; // Số giờ tối đa được đặt trong 1 ngày
 
     @Column(name = "auto_cancel_minutes", nullable = false)
     @Builder.Default
-    private Integer autoCancelMinutes = 15; // Phút tự hủy booking không check-in
+    private Integer autoCancelMinutes = 15; // Phút tự hủy booking nếu không xác nhận ghế
 
     @Column(name = "auto_cancel_on_leave_minutes", nullable = false)
     @Builder.Default
     private Integer autoCancelOnLeaveMinutes = 30; // Phút tự hủy sau khi rời chỗ
+
+    @Column(name = "seat_confirmation_lead_minutes", nullable = false)
+    @Builder.Default
+    private Integer seatConfirmationLeadMinutes = 15; // Số phút trước giờ bắt đầu được phép xác nhận ghế
+
+    @Column(name = "booking_reminder_lead_minutes", nullable = false)
+    @Builder.Default
+    private Integer bookingReminderLeadMinutes = 15; // Số phút trước giờ bắt đầu gửi nhắc lịch
+
+    @Column(name = "expiry_warning_lead_minutes", nullable = false)
+    @Builder.Default
+    private Integer expiryWarningLeadMinutes = 10; // Số phút trước giờ kết thúc gửi cảnh báo sắp hết giờ
+
+    @Column(name = "booking_cancel_deadline_hours", nullable = false)
+    @Builder.Default
+    private Integer bookingCancelDeadlineHours = 12; // Số giờ tối thiểu trước giờ bắt đầu để được hủy chỗ
 
     @Column(name = "min_reputation", nullable = false)
     @Builder.Default
@@ -80,7 +100,7 @@ public class LibrarySetting {
 
     @Builder.Default
     @Column(name = "notify_checkin_reminder", nullable = false)
-    private Boolean notifyCheckinReminder = true; // Nhắc nhở check-in
+    private Boolean notifyCheckinReminder = true; // Nhắc nhở đến giờ xác nhận ghế
 
     @Builder.Default
     @Column(name = "notify_time_expiry", nullable = false)

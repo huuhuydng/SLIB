@@ -36,6 +36,12 @@ class LibrarySetting {
   final String workingDays; // "2,3,4,5,6" (1=CN, 2=T2, ..., 7=T7)
   final int maxBookingsPerDay; // Số lần đặt tối đa mỗi ngày
   final int maxHoursPerDay; // Số giờ tối đa được đặt mỗi ngày
+  final int autoCancelMinutes; // Tự hủy nếu không xác nhận ghế
+  final int autoCancelOnLeaveMinutes; // Tự hủy sau khi rời chỗ
+  final int seatConfirmationLeadMinutes; // Được xác nhận ghế trước giờ bắt đầu bao nhiêu phút
+  final int bookingReminderLeadMinutes; // Nhắc lịch trước giờ bắt đầu bao nhiêu phút
+  final int expiryWarningLeadMinutes; // Cảnh báo trước khi hết giờ bao nhiêu phút
+  final int bookingCancelDeadlineHours; // Hủy chỗ trước giờ bắt đầu bao nhiêu giờ
   final bool libraryClosed; // true = thư viện đang tạm đóng
   final String? closedReason; // Lý do đóng thư viện
 
@@ -47,6 +53,12 @@ class LibrarySetting {
     required this.workingDays,
     this.maxBookingsPerDay = 3,
     this.maxHoursPerDay = 4,
+    this.autoCancelMinutes = 15,
+    this.autoCancelOnLeaveMinutes = 30,
+    this.seatConfirmationLeadMinutes = 15,
+    this.bookingReminderLeadMinutes = 15,
+    this.expiryWarningLeadMinutes = 10,
+    this.bookingCancelDeadlineHours = 12,
     this.libraryClosed = false,
     this.closedReason,
   });
@@ -60,6 +72,12 @@ class LibrarySetting {
       workingDays: json['workingDays'] ?? json['working_days'] ?? '2,3,4,5,6',
       maxBookingsPerDay: json['maxBookingsPerDay'] ?? json['max_bookings_per_day'] ?? 3,
       maxHoursPerDay: json['maxHoursPerDay'] ?? json['max_hours_per_day'] ?? 4,
+      autoCancelMinutes: json['autoCancelMinutes'] ?? json['auto_cancel_minutes'] ?? 15,
+      autoCancelOnLeaveMinutes: json['autoCancelOnLeaveMinutes'] ?? json['auto_cancel_on_leave_minutes'] ?? 30,
+      seatConfirmationLeadMinutes: json['seatConfirmationLeadMinutes'] ?? json['seat_confirmation_lead_minutes'] ?? 15,
+      bookingReminderLeadMinutes: json['bookingReminderLeadMinutes'] ?? json['booking_reminder_lead_minutes'] ?? 15,
+      expiryWarningLeadMinutes: json['expiryWarningLeadMinutes'] ?? json['expiry_warning_lead_minutes'] ?? 10,
+      bookingCancelDeadlineHours: json['bookingCancelDeadlineHours'] ?? json['booking_cancel_deadline_hours'] ?? 12,
       libraryClosed: json['libraryClosed'] ?? json['library_closed'] ?? false,
       closedReason: json['closedReason'] ?? json['closed_reason'],
     );
@@ -74,6 +92,12 @@ class LibrarySetting {
       'workingDays': workingDays,
       'maxBookingsPerDay': maxBookingsPerDay,
       'maxHoursPerDay': maxHoursPerDay,
+      'autoCancelMinutes': autoCancelMinutes,
+      'autoCancelOnLeaveMinutes': autoCancelOnLeaveMinutes,
+      'seatConfirmationLeadMinutes': seatConfirmationLeadMinutes,
+      'bookingReminderLeadMinutes': bookingReminderLeadMinutes,
+      'expiryWarningLeadMinutes': expiryWarningLeadMinutes,
+      'bookingCancelDeadlineHours': bookingCancelDeadlineHours,
       'libraryClosed': libraryClosed,
       'closedReason': closedReason,
     };
@@ -94,4 +118,3 @@ class LibrarySetting {
     return workingDaysList.contains(configDay);
   }
 }
-

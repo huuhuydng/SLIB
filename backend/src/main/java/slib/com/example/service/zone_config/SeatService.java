@@ -50,7 +50,7 @@ public class SeatService {
 
     @Transactional(readOnly = true)
     public List<SeatResponse> getAllSeats() {
-        return seatRepository.findAll()
+        return seatRepository.findAllVisible()
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -86,6 +86,8 @@ public class SeatService {
                 .columnNumber(columnNumber)
                 .seatCode(seatCode)
                 .isActive(req.getIsActive() != null ? req.getIsActive() : true)
+                .isVisible(true)
+                .retiredAt(null)
                 .seatStatus(req.getSeatStatus() != null ? req.getSeatStatus() : SeatStatus.AVAILABLE)
                 .build();
 
@@ -113,6 +115,8 @@ public class SeatService {
         if (req.getIsActive() != null) {
             seat.setIsActive(req.getIsActive());
         }
+        seat.setIsVisible(true);
+        seat.setRetiredAt(null);
 
         return toResponse(seatRepository.save(seat));
     }
@@ -182,7 +186,7 @@ public class SeatService {
         if (zoneId != null) {
             seats = seatRepository.findByZone_ZoneId(zoneId);
         } else {
-            seats = seatRepository.findAll();
+            seats = seatRepository.findAllVisible();
         }
 
         return seats.stream()
@@ -427,7 +431,7 @@ public class SeatService {
         } else if (areaId != null) {
             seats = seatRepository.findByAreaId(areaId);
         } else {
-            seats = seatRepository.findAll();
+            seats = seatRepository.findAllVisible();
         }
 
         return seats.stream()

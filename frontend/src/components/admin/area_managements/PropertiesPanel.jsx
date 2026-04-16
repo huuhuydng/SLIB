@@ -361,21 +361,6 @@ function PropertiesPanel() {
           break;
 
         case "seat":
-          const seatToDelete = seats.find(s => s.seatId === selectedItem.id);
-          const zoneIdOfDeletedSeat = seatToDelete?.zoneId;
-          const deletedSeatRowNumber = seatToDelete?.rowNumber;
-
-          let remainingSeatsInSameRow = [];
-          if (zoneIdOfDeletedSeat && deletedSeatRowNumber) {
-            remainingSeatsInSameRow = seats
-              .filter(s =>
-                s.zoneId === zoneIdOfDeletedSeat &&
-                s.seatId !== selectedItem.id &&
-                s.rowNumber === deletedSeatRowNumber
-              )
-              .sort((a, b) => (a.columnNumber || 0) - (b.columnNumber || 0));
-          }
-
           // 1. Delete seat from UI immediately
           dispatch({ type: actions.DELETE_SEAT, payload: selectedItem.id });
 
@@ -383,27 +368,6 @@ function PropertiesPanel() {
           if (selectedItem.id > 0) {
             dispatch({ type: actions.ADD_PENDING_SEAT_DELETE, payload: selectedItem.id });
           }
-
-          // 3. Renumber and update remaining seats in UI immediately
-          remainingSeatsInSameRow.forEach((seat, i) => {
-            const newColumnNumber = i + 1;
-            const rowLetter = String.fromCharCode(64 + (seat.rowNumber || 1));
-            const newSeatCode = `${rowLetter}${newColumnNumber}`;
-            const newPositionX = (newColumnNumber - 1) * 48;
-
-            const updatedSeat = {
-              ...seat,
-              seatCode: newSeatCode,
-              columnNumber: newColumnNumber,
-              positionX: newPositionX
-            };
-
-            // Update UI
-            dispatch({ type: actions.UPDATE_SEAT, payload: updatedSeat });
-
-            // Track for batch save
-            dispatch({ type: actions.ADD_PENDING_SEAT_UPDATE, payload: updatedSeat });
-          });
 
           // NO API calls here - will save when user clicks Save button
           break;

@@ -79,6 +79,50 @@ class UpcomingBooking {
     );
   }
 
+  UpcomingBooking copyWith({
+    String? reservationId,
+    String? status,
+    int? seatId,
+    String? seatCode,
+    int? zoneId,
+    String? zoneName,
+    int? areaId,
+    String? areaName,
+    DateTime? startTime,
+    DateTime? endTime,
+    String? dayOfWeek,
+    int? dayOfMonth,
+    String? timeRange,
+    bool? layoutChanged,
+    String? layoutChangeTitle,
+    String? layoutChangeMessage,
+    DateTime? layoutChangedAt,
+    bool? canCancel,
+    bool? canChangeSeat,
+  }) {
+    return UpcomingBooking(
+      reservationId: reservationId ?? this.reservationId,
+      status: status ?? this.status,
+      seatId: seatId ?? this.seatId,
+      seatCode: seatCode ?? this.seatCode,
+      zoneId: zoneId ?? this.zoneId,
+      zoneName: zoneName ?? this.zoneName,
+      areaId: areaId ?? this.areaId,
+      areaName: areaName ?? this.areaName,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      timeRange: timeRange ?? this.timeRange,
+      layoutChanged: layoutChanged ?? this.layoutChanged,
+      layoutChangeTitle: layoutChangeTitle ?? this.layoutChangeTitle,
+      layoutChangeMessage: layoutChangeMessage ?? this.layoutChangeMessage,
+      layoutChangedAt: layoutChangedAt ?? this.layoutChangedAt,
+      canCancel: canCancel ?? this.canCancel,
+      canChangeSeat: canChangeSeat ?? this.canChangeSeat,
+    );
+  }
+
   /// Check if this booking is currently active (ongoing)
   bool get isActive {
     final now = DateTime.now();

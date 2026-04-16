@@ -8,6 +8,7 @@ import 'package:slib/models/area.dart';
 import 'package:slib/models/area_factory.dart';
 import 'package:slib/models/library_setting.dart';
 import 'package:slib/models/seat.dart';
+import 'package:slib/models/upcoming_booking.dart';
 import 'package:slib/models/zone_occupancy.dart';
 import 'package:slib/models/zones.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -307,6 +308,51 @@ class BookingService {
     } else {
       throw Exception("Failed to load upcoming booking: ${response.body}");
     }
+  }
+
+  Future<List<UpcomingBooking>> getUserBookingHistory(String userId) async {
+    final url = Uri.parse("${ApiConstants.bookingUrl}/user/$userId");
+    final response = await http.get(url, headers: await _authHeaders());
+
+    if (response.statusCode != 200) {
+      throw Exception("Failed to load booking history: ${response.body}");
+    }
+
+    final List<dynamic> decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    return decoded
+        .whereType<Map<String, dynamic>>()
+        .map((json) {
+          final startTime = DateTime.parse(json['startTime']);
+          final endTime = DateTime.parse(json['endTime']);
+          final weekdayLabels = ['CN', 'TH 2', 'TH 3', 'TH 4', 'TH 5', 'TH 6', 'TH 7'];
+          final dayIndex = startTime.weekday % 7;
+
+          return UpcomingBooking(
+            reservationId: json['reservationId']?.toString() ?? '',
+            status: json['status']?.toString() ?? '',
+            seatId: json['seatId'] ?? 0,
+            seatCode: json['seatCode']?.toString() ?? '',
+            zoneId: json['zoneId'] ?? 0,
+            zoneName: json['zoneName']?.toString() ?? '',
+            areaId: json['areaId'] ?? 0,
+            areaName: json['areaName']?.toString() ?? '',
+            startTime: startTime,
+            endTime: endTime,
+            dayOfWeek: weekdayLabels[dayIndex],
+            dayOfMonth: startTime.day,
+            timeRange:
+                '${DateFormat('HH:mm').format(startTime)} - ${DateFormat('HH:mm').format(endTime)}',
+            layoutChanged: json['layoutChanged'] == true,
+            layoutChangeTitle: json['layoutChangeTitle']?.toString(),
+            layoutChangeMessage: json['layoutChangeMessage']?.toString(),
+            layoutChangedAt: json['layoutChangedAt'] != null
+                ? DateTime.tryParse(json['layoutChangedAt'].toString())
+                : null,
+            canCancel: json['canCancel'] == true,
+            canChangeSeat: json['canChangeSeat'] == true,
+          );
+        })
+        .toList();
   }
 
   Future<Map<String, dynamic>> getSeatNfcActionStatus(

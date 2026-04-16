@@ -51,6 +51,13 @@ public class SeatEntity {
     @Builder.Default
     private Boolean isActive = true;
 
+    @Column(name = "is_visible", nullable = false)
+    @Builder.Default
+    private Boolean isVisible = true;
+
+    @Column(name = "retired_at")
+    private java.time.LocalDateTime retiredAt;
+
     // Dynamic seat status (AVAILABLE, BOOKED, HOLDING)
     // Column đã bị xóa khỏi DB (V10, V15) - giờ tính dynamic từ reservations
     // Giữ field để dùng in-memory trong SeatService
