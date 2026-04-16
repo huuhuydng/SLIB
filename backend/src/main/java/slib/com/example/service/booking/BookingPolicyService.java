@@ -110,6 +110,21 @@ public class BookingPolicyService {
             }
         }
 
+        int maxActiveBookings = settings.getMaxActiveBookings() != null ? settings.getMaxActiveBookings() : 2;
+        long activeBookings = reservationRepository.countByUser_IdAndStatusInAndEndTimeAfter(
+                userId,
+                ACTIVE_RESERVATION_STATUSES.stream().toList(),
+                now);
+        if (activeBookings >= maxActiveBookings) {
+            return BookingRestrictionStatus.builder()
+                    .allowedNow(false)
+                    .restrictionReason(
+                            "Bạn đang giữ tối đa " + maxActiveBookings
+                                    + " booking sắp tới. Vui lòng hủy hoặc hoàn tất bớt booking trước khi đặt thêm.")
+                    .policyHint("Giới hạn này dùng để tránh giữ chỗ liên tiếp trên quá nhiều ngày.")
+                    .build();
+        }
+
         if (requestedStartTime != null
                 && currentReputation < REPUTATION_ADVANCE_BOOKING_THRESHOLD
                 && requestedStartTime.isAfter(now.plusHours(LOW_REPUTATION_ADVANCE_HOURS))) {

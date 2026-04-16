@@ -18,10 +18,12 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM SeatEntity s WHERE s.seatId = :seatId")
     Optional<SeatEntity> findByIdForUpdate(@Param("seatId") Integer seatId);
-    List<SeatEntity> findByZone_ZoneId(Integer zoneId);
+    @Query("SELECT s FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.isVisible = true")
+    List<SeatEntity> findByZone_ZoneId(@Param("zoneId") Integer zoneId);
 
     // Find only active seats in a zone
-    List<SeatEntity> findByZone_ZoneIdAndIsActiveTrue(Integer zoneId);
+    @Query("SELECT s FROM SeatEntity s WHERE s.zone.zoneId = :zoneId AND s.isActive = true AND s.isVisible = true")
+    List<SeatEntity> findByZone_ZoneIdAndIsActiveTrue(@Param("zoneId") Integer zoneId);
 
     long countByIsActiveTrue();
 
@@ -39,8 +41,11 @@ public interface SeatRepository extends JpaRepository<SeatEntity, Integer> {
     List<SeatEntity> findByNfcTagUidIsNotNull();
 
     // Find seats by area (via zone relationship)
-    @Query("SELECT s FROM SeatEntity s WHERE s.zone.area.areaId = :areaId")
+    @Query("SELECT s FROM SeatEntity s WHERE s.zone.area.areaId = :areaId AND s.isVisible = true")
     List<SeatEntity> findByAreaId(@Param("areaId") Integer areaId);
+
+    @Query("SELECT s FROM SeatEntity s WHERE s.isVisible = true")
+    List<SeatEntity> findAllVisible();
 
     // Delete all seats by zone ID
     void deleteByZone_ZoneId(Integer zoneId);

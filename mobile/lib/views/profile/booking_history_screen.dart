@@ -628,7 +628,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                       child: Text(
                         (booking['layoutChangeMessage']?.toString().trim().isNotEmpty ?? false)
                             ? booking['layoutChangeMessage'].toString().trim()
-                            : 'Sơ đồ thư viện vừa thay đổi. Bạn có thể mở lịch này để đổi ghế hoặc hủy mà không bị giới hạn 12 giờ.',
+                            : 'Sơ đồ thư viện vừa thay đổi. Bạn có thể mở lịch này để đổi ghế hoặc hủy mà không bị giới hạn thời hạn hủy tiêu chuẩn.',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF9A3412),

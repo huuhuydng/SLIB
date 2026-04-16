@@ -59,24 +59,8 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
     return widget.booking.canChangeSeat;
   }
 
-  /// Check if booking can be confirmed (within 15 mins before start to end AND not already confirmed)
-  bool get _canConfirm {
-    final now = DateTime.now();
-    final checkInStart = widget.booking.startTime.subtract(
-      const Duration(minutes: 15),
-    );
-    final isWithinTimeWindow =
-        now.isAfter(checkInStart) && now.isBefore(widget.booking.endTime);
-    final isNotConfirmed = widget.booking.status.toUpperCase() != 'CONFIRMED';
-    return isWithinTimeWindow && isNotConfirmed;
-  }
-
   /// Check if booking is already confirmed
   bool get _isAlreadyConfirmed {
-    return widget.booking.status.toUpperCase() == 'CONFIRMED';
-  }
-
-  bool get _canLeaveSeat {
     return widget.booking.status.toUpperCase() == 'CONFIRMED';
   }
 
@@ -726,13 +710,13 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
               _buildActionButton(
                 icon: Icons.cancel_outlined,
                 label: 'Hủy đặt chỗ',
-                subtitle: widget.booking.layoutChanged
+                  subtitle: widget.booking.layoutChanged
                     ? (_canCancel
                           ? 'Bạn được hủy lịch này dù đã gần tới giờ'
                           : 'Không thể hủy khi lịch đã bắt đầu')
                     : (_canCancel
-                          ? 'Hủy trước 12 giờ để không bị trừ điểm'
-                          : 'Không thể hủy (còn dưới 12 giờ)'),
+                          ? 'Hủy trước thời hạn cấu hình để không bị trừ điểm'
+                          : 'Đã quá thời hạn hủy cho phép'),
                 color: Colors.red,
                 enabled: _canCancel && !_isLoading,
                 isLoading: _isLoading,
@@ -767,9 +751,7 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
                       ? 'Quét lại NFC đúng ghế để rời chỗ an toàn'
                       : 'Bạn đã check-in thư viện. Chạm NFC trên ghế để xác nhận.',
                   color: _isAlreadyConfirmed ? Colors.orange : Colors.green,
-                  enabled: _isAlreadyConfirmed
-                      ? _canLeaveSeat && !_isLoading
-                      : _canConfirm && !_isLoading,
+                  enabled: !_isLoading,
                   onTap: _isAlreadyConfirmed
                       ? _handleLeaveSeatByNfc
                       : _handleNfcConfirm,

@@ -121,7 +121,7 @@ class FE39_AutoCheckoutSettingTest {
                                 .andExpect(status().isBadRequest())
                                 .andExpect(jsonPath("$.error").value("Bad Request"))
                                 .andExpect(jsonPath("$.errors.autoCancelMinutes")
-                                                .value("Thời gian tự hủy nếu không check-in phải lớn hơn 0"));
+                                                .value("Thời gian tự hủy nếu không xác nhận ghế phải lớn hơn 0"));
 
                 verifyNoInteractions(librarySettingService);
         }

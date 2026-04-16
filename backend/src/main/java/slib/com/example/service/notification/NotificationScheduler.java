@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.system.SystemLogEntity.LogLevel;
 import slib.com.example.repository.booking.ReservationRepository;
@@ -17,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import slib.com.example.service.system.SystemLogService;
+import slib.com.example.service.system.LibrarySettingService;
 
 /**
  * Scheduler for sending notification reminders before bookings
@@ -29,6 +31,7 @@ public class NotificationScheduler {
     private final ReservationRepository reservationRepository;
     private final PushNotificationService pushNotificationService;
     private final SystemLogService systemLogService;
+    private final LibrarySettingService librarySettingService;
     private final TransactionTemplate readOnlyTransactionTemplate;
 
     // Track sent reminders to avoid duplicates (in memory - will reset on restart)
@@ -39,10 +42,12 @@ public class NotificationScheduler {
     public NotificationScheduler(ReservationRepository reservationRepository,
             PushNotificationService pushNotificationService,
             SystemLogService systemLogService,
+            LibrarySettingService librarySettingService,
             PlatformTransactionManager transactionManager) {
         this.reservationRepository = reservationRepository;
         this.pushNotificationService = pushNotificationService;
         this.systemLogService = systemLogService;
+        this.librarySettingService = librarySettingService;
         this.readOnlyTransactionTemplate = new TransactionTemplate(transactionManager);
         this.readOnlyTransactionTemplate.setReadOnly(true);
     }
@@ -53,9 +58,16 @@ public class NotificationScheduler {
      */
     @Scheduled(fixedRate = 60000) // Every 1 minute
     public void sendBookingReminders() {
+        LibrarySetting settings = librarySettingService.getSettings();
+        int bookingReminderLeadMinutes = settings.getBookingReminderLeadMinutes() != null
+                ? settings.getBookingReminderLeadMinutes()
+                : 15;
+        int expiryWarningLeadMinutes = settings.getExpiryWarningLeadMinutes() != null
+                ? settings.getExpiryWarningLeadMinutes()
+                : 10;
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime reminderTime = now.plusMinutes(15);
-        LocalDateTime expiryWarningTime = now.plusMinutes(10);
+        LocalDateTime reminderTime = now.plusMinutes(bookingReminderLeadMinutes);
+        LocalDateTime expiryWarningTime = now.plusMinutes(expiryWarningLeadMinutes);
         LocalDateTime seatStartWindowStart = now.minusSeconds(30);
         LocalDateTime seatStartWindowEnd = now.plusSeconds(45);
 

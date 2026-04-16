@@ -39,17 +39,37 @@ public class LibrarySettingDTO {
     @Max(value = 20, message = "Số lượt đặt tối đa mỗi ngày không được vượt quá 20")
     private Integer maxBookingsPerDay; // 3 (số lần đặt tối đa mỗi ngày)
 
+    @Min(value = 1, message = "Số booking sắp tới tối đa phải lớn hơn 0")
+    @Max(value = 20, message = "Số booking sắp tới tối đa không được vượt quá 20")
+    private Integer maxActiveBookings; // 2 (số booking sắp tới tối đa được giữ cùng lúc)
+
     @Min(value = 1, message = "Số giờ đặt tối đa mỗi ngày phải lớn hơn 0")
     @Max(value = 24, message = "Số giờ đặt tối đa mỗi ngày không được vượt quá 24")
     private Integer maxHoursPerDay; // 4 (số giờ tối đa được đặt mỗi ngày)
 
-    @Min(value = 1, message = "Thời gian tự hủy nếu không check-in phải lớn hơn 0")
-    @Max(value = 180, message = "Thời gian tự hủy nếu không check-in không được vượt quá 180 phút")
-    private Integer autoCancelMinutes; // 15 (phút tự hủy booking không check-in)
+    @Min(value = 1, message = "Thời gian tự hủy nếu không xác nhận ghế phải lớn hơn 0")
+    @Max(value = 180, message = "Thời gian tự hủy nếu không xác nhận ghế không được vượt quá 180 phút")
+    private Integer autoCancelMinutes; // 15 (phút tự hủy booking nếu không xác nhận ghế)
 
     @Min(value = 1, message = "Thời gian tự hủy khi rời chỗ phải lớn hơn 0")
     @Max(value = 360, message = "Thời gian tự hủy khi rời chỗ không được vượt quá 360 phút")
     private Integer autoCancelOnLeaveMinutes; // 30 (phút tự hủy sau khi rời chỗ)
+
+    @Min(value = 0, message = "Thời gian cho phép xác nhận ghế sớm không được nhỏ hơn 0")
+    @Max(value = 180, message = "Thời gian cho phép xác nhận ghế sớm không được vượt quá 180 phút")
+    private Integer seatConfirmationLeadMinutes; // 15 (phút trước giờ bắt đầu được xác nhận ghế)
+
+    @Min(value = 1, message = "Thời gian nhắc lịch phải lớn hơn 0")
+    @Max(value = 180, message = "Thời gian nhắc lịch không được vượt quá 180 phút")
+    private Integer bookingReminderLeadMinutes; // 15 (phút trước giờ bắt đầu gửi nhắc lịch)
+
+    @Min(value = 1, message = "Thời gian cảnh báo sắp hết giờ phải lớn hơn 0")
+    @Max(value = 180, message = "Thời gian cảnh báo sắp hết giờ không được vượt quá 180 phút")
+    private Integer expiryWarningLeadMinutes; // 10 (phút trước giờ kết thúc gửi cảnh báo)
+
+    @Min(value = 1, message = "Thời hạn hủy chỗ phải lớn hơn 0")
+    @Max(value = 168, message = "Thời hạn hủy chỗ không được vượt quá 168 giờ")
+    private Integer bookingCancelDeadlineHours; // 12 (giờ trước khi bắt đầu để được hủy)
 
     @Min(value = 0, message = "Điểm uy tín tối thiểu không được nhỏ hơn 0")
     @Max(value = 100, message = "Điểm uy tín tối thiểu không được vượt quá 100")

@@ -104,6 +104,10 @@ public class BookingService {
                 SeatEntity seat = seatRepository.findByIdForUpdate(seatId)
                                 .orElseThrow(() -> new RuntimeException("Seat not found"));
 
+                if (Boolean.FALSE.equals(seat.getIsVisible())) {
+                        throw new RuntimeException("Ghế này không còn hiển thị trên sơ đồ và không thể đặt mới");
+                }
+
                 // Lấy cấu hình giới hạn đặt chỗ
                 LibrarySetting settings = librarySettingService.getSettings();
 
@@ -379,14 +383,15 @@ public class BookingService {
                 // confirming)
                 // Only apply 12-hour rule for BOOKED/CONFIRMED reservations
                 if (!cancelledByStaff && !"PROCESSING".equalsIgnoreCase(reservation.getStatus()) && !flexibleCancellation) {
-                        // Check 12-hour rule for confirmed bookings
-                        LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(12);
+                        int cancellationLeadHours = resolveBookingCancellationLeadHours();
+                        LocalDateTime cancelDeadline = reservation.getStartTime().minusHours(cancellationLeadHours);
 
                         if (now.isAfter(cancelDeadline)) {
                                 long hoursUntilStart = java.time.Duration.between(now, reservation.getStartTime())
                                                 .toHours();
                                 throw new RuntimeException(
-                                                "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước 12 tiếng. " +
+                                                "Không thể hủy đặt chỗ. Bạn chỉ có thể hủy trước "
+                                                                + cancellationLeadHours + " tiếng. " +
                                                                 "Còn " + hoursUntilStart
                                                                 + " tiếng nữa là đến giờ đặt.");
                         }
@@ -602,7 +607,8 @@ public class BookingService {
                                 "Đã xác nhận ghế " + reservation.getSeat().getSeatCode() + " tại "
                                                 + reservation.getSeat().getZone().getZoneName() + " bằng NFC",
                                 ActivityLogEntity.TYPE_NFC_CONFIRM,
-                                "bằng NFC");
+                                "bằng NFC",
+                                true);
         }
 
         /**
@@ -639,7 +645,8 @@ public class BookingService {
                                 "Đã xác nhận ghế " + reservation.getSeat().getSeatCode() + " tại "
                                                 + reservation.getSeat().getZone().getZoneName() + " bằng NFC UID",
                                 ActivityLogEntity.TYPE_NFC_CONFIRM,
-                                "bằng NFC");
+                                "bằng NFC",
+                                true);
         }
 
         private static final Map<String, Set<String>> VALID_STATUS_TRANSITIONS = Map.of(
@@ -664,7 +671,8 @@ public class BookingService {
                                 "Đã được thủ thư " + librarian.getFullName() + " xác nhận đang ngồi tại ghế "
                                                 + reservation.getSeat().getSeatCode(),
                                 ActivityLogEntity.TYPE_CHECK_IN,
-                                "với xác nhận của thủ thư");
+                                "với xác nhận của thủ thư",
+                                false);
         }
 
         @Transactional
@@ -708,7 +716,7 @@ public class BookingService {
                                                 reserv.getEndTime().getHour(), reserv.getEndTime().getMinute());
                                 String title = "Đặt chỗ thành công";
                                 String body = String.format(
-                                                "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến sớm để check-in!",
+                                                "Ghế %s tại %s (%s) đã được xác nhận. Hãy đến đúng giờ, check-in thư viện và xác nhận chỗ ngồi.",
                                                 seat.getSeatCode(), zoneName, timeStr);
                                 pushNotificationService.sendToUser(reserv.getUser().getId(), title, body,
                                                 NotificationType.BOOKING, saved.getReservationId());
@@ -795,7 +803,7 @@ public class BookingService {
                 }
 
                 return canBypassStandardCancellationWindow(reservation, now)
-                                || now.isBefore(reservation.getStartTime().minusHours(12));
+                                || now.isBefore(reservation.getStartTime().minusHours(resolveBookingCancellationLeadHours()));
         }
 
         private boolean canUserChangeSeatNow(ReservationEntity reservation) {
@@ -832,7 +840,14 @@ public class BookingService {
                                 : LocalDateTime.now(VIETNAM_ZONE).format(LAYOUT_CHANGE_TIME_FORMAT);
                 return "Thư viện vừa cập nhật sơ đồ vào " + timeText
                                 + ". Suất ghế của bạn ở khung giờ " + buildTimeRange(reservation)
-                                + " có thể đã thay đổi vị trí hiển thị. Bạn có thể mở ứng dụng để kiểm tra lại, đổi ghế khác hoặc hủy chỗ này mà không bị giới hạn 12 giờ.";
+                                + " có thể đã thay đổi vị trí hiển thị. Bạn có thể mở ứng dụng để kiểm tra lại, đổi ghế khác hoặc hủy chỗ này mà không bị giới hạn thời hạn hủy tiêu chuẩn.";
+        }
+
+        private int resolveBookingCancellationLeadHours() {
+                LibrarySetting settings = librarySettingService.getSettings();
+                return settings.getBookingCancelDeadlineHours() != null
+                                ? settings.getBookingCancelDeadlineHours()
+                                : 12;
         }
 
         private String buildTimeRange(ReservationEntity reservation) {
@@ -1061,20 +1076,28 @@ public class BookingService {
                 return "CANCELLED".equals(normalized) ? "CANCEL" : normalized;
         }
 
-        private void validateCheckInEligibility(ReservationEntity reservation) {
+        private void validateSeatConfirmationEligibility(ReservationEntity reservation, boolean enforceTimeWindow) {
                 String currentStatus = normalizeStatus(reservation.getStatus());
                 if (!"BOOKED".equals(currentStatus)) {
-                        throw new BadRequestException("Chỉ đặt chỗ đã xác nhận mới có thể check-in.");
+                        throw new BadRequestException("Chỉ lượt đặt đang ở trạng thái BOOKED mới có thể xác nhận ghế.");
+                }
+
+                if (!enforceTimeWindow) {
+                        return;
                 }
 
                 if (isBeforeCheckInWindow(reservation)) {
-                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                        LibrarySetting settings = librarySettingService.getSettings();
+                        int leadMinutes = settings.getSeatConfirmationLeadMinutes() != null
+                                        ? settings.getSeatConfirmationLeadMinutes()
+                                        : 15;
+                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(leadMinutes);
                         throw new BadRequestException(
-                                        "Chưa đến giờ check-in. Bạn có thể check-in từ "
+                                        "Chưa đến giờ xác nhận ghế. Bạn có thể xác nhận từ "
                                                         + checkInStart.toLocalTime());
                 }
                 if (isAfterCheckInWindow(reservation)) {
-                        throw new BadRequestException("Đã hết thời gian check-in.");
+                        throw new BadRequestException("Lượt đặt này đã hết thời gian xác nhận ghế.");
                 }
         }
 
@@ -1091,7 +1114,11 @@ public class BookingService {
 
         private boolean isBeforeCheckInWindow(ReservationEntity reservation) {
                 LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
-                LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                LibrarySetting settings = librarySettingService.getSettings();
+                int leadMinutes = settings.getSeatConfirmationLeadMinutes() != null
+                                ? settings.getSeatConfirmationLeadMinutes()
+                                : 15;
+                LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(leadMinutes);
                 return now.isBefore(checkInStart);
         }
 
@@ -1124,7 +1151,11 @@ public class BookingService {
                 }
 
                 if (isBeforeCheckInWindow(reservation)) {
-                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                        LibrarySetting settings = librarySettingService.getSettings();
+                        int leadMinutes = settings.getSeatConfirmationLeadMinutes() != null
+                                        ? settings.getSeatConfirmationLeadMinutes()
+                                        : 15;
+                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(leadMinutes);
                         return "Chưa đến giờ xác nhận ghế. Bạn có thể quét NFC từ "
                                         + checkInStart.toLocalTime()
                                         + ".";
@@ -1142,8 +1173,9 @@ public class BookingService {
                         String activityTitle,
                         String activityDescription,
                         String activityType,
-                        String confirmationLabel) {
-                validateCheckInEligibility(reservation);
+                        String confirmationLabel,
+                        boolean enforceTimeWindow) {
+                validateSeatConfirmationEligibility(reservation, enforceTimeWindow);
 
                 LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
                 reservation.setStatus("CONFIRMED");
@@ -1189,7 +1221,7 @@ public class BookingService {
                                         reservation.getEndTime().getHour(), reservation.getEndTime().getMinute());
                         String notiTitle = "Ghế của bạn đã được xác nhận";
                         String notiBody = String.format(
-                                        "Ghế %s tại %s (%s) đã được xác nhận %s. Bạn đã check-in thành công.",
+                                        "Ghế %s tại %s (%s) đã được xác nhận %s. Bạn đã xác nhận chỗ ngồi thành công.",
                                         seat.getSeatCode(), zoneName, timeStr, confirmationLabel);
                         pushNotificationService.sendToUser(reservation.getUser().getId(), notiTitle, notiBody,
                                         NotificationType.BOOKING, saved.getReservationId());
