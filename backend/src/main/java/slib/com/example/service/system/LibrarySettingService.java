@@ -49,9 +49,14 @@ public class LibrarySettingService {
                 .maxBookingDays(settings.getMaxBookingDays())
                 .workingDays(settings.getWorkingDays())
                 .maxBookingsPerDay(settings.getMaxBookingsPerDay())
+                .maxActiveBookings(settings.getMaxActiveBookings())
                 .maxHoursPerDay(settings.getMaxHoursPerDay())
                 .autoCancelMinutes(settings.getAutoCancelMinutes())
                 .autoCancelOnLeaveMinutes(settings.getAutoCancelOnLeaveMinutes())
+                .seatConfirmationLeadMinutes(settings.getSeatConfirmationLeadMinutes())
+                .bookingReminderLeadMinutes(settings.getBookingReminderLeadMinutes())
+                .expiryWarningLeadMinutes(settings.getExpiryWarningLeadMinutes())
+                .bookingCancelDeadlineHours(settings.getBookingCancelDeadlineHours())
                 .minReputation(settings.getMinReputation())
                 .libraryClosed(settings.getLibraryClosed())
                 .closedReason(settings.getClosedReason())
@@ -91,6 +96,9 @@ public class LibrarySettingService {
         if (dto.getMaxBookingsPerDay() != null) {
             settings.setMaxBookingsPerDay(dto.getMaxBookingsPerDay());
         }
+        if (dto.getMaxActiveBookings() != null) {
+            settings.setMaxActiveBookings(dto.getMaxActiveBookings());
+        }
         if (dto.getMaxHoursPerDay() != null) {
             settings.setMaxHoursPerDay(dto.getMaxHoursPerDay());
         }
@@ -99,6 +107,18 @@ public class LibrarySettingService {
         }
         if (dto.getAutoCancelOnLeaveMinutes() != null) {
             settings.setAutoCancelOnLeaveMinutes(dto.getAutoCancelOnLeaveMinutes());
+        }
+        if (dto.getSeatConfirmationLeadMinutes() != null) {
+            settings.setSeatConfirmationLeadMinutes(dto.getSeatConfirmationLeadMinutes());
+        }
+        if (dto.getBookingReminderLeadMinutes() != null) {
+            settings.setBookingReminderLeadMinutes(dto.getBookingReminderLeadMinutes());
+        }
+        if (dto.getExpiryWarningLeadMinutes() != null) {
+            settings.setExpiryWarningLeadMinutes(dto.getExpiryWarningLeadMinutes());
+        }
+        if (dto.getBookingCancelDeadlineHours() != null) {
+            settings.setBookingCancelDeadlineHours(dto.getBookingCancelDeadlineHours());
         }
         if (dto.getMinReputation() != null) {
             settings.setMinReputation(dto.getMinReputation());
@@ -181,9 +201,14 @@ public class LibrarySettingService {
         settings.setMaxBookingDays(defaults.getMaxBookingDays());
         settings.setWorkingDays(defaults.getWorkingDays());
         settings.setMaxBookingsPerDay(defaults.getMaxBookingsPerDay());
+        settings.setMaxActiveBookings(defaults.getMaxActiveBookings());
         settings.setMaxHoursPerDay(defaults.getMaxHoursPerDay());
         settings.setAutoCancelMinutes(defaults.getAutoCancelMinutes());
         settings.setAutoCancelOnLeaveMinutes(defaults.getAutoCancelOnLeaveMinutes());
+        settings.setSeatConfirmationLeadMinutes(defaults.getSeatConfirmationLeadMinutes());
+        settings.setBookingReminderLeadMinutes(defaults.getBookingReminderLeadMinutes());
+        settings.setExpiryWarningLeadMinutes(defaults.getExpiryWarningLeadMinutes());
+        settings.setBookingCancelDeadlineHours(defaults.getBookingCancelDeadlineHours());
         settings.setMinReputation(defaults.getMinReputation());
         settings.setLibraryClosed(defaults.getLibraryClosed());
         settings.setClosedReason(defaults.getClosedReason());
@@ -243,9 +268,14 @@ public class LibrarySettingService {
                 .maxBookingDays(14)
                 .workingDays("2,3,4,5,6")
                 .maxBookingsPerDay(3)
+                .maxActiveBookings(2)
                 .maxHoursPerDay(4)
                 .autoCancelMinutes(15)
                 .autoCancelOnLeaveMinutes(30)
+                .seatConfirmationLeadMinutes(15)
+                .bookingReminderLeadMinutes(15)
+                .expiryWarningLeadMinutes(10)
+                .bookingCancelDeadlineHours(12)
                 .minReputation(0)
                 .libraryClosed(false)
                 .closedReason(null)
@@ -283,6 +313,9 @@ public class LibrarySettingService {
         if (settings.getMaxBookingsPerDay() == null || settings.getMaxBookingsPerDay() <= 0) {
             throw new IllegalArgumentException("Số lượt đặt tối đa mỗi ngày phải lớn hơn 0");
         }
+        if (settings.getMaxActiveBookings() == null || settings.getMaxActiveBookings() <= 0) {
+            throw new IllegalArgumentException("Số booking sắp tới tối đa phải lớn hơn 0");
+        }
         if (settings.getMaxHoursPerDay() == null || settings.getMaxHoursPerDay() <= 0) {
             throw new IllegalArgumentException("Số giờ đặt tối đa mỗi ngày phải lớn hơn 0");
         }
@@ -290,10 +323,22 @@ public class LibrarySettingService {
             throw new IllegalArgumentException("Số giờ đặt tối đa mỗi ngày không được vượt quá tổng giờ hoạt động");
         }
         if (settings.getAutoCancelMinutes() == null || settings.getAutoCancelMinutes() <= 0) {
-            throw new IllegalArgumentException("Thời gian tự hủy nếu không check-in phải lớn hơn 0");
+            throw new IllegalArgumentException("Thời gian tự hủy nếu không xác nhận ghế phải lớn hơn 0");
         }
         if (settings.getAutoCancelOnLeaveMinutes() == null || settings.getAutoCancelOnLeaveMinutes() <= 0) {
             throw new IllegalArgumentException("Thời gian tự hủy khi rời chỗ phải lớn hơn 0");
+        }
+        if (settings.getSeatConfirmationLeadMinutes() == null || settings.getSeatConfirmationLeadMinutes() < 0) {
+            throw new IllegalArgumentException("Thời gian cho phép xác nhận ghế sớm không được nhỏ hơn 0");
+        }
+        if (settings.getBookingReminderLeadMinutes() == null || settings.getBookingReminderLeadMinutes() <= 0) {
+            throw new IllegalArgumentException("Thời gian nhắc lịch phải lớn hơn 0");
+        }
+        if (settings.getExpiryWarningLeadMinutes() == null || settings.getExpiryWarningLeadMinutes() <= 0) {
+            throw new IllegalArgumentException("Thời gian cảnh báo sắp hết giờ phải lớn hơn 0");
+        }
+        if (settings.getBookingCancelDeadlineHours() == null || settings.getBookingCancelDeadlineHours() <= 0) {
+            throw new IllegalArgumentException("Thời hạn hủy chỗ phải lớn hơn 0");
         }
         if (settings.getMinReputation() == null || settings.getMinReputation() < 0) {
             throw new IllegalArgumentException("Điểm uy tín tối thiểu không được nhỏ hơn 0");

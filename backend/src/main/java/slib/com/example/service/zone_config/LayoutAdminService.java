@@ -385,8 +385,13 @@ public class LayoutAdminService {
             SeatResponse nextSeat = nextSeats.get(seatId);
 
             if (nextSeat == null) {
-                blockedSeatIds.add(seatId);
-                destructiveSeatIds.add(seatId);
+                if (canArchiveSeatRemoval(currentZone, currentArea, nextZones, nextAreas)) {
+                    blockedSeatIds.add(seatId);
+                    warnOnlySeatIds.add(seatId);
+                } else {
+                    blockedSeatIds.add(seatId);
+                    destructiveSeatIds.add(seatId);
+                }
                 continue;
             }
 
@@ -395,12 +400,17 @@ public class LayoutAdminService {
 
             boolean destructive = nextZone == null
                     || nextArea == null
-                    || !Boolean.TRUE.equals(nextSeat.getIsActive())
                     || !Boolean.TRUE.equals(nextArea.getIsActive());
 
             if (destructive) {
                 blockedSeatIds.add(seatId);
                 destructiveSeatIds.add(seatId);
+                continue;
+            }
+
+            if (!Boolean.TRUE.equals(nextSeat.getIsActive())) {
+                blockedSeatIds.add(seatId);
+                warnOnlySeatIds.add(seatId);
                 continue;
             }
 
@@ -561,6 +571,22 @@ public class LayoutAdminService {
                     "Ghế đang có lịch đặt sắp tới",
                     "Chưa thể xuất bản vì các ghế sau có lịch đặt sắp tới và sẽ bị gỡ hoặc ngừng hoạt động: "
                             + summarizeSeats(futureDestructiveReservations) + "."
+            ));
+        }
+
+        Set<Integer> warnOnlySeatIds = new LinkedHashSet<>(impact.warnOnlySeatIds());
+        warnOnlySeatIds.removeAll(impact.destructiveSeatIds());
+        List<slib.com.example.entity.booking.ReservationEntity> futureWarnReservations =
+                findFutureReservations(warnOnlySeatIds, now);
+        if (!futureWarnReservations.isEmpty()) {
+            conflicts.add(conflict(
+                    "PUBLISH_FUTURE_BOOKING_WARNING",
+                    "warning",
+                    "layout",
+                    "publish-readiness",
+                    "Ghế có lịch đặt sắp tới sẽ được cảnh báo",
+                    "Các ghế sau có lịch đặt sắp tới và sẽ được đánh dấu cần đổi chỗ hoặc hủy: "
+                            + summarizeSeats(futureWarnReservations) + "."
             ));
         }
 
@@ -775,7 +801,7 @@ public class LayoutAdminService {
                 .sorted(Comparator.comparing(ZoneEntity::getZoneId))
                 .map(zone -> toZoneResponse(zone, amenitiesByZone.getOrDefault(zone.getZoneId(), List.of())))
                 .toList();
-        List<SeatResponse> seats = seatRepository.findAll().stream()
+        List<SeatResponse> seats = seatRepository.findAllVisible().stream()
                 .sorted(Comparator.comparing(SeatEntity::getSeatId))
                 .map(this::toSeatResponse)
                 .toList();
@@ -897,6 +923,8 @@ public class LayoutAdminService {
             seat.setRowNumber(seatDto.getRowNumber());
             seat.setColumnNumber(seatDto.getColumnNumber());
             seat.setIsActive(seatDto.getIsActive() != null ? seatDto.getIsActive() : true);
+            seat.setIsVisible(true);
+            seat.setRetiredAt(null);
             seat.setNfcTagUid(seatDto.getNfcTagUid());
             seatRepository.save(seat);
             if (requestedId != null && requestedId > 0) {
@@ -904,11 +932,19 @@ public class LayoutAdminService {
             }
         }
 
-        for (SeatEntity seat : liveSeats.values()) {
-            reservationRepository.deleteBySeat_SeatId(seat.getSeatId());
-            seatStatusReportRepository.deleteBySeat_SeatId(seat.getSeatId());
-            seatViolationReportRepository.deleteBySeat_SeatId(seat.getSeatId());
-            seatRepository.deleteById(seat.getSeatId());
+        Set<Integer> zoneIdsPendingDeletion = new HashSet<>(liveZones.keySet());
+        Set<Long> areaIdsPendingDeletion = new HashSet<>(liveAreas.keySet());
+        for (SeatEntity seat : new ArrayList<>(liveSeats.values())) {
+            Integer zoneId = seat.getZone() != null ? seat.getZone().getZoneId() : null;
+            Long areaId = seat.getZone() != null && seat.getZone().getArea() != null
+                    ? seat.getZone().getArea().getAreaId()
+                    : null;
+            if ((zoneId != null && zoneIdsPendingDeletion.contains(zoneId))
+                    || (areaId != null && areaIdsPendingDeletion.contains(areaId))) {
+                continue;
+            }
+            archiveSeat(seat);
+            liveSeats.remove(seat.getSeatId());
         }
 
         for (AreaFactoryEntity factory : liveFactories.values()) {
@@ -916,7 +952,9 @@ public class LayoutAdminService {
         }
 
         for (ZoneEntity zone : liveZones.values()) {
-            List<SeatEntity> seatsInZone = seatRepository.findByZone_ZoneId(zone.getZoneId());
+            List<SeatEntity> seatsInZone = liveSeats.values().stream()
+                    .filter(seat -> seat.getZone() != null && Objects.equals(seat.getZone().getZoneId(), zone.getZoneId()))
+                    .toList();
             for (SeatEntity seat : seatsInZone) {
                 reservationRepository.deleteBySeat_SeatId(seat.getSeatId());
                 seatStatusReportRepository.deleteBySeat_SeatId(seat.getSeatId());
@@ -930,7 +968,9 @@ public class LayoutAdminService {
         for (AreaEntity area : liveAreas.values()) {
             List<ZoneEntity> zonesInArea = zoneRepository.findByArea_AreaId(area.getAreaId());
             for (ZoneEntity zone : zonesInArea) {
-                List<SeatEntity> seatsInZone = seatRepository.findByZone_ZoneId(zone.getZoneId());
+                List<SeatEntity> seatsInZone = liveSeats.values().stream()
+                        .filter(seat -> seat.getZone() != null && Objects.equals(seat.getZone().getZoneId(), zone.getZoneId()))
+                        .toList();
                 for (SeatEntity seat : seatsInZone) {
                     reservationRepository.deleteBySeat_SeatId(seat.getSeatId());
                     seatStatusReportRepository.deleteBySeat_SeatId(seat.getSeatId());
@@ -1269,6 +1309,27 @@ public class LayoutAdminService {
 
     private String safeName(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private boolean canArchiveSeatRemoval(ZoneResponse currentZone,
+                                          AreaResponse currentArea,
+                                          Map<Integer, ZoneResponse> nextZones,
+                                          Map<Long, AreaResponse> nextAreas) {
+        if (currentZone == null || currentArea == null) {
+            return false;
+        }
+        ZoneResponse nextZone = nextZones.get(currentZone.getZoneId());
+        AreaResponse nextArea = nextAreas.get(currentArea.getAreaId());
+        return nextZone != null
+                && nextArea != null
+                && Boolean.TRUE.equals(nextArea.getIsActive());
+    }
+
+    private void archiveSeat(SeatEntity seat) {
+        seat.setIsVisible(false);
+        seat.setIsActive(false);
+        seat.setRetiredAt(LocalDateTime.now(VIETNAM_ZONE));
+        seatRepository.save(seat);
     }
 
     private record LayoutChangeImpact(Set<Integer> blockedSeatIds,

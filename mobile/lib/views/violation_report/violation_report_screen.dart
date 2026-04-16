@@ -1222,7 +1222,7 @@ class _ViolationReportScreenState extends State<ViolationReportScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Bạn cần xác nhận ghế ngồi (check-in) trước khi có thể báo cáo vi phạm tại các ghế xung quanh.',
+              'Bạn cần xác nhận ghế ngồi trước khi có thể báo cáo vi phạm tại các ghế xung quanh.',
               style: TextStyle(
                 fontSize: 15,
                 color: Colors.grey[600],
