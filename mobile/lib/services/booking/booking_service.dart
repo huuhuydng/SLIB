@@ -309,6 +309,21 @@ class BookingService {
     }
   }
 
+  Future<Map<String, dynamic>> getSeatNfcActionStatus(
+    String reservationId,
+  ) async {
+    final url = Uri.parse(
+      "${ApiConstants.bookingUrl}/seat-nfc-status/$reservationId",
+    );
+    final response = await http.get(url, headers: await _authHeaders());
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    }
+
+    throw Exception(utf8.decode(response.bodyBytes));
+  }
+
   Future<void> updateStatus(String reservationId, String status) async {
     final url = Uri.parse(
       "${ApiConstants.bookingUrl}/updateStatusReserv/$reservationId?status=$status",

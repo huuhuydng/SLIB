@@ -11,6 +11,7 @@ import slib.com.example.dto.booking.BookingResponse;
 import slib.com.example.dto.booking.CancelBookingRequest;
 import slib.com.example.dto.booking.ChangeSeatRequest;
 import slib.com.example.dto.booking.ReservationDTO;
+import slib.com.example.dto.booking.SeatNfcActionStatusResponse;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.users.UserRepository;
@@ -284,6 +285,22 @@ public class BookingController {
             }
             ReservationEntity reservation = bookingService.confirmSeatWithNfcUid(reservationId, nfcUid);
             return ResponseEntity.ok(toDTO(reservation));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/seat-nfc-status/{reservationId}")
+    public ResponseEntity<?> getSeatNfcActionStatus(
+            @PathVariable UUID reservationId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            ReservationEntity reservation = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+            resolveAuthorizedUserId(reservation.getUser().getId());
+
+            SeatNfcActionStatusResponse response = bookingService.getSeatNfcActionStatus(reservationId);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

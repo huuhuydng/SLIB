@@ -37,7 +37,18 @@ class BookingActionDialog extends StatefulWidget {
 class _BookingActionDialogState extends State<BookingActionDialog> {
   final BookingService _bookingService = BookingService();
   bool _isLoading = false;
+  bool _isCheckingNfcStatus = true;
+  bool _isCheckedIntoLibrary = false;
+  bool _canConfirmViaNfcFromBackend = false;
+  bool _canLeaveViaNfcFromBackend = false;
+  String? _nfcStatusMessage;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSeatNfcStatus();
+  }
 
   /// Check if booking can be cancelled (more than 12 hours before start)
   bool get _canCancel {
@@ -67,6 +78,52 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
 
   bool get _canLeaveSeat {
     return widget.booking.status.toUpperCase() == 'CONFIRMED';
+  }
+
+  Future<void> _loadSeatNfcStatus() async {
+    try {
+      final data = await _bookingService.getSeatNfcActionStatus(
+        widget.booking.reservationId,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _isCheckingNfcStatus = false;
+        _isCheckedIntoLibrary = data['checkedIntoLibrary'] == true;
+        _canConfirmViaNfcFromBackend = data['canConfirmSeatWithNfc'] == true;
+        _canLeaveViaNfcFromBackend = data['canLeaveSeatWithNfc'] == true;
+        _nfcStatusMessage = data['message']?.toString();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isCheckingNfcStatus = false;
+        _nfcStatusMessage =
+            'Không kiểm tra được trạng thái check-in thư viện lúc này.';
+      });
+    }
+  }
+
+  Future<bool> _ensureNfcActionAllowed({required bool leaveSeat}) async {
+    setState(() {
+      _isCheckingNfcStatus = true;
+      _errorMessage = null;
+    });
+
+    await _loadSeatNfcStatus();
+    if (!mounted) return false;
+
+    final allowed = leaveSeat
+        ? _canLeaveViaNfcFromBackend
+        : _canConfirmViaNfcFromBackend;
+    if (allowed) {
+      return true;
+    }
+
+    setState(() {
+      _errorMessage = _nfcStatusMessage;
+    });
+    return false;
   }
 
   Future<void> _handleCancel() async {
@@ -280,6 +337,9 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
   }
 
   Future<void> _handleNfcConfirm() async {
+    final allowed = await _ensureNfcActionAllowed(leaveSeat: false);
+    if (!allowed || !mounted) return;
+
     // Store the root navigator context before popping
     final rootContext = Navigator.of(context, rootNavigator: true).context;
 
@@ -322,6 +382,9 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
   }
 
   Future<void> _handleLeaveSeatByNfc() async {
+    final allowed = await _ensureNfcActionAllowed(leaveSeat: true);
+    if (!allowed || !mounted) return;
+
     final sheetNavigator = Navigator.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
 
@@ -500,6 +563,10 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final showNfcActionButton = _isAlreadyConfirmed
+        ? _canLeaveViaNfcFromBackend
+        : _canConfirmViaNfcFromBackend;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -674,25 +741,41 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
 
               const SizedBox(height: 12),
 
-              // 2. NFC action button
-              _buildActionButton(
-                icon: _isAlreadyConfirmed ? Icons.logout_rounded : Icons.nfc,
-                label: _isAlreadyConfirmed
-                    ? 'Trả chỗ ngồi bằng NFC'
-                    : 'Xác nhận chỗ ngồi',
-                subtitle: _isAlreadyConfirmed
-                    ? 'Quét lại NFC đúng ghế để rời chỗ an toàn'
-                    : (_canConfirm
-                          ? 'Chạm thẻ NFC trên bàn để check-in'
-                          : 'Có thể check-in từ 15 phút trước giờ đặt'),
-                color: _isAlreadyConfirmed ? Colors.orange : Colors.green,
-                enabled: _isAlreadyConfirmed
-                    ? _canLeaveSeat && !_isLoading
-                    : _canConfirm && !_isLoading,
-                onTap: _isAlreadyConfirmed
-                    ? _handleLeaveSeatByNfc
-                    : _handleNfcConfirm,
-              ),
+              if (_isCheckingNfcStatus)
+                _buildActionButton(
+                  icon: _isAlreadyConfirmed
+                      ? Icons.logout_rounded
+                      : Icons.nfc,
+                  label: _isAlreadyConfirmed
+                      ? 'Trả chỗ ngồi bằng NFC'
+                      : 'Xác nhận chỗ ngồi',
+                  subtitle: 'Đang kiểm tra trạng thái check-in thư viện...',
+                  color: _isAlreadyConfirmed ? Colors.orange : Colors.green,
+                  enabled: false,
+                  isLoading: true,
+                  onTap: () {},
+                )
+              else if (showNfcActionButton)
+                _buildActionButton(
+                  icon: _isAlreadyConfirmed
+                      ? Icons.logout_rounded
+                      : Icons.nfc,
+                  label: _isAlreadyConfirmed
+                      ? 'Trả chỗ ngồi bằng NFC'
+                      : 'Xác nhận chỗ ngồi',
+                  subtitle: _isAlreadyConfirmed
+                      ? 'Quét lại NFC đúng ghế để rời chỗ an toàn'
+                      : 'Bạn đã check-in thư viện. Chạm NFC trên ghế để xác nhận.',
+                  color: _isAlreadyConfirmed ? Colors.orange : Colors.green,
+                  enabled: _isAlreadyConfirmed
+                      ? _canLeaveSeat && !_isLoading
+                      : _canConfirm && !_isLoading,
+                  onTap: _isAlreadyConfirmed
+                      ? _handleLeaveSeatByNfc
+                      : _handleNfcConfirm,
+                )
+              else
+                _buildNfcRequirementNotice(),
 
               const SizedBox(height: 20),
             ],
@@ -770,6 +853,67 @@ class _BookingActionDialogState extends State<BookingActionDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNfcRequirementNotice() {
+    final highlightColor = _isCheckedIntoLibrary
+        ? const Color(0xFFB45309)
+        : const Color(0xFFB91C1C);
+    final backgroundColor = _isCheckedIntoLibrary
+        ? const Color(0xFFFFFBEB)
+        : const Color(0xFFFEF2F2);
+    final borderColor = _isCheckedIntoLibrary
+        ? const Color(0xFFFCD34D)
+        : const Color(0xFFFECACA);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _isCheckedIntoLibrary
+                ? Icons.access_time_rounded
+                : Icons.login_rounded,
+            color: highlightColor,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _isCheckedIntoLibrary
+                      ? 'Chưa thể dùng NFC cho lượt đặt này'
+                      : 'Bạn chưa check-in vào thư viện',
+                  style: TextStyle(
+                    color: highlightColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _nfcStatusMessage ??
+                      'Bạn cần hoàn tất check-in thư viện trước khi dùng NFC cho ghế ngồi.',
+                  style: TextStyle(
+                    color: highlightColor,
+                    fontSize: 12,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
