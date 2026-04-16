@@ -24,10 +24,12 @@ import slib.com.example.entity.zone_config.SeatEntity;
 import slib.com.example.entity.zone_config.SeatStatus;
 import slib.com.example.entity.zone_config.ZoneEntity;
 import slib.com.example.dto.booking.BookingResponse;
+import slib.com.example.dto.booking.SeatNfcActionStatusResponse;
 import slib.com.example.dto.zone_config.SeatDTO;
 import slib.com.example.entity.booking.ReservationEntity;
 import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.hce.AccessLogRepository;
 import slib.com.example.repository.zone_config.SeatRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.zone_config.ZoneRepository;
@@ -63,6 +65,7 @@ public class BookingService {
         private final ReputationService reputationService;
         private final SeatService seatService;
         private final StudentProfileService studentProfileService;
+        private final AccessLogRepository accessLogRepository;
 
         public BookingService(ReservationRepository reservationRepository, UserRepository userRepository,
                         SeatRepository seatRepository, ZoneRepository zoneRepository,
@@ -74,7 +77,8 @@ public class BookingService {
                         BookingPolicyService bookingPolicyService,
                         ReputationService reputationService,
                         SeatService seatService,
-                        StudentProfileService studentProfileService) {
+                        StudentProfileService studentProfileService,
+                        AccessLogRepository accessLogRepository) {
                 this.reservationRepository = reservationRepository;
                 this.userRepository = userRepository;
                 this.seatRepository = seatRepository;
@@ -89,6 +93,7 @@ public class BookingService {
                 this.reputationService = reputationService;
                 this.seatService = seatService;
                 this.studentProfileService = studentProfileService;
+                this.accessLogRepository = accessLogRepository;
         }
 
         @Transactional
@@ -613,6 +618,9 @@ public class BookingService {
         public ReservationEntity confirmSeatWithNfcUid(UUID reservationId, String rawNfcUid) {
                 ReservationEntity reservation = reservationRepository.findById(reservationId)
                                 .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+                assertUserHasActiveLibraryCheckIn(
+                                reservation.getUser().getId(),
+                                "xác nhận ghế bằng NFC");
 
                 // Step 1: Resolve seat from NFC UID (backend hashes internally)
                 SeatEntity nfcSeat = seatService.findSeatEntityByNfcUid(rawNfcUid);
@@ -1059,18 +1067,74 @@ public class BookingService {
                         throw new BadRequestException("Chỉ đặt chỗ đã xác nhận mới có thể check-in.");
                 }
 
-                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
-                LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
-                LocalDateTime checkInEnd = reservation.getEndTime();
-
-                if (now.isBefore(checkInStart)) {
+                if (isBeforeCheckInWindow(reservation)) {
+                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
                         throw new BadRequestException(
                                         "Chưa đến giờ check-in. Bạn có thể check-in từ "
                                                         + checkInStart.toLocalTime());
                 }
-                if (now.isAfter(checkInEnd)) {
+                if (isAfterCheckInWindow(reservation)) {
                         throw new BadRequestException("Đã hết thời gian check-in.");
                 }
+        }
+
+        private boolean isUserCheckedIntoLibrary(UUID userId) {
+                return accessLogRepository.checkInUser(userId).isPresent();
+        }
+
+        private void assertUserHasActiveLibraryCheckIn(UUID userId, String actionLabel) {
+                if (!isUserCheckedIntoLibrary(userId)) {
+                        throw new BadRequestException(
+                                        "Bạn cần check-in vào thư viện trước khi " + actionLabel + ".");
+                }
+        }
+
+        private boolean isBeforeCheckInWindow(ReservationEntity reservation) {
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                return now.isBefore(checkInStart);
+        }
+
+        private boolean isAfterCheckInWindow(ReservationEntity reservation) {
+                LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+                return now.isAfter(reservation.getEndTime());
+        }
+
+        private boolean isWithinCheckInWindow(ReservationEntity reservation) {
+                return !isBeforeCheckInWindow(reservation) && !isAfterCheckInWindow(reservation);
+        }
+
+        private String buildSeatNfcActionMessage(
+                        ReservationEntity reservation,
+                        String status,
+                        boolean checkedIntoLibrary) {
+                if (!checkedIntoLibrary) {
+                        if ("CONFIRMED".equals(status)) {
+                                return "Bạn cần check-in vào thư viện trước khi xác nhận rời ghế bằng NFC.";
+                        }
+                        return "Bạn cần check-in vào thư viện trước khi xác nhận ghế bằng NFC.";
+                }
+
+                if ("CONFIRMED".equals(status)) {
+                        return "Bạn có thể quét NFC đúng ghế để xác nhận rời ghế.";
+                }
+
+                if (!"BOOKED".equals(status)) {
+                                return "Lượt đặt này hiện không hỗ trợ xác nhận ghế bằng NFC.";
+                }
+
+                if (isBeforeCheckInWindow(reservation)) {
+                        LocalDateTime checkInStart = reservation.getStartTime().minusMinutes(15);
+                        return "Chưa đến giờ xác nhận ghế. Bạn có thể quét NFC từ "
+                                        + checkInStart.toLocalTime()
+                                        + ".";
+                }
+
+                if (isAfterCheckInWindow(reservation)) {
+                        return "Lượt đặt này đã hết thời gian xác nhận ghế.";
+                }
+
+                return "Bạn có thể quét NFC để xác nhận ghế.";
         }
 
         private ReservationEntity confirmReservationCheckIn(
@@ -1251,6 +1315,10 @@ public class BookingService {
                         throw new BadRequestException("Bạn không có quyền trả chỗ cho lượt đặt này.");
                 }
 
+                assertUserHasActiveLibraryCheckIn(
+                                reservation.getUser().getId(),
+                                "xác nhận rời ghế bằng NFC");
+
                 if (!"CONFIRMED".equalsIgnoreCase(reservation.getStatus())) {
                         throw new BadRequestException("Chỉ ghế đang được xác nhận mới có thể trả chỗ.");
                 }
@@ -1264,6 +1332,29 @@ public class BookingService {
                 }
 
                 return leaveSeat(reservationId);
+        }
+
+        @Transactional(readOnly = true)
+        public SeatNfcActionStatusResponse getSeatNfcActionStatus(UUID reservationId) {
+                ReservationEntity reservation = reservationRepository.findById(reservationId)
+                                .orElseThrow(() -> new RuntimeException("Đặt chỗ không tồn tại"));
+
+                String status = normalizeStatus(reservation.getStatus());
+                boolean checkedIntoLibrary = isUserCheckedIntoLibrary(reservation.getUser().getId());
+                boolean canConfirmSeatWithNfc = checkedIntoLibrary
+                                && "BOOKED".equals(status)
+                                && isWithinCheckInWindow(reservation);
+                boolean canLeaveSeatWithNfc = checkedIntoLibrary
+                                && "CONFIRMED".equals(status);
+
+                return SeatNfcActionStatusResponse.builder()
+                                .reservationId(reservation.getReservationId())
+                                .reservationStatus(status)
+                                .checkedIntoLibrary(checkedIntoLibrary)
+                                .canConfirmSeatWithNfc(canConfirmSeatWithNfc)
+                                .canLeaveSeatWithNfc(canLeaveSeatWithNfc)
+                                .message(buildSeatNfcActionMessage(reservation, status, checkedIntoLibrary))
+                                .build();
         }
 
         private String formatDuration(int minutes) {
