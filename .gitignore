@@ -203,6 +203,7 @@ docker-compose.yml
 # ============================================
 
 # Certificates and keys
+/backend/src/main/resources/firebase-service-account.json
 *.pem
 *.key
 *.crt
