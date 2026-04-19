@@ -416,6 +416,19 @@ public class PushNotificationService {
         log.info("Sent notification to {} users with role {}", users.size(), role);
     }
 
+    public void sendToRole(String role, String title, String body, NotificationType type, UUID referenceId,
+            String referenceType, String category) {
+        List<User> users = userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && role.equalsIgnoreCase(u.getRole().name()))
+                .toList();
+
+        for (User user : users) {
+            sendToUser(user.getId(), title, body, type, referenceId, referenceType, category);
+        }
+
+        log.info("Sent notification to {} users with role {} and referenceType {}", users.size(), role, referenceType);
+    }
+
     /**
      * Send notification to all patron users (STUDENT + TEACHER).
      */

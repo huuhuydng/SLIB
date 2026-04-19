@@ -33,8 +33,17 @@ public class LayoutScheduleEntity {
     @Column(name = "scheduled_for", nullable = false)
     private LocalDateTime scheduledFor;
 
+    @Column(name = "original_scheduled_for", nullable = false)
+    private LocalDateTime originalScheduledFor;
+
     @Column(name = "status", nullable = false, length = 32)
     private String status;
+
+    @Column(name = "retry_count", nullable = false)
+    private Integer retryCount;
+
+    @Column(name = "max_retry_count", nullable = false)
+    private Integer maxRetryCount;
 
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;

@@ -13,6 +13,8 @@ public interface LayoutScheduleRepository extends JpaRepository<LayoutScheduleEn
 
     Optional<LayoutScheduleEntity> findFirstByStatusOrderByScheduledForAsc(String status);
 
+    Optional<LayoutScheduleEntity> findFirstByStatusOrderByUpdatedAtDesc(String status);
+
     List<LayoutScheduleEntity> findByStatusOrderByScheduledForAsc(String status);
 
     List<LayoutScheduleEntity> findByStatusAndScheduledForLessThanEqualOrderByScheduledForAsc(

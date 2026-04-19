@@ -898,22 +898,74 @@ function CanvasBoard() {
             <div style={{
               padding: '8px 10px',
               borderRadius: '12px',
-              background: '#ECFDF5',
-              border: '1px solid #86EFAC',
-              color: '#166534',
+              background: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#FFF7ED' : '#ECFDF5',
+              border: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '1px solid #FDBA74' : '1px solid #86EFAC',
+              color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#9A3412' : '#166534',
               fontSize: '11px',
               lineHeight: 1.25,
               minWidth: '180px',
-              maxWidth: '230px',
+              maxWidth: '290px',
             }}>
-              <div style={{ fontWeight: 800, color: '#14532D', marginBottom: '2px' }}>
-                Đang chờ áp dụng theo lịch
+              <div style={{
+                fontWeight: 800,
+                color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#9A3412' : '#14532D',
+                marginBottom: '2px',
+              }}>
+                {(draftMeta.scheduledPublish.retryCount ?? 0) > 0
+                  ? `Đang chờ tự thử lại lần ${draftMeta.scheduledPublish.retryCount}/${draftMeta.scheduledPublish.maxRetryCount ?? 3}`
+                  : 'Đang chờ áp dụng theo lịch'}
               </div>
               <div>
-                {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
+                {(draftMeta.scheduledPublish.retryCount ?? 0) > 0
+                  ? `Thử lại lúc: ${formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}`
+                  : formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
               </div>
-              <div style={{ color: '#166534', opacity: 0.85 }}>
+              {(draftMeta.scheduledPublish.retryCount ?? 0) > 0 && draftMeta.scheduledPublish.originalScheduledFor && (
+                <div style={{ color: '#9A3412', opacity: 0.85 }}>
+                  Lịch gốc: {formatScheduledPublish(draftMeta.scheduledPublish.originalScheduledFor)}
+                </div>
+              )}
+              <div style={{
+                color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#C2410C' : '#166534',
+                opacity: 0.85,
+              }}>
                 {draftMeta.scheduledPublish.requestedByName ? `Người hẹn: ${draftMeta.scheduledPublish.requestedByName}` : 'Đã lưu lịch hẹn'}
+              </div>
+              {(draftMeta.scheduledPublish.retryCount ?? 0) > 0 && draftMeta.scheduledPublish.lastError && (
+                <div style={{ color: '#C2410C', marginTop: '2px' }}>
+                  Lý do gần nhất: {draftMeta.scheduledPublish.lastError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {draftMeta?.lastFailedSchedule?.status === 'FAILED' && (
+            <div style={{
+              padding: '8px 10px',
+              borderRadius: '12px',
+              background: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#991B1B',
+              fontSize: '11px',
+              lineHeight: 1.3,
+              minWidth: '210px',
+              maxWidth: '290px',
+            }}>
+              <div style={{ fontWeight: 800, color: '#7F1D1D', marginBottom: '2px' }}>
+                Lịch hẹn áp dụng gần nhất thất bại
+              </div>
+              <div style={{ marginBottom: '2px' }}>
+                {draftMeta.lastFailedSchedule.originalScheduledFor
+                  ? `Lịch gốc: ${formatScheduledPublish(draftMeta.lastFailedSchedule.originalScheduledFor)}`
+                  : formatScheduledPublish(draftMeta.lastFailedSchedule.scheduledFor)}
+              </div>
+              {(draftMeta.lastFailedSchedule.retryCount ?? 0) > 0 && (
+                <div style={{ marginBottom: '2px', color: '#B91C1C' }}>
+                  Đã thử lại {draftMeta.lastFailedSchedule.retryCount}/{draftMeta.lastFailedSchedule.maxRetryCount ?? 3} lần
+                </div>
+              )}
+              <div style={{ color: '#B91C1C' }}>
+                {draftMeta.lastFailedSchedule.lastError || 'Không xác định được lý do thất bại'}
               </div>
             </div>
           )}
@@ -976,6 +1028,8 @@ function CanvasBoard() {
 	                            ? 'Xuất bản sơ đồ'
 	                            : item.actionType === 'AUTO_PUBLISH'
 	                              ? 'Tự động xuất bản theo lịch'
+                                  : item.actionType === 'AUTO_PUBLISH_RETRY_SCHEDULED'
+                                    ? 'Tự dời lịch và thử lại'
 	                              : item.actionType === 'SCHEDULE_PUBLISH'
 	                                ? 'Lên lịch xuất bản'
 	                                : item.actionType === 'RESCHEDULE_PUBLISH'
