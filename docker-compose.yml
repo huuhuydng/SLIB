@@ -125,8 +125,10 @@ services:
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - MAIL_PASSWORD=${MAIL_PASSWORD:-}
       - APP_FRONTEND_URL=${APP_FRONTEND_URL:-https://slibsystem.site}
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-service-account.json
     volumes:
       - maven-repo:/root/.m2
+      - ${FIREBASE_SERVICE_ACCOUNT_PATH:-./secrets/firebase-service-account.json}:/run/secrets/firebase-service-account.json:ro
     networks:
       - slib-network
     depends_on:
