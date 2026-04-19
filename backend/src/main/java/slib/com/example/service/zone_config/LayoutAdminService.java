@@ -120,6 +120,22 @@ public class LayoutAdminService {
     }
 
     @Transactional(readOnly = true)
+    public LayoutHistoryDetailResponse getHistoryDetail(Long historyId) {
+        LayoutHistoryEntity history = layoutHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mốc lịch sử sơ đồ"));
+
+        return LayoutHistoryDetailResponse.builder()
+                .historyId(history.getHistoryId())
+                .actionType(history.getActionType())
+                .summary(resolveStoredText(history.getSummary(), "layout_history.summary"))
+                .publishedVersion(history.getPublishedVersion())
+                .createdByName(history.getCreatedByName())
+                .createdAt(history.getCreatedAt())
+                .snapshot(readSnapshot(history.getSnapshotJson()))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
     public LayoutValidationResponse validate(LayoutSnapshotRequest snapshot) {
         return validateSnapshot(normalizeSnapshot(snapshot));
     }

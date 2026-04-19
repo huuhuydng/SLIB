@@ -29,6 +29,11 @@ public class LayoutAdminController {
         return ResponseEntity.ok(layoutAdminService.getHistory(limit));
     }
 
+    @GetMapping("/history/{historyId}")
+    public ResponseEntity<LayoutHistoryDetailResponse> getHistoryDetail(@PathVariable Long historyId) {
+        return ResponseEntity.ok(layoutAdminService.getHistoryDetail(historyId));
+    }
+
     @PostMapping("/validate")
     public ResponseEntity<LayoutValidationResponse> validate(@RequestBody LayoutSnapshotRequest request) {
         LayoutValidationResponse response = layoutAdminService.validate(request);
