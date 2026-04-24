@@ -1,0 +1,146 @@
+#	Function/Screen	Feature	Level*	Function/Screen Details	Planned	Status
+FE-01	Log in via Google Account	Authentication	Simple	Allow users to log in with an FPT Google account, validate OAuth2 authentication, verify the allowed email domain, and redirect based on role.	Sprint 1	Planned
+FE-02	Log in via SLIB Account	Authentication	Simple	Allow users to log in with an internal SLIB email/account code and password, validate credentials, and display errors when authentication fails.	Sprint 1	Planned
+FE-03	Forgot password	Authentication	Simple	Allow users to request a password reset, verify account information, and receive appropriate recovery instructions.	Sprint 1	Planned
+FE-04	Log out	Authentication	Simple	Allow users to end the current session, clear the active token/session, and redirect to a public screen.	Sprint 1	Planned
+FE-05	View profile	Account Management	Simple	Display personal account information such as full name, email, role, student/staff code, and contact details.	Sprint 1	Planned
+FE-06	Change basic profile	Account Management	Simple	Allow users to update basic profile information and save changes after input validation.	Sprint 1	Planned
+FE-07	Change password	Account Management	Simple	Allow users to change their password by entering the current password, new password, and password confirmation.	Sprint 1	Planned
+FE-08	View Barcode	Account Management	Simple	Display the user identification barcode for library verification or authentication purposes.	Sprint 1	Planned
+FE-10	View account setting	Account Management	Simple	Display personal account settings related to notifications, AI suggestions, and the HCE feature.	Sprint 1	Planned
+FE-15	View list of users in the system	User Management	Simple	Display a list of system users with basic information, roles, and account status.	Sprint 1	Planned
+FE-17	Download template of the file upload	User Management	Simple	Allow users to download the correct template file for importing student and teacher data.	Sprint 1	Planned
+FE-16	Import Student and Teacher via file	User Management	Medium	Allow administrators to upload a data file to create or update student and teacher accounts in bulk.	Sprint 1	Planned
+FE-18	Add Librarian to the system	User Management	Simple	Allow administrators to create librarian accounts and assign appropriate roles.	Sprint 1	Planned
+FE-19	View user details	User Management	Simple	Display detailed user information, including profile, role, status, and related activity history.	Sprint 1	Planned
+FE-20	Change user status	User Management	Medium	Allow administrators to activate, lock, or update user account status according to system policies.	Sprint 1	Planned
+FE-21	Delete user account	User Management	Medium	Allow administrators to delete or deactivate a user account after checking related data constraints.	Sprint 1	Planned
+FE-23	CRUD area	System Configuration - Area Management	Medium	Allow administrators to create, view, update, and delete library areas.	Sprint 2	Planned
+FE-22	View area map	System Configuration - Area Management	Medium	Display an overview map of library areas with their positions and current statuses.	Sprint 2	Planned
+FE-24	Change area status	System Configuration - Area Management	Medium	Allow administrators to update area status, such as active, under maintenance, or temporarily unavailable.	Sprint 2	Planned
+FE-25	Lock area movement	System Configuration - Area Management	Medium	Allow administrators to lock area positions on the map to prevent unintended layout changes.	Sprint 2	Planned
+FE-27	CRUD zone	System Configuration - Zone Management	Medium	Allow administrators to create, view, update, and delete zones in the library layout.	Sprint 2	Planned
+FE-28	CRUD zone attribute	System Configuration - Zone Management	Medium	Allow administrators to configure zone attributes such as zone type, noise level, power outlet availability, and usage rules.	Sprint 2	Planned
+FE-26	View zone map	System Configuration - Zone Management	Medium	Display the zone map within each area, including position, zone type, and operational status.	Sprint 2	Planned
+FE-29	View zone details	System Configuration - Zone Management	Simple	Display zone details, including attributes, status, and related seat list.	Sprint 2	Planned
+FE-30	Lock zone movement	System Configuration - Zone Management	Medium	Allow administrators to lock zone positions on the map to protect the configured layout.	Sprint 2	Planned
+FE-32	CRUD seat	System Configuration - Seat Management	Medium	Allow administrators to create, view, update, and delete seats in the library map.	Sprint 2	Planned
+FE-31	View seat map	System Configuration - Seat Management	Medium	Display the seat map by area or zone with visualized seat positions and statuses.	Sprint 2	Planned
+FE-33	Change seat status	System Configuration - Seat Management	Medium	Allow administrators to update seat status such as available, holding, booked, occupied, or maintenance.	Sprint 2	Planned
+FE-34	Save layout draft	System Configuration - Layout Publishing Management	Medium	Allow administrators to save the library layout configuration as a draft before official publishing.	Sprint 2	Planned
+FE-35	Validate layout before publish	System Configuration - Layout Publishing Management	Complex	Validate the layout before publishing, including position constraints, seat statuses, and data conflicts.	Sprint 2	Planned
+FE-36	Publish layout	System Configuration - Layout Publishing Management	Complex	Allow administrators to publish a validated layout so it becomes active for users and booking workflows.	Sprint 2	Planned
+FE-37	Schedule layout publish	System Configuration - Layout Publishing Management	Complex	Allow administrators to schedule a future activation time for a new library layout.	Sprint 2	Planned
+FE-43	Set library operating hours	System Configuration - Library Configuration Management	Medium	Allow administrators to configure library opening hours, closing hours, and special operating time ranges.	Sprint 3	Planned
+FE-44	Configure booking rules	System Configuration - Library Configuration Management	Complex	Allow administrators to configure booking limits, booking duration, booking frequency, and seat usage conditions.	Sprint 3	Planned
+FE-46	Enable/Disable library	System Configuration - Library Configuration Management	Medium	Allow administrators to temporarily disable or enable library operations in the system.	Sprint 3	Planned
+FE-67	View real time seat map	Booking Seat	Complex	Display real-time seat statuses so users can identify available, holding, booked, or occupied seats.	Sprint 3	Planned
+FE-68	Filter seat map	Booking Seat	Medium	Allow users to filter seats by area, zone, status, attributes, and usage needs.	Sprint 3	Planned
+FE-69	View map density	Booking Seat	Medium	Display library usage density by area or zone to help users choose suitable seats.	Sprint 3	Planned
+FE-70	Booking seat	Booking Seat	Complex	Allow users to select a seat and usage time, then create a booking request based on system rules.	Sprint 3	Planned
+FE-71	Preview booking information	Booking Seat	Simple	Display booking information before confirmation, including seat, time, rules, and expected status.	Sprint 3	Planned
+FE-73	View history of booking	Booking Seat	Simple	Display the user’s current and past booking history.	Sprint 3	Planned
+FE-74	Cancel booking	Booking Seat	Medium	Allow users to cancel bookings according to time conditions and violation handling rules.	Sprint 3	Planned
+FE-76	View list of user bookings	Booking Seat	Simple	Allow librarians or administrators to view user booking lists in the system.	Sprint 3	Planned
+FE-77	Search and Filter user booking	Booking Seat	Medium	Allow librarians or administrators to search and filter bookings by user, status, time, area, or seat.	Sprint 3	Planned
+FE-78	View user booking details and status	Booking Seat	Simple	Display booking details, including status, time, seat, and handling history.	Sprint 3	Planned
+FE-38	Block publish when occupied seats or active booking are affected	System Configuration - Layout Publishing Management	Complex	Block layout publishing when the changes affect occupied seats or active bookings.	Sprint 3	Planned
+FE-13	Turn on/Turn off HCE feature	Account Management	Medium	Allow users to activate or deactivate the HCE feature for contactless check-in/check-out.	Sprint 4	Planned
+FE-47	View HCE scan stations	System Configuration - HCE Scan Station Management	Simple	Display a list of HCE scan stations with location, connection status, and device information.	Sprint 4	Planned
+FE-49	Manage HCE station registration	System Configuration - HCE Scan Station Management	Medium	Allow administrators to register, verify, and manage the operational status of HCE scan stations.	Sprint 4	Planned
+FE-48	View HCE scan stations details	System Configuration - HCE Scan Station Management	Simple	Display HCE scan station details, including identifier, configuration, and activity history.	Sprint 4	Planned
+FE-55	Manage NFC Tag UID mapping	System Configuration - NFC Tag Management	Medium	Allow administrators to manage mappings between NFC tag UIDs and corresponding seats or devices.	Sprint 4	Planned
+FE-56	View NFC Tag mapping list	System Configuration - NFC Tag Management	Simple	Display the list of mapped NFC tag UIDs and their usage statuses.	Sprint 4	Planned
+FE-57	View NFC Tag mapping details	System Configuration - NFC Tag Management	Simple	Display NFC tag mapping details, including UID, linked object, and update history.	Sprint 4	Planned
+FE-58	View list of Kiosk devices	System Configuration - Kiosk Management	Simple	Display the list of kiosk devices with location, status, and identification information.	Sprint 4	Planned
+FE-60	CRUD Kiosk device	System Configuration - Kiosk Management	Medium	Allow administrators to create, update, delete, and manage kiosk device information.	Sprint 4	Planned
+FE-61	Activate Kiosk device	System Configuration - Kiosk Management	Medium	Allow administrators to activate kiosk devices so they can connect to and operate with the SLIB system.	Sprint 4	Planned
+FE-59	View Kiosk device details	System Configuration - Kiosk Management	Simple	Display kiosk device details, including configuration, activation status, and activity history.	Sprint 4	Planned
+FE-45	Setting time for automatic check-out when time exceeds	System Configuration - Library Configuration Management	Medium	Allow administrators to configure automatic check-out timing when a user exceeds the allowed usage period.	Sprint 4	Planned
+FE-85	Check-in/Check-out library via HCE	Library Access	Complex	Allow users to check in or check out of the library using HCE on supported devices.	Sprint 4	Planned
+FE-86	Check-in/Check-out library via QR code	Library Access	Medium	Allow users to check in or check out of the library using QR code scanning at kiosks or scan points.	Sprint 4	Planned
+FE-72	Confirm booking via NFC	Booking Seat	Complex	Allow users to confirm a booking via NFC at the seat location or supported device.	Sprint 4	Planned
+FE-79	Leave seat via NFC	Booking Seat	Complex	Allow users to leave a seat via NFC and synchronize the seat status immediately.	Sprint 4	Planned
+FE-80	Release occupied seat by Librarian	Booking Seat	Medium	Allow librarians to manually release occupied seats when intervention is required.	Sprint 4	Planned
+FE-81	View actual seat end time	Booking Seat	Simple	Display the actual end time of a seat usage session after the user leaves or is automatically checked out.	Sprint 4	Planned
+FE-87	View history of check-ins/check-outs	Library Access	Simple	Display the user’s library check-in/check-out history by time and authentication method.	Sprint 4	Planned
+FE-88	View list of users access to library	Library Access	Medium	Allow librarians to view users who are currently accessing or have accessed the library.	Sprint 4	Planned
+FE-40	View list of reputation rules	System Configuration - Reputation Rule Management	Simple	Display a list of reputation rules and their current activation status.	Sprint 5	Planned
+FE-41	CRUD reputation rule	System Configuration - Reputation Rule Management	Medium	Allow administrators to create, view, update, and delete reputation scoring rules.	Sprint 5	Planned
+FE-42	Set the deducted point for each reputation rule	System Configuration - Reputation Rule Management	Medium	Allow administrators to configure the deducted points for each violation or non-compliant behavior rule.	Sprint 5	Planned
+FE-14	View booking restriction status by reputation	Account Management	Medium	Display the user booking restriction status based on reputation score and current violations.	Sprint 5	Planned
+FE-62	Config system notification	System Configuration - Others	Medium	Allow administrators to configure system notification content, notification types, and sending conditions.	Sprint 5	Planned
+FE-11	Turn on/Turn off notification	Account Management	Simple	Allow users to enable or disable receiving system notifications.	Sprint 5	Planned
+FE-112	View and delete list of notifications	Notification	Medium	Allow users to view notification lists and delete notifications that are no longer needed.	Sprint 5	Planned
+FE-113	View notification details	Notification	Simple	Display notification details, including content, time, type, and related object.	Sprint 5	Planned
+FE-114	Filter notification	Notification	Simple	Allow users to filter notifications by type, read/unread status, or time.	Sprint 5	Planned
+FE-115	Mark notification as read	Notification	Simple	Allow users to mark one or multiple notifications as read.	Sprint 5	Planned
+FE-39	Notify affected future bookings after layout changes	System Configuration - Layout Publishing Management	Complex	Notify users whose future bookings are affected by library layout changes.	Sprint 5	Planned
+FE-82	View warning for layout-affected booking	Booking Seat	Medium	Display warnings for bookings affected by library layout changes.	Sprint 5	Planned
+FE-83	Change seat for affected booking	Booking Seat	Complex	Allow users to change to another seat when the current booking is affected by layout changes.	Sprint 5	Planned
+FE-84	Cancel affected booking near booking time	Booking Seat	Medium	Allow cancellation of layout-affected bookings near the scheduled booking time according to system policy.	Sprint 5	Planned
+FE-89	View reputation score	Reputation & Violation - Reputation Score Management	Simple	Display the user’s current reputation score and its impact on booking permissions.	Sprint 5	Planned
+FE-90	View history of changed reputation points	Reputation & Violation - Reputation Score Management	Simple	Display reputation point change history by event or violation.	Sprint 5	Planned
+FE-91	View detailed reason for deducting point	Reputation & Violation - Reputation Score Management	Simple	Display detailed information about why points were deducted, including time, reason, and applied rule.	Sprint 5	Planned
+FE-92	View list of users violation	Reputation & Violation - Reputation Score Management	Medium	Allow librarians or administrators to view users with recorded violations in the system.	Sprint 5	Planned
+FE-93	View user violation details	Reputation & Violation - Reputation Score Management	Medium	Display violation details, deducted points, related evidence, and handling status.	Sprint 5	Planned
+FE-94	Create complaint	Reputation & Violation - Complaint Management	Medium	Allow users to submit complaints related to violations, reputation points, or library usage issues.	Sprint 5	Planned
+FE-95	View history of sending complaint	Reputation & Violation - Complaint Management	Simple	Display the list of complaints submitted by the user and their handling statuses.	Sprint 5	Planned
+FE-96	View list of complaints	Reputation & Violation - Complaint Management	Medium	Allow librarians or administrators to view complaints submitted by users.	Sprint 5	Planned
+FE-97	View complaint details	Reputation & Violation - Complaint Management	Simple	Display complaint details, evidence, and handling history.	Sprint 5	Planned
+FE-98	Verify complaint	Reputation & Violation - Complaint Management	Medium	Allow librarians or administrators to verify complaints, respond, and update complaint status.	Sprint 5	Planned
+FE-102	Create seat status report	Feedback - Seat Status Management	Medium	Allow users to report seat conditions such as damaged, dirty, missing equipment, or unusable seats.	Sprint 5	Planned
+FE-103	View history of sending seat status report	Feedback - Seat Status Management	Simple	Display the history of seat status reports submitted by the user.	Sprint 5	Planned
+FE-104	View list of seat status reports	Feedback - Seat Status Management	Medium	Allow librarians to view seat status reports submitted by users.	Sprint 5	Planned
+FE-105	View seat status report details	Feedback - Seat Status Management	Simple	Display seat status report details, including content, related seat, images, or additional information.	Sprint 5	Planned
+FE-106	Verify seat status report	Feedback - Seat Status Management	Medium	Allow librarians to verify reports, update handling status, and adjust seat status if needed.	Sprint 5	Planned
+FE-107	Create report seat violation	Feedback - Report Seat Violation Management	Medium	Allow users to report violations related to seat usage behavior.	Sprint 5	Planned
+FE-108	View history of sending report seat violation	Feedback - Report Seat Violation Management	Simple	Display the history of seat violation reports submitted by the user.	Sprint 5	Planned
+FE-109	View list of seat violation reports	Feedback - Report Seat Violation Management	Medium	Allow librarians or administrators to view seat violation reports submitted by users.	Sprint 5	Planned
+FE-110	View report seat violation details	Feedback - Report Seat Violation Management	Simple	Display seat violation report details, including reported user, seat, time, and evidence.	Sprint 5	Planned
+FE-111	Verify seat violation report	Feedback - Report Seat Violation Management	Medium	Allow librarians to verify reports, update handling status, and record a violation when valid.	Sprint 5	Planned
+FE-123	Create news & announcement category	News & Announcement	Simple	Allow librarians or administrators to create categories for classifying news and announcements.	Sprint 5	Planned
+FE-118	View list of news & announcement categories	News & Announcement	Simple	Display the list of categories used to classify news and announcements.	Sprint 5	Planned
+FE-122	CRUD news & announcement	News & Announcement	Medium	Allow librarians or administrators to create, update, delete, and manage library news and announcements.	Sprint 5	Planned
+FE-125	Save news & announcement draft	News & Announcement	Simple	Allow librarians or administrators to save news or announcement content as a draft before publishing.	Sprint 5	Planned
+FE-124	Set time to post news & announcement	News & Announcement	Medium	Allow librarians or administrators to schedule a future posting time for news or announcements.	Sprint 5	Planned
+FE-116	View list of news & announcements	News & Announcement	Simple	Display the list of library news, announcements, and latest posts.	Sprint 5	Planned
+FE-117	View news & announcement details	News & Announcement	Simple	Display detailed content of a selected news item or announcement.	Sprint 5	Planned
+FE-121	CRUD new book	News & Announcement	Medium	Allow librarians or administrators to create, update, delete, and manage new book information.	Sprint 5	Planned
+FE-119	View list of new books	News & Announcement	Simple	Display the list of new books introduced by the library.	Sprint 5	Planned
+FE-120	View basic information of new book	News & Announcement	Simple	Display basic information of a new book, such as title, author, description, and image.	Sprint 5	Planned
+FE-127	CRUD Kiosk image	News & Announcement	Medium	Allow librarians or administrators to create, update, delete, and manage kiosk display images.	Sprint 5	Planned
+FE-128	Change image status	News & Announcement	Simple	Allow librarians or administrators to enable or disable kiosk image display status.	Sprint 5	Planned
+FE-126	View list of Kiosk images	News & Announcement	Simple	Display the list of images used for kiosk screens.	Sprint 5	Planned
+FE-129	Preview Kiosk display	News & Announcement	Medium	Allow librarians or administrators to preview kiosk display screens before applying official content.	Sprint 5	Planned
+FE-09	View history of activities	Account Management	Medium	Display the user activity history, including logins, bookings, check-ins/check-outs, and configuration changes.	Sprint 5	Planned
+FE-52	CRUD knowledge store	System Configuration - AI Configuration Management	Medium	Allow administrators to create, update, delete, and manage knowledge stores for AI retrieval.	Sprint 6	Planned
+FE-53	View list of knowledge stores	System Configuration - AI Configuration Management	Simple	Display the list of knowledge stores and their usage status in the AI system.	Sprint 6	Planned
+FE-50	CRUD material	System Configuration - AI Configuration Management	Medium	Allow administrators to add, update, delete, and manage materials used by the AI service.	Sprint 6	Planned
+FE-51	View list of materials	System Configuration - AI Configuration Management	Simple	Display the list of uploaded or linked materials used by the AI system.	Sprint 6	Planned
+FE-54	Test AI chat	System Configuration - AI Configuration Management	Medium	Allow administrators to test AI chatbot responses before making them available to users.	Sprint 6	Planned
+FE-12	Turn on/Turn off AI suggestion	Account Management	Simple	Allow users to enable or disable AI-powered suggestions during system usage.	Sprint 6	Planned
+FE-130	Chat with AI virtual assistant	Chat & Support	Complex	Allow users to chat with the AI virtual assistant for support about the library, bookings, and system information.	Sprint 6	Planned
+FE-75	Ask AI for recommending seat	Booking Seat	Medium	Allow users to ask AI for seat recommendations based on preferences, density, and usage history.	Sprint 6	Planned
+FE-131	Chat with Librarian	Chat & Support	Complex	Allow users to chat directly with librarians when support is needed beyond AI capability.	Sprint 6	Planned
+FE-132	Send request for support	Chat & Support	Medium	Allow users to submit support requests to librarians or administrators.	Sprint 6	Planned
+FE-133	View list of support requests	Chat & Support	Medium	Allow librarians to view support requests submitted by users.	Sprint 6	Planned
+FE-135	View list of chats	Chat & Support	Medium	Allow librarians to view chat conversations that require monitoring or response.	Sprint 6	Planned
+FE-136	View chat details	Chat & Support	Simple	Display chat details, including participants, messages, and timestamps.	Sprint 6	Planned
+FE-137	Response to user manually	Chat & Support	Medium	Allow librarians to manually respond to users in chat conversations or support requests.	Sprint 6	Planned
+FE-134	View history of chat	Chat & Support	Simple	Display the user’s chat history with the AI assistant or librarians.	Sprint 6	Planned
+FE-99	Create feedback after check-out	Feedback - Feedback System Management	Medium	Allow users to submit feedback after check-out about their library or seat usage experience.	Sprint 6	Planned
+FE-63	View system overview information	System Configuration - Others	Simple	Display system overview information, including users, seats, bookings, devices, and general system status.	Sprint 7	Planned
+FE-64	View system log	System Configuration - Others	Medium	Allow administrators to view system activity logs and events for monitoring and troubleshooting.	Sprint 7	Planned
+FE-65	Backup data manually	System Configuration - Others	Medium	Allow administrators to manually back up system data on demand.	Sprint 7	Planned
+FE-66	Set automatic backup schedule	System Configuration - Others	Medium	Allow administrators to configure automatic backup schedules by day, week, or month.	Sprint 7	Planned
+FE-100	View list of feedbacks	Feedback - Feedback System Management	Medium	Allow librarians or administrators to view feedback submitted by users.	Sprint 7	Planned
+FE-101	View feedback details	Feedback - Feedback System Management	Simple	Display feedback details, including content, submission time, sender, and related information.	Sprint 7	Planned
+FE-138	View general analytics dashboard	Statistics & Report - Statistics Management	Complex	Display an overview analytics dashboard for users, bookings, usage density, violations, and system performance.	Sprint 7	Planned
+FE-139	View violation statistics	Statistics & Report - Statistics Management	Medium	Display violation statistics by type, frequency, related users, and trends over time.	Sprint 7	Planned
+FE-141	View check-in/check-out statistics (Daily/Weekly/Monthly)	Statistics & Report - Statistics Management	Medium	Display check-in/check-out statistics by day, week, or month to monitor library traffic.	Sprint 7	Planned
+FE-142	View seat booking statistics	Statistics & Report - Statistics Management	Medium	Display seat booking statistics, including booking count, usage rate, peak times, and booking statuses.	Sprint 7	Planned
+FE-140	View statistics of density forecast by using AI	Statistics & Report - Statistics Management	Complex	Display AI-based library density forecasts using historical data and analytics.	Sprint 7	Planned
+FE-143	View AI prioritized students	Statistics & Report - Statistics Management	Complex	Display students prioritized or flagged by AI based on behavior and usage data.	Sprint 7	Planned
+FE-144	Send warning to student from AI analytics dashboard	Statistics & Report - Statistics Management	Medium	Allow administrators to send warnings to students based on AI dashboard analysis results.	Sprint 7	Planned
+FE-145	Export general analytical report	Statistics & Report - Report Management	Medium	Allow administrators to export general analytical reports as PDF or Excel for management and project reporting.	Sprint 7	Planned
