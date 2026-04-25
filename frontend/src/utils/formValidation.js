@@ -59,7 +59,7 @@ export const validateNewBookPayload = (payload) => {
   return null;
 };
 
-export const validateNewsPayload = ({ title, summary, imageUrl, publishStatus, scheduleDate, scheduleTime, customCategory }) => {
+export const validateNewsPayload = ({ title, summary, imageUrl, pdfUrl, publishStatus, scheduleDate, scheduleTime, customCategory }) => {
   const normalizedTitle = normalizeText(title);
   if (!normalizedTitle) return 'Tiêu đề tin tức không được để trống';
   if (normalizedTitle.length > 255) return 'Tiêu đề tin tức không được vượt quá 255 ký tự';
@@ -68,6 +68,7 @@ export const validateNewsPayload = ({ title, summary, imageUrl, publishStatus, s
   if (normalizedSummary.length > 1000) return 'Tóm tắt không được vượt quá 1000 ký tự';
 
   if (imageUrl && !isValidHttpUrl(imageUrl)) return 'Đường dẫn ảnh phải là URL hợp lệ';
+  if (pdfUrl && !isValidHttpUrl(pdfUrl)) return 'Đường dẫn PDF phải là URL hợp lệ';
 
   if (customCategory && normalizeText(customCategory).length > 50) {
     return 'Tên danh mục không được vượt quá 50 ký tự';

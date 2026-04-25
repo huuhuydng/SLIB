@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.booking.ReservationEntity;
+import slib.com.example.entity.library.LibrarySetting;
 import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.entity.users.User;
 import slib.com.example.repository.booking.ReservationRepository;
@@ -15,6 +16,7 @@ import slib.com.example.service.reputation.ReputationService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,6 +28,7 @@ public class TestSystemService {
 
     private static final String REMINDER_REFERENCE_TYPE = "REMINDER";
     private static final String RESERVATION_REFERENCE_TYPE = "RESERVATION";
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final ReservationRepository reservationRepository;
     private final NotificationRepository notificationRepository;
@@ -33,6 +36,7 @@ public class TestSystemService {
     private final ReservationScheduler reservationScheduler;
     private final PushNotificationService pushNotificationService;
     private final ReputationService reputationService;
+    private final LibrarySettingService librarySettingService;
 
     public Map<String, Object> setTargetReputation(UUID userId, int targetScore, String reason, User currentUser) {
         var profile = reputationService.applyManualAdjustmentToTargetScore(userId, targetScore, reason, currentUser);
@@ -49,7 +53,7 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         LocalDateTime startTime = now.plusMinutes(15).plusSeconds(30);
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
 
@@ -78,7 +82,7 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         LocalDateTime startTime = now.plusMinutes(3).plusSeconds(30);
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
 
@@ -107,7 +111,7 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         LocalDateTime endTime = now.plusMinutes(10).plusSeconds(30);
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
         LocalDateTime startTime = endTime.minusMinutes(durationMinutes);
@@ -142,7 +146,8 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        int autoCancelOnLeaveMinutes = resolveAutoCancelOnLeaveMinutes();
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
         LocalDateTime endTime = now.plusSeconds(30);
         LocalDateTime startTime = endTime.minusMinutes(durationMinutes);
@@ -165,7 +170,8 @@ public class TestSystemService {
 
         log.info("[TestSystem] Prepared seat-leave prompt for reservation {}", reservationId);
         return buildResult(
-                "Đã đưa lịch đặt tới đúng giờ kết thúc và gửi thông báo yêu cầu rời chỗ trong 5 phút.",
+                "Đã đưa lịch đặt tới đúng giờ kết thúc và gửi thông báo yêu cầu rời chỗ trong "
+                        + autoCancelOnLeaveMinutes + " phút.",
                 reservation,
                 Map.of(
                         "scenario", "SEAT_LEAVE_PROMPT",
@@ -177,9 +183,10 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        int autoCancelOnLeaveMinutes = resolveAutoCancelOnLeaveMinutes();
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
-        LocalDateTime endTime = now.minusMinutes(ReservationScheduler.CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES + 1L);
+        LocalDateTime endTime = now.minusMinutes(autoCancelOnLeaveMinutes + 1L);
         LocalDateTime startTime = endTime.minusMinutes(durationMinutes);
 
         reservation.setStatus("CONFIRMED");
@@ -200,7 +207,8 @@ public class TestSystemService {
 
         log.info("[TestSystem] Prepared late-checkout auto completion for reservation {}", reservationId);
         return buildResult(
-                "Đã kích hoạt quá 5 phút chưa rời chỗ: hệ thống tự kết thúc phiên và trừ điểm uy tín.",
+                "Đã kích hoạt quá " + autoCancelOnLeaveMinutes
+                        + " phút chưa rời chỗ: hệ thống tự kết thúc phiên và trừ điểm uy tín.",
                 updatedReservation,
                 Map.of(
                         "scenario", "LATE_CHECKOUT_AUTO_COMPLETE",
@@ -212,7 +220,7 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
         LocalDateTime startTime = now.plusSeconds(30);
 
@@ -254,7 +262,7 @@ public class TestSystemService {
         ReservationEntity reservation = getReservation(reservationId);
         validateReservation(reservation);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         long durationMinutes = resolveDurationMinutes(reservation, 120, 45, 240);
         LocalDateTime startTime = now.minusHours(2);
 
@@ -315,7 +323,7 @@ public class TestSystemService {
     private void clearRecentReminderArtifacts(ReservationEntity reservation) {
         UUID userId = reservation.getUser().getId();
         UUID reservationId = reservation.getReservationId();
-        LocalDateTime since = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime since = LocalDateTime.now(VIETNAM_ZONE).minusMinutes(10);
 
         notificationRepository.deleteRecentByUserAndReference(
                 userId,
@@ -329,7 +337,7 @@ public class TestSystemService {
     private void clearRecentBookingArtifacts(ReservationEntity reservation) {
         UUID userId = reservation.getUser().getId();
         UUID reservationId = reservation.getReservationId();
-        LocalDateTime since = LocalDateTime.now().minusMinutes(10);
+        LocalDateTime since = LocalDateTime.now(VIETNAM_ZONE).minusMinutes(10);
 
         clearRecentReminderArtifacts(reservation);
         notificationRepository.deleteRecentByUserAndReference(
@@ -347,6 +355,18 @@ public class TestSystemService {
         result.put("booking", buildBookingSummary(reservation));
         result.putAll(extras);
         return result;
+    }
+
+    private int resolveAutoCancelOnLeaveMinutes() {
+        try {
+            LibrarySetting settings = librarySettingService.getSettings();
+            if (settings.getAutoCancelOnLeaveMinutes() != null && settings.getAutoCancelOnLeaveMinutes() > 0) {
+                return settings.getAutoCancelOnLeaveMinutes();
+            }
+        } catch (Exception e) {
+            log.warn("[TestSystem] Failed to resolve autoCancelOnLeaveMinutes, fallback to default", e);
+        }
+        return ReservationScheduler.CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES;
     }
 
     private Map<String, Object> buildBookingSummary(ReservationEntity reservation) {

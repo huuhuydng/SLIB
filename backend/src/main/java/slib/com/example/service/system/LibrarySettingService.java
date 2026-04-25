@@ -72,6 +72,23 @@ public class LibrarySettingService {
     }
 
     /**
+     * Kiểm tra thư viện có tạm đóng trong đúng khung giờ đặt chỗ hay không.
+     * libraryClosed chỉ phản ánh trạng thái hiện tại, còn lịch tạm đóng tương lai
+     * cần so khớp theo start/end của booking.
+     */
+    public boolean isLibraryClosedFor(LibrarySetting settings, LocalDateTime startTime, LocalDateTime endTime) {
+        if (settings == null || startTime == null || endTime == null || !endTime.isAfter(startTime)) {
+            return false;
+        }
+
+        if (!hasScheduledClosure(settings)) {
+            return Boolean.TRUE.equals(settings.getLibraryClosed());
+        }
+
+        return isTimeRangeOverlappingClosure(startTime, endTime, settings.getClosedFromAt(), settings.getClosedUntilAt());
+    }
+
+    /**
      * Cập nhật cấu hình thư viện
      */
     @Transactional
@@ -451,6 +468,17 @@ public class LibrarySettingService {
         boolean hasStarted = closedFrom == null || !now.isBefore(closedFrom);
         boolean notExpired = closedUntil == null || now.isBefore(closedUntil);
         return hasStarted && notExpired;
+    }
+
+    private boolean isTimeRangeOverlappingClosure(
+            LocalDateTime startTime,
+            LocalDateTime endTime,
+            LocalDateTime closedFrom,
+            LocalDateTime closedUntil
+    ) {
+        boolean startsBeforeClosureEnds = closedUntil == null || startTime.isBefore(closedUntil);
+        boolean endsAfterClosureStarts = closedFrom == null || endTime.isAfter(closedFrom);
+        return startsBeforeClosureEnds && endsAfterClosureStarts;
     }
 
     private boolean hasScheduledClosure(LibrarySetting settings) {

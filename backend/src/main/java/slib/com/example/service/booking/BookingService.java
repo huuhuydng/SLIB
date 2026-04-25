@@ -111,12 +111,12 @@ public class BookingService {
                 // Lấy cấu hình giới hạn đặt chỗ
                 LibrarySetting settings = librarySettingService.getSettings();
 
-                // Kiểm tra thư viện có đang tạm đóng không
-                if (Boolean.TRUE.equals(settings.getLibraryClosed())) {
+                // Kiểm tra lịch tạm đóng theo đúng khung giờ đặt, không chặn nhầm các ngày khác.
+                if (librarySettingService.isLibraryClosedFor(settings, startTime, endTime)) {
                         String reason = settings.getClosedReason() != null
                                         ? settings.getClosedReason()
-                                        : "Thư viện hiện đang tạm đóng";
-                        throw new RuntimeException("Thư viện hiện đang tạm đóng. Lý do: " + reason);
+                                        : "Thư viện tạm thời không nhận đặt chỗ";
+                        throw new RuntimeException("Thư viện tạm đóng trong khung giờ bạn chọn. Lý do: " + reason);
                 }
 
                 int currentReputation = bookingPolicyService.resolveCurrentReputation(userId);

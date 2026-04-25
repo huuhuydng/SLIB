@@ -18,6 +18,7 @@ import { getBehaviorIssues, getDensityPrediction, getRealtimeCapacity, sendBehav
 import { getPeakHours } from "../../../services/admin/ai/pythonAiApi";
 import websocketService from "../../../services/shared/websocketService";
 import useAppDialog from "../../../hooks/useAppDialog";
+import { sanitizeHtml } from "../../../utils/sanitizeHtml";
 
 import "../../../styles/librarian/Dashboard.css";
 
@@ -2319,7 +2320,12 @@ const Dashboard = () => {
                       <div className="detail-description">
                         <h4 style={{ margin: '0 0 8px', fontSize: '15px' }}>{d.title}</h4>
                         {d.summary && <p>{d.summary}</p>}
-                        {d.content && <p style={{ marginTop: '8px' }}>{d.content}</p>}
+                        {d.content && (
+                          <div
+                            className="dashboard-news-rich-content"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(d.content) }}
+                          />
+                        )}
                       </div>
                       <a
                         href={`/librarian/news/view/${d.id}`}

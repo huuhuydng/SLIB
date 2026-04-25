@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +44,7 @@ import slib.com.example.service.notification.PushNotificationService;
 @Slf4j
 public class ReservationScheduler {
     public static final int CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES = 5;
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final String RESERVATION_REFERENCE_TYPE = "RESERVATION";
 
     private final ReservationRepository reservationRepository;
@@ -81,11 +83,14 @@ public class ReservationScheduler {
     @Scheduled(fixedRate = 10000)
     public void releaseExpiredSeats() {
         try {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
             LibrarySetting settings = librarySettingService.getSettings();
             int autoCancelMinutes = settings.getAutoCancelMinutes() != null
                     ? settings.getAutoCancelMinutes()
                     : 15;
+            int autoCancelOnLeaveMinutes = settings.getAutoCancelOnLeaveMinutes() != null
+                    ? settings.getAutoCancelOnLeaveMinutes()
+                    : CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES;
 
             // =========================================================
             // 1. BOOKED chưa quét NFC (chưa CONFIRMED) sau autoCancelMinutes
@@ -122,13 +127,17 @@ public class ReservationScheduler {
             }
 
             List<UUID> confirmedIds = reservationRepository
-                    .findByEndTimeBeforeAndStatus(now.minusMinutes(CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES),
+                    .findByEndTimeBeforeAndStatus(now.minusMinutes(autoCancelOnLeaveMinutes),
                             "CONFIRMED")
                     .stream()
                     .map(ReservationEntity::getReservationId)
                     .collect(Collectors.toList());
             for (UUID reservationId : confirmedIds) {
-                ReservationProcessingResult result = processCompletedConfirmedReservation(reservationId, now, false);
+                ReservationProcessingResult result = processCompletedConfirmedReservation(
+                        reservationId,
+                        now,
+                        false,
+                        autoCancelOnLeaveMinutes);
                 if (result.changed()) {
                     totalChanged++;
                     seatUpdates.add(result.seatUpdate());
@@ -184,10 +193,10 @@ public class ReservationScheduler {
     @Scheduled(cron = "0 55 23 * * SUN")
     public void applyWeeklyPerfectBonus() {
         try {
-            LocalDateTime weekStart = LocalDateTime.now()
+            LocalDateTime weekStart = LocalDateTime.now(VIETNAM_ZONE)
                     .with(DayOfWeek.MONDAY)
                     .with(LocalTime.MIN);
-            LocalDateTime weekEnd = LocalDateTime.now();
+            LocalDateTime weekEnd = LocalDateTime.now(VIETNAM_ZONE);
 
             List<ReservationEntity> completedThisWeek = reservationRepository
                     .findByStatusAndEndTimeBetween("COMPLETED", weekStart, weekEnd);
@@ -234,7 +243,7 @@ public class ReservationScheduler {
     }
 
     public boolean forceExpireBookedReservation(UUID reservationId) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         int resolvedAutoCancelMinutes = 15;
         try {
             LibrarySetting settings = librarySettingService.getSettings();
@@ -353,6 +362,7 @@ public class ReservationScheduler {
         }
 
         try {
+            int autoCancelOnLeaveMinutes = resolveAutoCancelOnLeaveMinutes();
             SeatEntity seat = reservation.getSeat();
             String seatCode = seat != null ? seat.getSeatCode() : "";
             String zoneName = seat != null && seat.getZone() != null ? seat.getZone().getZoneName() : "";
@@ -360,7 +370,7 @@ public class ReservationScheduler {
                     "Phiên sử dụng ghế %s tại %s đã đến giờ kết thúc. Vui lòng xác nhận rời chỗ trong %d phút để tránh bị trừ điểm uy tín.",
                     seatCode,
                     zoneName != null && !zoneName.isBlank() ? zoneName : "thư viện",
-                    CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES);
+                    autoCancelOnLeaveMinutes);
 
             pushNotificationService.sendToUser(
                     reservation.getUser().getId(),
@@ -379,19 +389,40 @@ public class ReservationScheduler {
     }
 
     private ReservationProcessingResult processCompletedConfirmedReservation(UUID reservationId) {
-        return processCompletedConfirmedReservation(reservationId, LocalDateTime.now(), false);
+        return processCompletedConfirmedReservation(
+                reservationId,
+                LocalDateTime.now(VIETNAM_ZONE),
+                false,
+                resolveAutoCancelOnLeaveMinutes());
     }
 
     private ReservationProcessingResult processCompletedConfirmedReservation(UUID reservationId, LocalDateTime now,
             boolean force) {
+        return processCompletedConfirmedReservation(reservationId, now, force, resolveAutoCancelOnLeaveMinutes());
+    }
+
+    private ReservationProcessingResult processCompletedConfirmedReservation(
+            UUID reservationId,
+            LocalDateTime now,
+            boolean force,
+            int autoCancelOnLeaveMinutes) {
         return reservationTransactionTemplate.execute(status -> reservationRepository.findById(reservationId)
-                .map(reservation -> processCompletedConfirmedReservation(reservation, now, force))
+                .map(reservation -> processCompletedConfirmedReservation(
+                        reservation,
+                        now,
+                        force,
+                        autoCancelOnLeaveMinutes))
                 .orElse(ReservationProcessingResult.unchanged()));
     }
 
     public boolean forceCompleteConfirmedReservationAfterGrace(UUID reservationId) {
-        LocalDateTime now = LocalDateTime.now();
-        ReservationProcessingResult result = processCompletedConfirmedReservation(reservationId, now, true);
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        int autoCancelOnLeaveMinutes = resolveAutoCancelOnLeaveMinutes();
+        ReservationProcessingResult result = processCompletedConfirmedReservation(
+                reservationId,
+                now,
+                true,
+                autoCancelOnLeaveMinutes);
 
         if (result != null && result.changed() && result.seatUpdate() != null) {
             SeatUpdatePayload seatUpdate = result.seatUpdate();
@@ -420,11 +451,23 @@ public class ReservationScheduler {
 
     private ReservationProcessingResult processCompletedConfirmedReservation(ReservationEntity reservation,
             LocalDateTime now, boolean force) {
+        return processCompletedConfirmedReservation(
+                reservation,
+                now,
+                force,
+                resolveAutoCancelOnLeaveMinutes());
+    }
+
+    private ReservationProcessingResult processCompletedConfirmedReservation(
+            ReservationEntity reservation,
+            LocalDateTime now,
+            boolean force,
+            int autoCancelOnLeaveMinutes) {
         if (!"CONFIRMED".equals(reservation.getStatus())) {
             return ReservationProcessingResult.unchanged();
         }
         if (!force && reservation.getEndTime() != null
-                && now.isBefore(reservation.getEndTime().plusMinutes(CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES))) {
+                && now.isBefore(reservation.getEndTime().plusMinutes(autoCancelOnLeaveMinutes))) {
             return ReservationProcessingResult.unchanged();
         }
 
@@ -453,7 +496,7 @@ public class ReservationScheduler {
                     String.format(
                             "Bạn chưa xác nhận rời ghế %s trong vòng %d phút sau khi hết giờ. Hệ thống đã tự động kết thúc phiên sử dụng và áp dụng trừ điểm uy tín.",
                             seatCode,
-                            CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES),
+                            autoCancelOnLeaveMinutes),
                     NotificationType.BOOKING,
                     reservation.getReservationId(),
                     RESERVATION_REFERENCE_TYPE,
@@ -519,5 +562,17 @@ public class ReservationScheduler {
         private static ReservationProcessingResult changed(SeatUpdatePayload seatUpdate) {
             return new ReservationProcessingResult(true, seatUpdate);
         }
+    }
+
+    private int resolveAutoCancelOnLeaveMinutes() {
+        try {
+            LibrarySetting settings = librarySettingService.getSettings();
+            if (settings.getAutoCancelOnLeaveMinutes() != null && settings.getAutoCancelOnLeaveMinutes() > 0) {
+                return settings.getAutoCancelOnLeaveMinutes();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve auto-cancel-on-leave minutes, fallback to default", e);
+        }
+        return CONFIRMED_LEAVE_CONFIRMATION_GRACE_MINUTES;
     }
 }

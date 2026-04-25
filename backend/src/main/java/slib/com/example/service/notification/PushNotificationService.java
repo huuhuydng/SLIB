@@ -3,6 +3,7 @@ package slib.com.example.service.notification;
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -41,7 +42,7 @@ public class PushNotificationService {
     public static final String DELIVERY_KEY_CHECKIN_REMINDER = "CHECKIN_REMINDER";
     public static final String DELIVERY_KEY_TIME_EXPIRY = "TIME_EXPIRY";
 
-    private final FirebaseMessaging firebaseMessaging;
+    private final ObjectProvider<FirebaseMessaging> firebaseMessagingProvider;
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final UserSettingRepository userSettingRepository;
@@ -68,6 +69,7 @@ public class PushNotificationService {
      */
     public String sendToDeviceWithBadge(String fcmToken, String title, String body, Map<String, String> data,
             int badgeCount) {
+        FirebaseMessaging firebaseMessaging = firebaseMessagingProvider.getIfAvailable();
         if (firebaseMessaging == null) {
             log.warn("Firebase Messaging not initialized, skipping notification");
             return null;
@@ -119,6 +121,7 @@ public class PushNotificationService {
      */
     public String sendDataOnly(String fcmToken, String title, String body, Map<String, String> data,
             int badgeCount) {
+        FirebaseMessaging firebaseMessaging = firebaseMessagingProvider.getIfAvailable();
         if (firebaseMessaging == null) {
             log.warn("Firebase Messaging not initialized, skipping notification");
             return null;

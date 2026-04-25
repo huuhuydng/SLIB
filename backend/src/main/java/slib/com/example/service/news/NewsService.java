@@ -80,6 +80,9 @@ public class NewsService {
                 .createdAt(news.getCreatedAt())
                 .publishedAt(news.getPublishedAt())
                 .imageUrl(news.getImageUrl())
+                .pdfUrl(news.getPdfUrl())
+                .pdfFileName(news.getPdfFileName())
+                .pdfFileSize(news.getPdfFileSize())
                 .build();
     }
 
@@ -141,6 +144,13 @@ public class NewsService {
             cloudinaryService.deleteImageByUrl(oldImageUrl);
         }
 
+        String oldPdfUrl = existingNews.getPdfUrl();
+        String newPdfUrl = newsDetails.getPdfUrl();
+        if (oldPdfUrl != null && !oldPdfUrl.isEmpty()
+                && (newPdfUrl == null || !oldPdfUrl.equals(newPdfUrl))) {
+            cloudinaryService.deleteRawFileByUrl(oldPdfUrl);
+        }
+
         applyRequest(existingNews, newsDetails, wasPublished);
         News savedNews = newsRepository.save(existingNews);
 
@@ -168,6 +178,9 @@ public class NewsService {
         if (news.getImageUrl() != null && !news.getImageUrl().isEmpty()) {
             cloudinaryService.deleteImageByUrl(news.getImageUrl());
         }
+        if (news.getPdfUrl() != null && !news.getPdfUrl().isEmpty()) {
+            cloudinaryService.deleteRawFileByUrl(news.getPdfUrl());
+        }
 
         // Cancel scheduled task nếu có
         newsScheduler.cancelScheduledTask(id);
@@ -179,6 +192,9 @@ public class NewsService {
             newsRepository.findById(id).ifPresent(news -> {
                 if (news.getImageUrl() != null && !news.getImageUrl().isEmpty()) {
                     cloudinaryService.deleteImageByUrl(news.getImageUrl());
+                }
+                if (news.getPdfUrl() != null && !news.getPdfUrl().isEmpty()) {
+                    cloudinaryService.deleteRawFileByUrl(news.getPdfUrl());
                 }
                 newsScheduler.cancelScheduledTask(id);
             });
@@ -200,6 +216,15 @@ public class NewsService {
         String title = ContentValidationUtil.normalizeRequiredText(request.getTitle(), "Tiêu đề tin tức", 255);
         String summary = ContentValidationUtil.normalizeOptionalText(request.getSummary(), "Tóm tắt", 1000);
         String imageUrl = ContentValidationUtil.normalizeOptionalUrl(request.getImageUrl(), "Đường dẫn ảnh", 1000);
+        String pdfUrl = ContentValidationUtil.normalizeOptionalUrl(request.getPdfUrl(), "Đường dẫn PDF", 1000);
+        String pdfFileName = ContentValidationUtil.normalizeOptionalText(request.getPdfFileName(), "Tên file PDF", 255);
+        Long pdfFileSize = request.getPdfFileSize();
+        if (pdfUrl == null) {
+            pdfFileName = null;
+            pdfFileSize = null;
+        } else if (pdfFileSize != null && pdfFileSize < 0) {
+            throw new slib.com.example.exception.BadRequestException("Dung lượng PDF không hợp lệ");
+        }
         String content = request.getContent() != null
                 ? htmlSanitizerService.sanitizeRichText(request.getContent())
                 : null;
@@ -210,6 +235,9 @@ public class NewsService {
         entity.setSummary(summary);
         entity.setContent(content);
         entity.setImageUrl(imageUrl);
+        entity.setPdfUrl(pdfUrl);
+        entity.setPdfFileName(pdfFileName);
+        entity.setPdfFileSize(pdfFileSize);
         entity.setCategory(category);
         entity.setIsPinned(Boolean.TRUE.equals(request.getIsPinned()));
         entity.setViewCount(entity.getViewCount() == null ? 0 : entity.getViewCount());

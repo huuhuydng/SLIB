@@ -95,6 +95,7 @@ function TestSystemPage() {
 
   const [users, setUsers] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [autoCancelOnLeaveMinutes, setAutoCancelOnLeaveMinutes] = useState(30);
   const [userSearch, setUserSearch] = useState("");
   const [bookingSearch, setBookingSearch] = useState("");
 
@@ -109,6 +110,7 @@ function TestSystemPage() {
     setCurrentUser(null);
     setUsers([]);
     setBookings([]);
+    setAutoCancelOnLeaveMinutes(30);
     setSelectedUserId("");
     setReputationTarget("");
     setReputationReason("");
@@ -163,12 +165,14 @@ function TestSystemPage() {
     if (!authToken) return;
     setDataLoading(true);
     try {
-      const [userList, bookingList] = await Promise.all([
+      const [userList, bookingList, settings] = await Promise.all([
         testSystemService.getAdminUsers(authToken),
         testSystemService.getBookings(authToken),
+        testSystemService.getLibrarySettings(authToken),
       ]);
       setUsers(Array.isArray(userList) ? userList : []);
       setBookings(Array.isArray(bookingList) ? bookingList : []);
+      setAutoCancelOnLeaveMinutes(settings?.autoCancelOnLeaveMinutes ?? 30);
     } catch (error) {
       toast.error(error.message || "Không thể tải dữ liệu test.");
       if (/401|403|hết hạn|không hợp lệ/i.test(error.message || "")) {
@@ -376,7 +380,10 @@ function TestSystemPage() {
             <BellRing size={18} />
             <div>
               <strong>6 mốc booking</strong>
-              <span>Còn 15 phút tới giờ ngồi, đến giờ ngồi, sắp hết giờ, đã hết giờ còn 5 phút để rời chỗ, quá 5 phút chưa rời chỗ, hủy do chưa xác nhận</span>
+              <span>
+                Còn 15 phút tới giờ ngồi, đến giờ ngồi, sắp hết giờ, đã hết giờ còn {autoCancelOnLeaveMinutes}
+                {" "}phút để rời chỗ, quá {autoCancelOnLeaveMinutes} phút chưa rời chỗ, hủy do chưa xác nhận
+              </span>
             </div>
           </article>
         </section>
@@ -877,7 +884,7 @@ function TestSystemPage() {
                           ) : (
                             <LogOut size={16} />
                           )}
-                          Đã hết giờ, còn 5 phút để rời chỗ
+                          Đã hết giờ, còn {autoCancelOnLeaveMinutes} phút để rời chỗ
                         </button>
                         <button
                           className="test-system-btn test-system-btn--danger"
@@ -895,7 +902,7 @@ function TestSystemPage() {
                           ) : (
                             <Hourglass size={16} />
                           )}
-                          Quá 5 phút chưa rời chỗ
+                          Quá {autoCancelOnLeaveMinutes} phút chưa rời chỗ
                         </button>
                         <button
                           className="test-system-btn test-system-btn--danger"

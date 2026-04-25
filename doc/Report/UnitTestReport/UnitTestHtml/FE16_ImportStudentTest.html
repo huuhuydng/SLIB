@@ -12,11 +12,11 @@
     <h1>Unit Test Report - FE-16: Import Student and Teacher via file</h1>
 
     <table class="report-meta">
-      <tr><td class="label">Function Code</td><td class="value italic">FE-16</td><td class="label">Function Name</td><td class="value link">Import Student and Teacher via file</td></tr>
-      <tr><td class="label">Created By</td><td class="value italic">Hadi</td><td class="label">Executed By</td><td class="value italic">Hadi</td></tr>
-      <tr><td class="label">Lines of code</td><td class="value italic center">~80</td><td class="label">Lack of test cases</td><td class="value center">0</td></tr>
-      <tr><td class="label">Class Under Test</td><td class="value code" colspan="3"><code>UserController.importFromExcel(...), UserController.getImportStatus(...)</code></td></tr>
-      <tr><td class="label">Test requirement</td><td class="value italic" colspan="3">Verify Excel import startup and batch status tracking follow the current controller behavior for valid files, invalid inputs, and missing jobs.</td></tr>
+      <tr><td class="label">Function Code</td><td class="value italic">FE-16</td><td class="label">Function Name</td><td class="value link" colspan="2">Import Student and Teacher via file</td></tr>
+      <tr><td class="label">Created By</td><td class="value italic">Hadi</td><td class="label">Executed By</td><td class="value italic" colspan="2">Hadi</td></tr>
+      <tr><td class="label">Lines of code</td><td class="value italic center">~80</td><td class="label">Lack of test cases</td><td class="value center" colspan="2">0</td></tr>
+      <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>UserController.importFromExcel(...), UserController.getImportStatus(...)</code></td></tr>
+      <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify Excel import startup and batch status tracking follow the current controller behavior for valid files, invalid inputs, and missing jobs.</td></tr>
       <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
       <tr><td class="value center">6</td><td class="value center">0</td><td class="value center">0</td><td class="value center">2 / 4 / 0</td><td class="value center">6</td></tr>
     </table>
@@ -55,7 +55,7 @@
       <tr><td class="category-cell" rowspan="2">Exception</td><td class="item-cell">None</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
       <tr><td class="item-cell">IllegalArgumentException</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
       <tr><td class="category-cell" rowspan="4">Response body</td><td class="item-cell">{ batchId, message, status=PROCESSING }</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
-      <tr><td class="item-cell">{ error: "Chỉ hỗ trợ file Excel (.xlsx, .xls)" } or multipart error</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">{ error: "Only Excel files (.xlsx, .xls) are supported" } or multipart error</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
       <tr><td class="item-cell">{ batchId, status, totalRows, importedCount }</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
       <tr><td class="item-cell">Empty body or { error: "Invalid batchId format" }</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
 

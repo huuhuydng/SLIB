@@ -9,6 +9,10 @@ import librarianService from "../../../services/librarian/librarianService";
 import StudentDetailModal from "../../../components/librarian/StudentDetailModal";
 import websocketService from "../../../services/shared/websocketService";
 
+const getTodayDateString = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+};
 
 const CheckInOut = () => {
   const toast = useToast();
@@ -36,8 +40,8 @@ const CheckInOut = () => {
   const [sortConfig, setSortConfig] = useState({ column: null, direction: null });
 
   // Date filter state for export
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(getTodayDateString);
+  const [endDate, setEndDate] = useState(getTodayDateString);
 
   // Column filter state: { columnKey: filterValue }
   const [columnFilters, setColumnFilters] = useState({
@@ -96,6 +100,7 @@ const CheckInOut = () => {
               checkInTime: message.checkInTime || message.time || message.timestamp,
               checkOutTime: message.checkOutTime || (message.type === 'CHECK_OUT' ? (message.time || message.timestamp) : null),
               deviceId: message.deviceId || null,
+              deviceName: message.deviceName || message.deviceId || null,
               avatarUrl: null
             };
             setAccessLogs(prevLogs => {
@@ -241,7 +246,7 @@ const CheckInOut = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, columnFilters, sortConfig, itemsPerPage]);
+  }, [searchTerm, columnFilters, sortConfig, itemsPerPage, startDate, endDate]);
 
   // Sort handler: cycle null -> asc -> desc -> null
   const handleSort = (column) => {

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-38 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-38: Block publish when occupied seats or active booking are affected</h1>
+    <table class="report-meta">
+      <tr><td class="label">Function Code</td><td class="value italic">FE-38</td><td class="label">Function Name</td><td class="value link" colspan="2">Block publish when occupied seats or active booking are affected</td></tr>
+      <tr><td class="label">Lines of code</td><td class="value italic center">~166</td><td class="label">Lack of test cases</td><td class="value center" colspan="2">0</td></tr>
+      <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>LayoutAdminController</code></td></tr>
+      <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify publish is blocked when seats are occupied or currently held, when multiple conflicts occur, and when validation payload must be returned together with conflict details.</td></tr>
+      <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
+      <tr><td class="value center">5</td><td class="value center">0</td><td class="value center">0</td><td class="value center">0 / 5 / 0</td><td class="value center">5</td></tr>
+    </table>
+    <table class="matrix-table">
+      <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th><th class="matrix-head matrix-head--utc"><span>UTCID03</span></th><th class="matrix-head matrix-head--utc"><span>UTCID04</span></th><th class="matrix-head matrix-head--utc"><span>UTCID05</span></th></tr>
+      <tr><td class="section-cell" rowspan="9">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">The snapshot changes affect seats that are currently occupied or covered by active bookings</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">The system has related seat-status or booking data to validate the conflict, or a service failure is simulated in the last UTCID</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">HTTP Method</td><td class="item-cell">POST</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">API Endpoint</td><td class="item-cell">/slib/layout-admin/publish</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell" rowspan="5">Input</td><td class="item-cell">Occupied seat conflict</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Active booking conflict</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Multiple seats conflict at the same time</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Conflict response must include full validation payload</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Unexpected runtime failure while checking conflict</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="section-cell" rowspan="8">Confirm</td><td class="category-cell" rowspan="3">Return</td><td class="item-cell">409: Conflict</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">500: Internal Server Error</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="item-cell">Conflict response contains <code>LAYOUT_CONFLICT</code></td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="category-cell" rowspan="5">Response body</td><td class="item-cell">Validation contains seat-in-use conflict code</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Validation message describes active booking still effective</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Validation returns multiple conflict codes</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Validation returns severity, entity type, and entity key</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="item-cell">Internal server error response is returned for unexpected failure</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="section-cell" rowspan="3">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td><td class="mark-cell">A</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td></tr>
+    </table>
+  </div>
+</body>
+</html>

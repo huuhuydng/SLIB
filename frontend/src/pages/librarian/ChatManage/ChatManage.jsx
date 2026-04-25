@@ -48,6 +48,7 @@ const ChatManage = () => {
   const fetchIdRef = useRef(0);
   const messagesRef = useRef(messages);
   const shouldAutoScrollRef = useRef(true);
+  const supportCountRef = useRef(null);
 
   const isNearBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -100,7 +101,7 @@ const ChatManage = () => {
   }, []);
 
   // Notification context for badge updates & chat toast
-  const { refreshUnreadChatCount } = useLibrarianNotification();
+  const { pendingCounts, refreshUnreadChatCount, setChatToast } = useLibrarianNotification();
   // Keep ref in sync with state
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -109,6 +110,25 @@ const ChatManage = () => {
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    const nextSupportCount = pendingCounts?.supportRequests ?? 0;
+
+    if (supportCountRef.current === null) {
+      supportCountRef.current = nextSupportCount;
+      return;
+    }
+
+    if (nextSupportCount > supportCountRef.current) {
+      setChatToast({
+        eventType: 'SUPPORT_REQUEST_CREATED',
+        senderName: 'Sinh viên',
+        content: 'vừa gửi yêu cầu hỗ trợ mới',
+      });
+    }
+
+    supportCountRef.current = nextSupportCount;
+  }, [pendingCounts?.supportRequests, setChatToast]);
 
   // Fetch all conversations (waiting + active)
   const fetchConversations = useCallback(async () => {
@@ -439,7 +459,7 @@ const ChatManage = () => {
       stompClientRef.current = null;
       if (client) client.deactivate();
     };
-  }, [fetchConversations, fetchMessages, isNearBottom, markConversationAsRead, updateConversationPreview]);
+  }, [fetchConversations, fetchMessages, isNearBottom, markConversationAsRead, setChatToast, updateConversationPreview]);
 
   // Subscribe to conversation topic
   const subscribeToConversation = useCallback((conversationId) => {

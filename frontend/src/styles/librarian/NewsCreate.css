@@ -290,6 +290,116 @@
   transform: scale(1.1);
 }
 
+/* ===== PDF ATTACHMENT ===== */
+.news-pdf-upload {
+  width: 100%;
+  min-height: 56px;
+  border: 2px dashed #fed7aa;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fff7ed 0%, #ffffff 100%);
+  color: #c2410c;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.25s;
+}
+
+.news-pdf-upload:hover:not(:disabled) {
+  border-color: #f97316;
+  background: linear-gradient(145deg, #ffedd5 0%, #fff7ed 100%);
+  transform: translateY(-1px);
+}
+
+.news-pdf-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.news-pdf-card,
+.news-preview-attachment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff7ed 0%, #ffffff 100%);
+  padding: 14px;
+}
+
+.news-pdf-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #ffedd5;
+  color: #c2410c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.news-pdf-info,
+.news-preview-attachment div {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.news-pdf-info a {
+  color: #9a3412;
+  font-weight: 700;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.news-pdf-info a:hover {
+  text-decoration: underline;
+}
+
+.news-pdf-info span,
+.news-preview-attachment span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.news-pdf-remove {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #b91c1c;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.news-pdf-remove:hover {
+  background: #fecaca;
+}
+
+.news-upload-hint {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.news-preview-attachment {
+  margin-top: 20px;
+  color: #c2410c;
+}
+
 /* ===== CHECKBOX & TOGGLE ===== */
 .news-checkbox-container {
   display: inline-flex;

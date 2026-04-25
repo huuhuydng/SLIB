@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import slib.com.example.dto.ai.MaterialDTO;
+import slib.com.example.entity.ai.KnowledgeStoreEntity;
 import slib.com.example.entity.ai.MaterialEntity;
 import slib.com.example.entity.ai.MaterialItemEntity;
+import slib.com.example.repository.ai.KnowledgeStoreRepository;
 import slib.com.example.repository.ai.MaterialItemRepository;
 import slib.com.example.repository.ai.MaterialRepository;
 
@@ -31,6 +33,7 @@ public class MaterialService {
 
     private final MaterialRepository materialRepository;
     private final MaterialItemRepository materialItemRepository;
+    private final KnowledgeStoreRepository knowledgeStoreRepository;
 
     @Value("${app.upload.dir:uploads/materials}")
     private String uploadDir;
@@ -85,6 +88,7 @@ public class MaterialService {
         materialRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Material not found: " + id));
 
+        markKnowledgeStoresChangedByMaterialId(id);
         materialItemRepository.findByMaterialId(id).forEach(this::deleteFileIfPresent);
         materialRepository.deleteById(id);
         log.info("Deleted material: {}", id);
@@ -149,6 +153,7 @@ public class MaterialService {
         MaterialItemEntity item = materialItemRepository.findById(itemId)
                 .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
+        markKnowledgeStoresChangedByItemId(itemId);
         deleteFileIfPresent(item);
         materialItemRepository.delete(item);
         log.info("Deleted item {} from material {}", itemId, materialId);
@@ -167,6 +172,7 @@ public class MaterialService {
         }
 
         item = materialItemRepository.save(item);
+        markKnowledgeStoresChangedByItemId(itemId);
         log.info("Updated item {} in material {}", itemId, materialId);
         return toItemResponse(item);
     }
@@ -239,6 +245,37 @@ public class MaterialService {
         } catch (IOException e) {
             log.warn("Could not delete file: {}", item.getFilePath());
         }
+    }
+
+    private void markKnowledgeStoresChangedByItemId(Long itemId) {
+        if (itemId == null) {
+            return;
+        }
+
+        List<KnowledgeStoreEntity> stores = knowledgeStoreRepository.findDistinctByItems_Id(itemId);
+        markKnowledgeStoresChanged(stores, "item " + itemId);
+    }
+
+    private void markKnowledgeStoresChangedByMaterialId(Long materialId) {
+        if (materialId == null) {
+            return;
+        }
+
+        List<KnowledgeStoreEntity> stores = knowledgeStoreRepository.findDistinctByItems_Material_Id(materialId);
+        markKnowledgeStoresChanged(stores, "material " + materialId);
+    }
+
+    private void markKnowledgeStoresChanged(List<KnowledgeStoreEntity> stores, String trigger) {
+        if (stores == null || stores.isEmpty()) {
+            return;
+        }
+
+        for (KnowledgeStoreEntity store : stores) {
+            store.setStatus(KnowledgeStoreEntity.SyncStatus.CHANGED);
+        }
+
+        knowledgeStoreRepository.saveAll(stores);
+        log.info("Marked {} knowledge stores as CHANGED after {}", stores.size(), trigger);
     }
 
     private String normalizeRequiredText(String value, String fieldName) {

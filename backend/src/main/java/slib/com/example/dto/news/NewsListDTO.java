@@ -24,4 +24,7 @@ public class NewsListDTO {
     private LocalDateTime createdAt;
     private LocalDateTime publishedAt;
     private String imageUrl;
+    private String pdfUrl;
+    private String pdfFileName;
+    private Long pdfFileSize;
 }

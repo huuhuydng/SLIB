@@ -1661,24 +1661,33 @@ function CanvasBoard() {
           {isPreviewMode && (
             <div style={{
               position: 'absolute',
-              top: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+              left: '20px',
+              bottom: '20px',
+              background: 'rgba(22, 163, 74, 0.94)',
+              backdropFilter: 'blur(10px)',
               color: 'white',
-              padding: '10px 24px',
-              borderRadius: '30px',
-              fontSize: '14px',
+              padding: '10px 14px',
+              borderRadius: '16px',
+              fontSize: '13px',
               fontWeight: '600',
-              boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.18)',
               zIndex: 100,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '10px',
+              justifyContent: 'space-between',
+              maxWidth: '360px',
+              minWidth: historyPreviewMeta ? '300px' : 'auto',
+              textAlign: 'left',
             }}>
-              {historyPreviewMeta
-                ? `Đang xem sơ đồ tại mốc ${historyPreviewMeta.createdAt ? new Date(historyPreviewMeta.createdAt).toLocaleString('vi-VN') : 'lịch sử'}`
-                : 'Chế độ xem trước - Sinh viên sẽ nhìn thấy như này'}
+              <span style={{
+                lineHeight: 1.35,
+                whiteSpace: 'normal',
+              }}>
+                {historyPreviewMeta
+                  ? `Đang xem mốc ${historyPreviewMeta.createdAt ? new Date(historyPreviewMeta.createdAt).toLocaleString('vi-VN') : 'lịch sử'}`
+                  : 'Chế độ xem trước'}
+              </span>
               {historyPreviewMeta && (
                 <button
                   onClick={exitHistoryPreview}
@@ -1686,14 +1695,15 @@ function CanvasBoard() {
                     border: '1px solid rgba(255,255,255,0.35)',
                     background: 'rgba(255,255,255,0.12)',
                     color: 'white',
-                    padding: '6px 12px',
+                    padding: '7px 12px',
                     borderRadius: '999px',
                     cursor: 'pointer',
                     fontSize: '12px',
                     fontWeight: '700',
+                    flexShrink: 0,
                   }}
                 >
-                  Quay về hiện tại
+                  Hiện tại
                 </button>
               )}
             </div>

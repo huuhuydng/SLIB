@@ -88,7 +88,8 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
     }
-    if (widget.initialTimeSlot != null && widget.initialTimeSlot!.trim().isNotEmpty) {
+    if (widget.initialTimeSlot != null &&
+        widget.initialTimeSlot!.trim().isNotEmpty) {
       _selectedTimeSlot = widget.initialTimeSlot;
     }
     _loadCurrentUserUpcomingBooking();
@@ -822,6 +823,31 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
     return DateTime(date.year, date.month, date.day, hour, minute);
   }
 
+  bool _isSelectedSlotLibraryClosed() {
+    final settings = _librarySettings;
+    if (settings == null) return _isLibraryClosed;
+
+    final hasClosureSchedule =
+        settings.closedFromAt != null || settings.closedUntilAt != null;
+    if (!hasClosureSchedule) return settings.libraryClosed;
+    if (_selectedTimeSlot == null) return false;
+
+    final parts = _selectedTimeSlot!.split(' - ');
+    if (parts.length != 2) return false;
+
+    final slotStart = _buildSlotDateTime(_selectedDate, parts[0]);
+    final slotEnd = _buildSlotDateTime(_selectedDate, parts[1]);
+    if (slotStart == null || slotEnd == null) return false;
+
+    final closedFrom = settings.closedFromAt;
+    final closedUntil = settings.closedUntilAt;
+    final startsBeforeClosureEnds =
+        closedUntil == null || slotStart.isBefore(closedUntil);
+    final endsAfterClosureStarts =
+        closedFrom == null || slotEnd.isAfter(closedFrom);
+    return startsBeforeClosureEnds && endsAfterClosureStarts;
+  }
+
   int? _getRemainingMinutesForOngoingSlot(DateTime date, String? timeSlot) {
     if (timeSlot == null) return null;
 
@@ -1276,7 +1302,8 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
         setState(() {
           _currentUserBookings = _currentUserBookings
               .map(
-                (booking) => booking.reservationId == widget.replacementReservationId
+                (booking) =>
+                    booking.reservationId == widget.replacementReservationId
                     ? booking.copyWith(
                         seatId: seat.seatId,
                         seatCode: seat.seatCode,
@@ -1560,6 +1587,8 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isSelectedSlotClosed = _isSelectedSlotLibraryClosed();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -1587,7 +1616,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                 _buildDateTimeFilter(),
                 // Non-working day message OR Error message OR Floor plan
                 Expanded(
-                  child: _isLibraryClosed
+                  child: isSelectedSlotClosed
                       ? _buildLibraryLockedMessage()
                       : _isNonWorkingDay
                       ? _buildClosedDayMessage()
@@ -1596,7 +1625,7 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                       : _buildFloorPlan(),
                 ),
                 // Tip (only show when working day and no error)
-                if (!_isLibraryClosed &&
+                if (!isSelectedSlotClosed &&
                     !_isNonWorkingDay &&
                     _errorMessage == null)
                   Container(
@@ -1632,8 +1661,10 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
               child: Icon(Icons.lock, size: 48, color: Colors.red[400]),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Thư viện đang tạm đóng',
+            Text(
+              _selectedTimeSlot == null
+                  ? 'Thư viện đang tạm đóng'
+                  : 'Khung giờ này đang tạm đóng',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -1650,7 +1681,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Vui lòng quay lại sau',
+              _selectedTimeSlot == null
+                  ? 'Vui lòng quay lại sau'
+                  : 'Vui lòng chọn ngày hoặc khung giờ khác',
               style: TextStyle(fontSize: 13, color: Colors.grey[500]),
             ),
           ],
@@ -1895,40 +1928,41 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                   onTap: _replacementMode
                       ? null
                       : () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: lastBookableDate,
-                      selectableDayPredicate: (day) {
-                        return _librarySettings?.isWorkingDay(day) ?? true;
-                      },
-                    );
-                    if (date != null) {
-                      // Filter slots cho ngày mới
-                      final validSlots = _filterTimeSlotsForDate(
-                        date,
-                        _timeSlots,
-                      );
-                      // Reset time slot về slot đầu tiên của ngày mới (giờ mở cửa nếu là ngày mai)
-                      final newTimeSlot = _findCurrentSlot(
-                        validSlots,
-                        forDate: date,
-                      );
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime.now(),
+                            lastDate: lastBookableDate,
+                            selectableDayPredicate: (day) {
+                              return _librarySettings?.isWorkingDay(day) ??
+                                  true;
+                            },
+                          );
+                          if (date != null) {
+                            // Filter slots cho ngày mới
+                            final validSlots = _filterTimeSlotsForDate(
+                              date,
+                              _timeSlots,
+                            );
+                            // Reset time slot về slot đầu tiên của ngày mới (giờ mở cửa nếu là ngày mai)
+                            final newTimeSlot = _findCurrentSlot(
+                              validSlots,
+                              forDate: date,
+                            );
 
-                      setState(() {
-                        _selectedDate = date;
-                        _selectedTimeSlot = newTimeSlot;
-                        _errorMessage = validSlots.isEmpty
-                            ? 'Không còn khung giờ trống cho ngày này'
-                            : null;
-                      });
+                            setState(() {
+                              _selectedDate = date;
+                              _selectedTimeSlot = newTimeSlot;
+                              _errorMessage = validSlots.isEmpty
+                                  ? 'Không còn khung giờ trống cho ngày này'
+                                  : null;
+                            });
 
-                      // Clear cache và reload seats for new date
-                      _clearSeatsCache();
-                      _loadZonesAndFactories();
-                    }
-                  },
+                            // Clear cache và reload seats for new date
+                            _clearSeatsCache();
+                            _loadZonesAndFactories();
+                          }
+                        },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -2006,7 +2040,9 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
                             ? null
                             : (selected) {
                                 if (selected) {
-                                  setState(() => _selectedTimeSlot = slot.label);
+                                  setState(
+                                    () => _selectedTimeSlot = slot.label,
+                                  );
                                   _loadSeatsOnly(); // Chỉ reload seats - nhanh hơn
                                 }
                               },
@@ -2024,11 +2060,11 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
 
   Widget _buildAreaTabs() {
     return Container(
-      height: 50,
+      height: 64,
       color: Colors.white,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         itemCount: _areas.length,
         itemBuilder: (context, index) {
           final area = _areas[index];
@@ -2039,16 +2075,21 @@ class _FloorPlanScreenState extends State<FloorPlanScreen> {
               _loadZonesAndFactories();
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.brandColor : Colors.grey[200],
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 area.areaName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: isSelected ? Colors.white : Colors.black87,
+                  fontSize: 15,
+                  height: 1.2,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),

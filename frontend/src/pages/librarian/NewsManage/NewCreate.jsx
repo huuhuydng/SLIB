@@ -7,6 +7,7 @@ import {
   X,
   Send,
   CloudUpload,
+  FileText,
   Save,
   Clock,
   Plus,
@@ -26,10 +27,12 @@ import {
   getNewsImage,
   getAllCategories,
   createCategory,
-  uploadImage
+  uploadImage,
+  uploadNewsPdf
 } from '../../../services/librarian/newsService';
 import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 import { getApiErrorMessage, normalizeText, validateNewsPayload } from '../../../utils/formValidation';
+import { buildPdfViewerUrl } from '../../../utils/pdfViewerUrl';
 
 const NewCreate = () => {
   const toast = useToast();
@@ -39,6 +42,7 @@ const NewCreate = () => {
   const { id } = useParams();
   const isEditMode = Boolean(id);
   const fileInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   const basePath = location.pathname.startsWith('/librarian/news')
     ? '/librarian/news'
@@ -50,6 +54,9 @@ const NewCreate = () => {
     summary: '',
     content: '',
     imageUrl: '',
+    pdfUrl: '',
+    pdfFileName: '',
+    pdfFileSize: null,
     categoryId: '',
     isPinned: false, // Track pin status for edit mode
   });
@@ -67,6 +74,7 @@ const NewCreate = () => {
   const [error, setError] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [pdfUploading, setPdfUploading] = useState(false);
 
   // Preview mode
   const [showPreview, setShowPreview] = useState(false);
@@ -246,6 +254,9 @@ const NewCreate = () => {
         summary: data.summary || '',
         content: data.content || '',
         imageUrl: imageUrl || '',
+        pdfUrl: data.pdfUrl || '',
+        pdfFileName: data.pdfFileName || '',
+        pdfFileSize: data.pdfFileSize || null,
         categoryId: data.categoryId?.toString() || '',
         isPinned: data.isPinned || false, // Preserve pin status
       });
@@ -305,6 +316,58 @@ const NewCreate = () => {
     }
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handlePdfSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' || !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Chỉ chấp nhận file PDF');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File PDF không được vượt quá 20MB');
+      e.target.value = '';
+      return;
+    }
+
+    try {
+      setPdfUploading(true);
+      const result = await uploadNewsPdf(file);
+      setFormData(prev => ({
+        ...prev,
+        pdfUrl: result.url,
+        pdfFileName: result.fileName || file.name,
+        pdfFileSize: result.fileSize || file.size,
+      }));
+      toast.success('Tải PDF thành công');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Lỗi upload PDF'));
+    } finally {
+      setPdfUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemovePdf = () => {
+    setFormData(prev => ({
+      ...prev,
+      pdfUrl: '',
+      pdfFileName: '',
+      pdfFileSize: null,
+    }));
+    if (pdfInputRef.current) {
+      pdfInputRef.current.value = '';
+    }
+  };
+
   // Generate random color for new categories
   const generateRandomColor = () => {
     const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#6366f1', '#06b6d4'];
@@ -320,6 +383,7 @@ const NewCreate = () => {
         title: formData.title,
         summary: formData.summary,
         imageUrl: formData.imageUrl,
+        pdfUrl: formData.pdfUrl,
         publishStatus,
         scheduleDate,
         scheduleTime,
@@ -373,6 +437,9 @@ const NewCreate = () => {
         summary: normalizeText(formData.summary) || null,
         content: formData.content || null,
         imageUrl: normalizeText(formData.imageUrl) || null,
+        pdfUrl: normalizeText(formData.pdfUrl) || null,
+        pdfFileName: normalizeText(formData.pdfFileName) || null,
+        pdfFileSize: formData.pdfFileSize || null,
         categoryId,
         isPublished,
         isPinned: isEditMode ? formData.isPinned : false, // Preserve pin status when editing
@@ -567,6 +634,53 @@ const NewCreate = () => {
                 }}
                 style={{ marginTop: '12px' }}
               />
+            </div>
+
+            <div className="news-form-group">
+              <label className="news-form-label">File PDF đính kèm</label>
+              {formData.pdfUrl ? (
+                <div className="news-pdf-card">
+                  <div className="news-pdf-icon">
+                    <FileText size={28} />
+                  </div>
+                  <div className="news-pdf-info">
+                    <a
+                      href={buildPdfViewerUrl(formData.pdfUrl, formData.pdfFileName)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {formData.pdfFileName || 'Tài liệu đính kèm.pdf'}
+                    </a>
+                    <span>{formatFileSize(formData.pdfFileSize) || 'PDF'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="news-pdf-remove"
+                    onClick={handleRemovePdf}
+                    aria-label="Xóa PDF"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="news-pdf-upload"
+                  onClick={() => pdfInputRef.current?.click()}
+                  disabled={pdfUploading}
+                >
+                  <FileText size={18} />
+                  {pdfUploading ? 'Đang tải PDF...' : 'Chọn PDF đính kèm'}
+                </button>
+              )}
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                style={{ display: 'none' }}
+                onChange={handlePdfSelect}
+              />
+              <p className="news-upload-hint">Chỉ hỗ trợ PDF, dung lượng tối đa 20MB.</p>
             </div>
 
             {/* Category Selection - Simplified */}
@@ -848,6 +962,16 @@ const NewCreate = () => {
                 }}
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.content || '<p style="color:#94a3b8">Chưa có nội dung...</p>') }}
               />
+
+              {formData.pdfUrl && (
+                <div className="news-preview-attachment">
+                  <FileText size={20} />
+                  <div>
+                    <strong>{formData.pdfFileName || 'Tài liệu đính kèm.pdf'}</strong>
+                    <span>{formatFileSize(formData.pdfFileSize) || 'PDF'}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Style for images inside preview content */}
               <style>{`

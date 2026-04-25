@@ -20,6 +20,14 @@ public class NewsUpsertRequest {
     @Size(max = 1000, message = "Đường dẫn ảnh không được vượt quá 1000 ký tự")
     private String imageUrl;
 
+    @Size(max = 1000, message = "Đường dẫn PDF không được vượt quá 1000 ký tự")
+    private String pdfUrl;
+
+    @Size(max = 255, message = "Tên file PDF không được vượt quá 255 ký tự")
+    private String pdfFileName;
+
+    private Long pdfFileSize;
+
     private Long categoryId;
     private Boolean isPublished;
     private Boolean isPinned;

@@ -68,6 +68,8 @@ public class SecurityConfig {
                         .requestMatchers("/slib/system/**").hasRole("ADMIN")
                         .requestMatchers("/slib/seed/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/slib/files/proxy-image").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/slib/files/proxy-pdf").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/slib/files/proxy-pdf").permitAll()
                         .requestMatchers("/slib/files/**").authenticated()
                         .requestMatchers("/slib/dashboard/test-broadcast").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/slib/dashboard/library-status")

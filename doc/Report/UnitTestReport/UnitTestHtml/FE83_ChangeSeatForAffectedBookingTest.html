@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-83 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-83: Change seat for affected booking</h1>
+    <table class="report-meta">
+      <tr><td class="label">Function Code</td><td class="value italic">FE-83</td><td class="label">Function Name</td><td class="value link" colspan="2">Change seat for affected booking</td></tr>
+      <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>BookingController.changeSeat(UUID reservationId, ChangeSeatRequest request, UserDetails userDetails)</code></td></tr>
+      <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify a student can move an affected booking to a new seat and receives a bad request when no replacement seat is supplied.</td></tr>
+      <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
+      <tr><td class="value center">2</td><td class="value center">0</td><td class="value center">0</td><td class="value center">1 / 1 / 0</td><td class="value center">2</td></tr>
+    </table>
+    <table class="matrix-table">
+      <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th></tr>
+      <tr><td class="section-cell" rowspan="6">Condition</td><td class="category-cell">HTTP Method</td><td class="item-cell">PUT</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">API Endpoint</td><td class="item-cell">/slib/bookings/change-seat/{reservationId}</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Input</td><td class="item-cell">Affected booking with a valid replacement seat</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="category-cell">Input</td><td class="item-cell">Affected booking without a replacement seat</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Return</td><td class="item-cell">200 OK with updated seat or 400 Bad Request</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Response body</td><td class="item-cell">Updated reservation contains the new seat id</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="section-cell" rowspan="3">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td></tr>
+    </table>
+  </div>
+</body>
+</html>
