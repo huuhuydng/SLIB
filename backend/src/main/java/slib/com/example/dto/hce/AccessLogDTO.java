@@ -15,6 +15,7 @@ public class AccessLogDTO {
     private String userName;
     private String userCode;
     private String deviceId;
+    private String deviceName;
     private LocalDateTime checkInTime;
     private LocalDateTime checkOutTime;
     private String action; // "CHECK_IN" or "CHECK_OUT"

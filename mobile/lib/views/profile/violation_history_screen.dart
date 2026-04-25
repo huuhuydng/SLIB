@@ -66,7 +66,10 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        final penalties = data.map((v) => v as Map<String, dynamic>).toList();
+        final penalties = data
+            .map((v) => v as Map<String, dynamic>)
+            .where(_isAutomaticPenalty)
+            .toList();
 
         if (mounted) {
           setState(() {
@@ -136,6 +139,28 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     return null;
   }
 
+  bool _isAutomaticPenalty(Map<String, dynamic> penalty) {
+    final type = penalty['transactionType']?.toString() ?? '';
+    return type == 'NO_SHOW_PENALTY' ||
+        type == 'LATE_CHECKIN_PENALTY' ||
+        type == 'CHECK_OUT_LATE_PENALTY';
+  }
+
+  bool _hasAcceptedAppeal(Map<String, dynamic> item) {
+    return item['appealStatus']?.toString() == 'ACCEPTED';
+  }
+
+  bool _isEffectivePenalty(Map<String, dynamic> penalty) {
+    return !_hasAcceptedAppeal(penalty);
+  }
+
+  bool _isEffectiveViolation(Map<String, dynamic> violation) {
+    final pointDeducted = ((violation['pointDeducted'] ?? 0) as num).toInt();
+    return violation['status'] == 'VERIFIED' &&
+        pointDeducted > 0 &&
+        !_hasAcceptedAppeal(violation);
+  }
+
   List<Map<String, dynamic>> get _filteredPenaltyItems {
     return _penalties.where((penalty) {
       final createdAt = _parseDate(penalty['createdAt']);
@@ -151,10 +176,19 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     return items.take(_collapsedLimit).toList();
   }
 
-  int get _filteredPenaltyCount => _filteredPenaltyItems.length;
+  int get _filteredPenaltyHistoryCount => _filteredPenaltyItems.length;
+
+  int get _effectivePenaltyCountAll {
+    return _penalties.where(_isEffectivePenalty).length;
+  }
+
+  int get _filteredPenaltyCount {
+    return _filteredPenaltyItems.where(_isEffectivePenalty).length;
+  }
 
   int get _filteredPenaltyPoints {
     return _filteredPenaltyItems.fold<int>(0, (sum, item) {
+      if (!_isEffectivePenalty(item)) return sum;
       return sum + (((item['points'] ?? 0) as num).toInt().abs());
     });
   }
@@ -174,17 +208,19 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
     return items.take(_collapsedLimit).toList();
   }
 
-  int get _filteredViolationCountAll => _filteredViolationItems.length;
+  int get _filteredViolationHistoryCount => _filteredViolationItems.length;
+
+  int get _effectiveViolationCountAll {
+    return _violations.where(_isEffectiveViolation).length;
+  }
 
   int get _filteredVerifiedViolationCount {
-    return _filteredViolationItems
-        .where((violation) => violation['status'] == 'VERIFIED')
-        .length;
+    return _filteredViolationItems.where(_isEffectiveViolation).length;
   }
 
   int get _filteredViolationPoints {
     return _filteredViolationItems.fold<int>(0, (sum, item) {
-      if (item['status'] != 'VERIFIED') return sum;
+      if (!_isEffectiveViolation(item)) return sum;
       return sum + (((item['pointDeducted'] ?? 0) as num).toInt());
     });
   }
@@ -249,7 +285,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   const Icon(Icons.auto_fix_high, size: 18),
                   const SizedBox(width: 6),
                   const Text('Tự động'),
-                  if (_penalties.isNotEmpty) ...[
+                  if (_effectivePenaltyCountAll > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -261,7 +297,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '${_penalties.length}',
+                        '$_effectivePenaltyCountAll',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.red,
@@ -280,7 +316,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   const Icon(Icons.report_outlined, size: 18),
                   const SizedBox(width: 6),
                   const Text('Bị báo cáo'),
-                  if (_violations.isNotEmpty) ...[
+                  if (_effectiveViolationCountAll > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -292,7 +328,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '${_violations.length}',
+                        '$_effectiveViolationCountAll',
                         style: const TextStyle(
                           fontSize: 11,
                           color: Colors.red,
@@ -340,7 +376,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   _expandedTabs[0] = expanded;
                 });
               },
-              totalCount: _filteredPenaltyCount,
+              totalCount: _filteredPenaltyHistoryCount,
               visibleCount: visiblePenalties.length,
             ),
           ),
@@ -373,6 +409,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
 
   Widget _buildPenaltyStatsHeader() {
     final bool clean = _filteredPenaltyCount == 0;
+    final bool hasHistory = _filteredPenaltyHistoryCount > 0;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -387,18 +424,20 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         borderRadius: BorderRadius.circular(20),
       ),
       child: clean
-          ? const Row(
+          ? Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.verified_user_outlined,
                   color: Colors.white,
                   size: 28,
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Text(
-                  'Chưa có vi phạm tự động!',
-                  style: TextStyle(
+                  hasHistory
+                      ? 'Không có vi phạm tự động còn hiệu lực!'
+                      : 'Chưa có vi phạm tự động!',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,
@@ -985,7 +1024,7 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
                   _expandedTabs[1] = expanded;
                 });
               },
-              totalCount: _filteredViolationCountAll,
+              totalCount: _filteredViolationHistoryCount,
               visibleCount: visibleViolations.length,
             ),
           ),
@@ -1017,7 +1056,8 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
   }
 
   Widget _buildViolationStatsHeader() {
-    final bool clean = _filteredViolationCountAll == 0;
+    final bool clean = _filteredVerifiedViolationCount == 0;
+    final bool hasHistory = _filteredViolationHistoryCount > 0;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -1032,14 +1072,20 @@ class _ViolationHistoryScreenState extends State<ViolationHistoryScreen>
         borderRadius: BorderRadius.circular(20),
       ),
       child: clean
-          ? const Row(
+          ? Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.shield_outlined, color: Colors.white, size: 28),
-                SizedBox(width: 12),
+                const Icon(
+                  Icons.shield_outlined,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
                 Text(
-                  'Chưa bị báo cáo vi phạm!',
-                  style: TextStyle(
+                  hasHistory
+                      ? 'Không có báo cáo vi phạm còn hiệu lực!'
+                      : 'Chưa bị báo cáo vi phạm!',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 16,

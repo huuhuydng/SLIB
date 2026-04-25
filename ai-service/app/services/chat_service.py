@@ -554,6 +554,43 @@ class RAGChatService:
 
         return "Thông tin bạn cần như sau:\n" + "\n".join(cleaned_lines)
 
+    def _try_answer_short_fact_from_top_chunk(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        best_score: float,
+    ) -> Optional[str]:
+        if best_score < self.similarity_threshold or not chunks:
+            return None
+
+        top_chunk = chunks[0]
+        raw_content = (top_chunk.get("content") or "").strip()
+        if not raw_content:
+            return None
+
+        if len(raw_content) > 220:
+            return None
+
+        if raw_content.count("\n") > 2:
+            return None
+
+        normalized_query = self._normalize_for_match(query)
+        normalized_content = self._normalize_for_match(raw_content)
+        if len(normalized_query) < 3:
+            return None
+
+        query_keywords = self._extract_keywords(query)
+        if not query_keywords:
+            query_keywords = [token for token in normalized_query.split() if len(token) >= 3]
+
+        if not query_keywords:
+            return None
+
+        if not all(keyword in normalized_content for keyword in query_keywords):
+            return None
+
+        return raw_content
+
     def _is_procedural_query(self, query: str) -> bool:
         normalized = self._normalize_for_match(query)
         procedural_patterns = [
@@ -1271,6 +1308,27 @@ class RAGChatService:
         except Exception as e:
             logger.error(f"[RAGChatService] Error retrieving context: {e}")
             return [], 0.0
+
+    def _merge_context_results(
+        self,
+        query: str,
+        primary_chunks: List[Dict[str, Any]],
+        secondary_chunks: List[Dict[str, Any]],
+    ) -> Tuple[List[Dict[str, Any]], float]:
+        merged_map: Dict[str, Dict[str, Any]] = {}
+
+        for chunk in [*(primary_chunks or []), *(secondary_chunks or [])]:
+            chunk_id = chunk.get("id")
+            dedupe_key = str(chunk_id) if chunk_id else f"{chunk.get('source', '')}::{chunk.get('content', '')}"
+            existing = merged_map.get(dedupe_key)
+            if existing is None or chunk.get("similarity_score", 0.0) > existing.get("similarity_score", 0.0):
+                merged_map[dedupe_key] = chunk
+
+        merged_chunks = list(merged_map.values())
+        merged_chunks = self._rerank_chunks(query, merged_chunks)
+        best_score = max((chunk.get("similarity_score", 0.0) for chunk in merged_chunks), default=0.0)
+
+        return merged_chunks, best_score
     
     def generate_response(self, query: str, context_chunks: List[Dict[str, Any]], live_data: str = "", chat_history: List[Dict[str, str]] = None) -> str:
         """Generate response using LLM with context, optional live data, and chat history"""
@@ -1362,21 +1420,21 @@ class RAGChatService:
         should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
         preferred_top_k = max(self.max_chunks, 12) if should_expand_top_k else self.max_chunks
 
-        # 2. Retrieve Context from document knowledge base first
-        chunks, best_score = self.retrieve_context(
+        # 2. Retrieve document knowledge base and indexed knowledge stores together
+        primary_chunks, primary_score = self.retrieve_context(
             message,
             top_k=preferred_top_k,
             category="knowledge_base"
         )
-
-        # 3. Fall back to all indexed sources only when document KB is too weak
-        if best_score < self.similarity_threshold:
-            fallback_chunks, fallback_score = self.retrieve_context(
-                message,
-                top_k=preferred_top_k
-            )
-            if fallback_score > best_score:
-                chunks, best_score = fallback_chunks, fallback_score
+        secondary_chunks, secondary_score = self.retrieve_context(
+            message,
+            top_k=preferred_top_k
+        )
+        chunks, best_score = self._merge_context_results(
+            message,
+            primary_chunks,
+            secondary_chunks,
+        )
         
         # 4. Check Spam/Gibberish (Score cực thấp)
         # Ví dụ: "hdjdhdiirhfh" -> Score ~ 0.2 -> Trả lời giới thiệu bản thân
@@ -1434,6 +1492,19 @@ class RAGChatService:
             return {
                 "success": True,
                 "reply": procedural_response,
+                "action": ActionType.NONE,
+                "similarity_score": best_score,
+                "sources": [
+                    {"source": c["source"], "score": round(c["similarity_score"], 4)}
+                    for c in chunks[:3]
+                ]
+            }
+
+        short_fact_response = self._try_answer_short_fact_from_top_chunk(message, chunks, best_score)
+        if short_fact_response:
+            return {
+                "success": True,
+                "reply": short_fact_response,
                 "action": ActionType.NONE,
                 "similarity_score": best_score,
                 "sources": [
@@ -1640,25 +1711,30 @@ class RAGChatService:
                 "debug": debug
             }
         
-        # 2. Retrieve from document knowledge base first
+        # 2. Retrieve from document knowledge base and indexed knowledge stores
         should_expand_top_k = self._is_library_hours_query(message) or self._is_procedural_query(message)
         preferred_top_k = max(self.max_chunks, 12) if should_expand_top_k else self.max_chunks
-        chunks, best_score = self.retrieve_context(
+        primary_chunks, primary_score = self.retrieve_context(
             message,
             top_k=preferred_top_k,
             category="knowledge_base"
         )
         debug["retrieval"]["primary_category"] = "knowledge_base"
-
-        # 3. Fall back to all indexed sources only when document KB is too weak
-        if best_score < self.similarity_threshold:
-            fallback_chunks, fallback_score = self.retrieve_context(
-                message,
-                top_k=preferred_top_k
-            )
-            if fallback_score > best_score:
-                chunks, best_score = fallback_chunks, fallback_score
-                debug["retrieval"]["fell_back_to_all_sources"] = True
+        secondary_chunks, secondary_score = self.retrieve_context(
+            message,
+            top_k=preferred_top_k
+        )
+        chunks, best_score = self._merge_context_results(
+            message,
+            primary_chunks,
+            secondary_chunks,
+        )
+        debug["retrieval"]["searched_all_sources"] = True
+        debug["retrieval"]["knowledge_base_best_score"] = round(primary_score, 4)
+        debug["retrieval"]["all_sources_best_score"] = round(secondary_score, 4)
+        debug["retrieval"]["used_non_knowledge_base_source"] = any(
+            chunk.get("category") != "knowledge_base" for chunk in chunks[:3]
+        )
 
         # 4. Retrieve
         debug["retrieval"]["best_score"] = round(best_score, 4)
@@ -1723,6 +1799,16 @@ class RAGChatService:
             return {
                 "success": True,
                 "reply": procedural_response,
+                "action": ActionType.NONE,
+                "debug": debug
+            }
+
+        short_fact_response = self._try_answer_short_fact_from_top_chunk(message, chunks, best_score)
+        if short_fact_response:
+            debug["generation"]["action_reason"] = "Answered directly from short factual chunk"
+            return {
+                "success": True,
+                "reply": short_fact_response,
                 "action": ActionType.NONE,
                 "debug": debug
             }

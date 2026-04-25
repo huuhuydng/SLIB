@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../../components/common/ToastProvider';
 import useAppDialog from '../../../hooks/useAppDialog';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Eye, Calendar, Tag, FileText } from 'lucide-react';
 import '../../../styles/librarian/NewsDetailView.css';
 import { getNewsDetailForAdmin, getNewsImage, deleteNews, getAllNewsForAdmin } from '../../../services/librarian/newsService';
 import { sanitizeHtml } from '../../../utils/sanitizeHtml';
+import { buildPdfViewerUrl } from '../../../utils/pdfViewerUrl';
 
 const NewsDetailView = () => {
   const toast = useToast();
@@ -118,6 +119,17 @@ const NewsDetailView = () => {
     return categories[categoryId] || 'Tin tức';
   };
 
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const pdfViewerUrl = newsData?.pdfUrl
+    ? buildPdfViewerUrl(newsData.pdfUrl, newsData.pdfFileName)
+    : '';
+
   if (loading) {
     return (
       <div className="news-detail-loading">
@@ -193,6 +205,32 @@ const NewsDetailView = () => {
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(newsData.content) }}
               />
             </article>
+
+            {newsData.pdfUrl && (
+              <section className="news-attachment-section">
+                <div className="news-attachment-card">
+                  <div className="news-attachment-icon">
+                    <FileText size={28} />
+                  </div>
+                  <div className="news-attachment-info">
+                    <span className="news-attachment-label">File PDF đính kèm</span>
+                    <a href={pdfViewerUrl} target="_blank" rel="noopener noreferrer">
+                      {newsData.pdfFileName || 'Tài liệu đính kèm.pdf'}
+                    </a>
+                    <span>{formatFileSize(newsData.pdfFileSize) || 'PDF'}</span>
+                  </div>
+                  <a
+                    href={pdfViewerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="news-attachment-action"
+                  >
+                    <Eye size={16} />
+                    Xem PDF
+                  </a>
+                </div>
+              </section>
+            )}
 
             <div className="news-actions-bar actions-bottom">
               <div className="actions-left">
@@ -283,6 +321,11 @@ const NewsDetailView = () => {
                 <div className="info-row">
                   <span className="info-label">Lượt xem:</span>
                   <span className="info-value">{newsData.viewCount || 0}</span>
+                </div>
+
+                <div className="info-row">
+                  <span className="info-label">PDF:</span>
+                  <span className="info-value">{newsData.pdfUrl ? 'Có' : 'Không'}</span>
                 </div>
 
                 <div className="info-row">

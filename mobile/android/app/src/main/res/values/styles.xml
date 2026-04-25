@@ -15,7 +15,7 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
-    <string name="app_name">SmartLib</string>
+    <string name="app_name">SLIB</string>
     
-    <string name="hce_service_desc">SLIB HCE Service</string>
+    <string name="hce_service_desc">SLIB</string>
 </resources>

@@ -15,8 +15,11 @@ public class LayoutScheduleResponse {
     private Long scheduleId;
     private Long basedOnPublishedVersion;
     private LocalDateTime scheduledFor;
+    private LocalDateTime originalScheduledFor;
     private String status;
     private String requestedByName;
+    private Integer retryCount;
+    private Integer maxRetryCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime cancelledAt;

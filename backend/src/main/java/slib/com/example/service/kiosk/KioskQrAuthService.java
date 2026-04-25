@@ -408,11 +408,12 @@ public class KioskQrAuthService {
 
     private void logCheckInActivity(User user, String kioskCode) {
         try {
+            String kioskName = resolveKioskDisplayName(kioskCode);
             activityService.logActivity(ActivityLogEntity.builder()
                     .userId(user.getId())
                     .activityType(ActivityLogEntity.TYPE_CHECK_IN)
                     .title("Check-in thành công")
-                    .description("Bạn đã vào thư viện qua kiosk " + kioskCode)
+                    .description("Bạn đã vào thư viện qua " + kioskName)
                     .build());
         } catch (Exception e) {
             log.warn("Failed to log kiosk check-in activity: {}", e.getMessage());
@@ -424,12 +425,13 @@ public class KioskQrAuthService {
             int durationMinutes = accessLog.getCheckInTime() != null && accessLog.getCheckOutTime() != null
                     ? (int) ChronoUnit.MINUTES.between(accessLog.getCheckInTime(), accessLog.getCheckOutTime())
                     : 0;
+            String kioskName = resolveKioskDisplayName(kioskCode);
 
             activityService.logActivity(ActivityLogEntity.builder()
                     .userId(user.getId())
                     .activityType(ActivityLogEntity.TYPE_CHECK_OUT)
                     .title("Check-out thành công")
-                    .description("Bạn đã rời thư viện qua kiosk " + kioskCode
+                    .description("Bạn đã rời thư viện qua " + kioskName
                             + (durationMinutes > 0 ? " sau " + formatDuration(durationMinutes) : ""))
                     .durationMinutes(durationMinutes > 0 ? durationMinutes : null)
                     .build());
@@ -475,6 +477,7 @@ public class KioskQrAuthService {
             wsMessage.put("fullName", accessLog.getUser().getFullName());
             wsMessage.put("userName", accessLog.getUser().getFullName());
             wsMessage.put("deviceId", accessLog.getDeviceId());
+            wsMessage.put("deviceName", resolveKioskDisplayName(accessLog.getDeviceId()));
             wsMessage.put("time", LocalDateTime.now().toString());
 
             if ("CHECK_IN".equals(type)) {
@@ -492,6 +495,16 @@ public class KioskQrAuthService {
         } catch (Exception e) {
             log.warn("Failed to broadcast access log: {}", e.getMessage());
         }
+    }
+
+    private String resolveKioskDisplayName(String kioskCode) {
+        if (kioskCode == null || kioskCode.isBlank()) {
+            return "kiosk thư viện";
+        }
+        return kioskConfigRepository.findByKioskCode(kioskCode)
+                .map(KioskConfigEntity::getKioskName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(kioskCode);
     }
 
     private String signPayload(String payload, String secret) {

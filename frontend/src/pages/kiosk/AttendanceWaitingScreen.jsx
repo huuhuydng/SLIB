@@ -24,9 +24,23 @@ const Attendance = () => {
     });
   };
 
+  const getLocalDateKey = (dateValue = new Date()) => {
+    const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return '';
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const isToday = (dateStr) => getLocalDateKey(dateStr) === getLocalDateKey();
+
   useEffect(() => {
     let isMounted = true;
     let connectTimeout = null;
+    let activeDateKey = getLocalDateKey();
+    let dayRolloverInterval = null;
 
     const scheduleReconnect = () => {
       if (!isMounted || connectTimeout) {
@@ -42,14 +56,18 @@ const Attendance = () => {
     const fetchInitialLogs = async () => {
       try {
         const data = await kioskService.getRecentLogs(10);
-        const historyLogs = Array.isArray(data) ? data.slice(0, 10).map((item, index) => ({
-          id: `history-${index}-${Date.now()}`,
-          name: item.fullName,
-          code: item.userCode,
-          action: item.action === 'CHECK_IN' ? 'Vào' : 'Ra',
-          zone: item.deviceId || 'GATE_01',
-          time: formatTimeOnly(item.time)
-        })) : [];
+        const historyLogs = Array.isArray(data) ? data
+          .filter(item => isToday(item.time))
+          .slice(0, 10)
+          .map((item, index) => ({
+            id: item.id || `history-${index}-${Date.now()}`,
+            name: item.fullName,
+            code: item.userCode,
+            action: item.action === 'CHECK_IN' ? 'Vào' : 'Ra',
+            zone: item.deviceName || item.deviceId || 'Cổng thư viện',
+            rawTime: item.time,
+            time: formatTimeOnly(item.time)
+          })) : [];
 
         if (isMounted) setLogs(historyLogs);
       } catch (err) {
@@ -96,13 +114,15 @@ const Attendance = () => {
         if (!isMounted) return;
         const data = JSON.parse(payload.body);
         const rawTime = data.type === 'CHECK_OUT' ? (data.checkOutTime || data.time) : (data.checkInTime || data.time);
+        if (!isToday(rawTime)) return;
 
         const newEntry = {
-          id: Date.now(),
+          id: data.id ? `${data.id}-${data.type}` : `${Date.now()}-${data.type || data.action || 'access'}`,
           name: data.fullName,
           code: data.userCode,
           action: data.type === 'CHECK_IN' ? 'Vào' : 'Ra',
-          zone: data.deviceId || 'GATE_01',
+          zone: data.deviceName || data.deviceId || 'Cổng thư viện',
+          rawTime,
           time: formatTimeOnly(rawTime)
         };
 
@@ -110,16 +130,33 @@ const Attendance = () => {
         setTimeout(() => { if (isMounted) setLatestActivity(null); }, 5000);
 
         // Luôn giữ tối đa 10 bản ghi mới nhất
-        setLogs(prevLogs => [newEntry, ...prevLogs].slice(0, 10));
+        setLogs(prevLogs => {
+          if (prevLogs.some(log => log.id === newEntry.id)) {
+            return prevLogs;
+          }
+
+          return [newEntry, ...prevLogs]
+            .filter(log => isToday(log.rawTime))
+            .slice(0, 10);
+        });
       });
     };
 
     fetchInitialLogs();
     connect();
+    dayRolloverInterval = setInterval(() => {
+      const todayKey = getLocalDateKey();
+      if (todayKey !== activeDateKey) {
+        activeDateKey = todayKey;
+        setLatestActivity(null);
+        fetchInitialLogs();
+      }
+    }, 60000);
 
     return () => {
       isMounted = false;
       if (connectTimeout) clearTimeout(connectTimeout);
+      if (dayRolloverInterval) clearInterval(dayRolloverInterval);
       if (stompClient) {
         stompClient.deactivate();
       }

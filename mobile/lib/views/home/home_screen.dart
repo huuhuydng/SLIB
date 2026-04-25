@@ -307,7 +307,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   List<NewBook> _sortNewBooks(List<NewBook> books) {
     final sorted = List<NewBook>.from(books);
-    sorted.sort((a, b) => b.arrivalDate.compareTo(a.arrivalDate));
+    sorted.sort((a, b) {
+      if (a.isPinned != b.isPinned) {
+        return a.isPinned ? -1 : 1;
+      }
+      return b.arrivalDate.compareTo(a.arrivalDate);
+    });
     return sorted;
   }
 

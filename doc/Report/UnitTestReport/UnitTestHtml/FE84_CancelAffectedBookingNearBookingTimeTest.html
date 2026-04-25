@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FE-84 Test Report</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <div class="nav"><a href="index.html">Back to index</a></div>
+    <h1>Unit Test Report - FE-84: Cancel affected booking near booking time</h1>
+    <table class="report-meta">
+      <tr><td class="label">Function Code</td><td class="value italic">FE-84</td><td class="label">Function Name</td><td class="value link" colspan="2">Cancel affected booking near booking time</td></tr>
+      <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>BookingController.cancelBooking(UUID reservationId, CancelBookingRequest request, UserDetails userDetails)</code></td></tr>
+      <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify an affected booking can still be cancelled close to the start time and unauthorized users are rejected.</td></tr>
+      <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
+      <tr><td class="value center">2</td><td class="value center">0</td><td class="value center">0</td><td class="value center">1 / 1 / 0</td><td class="value center">2</td></tr>
+    </table>
+    <table class="matrix-table">
+      <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th></tr>
+      <tr><td class="section-cell" rowspan="6">Condition</td><td class="category-cell">HTTP Method</td><td class="item-cell">PUT</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">API Endpoint</td><td class="item-cell">/slib/bookings/cancel/{reservationId}</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Input</td><td class="item-cell">Affected booking owned by the current student</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="category-cell">Input</td><td class="item-cell">Affected booking owned by another student</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Return</td><td class="item-cell">200 OK for the owner or 400 Bad Request for unauthorized access</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+      <tr><td class="category-cell">Response body</td><td class="item-cell">Successful cancellation returns reservation status <code>CANCELLED</code></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+      <tr><td class="section-cell" rowspan="3">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
+      <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-04-20</td><td class="mark-cell">2026-04-20</td></tr>
+    </table>
+  </div>
+</body>
+</html>

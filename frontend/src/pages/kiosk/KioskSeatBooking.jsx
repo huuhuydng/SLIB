@@ -55,11 +55,19 @@ const normalizeSeat = (seat) => ({
     columnNumber: seat.columnNumber ?? seat.column_number ?? 1,
 });
 
+const isAreaPublicOnKiosk = (area) => (
+    area?.isActive !== false
+);
+
 // Canvas hiển thị - hỗ trợ touch zoom/pan + mouse drag cho kiosk cảm ứng
 function KioskCanvas({ onSeatClick }) {
     const { state, dispatch, actions } = useLayout();
     const { areas } = state;
     const containerRef = useRef(null);
+    const visibleAreas = useMemo(
+        () => areas.filter(isAreaPublicOnKiosk),
+        [areas]
+    );
 
     const [view, setView] = useState({ zoom: 1, panX: 0, panY: 0 });
 
@@ -109,10 +117,10 @@ function KioskCanvas({ onSeatClick }) {
 
     // Auto-fit: sơ đồ vừa khít viewport với padding
     const fitToView = useCallback(() => {
-        if (areas.length === 0 || !containerRef.current) return;
+        if (visibleAreas.length === 0 || !containerRef.current) return;
 
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        areas.forEach((a) => {
+        visibleAreas.forEach((a) => {
             minX = Math.min(minX, a.positionX || 0);
             minY = Math.min(minY, a.positionY || 0);
             maxX = Math.max(maxX, (a.positionX || 0) + (a.width || 300));
@@ -137,9 +145,9 @@ function KioskCanvas({ onSeatClick }) {
             panX: (rect.width - scaledW) / 2 - minX * scale,
             panY: (rect.height - scaledH) / 2 - minY * scale,
         });
-    }, [areas]);
+    }, [visibleAreas]);
 
-    useEffect(() => { fitToView(); }, [areas.length]);
+    useEffect(() => { fitToView(); }, [visibleAreas.length]);
 
     // Sync zoom/pan to LayoutContext
     useEffect(() => {
@@ -304,46 +312,12 @@ function KioskCanvas({ onSeatClick }) {
                     overflow: "visible",
                 }}
             >
-                {areas.map((area) => (
+                {visibleAreas.map((area) => (
                     <div key={area.areaId} style={{ position: 'relative' }}>
                         <LibrarianArea
                             area={area}
-                            onSeatClick={(seat) => {
-                                if (area.locked || !area.isActive) return;
-                                onSeatClick(seat);
-                            }}
+                            onSeatClick={onSeatClick}
                         />
-                        {/* Locked/Inactive overlay */}
-                        {(area.locked || !area.isActive) && (
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    left: area.positionX || 0,
-                                    top: area.positionY || 0,
-                                    width: area.width || 300,
-                                    height: area.height || 250,
-                                    background: 'rgba(0,0,0,0.45)',
-                                    borderRadius: '12px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    zIndex: 10,
-                                    pointerEvents: 'none',
-                                }}
-                            >
-                                <Lock size={32} color="#fff" />
-                                <span style={{
-                                    color: '#fff',
-                                    fontSize: '16px',
-                                    fontWeight: '700',
-                                    textShadow: '0 1px 4px rgba(0,0,0,0.5)',
-                                }}>
-                                    {area.locked ? 'Phòng đang bị khóa' : 'Phòng đã đóng cửa'}
-                                </span>
-                            </div>
-                        )}
                     </div>
                 ))}
             </div>
@@ -375,6 +349,8 @@ function KioskSeatBookingContent() {
     // Library closed state (from library_settings)
     const [libraryClosed, setLibraryClosed] = useState(false);
     const [closedReason, setClosedReason] = useState('');
+    const [closedFromAt, setClosedFromAt] = useState(null);
+    const [closedUntilAt, setClosedUntilAt] = useState(null);
 
     const selectedAreaIdRef = useRef(selectedAreaId);
     const selectedSlotRef = useRef(selectedSlot);
@@ -423,6 +399,8 @@ function KioskSeatBookingContent() {
                 const data = await res.json();
                 setLibraryClosed(data.libraryClosed || false);
                 setClosedReason(data.closedReason || '');
+                setClosedFromAt(data.closedFromAt || null);
+                setClosedUntilAt(data.closedUntilAt || null);
             } catch (err) {
                 console.error('Failed to check library status:', err);
             }
@@ -454,28 +432,76 @@ function KioskSeatBookingContent() {
         fetchTimeSlots();
     }, []);
 
+    const isSelectedSlotClosed = useMemo(() => {
+        const hasClosureSchedule = Boolean(closedFromAt || closedUntilAt);
+        if (!hasClosureSchedule) return libraryClosed;
+        if (!selectedSlot) return false;
+
+        const { startTime, endTime } = parseTimeSlot(selectedSlot);
+        const slotStart = new Date(startTime);
+        const slotEnd = new Date(endTime);
+        const closureStart = closedFromAt ? new Date(closedFromAt) : null;
+        const closureEnd = closedUntilAt ? new Date(closedUntilAt) : null;
+
+        const startsBeforeClosureEnds = !closureEnd || slotStart < closureEnd;
+        const endsAfterClosureStarts = !closureStart || slotEnd > closureStart;
+        return startsBeforeClosureEnds && endsAfterClosureStarts;
+    }, [closedFromAt, closedUntilAt, libraryClosed, selectedSlot]);
+
     const handleSeatClick = (seat) => {
-        // Tìm zone và area, kiểm tra locked
+        if (isSelectedSlotClosed) {
+            setToast({ type: 'error', message: 'Thư viện tạm đóng trong khung giờ này. Vui lòng chọn khung giờ khác.' });
+            return;
+        }
+
+        // Kiosk chỉ ẩn/chặn phòng bị tắt trạng thái Hoạt động.
+        // `locked` chỉ khóa chỉnh sửa/di chuyển sơ đồ trong admin.
         const zone = zones.find(z => z.zoneId === seat.zoneId);
         const area = areas.find(a => {
             const areaZones = zones.filter(z => z.areaId === a.areaId);
             return areaZones.some(z => z.zoneId === seat.zoneId);
         });
-        if (area?.locked || area?.isActive === false) return;
+        if (!isAreaPublicOnKiosk(area)) return;
         setSelectedSeat({ ...seat, zoneName: zone?.zoneName || '' });
     };
 
+    const activeAreaIds = useMemo(
+        () => new Set(areas.filter(isAreaPublicOnKiosk).map((area) => String(area.areaId))),
+        [areas]
+    );
+
+    const visibleZoneIds = useMemo(
+        () => new Set(
+            zones
+                .filter((zone) => activeAreaIds.has(String(zone.areaId)))
+                .map((zone) => String(zone.zoneId))
+        ),
+        [activeAreaIds, zones]
+    );
+
+    const visibleSeats = useMemo(
+        () => seats.filter((seat) => visibleZoneIds.has(String(seat.zoneId))),
+        [seats, visibleZoneIds]
+    );
+
+    useEffect(() => {
+        if (!selectedSeat) return;
+        if (!visibleZoneIds.has(String(selectedSeat.zoneId))) {
+            setSelectedSeat(null);
+        }
+    }, [selectedSeat, visibleZoneIds]);
+
     const stats = useMemo(() => {
-        const total = seats.length;
+        const total = visibleSeats.length;
         let booked = 0, restricted = 0;
-        seats.forEach((s) => {
+        visibleSeats.forEach((s) => {
             if (s.seatStatus === "BOOKED") booked += 1;
             if (s.seatStatus === "UNAVAILABLE") restricted += 1;
         });
         const available = Math.max(0, total - booked - restricted);
         const occupancy = total ? Math.round((booked / total) * 100) : 0;
         return { total, booked, restricted, available, occupancy };
-    }, [seats]);
+    }, [visibleSeats]);
 
     // Load seats theo slot label
     const loadSeatsForSlot = useCallback(async (slotLabel) => {
@@ -505,6 +531,11 @@ function KioskSeatBookingContent() {
         if (!sessionData?.studentId || !selectedSeat) return;
         if (selectedSeat.seatStatus !== "AVAILABLE") return;
         if (!selectedSlot) return;
+        if (isSelectedSlotClosed) {
+            setToast({ type: 'error', message: 'Thư viện tạm đóng trong khung giờ này. Vui lòng chọn khung giờ khác.' });
+            setSelectedSeat(null);
+            return;
+        }
 
         setBookingLoading(true);
         try {
@@ -545,7 +576,7 @@ function KioskSeatBookingContent() {
         } finally {
             setBookingLoading(false);
         }
-    }, [sessionData, selectedSeat, selectedSlot, loadSeatsForSlot]);
+    }, [isSelectedSlotClosed, sessionData, selectedSeat, selectedSlot, loadSeatsForSlot]);
 
     // Auto-hide toast
     useEffect(() => {
@@ -633,13 +664,15 @@ function KioskSeatBookingContent() {
                 </div>
             </div>
 
-            {/* Full-page locked message when library is closed (from settings) */}
-            {libraryClosed && (
+            {/* Full-page locked message when the selected slot overlaps a closure window */}
+            {isSelectedSlotClosed && (
                 <div className="ksb__locked-overlay">
                     <div className="ksb__locked-card">
-                        <Lock size={48} color="#DC2626" />
-                        <h2>Thư viện hiện đang tạm đóng</h2>
-                        <p>{closedReason || 'Thư viện đang tạm ngưng hoạt động. Vui lòng quay lại sau.'}</p>
+                        <div className="ksb__locked-icon">
+                            <Lock size={48} />
+                        </div>
+                        <h2>Khung giờ này đang tạm đóng</h2>
+                        <p>{closedReason || 'Thư viện tạm thời không nhận đặt chỗ trong khung giờ này.'}</p>
                         <button onClick={() => navigate(backTarget)} className="ksb__locked-back">
                             <ArrowLeft size={18} /> Quay lại
                         </button>
@@ -647,13 +680,15 @@ function KioskSeatBookingContent() {
                 </div>
             )}
 
-            {/* Full-page locked message when ALL areas are locked/inactive */}
-            {!libraryClosed && areas.length > 0 && areas.every(a => a.locked || !a.isActive) && (
+            {/* Full-page message when no active area is available on kiosk */}
+            {!isSelectedSlotClosed && areas.length > 0 && areas.every(a => !isAreaPublicOnKiosk(a)) && (
                 <div className="ksb__locked-overlay">
                     <div className="ksb__locked-card">
-                        <Lock size={48} color="#DC2626" />
+                        <div className="ksb__locked-icon">
+                            <Lock size={48} />
+                        </div>
                         <h2>Thư viện hiện đang đóng cửa</h2>
-                        <p>Tất cả phòng đọc đang bị khóa hoặc tạm ngưng hoạt động. Vui lòng quay lại sau.</p>
+                        <p>Hiện chưa có phòng đọc đang hoạt động trên kiosk. Vui lòng quay lại sau.</p>
                         <button onClick={() => navigate(backTarget)} className="ksb__locked-back">
                             <ArrowLeft size={18} /> Quay lại
                         </button>

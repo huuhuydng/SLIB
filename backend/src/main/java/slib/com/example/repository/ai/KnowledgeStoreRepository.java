@@ -13,4 +13,8 @@ public interface KnowledgeStoreRepository extends JpaRepository<KnowledgeStoreEn
     List<KnowledgeStoreEntity> findAllByOrderByCreatedAtDesc();
 
     List<KnowledgeStoreEntity> findByStatus(KnowledgeStoreEntity.SyncStatus status);
+
+    List<KnowledgeStoreEntity> findDistinctByItems_Id(Long itemId);
+
+    List<KnowledgeStoreEntity> findDistinctByItems_Material_Id(Long materialId);
 }

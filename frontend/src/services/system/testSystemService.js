@@ -56,6 +56,10 @@ const testSystemService = {
     return request("/bookings/getall", { token });
   },
 
+  getLibrarySettings(token) {
+    return request("/settings", { token });
+  },
+
   seedAll(token, params) {
     const query = new URLSearchParams();
     Object.entries(params || {}).forEach(([key, value]) => {

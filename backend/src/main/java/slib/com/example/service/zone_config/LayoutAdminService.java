@@ -17,7 +17,9 @@ import slib.com.example.repository.booking.ReservationRepository;
 import slib.com.example.repository.feedback.SeatStatusReportRepository;
 import slib.com.example.repository.feedback.SeatViolationReportRepository;
 import slib.com.example.repository.zone_config.*;
+import slib.com.example.entity.notification.NotificationEntity.NotificationType;
 import slib.com.example.service.booking.BookingService;
+import slib.com.example.service.notification.PushNotificationService;
 import slib.com.example.service.users.UserService;
 
 import java.time.LocalDateTime;
@@ -36,6 +38,8 @@ public class LayoutAdminService {
     public static final String SCHEDULE_STATUS_EXECUTED = "EXECUTED";
     public static final String SCHEDULE_STATUS_CANCELLED = "CANCELLED";
     public static final String SCHEDULE_STATUS_FAILED = "FAILED";
+    private static final int DEFAULT_SCHEDULE_RETRY_DELAY_MINUTES = 15;
+    private static final int DEFAULT_SCHEDULE_MAX_RETRY_COUNT = 3;
 
     private final AreaRepository areaRepository;
     private final ZoneRepository zoneRepository;
@@ -50,6 +54,7 @@ public class LayoutAdminService {
     private final LayoutScheduleRepository layoutScheduleRepository;
     private final UserService userService;
     private final BookingService bookingService;
+    private final PushNotificationService pushNotificationService;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
     private final ApplicationEventPublisher eventPublisher;
@@ -67,6 +72,7 @@ public class LayoutAdminService {
                         .updatedByName(entity.getUpdatedByName())
                         .updatedAt(entity.getUpdatedAt())
                         .scheduledPublish(getActiveSchedule())
+                        .lastFailedSchedule(getLatestFailedSchedule())
                         .snapshot(readSnapshot(entity.getSnapshotJson()))
                         .build();
             } catch (RuntimeException ex) {
@@ -78,6 +84,7 @@ public class LayoutAdminService {
                 .hasDraft(false)
                 .basedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L))
                 .scheduledPublish(getActiveSchedule())
+                .lastFailedSchedule(getLatestFailedSchedule())
                 .snapshot(buildCurrentSnapshot())
                 .build();
     }
@@ -85,6 +92,13 @@ public class LayoutAdminService {
     @Transactional(readOnly = true)
     public LayoutScheduleResponse getActiveSchedule() {
         return layoutScheduleRepository.findFirstByStatusOrderByScheduledForAsc(SCHEDULE_STATUS_PENDING)
+                .map(this::toScheduleResponse)
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public LayoutScheduleResponse getLatestFailedSchedule() {
+        return layoutScheduleRepository.findFirstByStatusOrderByUpdatedAtDesc(SCHEDULE_STATUS_FAILED)
                 .map(this::toScheduleResponse)
                 .orElse(null);
     }
@@ -103,6 +117,22 @@ public class LayoutAdminService {
                         .createdAt(history.getCreatedAt())
                         .build())
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public LayoutHistoryDetailResponse getHistoryDetail(Long historyId) {
+        LayoutHistoryEntity history = layoutHistoryRepository.findById(historyId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy mốc lịch sử sơ đồ"));
+
+        return LayoutHistoryDetailResponse.builder()
+                .historyId(history.getHistoryId())
+                .actionType(history.getActionType())
+                .summary(resolveStoredText(history.getSummary(), "layout_history.summary"))
+                .publishedVersion(history.getPublishedVersion())
+                .createdByName(history.getCreatedByName())
+                .createdAt(history.getCreatedAt())
+                .snapshot(readSnapshot(history.getSnapshotJson()))
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -139,6 +169,7 @@ public class LayoutAdminService {
                 .updatedByName(entity.getUpdatedByName())
                 .updatedAt(entity.getUpdatedAt())
                 .scheduledPublish(getActiveSchedule())
+                .lastFailedSchedule(getLatestFailedSchedule())
                 .snapshot(normalized)
                 .build();
     }
@@ -157,6 +188,7 @@ public class LayoutAdminService {
                 .hasDraft(false)
                 .basedOnPublishedVersion(layoutHistoryRepository.findLatestPublishedVersion().orElse(0L))
                 .scheduledPublish(getActiveSchedule())
+                .lastFailedSchedule(getLatestFailedSchedule())
                 .snapshot(buildCurrentSnapshot())
                 .build();
     }
@@ -197,7 +229,10 @@ public class LayoutAdminService {
         entity.setSnapshotJson(writeSnapshot(normalized));
         entity.setBasedOnPublishedVersion(basedOnPublishedVersion);
         entity.setScheduledFor(request.getScheduledFor());
+        entity.setOriginalScheduledFor(request.getScheduledFor());
         entity.setStatus(SCHEDULE_STATUS_PENDING);
+        entity.setRetryCount(0);
+        entity.setMaxRetryCount(DEFAULT_SCHEDULE_MAX_RETRY_COUNT);
         entity.setLastError(null);
         entity.setRequestedByUserId(actor.userId());
         entity.setRequestedByName(actor.displayName());
@@ -279,7 +314,13 @@ public class LayoutAdminService {
             LayoutSnapshotRequest snapshot = readSnapshot(schedule.getSnapshotJson());
             LayoutValidationResponse validation = validateSnapshot(snapshot);
             if (!validation.isValid() || !validation.isPublishable()) {
-                throw new IllegalStateException(resolveScheduleFailureReason(validation));
+                handleScheduledPublishFailure(
+                        schedule,
+                        analyzeScheduleFailure(validation, null),
+                        readSnapshot(schedule.getSnapshotJson()),
+                        new ActorInfo(schedule.getRequestedByUserId(), schedule.getRequestedByName())
+                );
+                return;
             }
 
             publishInternal(snapshot,
@@ -294,15 +335,10 @@ public class LayoutAdminService {
             layoutScheduleRepository.save(schedule);
         } catch (Exception ex) {
             log.warn("Tự động xuất bản sơ đồ thất bại cho lịch {}: {}", scheduleId, ex.getMessage());
-            schedule.setStatus(SCHEDULE_STATUS_FAILED);
-            schedule.setLastError(ex.getMessage());
-            schedule.setUpdatedAt(LocalDateTime.now(VIETNAM_ZONE));
-            layoutScheduleRepository.save(schedule);
-            recordHistory(
-                    "AUTO_PUBLISH_FAILED",
-                    "Lịch tự động xuất bản sơ đồ thất bại: " + ex.getMessage(),
+            handleScheduledPublishFailure(
+                    schedule,
+                    analyzeScheduleFailure(null, ex),
                     readSnapshot(schedule.getSnapshotJson()),
-                    null,
                     new ActorInfo(schedule.getRequestedByUserId(), schedule.getRequestedByName())
             );
         } finally {
@@ -1159,6 +1195,104 @@ public class LayoutAdminService {
                 .orElse("Sơ đồ không còn hợp lệ để xuất bản theo lịch");
     }
 
+    private ScheduleFailureAnalysis analyzeScheduleFailure(LayoutValidationResponse validation, Exception ex) {
+        if (validation != null) {
+            Optional<LayoutConflictResponse> blockingConflict = validation.getConflicts().stream()
+                    .filter(conflict -> "error".equalsIgnoreCase(conflict.getSeverity()))
+                    .findFirst();
+            if (blockingConflict.isPresent()) {
+                LayoutConflictResponse conflict = blockingConflict.get();
+                String reasonCode = safeName(conflict.getCode(), "VALIDATION_ERROR");
+                String reasonMessage = safeName(conflict.getMessage(),
+                        safeName(conflict.getTitle(), "Sơ đồ không còn hợp lệ để xuất bản theo lịch"));
+                return new ScheduleFailureAnalysis(
+                        isRetryableScheduleFailureCode(reasonCode),
+                        reasonCode,
+                        reasonMessage
+                );
+            }
+            return new ScheduleFailureAnalysis(false, "VALIDATION_ERROR", resolveScheduleFailureReason(validation));
+        }
+
+        String message = safeName(ex != null ? ex.getMessage() : null, "Không xác định");
+        if (message.contains("đang được sử dụng hoặc giữ chỗ")) {
+            return new ScheduleFailureAnalysis(true, "PUBLISH_SEAT_IN_USE", message);
+        }
+        if (message.contains("lịch đặt sắp tới")) {
+            return new ScheduleFailureAnalysis(false, "PUBLISH_FUTURE_BOOKING_IMPACT", message);
+        }
+        if (message.contains("phiên bản mới")) {
+            return new ScheduleFailureAnalysis(false, "LAYOUT_VERSION_CONFLICT", message);
+        }
+        return new ScheduleFailureAnalysis(false, "AUTO_PUBLISH_ERROR", message);
+    }
+
+    private boolean isRetryableScheduleFailureCode(String reasonCode) {
+        return "PUBLISH_SEAT_IN_USE".equalsIgnoreCase(reasonCode);
+    }
+
+    private void handleScheduledPublishFailure(LayoutScheduleEntity schedule,
+                                               ScheduleFailureAnalysis failure,
+                                               LayoutSnapshotRequest snapshot,
+                                               ActorInfo actor) {
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        String failureMessage = safeName(failure.message(), "Không xác định");
+
+        if (failure.retryable() && canAutoRetrySchedule(schedule)) {
+            int nextRetryCount = currentRetryCount(schedule) + 1;
+            schedule.setStatus(SCHEDULE_STATUS_PENDING);
+            schedule.setRetryCount(nextRetryCount);
+            schedule.setScheduledFor(now.plusMinutes(DEFAULT_SCHEDULE_RETRY_DELAY_MINUTES));
+            schedule.setUpdatedAt(now);
+            schedule.setLastError(failureMessage);
+            layoutScheduleRepository.save(schedule);
+
+            notifyAdminsScheduleRetryScheduled(schedule, failure);
+            recordHistory(
+                    "AUTO_PUBLISH_RETRY_SCHEDULED",
+                    "Lịch tự động xuất bản sơ đồ bị chặn tạm thời và sẽ thử lại lần "
+                            + nextRetryCount + "/" + maxRetryCount(schedule)
+                            + " vào " + formatScheduleTime(schedule.getScheduledFor())
+                            + ". Lý do: " + failureMessage,
+                    snapshot,
+                    null,
+                    actor
+            );
+            return;
+        }
+
+        schedule.setStatus(SCHEDULE_STATUS_FAILED);
+        schedule.setLastError(failureMessage);
+        schedule.setUpdatedAt(now);
+        layoutScheduleRepository.save(schedule);
+        notifyAdminsScheduleFailed(schedule);
+        recordHistory(
+                "AUTO_PUBLISH_FAILED",
+                "Lịch tự động xuất bản sơ đồ thất bại"
+                        + (failure.retryable()
+                        ? " sau " + currentRetryCount(schedule) + " lần thử lại"
+                        : "")
+                        + ": " + failureMessage,
+                snapshot,
+                null,
+                actor
+        );
+    }
+
+    private boolean canAutoRetrySchedule(LayoutScheduleEntity schedule) {
+        return currentRetryCount(schedule) < maxRetryCount(schedule);
+    }
+
+    private int currentRetryCount(LayoutScheduleEntity schedule) {
+        return schedule != null && schedule.getRetryCount() != null ? schedule.getRetryCount() : 0;
+    }
+
+    private int maxRetryCount(LayoutScheduleEntity schedule) {
+        return schedule != null && schedule.getMaxRetryCount() != null
+                ? Math.max(1, schedule.getMaxRetryCount())
+                : DEFAULT_SCHEDULE_MAX_RETRY_COUNT;
+    }
+
     private LayoutScheduleResponse toScheduleResponse(LayoutScheduleEntity entity) {
         if (entity == null) {
             return null;
@@ -1167,8 +1301,11 @@ public class LayoutAdminService {
                 .scheduleId(entity.getScheduleId())
                 .basedOnPublishedVersion(entity.getBasedOnPublishedVersion())
                 .scheduledFor(entity.getScheduledFor())
+                .originalScheduledFor(entity.getOriginalScheduledFor())
                 .status(entity.getStatus())
                 .requestedByName(entity.getRequestedByName())
+                .retryCount(entity.getRetryCount())
+                .maxRetryCount(entity.getMaxRetryCount())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .cancelledAt(entity.getCancelledAt())
@@ -1179,6 +1316,55 @@ public class LayoutAdminService {
 
     private void publishScheduleChangedEvent() {
         eventPublisher.publishEvent(new LayoutScheduleChangedEvent());
+    }
+
+    private void notifyAdminsScheduleFailed(LayoutScheduleEntity schedule) {
+        if (schedule == null) {
+            return;
+        }
+
+        String title = "Lịch áp dụng sơ đồ thất bại";
+        String body = "Lịch áp dụng sơ đồ"
+                + (schedule.getOriginalScheduledFor() != null
+                ? " từ " + formatScheduleTime(schedule.getOriginalScheduledFor())
+                : "")
+                + " đã thất bại"
+                + (currentRetryCount(schedule) > 0
+                ? " sau " + currentRetryCount(schedule) + " lần thử lại"
+                : "")
+                + ". Lý do: " + safeName(schedule.getLastError(), "Không xác định") + ".";
+        pushNotificationService.sendToRole(
+                "ADMIN",
+                title,
+                body,
+                NotificationType.SYSTEM,
+                null,
+                "LAYOUT_SCHEDULE",
+                "system");
+    }
+
+    private void notifyAdminsScheduleRetryScheduled(LayoutScheduleEntity schedule, ScheduleFailureAnalysis failure) {
+        if (schedule == null) {
+            return;
+        }
+
+        String title = "Lịch áp dụng sơ đồ được dời lại tự động";
+        String body = "Lịch áp dụng sơ đồ"
+                + (schedule.getOriginalScheduledFor() != null
+                ? " từ " + formatScheduleTime(schedule.getOriginalScheduledFor())
+                : "")
+                + " đang bị chặn tạm thời và sẽ thử lại lần "
+                + currentRetryCount(schedule) + "/" + maxRetryCount(schedule)
+                + " vào " + formatScheduleTime(schedule.getScheduledFor())
+                + ". Lý do: " + safeName(failure.message(), "Không xác định") + ".";
+        pushNotificationService.sendToRole(
+                "ADMIN",
+                title,
+                body,
+                NotificationType.SYSTEM,
+                null,
+                "LAYOUT_SCHEDULE",
+                "system");
     }
 
     private void cancelPendingSchedulesAfterImmediatePublish(ActorInfo actor, String actionType, LocalDateTime now) {
@@ -1338,5 +1524,8 @@ public class LayoutAdminService {
     }
 
     private record ActorInfo(UUID userId, String displayName) {
+    }
+
+    private record ScheduleFailureAnalysis(boolean retryable, String reasonCode, String message) {
     }
 }

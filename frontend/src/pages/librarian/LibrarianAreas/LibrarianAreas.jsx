@@ -53,7 +53,7 @@ const buildTimeParams = (slotValue, dateOverride, timeSlots) => {
 // Main component - Librarian Areas page
 function LibrarianAreasContent() {
   const { state, dispatch } = useLayout();
-  const { areas, seats, canvas } = state;
+  const { areas, seats, zones, canvas } = state;
   const toast = useToast();
   const { confirm } = useConfirm();
 
@@ -125,13 +125,44 @@ function LibrarianAreasContent() {
     setSelectedSeat(seat);
   };
 
+  const activeAreas = useMemo(
+    () => areas.filter((area) => area.isActive !== false),
+    [areas]
+  );
+
+  const activeAreaIds = useMemo(
+    () => new Set(activeAreas.map((area) => String(area.areaId))),
+    [activeAreas]
+  );
+
+  const visibleZoneIds = useMemo(
+    () => new Set(
+      zones
+        .filter((zone) => activeAreaIds.has(String(zone.areaId)))
+        .map((zone) => String(zone.zoneId))
+    ),
+    [activeAreaIds, zones]
+  );
+
+  const visibleSeats = useMemo(
+    () => seats.filter((seat) => visibleZoneIds.has(String(seat.zoneId))),
+    [seats, visibleZoneIds]
+  );
+
+  useEffect(() => {
+    if (!selectedSeat) return;
+    if (!visibleZoneIds.has(String(selectedSeat.zoneId))) {
+      setSelectedSeat(null);
+    }
+  }, [selectedSeat, visibleZoneIds]);
+
   // Calculate statistics
   const stats = useMemo(() => {
-    const total = seats.length;
+    const total = visibleSeats.length;
     let booked = 0;
     let confirmed = 0;
     let restricted = 0;
-    seats.forEach((s) => {
+    visibleSeats.forEach((s) => {
       const status = (s.seatStatus || '').toUpperCase();
       if (status === "BOOKED") booked += 1;
       else if (status === "CONFIRMED") confirmed += 1;
@@ -141,7 +172,7 @@ function LibrarianAreasContent() {
     const available = Math.max(0, total - used - restricted);
     const occupancy = total ? Math.round((used / total) * 100) : 0;
     return { total, booked, confirmed, used, restricted, available, occupancy };
-  }, [seats]);
+  }, [visibleSeats]);
 
   // Load seats — với request counter chống race condition
   const loadSeatsForTimeSlot = async (slot, dateOverride) => {
@@ -282,12 +313,12 @@ function LibrarianAreasContent() {
   };
 
   const handleFitToView = () => {
-    if (!areas.length || !canvasRef.current) return;
+    if (!activeAreas.length || !canvasRef.current) return;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-    areas.forEach((a) => {
+    activeAreas.forEach((a) => {
       minX = Math.min(minX, a.positionX || 0);
       minY = Math.min(minY, a.positionY || 0);
       maxX = Math.max(maxX, (a.positionX || 0) + (a.width || 300));
@@ -330,22 +361,22 @@ function LibrarianAreasContent() {
 
   // Auto fit on load
   useEffect(() => {
-    if (areas.length > 0 && canvasRef.current) {
+    if (activeAreas.length > 0 && canvasRef.current) {
       setTimeout(handleFitToView, 100);
     }
-  }, [areas.length]);
+  }, [activeAreas.length]);
 
   // Re-fit on window resize
   useEffect(() => {
     const handleResize = () => {
-      if (areas.length > 0 && canvasRef.current) {
+      if (activeAreas.length > 0 && canvasRef.current) {
         handleFitToView();
       }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [areas.length]);
+  }, [activeAreas.length]);
 
   // Confirm reservation (librarian manual confirm)
   const confirmReservation = async (seat) => {
@@ -505,6 +536,13 @@ function LibrarianAreasContent() {
         </div>
       )}
 
+      {areas.length > 0 && activeAreas.length === 0 && (
+        <div className="librarian-message">
+          <AlertCircle size={16} />
+          <span>Hiện không có phòng nào đang hoạt động trên sơ đồ.</span>
+        </div>
+      )}
+
       {/* Loading indicator */}
       {loading && <div className="librarian-loading">Đang tải dữ liệu khu vực...</div>}
 
@@ -528,7 +566,7 @@ function LibrarianAreasContent() {
               transformOrigin: 'top left',
             }}
           >
-            {areas.map((area) => (
+            {activeAreas.map((area) => (
               <LibrarianArea
                 key={area.areaId}
                 area={area}

@@ -110,7 +110,7 @@ export const getNewsDetail = async (id) => {
 // Toggle pin status của news
 export const togglePinNews = async (id) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/${id}/toggle-pin`, null, { headers: getAuthHeaders() });
+    const response = await axios.patch(`${API_URL}/admin/${id}/pin`, null, { headers: getAuthHeaders() });
     return response.data;
   } catch (error) {
     console.error('Error toggling pin status:', error);
@@ -166,6 +166,21 @@ export const uploadImage = async (file) => {
     return response.data.url;
   } catch (error) {
     console.error('Error uploading image:', error);
+    throw error;
+  }
+};
+
+// Upload PDF dinh kem cho tin tuc va tra ve metadata
+export const uploadNewsPdf = async (file) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axios.post(`${API_BASE_URL}/slib/files/upload_news_pdf`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data', ...getAuthHeaders() }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading news PDF:', error);
     throw error;
   }
 };

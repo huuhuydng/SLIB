@@ -149,6 +149,28 @@ class _NewBookDetailScreenState extends State<NewBookDetailScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
+                      if (_book.isPinned)
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.push_pin,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                        ),
+                      if (_book.isPinned && _isRefreshing) const SizedBox(width: 12),
                       if (_isRefreshing)
                         SizedBox(
                           width: 20,

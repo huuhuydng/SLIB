@@ -21,6 +21,39 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
   final List<File> _selectedImages = [];
   bool _isSubmitting = false;
   final int _maxImages = 5;
+  static const List<_SupportCategory> _categories = [
+    _SupportCategory(
+      label: 'Check-in/check-out',
+      icon: Icons.nfc_rounded,
+      hint: 'Ví dụ: không check-in được, quên check-out, lỗi NFC/kiosk...',
+    ),
+    _SupportCategory(
+      label: 'Đặt chỗ ngồi',
+      icon: Icons.event_seat_rounded,
+      hint: 'Ví dụ: không đặt được ghế, sai trạng thái ghế, lỗi sơ đồ...',
+    ),
+    _SupportCategory(
+      label: 'Ghế/phòng có vấn đề',
+      icon: Icons.report_problem_rounded,
+      hint: 'Ví dụ: ghế hỏng, khu vực ồn, phòng không đúng trạng thái...',
+    ),
+    _SupportCategory(
+      label: 'Tài khoản/thẻ thư viện',
+      icon: Icons.badge_rounded,
+      hint: 'Ví dụ: sai thông tin cá nhân, lỗi thẻ, không đăng nhập được...',
+    ),
+    _SupportCategory(
+      label: 'Báo lỗi ứng dụng',
+      icon: Icons.bug_report_rounded,
+      hint: 'Mô tả màn hình bị lỗi và thao tác trước khi lỗi xảy ra.',
+    ),
+    _SupportCategory(
+      label: 'Khác',
+      icon: Icons.more_horiz_rounded,
+      hint: 'Mô tả rõ vấn đề để thủ thư có đủ thông tin xử lý.',
+    ),
+  ];
+  late _SupportCategory _selectedCategory = _categories.first;
 
   @override
   void initState() {
@@ -37,6 +70,8 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
   }
 
   bool get _canSubmit => _descriptionController.text.trim().isNotEmpty;
+
+  String get _descriptionHint => _selectedCategory.hint;
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= _maxImages) {
@@ -150,7 +185,8 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
 
       await _supportRequestService.createRequest(
         token: token,
-        description: _descriptionController.text.trim(),
+        description:
+            '[${_selectedCategory.label}] ${_descriptionController.text.trim()}',
         images: _selectedImages.isNotEmpty ? _selectedImages : null,
       );
 
@@ -196,7 +232,11 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [_buildTitleSection(), _buildFormCard()],
+                  children: [
+                    _buildTitleSection(),
+                    _buildCategorySection(),
+                    _buildFormCard(),
+                  ],
                 ),
               ),
             ),
@@ -279,12 +319,84 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Thông tin vấn đề càng chi tiết thì SLIB càng hỗ trợ bạn nhanh chóng, hiệu quả hơn',
+            'Chọn đúng loại vấn đề và mô tả rõ tình huống để thủ thư xử lý nhanh hơn.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[600],
               height: 1.5,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategorySection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Loại vấn đề',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _categories.map((category) {
+              final isSelected = category == _selectedCategory;
+              return ChoiceChip(
+                selected: isSelected,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      category.icon,
+                      size: 16,
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFFFF751F),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(category.label),
+                  ],
+                ),
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF444444),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                selectedColor: const Color(0xFFFF751F),
+                backgroundColor: const Color(0xFFFFF7F2),
+                side: BorderSide(
+                  color: isSelected
+                      ? const Color(0xFFFF751F)
+                      : const Color(0xFFFF751F).withValues(alpha: 0.18),
+                ),
+                showCheckmark: false,
+                onSelected: (_) {
+                  setState(() => _selectedCategory = category);
+                },
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -333,7 +445,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
             labelText: 'Mô tả vấn đề',
             labelStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
             floatingLabelBehavior: FloatingLabelBehavior.always,
-            hintText: 'Vui lòng mô tả chi tiết vấn đề của bạn',
+            hintText: _descriptionHint,
             hintStyle: TextStyle(
               color: Colors.grey[400],
               fontSize: 14,
@@ -521,4 +633,16 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
       ),
     );
   }
+}
+
+class _SupportCategory {
+  final String label;
+  final IconData icon;
+  final String hint;
+
+  const _SupportCategory({
+    required this.label,
+    required this.icon,
+    required this.hint,
+  });
 }

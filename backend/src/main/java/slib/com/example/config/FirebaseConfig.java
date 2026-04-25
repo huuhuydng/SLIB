@@ -8,9 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -25,11 +27,14 @@ public class FirebaseConfig {
     @Value("${firebase.config.path:firebase-service-account.json}")
     private String firebaseConfigPath;
 
+    @Value("${GOOGLE_APPLICATION_CREDENTIALS:}")
+    private String googleApplicationCredentials;
+
     @PostConstruct
     public void initialize() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                InputStream serviceAccount = new ClassPathResource(firebaseConfigPath).getInputStream();
+                InputStream serviceAccount = resolveServiceAccountStream();
 
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -40,8 +45,18 @@ public class FirebaseConfig {
             }
         } catch (IOException e) {
             log.warn("Firebase initialization failed: {}", e.getMessage());
-            log.warn("Push notifications will not work until firebase-service-account.json is provided");
+            log.warn("Push notifications will not work until a valid Firebase service account is provided");
         }
+    }
+
+    private InputStream resolveServiceAccountStream() throws IOException {
+        if (StringUtils.hasText(googleApplicationCredentials)) {
+            log.info("Loading Firebase credentials from GOOGLE_APPLICATION_CREDENTIALS: {}", googleApplicationCredentials);
+            return new FileInputStream(googleApplicationCredentials);
+        }
+
+        log.info("Loading Firebase credentials from firebase.config.path: {}", firebaseConfigPath);
+        return new ClassPathResource(firebaseConfigPath).getInputStream();
     }
 
     @Bean

@@ -6,12 +6,16 @@ import slib.com.example.dto.hce.CheckInRequest;
 import slib.com.example.dto.hce.StudentDetailDTO;
 import slib.com.example.entity.activity.ActivityLogEntity;
 import slib.com.example.entity.hce.AccessLog;
+import slib.com.example.entity.hce.HceDeviceEntity;
+import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.entity.notification.NotificationEntity;
 import slib.com.example.entity.users.StudentProfile;
 import slib.com.example.entity.users.User;
 import slib.com.example.entity.users.UserSetting;
 import slib.com.example.repository.hce.AccessLogRepository;
+import slib.com.example.repository.hce.HceDeviceRepository;
 import slib.com.example.repository.booking.ReservationRepository;
+import slib.com.example.repository.kiosk.KioskConfigRepository;
 import slib.com.example.repository.users.StudentProfileRepository;
 import slib.com.example.repository.users.UserRepository;
 import slib.com.example.repository.users.UserSettingRepository;
@@ -23,17 +27,21 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import slib.com.example.service.activity.ActivityService;
+import slib.com.example.service.system.LibrarySettingService;
 import slib.com.example.service.users.StudentProfileService;
 
 @Service
@@ -44,6 +52,12 @@ public class CheckInService {
 
     @Autowired
     private AccessLogRepository accessLogRepository;
+
+    @Autowired
+    private HceDeviceRepository hceDeviceRepository;
+
+    @Autowired
+    private KioskConfigRepository kioskConfigRepository;
 
     @Autowired
     private ActivityService activityService;
@@ -75,7 +89,13 @@ public class CheckInService {
     @Autowired
     private ReputationService reputationService;
 
+    @Autowired
+    private LibrarySettingService librarySettingService;
+
     private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final LocalTime DEFAULT_AUTO_CHECKOUT_TIME = LocalTime.of(21, 0);
+    private static final DateTimeFormatter NOTIFICATION_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy");
 
     /**
      * Lấy chi tiết sinh viên cho thủ thư (chỉ đọc)
@@ -138,7 +158,8 @@ public class CheckInService {
 
         try {
             // Validate trạm quét trước khi xử lý check-in
-            hceStationService.validateStationForCheckIn(request.getGateId());
+            HceDeviceEntity station = hceStationService.validateStationForCheckIn(request.getGateId());
+            String deviceName = resolveDeviceDisplayName(station, request.getGateId());
 
             UUID userId = UUID.fromString(request.getToken());
 
@@ -175,13 +196,14 @@ public class CheckInService {
             response.put("fullName", user.getFullName());
             response.put("userCode", user.getUserCode());
             response.put("deviceId", request.getGateId());
+            response.put("deviceName", deviceName);
             response.put("time", now.toString()); // Thời gian thực để Frontend format
 
             if (currentSession.isPresent()) {
                 // --- LUỒNG CHECK-OUT ---
                 AccessLog log = currentSession.get();
                 log.setCheckOutTime(now);
-                accessLogRepository.save(log);
+                log = accessLogRepository.save(log);
 
                 // Tính toán thời gian sử dụng
                 int durationMinutes = (int) ChronoUnit.MINUTES.between(log.getCheckInTime(), now);
@@ -207,6 +229,7 @@ public class CheckInService {
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
                 wsMessage.put("deviceId", request.getGateId());
+                wsMessage.put("deviceName", deviceName);
                 wsMessage.put("time", now.toString());
                 wsMessage.put("checkOutTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
@@ -220,6 +243,8 @@ public class CheckInService {
                 response.put("checkInTime", log.getCheckInTime().toString());
                 response.put("checkOutTime", now.toString());
 
+                sendAccessLogPushNotification(user, log, deviceName, "CHECK_OUT", now, durationMinutes);
+
             } else {
                 // --- LUỒNG CHECK-IN ---
                 AccessLog newLog = new AccessLog();
@@ -227,7 +252,7 @@ public class CheckInService {
                 newLog.setDeviceId(request.getGateId());
                 newLog.setCheckInTime(now);
 
-                accessLogRepository.save(newLog);
+                newLog = accessLogRepository.save(newLog);
 
                 // Ghi log hoạt động
                 activityService.logActivity(ActivityLogEntity.builder()
@@ -245,6 +270,7 @@ public class CheckInService {
                 wsMessage.put("userName", user.getFullName());
                 wsMessage.put("userCode", user.getUserCode());
                 wsMessage.put("deviceId", request.getGateId());
+                wsMessage.put("deviceName", deviceName);
                 wsMessage.put("time", now.toString());
                 wsMessage.put("checkInTime", now.toString());
                 messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
@@ -256,6 +282,8 @@ public class CheckInService {
                 response.put("type", "CHECK_IN");
                 response.put("message", "Xin chào, " + user.getFullName());
                 response.put("checkInTime", now.toString());
+
+                sendAccessLogPushNotification(user, newLog, deviceName, "CHECK_IN", now, null);
             }
 
             // WebSocket đã được gửi trong block check-in/check-out ở trên
@@ -267,6 +295,90 @@ public class CheckInService {
         }
 
         return response;
+    }
+
+    private void sendAccessLogPushNotification(
+            User user,
+            AccessLog log,
+            String deviceDisplayName,
+            String action,
+            LocalDateTime actionTime,
+            Integer durationMinutes) {
+        if (user == null || user.getId() == null || log == null || log.getLogId() == null) {
+            return;
+        }
+
+        try {
+            String formattedTime = actionTime.format(NOTIFICATION_TIME_FORMATTER);
+            String deviceName = deviceDisplayName != null && !deviceDisplayName.isBlank()
+                    ? deviceDisplayName
+                    : resolveDeviceDisplayName(log.getDeviceId());
+
+            if ("CHECK_OUT".equals(action)) {
+                String durationText = durationMinutes != null
+                        ? " Thời gian sử dụng: " + formatDuration(durationMinutes) + "."
+                        : "";
+                pushNotificationService.sendToUser(
+                        user.getId(),
+                        "Bạn vừa check-out khỏi thư viện",
+                        "Bạn đã check-out thành công tại " + deviceName + " lúc " + formattedTime + "." + durationText,
+                        NotificationEntity.NotificationType.SYSTEM,
+                        log.getLogId(),
+                        "ACCESS_LOG",
+                        "SYSTEM");
+                return;
+            }
+
+            pushNotificationService.sendToUser(
+                    user.getId(),
+                    "Bạn vừa check-in vào thư viện",
+                    "Bạn đã check-in thành công tại " + deviceName + " lúc " + formattedTime + ".",
+                    NotificationEntity.NotificationType.SYSTEM,
+                    log.getLogId(),
+                    "ACCESS_LOG",
+                    "SYSTEM");
+        } catch (Exception ignored) {
+            // Không để lỗi FCM/notification làm thất bại luồng mở cổng HCE.
+        }
+    }
+
+    private String resolveDeviceDisplayName(HceDeviceEntity station, String fallbackDeviceId) {
+        if (station != null && station.getDeviceName() != null && !station.getDeviceName().isBlank()) {
+            return station.getDeviceName();
+        }
+        return resolveDeviceDisplayName(fallbackDeviceId);
+    }
+
+    private String resolveDeviceDisplayName(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            return "Cổng thư viện";
+        }
+
+        try {
+            Optional<HceDeviceEntity> hceDevice = hceDeviceRepository.findByDeviceId(deviceId);
+            if (hceDevice.isPresent()) {
+                String name = hceDevice.get().getDeviceName();
+                if (name != null && !name.isBlank()) {
+                    return name;
+                }
+            }
+        } catch (Exception ignored) {
+            // fallback below
+        }
+
+        try {
+            Optional<KioskConfigEntity> kiosk = kioskConfigRepository.findByKioskCode(deviceId);
+            if (kiosk.isPresent()) {
+                String name = kiosk.get().getKioskName();
+                if (name != null && !name.isBlank()) {
+                    return name;
+                }
+            }
+        } catch (Exception ignored) {
+            // fallback below
+        }
+
+        return deviceId;
     }
 
     private String formatDuration(int minutes) {
@@ -296,6 +408,7 @@ public class CheckInService {
             inAction.put("fullName", log.getUser().getFullName());
             inAction.put("userCode", log.getUser().getUserCode());
             inAction.put("deviceId", log.getDeviceId());
+            inAction.put("deviceName", resolveDeviceDisplayName(log.getDeviceId()));
             inAction.put("type", "CHECK_IN");
             inAction.put("time", log.getCheckInTime().toString());
             inAction.put("sortTime", log.getCheckInTime()); // Dùng để sắp xếp
@@ -307,6 +420,7 @@ public class CheckInService {
                 outAction.put("fullName", log.getUser().getFullName());
                 outAction.put("userCode", log.getUser().getUserCode());
                 outAction.put("deviceId", log.getDeviceId());
+                outAction.put("deviceName", resolveDeviceDisplayName(log.getDeviceId()));
                 outAction.put("type", "CHECK_OUT");
                 outAction.put("time", log.getCheckOutTime().toString());
                 outAction.put("sortTime", log.getCheckOutTime()); // Dùng để sắp xếp
@@ -323,21 +437,31 @@ public class CheckInService {
     }
 
     /**
-     * Tự động check-out lúc 21:00 cho những người chưa check-out
+     * Job nền: tự động check-out khỏi thư viện khi đã qua giờ đóng cửa.
+     * Chạy mỗi phút để không phụ thuộc vào việc ai đó có mở màn hình access log hay không.
      */
-    private void autoCheckOutAfter5PM() {
+    @Scheduled(fixedRate = 60000)
+    public void runAutoCheckOutJob() {
+        autoCheckOutAfterClosingTime();
+    }
+
+    /**
+     * Tự động check-out theo giờ đóng cửa cấu hình cho những người chưa check-out
+     */
+    private void autoCheckOutAfterClosingTime() {
         LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        LocalTime closingTime = resolveClosingTime();
 
         // Tìm tất cả logs chưa checkout
         List<AccessLog> uncheckedOutLogs = accessLogRepository.findByCheckOutTimeIsNull();
 
         for (AccessLog log : uncheckedOutLogs) {
             LocalDateTime checkInTime = log.getCheckInTime();
-            // Tạo thời gian 21:00 của ngày check-in
-            LocalDateTime autoCheckOutTime = checkInTime.toLocalDate().atTime(21, 0);
+            // Tạo thời gian đóng cửa của ngày check-in
+            LocalDateTime autoCheckOutTime = checkInTime.toLocalDate().atTime(closingTime);
 
-            // Nếu hiện tại đã qua 21:00 của ngày check-in đó
-            // VÀ check-in phải TRƯỚC 21:00 (tránh duration âm)
+            // Nếu hiện tại đã qua giờ đóng cửa của ngày check-in đó
+            // VÀ check-in phải TRƯỚC giờ đóng cửa (tránh duration âm)
             if (now.isAfter(autoCheckOutTime) && checkInTime.isBefore(autoCheckOutTime)) {
                 log.setCheckOutTime(autoCheckOutTime);
                 accessLogRepository.save(log);
@@ -354,9 +478,34 @@ public class CheckInService {
                         .userId(log.getUserId())
                         .activityType(ActivityLogEntity.TYPE_CHECK_OUT)
                         .title("Check-out tự động")
-                        .description("Hệ thống tự động check-out lúc 21:00 sau " + formatDuration(durationMinutes))
+                        .description("Hệ thống tự động check-out lúc " + closingTime + " sau "
+                                + formatDuration(durationMinutes))
                         .durationMinutes(durationMinutes)
                         .build());
+
+                try {
+                    User user = log.getUser();
+                    if (user != null) {
+                        Map<String, Object> wsMessage = new HashMap<>();
+                        wsMessage.put("type", "CHECK_OUT");
+                        wsMessage.put("userId", log.getUserId().toString());
+                        wsMessage.put("fullName", user.getFullName());
+                        wsMessage.put("userName", user.getFullName());
+                        wsMessage.put("userCode", user.getUserCode());
+                        wsMessage.put("deviceId", log.getDeviceId());
+                        wsMessage.put("deviceName", resolveDeviceDisplayName(log.getDeviceId()));
+                        wsMessage.put("time", autoCheckOutTime.toString());
+                        wsMessage.put("checkOutTime", autoCheckOutTime.toString());
+                        messagingTemplate.convertAndSend("/topic/access-logs", wsMessage);
+                        messagingTemplate.convertAndSend("/topic/dashboard",
+                                java.util.Map.of(
+                                        "type", "CHECKIN_UPDATE",
+                                        "action", "AUTO_CHECK_OUT",
+                                        "timestamp", java.time.Instant.now().toString()));
+                    }
+                } catch (Exception wsErr) {
+                    // Không để lỗi realtime ảnh hưởng auto check-out
+                }
 
                 try {
                     reputationService.applyLateCheckoutPenalty(log.getUserId(), null, null, log.getReservationId());
@@ -372,7 +521,7 @@ public class CheckInService {
      */
     public List<AccessLogDTO> getAllAccessLogs() {
         // Auto check-out trước khi lấy danh sách
-        autoCheckOutAfter5PM();
+        autoCheckOutAfterClosingTime();
 
         List<AccessLog> logs = accessLogRepository.findAllOrderByCheckInTimeDesc();
         return logs.stream()
@@ -391,7 +540,7 @@ public class CheckInService {
      */
     public List<AccessLogDTO> getTodayAccessLogs() {
         // Auto check-out trước khi lấy danh sách
-        autoCheckOutAfter5PM();
+        autoCheckOutAfterClosingTime();
 
         List<AccessLog> logs = accessLogRepository.findTodayLogs();
         return logs.stream()
@@ -429,7 +578,7 @@ public class CheckInService {
      */
     public List<AccessLogDTO> getAccessLogsByDateRange(java.time.LocalDate startDate, java.time.LocalDate endDate) {
         // Auto check-out trước khi lấy danh sách
-        autoCheckOutAfter5PM();
+        autoCheckOutAfterClosingTime();
 
         List<AccessLog> logs = accessLogRepository.findLogsByDateRange(startDate, endDate);
         return logs.stream()
@@ -452,6 +601,7 @@ public class CheckInService {
         User user = log.getUser();
         String userName = user != null ? user.getFullName() : "Unknown";
         String userCode = user != null ? user.getUserCode() : "N/A";
+        String deviceName = resolveDeviceDisplayName(log.getDeviceId());
 
         List<AccessLogDTO> dtos = new ArrayList<>();
 
@@ -462,6 +612,7 @@ public class CheckInService {
                 .userName(userName)
                 .userCode(userCode)
                 .deviceId(log.getDeviceId())
+                .deviceName(deviceName)
                 .checkInTime(log.getCheckInTime())
                 .checkOutTime(null)
                 .action("CHECK_IN")
@@ -475,6 +626,7 @@ public class CheckInService {
                     .userName(userName)
                     .userCode(userCode)
                     .deviceId(log.getDeviceId())
+                    .deviceName(deviceName)
                     .checkInTime(log.getCheckInTime())
                     .checkOutTime(log.getCheckOutTime())
                     .action("CHECK_OUT")
@@ -495,6 +647,7 @@ public class CheckInService {
                 .userName(user != null ? user.getFullName() : "Unknown")
                 .userCode(user != null ? user.getUserCode() : "N/A")
                 .deviceId(log.getDeviceId())
+                .deviceName(resolveDeviceDisplayName(log.getDeviceId()))
                 .checkInTime(log.getCheckInTime())
                 .checkOutTime(log.getCheckOutTime())
                 .action(log.getCheckOutTime() != null ? "CHECK_OUT" : "CHECK_IN")
@@ -514,7 +667,7 @@ public class CheckInService {
     public byte[] exportAccessLogsToExcel(java.time.LocalDate startDate, java.time.LocalDate endDate)
             throws IOException {
         // Auto check-out trước khi xuất
-        autoCheckOutAfter5PM();
+        autoCheckOutAfterClosingTime();
 
         // Lấy danh sách logs theo khoảng thời gian
         List<AccessLog> logs;
@@ -553,7 +706,7 @@ public class CheckInService {
 
             // Tạo header row
             Row headerRow = sheet.createRow(0);
-            String[] columns = { "STT", "Tên sinh viên", "Mã số sinh viên", "Gate ID", "Thời gian Check-in",
+            String[] columns = { "STT", "Tên sinh viên", "Mã số sinh viên", "Vị trí", "Thời gian Check-in",
                     "Thời gian Check-out" };
 
             for (int i = 0; i < columns.length; i++) {
@@ -584,7 +737,7 @@ public class CheckInService {
                 cell2.setCellStyle(dataStyle);
 
                 Cell cell3 = row.createCell(3);
-                cell3.setCellValue(log.getDeviceId() != null ? log.getDeviceId() : "-");
+                cell3.setCellValue(resolveDeviceDisplayName(log.getDeviceId()));
                 cell3.setCellStyle(dataStyle);
 
                 Cell cell4 = row.createCell(4);
@@ -600,12 +753,26 @@ public class CheckInService {
             sheet.setColumnWidth(0, 2000); // STT
             sheet.setColumnWidth(1, 8000); // Tên sinh viên
             sheet.setColumnWidth(2, 5000); // Mã số sinh viên
-            sheet.setColumnWidth(3, 4000); // Gate ID
+            sheet.setColumnWidth(3, 5000); // Vị trí
             sheet.setColumnWidth(4, 6000); // Thời gian Check-in
             sheet.setColumnWidth(5, 6000); // Thời gian Check-out
 
             workbook.write(out);
             return out.toByteArray();
         }
+    }
+
+    private LocalTime resolveClosingTime() {
+        try {
+            String closeTime = librarySettingService.getSettings().getCloseTime();
+            if (closeTime != null && !closeTime.isBlank()) {
+                return LocalTime.parse(closeTime, DateTimeFormatter.ofPattern("HH:mm"));
+            }
+        } catch (DateTimeParseException ex) {
+            // fallback dưới đây
+        } catch (Exception ex) {
+            // fallback dưới đây
+        }
+        return DEFAULT_AUTO_CHECKOUT_TIME;
     }
 }

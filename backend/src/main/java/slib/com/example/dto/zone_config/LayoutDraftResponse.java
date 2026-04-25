@@ -17,5 +17,6 @@ public class LayoutDraftResponse {
     private String updatedByName;
     private LocalDateTime updatedAt;
     private LayoutScheduleResponse scheduledPublish;
+    private LayoutScheduleResponse lastFailedSchedule;
     private LayoutSnapshotRequest snapshot;
 }

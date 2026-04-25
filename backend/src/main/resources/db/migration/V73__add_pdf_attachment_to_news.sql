@@ -1,0 +1,4 @@
+ALTER TABLE news
+    ADD COLUMN IF NOT EXISTS pdf_url TEXT,
+    ADD COLUMN IF NOT EXISTS pdf_file_name VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS pdf_file_size BIGINT;

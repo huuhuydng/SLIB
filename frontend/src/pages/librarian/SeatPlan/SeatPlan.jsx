@@ -90,6 +90,10 @@ const normalizeSeat = (seat) => ({
 function LibrarianCanvas({ onSeatClick }) {
   const { state, dispatch, actions } = useLayout();
   const { areas, canvas } = state;
+  const activeAreas = useMemo(
+    () => areas.filter((area) => area.isActive !== false),
+    [areas]
+  );
 
   // Load areas from backend
   useEffect(() => {
@@ -119,10 +123,10 @@ function LibrarianCanvas({ onSeatClick }) {
 
   // Tự động fit view khi areas load xong
   useEffect(() => {
-    if (areas.length > 0) {
+    if (activeAreas.length > 0) {
       // Zoom and pan to fit all areas
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      areas.forEach((a) => {
+      activeAreas.forEach((a) => {
         minX = Math.min(minX, a.positionX || 0);
         minY = Math.min(minY, a.positionY || 0);
         maxX = Math.max(maxX, (a.positionX || 0) + (a.width || 300));
@@ -147,7 +151,7 @@ function LibrarianCanvas({ onSeatClick }) {
         },
       });
     }
-  }, [areas.length]);
+  }, [activeAreas, actions, dispatch]);
 
   return (
     <div className="canvas-container">
@@ -161,7 +165,7 @@ function LibrarianCanvas({ onSeatClick }) {
           height: "100%",
         }}
       >
-        {areas.map((area) => (
+        {activeAreas.map((area) => (
           <LibrarianArea
             key={area.areaId}
             area={area}
@@ -176,7 +180,7 @@ function LibrarianCanvas({ onSeatClick }) {
 // Component chính - sử dụng layout system của admin cho librarian
 function SeatPlanContent() {
   const { state, dispatch } = useLayout();
-  const { selectedAreaId, seats } = state;
+  const { selectedAreaId, seats, zones, areas } = state;
 
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [slotValue, setSlotValue] = useState("now");
@@ -212,18 +216,44 @@ function SeatPlanContent() {
     setSelectedSeat(seat);
   };
 
+  const activeAreaIds = useMemo(
+    () => new Set(areas.filter((area) => area.isActive !== false).map((area) => String(area.areaId))),
+    [areas]
+  );
+
+  const visibleZoneIds = useMemo(
+    () => new Set(
+      zones
+        .filter((zone) => activeAreaIds.has(String(zone.areaId)))
+        .map((zone) => String(zone.zoneId))
+    ),
+    [activeAreaIds, zones]
+  );
+
+  const visibleSeats = useMemo(
+    () => seats.filter((seat) => visibleZoneIds.has(String(seat.zoneId))),
+    [seats, visibleZoneIds]
+  );
+
+  useEffect(() => {
+    if (!selectedSeat) return;
+    if (!visibleZoneIds.has(String(selectedSeat.zoneId))) {
+      setSelectedSeat(null);
+    }
+  }, [selectedSeat, visibleZoneIds]);
+
   const stats = useMemo(() => {
-    const total = seats.length;
+    const total = visibleSeats.length;
     let booked = 0;
     let restricted = 0;
-    seats.forEach((s) => {
+    visibleSeats.forEach((s) => {
       if (s.seatStatus === "BOOKED") booked += 1;
       if (s.seatStatus === "UNAVAILABLE") restricted += 1;
     });
     const available = Math.max(0, total - booked - restricted);
     const occupancy = total ? Math.round((booked / total) * 100) : 0;
     return { total, booked, restricted, available, occupancy };
-  }, [seats]);
+  }, [visibleSeats]);
 
   // Refs để tránh stale closure trong WebSocket callback
   const slotValueRef = useRef(slotValue);
@@ -400,6 +430,13 @@ function SeatPlanContent() {
           <div className="sp-banner">
             <AlertCircle size={16} />
             <span>{message}</span>
+          </div>
+        )}
+
+        {areas.length > 0 && activeAreaIds.size === 0 && (
+          <div className="sp-banner">
+            <AlertCircle size={16} />
+            <span>Hiện không có phòng nào đang hoạt động trên sơ đồ.</span>
           </div>
         )}
 

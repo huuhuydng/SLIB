@@ -346,6 +346,11 @@ const TOAST_SUPPRESSION_RULES = [
     actions: ['STATUS_CHANGED', 'RESPONDED', 'DELETED'],
   },
   {
+    source: 'SUPPORT_REQUEST',
+    routeIncludes: '/librarian/chat',
+    actions: ['CREATED'],
+  },
+  {
     source: 'COMPLAINT',
     routeIncludes: '/librarian/complaints',
     actions: ['ACCEPTED', 'DENIED', 'DELETED'],
@@ -384,64 +389,73 @@ function shouldSuppressRealtimeToast(source, action, pathname) {
 // Toast notification component — hiển thị ở góc phải trên khi có notification mới
 function ToastNotifications() {
   const { notifications } = useLibrarianNotification();
-  const prevCountRef = useRef(0);
   const hasMountedRef = useRef(false);
   const lastFeedbackToastAtRef = useRef(0);
+  const lastToastKeyRef = useRef(null);
   const toast = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
+    const latestNotification = notifications[0];
+
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
-      prevCountRef.current = notifications.length;
+      lastToastKeyRef.current = latestNotification
+        ? `${latestNotification.id}-${latestNotification.source}-${latestNotification.action}-${latestNotification.timestamp}`
+        : null;
       return;
     }
 
-    if (notifications.length > prevCountRef.current) {
-      const enabled = localStorage.getItem('slib_notifications_enabled');
-      if (enabled === 'false') {
-        prevCountRef.current = notifications.length;
-        return;
-      }
-
-      const newNotif = notifications[0];
-      const currentPath = window.location.pathname;
-      const suppressOnCurrentPage = shouldSuppressRealtimeToast(
-        newNotif.source,
-        newNotif.action,
-        currentPath
-      );
-
-      if (suppressOnCurrentPage) {
-        prevCountRef.current = notifications.length;
-        return;
-      }
-
-      if (newNotif.source === 'FEEDBACK') {
-        const now = Date.now();
-        if (now - lastFeedbackToastAtRef.current < 2500) {
-          prevCountRef.current = notifications.length;
-          return;
-        }
-        lastFeedbackToastAtRef.current = now;
-      }
-
-      const config = PENDING_ICON_MAP[newNotif.source] || PENDING_ICON_MAP.SUPPORT_REQUEST;
-      const route = NOTIF_ROUTE_MAP[newNotif.source] || '/librarian/dashboard';
-
-      const detailMap = TOAST_DETAIL_MAP[newNotif.source] || {};
-      const detail = detailMap[newNotif.action] || {
-        title: `${config.label} - ${ACTION_LABELS[newNotif.action] || newNotif.action}`,
-        desc: `Có hoạt động mới liên quan đến ${config.label.toLowerCase()}.`,
-      };
-
-      toast.info(newNotif.content || detail.desc, {
-        title: newNotif.title || detail.title,
-        actionText: 'Xem chi tiết',
-        onClick: () => navigate(route),
-      });
+    if (!latestNotification) {
+      lastToastKeyRef.current = null;
+      return;
     }
-    prevCountRef.current = notifications.length;
+
+    const latestNotificationKey = `${latestNotification.id}-${latestNotification.source}-${latestNotification.action}-${latestNotification.timestamp}`;
+    if (lastToastKeyRef.current === latestNotificationKey) {
+      return;
+    }
+
+    lastToastKeyRef.current = latestNotificationKey;
+
+    const enabled = localStorage.getItem('slib_notifications_enabled');
+    if (enabled === 'false') {
+      return;
+    }
+
+    const currentPath = window.location.pathname;
+    const suppressOnCurrentPage = shouldSuppressRealtimeToast(
+      latestNotification.source,
+      latestNotification.action,
+      currentPath
+    );
+
+    if (suppressOnCurrentPage) {
+      return;
+    }
+
+    if (latestNotification.source === 'FEEDBACK') {
+      const now = Date.now();
+      if (now - lastFeedbackToastAtRef.current < 2500) {
+        return;
+      }
+      lastFeedbackToastAtRef.current = now;
+    }
+
+    const config = PENDING_ICON_MAP[latestNotification.source] || PENDING_ICON_MAP.SUPPORT_REQUEST;
+    const route = NOTIF_ROUTE_MAP[latestNotification.source] || '/librarian/dashboard';
+
+    const detailMap = TOAST_DETAIL_MAP[latestNotification.source] || {};
+    const detail = detailMap[latestNotification.action] || {
+      title: `${config.label} - ${ACTION_LABELS[latestNotification.action] || latestNotification.action}`,
+      desc: `Có hoạt động mới liên quan đến ${config.label.toLowerCase()}.`,
+    };
+
+    toast.info(latestNotification.content || detail.desc, {
+      title: latestNotification.title || detail.title,
+      actionText: 'Xem chi tiết',
+      onClick: () => navigate(route),
+    });
   }, [notifications]);
 
   return null;
@@ -462,20 +476,38 @@ function ChatToastNotification() {
     }
 
     const isOnChatPage = window.location.pathname.includes('/librarian/chat');
-    if (isOnChatPage) {
+    const isConversationEndedEvent = chatToast.eventType === 'CHAT_ENDED_BY_STUDENT';
+    const isSupportRequestEvent = chatToast.eventType === 'SUPPORT_REQUEST_CREATED';
+    if (isOnChatPage && !isConversationEndedEvent && !isSupportRequestEvent) {
       setChatToast(null);
       return;
     }
 
-    const key = `${chatToast.conversationId}-${chatToast.content}`;
+    const key = `${chatToast.eventType || 'CHAT'}-${chatToast.conversationId}-${chatToast.content}`;
     if (shownRef.current === key) return;
     shownRef.current = key;
 
     const convId = chatToast.conversationId;
-    toast.info(`${chatToast.senderName}: ${chatToast.content}`, {
-      title: 'Tin nhắn mới',
-      actionText: 'Xem tin nhắn',
-      onClick: () => navigate(`/librarian/chat?conversationId=${convId}`),
+    const title = isConversationEndedEvent
+      ? 'Cuộc trò chuyện đã kết thúc'
+      : isSupportRequestEvent
+        ? 'Yêu cầu hỗ trợ mới'
+        : 'Tin nhắn mới';
+    const message = isConversationEndedEvent
+      ? `${chatToast.senderName || 'Sinh viên'} ${chatToast.content}`
+      : isSupportRequestEvent
+        ? 'Có sinh viên vừa gửi yêu cầu hỗ trợ mới, cần được xử lý.'
+        : `${chatToast.senderName}: ${chatToast.content}`;
+    const actionText = isConversationEndedEvent || isSupportRequestEvent ? 'Xem chi tiết' : 'Xem tin nhắn';
+    const targetRoute = isSupportRequestEvent
+      ? '/librarian/support-requests?tab=PENDING'
+      : `/librarian/chat?conversationId=${convId}`;
+
+    toast.info(message, {
+      title,
+      actionText,
+      duration: isConversationEndedEvent ? 12000 : undefined,
+      onClick: () => navigate(targetRoute),
     });
     setChatToast(null);
   }, [chatToast]);

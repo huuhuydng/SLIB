@@ -36,6 +36,8 @@ function PropertiesPanel() {
 
   // Local state for Seat
   const [localSeatCode, setLocalSeatCode] = useState("");
+  const [localSeatRow, setLocalSeatRow] = useState("A");
+  const [localSeatColumn, setLocalSeatColumn] = useState("1");
   const [localSeatIsActive, setLocalSeatIsActive] = useState(true);
   const [localNfcTagUid, setLocalNfcTagUid] = useState("");
 
@@ -116,6 +118,8 @@ function PropertiesPanel() {
       }
     } else if (selectedItem?.type === "seat" && selectedData) {
       setLocalSeatCode(selectedData.seatCode || "");
+      setLocalSeatRow(String.fromCharCode(64 + (selectedData.rowNumber || 1)));
+      setLocalSeatColumn(String(selectedData.columnNumber || 1));
       setLocalSeatIsActive(selectedData.isActive !== false);
       setLocalNfcTagUid(selectedData.nfcTagUid || "");
       setNfcError(null);
@@ -123,7 +127,7 @@ function PropertiesPanel() {
       setLocalFactoryName(selectedData.factoryName || "");
       setLocalFactoryColor(selectedData.color || "#9CA3AF");
     }
-  }, [actions, dispatch, selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.factoryName, selectedData?.color, selectedData?.amenities, selectedData?.nfcTagUid]);
+  }, [actions, dispatch, selectedItem?.id, selectedItem?.type, selectedData?.areaName, selectedData?.zoneDes, selectedData?.zoneName, selectedData?.seatCode, selectedData?.rowNumber, selectedData?.columnNumber, selectedData?.factoryName, selectedData?.color, selectedData?.amenities, selectedData?.nfcTagUid]);
 
   if (!selectedItem || !selectedData) {
     return (
@@ -261,6 +265,33 @@ function PropertiesPanel() {
   const saveSeatCode = async () => {
     if (localSeatCode !== selectedData.seatCode) {
       await handleSeatChange("seatCode", localSeatCode);
+    }
+  };
+
+  const saveSeatRow = async () => {
+    const normalizedRow = (localSeatRow || "").trim().toUpperCase();
+    if (!/^[A-Z]$/.test(normalizedRow)) {
+      setLocalSeatRow(String.fromCharCode(64 + (selectedData.rowNumber || 1)));
+      toast.warning("Hàng ghế chỉ hỗ trợ từ A đến Z");
+      return;
+    }
+
+    const nextRowNumber = normalizedRow.charCodeAt(0) - 64;
+    if (nextRowNumber !== selectedData.rowNumber) {
+      await handleSeatChange("rowNumber", nextRowNumber);
+    }
+  };
+
+  const saveSeatColumn = async () => {
+    const nextColumnNumber = Number.parseInt(localSeatColumn, 10);
+    if (!Number.isInteger(nextColumnNumber) || nextColumnNumber <= 0) {
+      setLocalSeatColumn(String(selectedData.columnNumber || 1));
+      toast.warning("Cột ghế phải là số nguyên lớn hơn 0");
+      return;
+    }
+
+    if (nextColumnNumber !== selectedData.columnNumber) {
+      await handleSeatChange("columnNumber", nextColumnNumber);
     }
   };
 
@@ -977,9 +1008,9 @@ function PropertiesPanel() {
               </div>
             </div>
 
-            {/* Seat Info */}
+            {/* Seat Position */}
             <div style={{
-              backgroundColor: '#F8FAFC',
+              backgroundColor: 'white',
               borderRadius: '12px',
               padding: '16px',
               border: '1px solid #E2E8F0'
@@ -993,19 +1024,81 @@ function PropertiesPanel() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                Thông tin
+                Vị trí ghế
               </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B', fontSize: '13px' }}>Hàng:</span>
-                  <span style={{ fontWeight: '600', fontSize: '13px' }}>
-                    {String.fromCharCode(64 + (selectedData.rowNumber || 1))}
-                  </span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <div style={{
+                    color: '#64748B',
+                    fontSize: '13px',
+                    marginBottom: '8px'
+                  }}>
+                    Hàng
+                  </div>
+                  <input
+                    value={localSeatRow}
+                    onChange={(e) => setLocalSeatRow(e.target.value.toUpperCase().slice(0, 1))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isComposing) {
+                        e.preventDefault();
+                        saveSeatRow();
+                      }
+                    }}
+                    onCompositionStart={() => setIsComposing(true)}
+                    onCompositionEnd={() => setIsComposing(false)}
+                    onBlur={() => saveSeatRow()}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '2px solid #E2E8F0',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      textAlign: 'center'
+                    }}
+                  />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B', fontSize: '13px' }}>Cột:</span>
-                  <span style={{ fontWeight: '600', fontSize: '13px' }}>{selectedData.columnNumber || 1}</span>
+                <div>
+                  <div style={{
+                    color: '#64748B',
+                    fontSize: '13px',
+                    marginBottom: '8px'
+                  }}>
+                    Cột
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={localSeatColumn}
+                    onChange={(e) => setLocalSeatColumn(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isComposing) {
+                        e.preventDefault();
+                        saveSeatColumn();
+                      }
+                    }}
+                    onCompositionStart={() => setIsComposing(true)}
+                    onCompositionEnd={() => setIsComposing(false)}
+                    onBlur={() => saveSeatColumn()}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '2px solid #E2E8F0',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      textAlign: 'center'
+                    }}
+                  />
                 </div>
+              </div>
+              <div style={{
+                marginTop: '10px',
+                fontSize: '12px',
+                color: '#94A3B8'
+              }}>
+                Thay đổi vị trí để tự sắp lại ghế trên sơ đồ mà không đổi mã ghế.
               </div>
             </div>
 

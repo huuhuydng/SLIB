@@ -19,6 +19,14 @@ import 'package:slib/views/authentication/on_boarding_screen.dart';
 class AuthService extends ChangeNotifier {
   static const String _webClientId =
       '262933313086-mhbevhu0b7hfqekchf6a99vnebjfr8b5.apps.googleusercontent.com';
+  static const List<String> _chatCacheKeys = [
+    'chat_conversation_id',
+    'chat_is_escalated',
+    'chat_librarian_name',
+    'chat_is_waiting',
+    'chat_messages',
+    'chat_user_id',
+  ];
 
   static String getBaseUrl() {
     return ApiConstants.authUrl;
@@ -388,6 +396,9 @@ class AuthService extends ChangeNotifier {
       await _storage.delete(key: 'jwt_token');
       await _storage.delete(key: 'refresh_token');
       await _storage.delete(key: 'user_code');
+      for (final key in _chatCacheKeys) {
+        await _storage.delete(key: key);
+      }
       await _googleSignIn.signOut();
       await HceBridge.clearUserId();
 

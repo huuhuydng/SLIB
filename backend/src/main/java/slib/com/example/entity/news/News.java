@@ -34,6 +34,15 @@ public class News {
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl; 
 
+    @Column(name = "pdf_url", columnDefinition = "TEXT")
+    private String pdfUrl;
+
+    @Column(name = "pdf_file_name")
+    private String pdfFileName;
+
+    @Column(name = "pdf_file_size")
+    private Long pdfFileSize;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     @ToString.Exclude 

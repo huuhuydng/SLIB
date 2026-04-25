@@ -342,6 +342,7 @@ export function LibrarianNotificationProvider({ children }) {
             } else if (data.type === 'CHAT_NEW_MESSAGE') {
                 // Toast thông báo tin nhắn mới từ student
                 setChatToast({
+                    eventType: 'CHAT_NEW_MESSAGE',
                     senderName: data.senderName,
                     content: data.content,
                     conversationId: data.conversationId,
@@ -362,6 +363,16 @@ export function LibrarianNotificationProvider({ children }) {
                 fetchUnreadNotificationCount();
 
                 // Also refresh pending counts
+                fetchPendingCounts();
+            } else if (data.type === 'CHAT_ENDED_BY_STUDENT') {
+                setChatToast({
+                    eventType: 'CHAT_ENDED_BY_STUDENT',
+                    senderName: data.studentName,
+                    content: 'đã kết thúc cuộc trò chuyện với thủ thư',
+                    conversationId: data.conversationId,
+                });
+                if (chatToastTimerRef.current) clearTimeout(chatToastTimerRef.current);
+                chatToastTimerRef.current = setTimeout(() => setChatToast(null), 5000);
                 fetchPendingCounts();
             }
         };

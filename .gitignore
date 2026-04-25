@@ -95,6 +95,9 @@ docker-compose.yml
 # Spring Boot
 /backend/.spring-boot-devtools.properties
 /backend/application-local.properties
+/backend/src/main/resources/firebase-service-account.json
+/backend/secrets/
+/secrets/
 
 # Build outputs
 /backend/build/
@@ -203,6 +206,7 @@ docker-compose.yml
 # ============================================
 
 # Certificates and keys
+/backend/src/main/resources/firebase-service-account.json
 *.pem
 *.key
 *.crt

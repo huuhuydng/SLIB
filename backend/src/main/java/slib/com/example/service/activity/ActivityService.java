@@ -17,6 +17,10 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class ActivityService {
+    private static final Set<String> AUTOMATIC_PENALTY_TYPES = Set.of(
+            PointTransactionEntity.TYPE_NO_SHOW_PENALTY,
+            PointTransactionEntity.TYPE_CHECK_OUT_LATE_PENALTY,
+            PointTransactionEntity.TYPE_LATE_CHECKIN_PENALTY);
 
     private final ActivityLogRepository activityLogRepository;
     private final PointTransactionRepository pointTransactionRepository;
@@ -77,6 +81,8 @@ public class ActivityService {
 
     /**
      * Get all penalty transactions (points < 0) for a user, enriched with appeal status.
+     * Only automatic penalties are returned here. Reported seat violations are served by
+     * /violation-reports/against-me to avoid showing the same violation in both mobile tabs.
      */
     public List<Map<String, Object>> getPenaltyTransactions(UUID userId) {
         List<PointTransactionEntity> penalties =
@@ -84,6 +90,10 @@ public class ActivityService {
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (PointTransactionEntity p : penalties) {
+            if (!AUTOMATIC_PENALTY_TYPES.contains(p.getTransactionType())) {
+                continue;
+            }
+
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id", p.getId());
             item.put("userId", p.getUserId());

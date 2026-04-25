@@ -9,6 +9,7 @@ import {
   discardLayoutDraft,
   getLayoutDraft,
   getLayoutHistory,
+  getLayoutHistoryDetail,
   publishLayoutSnapshot,
   saveLayoutDraft,
   scheduleLayoutSnapshot,
@@ -46,6 +47,11 @@ function CanvasBoard() {
   const [scheduleDateTime, setScheduleDateTime] = useState("");
   const [isScheduling, setIsScheduling] = useState(false);
   const [isCancellingSchedule, setIsCancellingSchedule] = useState(false);
+  const [historyPreviewMeta, setHistoryPreviewMeta] = useState(null);
+  const [isLoadingHistoryPreview, setIsLoadingHistoryPreview] = useState(false);
+  const liveLayoutSnapshotRef = useRef(null);
+  const liveDraftMetaRef = useRef(null);
+  const liveUnsavedChangesRef = useRef(false);
 
   const normalizeOptionalNfcTagUid = useCallback((value) => {
     if (typeof value !== "string") {
@@ -236,6 +242,70 @@ function CanvasBoard() {
     clearAllPositionCache();
     return draftRes?.data ?? null;
   }, [actions, dispatch, hydrateLayoutSnapshot, loadHistoryFeed]);
+
+  const exitHistoryPreview = useCallback(() => {
+    if (!historyPreviewMeta || !liveLayoutSnapshotRef.current) {
+      dispatch({ type: actions.SET_PREVIEW_MODE, payload: false });
+      setHistoryPreviewMeta(null);
+      return;
+    }
+
+    hydrateLayoutSnapshot(liveLayoutSnapshotRef.current);
+    setDraftMeta(liveDraftMetaRef.current);
+    dispatch({ type: actions.SET_PREVIEW_MODE, payload: false });
+    if (liveUnsavedChangesRef.current) {
+      dispatch({ type: actions.SET_UNSAVED_CHANGES, payload: true });
+    } else {
+      dispatch({ type: actions.MARK_SAVED });
+    }
+    setHistoryPreviewMeta(null);
+    clearAllPositionCache();
+  }, [actions, dispatch, historyPreviewMeta, hydrateLayoutSnapshot]);
+
+  const handlePreviewHistory = useCallback(async (historyId) => {
+    if (!historyId || isLoadingHistoryPreview) {
+      return;
+    }
+
+    setIsLoadingHistoryPreview(true);
+    try {
+      if (!historyPreviewMeta) {
+        liveLayoutSnapshotRef.current = buildLayoutSnapshot();
+        liveDraftMetaRef.current = draftMeta;
+        liveUnsavedChangesRef.current = hasUnsavedChanges;
+      }
+
+      const res = await getLayoutHistoryDetail(historyId);
+      const detail = res?.data;
+      if (!detail?.snapshot) {
+        throw new Error("Không có dữ liệu sơ đồ để xem lại");
+      }
+
+      hydrateLayoutSnapshot(detail.snapshot);
+      dispatch({ type: actions.SET_PREVIEW_MODE, payload: true });
+      dispatch({ type: actions.MARK_SAVED });
+      setValidationConflicts([]);
+      setShowConflictPanel(false);
+      setHistoryPreviewMeta(detail);
+      clearAllPositionCache();
+      toast.info("Đang xem lại sơ đồ ở mốc lịch sử đã chọn");
+    } catch (error) {
+      console.error("Load layout history detail failed", error);
+      toast.error(error?.response?.data?.message || "Không thể tải sơ đồ từ lịch sử");
+    } finally {
+      setIsLoadingHistoryPreview(false);
+    }
+  }, [
+    actions,
+    buildLayoutSnapshot,
+    dispatch,
+    draftMeta,
+    hasUnsavedChanges,
+    historyPreviewMeta,
+    hydrateLayoutSnapshot,
+    isLoadingHistoryPreview,
+    toast,
+  ]);
 
   // ===== FIGMA-STYLE LOADING =====
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
@@ -564,7 +634,7 @@ function CanvasBoard() {
   }, []);
 
   const handleSaveDraft = useCallback(async () => {
-    if (!hasUnsavedChanges || isSaving) return;
+    if (!hasUnsavedChanges || isSaving || historyPreviewMeta) return;
 
     dispatch({ type: actions.SET_SAVING, payload: true });
     try {
@@ -593,10 +663,10 @@ function CanvasBoard() {
       }
       toast.error(error?.response?.data?.message || "Không thể kiểm tra và lưu nháp sơ đồ");
     }
-  }, [actions, buildLayoutSnapshot, dispatch, hasUnsavedChanges, isSaving, loadHistoryFeed, runValidation, toast]);
+  }, [actions, buildLayoutSnapshot, dispatch, hasUnsavedChanges, historyPreviewMeta, isSaving, loadHistoryFeed, runValidation, toast]);
 
   const handlePublish = useCallback(async () => {
-    if (isPublishing || isSaving) return;
+    if (isPublishing || isSaving || historyPreviewMeta) return;
 
     setIsPublishing(true);
     try {
@@ -651,9 +721,12 @@ function CanvasBoard() {
     } finally {
       setIsPublishing(false);
     }
-  }, [actions, buildLayoutSnapshot, confirm, dispatch, hydrateLayoutSnapshot, isPublishing, isSaving, loadDraftSnapshot, loadHistoryFeed, runValidation, toast]);
+  }, [actions, buildLayoutSnapshot, confirm, dispatch, historyPreviewMeta, hydrateLayoutSnapshot, isPublishing, isSaving, loadDraftSnapshot, loadHistoryFeed, runValidation, toast]);
 
   const handleOpenScheduleDialog = useCallback(() => {
+    if (historyPreviewMeta) {
+      return;
+    }
     const existing = draftMeta?.scheduledPublish?.scheduledFor;
     if (existing) {
       setScheduleDateTime(toDateTimeLocalValue(existing));
@@ -663,10 +736,10 @@ function CanvasBoard() {
       setScheduleDateTime(toDateTimeLocalValue(nextHour.toISOString()));
     }
     setShowScheduleDialog(true);
-  }, [draftMeta?.scheduledPublish?.scheduledFor]);
+  }, [draftMeta?.scheduledPublish?.scheduledFor, historyPreviewMeta]);
 
   const handleSchedulePublish = useCallback(async () => {
-    if (!scheduleDateTime || isScheduling) {
+    if (!scheduleDateTime || isScheduling || historyPreviewMeta) {
       return;
     }
 
@@ -712,11 +785,11 @@ function CanvasBoard() {
     } finally {
       setIsScheduling(false);
     }
-  }, [buildLayoutSnapshot, confirm, extractValidationPayload, isScheduling, loadDraftSnapshot, runValidation, scheduleDateTime, toast]);
+  }, [buildLayoutSnapshot, confirm, extractValidationPayload, historyPreviewMeta, isScheduling, loadDraftSnapshot, runValidation, scheduleDateTime, toast]);
 
   const handleCancelSchedule = useCallback(async () => {
     const scheduleId = draftMeta?.scheduledPublish?.scheduleId;
-    if (!scheduleId || isCancellingSchedule) {
+    if (!scheduleId || isCancellingSchedule || historyPreviewMeta) {
       return;
     }
 
@@ -741,10 +814,10 @@ function CanvasBoard() {
     } finally {
       setIsCancellingSchedule(false);
     }
-  }, [confirm, draftMeta?.scheduledPublish?.scheduleId, isCancellingSchedule, loadDraftSnapshot, toast]);
+  }, [confirm, draftMeta?.scheduledPublish?.scheduleId, historyPreviewMeta, isCancellingSchedule, loadDraftSnapshot, toast]);
 
   const handleDiscardDraft = useCallback(async () => {
-    if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing) return;
+    if (!draftMeta?.hasDraft || isDiscarding || isSaving || isPublishing || historyPreviewMeta) return;
 
     const confirmed = await confirm({
       title: "Bỏ nháp sơ đồ",
@@ -773,7 +846,7 @@ function CanvasBoard() {
     } finally {
       setIsDiscarding(false);
     }
-  }, [actions, confirm, dispatch, draftMeta?.hasDraft, hasUnsavedChanges, hydrateLayoutSnapshot, isDiscarding, isPublishing, isSaving, loadHistoryFeed, toast]);
+  }, [actions, confirm, dispatch, draftMeta?.hasDraft, hasUnsavedChanges, historyPreviewMeta, hydrateLayoutSnapshot, isDiscarding, isPublishing, isSaving, loadHistoryFeed, toast]);
 
   handleSaveRef.current = handleSaveDraft;
 
@@ -800,7 +873,13 @@ function CanvasBoard() {
           padding: '4px'
         }}>
           <button
-            onClick={() => dispatch({ type: actions.SET_PREVIEW_MODE, payload: false })}
+            onClick={() => {
+              if (historyPreviewMeta) {
+                exitHistoryPreview();
+                return;
+              }
+              dispatch({ type: actions.SET_PREVIEW_MODE, payload: false });
+            }}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -822,6 +901,7 @@ function CanvasBoard() {
           </button>
           <button
             onClick={() => dispatch({ type: actions.SET_PREVIEW_MODE, payload: true })}
+            disabled={Boolean(historyPreviewMeta)}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -830,10 +910,11 @@ function CanvasBoard() {
                 ? 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)'
                 : 'transparent',
               color: isPreviewMode ? 'white' : '#64748B',
-              cursor: 'pointer',
+              cursor: historyPreviewMeta ? 'not-allowed' : 'pointer',
               fontSize: '13px',
               fontWeight: '600',
               transition: 'all 0.2s',
+              opacity: historyPreviewMeta ? 0.5 : 1,
               display: 'flex',
               alignItems: 'center',
               gap: '6px'
@@ -898,22 +979,74 @@ function CanvasBoard() {
             <div style={{
               padding: '8px 10px',
               borderRadius: '12px',
-              background: '#ECFDF5',
-              border: '1px solid #86EFAC',
-              color: '#166534',
+              background: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#FFF7ED' : '#ECFDF5',
+              border: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '1px solid #FDBA74' : '1px solid #86EFAC',
+              color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#9A3412' : '#166534',
               fontSize: '11px',
               lineHeight: 1.25,
               minWidth: '180px',
-              maxWidth: '230px',
+              maxWidth: '290px',
             }}>
-              <div style={{ fontWeight: 800, color: '#14532D', marginBottom: '2px' }}>
-                Đang chờ áp dụng theo lịch
+              <div style={{
+                fontWeight: 800,
+                color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#9A3412' : '#14532D',
+                marginBottom: '2px',
+              }}>
+                {(draftMeta.scheduledPublish.retryCount ?? 0) > 0
+                  ? `Đang chờ tự thử lại lần ${draftMeta.scheduledPublish.retryCount}/${draftMeta.scheduledPublish.maxRetryCount ?? 3}`
+                  : 'Đang chờ áp dụng theo lịch'}
               </div>
               <div>
-                {formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
+                {(draftMeta.scheduledPublish.retryCount ?? 0) > 0
+                  ? `Thử lại lúc: ${formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}`
+                  : formatScheduledPublish(draftMeta.scheduledPublish.scheduledFor)}
               </div>
-              <div style={{ color: '#166534', opacity: 0.85 }}>
+              {(draftMeta.scheduledPublish.retryCount ?? 0) > 0 && draftMeta.scheduledPublish.originalScheduledFor && (
+                <div style={{ color: '#9A3412', opacity: 0.85 }}>
+                  Lịch gốc: {formatScheduledPublish(draftMeta.scheduledPublish.originalScheduledFor)}
+                </div>
+              )}
+              <div style={{
+                color: (draftMeta.scheduledPublish.retryCount ?? 0) > 0 ? '#C2410C' : '#166534',
+                opacity: 0.85,
+              }}>
                 {draftMeta.scheduledPublish.requestedByName ? `Người hẹn: ${draftMeta.scheduledPublish.requestedByName}` : 'Đã lưu lịch hẹn'}
+              </div>
+              {(draftMeta.scheduledPublish.retryCount ?? 0) > 0 && draftMeta.scheduledPublish.lastError && (
+                <div style={{ color: '#C2410C', marginTop: '2px' }}>
+                  Lý do gần nhất: {draftMeta.scheduledPublish.lastError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {draftMeta?.lastFailedSchedule?.status === 'FAILED' && (
+            <div style={{
+              padding: '8px 10px',
+              borderRadius: '12px',
+              background: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#991B1B',
+              fontSize: '11px',
+              lineHeight: 1.3,
+              minWidth: '210px',
+              maxWidth: '290px',
+            }}>
+              <div style={{ fontWeight: 800, color: '#7F1D1D', marginBottom: '2px' }}>
+                Lịch hẹn áp dụng gần nhất thất bại
+              </div>
+              <div style={{ marginBottom: '2px' }}>
+                {draftMeta.lastFailedSchedule.originalScheduledFor
+                  ? `Lịch gốc: ${formatScheduledPublish(draftMeta.lastFailedSchedule.originalScheduledFor)}`
+                  : formatScheduledPublish(draftMeta.lastFailedSchedule.scheduledFor)}
+              </div>
+              {(draftMeta.lastFailedSchedule.retryCount ?? 0) > 0 && (
+                <div style={{ marginBottom: '2px', color: '#B91C1C' }}>
+                  Đã thử lại {draftMeta.lastFailedSchedule.retryCount}/{draftMeta.lastFailedSchedule.maxRetryCount ?? 3} lần
+                </div>
+              )}
+              <div style={{ color: '#B91C1C' }}>
+                {draftMeta.lastFailedSchedule.lastError || 'Không xác định được lý do thất bại'}
               </div>
             </div>
           )}
@@ -976,6 +1109,8 @@ function CanvasBoard() {
 	                            ? 'Xuất bản sơ đồ'
 	                            : item.actionType === 'AUTO_PUBLISH'
 	                              ? 'Tự động xuất bản theo lịch'
+                                  : item.actionType === 'AUTO_PUBLISH_RETRY_SCHEDULED'
+                                    ? 'Tự dời lịch và thử lại'
 	                              : item.actionType === 'SCHEDULE_PUBLISH'
 	                                ? 'Lên lịch xuất bản'
 	                                : item.actionType === 'RESCHEDULE_PUBLISH'
@@ -996,6 +1131,31 @@ function CanvasBoard() {
 	                      <div style={{ fontSize: '12px', color: '#64748B' }}>
 	                        {item.createdByName ? `Người thao tác: ${item.createdByName}` : 'Không rõ người thao tác'}
                         {item.publishedVersion ? ` · Phiên bản ${item.publishedVersion}` : ''}
+                      </div>
+                      <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => handlePreviewHistory(item.historyId)}
+                          disabled={isLoadingHistoryPreview}
+                          style={{
+                            padding: '7px 12px',
+                            borderRadius: '10px',
+                            border: historyPreviewMeta?.historyId === item.historyId
+                              ? '1px solid #16A34A'
+                              : '1px solid #CBD5E1',
+                            background: historyPreviewMeta?.historyId === item.historyId
+                              ? '#DCFCE7'
+                              : 'white',
+                            color: historyPreviewMeta?.historyId === item.historyId
+                              ? '#166534'
+                              : '#334155',
+                            cursor: isLoadingHistoryPreview ? 'not-allowed' : 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            opacity: isLoadingHistoryPreview ? 0.7 : 1,
+                          }}
+                        >
+                          {historyPreviewMeta?.historyId === item.historyId ? 'Đang xem sơ đồ này' : 'Xem sơ đồ'}
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1032,7 +1192,7 @@ function CanvasBoard() {
 
           <button
             onClick={handleSaveDraft}
-            disabled={!hasUnsavedChanges || isSaving}
+            disabled={!hasUnsavedChanges || isSaving || Boolean(historyPreviewMeta)}
             title={hasUnsavedChanges ? "Lưu nháp thay đổi" : "Nháp hiện tại đã được lưu"}
             style={{
               padding: '8px 16px',
@@ -1042,7 +1202,7 @@ function CanvasBoard() {
                 ? 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)'
                 : '#EFF6FF',
               color: hasUnsavedChanges ? 'white' : '#64748B',
-              cursor: hasUnsavedChanges && !isSaving ? 'pointer' : 'not-allowed',
+              cursor: hasUnsavedChanges && !isSaving && !historyPreviewMeta ? 'pointer' : 'not-allowed',
               fontSize: '13px',
               fontWeight: '600',
               transition: 'all 0.2s',
@@ -1057,7 +1217,7 @@ function CanvasBoard() {
 
           <button
             onClick={handleOpenScheduleDialog}
-            disabled={isScheduling || isSaving || isPublishing}
+            disabled={isScheduling || isSaving || isPublishing || Boolean(historyPreviewMeta)}
             title="Lên lịch áp dụng sơ đồ vào thời điểm tương lai"
             style={{
               padding: '8px 16px',
@@ -1065,7 +1225,7 @@ function CanvasBoard() {
               border: '2px solid #A855F7',
               background: '#FAF5FF',
               color: '#7E22CE',
-              cursor: isScheduling || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+              cursor: isScheduling || isSaving || isPublishing || historyPreviewMeta ? 'not-allowed' : 'pointer',
               fontSize: '13px',
               fontWeight: '600',
               transition: 'all 0.2s',
@@ -1078,7 +1238,7 @@ function CanvasBoard() {
           {draftMeta?.scheduledPublish && (
             <button
               onClick={handleCancelSchedule}
-              disabled={isCancellingSchedule || isSaving || isPublishing}
+              disabled={isCancellingSchedule || isSaving || isPublishing || Boolean(historyPreviewMeta)}
               title="Hủy lịch áp dụng sơ đồ đang chờ"
               style={{
                 padding: '8px 14px',
@@ -1086,7 +1246,7 @@ function CanvasBoard() {
                 border: '1px solid #FECACA',
                 background: '#FFF7F7',
                 color: '#B91C1C',
-                cursor: isCancellingSchedule || isSaving || isPublishing ? 'not-allowed' : 'pointer',
+                cursor: isCancellingSchedule || isSaving || isPublishing || historyPreviewMeta ? 'not-allowed' : 'pointer',
                 fontSize: '13px',
                 fontWeight: '600',
                 opacity: isCancellingSchedule ? 0.7 : 1,
@@ -1098,7 +1258,7 @@ function CanvasBoard() {
 
           <button
             onClick={handlePublish}
-            disabled={isPublishing || isSaving}
+            disabled={isPublishing || isSaving || Boolean(historyPreviewMeta)}
             title="Xuất bản sơ đồ hiện tại ra môi trường live"
             style={{
               padding: '8px 16px',
@@ -1501,22 +1661,51 @@ function CanvasBoard() {
           {isPreviewMode && (
             <div style={{
               position: 'absolute',
-              top: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+              left: '20px',
+              bottom: '20px',
+              background: 'rgba(22, 163, 74, 0.94)',
+              backdropFilter: 'blur(10px)',
               color: 'white',
-              padding: '10px 24px',
-              borderRadius: '30px',
-              fontSize: '14px',
+              padding: '10px 14px',
+              borderRadius: '16px',
+              fontSize: '13px',
               fontWeight: '600',
-              boxShadow: '0 4px 14px rgba(34, 197, 94, 0.3)',
+              boxShadow: '0 12px 30px rgba(15, 23, 42, 0.18)',
               zIndex: 100,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '10px',
+              justifyContent: 'space-between',
+              maxWidth: '360px',
+              minWidth: historyPreviewMeta ? '300px' : 'auto',
+              textAlign: 'left',
             }}>
-              Chế độ xem trước - Sinh viên sẽ nhìn thấy như này
+              <span style={{
+                lineHeight: 1.35,
+                whiteSpace: 'normal',
+              }}>
+                {historyPreviewMeta
+                  ? `Đang xem mốc ${historyPreviewMeta.createdAt ? new Date(historyPreviewMeta.createdAt).toLocaleString('vi-VN') : 'lịch sử'}`
+                  : 'Chế độ xem trước'}
+              </span>
+              {historyPreviewMeta && (
+                <button
+                  onClick={exitHistoryPreview}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.35)',
+                    background: 'rgba(255,255,255,0.12)',
+                    color: 'white',
+                    padding: '7px 12px',
+                    borderRadius: '999px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    flexShrink: 0,
+                  }}
+                >
+                  Hiện tại
+                </button>
+              )}
             </div>
           )}
 

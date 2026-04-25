@@ -197,6 +197,27 @@ const AIConfig = () => {
     } catch (e) { console.error('Lỗi tải kho tri thức:', e); }
   };
 
+  const autoSyncKnowledgeStore = async (knowledgeStoreId, successMessage) => {
+    if (!knowledgeStoreId) {
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+      return;
+    }
+
+    setIsSyncing(prev => ({ ...prev, [knowledgeStoreId]: true }));
+    try {
+      const res = await syncKnowledgeStore(knowledgeStoreId);
+      const chunksCreated = res?.data?.chunksCreated ?? 0;
+      toast.success(`${successMessage} Đã đồng bộ ${chunksCreated} đoạn dữ liệu.`);
+    } catch (e) {
+      toast.error(`Kho tri thức đã được lưu nhưng đồng bộ thất bại: ${getErrorMessage(e, 'Không thể đồng bộ kho tri thức')}`);
+    } finally {
+      setIsSyncing(prev => ({ ...prev, [knowledgeStoreId]: false }));
+      await loadKnowledgeStores();
+    }
+  };
+
   // Material Handlers
   const handleCreateMaterial = async () => {
     try {
@@ -270,10 +291,10 @@ const AIConfig = () => {
   // Knowledge Store Handlers
   const handleCreateKS = async () => {
     try {
-      await createKnowledgeStore(ksForm);
+      const res = await createKnowledgeStore(ksForm);
       setShowKSModal(false);
       setKsForm({ name: '', description: '', itemIds: [] });
-      await loadKnowledgeStores();
+      await autoSyncKnowledgeStore(res?.data?.id, 'Đã tạo kho tri thức.');
     } catch (e) { toast.error(getErrorMessage(e, 'Không thể tạo kho tri thức')); }
   };
 
@@ -282,7 +303,7 @@ const AIConfig = () => {
       const itemIds = editingKS.items?.map(i => i.id) || [];
       await updateKnowledgeStore(editingKS.id, { name: editingKS.name, description: editingKS.description, itemIds });
       setEditingKS(null);
-      await loadKnowledgeStores();
+      await autoSyncKnowledgeStore(editingKS.id, 'Đã cập nhật kho tri thức.');
     } catch (e) { toast.error(getErrorMessage(e, 'Không thể cập nhật kho tri thức')); }
   };
 

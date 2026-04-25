@@ -141,13 +141,25 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Future<void> _loadSavedState() async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
+      final currentUserId = authService.currentUser?.id;
+      final savedUserId = await _readChatState(_keyUserId);
       String? savedConversationId = await _readChatState(_keyConversationId);
       final savedLibrarianName = await _readChatState(_keyLibrarianName);
       final savedIsWaiting = await _readChatStateBool(_keyIsWaitingInQueue);
 
       debugPrint(
-        '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting',
+        '[PERSIST] Loading state: convId=$savedConversationId, waiting=$savedIsWaiting, currentUserId=$currentUserId, savedUserId=$savedUserId',
       );
+
+      if (currentUserId != null &&
+          savedUserId != null &&
+          savedUserId != currentUserId) {
+        debugPrint(
+          '[PERSIST] Detected chat cache from another user. Clearing stale chat state before restore.',
+        );
+        await _clearSavedState();
+        savedConversationId = null;
+      }
 
       final token = await authService.getToken();
 
@@ -175,26 +187,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         );
       } else if (savedConversationId != null) {
         // Backend nói KHÔNG có active conversation → kiểm tra saved AI session
-        // Chỉ dùng nếu _keyUserId đã lưu (code mới) — tránh dùng data user khác
-        final savedUserId = await _readChatState(_keyUserId);
-        if (savedUserId != null) {
+        // Chỉ dùng nếu cache thuộc đúng user hiện tại
+        if (savedUserId != null && savedUserId == currentUserId) {
           activeConversationId = savedConversationId;
           isFromBackend = false;
           debugPrint(
             '[PERSIST] No active backend conversation, using saved AI session (userId=$savedUserId): $activeConversationId',
           );
         } else {
-          // Không có savedUserId → data cũ, không tin tưởng → clear conversation state nhưng giữ messages
+          // Cache cũ hoặc thuộc user khác → clear toàn bộ để tránh lẫn lịch sử
           debugPrint(
-            '[PERSIST] No savedUserId found, clearing untrusted conversation state (keeping messages)',
+            '[PERSIST] Saved AI session is not trusted for current user, clearing stale state',
           );
-          await _removeChatStateKeys([
-            _keyConversationId,
-            _keyIsEscalated,
-            _keyLibrarianName,
-            _keyIsWaitingInQueue,
-          ]);
-          // KHÔNG xóa _keyMessages — giữ lại tin nhắn cũ
+          await _clearSavedState();
         }
       } else {
         debugPrint('[PERSIST] No active conversation found');
@@ -646,11 +651,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Save messages vào SharedPreferences (cho AI chat)
   Future<void> _saveMessages() async {
     try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final currentUserId = authService.currentUser?.id;
       final messagesJson = _messages
           .where((m) => m.type != ChatMessageType.feedbackPrompt)
           .map((m) => m.toJson())
           .toList();
       await _writeChatState(_keyMessages, jsonEncode(messagesJson));
+      if (currentUserId != null) {
+        await _writeChatState(_keyUserId, currentUserId);
+      }
     } catch (e) {
       debugPrint('[PERSIST] Error saving messages: $e');
     }
@@ -684,6 +694,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   /// Load messages từ SharedPreferences (cho AI chat)
   Future<void> _loadLocalMessages() async {
     try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final currentUserId = authService.currentUser?.id;
+      final savedUserId = await _readChatState(_keyUserId);
+
+      if (currentUserId != null &&
+          savedUserId != null &&
+          savedUserId != currentUserId) {
+        debugPrint(
+          '[PERSIST] Skipping local chat restore because cache belongs to another user',
+        );
+        await _clearSavedState();
+        return;
+      }
+
       final savedMessages = await _readChatState(_keyMessages);
       if (savedMessages != null && savedMessages.isNotEmpty) {
         final List<dynamic> decoded = jsonDecode(savedMessages);
