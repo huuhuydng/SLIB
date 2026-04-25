@@ -319,8 +319,10 @@ public class ConversationService {
                         throw new RuntimeException("Conversation is not in HUMAN_CHATTING status");
                 }
 
+                String studentName = conv.getStudent() != null ? conv.getStudent().getFullName() : "Sinh viên";
+                LocalDateTime endedAt = LocalDateTime.now();
                 conv.setStatus(ConversationStatus.AI_HANDLING);
-                conv.setResolvedAt(LocalDateTime.now());
+                conv.setResolvedAt(endedAt);
                 clearHumanAssignment(conv);
 
                 Conversation saved = conversationRepository.save(conv);
@@ -328,11 +330,27 @@ public class ConversationService {
                 log.info("[Conversation] Student {} ended chat for conversation {}. Human session: {}",
                                 studentId, conversationId, conv.getCurrentHumanSession());
 
+                ChatMessageDTO endMessage = ChatMessageDTO.builder()
+                                .id(UUID.randomUUID())
+                                .content("Sinh viên đã kết thúc cuộc trò chuyện")
+                                .senderType("SYSTEM")
+                                .type(MessageType.SYSTEM)
+                                .createdAt(endedAt)
+                                .build();
+
+                messagingTemplate.convertAndSend("/topic/conversation/" + conversationId, endMessage);
+
                 // Broadcast STUDENT_ENDED_CHAT cho librarian qua WebSocket
                 messagingTemplate.convertAndSend("/topic/escalate", Map.of(
                                 "type", "STUDENT_ENDED_CHAT",
                                 "conversationId", conversationId.toString(),
-                                "studentName", conv.getStudent().getFullName()));
+                                "studentName", studentName));
+
+                messagingTemplate.convertAndSend("/topic/librarian-notifications", Map.of(
+                                "type", "CHAT_ENDED_BY_STUDENT",
+                                "conversationId", conversationId.toString(),
+                                "studentName", studentName,
+                                "timestamp", endedAt.atZone(ZoneId.systemDefault()).toInstant().toString()));
 
                 // Broadcast CONVERSATION_RESOLVED để frontend xóa khỏi active list
                 messagingTemplate.convertAndSend("/topic/escalate", Map.of(

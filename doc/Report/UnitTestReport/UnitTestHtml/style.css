@@ -38,6 +38,18 @@ table {
   background: #ffffff;
 }
 
+.report-meta {
+  table-layout: fixed;
+}
+
+.report-meta .label {
+  width: 170px;
+}
+
+.report-meta .value {
+  word-break: break-word;
+}
+
 th,
 td {
   border: 2px solid #1a1a1a;

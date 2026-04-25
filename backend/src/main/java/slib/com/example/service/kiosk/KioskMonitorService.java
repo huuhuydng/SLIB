@@ -6,9 +6,15 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import slib.com.example.entity.hce.AccessLog;
+import slib.com.example.entity.hce.HceDeviceEntity;
+import slib.com.example.entity.kiosk.KioskConfigEntity;
 import slib.com.example.repository.hce.AccessLogRepository;
+import slib.com.example.repository.hce.HceDeviceRepository;
+import slib.com.example.repository.kiosk.KioskConfigRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +29,8 @@ import java.util.Map;
 public class KioskMonitorService {
 
     private final AccessLogRepository accessLogRepository;
+    private final HceDeviceRepository hceDeviceRepository;
+    private final KioskConfigRepository kioskConfigRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     private static final String ENTRY_TOPIC = "/topic/library/entries";
@@ -55,6 +63,7 @@ public class KioskMonitorService {
         message.put("fullName", accessLog.getUser().getFullName());
         message.put("action", action);
         message.put("deviceId", accessLog.getDeviceId());
+        message.put("deviceName", resolveDeviceDisplayName(accessLog.getDeviceId()));
 
         if (action.equals("CHECK_IN")) {
             message.put("time", accessLog.getCheckInTime());
@@ -67,26 +76,64 @@ public class KioskMonitorService {
     }
 
     /**
-     * Get recent entry logs (last N records)
+     * Get recent entry/exit events in the current day.
      */
     public List<Map<String, Object>> getRecentLogs(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 50));
-        List<AccessLog> logs = accessLogRepository.findRecentLogs(PageRequest.of(0, safeLimit));
+        LocalDateTime startOfDay = LocalDateTime.now().toLocalDate().atStartOfDay();
+        int queryLimit = Math.min(safeLimit * 2, 100);
+        List<AccessLog> logs = accessLogRepository.findRecentLogsFromStartOfDay(
+                startOfDay,
+                PageRequest.of(0, queryLimit));
 
         return logs.stream()
-                .map(log -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("id", log.getLogId().toString());
-                    item.put("userCode", log.getUser().getUserCode());
-                    item.put("fullName", log.getUser().getFullName());
-
-                    boolean isCheckedOut = log.getCheckOutTime() != null;
-                    item.put("action", isCheckedOut ? "CHECK_OUT" : "CHECK_IN");
-                    item.put("deviceId", log.getDeviceId());
-                    item.put("time", isCheckedOut ? log.getCheckOutTime() : log.getCheckInTime());
-
-                    return item;
-                })
+                .flatMap(log -> toTodayMonitorEvents(log, startOfDay).stream())
+                .sorted(Comparator.comparing(item -> (LocalDateTime) item.get("time"), Comparator.reverseOrder()))
+                .limit(safeLimit)
                 .toList();
+    }
+
+    private List<Map<String, Object>> toTodayMonitorEvents(AccessLog log, LocalDateTime startOfDay) {
+        List<Map<String, Object>> events = new ArrayList<>();
+
+        if (log.getCheckInTime() != null && !log.getCheckInTime().isBefore(startOfDay)) {
+            events.add(toMonitorEvent(log, "CHECK_IN", log.getCheckInTime()));
+        }
+
+        if (log.getCheckOutTime() != null && !log.getCheckOutTime().isBefore(startOfDay)) {
+            events.add(toMonitorEvent(log, "CHECK_OUT", log.getCheckOutTime()));
+        }
+
+        return events;
+    }
+
+    private Map<String, Object> toMonitorEvent(AccessLog log, String action, LocalDateTime time) {
+        Map<String, Object> item = new HashMap<>();
+        item.put("id", log.getLogId().toString() + "-" + action);
+        item.put("userCode", log.getUser().getUserCode());
+        item.put("fullName", log.getUser().getFullName());
+        item.put("action", action);
+        item.put("deviceId", log.getDeviceId());
+        item.put("deviceName", resolveDeviceDisplayName(log.getDeviceId()));
+        item.put("time", time);
+        return item;
+    }
+
+    private String resolveDeviceDisplayName(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            return "Cổng thư viện";
+        }
+
+        try {
+            return hceDeviceRepository.findByDeviceId(deviceId)
+                    .map(HceDeviceEntity::getDeviceName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .orElseGet(() -> kioskConfigRepository.findByKioskCode(deviceId)
+                            .map(KioskConfigEntity::getKioskName)
+                            .filter(name -> name != null && !name.isBlank())
+                            .orElse(deviceId));
+        } catch (Exception e) {
+            return deviceId;
+        }
     }
 }

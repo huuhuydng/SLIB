@@ -460,6 +460,20 @@
     animation: ksb-slideUp 0.35s ease;
 }
 
+.ksb__locked-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    color: #dc2626;
+}
+
+.ksb__locked-icon svg {
+    display: block;
+}
+
 .ksb__locked-card h2 {
     margin: 20px 0 12px;
     font-size: 24px;

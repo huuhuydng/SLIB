@@ -91,7 +91,12 @@ class _NewBooksScreenState extends State<NewBooksScreen> {
 
   List<NewBook> _sortBooks(List<NewBook> books) {
     final sorted = List<NewBook>.from(books);
-    sorted.sort((a, b) => b.arrivalDate.compareTo(a.arrivalDate));
+    sorted.sort((a, b) {
+      if (a.isPinned != b.isPinned) {
+        return a.isPinned ? -1 : 1;
+      }
+      return b.arrivalDate.compareTo(a.arrivalDate);
+    });
     return sorted;
   }
 
@@ -182,26 +187,40 @@ class _NewBooksScreenState extends State<NewBooksScreen> {
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                left: Radius.circular(18),
-              ),
-              child: SizedBox(
-                width: 120,
-                height: 160,
-                child: Hero(
-                  tag: 'new_book_cover_${book.id}',
-                  child: book.coverUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: book.coverUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              Container(color: Colors.grey[100]),
-                          errorWidget: (context, url, error) =>
-                              _buildFallbackCover(),
-                        )
-                      : _buildFallbackCover(),
-                ),
+            SizedBox(
+              width: 120,
+              height: 160,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(18),
+                    ),
+                    child: SizedBox(
+                      width: 120,
+                      height: 160,
+                      child: Hero(
+                        tag: 'new_book_cover_${book.id}',
+                        child: book.coverUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: book.coverUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) =>
+                                    Container(color: Colors.grey[100]),
+                                errorWidget: (context, url, error) =>
+                                    _buildFallbackCover(),
+                              )
+                            : _buildFallbackCover(),
+                      ),
+                    ),
+                  ),
+                  if (book.isPinned)
+                    const Positioned(
+                      top: 10,
+                      right: 10,
+                      child: _PinnedBadge(),
+                    ),
+                ],
               ),
             ),
             Expanded(
@@ -313,5 +332,32 @@ class _NewBooksScreenState extends State<NewBooksScreen> {
       }
     }
     return pieces.join(' • ');
+  }
+}
+
+class _PinnedBadge extends StatelessWidget {
+  const _PinnedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.push_pin,
+        size: 15,
+        color: Colors.red,
+      ),
+    );
   }
 }

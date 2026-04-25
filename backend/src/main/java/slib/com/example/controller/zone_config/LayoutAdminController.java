@@ -9,6 +9,7 @@ import slib.com.example.dto.zone_config.*;
 import slib.com.example.service.zone_config.LayoutAdminService;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -29,6 +30,11 @@ public class LayoutAdminController {
         return ResponseEntity.ok(layoutAdminService.getHistory(limit));
     }
 
+    @GetMapping("/history/{historyId}")
+    public ResponseEntity<LayoutHistoryDetailResponse> getHistoryDetail(@PathVariable Long historyId) {
+        return ResponseEntity.ok(layoutAdminService.getHistoryDetail(historyId));
+    }
+
     @PostMapping("/validate")
     public ResponseEntity<LayoutValidationResponse> validate(@RequestBody LayoutSnapshotRequest request) {
         LayoutValidationResponse response = layoutAdminService.validate(request);
@@ -43,10 +49,9 @@ public class LayoutAdminController {
         try {
             return ResponseEntity.ok(layoutAdminService.saveDraft(request, authentication));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "error", "LAYOUT_CONFLICT",
-                    "message", ex.getMessage(),
-                    "validation", layoutAdminService.validate(request)));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(buildLayoutConflictBody(
+                    ex.getMessage(),
+                    request != null ? layoutAdminService.validate(request) : null));
         }
     }
 
@@ -70,10 +75,9 @@ public class LayoutAdminController {
                     "message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
             LayoutSnapshotRequest snapshot = request != null ? request.getSnapshot() : null;
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "error", "LAYOUT_CONFLICT",
-                    "message", ex.getMessage(),
-                    "validation", snapshot != null ? layoutAdminService.validate(snapshot) : null));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(buildLayoutConflictBody(
+                    ex.getMessage(),
+                    snapshot != null ? layoutAdminService.validate(snapshot) : null));
         }
     }
 
@@ -92,10 +96,19 @@ public class LayoutAdminController {
                     "error", "LAYOUT_VERSION_CONFLICT",
                     "message", ex.getMessage()));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
-                    "error", "LAYOUT_CONFLICT",
-                    "message", ex.getMessage(),
-                    "validation", layoutAdminService.validate(request)));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(buildLayoutConflictBody(
+                    ex.getMessage(),
+                    request != null ? layoutAdminService.validate(request) : null));
         }
+    }
+
+    private Map<String, Object> buildLayoutConflictBody(String message, LayoutValidationResponse validation) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "LAYOUT_CONFLICT");
+        body.put("message", message);
+        if (validation != null) {
+            body.put("validation", validation);
+        }
+        return body;
     }
 }

@@ -13,7 +13,16 @@ function Area({ area }) {
 
   // Load zones for this area
   useEffect(() => {
-    if (!area?.areaId || area.areaId < 0) return;
+    if (!area?.areaId) {
+      setLoadingZones(false);
+      return;
+    }
+
+    if (area.areaId < 0) {
+      setLoadingZones(false);
+      return;
+    }
+
     if (isLayoutHydrated) {
       setLoadingZones(false);
       return;
@@ -53,7 +62,16 @@ function Area({ area }) {
 
   // Load factories for this area
   useEffect(() => {
-    if (!area?.areaId || area.areaId < 0) return;
+    if (!area?.areaId) {
+      setLoadingFactories(false);
+      return;
+    }
+
+    if (area.areaId < 0) {
+      setLoadingFactories(false);
+      return;
+    }
+
     if (isLayoutHydrated) {
       setLoadingFactories(false);
       return;

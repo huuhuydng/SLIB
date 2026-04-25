@@ -488,11 +488,12 @@ function ComplaintManage() {
                             {showColumnMenu && (
                                 <div className="cio-column-menu">
                                     {columns.map(col => (
-                                        <label key={col.key} className="cio-column-item">
+                                        <label key={col.key} className="cio-column-menu-item">
                                             <input
                                                 type="checkbox"
                                                 checked={visibleColumns[col.key]}
                                                 onChange={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                                                style={{ accentColor: '#FF751F' }}
                                             />
                                             {col.label}
                                         </label>

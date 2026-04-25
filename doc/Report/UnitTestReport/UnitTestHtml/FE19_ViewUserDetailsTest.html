@@ -12,11 +12,11 @@
     <h1>Unit Test Report - FE-19: View user details</h1>
 
     <table class="report-meta">
-      <tr><td class="label">Function Code</td><td class="value italic">FE-19</td><td class="label">Function Name</td><td class="value link">View user details</td></tr>
-      <tr><td class="label">Created By</td><td class="value italic">Hadi</td><td class="label">Executed By</td><td class="value italic">Hadi</td></tr>
-      <tr><td class="label">Lines of code</td><td class="value italic center">~95</td><td class="label">Lack of test cases</td><td class="value center">0</td></tr>
-      <tr><td class="label">Class Under Test</td><td class="value code" colspan="3"><code>UserController.getAdminUsers(...)</code></td></tr>
-      <tr><td class="label">Test requirement</td><td class="value italic" colspan="3">Verify admin user list retrieval returns the detailed user fields needed for viewing user information, including filters and error handling.</td></tr>
+      <tr><td class="label">Function Code</td><td class="value italic">FE-19</td><td class="label">Function Name</td><td class="value link" colspan="2">View user details</td></tr>
+      <tr><td class="label">Created By</td><td class="value italic">Hadi</td><td class="label">Executed By</td><td class="value italic" colspan="2">Hadi</td></tr>
+      <tr><td class="label">Lines of code</td><td class="value italic center">~95</td><td class="label">Lack of test cases</td><td class="value center" colspan="2">0</td></tr>
+      <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>UserController.getAdminUsers(...)</code></td></tr>
+      <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify admin user list retrieval returns the detailed user fields needed for viewing user information, including filters and error handling.</td></tr>
       <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
       <tr><td class="value center">6</td><td class="value center">0</td><td class="value center">0</td><td class="value center">3 / 3 / 0</td><td class="value center">Total Test Cases</td></tr>
       <tr style="display:none"><td></td></tr>
@@ -44,7 +44,7 @@
       <tr><td class="item-cell">role = LIBRARIAN, status = locked, search = thu</td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
       <tr><td class="item-cell">role = INVALID_ROLE</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td></tr>
       <tr><td class="item-cell">Service throws runtime error for default filters</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-      <tr><td class="item-cell">role = STUDENT, status = hoạt động</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+      <tr><td class="item-cell">role = STUDENT, status = active</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
       <tr><td class="item-cell">Detailed fields include phone, lockReason, reputationScore</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
 
       <tr><td class="section-cell" rowspan="8">Confirm</td><td class="category-cell" rowspan="3">Return</td><td class="item-cell">200: OK</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell">O</td><td class="mark-cell"></td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>

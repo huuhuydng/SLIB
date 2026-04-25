@@ -10,6 +10,7 @@ class NewBook {
   final int? publishYear;
   final String arrivalDate;
   final bool isActive;
+  final bool isPinned;
   final String sourceUrl;
   final String publisher;
 
@@ -23,6 +24,7 @@ class NewBook {
     required this.publishYear,
     required this.arrivalDate,
     required this.isActive,
+    required this.isPinned,
     required this.sourceUrl,
     required this.publisher,
   });
@@ -38,6 +40,7 @@ class NewBook {
       publishYear: json['publishYear'],
       arrivalDate: json['arrivalDate'] ?? DateTime.now().toIso8601String(),
       isActive: json['isActive'] ?? true,
+      isPinned: json['isPinned'] ?? false,
       sourceUrl: json['sourceUrl'] ?? '',
       publisher: json['publisher'] ?? '',
     );
@@ -54,6 +57,7 @@ class NewBook {
       'publishYear': publishYear,
       'arrivalDate': arrivalDate,
       'isActive': isActive,
+      'isPinned': isPinned,
       'sourceUrl': sourceUrl,
       'publisher': publisher,
     };

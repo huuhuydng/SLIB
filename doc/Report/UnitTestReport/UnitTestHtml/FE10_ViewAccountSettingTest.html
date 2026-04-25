@@ -11,30 +11,30 @@
     <div class="nav"><a href="index.html">Back to index</a></div>
     <h1>Unit Test Report - FE-10: View account setting</h1>
 <table class="report-meta">
-  <tr><td class="label">Function Code</td><td class="value italic">FE-10</td><td class="label">Function Name</td><td class="value link">View account setting</td></tr>
-  <tr><td class="label">Created By</td><td class="value italic"></td><td class="label">Executed By</td><td class="value italic"></td></tr>
-  <tr><td class="label">Lines of code</td><td class="value italic center">~89</td><td class="label">Lack of test cases</td><td class="value center">0</td></tr>
-  <tr><td class="label">Class Under Test</td><td class="value code" colspan="3"><code>UserController</code></td></tr>
-  <tr><td class="label">Test requirement</td><td class="value italic" colspan="3">Verify GET scenarios covered by the Java unit tests for UserController.</td></tr>
+  <tr><td class="label">Function Code</td><td class="value italic">FE-10</td><td class="label">Function Name</td><td class="value link" colspan="2">View account setting</td></tr>
+  <tr><td class="label">Created By</td><td class="value italic"></td><td class="label">Executed By</td><td class="value italic" colspan="2"></td></tr>
+  <tr><td class="label">Lines of code</td><td class="value italic center">~89</td><td class="label">Lack of test cases</td><td class="value center" colspan="2">0</td></tr>
+  <tr><td class="label">Class Under Test</td><td class="value code" colspan="4"><code>UserController</code></td></tr>
+  <tr><td class="label">Test requirement</td><td class="value italic" colspan="4">Verify GET scenarios covered by the Java unit tests for UserController.</td></tr>
   <tr><th class="stats-head center">Passed</th><th class="stats-head center">Failed</th><th class="stats-head center">Untested</th><th class="stats-head center">N / A / B</th><th class="stats-head center">Total Test Cases</th></tr>
   <tr><td class="value center">2</td><td class="value center">0</td><td class="value center">0</td><td class="value center">1 / 1 / 0</td><td class="value center">2</td></tr>
 </table>
 
 <table class="matrix-table">
   <tr><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--blank"></th><th class="matrix-head matrix-head--utc"><span>UTCID01</span></th><th class="matrix-head matrix-head--utc"><span>UTCID02</span></th></tr>
-  <tr><td class="section-cell" rowspan="7">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">Required controller dependencies are mocked</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell"></td><td class="item-cell">Referenced resource or data exists for the scenario</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
-  <tr><td class="category-cell" rowspan="1">Mock State (Dependencies)</td><td class="item-cell">Service or repository behavior is stubbed for each scenario</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
+  <tr><td class="section-cell" rowspan="7">Condition</td><td class="category-cell" rowspan="2">Precondition</td><td class="item-cell">The current user is authenticated when the scenario requests account settings</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
+  <tr><td class="item-cell">The scenario may omit the token to verify unauthorized access</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="category-cell" rowspan="1">Mock State (Dependencies)</td><td class="item-cell">Service or repository behavior is configured for each scenario</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="1">HTTP Method</td><td class="item-cell">GET</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="1">API Endpoint</td><td class="item-cell">/slib/users/me</td><td class="mark-cell">O</td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="2">Input</td><td class="item-cell">View account setting</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-  <tr><td class="category-cell"></td><td class="item-cell">No token</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">No token</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
   <tr><td class="section-cell" rowspan="6">Confirm</td><td class="category-cell" rowspan="2">Return</td><td class="item-cell">200: OK</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-  <tr><td class="category-cell"></td><td class="item-cell">401: Unauthorized</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">401: Unauthorized</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="2">Exception</td><td class="item-cell">None</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-  <tr><td class="category-cell"></td><td class="item-cell">Unauthorized access</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Unauthorized access</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
   <tr><td class="category-cell" rowspan="2">Response body</td><td class="item-cell">Request succeeds for: View account setting</td><td class="mark-cell">O</td><td class="mark-cell"></td></tr>
-  <tr><td class="category-cell"></td><td class="item-cell">Error response is returned for: No token</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
+  <tr><td class="item-cell">Error response is returned for: No token</td><td class="mark-cell"></td><td class="mark-cell">O</td></tr>
   <tr><td class="section-cell" rowspan="4">Result</td><td class="category-cell"></td><td class="item-cell item-cell--result">Type (N: Normal, A: Abnormal, B: Boundary)</td><td class="mark-cell">N</td><td class="mark-cell">A</td></tr>
   <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Passed/Failed</td><td class="mark-cell">P</td><td class="mark-cell">P</td></tr>
   <tr><td class="category-cell"></td><td class="item-cell item-cell--result">Executed Date</td><td class="mark-cell">2026-04-09</td><td class="mark-cell">2026-04-09</td></tr>

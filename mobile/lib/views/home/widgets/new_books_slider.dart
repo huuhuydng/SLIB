@@ -56,37 +56,58 @@ class NewBooksSlider extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(22),
-                ),
-                child: Hero(
-                  tag: 'new_book_cover_${book.id}',
-                  child: book.coverUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: book.coverUrl,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) =>
-                              Container(color: Colors.grey[100]),
-                          errorWidget: (context, url, error) => Container(
-                            color: const Color(0xFFFFF1E8),
-                            child: Icon(
-                              Icons.menu_book_rounded,
-                              color: accentColor,
-                              size: 38,
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(22),
+                    ),
+                    child: Hero(
+                      tag: 'new_book_cover_${book.id}',
+                      child: book.coverUrl.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: book.coverUrl,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) =>
+                                  Container(color: Colors.grey[100]),
+                              errorWidget: (context, url, error) => Container(
+                                color: const Color(0xFFFFF1E8),
+                                child: Icon(
+                                  Icons.menu_book_rounded,
+                                  color: accentColor,
+                                  size: 38,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFFFFF1E8),
+                              child: Icon(
+                                Icons.menu_book_rounded,
+                                color: accentColor,
+                                size: 38,
+                              ),
                             ),
-                          ),
-                        )
-                      : Container(
-                          color: const Color(0xFFFFF1E8),
-                          child: Icon(
-                            Icons.menu_book_rounded,
-                            color: accentColor,
-                            size: 38,
-                          ),
+                    ),
+                  ),
+                  if (book.isPinned)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.96),
+                          shape: BoxShape.circle,
                         ),
-                ),
+                        child: const Icon(
+                          Icons.push_pin,
+                          size: 15,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(

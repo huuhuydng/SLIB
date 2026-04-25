@@ -103,4 +103,9 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, UUID> {
 
         @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user ORDER BY COALESCE(a.checkOutTime, a.checkInTime) DESC")
         List<AccessLog> findRecentLogs(Pageable pageable);
+
+        @Query("SELECT a FROM AccessLog a LEFT JOIN FETCH a.user " +
+                        "WHERE a.checkInTime >= :startOfDay OR a.checkOutTime >= :startOfDay " +
+                        "ORDER BY COALESCE(a.checkOutTime, a.checkInTime) DESC")
+        List<AccessLog> findRecentLogsFromStartOfDay(@Param("startOfDay") LocalDateTime startOfDay, Pageable pageable);
 }

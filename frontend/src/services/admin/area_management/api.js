@@ -234,6 +234,9 @@ export const getLayoutDraft = () =>
 export const getLayoutHistory = (limit = 20) =>
   api.get("/layout-admin/history", { params: { limit } });
 
+export const getLayoutHistoryDetail = (historyId) =>
+  api.get(`/layout-admin/history/${historyId}`);
+
 export const validateLayoutSnapshot = (payload) =>
   api.post("/layout-admin/validate", payload);
 

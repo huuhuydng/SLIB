@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { API_BASE_URL } from '../../../config/apiConfig';
 import { useToast } from '../../../components/common/ToastProvider';
 import { useConfirm } from '../../../components/common/ConfirmDialog';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -23,8 +22,7 @@ import '../../../styles/librarian/librarian-shared.css';
 import '../../../styles/librarian/CheckInOut.css';
 import '../../../styles/librarian/BookingManage.css';
 import '../../../styles/librarian/NotificationManage.css';
-import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage, batchDeleteNews } from '../../../services/librarian/newsService';
-import axios from 'axios';
+import { getAllNewsForAdmin, deleteNews, getNewsDetailForAdmin, getNewsImage, batchDeleteNews, togglePinNews } from '../../../services/librarian/newsService';
 import { sanitizeHtml } from '../../../utils/sanitizeHtml';
 
 const STATUS_OPTIONS = [
@@ -150,8 +148,9 @@ const NotificationManage = () => {
     event.stopPropagation();
     
     try {
-      await axios.patch(`${API_BASE_URL}/slib/news/admin/${id}/pin`);
+      const result = await togglePinNews(id);
       loadNotifications();
+      toast.success(result?.isPinned ? 'Đã ghim tin tức' : 'Đã bỏ ghim tin tức');
     } catch (error) {
       console.error('Error toggling pin:', error);
       toast.error('Không thể ghim/bỏ ghim tin tức');
@@ -518,6 +517,11 @@ const NotificationManage = () => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ fontWeight: 500, color: '#1e293b' }}>{item.title}</span>
                                   {item.isPinned && <span className="nt-pin-badge">Ghim</span>}
+                                  {item.pdfUrl && (
+                                    <span className="nt-pin-badge" title={item.pdfFileName || 'Có PDF đính kèm'}>
+                                      <Paperclip size={12} /> PDF
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                             )}

@@ -82,6 +82,10 @@ public class CloudinaryService {
         return uploadFileToCloudinary(file, "slib_documents", "raw");
     }
 
+    public String uploadNewsPdf(MultipartFile file) {
+        return uploadFileToCloudinary(file, "slib_news_pdfs", "raw");
+    }
+
     /**
      * XOA 1 ANH: Xoa anh tren Cloudinary theo URL
      * Dung chung cho avatar, news, chat images
@@ -90,18 +94,26 @@ public class CloudinaryService {
      * @return true neu xoa thanh cong
      */
     public boolean deleteImageByUrl(String url) {
+        return deleteFileByUrl(url, "image");
+    }
+
+    public boolean deleteRawFileByUrl(String url) {
+        return deleteFileByUrl(url, "raw");
+    }
+
+    private boolean deleteFileByUrl(String url, String resourceType) {
         if (url == null || url.isEmpty()) {
             return false;
         }
         try {
             String publicId = extractPublicIdFromUrl(url);
             if (publicId != null) {
-                cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
-                log.info("[Cloudinary] Da xoa anh: {}", publicId);
+                cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", resourceType));
+                log.info("[Cloudinary] Da xoa file {}: {}", resourceType, publicId);
                 return true;
             }
         } catch (Exception e) {
-            log.warn("[Cloudinary] Loi xoa anh {}: {}", url, e.getMessage());
+            log.warn("[Cloudinary] Loi xoa file {} {}: {}", resourceType, url, e.getMessage());
         }
         return false;
     }
